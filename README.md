@@ -41,6 +41,7 @@
 * 可序列化 `GameState`、Action-only 状态变化和 `expected_revision` 并发检查。
 * Action、Events 与最新 Snapshot 在同一事务中提交。
 * 使用 seed 和有序 Actions 进行确定性 Replay。
+* 创建对局时 seed 可留空，系统会为每局自动生成随机 seed；手动填写时仍可复现同一牌序。
 * 双方公开信息的本地规则调试模式。
 * 中文操作界面，同时显示官方日文阶段名、卡名和技能原文。
 * 已支持的完整对局流程：
@@ -71,6 +72,11 @@
   * 当前自动化范围限于 `LL-bp1-001`、`PL!-bp3-001`、`PL!N-bp1-001` 和 `PL!HS-sd1-001` 的审查切片。
 * 不支持或部分支持的卡牌语义技能可通过 replay-safe `ManualAdjustmentAction` 处理，持续调整支持 `live`、`turn` 和 `game` 生命周期。
 * 人工处理支持两阶段牌堆检查：查看牌堆顶指定数量、人工选择保留卡牌、记录是否向对手公开、选中卡加入手牌，其余进入控室。
+* Stage 附属卡与位置移动基础：
+  * Member Area 分离保存顶部 Member 与其下方的 Member/Energy。
+  * 支持附加、单卡取出、`ポジションチェンジ` 和 `フォーメーションチェンジ`。
+  * 顶部 Member 离开 Stage 时，下方 Member 进入控室，下方 Energy 返回 Energy Deck。
+  * 附属 Energy 不计入可用 Energy，也不能用于支付费用。
 * 卡图缺失时使用文字卡面降级，不由 UI 自动联网。
 
 ### 当前边界
@@ -82,7 +88,7 @@
 
 ### 尚未实现
 
-* Member 叠放及由卡牌效果产生的复杂 Stage 移动。
+* 依赖 Stage 附属卡与位置移动的卡牌技能尚未自动执行。
 * 完整卡牌技能覆盖、正式 Effect DSL schema 与完整人工审查工作流。
 * Simple AI、AI vs AI、Monte Carlo 与胜率引擎。
 * WebSocket、账户、在线多人和服务器部署。
@@ -172,10 +178,10 @@ runtime v2 不自动迁移旧的开发对局；若启动时报告 schema version
 
 当前验证基线：
 
-* 70 个 Python/pytest 测试通过。
-* 7 个 Vitest 前端组件测试通过。
+* 77 个 Python/pytest 测试通过。
+* 8 个 Vitest 前端组件测试通过。
 * TypeScript 与 Vite production build 通过。
-* Playwright 通过回合结束、进入下一回合、正式胜负、连续 Member 登场、满区域 `バトンタッチ`、技能发动与选择结算、桌面布局、移动布局和卡图降级验证。
+* Playwright 通过回合结束、进入下一回合、正式胜负、连续 Member 登场、满区域 `バトンタッチ`、技能发动与选择结算、Stage 附属卡展示、桌面布局、移动布局和卡图降级验证。
 * `npm audit` 需要可访问 npm audit endpoint；离线或受限网络环境下不计入验证基线。
 
 运行 Python 测试：
@@ -239,3 +245,4 @@ npm run test:e2e
 * [Public Release and Export Policy](specs/017-public-release-and-export-policy.spec.md)
 * [Card Data Storage](specs/018-card-data-storage.spec.md)
 * [Effect Execution MVP](specs/019-effect-execution-mvp.spec.md)
+* [Stage Attachments and Movement](specs/020-stage-attachments-and-movement.spec.md)
