@@ -1,0 +1,198 @@
+{
+  "registry_version": "effect-registry.v0",
+  "rule_version": "1.06",
+  "effects": [
+    {
+      "effect_id": "LL-bp1-001:1",
+      "card_code": "LL-bp1-001",
+      "text_revision_id": 1,
+      "raw_text_hash": "a9977e08b6d25841e2367e6bfe107b540037349432eb3b064e756f33881db429",
+      "effect_index": 1,
+      "label_ja": "【登場】控え室からメンバーカードを1枚手札に加える。",
+      "effect_type": "triggered",
+      "timing": "on_play",
+      "trigger": "member_played",
+      "frequency_limit": "none",
+      "is_optional": false,
+      "condition": {},
+      "cost": [],
+      "choice": {
+        "choice_type": "card_from_zone",
+        "zone": "waiting_room",
+        "card_type": "member",
+        "minimum": 1,
+        "maximum": 1
+      },
+      "actions": [
+        {
+          "action_type": "return_from_waiting_room"
+        }
+      ],
+      "duration": null,
+      "simulation_support": "test_validated_executable",
+      "review_status": "test_validated",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 timing framework"
+    },
+    {
+      "effect_id": "LL-bp1-001:2",
+      "card_code": "LL-bp1-001",
+      "text_revision_id": 1,
+      "raw_text_hash": "a9977e08b6d25841e2367e6bfe107b540037349432eb3b064e756f33881db429",
+      "effect_index": 2,
+      "label_ja": "【ライブ開始時】指定カードを控え室に置き、ライブの合計スコアを＋3する。",
+      "effect_type": "manual",
+      "timing": "live_start",
+      "trigger": "live_started",
+      "frequency_limit": "once_per_live",
+      "is_optional": true,
+      "condition": {},
+      "cost": [],
+      "choice": null,
+      "actions": [
+        {
+          "action_type": "manual_resolution"
+        }
+      ],
+      "duration": "live",
+      "simulation_support": "manual_resolution",
+      "review_status": "parsed_draft",
+      "source_reference": "Official card text; manual resolution retained for combined-name hand cost"
+    },
+    {
+      "effect_id": "PL!-bp3-001:1",
+      "card_code": "PL!-bp3-001",
+      "text_revision_id": 5,
+      "raw_text_hash": "03019af91423572a345dd28a3ff40213fb05239ed99452cff65fdd8c559bb476",
+      "effect_index": 1,
+      "label_ja": "【起動】【ターン1回】このメンバーをウェイトにする：カードを1枚引き、手札を1枚控え室に置く。",
+      "effect_type": "activated",
+      "timing": "activated_main",
+      "trigger": "player_activation",
+      "frequency_limit": "once_per_turn",
+      "is_optional": false,
+      "condition": {
+        "source_zone": "stage",
+        "source_orientation": "active"
+      },
+      "cost": [
+        {
+          "action_type": "apply_wait",
+          "target": "source"
+        }
+      ],
+      "choice": {
+        "choice_type": "card_from_zone",
+        "zone": "hand",
+        "minimum": 1,
+        "maximum": 1
+      },
+      "actions": [
+        {
+          "action_type": "draw_card",
+          "amount": 1
+        },
+        {
+          "action_type": "discard_from_hand"
+        }
+      ],
+      "duration": null,
+      "simulation_support": "test_validated_executable",
+      "review_status": "test_validated",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 activated ability timing"
+    },
+    {
+      "effect_id": "PL!-bp3-001:2",
+      "card_code": "PL!-bp3-001",
+      "text_revision_id": 5,
+      "raw_text_hash": "03019af91423572a345dd28a3ff40213fb05239ed99452cff65fdd8c559bb476",
+      "effect_index": 2,
+      "label_ja": "【ライブ開始時】自分のステージにいるメンバーを1人までアクティブにする。",
+      "effect_type": "triggered",
+      "timing": "live_start",
+      "trigger": "live_started",
+      "frequency_limit": "once_per_live",
+      "is_optional": true,
+      "condition": {},
+      "cost": [],
+      "choice": {
+        "choice_type": "card_from_zone",
+        "zone": "stage",
+        "card_type": "member",
+        "orientation": "wait",
+        "minimum": 0,
+        "maximum": 1
+      },
+      "actions": [
+        {
+          "action_type": "ready_member"
+        }
+      ],
+      "duration": null,
+      "simulation_support": "test_validated_executable",
+      "review_status": "test_validated",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 Live start timing"
+    },
+    {
+      "effect_id": "PL!N-bp1-001:1",
+      "card_code": "PL!N-bp1-001",
+      "text_revision_id": 2,
+      "raw_text_hash": "70f0c60f2a99a09a90f68bc763a1247d1646962e8a083665ac5fd848c813796b",
+      "effect_index": 1,
+      "label_ja": "【ライブ開始時】【E】支払ってもよい：ライブ終了時まで、【ブレード】を得る。",
+      "effect_type": "triggered",
+      "timing": "live_start",
+      "trigger": "live_started",
+      "frequency_limit": "once_per_live",
+      "is_optional": true,
+      "condition": {
+        "minimum_active_energy": 1
+      },
+      "cost": [
+        {
+          "action_type": "pay_energy",
+          "amount": 1
+        }
+      ],
+      "choice": null,
+      "actions": [
+        {
+          "action_type": "gain_blade",
+          "amount": 1
+        }
+      ],
+      "duration": "live",
+      "simulation_support": "test_validated_executable",
+      "review_status": "test_validated",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 Live start timing"
+    },
+    {
+      "effect_id": "PL!HS-sd1-001:1",
+      "card_code": "PL!HS-sd1-001",
+      "text_revision_id": 15,
+      "raw_text_hash": "976e986039b3d419f3b30ed5bdb43044d0e3301a87793f1fff54cca5a5d4fe50",
+      "effect_index": 1,
+      "label_ja": "【自動】コスト10以上の『蓮ノ空』のメンバーとのバトンタッチ時、エネルギーを2枚アクティブにする。",
+      "effect_type": "triggered",
+      "timing": "auto_event",
+      "trigger": "baton_touch_performed",
+      "frequency_limit": "none",
+      "is_optional": false,
+      "condition": {
+        "replacement_member_minimum_cost": 10,
+        "replacement_member_work_key": "hasunosora"
+      },
+      "cost": [],
+      "choice": null,
+      "actions": [
+        {
+          "action_type": "ready_energy",
+          "amount": 2
+        }
+      ],
+      "duration": null,
+      "simulation_support": "test_validated_executable",
+      "review_status": "test_validated",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 automatic ability timing"
+    }
+  ]
+}

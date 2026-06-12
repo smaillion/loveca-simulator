@@ -17,6 +17,12 @@ from loveca.simulation.models import (
     PlayerState,
     SpecialBladeHeart,
 )
+from loveca.simulation.effects import (
+    DEFAULT_EFFECT_REGISTRY,
+    EffectDefinition,
+    load_effect_registry,
+    validate_registry_for_cards,
+)
 
 
 @dataclass(frozen=True)
@@ -29,12 +35,27 @@ class MatchPlayerInput:
 def build_match_cards(
     database_path: Path,
     players: tuple[MatchPlayerInput, MatchPlayerInput],
-) -> tuple[dict[str, CardInstance], dict[str, PlayerState]]:
+    effect_registry_path: Path = DEFAULT_EFFECT_REGISTRY,
+) -> tuple[
+    dict[str, CardInstance],
+    dict[str, PlayerState],
+    str,
+    dict[str, EffectDefinition],
+]:
     if get_schema_version(database_path) != SCHEMA_VERSION:
         raise DeckDatabaseError(f"match setup requires card schema v{SCHEMA_VERSION}")
 
     with closing(connect_database(database_path)) as connection:
-        definitions = _load_definitions(connection, players)
+        requested_codes = {
+            entry.card_code
+            for player in players
+            for entry in (*player.deck.main_deck, *player.deck.energy_deck)
+        }
+        registry = load_effect_registry(effect_registry_path)
+        effects, effect_errors = validate_registry_for_cards(
+            connection, registry, requested_codes
+        )
+        definitions = _load_definitions(connection, players, effects, effect_errors)
 
     instances: dict[str, CardInstance] = {}
     states: dict[str, PlayerState] = {}
@@ -65,12 +86,14 @@ def build_match_cards(
             main_deck=main_ids,
             energy_deck=energy_ids,
         )
-    return instances, states
+    return instances, states, registry.registry_version, effects
 
 
 def _load_definitions(
     connection: sqlite3.Connection,
     players: tuple[MatchPlayerInput, MatchPlayerInput],
+    effects: dict[str, EffectDefinition],
+    effect_errors: dict[str, list[str]],
 ) -> dict[tuple[str, str | None], CardDefinition]:
     requested = {
         (entry.card_code, entry.preferred_printing_id)
@@ -83,6 +106,8 @@ def _load_definitions(
             connection,
             card_code,
             preferred_printing_id,
+            effects,
+            effect_errors,
         )
     return definitions
 
@@ -91,6 +116,8 @@ def _load_definition(
     connection: sqlite3.Connection,
     card_code: str,
     preferred_printing_id: str | None,
+    effects: dict[str, EffectDefinition],
+    effect_errors: dict[str, list[str]],
 ) -> CardDefinition:
     row = connection.execute(
         """
@@ -114,6 +141,24 @@ def _load_definition(
                     revision.revision_number DESC
                 LIMIT 1
             ) AS raw_effect_text_ja
+            ,(
+                SELECT revision.id
+                FROM card_text_revisions AS revision
+                WHERE revision.gameplay_card_id = card.id
+                ORDER BY
+                    CASE revision.revision_status WHEN 'current' THEN 0 ELSE 1 END,
+                    revision.revision_number DESC
+                LIMIT 1
+            ) AS text_revision_id
+            ,(
+                SELECT revision.raw_text_hash
+                FROM card_text_revisions AS revision
+                WHERE revision.gameplay_card_id = card.id
+                ORDER BY
+                    CASE revision.revision_status WHEN 'current' THEN 0 ELSE 1 END,
+                    revision.revision_number DESC
+                LIMIT 1
+            ) AS raw_text_hash
         FROM gameplay_cards AS card
         LEFT JOIN member_card_attributes AS member
             ON member.gameplay_card_id = card.id
@@ -163,6 +208,31 @@ def _load_definition(
             (gameplay_card_id,),
         )
     ]
+    work_keys = [
+        str(work["work_key"])
+        for work in connection.execute(
+            """
+            SELECT DISTINCT work.work_key
+            FROM gameplay_card_works AS link
+            JOIN works AS work ON work.id = link.work_id
+            WHERE link.gameplay_card_id = ?
+            ORDER BY work.work_key
+            """,
+            (gameplay_card_id,),
+        )
+    ]
+    card_effect_ids = sorted(
+        effect.effect_id
+        for effect in effects.values()
+        if effect.card_code == card_code
+    )
+    errors = effect_errors.get(card_code, [])
+    if errors:
+        registry_status = "hash_mismatch"
+    elif card_effect_ids:
+        registry_status = "supported"
+    else:
+        registry_status = "unregistered"
     blade_heart = row["member_blade_heart"] or row["live_blade_heart"]
     return CardDefinition(
         card_code=str(row["card_code"]),
@@ -177,4 +247,10 @@ def _load_definition(
         blade_heart_color_slot=blade_heart,
         special_blade_hearts=specials,
         raw_effect_text_ja=row["raw_effect_text_ja"],
+        text_revision_id=row["text_revision_id"],
+        raw_text_hash=row["raw_text_hash"],
+        work_keys=work_keys,
+        effect_ids=card_effect_ids,
+        effect_registry_status=registry_status,
+        effect_registry_errors=errors,
     )

@@ -70,6 +70,7 @@ Initial `adjustment_type` values:
 
 * `move_card`
 * `draw_card`
+* `inspect_top_cards`
 * `discard_card`
 * `ready_energy`
 * `pay_energy`
@@ -80,6 +81,21 @@ Initial `adjustment_type` values:
 * `modify_blade`
 * `set_flag`
 * `clear_flag`
+
+`inspect_top_cards` is a two-step manual operation. It moves a specified
+number of cards from the top of the main deck to the Resolution Area and
+creates a pending structured choice. The resolving Action must record:
+
+* inspected card instance IDs
+* Japanese selection criteria
+* minimum and maximum selection count
+* selected card instance IDs
+* whether selected cards are revealed to the opponent
+* selected and unselected destinations
+
+Selected cards may move to hand only after the pending choice is resolved.
+Unselected cards move to the destination required by the effect, initially
+Waiting Room. Treating this operation as ordinary `draw_card` is forbidden.
 
 ## 5. Validation Requirements
 

@@ -8,6 +8,7 @@ from pathlib import Path
 
 from loveca.decks.analyzer import DeckList, analyze_deck, load_deck
 from loveca.simulation.catalog import MatchPlayerInput, build_match_cards
+from loveca.simulation.effects import DEFAULT_EFFECT_REGISTRY
 from loveca.simulation.models import ActionRequest, ActionResult, MatchState
 from loveca.simulation.runtime import MatchRepository
 
@@ -17,8 +18,14 @@ class MatchSetupError(RuntimeError):
 
 
 class MatchService:
-    def __init__(self, card_database_path: Path, runtime_database_path: Path) -> None:
+    def __init__(
+        self,
+        card_database_path: Path,
+        runtime_database_path: Path,
+        effect_registry_path: Path = DEFAULT_EFFECT_REGISTRY,
+    ) -> None:
         self.card_database_path = card_database_path
+        self.effect_registry_path = effect_registry_path
         self.repository = MatchRepository(runtime_database_path)
 
     def create_match(
@@ -42,12 +49,18 @@ class MatchService:
             MatchPlayerInput("player_1", first_name, first_deck),
             MatchPlayerInput("player_2", second_name, second_deck),
         )
-        cards, player_states = build_match_cards(self.card_database_path, players)
+        cards, player_states, registry_version, effects = build_match_cards(
+            self.card_database_path,
+            players,
+            self.effect_registry_path,
+        )
         state = MatchState(
             match_id=resolved_id,
             seed=resolved_seed,
             players=player_states,
             cards=cards,
+            effect_registry_version=registry_version,
+            effect_definitions=effects,
         )
         return self.repository.create_match(
             state,

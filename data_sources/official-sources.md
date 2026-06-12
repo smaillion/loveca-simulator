@@ -50,3 +50,4 @@
 - Terminology normalization review: [terminology-review.md](terminology-review.md)
 - MVP rule subset review: [mvp-rule-subset-review.md](mvp-rule-subset-review.md)
 - Official rules review: [official-rules-review.md](official-rules-review.md)
+- Effect execution MVP review: [effect-execution-source-review.md](effect-execution-source-review.md)

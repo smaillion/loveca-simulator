@@ -62,20 +62,28 @@
   * 连续回合与成功 Live `3` 张正式胜利
   * 双方同时达到成功 Live `3` 张时判定平局
 * 中央 Live 区显示判定基准、Heart 消费、缺口、分数构成与结果。
-* 不支持的卡牌语义技能可通过 replay-safe `ManualAdjustmentAction` 处理，持续调整支持 `live`、`turn` 和 `game` 生命周期。
+* 技能执行基础 MVP：
+  * 版本化 `effect-registry.v0.json`，创建对局时按 Card Text Revision 和 `raw_text_hash` 校验。
+  * 技能定义快照进入 GameState，Replay 不依赖之后修改的外部注册表。
+  * `activate_effect`、`resolve_effect`、待处理技能队列和每回合使用记录。
+  * 首批支持 `登場`、`起動`、`ライブ開始時` 和 Baton Touch 自动触发。
+  * 已自动化抽牌、弃牌、控室回收、Member Active/Wait、Energy 支付/恢复和 Live 期间 Blade 增加。
+  * 当前自动化范围限于 `LL-bp1-001`、`PL!-bp3-001`、`PL!N-bp1-001` 和 `PL!HS-sd1-001` 的审查切片。
+* 不支持或部分支持的卡牌语义技能可通过 replay-safe `ManualAdjustmentAction` 处理，持续调整支持 `live`、`turn` 和 `game` 生命周期。
+* 人工处理支持两阶段牌堆检查：查看牌堆顶指定数量、人工选择保留卡牌、记录是否向对手公开、选中卡加入手牌，其余进入控室。
 * 卡图缺失时使用文字卡面降级，不由 UI 自动联网。
 
 ### 当前边界
 
 * 当前目标是人工验证规则模型，不是胜率估算或自动对战。
-* 卡牌语义技能不会根据日文原文自动执行。
+* 技能不会直接从日文原文自动解析或执行；只有注册表中通过文本 hash 校验的已审查定义可以自动执行。
 * 规则基线为本地审查的综合规则 `ver. 1.06`（2026-04-28）。
 * 当前卡牌库只包含 30 张跨产品审查样本，不是全量官方卡表。
 
 ### 尚未实现
 
 * Member 叠放及由卡牌效果产生的复杂 Stage 移动。
-* 完整卡牌技能触发、Effect DSL 与可执行效果审查流程。
+* 完整卡牌技能覆盖、正式 Effect DSL schema 与完整人工审查工作流。
 * Simple AI、AI vs AI、Monte Carlo 与胜率引擎。
 * WebSocket、账户、在线多人和服务器部署。
 * 全量官方卡牌导入。
@@ -164,10 +172,10 @@ runtime v2 不自动迁移旧的开发对局；若启动时报告 schema version
 
 当前验证基线：
 
-* 61 个 Python/pytest 测试通过。
-* Vitest 前端组件测试通过。
+* 70 个 Python/pytest 测试通过。
+* 7 个 Vitest 前端组件测试通过。
 * TypeScript 与 Vite production build 通过。
-* Playwright 通过回合结束、进入下一回合、正式胜负、连续 Member 登场、满区域 `バトンタッチ`、桌面布局、移动布局和卡图降级验证。
+* Playwright 通过回合结束、进入下一回合、正式胜负、连续 Member 登场、满区域 `バトンタッチ`、技能发动与选择结算、桌面布局、移动布局和卡图降级验证。
 * `npm audit` 需要可访问 npm audit endpoint；离线或受限网络环境下不计入验证基线。
 
 运行 Python 测试：
@@ -230,3 +238,4 @@ npm run test:e2e
 * [Terminology Normalization](specs/016-terminology-normalization.spec.md)
 * [Public Release and Export Policy](specs/017-public-release-and-export-policy.spec.md)
 * [Card Data Storage](specs/018-card-data-storage.spec.md)
+* [Effect Execution MVP](specs/019-effect-execution-mvp.spec.md)

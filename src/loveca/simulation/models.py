@@ -6,6 +6,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from loveca.simulation.effects import EffectDefinition
+
 
 RULE_VERSION = "1.06"
 MATCH_RUNTIME_SCHEMA_VERSION = 2
@@ -56,6 +58,14 @@ class CardDefinition(BaseModel):
     blade_heart_color_slot: str | None = None
     special_blade_hearts: list[SpecialBladeHeart] = Field(default_factory=list)
     raw_effect_text_ja: str | None = None
+    text_revision_id: int | None = None
+    raw_text_hash: str | None = None
+    work_keys: list[str] = Field(default_factory=list)
+    effect_ids: list[str] = Field(default_factory=list)
+    effect_registry_status: Literal[
+        "supported", "unregistered", "hash_mismatch"
+    ] = "unregistered"
+    effect_registry_errors: list[str] = Field(default_factory=list)
 
 
 class CardInstance(BaseModel):
@@ -92,6 +102,24 @@ class ManualModifier(BaseModel):
     color_slot: str | None = None
     flag: str | None = None
     value: Any = None
+    target_card_instance_id: str | None = None
+
+
+class EffectInvocation(BaseModel):
+    invocation_id: str
+    effect_id: str
+    source_card_instance_id: str
+    player_id: str
+    trigger_event: str
+    trigger_data: dict[str, Any] = Field(default_factory=dict)
+    resolution_stage: Literal["initial", "after_cost"] = "initial"
+
+
+class EffectUsage(BaseModel):
+    effect_id: str
+    source_card_instance_id: str
+    turn_number: int
+    usage_count: int = 1
 
 
 class PlayerState(BaseModel):
@@ -119,6 +147,7 @@ class PendingChoice(BaseModel):
         "mulligan",
         "live_requirements",
         "success_live",
+        "manual_card_selection",
     ]
     player_id: str
     message_ja: str
@@ -147,6 +176,10 @@ class MatchState(BaseModel):
     active_player_id: str | None = None
     players: dict[str, PlayerState]
     cards: dict[str, CardInstance]
+    effect_registry_version: str | None = None
+    effect_definitions: dict[str, EffectDefinition] = Field(default_factory=dict)
+    pending_effects: list[EffectInvocation] = Field(default_factory=list)
+    effect_usage: list[EffectUsage] = Field(default_factory=list)
     pending_choice: PendingChoice | None = None
     live_winner_ids: list[str] = Field(default_factory=list)
     live_judgment_summary: dict[str, Any] | None = None
@@ -166,6 +199,9 @@ class ActionRequest(BaseModel):
         "resolve_live_requirements",
         "manual_adjustment",
         "start_next_turn",
+        "activate_effect",
+        "resolve_effect",
+        "resolve_manual_inspection",
     ]
     expected_revision: int
     player_id: str | None = None

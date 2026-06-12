@@ -1,6 +1,10 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import App, { availableValue, resolveMemberPlaySelection } from "./App";
+import App, {
+  availableValue,
+  canResolveEffect,
+  resolveMemberPlaySelection,
+} from "./App";
 
 const placements = [
   {
@@ -107,5 +111,12 @@ describe("App", () => {
     expect(selection.selectedMemberId).toBe("member-b");
     expect(selection.selectedSlot).toBe("right");
     expect(selection.selectedMode).toBe("normal");
+  });
+
+  it("requires effect card and Energy selections before resolution", () => {
+    expect(canResolveEffect(1, 0, 0, 0)).toBe(false);
+    expect(canResolveEffect(1, 1, 1, 0)).toBe(false);
+    expect(canResolveEffect(1, 1, 1, 1)).toBe(true);
+    expect(canResolveEffect(0, 0, 0, 0)).toBe(true);
   });
 });
