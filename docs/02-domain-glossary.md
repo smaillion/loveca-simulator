@@ -68,11 +68,11 @@ Related Concepts: PlayerState, DrawCardAction, PlayMemberAction, PlayLiveAction.
 
 ### Stage
 
-Definition: The in-play zone where Member cards or other relevant cards contribute to gameplay.
+Definition: The combined in-play zone containing a player's left, center, and right Member Areas. Each area may have one top Member and Member or Energy cards placed under that Member.
 
-Purpose: Represents board presence, Heart contribution, Live support, and ongoing card state.
+Purpose: Represents board presence, position, Heart contribution, Live support, attached-card state, and movement between Member Areas. Only the top Member normally contributes Member characteristics unless an effect explicitly refers to cards under it.
 
-Related Concepts: Member, Card Instance, Zone Movement, Live Resolution.
+Related Concepts: Member, Card Instance, Member Area, Attached Card, Position Change, Formation Change, Zone Movement, Live Resolution.
 
 ### Live Area
 

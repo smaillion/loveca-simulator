@@ -46,6 +46,36 @@ The following remain outside this MVP:
 * simultaneous effects owned by different players beyond the current deterministic player boundary
 * FAQ-sensitive interactions
 
+## Stage Attachment And Movement Review
+
+Official comprehensive rules 4.5.5, 10.5.3-10.5.5, 11.10, and 11.11
+confirm the Stage model used by the rule debugger:
+
+* Member and Energy cards may be placed under a top Member.
+* Cards under a Member have no Active or Wait orientation.
+* A top Member moving between Member Areas carries its attached cards.
+* A top Member leaving the Stage causes attached Members to enter Waiting
+  Room and attached Energy to return to the Energy Deck.
+* Position Change swaps complete Member groups when the destination is
+  occupied.
+* Formation Change reassigns all current Stage Member groups atomically.
+
+Representative official card and FAQ observations:
+
+| card code | observed requirement |
+| --- | --- |
+| `PL!HS-pb1-002` | Multiple Member cards may accumulate under one Member and be counted individually. |
+| `PL!-bp6-003` | A Member card may move from hand to under a Member and later enter an empty Member Area. |
+| `PL!N-pb1-011` | Energy under a Member contributes to a continuous effect but is not available as Energy payment. |
+| `PL!N-bp3-007` | A top Member may leave as an ability cost before another Member enters the same area and receives attached Energy. |
+| `PL!HS-pb1-006` | Position Change swaps with a Member already in the destination area. |
+| `PL!SP-sd2-001` | Formation Change permits a full Stage rearrangement with one Member per area. |
+
+The Stage foundation does not automatically execute attachment-related card
+effects. A dedicated card-by-card review remains required before registry
+entries may attach a Member from hand or move a Member from under another
+Member into a top Stage position.
+
 ## Review Status
 
 The rule timing above is source-confirmed. Automated effect entries remain `test_validated_executable` until a human card-by-card rules review promotes them.

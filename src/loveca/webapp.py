@@ -70,7 +70,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
     )
     app = FastAPI(
         title="LoveCA Visual Rules Debugger",
-        version="0.3.0a1",
+        version="0.4.0a1",
     )
     app.state.settings = resolved
     app.state.match_service = service

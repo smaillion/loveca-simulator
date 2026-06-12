@@ -24,6 +24,7 @@ Current specs are requirement and architecture specifications only. They do not 
 * [017 Public Release and Export Policy](017-public-release-and-export-policy.spec.md)
 * [018 Card Data Storage](018-card-data-storage.spec.md)
 * [019 Effect Execution MVP](019-effect-execution-mvp.spec.md)
+* [020 Stage Attachments and Movement](020-stage-attachments-and-movement.spec.md)
 
 ## Dependency Graph
 
@@ -121,6 +122,13 @@ Current specs are requirement and architecture specifications only. They do not 
   -> 012 Controller and Legal Actions
   -> 015 Effect Taxonomy
   -> 018 Card Data Storage
+
+020 Stage Attachments and Movement
+  -> 002 Rule Engine
+  -> 003 GameState and Actions
+  -> 005 Action System
+  -> 008 Randomness and Replay
+  -> 012 Controller and Legal Actions
 ```
 
 ## Effect Modeling Rule

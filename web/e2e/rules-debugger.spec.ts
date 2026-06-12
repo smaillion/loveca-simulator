@@ -13,7 +13,12 @@ test("creation screen fits a mobile viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await expect(page.getByText("创建规则验证对局")).toBeVisible();
-  await expect(page.getByRole("button", { name: "创建对局" })).toBeVisible();
+  await page.getByRole("button", { name: "日本語" }).click();
+  await expect(page.getByText("ルール検証対戦を作成")).toBeVisible();
+  await expect(page.getByRole("button", { name: "対戦を作成" })).toBeVisible();
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+  ).toBe(true);
   await page.screenshot({ path: "test-results/start-mobile.png", fullPage: true });
 });
 
@@ -86,4 +91,99 @@ test("activates and resolves a reviewed card effect", async ({ page, request }) 
   await page.locator(".effect-candidates button").first().click();
   await page.getByRole("button", { name: "结算技能" }).click();
   await expect(page.getByText("待结算技能")).not.toBeVisible();
+});
+
+test("shows Stage attachments on desktop and mobile", async ({ page, request }) => {
+  const created = await request.post("/api/matches", {
+    data: {
+      player_1: {
+        name: "Stage Player",
+        deck_path: "examples/decks/sample-deck.json",
+      },
+      player_2: {
+        name: "Opponent",
+        deck_path: "examples/decks/sample-deck.json",
+      },
+      seed: 404,
+    },
+  });
+  let payload = await created.json();
+  const matchId = payload.state.match_id as string;
+
+  async function action(
+    actionType: string,
+    playerId: string | null,
+    actionPayload: Record<string, unknown> = {},
+  ) {
+    const response = await request.post(`/api/matches/${matchId}/actions`, {
+      data: {
+        action_type: actionType,
+        expected_revision: payload.state.revision,
+        player_id: playerId,
+        payload: actionPayload,
+      },
+    });
+    expect(response.ok()).toBeTruthy();
+    payload = await response.json();
+  }
+
+  await action("choose_first_player", null, { first_player_id: "player_1" });
+  await action("submit_mulligan", "player_1", { card_instance_ids: [] });
+  await action("submit_mulligan", "player_2", { card_instance_ids: [] });
+  await action("advance_phase", "player_1");
+  await action("advance_phase", "player_1");
+  await action("advance_phase", "player_1");
+
+  const player = payload.state.players.player_1;
+  const topId = player.main_deck.find(
+    (id: string) => payload.state.cards[id].card.card_type === "member",
+  );
+  const attachedMemberId = player.main_deck.find(
+    (id: string) =>
+      id !== topId && payload.state.cards[id].card.card_type === "member",
+  );
+  const energyId = player.energy_area[0];
+  await action("manual_adjustment", "player_1", {
+    reason: "Playwright Stage attachment setup",
+    adjustments: [
+      {
+        adjustment_type: "move_card",
+        target_player_id: "player_1",
+        target_card_instance_id: topId,
+        to_zone: "member_center",
+      },
+      {
+        adjustment_type: "move_card",
+        target_player_id: "player_1",
+        target_card_instance_id: attachedMemberId,
+        to_zone: "hand",
+      },
+      {
+        adjustment_type: "attach_card_under_member",
+        target_player_id: "player_1",
+        target_card_instance_id: attachedMemberId,
+        target_slot: "center",
+      },
+      {
+        adjustment_type: "attach_card_under_member",
+        target_player_id: "player_1",
+        target_card_instance_id: energyId,
+        target_slot: "center",
+      },
+    ],
+  });
+
+  await page.goto("/");
+  await page.getByText(matchId.slice(0, 8), { exact: false }).click();
+  const attachments = page.locator(".stage-attachments").filter({ hasText: "下方 2" });
+  await expect(attachments).toBeVisible();
+  await attachments.locator("summary").click();
+  await expect(attachments.locator(".stage-attachment-list button")).toHaveCount(2);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(attachments).toBeVisible();
+  const hasHorizontalOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
+  );
+  expect(hasHorizontalOverflow).toBeFalsy();
 });

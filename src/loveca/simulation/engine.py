@@ -66,6 +66,7 @@ def apply_action(state: MatchState, action: ActionRequest) -> ActionResult:
         "resolve_manual_inspection": _resolve_manual_inspection,
     }
     handlers[action.action_type](next_state, action, events)
+    _validate_stage_state(next_state)
     next_state.revision += 1
     return ActionResult(
         state=next_state,
@@ -249,6 +250,11 @@ def generate_legal_actions(state: MatchState) -> list[LegalAction]:
             options={
                 "adjustment_types": [
                     "move_card",
+                    "move_member",
+                    "attach_card_under_member",
+                    "move_attached_card",
+                    "position_change",
+                    "formation_change",
                     "draw_card",
                     "inspect_top_cards",
                     "discard_card",
@@ -286,6 +292,18 @@ def _choose_first_player(
             player.main_deck,
             state.seed,
             f"initial-main:{player_id}",
+        )
+        events.append(
+            GameEvent(
+                event_type="deck_shuffled",
+                player_id=player_id,
+                data={
+                    "zone": "main_deck",
+                    "card_count": len(player.main_deck),
+                    "reason": "match_setup",
+                },
+                source="system",
+            )
         )
         _draw(state, player_id, 6, events, reason="opening_hand")
     state.phase = "setup_mulligan_first"
@@ -502,8 +520,14 @@ def _play_member(
     for energy_id in energy_ids:
         state.cards[energy_id].orientation = "wait"
     if use_baton_touch and replaced_instance_id is not None:
-        player.member_area[slot] = None
-        player.waiting_room.append(replaced_instance_id)
+        _move_top_member_off_stage(
+            state,
+            player_id,
+            slot,
+            "waiting_room",
+            events,
+            reason="baton_touch",
+        )
         events.append(
             GameEvent(
                 event_type="baton_touch_performed",
@@ -540,6 +564,13 @@ def _play_member(
         )
     )
     if replaced_instance_id is not None and not use_baton_touch:
+        _clean_stage_attachments(
+            state,
+            player_id,
+            slot,
+            events,
+            reason="member_replaced",
+        )
         player.waiting_room.append(replaced_instance_id)
         events.append(
             GameEvent(
@@ -2030,7 +2061,17 @@ def _apply_manual_entry(
     elif adjustment_type == "move_card":
         instance_id = adjustment.get("target_card_instance_id")
         to_zone = adjustment.get("to_zone")
-        _manual_move_card(state, player_id, instance_id, to_zone)
+        _manual_move_card(state, player_id, instance_id, to_zone, events)
+    elif adjustment_type == "attach_card_under_member":
+        _attach_card_under_member(state, player_id, adjustment, events)
+    elif adjustment_type == "move_attached_card":
+        _move_attached_card(state, player_id, adjustment, events)
+    elif adjustment_type == "move_member":
+        _move_member(state, player_id, adjustment, events)
+    elif adjustment_type == "position_change":
+        _position_change(state, player_id, adjustment, events)
+    elif adjustment_type == "formation_change":
+        _formation_change(state, player_id, adjustment, events)
     elif adjustment_type in {"ready_energy", "pay_energy"}:
         instance_id = adjustment.get("target_card_instance_id")
         if instance_id not in player.energy_area:
@@ -2085,13 +2126,32 @@ def _manual_move_card(
     player_id: str,
     instance_id: Any,
     to_zone: Any,
+    events: list[GameEvent],
 ) -> None:
     if not isinstance(instance_id, str) or instance_id not in state.cards:
         raise IllegalActionError("manual move target card does not exist")
     if state.cards[instance_id].owner_id != player_id:
         raise IllegalActionError("manual move target must belong to target player")
     player = state.players[player_id]
-    was_on_stage = instance_id in player.member_area.values()
+    attached_slot = _attached_slot(player, instance_id)
+    if attached_slot is not None:
+        raise IllegalActionError(
+            "attached cards must be moved with move_attached_card"
+        )
+    stage_slot = _top_member_slot(player, instance_id)
+    was_on_stage = stage_slot is not None
+    if stage_slot is not None and to_zone not in {
+        "member_left",
+        "member_center",
+        "member_right",
+    }:
+        _clean_stage_attachments(
+            state,
+            player_id,
+            stage_slot,
+            events,
+            reason="manual_move_off_stage",
+        )
     _remove_from_player_zones(player, instance_id)
     simple_zones = {
         "hand": player.hand,
@@ -2110,13 +2170,353 @@ def _manual_move_card(
         return
     if to_zone in {"member_left", "member_center", "member_right"}:
         slot = str(to_zone).removeprefix("member_")
+        if state.cards[instance_id].card.card_type != "member":
+            raise IllegalActionError("only Member cards may enter a Member Area")
+        if was_on_stage and stage_slot == slot:
+            raise IllegalActionError("Member is already in the target area")
         if player.member_area[slot] is not None:
             raise IllegalActionError("manual move Member Area slot is occupied")
         player.member_area[slot] = instance_id
+        if was_on_stage and stage_slot is not None:
+            player.member_area_attachments[slot] = list(
+                player.member_area_attachments[stage_slot]
+            )
+            player.member_area_attachments[stage_slot] = []
+            events.append(
+                GameEvent(
+                    event_type="stage_member_group_moved",
+                    player_id=player_id,
+                    data={
+                        "card_instance_id": instance_id,
+                        "from_slot": stage_slot,
+                        "to_slot": slot,
+                        "attached_card_instance_ids": list(
+                            player.member_area_attachments[slot]
+                        ),
+                    },
+                    source="manual",
+                )
+            )
         if not was_on_stage and slot not in player.member_areas_entered_this_turn:
             player.member_areas_entered_this_turn.append(slot)
         return
     raise IllegalActionError("manual move target zone is invalid")
+
+
+def _attach_card_under_member(
+    state: MatchState,
+    player_id: str,
+    adjustment: dict[str, Any],
+    events: list[GameEvent],
+) -> None:
+    player = state.players[player_id]
+    instance_id = adjustment.get("target_card_instance_id")
+    slot = adjustment.get("target_slot")
+    if not isinstance(instance_id, str) or instance_id not in state.cards:
+        raise IllegalActionError("attachment target card does not exist")
+    if state.cards[instance_id].owner_id != player_id:
+        raise IllegalActionError("attachment target must belong to target player")
+    if slot not in player.member_area or player.member_area[slot] is None:
+        raise IllegalActionError("attachment target slot requires a top Member")
+    card_type = state.cards[instance_id].card.card_type
+    if card_type == "member":
+        if instance_id not in player.hand:
+            raise IllegalActionError("attached Member must come from hand")
+        player.hand.remove(instance_id)
+        if slot not in player.member_areas_entered_this_turn:
+            player.member_areas_entered_this_turn.append(slot)
+    elif card_type == "energy":
+        if instance_id not in player.energy_area:
+            raise IllegalActionError("attached Energy must come from Energy Area")
+        player.energy_area.remove(instance_id)
+    else:
+        raise IllegalActionError("only Member or Energy cards may be attached")
+    player.member_area_attachments[slot].append(instance_id)
+    state.cards[instance_id].face_up = True
+    events.append(
+        GameEvent(
+            event_type="card_attached_under_member",
+            player_id=player_id,
+            data={
+                "card_instance_id": instance_id,
+                "card_type": card_type,
+                "slot": slot,
+                "top_member_instance_id": player.member_area[slot],
+            },
+            source="manual",
+        )
+    )
+
+
+def _move_attached_card(
+    state: MatchState,
+    player_id: str,
+    adjustment: dict[str, Any],
+    events: list[GameEvent],
+) -> None:
+    player = state.players[player_id]
+    instance_id = adjustment.get("target_card_instance_id")
+    to_zone = adjustment.get("to_zone")
+    if not isinstance(instance_id, str) or instance_id not in state.cards:
+        raise IllegalActionError("attached card target does not exist")
+    slot = _attached_slot(player, instance_id)
+    if slot is None:
+        raise IllegalActionError("target card is not attached under a Member")
+    card = state.cards[instance_id]
+    if card.owner_id != player_id:
+        raise IllegalActionError("attached card must belong to target player")
+    if card.card.card_type == "member":
+        allowed = {
+            "hand": player.hand,
+            "waiting_room": player.waiting_room,
+        }
+        if to_zone in allowed:
+            player.member_area_attachments[slot].remove(instance_id)
+            allowed[to_zone].append(instance_id)
+        elif to_zone in {"member_left", "member_center", "member_right"}:
+            target_slot = str(to_zone).removeprefix("member_")
+            if player.member_area[target_slot] is not None:
+                raise IllegalActionError(
+                    "attached Member may only enter an empty Member Area"
+                )
+            player.member_area_attachments[slot].remove(instance_id)
+            player.member_area[target_slot] = instance_id
+        else:
+            raise IllegalActionError("attached Member destination is invalid")
+    elif card.card.card_type == "energy":
+        if to_zone == "energy_deck":
+            player.member_area_attachments[slot].remove(instance_id)
+            player.energy_deck.append(instance_id)
+            card.face_up = False
+        elif to_zone == "energy_area":
+            orientation = adjustment.get("orientation")
+            if orientation not in {"active", "wait"}:
+                raise IllegalActionError(
+                    "moving attached Energy to Energy Area requires orientation"
+                )
+            player.member_area_attachments[slot].remove(instance_id)
+            player.energy_area.append(instance_id)
+            card.face_up = True
+            card.orientation = orientation
+        else:
+            raise IllegalActionError("attached Energy destination is invalid")
+    else:
+        raise IllegalActionError("only attached Member or Energy cards may move")
+    events.append(
+        GameEvent(
+            event_type="attached_card_moved",
+            player_id=player_id,
+            data={
+                "card_instance_id": instance_id,
+                "card_type": card.card.card_type,
+                "from_slot": slot,
+                "to_zone": to_zone,
+                "orientation": (
+                    card.orientation if to_zone == "energy_area" else None
+                ),
+            },
+            source="manual",
+        )
+    )
+
+
+def _move_member(
+    state: MatchState,
+    player_id: str,
+    adjustment: dict[str, Any],
+    events: list[GameEvent],
+) -> None:
+    player = state.players[player_id]
+    instance_id = adjustment.get("target_card_instance_id")
+    to_slot = adjustment.get("to_slot")
+    if not isinstance(instance_id, str):
+        raise IllegalActionError("move_member requires a Member card instance")
+    from_slot = _top_member_slot(player, instance_id)
+    if from_slot is None:
+        raise IllegalActionError(
+            "move_member target must be a top Member currently on Stage"
+        )
+    _position_change(
+        state,
+        player_id,
+        {"from_slot": from_slot, "to_slot": to_slot},
+        events,
+    )
+
+
+def _position_change(
+    state: MatchState,
+    player_id: str,
+    adjustment: dict[str, Any],
+    events: list[GameEvent],
+) -> None:
+    player = state.players[player_id]
+    from_slot = adjustment.get("from_slot")
+    to_slot = adjustment.get("to_slot")
+    if (
+        from_slot not in player.member_area
+        or to_slot not in player.member_area
+        or from_slot == to_slot
+    ):
+        raise IllegalActionError("position_change requires two different slots")
+    moving_id = player.member_area[from_slot]
+    if moving_id is None:
+        raise IllegalActionError("position_change source slot is empty")
+    target_id = player.member_area[to_slot]
+    moving_attachments = list(player.member_area_attachments[from_slot])
+    target_attachments = list(player.member_area_attachments[to_slot])
+    player.member_area[from_slot], player.member_area[to_slot] = (
+        target_id,
+        moving_id,
+    )
+    (
+        player.member_area_attachments[from_slot],
+        player.member_area_attachments[to_slot],
+    ) = (
+        player.member_area_attachments[to_slot],
+        player.member_area_attachments[from_slot],
+    )
+    event_type = (
+        "stage_member_group_moved"
+        if target_id is None
+        else "stage_member_groups_swapped"
+    )
+    events.append(
+        GameEvent(
+            event_type=event_type,
+            player_id=player_id,
+            data={
+                "from_slot": from_slot,
+                "to_slot": to_slot,
+                "moving_member_instance_id": moving_id,
+                "target_member_instance_id": target_id,
+                "moving_attached_card_instance_ids": moving_attachments,
+                "target_attached_card_instance_ids": target_attachments,
+            },
+            source="manual",
+        )
+    )
+
+
+def _formation_change(
+    state: MatchState,
+    player_id: str,
+    adjustment: dict[str, Any],
+    events: list[GameEvent],
+) -> None:
+    player = state.players[player_id]
+    assignments = adjustment.get("slot_assignments")
+    slots = ("left", "center", "right")
+    if not isinstance(assignments, dict) or set(assignments) != set(slots):
+        raise IllegalActionError(
+            "formation_change requires left, center, and right assignments"
+        )
+    current_ids = [item for item in player.member_area.values() if item is not None]
+    assigned_ids = [assignments[slot] for slot in slots if assignments[slot] is not None]
+    if (
+        any(not isinstance(item, str) for item in assigned_ids)
+        or len(assigned_ids) != len(set(assigned_ids))
+        or set(assigned_ids) != set(current_ids)
+    ):
+        raise IllegalActionError(
+            "formation_change must assign every current top Member exactly once"
+        )
+    attachment_by_member = {
+        member_id: list(player.member_area_attachments[slot])
+        for slot, member_id in player.member_area.items()
+        if member_id is not None
+    }
+    before = dict(player.member_area)
+    before_attachments = {
+        slot: list(player.member_area_attachments[slot]) for slot in slots
+    }
+    player.member_area = {slot: assignments[slot] for slot in slots}
+    player.member_area_attachments = {
+        slot: (
+            attachment_by_member.get(assignments[slot], [])
+            if assignments[slot] is not None
+            else []
+        )
+        for slot in slots
+    }
+    events.append(
+        GameEvent(
+            event_type="stage_formation_changed",
+            player_id=player_id,
+            data={
+                "before": before,
+                "after": dict(player.member_area),
+                "before_attachments": before_attachments,
+                "after_attachments": {
+                    slot: list(player.member_area_attachments[slot])
+                    for slot in slots
+                },
+            },
+            source="manual",
+        )
+    )
+
+
+def _move_top_member_off_stage(
+    state: MatchState,
+    player_id: str,
+    slot: str,
+    to_zone: str,
+    events: list[GameEvent],
+    *,
+    reason: str,
+) -> str:
+    player = state.players[player_id]
+    instance_id = player.member_area[slot]
+    if instance_id is None:
+        raise IllegalActionError("Member Area slot is empty")
+    _clean_stage_attachments(state, player_id, slot, events, reason=reason)
+    player.member_area[slot] = None
+    if to_zone != "waiting_room":
+        raise IllegalActionError("unsupported top Member destination")
+    player.waiting_room.append(instance_id)
+    return instance_id
+
+
+def _clean_stage_attachments(
+    state: MatchState,
+    player_id: str,
+    slot: str,
+    events: list[GameEvent],
+    *,
+    reason: str,
+) -> None:
+    player = state.players[player_id]
+    attached = list(player.member_area_attachments[slot])
+    if not attached:
+        return
+    member_ids: list[str] = []
+    energy_ids: list[str] = []
+    for instance_id in attached:
+        card = state.cards[instance_id]
+        if card.card.card_type == "member":
+            player.waiting_room.append(instance_id)
+            member_ids.append(instance_id)
+        elif card.card.card_type == "energy":
+            player.energy_deck.append(instance_id)
+            card.face_up = False
+            energy_ids.append(instance_id)
+        else:
+            raise IllegalActionError("invalid attached card type")
+    player.member_area_attachments[slot] = []
+    events.append(
+        GameEvent(
+            event_type="stage_attachments_cleaned",
+            player_id=player_id,
+            data={
+                "slot": slot,
+                "reason": reason,
+                "member_to_waiting_room_instance_ids": member_ids,
+                "energy_to_energy_deck_instance_ids": energy_ids,
+            },
+            source="system",
+        )
+    )
 
 
 def _remove_from_player_zones(player: Any, instance_id: str) -> None:
@@ -2135,6 +2535,81 @@ def _remove_from_player_zones(player: Any, instance_id: str) -> None:
     for slot, current in player.member_area.items():
         if current == instance_id:
             player.member_area[slot] = None
+
+
+def _top_member_slot(player: Any, instance_id: str) -> str | None:
+    return next(
+        (slot for slot, current in player.member_area.items() if current == instance_id),
+        None,
+    )
+
+
+def _attached_slot(player: Any, instance_id: str) -> str | None:
+    return next(
+        (
+            slot
+            for slot, attached in player.member_area_attachments.items()
+            if instance_id in attached
+        ),
+        None,
+    )
+
+
+def _validate_stage_state(state: MatchState) -> None:
+    expected_slots = {"left", "center", "right"}
+    for player in state.players.values():
+        if set(player.member_area) != expected_slots:
+            raise IllegalActionError("Member Area slots are invalid")
+        if set(player.member_area_attachments) != expected_slots:
+            raise IllegalActionError("Member Area attachment slots are invalid")
+        seen: set[str] = set()
+        for slot in ("left", "center", "right"):
+            top_id = player.member_area[slot]
+            attachments = player.member_area_attachments[slot]
+            if top_id is None and attachments:
+                raise IllegalActionError(
+                    "Member Area attachments require a top Member"
+                )
+            if top_id is not None:
+                if top_id in seen:
+                    raise IllegalActionError("a card cannot occupy multiple Stage slots")
+                if state.cards[top_id].card.card_type != "member":
+                    raise IllegalActionError("top Stage cards must be Members")
+                seen.add(top_id)
+            if len(attachments) != len(set(attachments)):
+                raise IllegalActionError("attached cards must be unique")
+            for instance_id in attachments:
+                if instance_id in seen:
+                    raise IllegalActionError(
+                        "a card cannot occupy multiple Stage positions"
+                    )
+                if state.cards[instance_id].owner_id != player.player_id:
+                    raise IllegalActionError(
+                        "attached cards must belong to the Stage owner"
+                    )
+                if state.cards[instance_id].card.card_type not in {
+                    "member",
+                    "energy",
+                }:
+                    raise IllegalActionError(
+                        "only Member or Energy cards may be attached"
+                    )
+                seen.add(instance_id)
+        other_zones = (
+            player.main_deck,
+            player.energy_deck,
+            player.hand,
+            player.energy_area,
+            player.live_area,
+            player.waiting_room,
+            player.resolution_area,
+            player.success_live_area,
+        )
+        for zone in other_zones:
+            if seen.intersection(zone):
+                raise IllegalActionError(
+                    "Stage cards cannot also exist in another zone"
+                )
 
 
 def _draw(

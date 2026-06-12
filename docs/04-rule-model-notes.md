@@ -75,9 +75,15 @@ It matters for legal action generation, mulligan decisions, AI policy, and hidde
 
 ### Stage
 
-The in-play zone where Member cards and relevant active cards contribute to gameplay.
+The combined in-play zone containing the left, center, and right Member Areas.
 
-It matters for Live support, board state, and future effects.
+Each Member Area distinguishes its top Member from Member or Energy cards
+placed under that Member. Attached cards remain individually identifiable but
+do not act as top Members. Moving a top Member between Member Areas carries
+its attached cards; leaving the Stage applies type-specific cleanup.
+
+This distinction matters for Live support, position keywords, Energy
+availability, replay, and effect resolution.
 
 ### Live Area
 

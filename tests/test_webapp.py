@@ -37,6 +37,11 @@ def test_match_api_create_act_resume_and_replay(tmp_path):
     payload = response.json()
     match_id = payload["state"]["match_id"]
     assert payload["state"]["revision"] == 0
+    assert payload["state"]["players"]["player_1"]["member_area_attachments"] == {
+        "left": [],
+        "center": [],
+        "right": [],
+    }
     assert payload["legal_actions"][0]["action_type"] == "choose_first_player"
 
     action_response = client.post(

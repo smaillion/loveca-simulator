@@ -13,7 +13,7 @@ import {
   Swords,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { createMatch, getMatch, listMatches, submitAction } from "./api";
 import type {
   CardInstance,
@@ -49,22 +49,46 @@ const phaseLabels: Record<string, [string, string]> = {
   complete: ["对局结束", "対戦終了"],
 };
 
-const heartLabels: Record<string, string> = {
-  heart0: "任意",
-  heart01: "粉",
-  heart02: "红",
-  heart03: "黄",
-  heart06: "紫",
+type UiLocale = "zh" | "ja";
+
+const UiLanguageContext = createContext<{
+  locale: UiLocale;
+  setLocale: (locale: UiLocale) => void;
+}>({ locale: "zh", setLocale: () => undefined });
+
+const heartLabels: Record<UiLocale, Record<string, string>> = {
+  zh: {
+    heart0: "任意色",
+    heart01: "粉色",
+    heart02: "红色",
+    heart03: "黄色",
+    heart04: "绿色",
+    heart05: "蓝色",
+    heart06: "紫色",
+  },
+  ja: {
+    heart0: "任意色",
+    heart01: "ピンク",
+    heart02: "赤",
+    heart03: "黄",
+    heart04: "緑",
+    heart05: "青",
+    heart06: "紫",
+  },
 };
 
-const judgmentBasisLabels: Record<string, string> = {
-  no_successful_live: "双方均无满足所需 Heart 的 Live，不产生胜者",
-  only_one_player_has_successful_live: "仅一方有成功 Live，该玩家胜利",
-  equal_total_score: "双方 Live 总分相同，双方均胜利",
-  higher_total_score: "比较双方 Live 总分，较高者胜利",
+const judgmentBasisLabels: Record<string, [string, string]> = {
+  no_successful_live: ["双方均无满足所需 Heart 的 Live，不产生胜者", "双方とも必要ハートを満たすライブがなく、勝者なし"],
+  only_one_player_has_successful_live: ["仅一方有成功 Live，该玩家胜利", "一方のみ成功ライブがあり、そのプレイヤーの勝利"],
+  equal_total_score: ["双方 Live 总分相同，双方均胜利", "双方のライブ合計スコアが同じため、双方勝利"],
+  higher_total_score: ["比较双方 Live 总分，较高者胜利", "双方のライブ合計スコアを比較し、高い側の勝利"],
 };
 
 export default function App() {
+  const [locale, setLocale] = useState<UiLocale>(() => {
+    const stored = localStorage.getItem("loveca-ui-locale");
+    return stored === "ja" ? "ja" : "zh";
+  });
   const [match, setMatch] = useState<MatchPayload | null>(null);
   const [matches, setMatches] = useState<MatchSummary[]>([]);
   const [loading, setLoading] = useState(false);
@@ -76,6 +100,10 @@ export default function App() {
   useEffect(() => {
     listMatches().then(setMatches).catch(() => setMatches([]));
   }, []);
+  useEffect(() => {
+    localStorage.setItem("loveca-ui-locale", locale);
+    document.documentElement.lang = locale === "ja" ? "ja" : "zh-CN";
+  }, [locale]);
 
   async function run<T>(operation: () => Promise<T>, apply: (value: T) => void) {
     setLoading(true);
@@ -113,43 +141,51 @@ export default function App() {
 
   if (!match) {
     return (
-      <StartScreen
-        matches={matches}
-        loading={loading}
-        error={error}
-        onCreate={(input) => run(() => createMatch(input), setMatch)}
-        onResume={(id) => run(() => getMatch(id), setMatch)}
-      />
+      <UiLanguageContext.Provider value={{ locale, setLocale }}>
+        <StartScreen
+          matches={matches}
+          loading={loading}
+          error={error}
+          onCreate={(input) => run(() => createMatch(input), setMatch)}
+          onResume={(id) => run(() => getMatch(id), setMatch)}
+        />
+      </UiLanguageContext.Provider>
     );
   }
 
   return (
+    <UiLanguageContext.Provider value={{ locale, setLocale }}>
     <div className="app-shell">
       <header className="topbar">
         <div className="brand-lockup">
           <Swords size={22} />
           <div>
-            <strong>LoveCA 规则验证器</strong>
+            <strong>{locale === "zh" ? "LoveCA 规则验证器" : "LoveCA ルール検証ツール"}</strong>
             <span>総合ルール ver. {match.state.rule_version}</span>
           </div>
         </div>
         <div className="phase-status">
-          <span className="turn-number">第 {match.state.turn_number} 回合</span>
-          <span className="phase-cn">{phaseLabels[match.state.phase]?.[0]}</span>
-          <span>{phaseLabels[match.state.phase]?.[1] ?? match.state.phase}</span>
+          <span className="turn-number">
+            {locale === "zh" ? `第 ${match.state.turn_number} 回合` : `ターン ${match.state.turn_number}`}
+          </span>
+          <span className="phase-cn">
+            {phaseLabels[match.state.phase]?.[locale === "zh" ? 0 : 1] ?? match.state.phase}
+          </span>
+          {locale === "zh" && <span>{phaseLabels[match.state.phase]?.[1] ?? match.state.phase}</span>}
         </div>
         <div className="top-actions">
+          <LanguageToggle />
           <span className="revision">rev {match.state.revision}</span>
           <a
             className="icon-button"
             href={`/api/matches/${match.state.match_id}/replay`}
-            title="导出 Replay JSON"
+            title={locale === "zh" ? "导出 Replay JSON" : "リプレイ JSON を出力"}
           >
             <Download size={18} />
           </a>
           <button
             className="icon-button"
-            title="返回对局列表"
+            title={locale === "zh" ? "返回对局列表" : "対戦一覧へ戻る"}
             onClick={() => setMatch(null)}
           >
             <X size={18} />
@@ -164,7 +200,11 @@ export default function App() {
           <PlayerBoard
             player={match.state.players.player_2}
             state={match.state}
-            role={match.state.second_player_id === "player_2" ? "后攻" : "先攻"}
+            role={
+              match.state.second_player_id === "player_2"
+                ? locale === "zh" ? "后攻" : "後攻"
+                : locale === "zh" ? "先攻" : "先攻"
+            }
             compact
             onCard={setDetails}
           />
@@ -172,7 +212,11 @@ export default function App() {
           <PlayerBoard
             player={match.state.players.player_1}
             state={match.state}
-            role={match.state.first_player_id === "player_1" ? "先攻" : "后攻"}
+            role={
+              match.state.first_player_id === "player_1"
+                ? "先攻"
+                : locale === "zh" ? "后攻" : "後攻"
+            }
             onCard={setDetails}
           />
         </section>
@@ -215,6 +259,29 @@ export default function App() {
         />
       )}
     </div>
+    </UiLanguageContext.Provider>
+  );
+}
+
+function useUiLanguage() {
+  const context = useContext(UiLanguageContext);
+  return {
+    ...context,
+    tr: (zh: string, ja: string) => (context.locale === "zh" ? zh : ja),
+  };
+}
+
+function LanguageToggle() {
+  const { locale, setLocale } = useUiLanguage();
+  return (
+    <div className="language-toggle" aria-label="UI language">
+      <button className={locale === "zh" ? "selected" : ""} onClick={() => setLocale("zh")}>
+        中文
+      </button>
+      <button className={locale === "ja" ? "selected" : ""} onClick={() => setLocale("ja")}>
+        日本語
+      </button>
+    </div>
   );
 }
 
@@ -231,28 +298,35 @@ function StartScreen({
   onCreate: (input: { player1Name: string; player2Name: string; seed?: number }) => void;
   onResume: (id: string) => void;
 }) {
+  const { tr } = useUiLanguage();
   const [player1Name, setPlayer1Name] = useState("Player 1");
   const [player2Name, setPlayer2Name] = useState("Player 2");
-  const [seed, setSeed] = useState("106");
+  const [seed, setSeed] = useState("");
   return (
     <div className="start-page">
       <header className="start-header">
         <div className="brand-lockup">
           <Swords size={24} />
           <div>
-            <strong>LoveCA 规则验证器</strong>
-            <span>本地可重放规则调试环境</span>
+            <strong>{tr("LoveCA 规则验证器", "LoveCA ルール検証ツール")}</strong>
+            <span>{tr("本地可重放规则调试环境", "ローカル・リプレイ対応ルール検証環境")}</span>
           </div>
         </div>
-        <span className="local-badge">127.0.0.1 · Local</span>
+        <div className="start-actions">
+          <LanguageToggle />
+          <span className="local-badge">127.0.0.1 · Local</span>
+        </div>
       </header>
       <main className="start-grid">
         <section className="setup-panel">
           <div className="section-heading">
             <CirclePlay size={20} />
             <div>
-              <h1>创建规则验证对局</h1>
-              <p>使用已导入的 60+12 张示例牌组，运行完整对局并保留 Replay。</p>
+              <h1>{tr("创建规则验证对局", "ルール検証対戦を作成")}</h1>
+              <p>{tr(
+                "使用已导入的 60+12 张示例牌组，运行完整对局并保留 Replay。",
+                "インポート済みのサンプルデッキ（60+12枚）で対戦し、リプレイを保存します。",
+              )}</p>
             </div>
           </div>
           <div className="form-grid">
@@ -265,8 +339,13 @@ function StartScreen({
               <input value={player2Name} onChange={(e) => setPlayer2Name(e.target.value)} />
             </label>
             <label>
-              Random seed
-              <input value={seed} onChange={(e) => setSeed(e.target.value)} inputMode="numeric" />
+              {tr("随机种子（留空则每局随机）", "ランダムシード（空欄なら対戦ごとに生成）")}
+              <input
+                value={seed}
+                onChange={(e) => setSeed(e.target.value)}
+                inputMode="numeric"
+                placeholder={tr("自动生成", "自動生成")}
+              />
             </label>
             <div className="deck-source">
               <Database size={18} />
@@ -286,7 +365,7 @@ function StartScreen({
             }
           >
             {loading ? <RefreshCw className="spin" size={18} /> : <CirclePlay size={18} />}
-            创建对局
+            {tr("创建对局", "対戦を作成")}
           </button>
         </section>
 
@@ -294,12 +373,14 @@ function StartScreen({
           <div className="section-heading compact-heading">
             <History size={20} />
             <div>
-              <h2>最近对局</h2>
-              <p>从独立 runtime SQLite 恢复。</p>
+              <h2>{tr("最近对局", "最近の対戦")}</h2>
+              <p>{tr("从独立 runtime SQLite 恢复。", "専用 runtime SQLite から再開します。")}</p>
             </div>
           </div>
           <div className="match-list">
-            {matches.length === 0 && <div className="empty-state">暂无已保存对局</div>}
+            {matches.length === 0 && (
+              <div className="empty-state">{tr("暂无已保存对局", "保存済みの対戦はありません")}</div>
+            )}
             {matches.map((item) => (
               <button
                 className="match-row"
@@ -307,7 +388,11 @@ function StartScreen({
                 onClick={() => onResume(item.match_id)}
               >
                 <span>
-                  <strong>{item.status === "complete" ? "已完成" : "进行中"}</strong>
+                  <strong>
+                    {item.status === "complete"
+                      ? tr("已完成", "完了")
+                      : tr("进行中", "進行中")}
+                  </strong>
                   <small>{item.match_id.slice(0, 8)} · seed {item.seed}</small>
                 </span>
                 <span>rev {item.revision}</span>
@@ -333,6 +418,7 @@ function PlayerBoard({
   compact?: boolean;
   onCard: (card: CardInstance) => void;
 }) {
+  const { locale, tr } = useUiLanguage();
   const activeEnergy = player.energy_area.filter(
     (instanceId) => state.cards[instanceId].orientation === "active",
   ).length;
@@ -344,11 +430,11 @@ function PlayerBoard({
           <strong>{player.name}</strong>
         </div>
         <div className="player-metrics">
-          <Metric label="Deck" value={player.main_deck.length} />
+          <Metric label={tr("牌库", "デッキ")} value={player.main_deck.length} />
           <Metric label="Energy" value={player.energy_area.length} />
-          <Metric label="Active" value={activeEnergy} />
-          <Metric label="Success" value={`${player.success_live_area.length} / 3`} />
-          <Metric label="Score" value={player.live_result.total_score} />
+          <Metric label={tr("可用", "Active")} value={activeEnergy} />
+          <Metric label={tr("成功 Live", "成功ライブ")} value={`${player.success_live_area.length} / 3`} />
+          <Metric label={tr("分数", "スコア")} value={player.live_result.total_score} />
         </div>
       </div>
       <div className="zone-row">
@@ -356,18 +442,29 @@ function PlayerBoard({
         <div className="member-stage">
           {(["left", "center", "right"] as const).map((slot) => (
             <div className="member-slot" key={slot}>
-              <span>{slot === "left" ? "左" : slot === "center" ? "中" : "右"}</span>
+              <span>{memberSlotLabel(slot, locale)}</span>
               {player.member_area[slot] ? (
                 <CardTile instance={state.cards[player.member_area[slot]!]} onClick={onCard} />
               ) : (
                 <div className="slot-empty">Member</div>
               )}
+              <StageAttachments
+                ids={player.member_area_attachments?.[slot] ?? []}
+                state={state}
+                onCard={onCard}
+              />
             </div>
           ))}
         </div>
         <Zone label="Energy" ids={player.energy_area} state={state} onCard={onCard} small />
       </div>
-      <Zone label={`手牌 ${player.hand.length}`} ids={player.hand} state={state} onCard={onCard} hand />
+      <Zone
+        label={`${tr("手牌", "手札")} ${player.hand.length}`}
+        ids={player.hand}
+        state={state}
+        onCard={onCard}
+        hand
+      />
     </section>
   );
 }
@@ -401,6 +498,7 @@ function LiveAnalysisPanel({
   state: MatchState;
   onCard: (card: CardInstance) => void;
 }) {
+  const { locale, tr } = useUiLanguage();
   const visible =
     state.phase.startsWith("performance") ||
     state.phase.startsWith("yell") ||
@@ -413,9 +511,15 @@ function LiveAnalysisPanel({
     return (
       <div className="phase-track">
         <Activity size={18} />
-        <strong>{phaseLabels[state.phase]?.[0]}</strong>
-        <span>{phaseLabels[state.phase]?.[1]}</span>
-        {state.pending_choice && <em>{state.pending_choice.message_zh}</em>}
+        <strong>{phaseLabels[state.phase]?.[locale === "zh" ? 0 : 1]}</strong>
+        {locale === "zh" && <span>{phaseLabels[state.phase]?.[1]}</span>}
+        {state.pending_choice && (
+          <em>
+            {locale === "zh"
+              ? state.pending_choice.message_zh
+              : state.pending_choice.message_ja}
+          </em>
+        )}
       </div>
     );
   }
@@ -424,32 +528,38 @@ function LiveAnalysisPanel({
       <header className="live-analysis-heading">
         <div>
           <Activity size={16} />
-          <strong>Live 判定明细</strong>
+          <strong>{tr("Live 判定明细", "ライブ判定詳細")}</strong>
           <span>
-            {phaseLabels[state.phase]?.[0]} · {phaseLabels[state.phase]?.[1]}
+            {phaseLabels[state.phase]?.[locale === "zh" ? 0 : 1]}
           </span>
           <small>総合ルール 8.3.10–8.3.16 / 8.4.2–8.4.7</small>
         </div>
         <div className={`judgment-basis ${summary ? "resolved" : ""}`}>
-          <small>判定基准</small>
+          <small>{tr("判定基准", "判定基準")}</small>
           <strong>
             {summary
-              ? judgmentBasisLabels[summary.basis] ?? summary.basis
-              : "等待双方完成应援与 Heart 判定"}
+              ? judgmentBasisLabels[summary.basis]?.[locale === "zh" ? 0 : 1]
+                ?? summary.basis
+              : tr("等待双方完成应援与 Heart 判定", "双方のエールとハート判定を待っています")}
           </strong>
           {summary && (
-            <span>{winners.length > 0 ? `胜者：${winners.join("、")}` : "无胜者"}</span>
+            <span>
+              {winners.length > 0
+                ? `${tr("胜者", "勝者")}：${winners.join("、")}`
+                : tr("无胜者", "勝者なし")}
+            </span>
           )}
           {state.phase === "turn_complete" && state.next_first_player_id && (
             <span>
-              下一回合先攻：{state.players[state.next_first_player_id].name}
+              {tr("下一回合先攻", "次ターンの先攻")}：
+              {state.players[state.next_first_player_id].name}
             </span>
           )}
           {state.game_result && (
             <span className="game-result">
               {state.game_result.outcome === "draw"
-                ? "最终结果：平局"
-                : `最终胜者：${state.game_result.winner_player_ids
+                ? tr("最终结果：平局", "最終結果：引き分け")
+                : `${tr("最终胜者", "最終勝者")}：${state.game_result.winner_player_ids
                     .map((id) => state.players[id].name)
                     .join("、")}`}
             </span>
@@ -479,17 +589,18 @@ function PlayerLiveBreakdown({
   state: MatchState;
   onCard: (card: CardInstance) => void;
 }) {
+  const { tr } = useUiLanguage();
   const result = player.live_result;
   const requirementStatus =
     result.requirements_satisfied === false &&
     result.live_allocations.length === 0 &&
     result.revealed_instance_ids.length === 0
-      ? "无 Live 可判定"
+      ? tr("无 Live 可判定", "判定対象のライブなし")
       : result.requirements_satisfied === null
-      ? "尚未判定"
+      ? tr("尚未判定", "未判定")
       : result.requirements_satisfied
-        ? "所需 Heart 满足"
-        : "所需 Heart 未满足";
+        ? tr("所需 Heart 满足", "必要ハートを達成")
+        : tr("所需 Heart 未满足", "必要ハート未達成");
   return (
     <article className="live-breakdown">
       <header>
@@ -509,30 +620,30 @@ function PlayerLiveBreakdown({
         </div>
         <div className="live-metrics">
           <Metric label="Blade" value={result.blade_count} />
-          <Metric label="应援翻开" value={result.revealed_instance_ids.length} />
-          <Metric label="基础分" value={result.base_score} />
-          <Metric label="特殊加分" value={result.score_bonus} />
-          <Metric label="总分" value={result.total_score} />
+          <Metric label={tr("应援翻开", "エール公開")} value={result.revealed_instance_ids.length} />
+          <Metric label={tr("基础分", "基本スコア")} value={result.base_score} />
+          <Metric label={tr("特殊加分", "追加スコア")} value={result.score_bonus} />
+          <Metric label={tr("总分", "合計スコア")} value={result.total_score} />
         </div>
       </header>
 
       <div className="heart-ledger">
-        <HeartLine label="成员 Heart" hearts={result.member_hearts} />
-        <HeartLine label="应援 Heart" hearts={result.yell_hearts} />
+        <HeartLine label={tr("成员 Heart", "メンバーハート")} hearts={result.member_hearts} />
+        <HeartLine label={tr("应援 Heart", "エールハート")} hearts={result.yell_hearts} />
         {Object.keys(result.manual_hearts).length > 0 && (
-          <HeartLine label="人工调整" hearts={result.manual_hearts} />
+          <HeartLine label={tr("人工调整", "手動調整")} hearts={result.manual_hearts} />
         )}
         <HeartLine
-          label="Live 所有 Heart"
+          label={tr("Live 所有 Heart", "ライブで使用可能なハート")}
           hearts={result.available_hearts}
           allColor={result.all_color_hearts}
         />
       </div>
 
       <div className="yell-reveals">
-        <span>应援公开卡</span>
+        <span>{tr("应援公开卡", "エールで公開したカード")}</span>
         <div>
-          {result.revealed_instance_ids.length === 0 && <em>无</em>}
+          {result.revealed_instance_ids.length === 0 && <em>{tr("无", "なし")}</em>}
           {result.revealed_instance_ids.map((id) => (
             <button key={id} onClick={() => onCard(state.cards[id])}>
               {state.cards[id].card.name_ja}
@@ -556,7 +667,9 @@ function PlayerLiveBreakdown({
 
       <div className="allocation-list">
         {result.live_allocations.length === 0 && (
-          <div className="allocation-empty">尚无逐张 Live Heart 分配结果</div>
+          <div className="allocation-empty">
+            {tr("尚无逐张 Live Heart 分配结果", "ライブごとのハート割り当て結果はまだありません")}
+          </div>
         )}
         {result.live_allocations.map((allocation) => (
           <div
@@ -566,14 +679,16 @@ function PlayerLiveBreakdown({
             <button onClick={() => onCard(state.cards[allocation.live_instance_id])}>
               {state.cards[allocation.live_instance_id].card.name_ja}
             </button>
-            <HeartLine label="需求" hearts={allocation.required_hearts} />
+            <HeartLine label={tr("需求", "必要")} hearts={allocation.required_hearts} />
             <HeartLine
-              label="消费"
+              label={tr("消费", "使用")}
               hearts={allocation.consumed_hearts}
               allColor={allocation.all_color_hearts_used}
             />
-            <HeartLine label="缺口" hearts={allocation.missing_hearts} />
-            <strong>{allocation.satisfied ? "满足" : "失败"}</strong>
+            <HeartLine label={tr("缺口", "不足")} hearts={allocation.missing_hearts} />
+            <strong>
+              {allocation.satisfied ? tr("满足", "達成") : tr("失败", "失敗")}
+            </strong>
           </div>
         ))}
       </div>
@@ -590,6 +705,7 @@ function HeartLine({
   hearts: Record<string, number>;
   allColor?: number;
 }) {
+  const { locale } = useUiLanguage();
   const entries = Object.entries(hearts).filter(([, amount]) => amount !== 0);
   return (
     <div className="heart-line">
@@ -599,13 +715,13 @@ function HeartLine({
         {entries.map(([color, amount]) => (
           <span className={`heart-token ${color}`} key={color}>
             <i />
-            {heartLabels[color] ?? color} {amount}
+            {heartLabels[locale][color] ?? color} {amount}
           </span>
         ))}
         {allColor > 0 && (
           <span className="heart-token all-color">
             <i />
-            ALL {allColor}
+            {heartLabels[locale].heart0} {allColor}
           </span>
         )}
       </div>
@@ -628,11 +744,12 @@ function Zone({
   hand?: boolean;
   small?: boolean;
 }) {
+  const { tr } = useUiLanguage();
   return (
     <div className={`zone ${hand ? "hand-zone" : ""} ${small ? "small-zone" : ""}`}>
       <span className="zone-label">{label}</span>
       <div className="card-strip">
-        {ids.length === 0 && <span className="zone-empty">空</span>}
+        {ids.length === 0 && <span className="zone-empty">{tr("空", "空き")}</span>}
         {ids.map((id) => (
           <CardTile key={id} instance={state.cards[id]} onClick={onCard} />
         ))}
@@ -678,7 +795,45 @@ function CardTile({
   );
 }
 
+export function StageAttachments({
+  ids,
+  state,
+  onCard,
+}: {
+  ids: string[];
+  state: MatchState;
+  onCard: (card: CardInstance) => void;
+}) {
+  const { tr } = useUiLanguage();
+  if (ids.length === 0) {
+    return <span className="stage-attachments-empty">{tr("下方 0", "下 0")}</span>;
+  }
+  const memberCount = ids.filter(
+    (id) => state.cards[id].card.card_type === "member",
+  ).length;
+  const energyCount = ids.length - memberCount;
+  return (
+    <details className="stage-attachments">
+      <summary>
+        {tr("下方", "下")} {ids.length}
+        <small>
+          Member {memberCount} · Energy {energyCount}
+        </small>
+      </summary>
+      <div className="stage-attachment-list">
+        {ids.map((id) => (
+          <button key={id} onClick={() => onCard(state.cards[id])}>
+            <strong>{state.cards[id].card.name_ja}</strong>
+            <span>{state.cards[id].card.card_type}</span>
+          </button>
+        ))}
+      </div>
+    </details>
+  );
+}
+
 function EventLog({ events, state }: { events: GameEvent[]; state: MatchState }) {
+  const { tr } = useUiLanguage();
   return (
     <aside className="event-panel">
       <div className="event-heading">
@@ -687,7 +842,9 @@ function EventLog({ events, state }: { events: GameEvent[]; state: MatchState })
         <span>{events.length}</span>
       </div>
       <div className="event-list">
-        {events.length === 0 && <div className="empty-state">等待第一项 Action</div>}
+        {events.length === 0 && (
+          <div className="empty-state">{tr("等待第一项 Action", "最初のアクション待ち")}</div>
+        )}
         {[...events].reverse().map((event, index) => (
           <div className={`event-row ${event.source}`} key={`${event.event_type}-${index}`}>
             <span>{event.source}</span>
@@ -720,6 +877,7 @@ function ActionDock({
   ) => void;
   onManual: (source?: EffectInvocation) => void;
 }) {
+  const { locale, tr } = useUiLanguage();
   const [selected, setSelected] = useState<string[]>([]);
   const [liveOrder, setLiveOrder] = useState<string[]>([]);
 
@@ -758,7 +916,7 @@ function ActionDock({
                 }}
               >
                 <Settings2 size={17} />
-                {action.label_zh}
+                {locale === "zh" ? action.label_zh : action.label_ja}
               </button>
             );
           }
@@ -791,10 +949,12 @@ function ActionDock({
             const maximum = action.options.maximum as number;
             return (
               <div className="effect-resolution" key={action.action_type}>
-                <strong>检查牌堆顶卡牌</strong>
+                <strong>{tr("检查牌堆顶卡牌", "デッキ上のカードを確認")}</strong>
                 <span>
-                  选择 {minimum}–{maximum} 张
-                  {action.options.reveal_selected_to_opponent ? "，选中卡向对手公开" : ""}
+                  {tr("选择", "選択")} {minimum}–{maximum} {tr("张", "枚")}
+                  {action.options.reveal_selected_to_opponent
+                    ? tr("，选中卡向对手公开", "。選んだカードを相手に公開")
+                    : ""}
                 </span>
                 <div className="inspection-card-grid">
                   {inspected.map((instanceId) => (
@@ -817,7 +977,7 @@ function ActionDock({
                     })
                   }
                 >
-                  确认筛选结果
+                  {tr("确认筛选结果", "選択結果を確定")}
                 </button>
               </div>
             );
@@ -831,7 +991,7 @@ function ActionDock({
                 onClick={() => onAction(action.action_type, null, { first_player_id: playerId })}
               >
                 <CirclePlay size={17} />
-                {state.players[playerId].name} 先攻
+                {state.players[playerId].name} {tr("先攻", "を先攻にする")}
               </button>
             ));
           }
@@ -840,7 +1000,7 @@ function ActionDock({
             return (
               <SelectionAction
                 key={action.action_type}
-                title="选择需要调度的手牌"
+                title={tr("选择需要调度的手牌", "引き直す手札を選択")}
                 ids={hand}
                 selected={selected}
                 state={state}
@@ -858,7 +1018,7 @@ function ActionDock({
             return (
               <SelectionAction
                 key={action.action_type}
-                title="选择最多 3 张卡设置到 Live 区"
+                title={tr("选择最多 3 张卡设置到 Live 区", "ライブエリアに置くカードを3枚まで選択")}
                 ids={hand}
                 selected={selected}
                 state={state}
@@ -932,7 +1092,7 @@ function ActionDock({
                     })
                   }
                 >
-                  确认判定顺序
+                  {tr("确认判定顺序", "判定順を確定")}
                 </button>
               </div>
             );
@@ -945,7 +1105,7 @@ function ActionDock({
               onClick={() => onAction(action.action_type, action.player_id)}
             >
               <ArrowDownToLine size={17} />
-              {action.label_zh}
+              {locale === "zh" ? action.label_zh : action.label_ja}
             </button>
           );
         })}
@@ -963,6 +1123,7 @@ function InspectionCard({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const { locale } = useUiLanguage();
   const [imageFailed, setImageFailed] = useState(false);
   const card = instance.card;
   return (
@@ -986,7 +1147,9 @@ function InspectionCard({
           </div>
         )}
         <span className="inspection-select-state">
-          {selected ? "已选择" : "点击选择"}
+          {selected
+            ? locale === "zh" ? "已选择" : "選択済み"
+            : locale === "zh" ? "点击选择" : "クリックして選択"}
         </span>
       </div>
       <div className="inspection-card-details">
@@ -1000,22 +1163,36 @@ function InspectionCard({
           {card.score !== null && <><dt>Score</dt><dd>{card.score}</dd></>}
         </dl>
         {Object.keys(card.basic_hearts).length > 0 && (
-          <span>Heart: {formatHeartSummary(card.basic_hearts)}</span>
+          <span>Heart: {formatHeartSummary(card.basic_hearts, locale)}</span>
         )}
         {Object.keys(card.required_hearts).length > 0 && (
-          <span>Required: {formatHeartSummary(card.required_hearts)}</span>
+          <span>Required: {formatHeartSummary(card.required_hearts, locale)}</span>
         )}
-        <p>{card.raw_effect_text_ja ?? "効果テキストなし"}</p>
+        <p>{formatEffectText(card.raw_effect_text_ja, locale)}</p>
       </div>
     </button>
   );
 }
 
-function formatHeartSummary(hearts: Record<string, number>): string {
+export function formatHeartSummary(
+  hearts: Record<string, number>,
+  locale: UiLocale = "zh",
+): string {
   return Object.entries(hearts)
     .filter(([, amount]) => amount > 0)
-    .map(([color, amount]) => `${heartLabels[color] ?? color} ${amount}`)
+    .map(([color, amount]) => `${heartLabels[locale][color] ?? color} ${amount}`)
     .join(" / ");
+}
+
+export function formatEffectText(
+  rawText: string | null,
+  locale: UiLocale = "zh",
+): string {
+  if (!rawText) return "効果テキストなし";
+  return rawText.replace(
+    /heart0[1-6]|heart0/gi,
+    (token) => heartLabels[locale][token.toLowerCase()] ?? token,
+  );
 }
 
 function EffectActivationAction({
@@ -1033,6 +1210,7 @@ function EffectActivationAction({
     payload?: Record<string, unknown>,
   ) => void;
 }) {
+  const { locale, tr } = useUiLanguage();
   const activations = action.options.activations as Array<{
     effect_id: string;
     source_card_instance_id: string;
@@ -1041,7 +1219,7 @@ function EffectActivationAction({
   }>;
   return (
     <div className="effect-action">
-      <span className="effect-action-title">可发动技能</span>
+      <span className="effect-action-title">{tr("可发动技能", "使用可能な能力")}</span>
       <div className="effect-option-list">
         {activations.map((activation) => (
           <button
@@ -1060,7 +1238,7 @@ function EffectActivationAction({
               <strong>
                 {state.cards[activation.source_card_instance_id].card.name_ja}
               </strong>
-              <small>{activation.label_ja}</small>
+              <small>{formatEffectText(activation.label_ja, locale)}</small>
             </span>
           </button>
         ))}
@@ -1086,6 +1264,7 @@ function EffectResolutionAction({
   ) => void;
   onManual: (source?: EffectInvocation) => void;
 }) {
+  const { locale, tr } = useUiLanguage();
   const invocations = action.options.invocations as Array<{
     invocation_id: string;
     effect_id: string;
@@ -1117,7 +1296,9 @@ function EffectResolutionAction({
   return (
     <div className="effect-resolution">
       <div className="effect-resolution-header">
-        <span>待结算技能 {invocations.length > 1 ? `(${invocations.length})` : ""}</span>
+        <span>
+          {tr("待结算技能", "解決待ち能力")} {invocations.length > 1 ? `(${invocations.length})` : ""}
+        </span>
         {invocations.length > 1 && (
           <select value={current.invocation_id} onChange={(event) => setInvocationId(event.target.value)}>
             {invocations.map((item) => (
@@ -1129,7 +1310,7 @@ function EffectResolutionAction({
         )}
       </div>
       <strong>{state.cards[current.source_card_instance_id].card.name_ja}</strong>
-      <p>{current.label_ja}</p>
+      <p>{formatEffectText(current.label_ja, locale)}</p>
       {current.candidate_card_instance_ids.length > 0 && (
         <div className="effect-candidates">
           {current.candidate_card_instance_ids.map((instanceId) => (
@@ -1169,7 +1350,7 @@ function EffectResolutionAction({
         {manual ? (
           <button className="primary-button" disabled={!source} onClick={() => onManual(source)}>
             <Settings2 size={16} />
-            结构化人工处理
+            {tr("结构化人工处理", "構造化手動処理")}
           </button>
         ) : (
           <button
@@ -1192,7 +1373,7 @@ function EffectResolutionAction({
               })
             }
           >
-            结算技能
+            {tr("结算技能", "能力を解決")}
           </button>
         )}
         {current.is_optional && (
@@ -1206,7 +1387,7 @@ function EffectResolutionAction({
               })
             }
           >
-            不使用
+            {tr("不使用", "使用しない")}
           </button>
         )}
       </div>
@@ -1229,6 +1410,7 @@ function MemberPlayAction({
     payload?: Record<string, unknown>,
   ) => void;
 }) {
+  const { locale, tr } = useUiLanguage();
   const placements = action.options.placements as MemberPlacement[];
   const energy = action.options.active_energy_instance_ids as string[];
   const [selectedMemberId, setSelectedMemberId] = useState("");
@@ -1252,7 +1434,7 @@ function MemberPlayAction({
   return (
     <div className="member-play-action">
       <div className="member-play-step member-card-step">
-        <span className="member-play-label">1 · 选择 Member</span>
+        <span className="member-play-label">{tr("1 · 选择 Member", "1 · メンバーを選択")}</span>
         <div className="member-choice-strip">
           {selection.memberIds.map((instanceId) => (
             <div
@@ -1276,7 +1458,7 @@ function MemberPlayAction({
       </div>
 
       <div className="member-play-step member-target-step">
-        <span className="member-play-label">2 · 选择区域</span>
+        <span className="member-play-label">{tr("2 · 选择区域", "2 · エリアを選択")}</span>
         <div className="member-slot-options">
           {MEMBER_SLOT_DISPLAY_ORDER.map((slot) => {
             const currentId = player.member_area[slot];
@@ -1295,13 +1477,13 @@ function MemberPlayAction({
                   setSelectedPlayMode("");
                 }}
               >
-                <strong>{memberSlotLabel(slot)}</strong>
+                <strong>{memberSlotLabel(slot, locale)}</strong>
                 <span>
                   {currentId
                     ? state.cards[currentId].card.name_ja
                     : enteredThisTurn
-                      ? "本回合不可指定"
-                      : "空"}
+                      ? tr("本回合不可指定", "このターンは指定不可")
+                      : tr("空", "空き")}
                 </span>
                 {currentId && (
                   <small>cost {state.cards[currentId].card.cost ?? 0}</small>
@@ -1320,7 +1502,7 @@ function MemberPlayAction({
                 key={mode}
                 onClick={() => setSelectedPlayMode(mode)}
               >
-                {mode === "baton" ? "バトンタッチ" : "通常登场"}
+                {mode === "baton" ? "バトンタッチ" : tr("通常登场", "通常登場")}
               </button>
             ))}
           </div>
@@ -1328,30 +1510,30 @@ function MemberPlayAction({
       </div>
 
       <div className="member-payment-summary">
-        <span className="member-play-label">费用</span>
+        <span className="member-play-label">{tr("费用", "コスト")}</span>
         <dl>
           <div>
-            <dt>新 Member</dt>
+            <dt>{tr("新 Member", "新しいメンバー")}</dt>
             <dd>{newCost}</dd>
           </div>
           <div>
-            <dt>旧 Member</dt>
+            <dt>{tr("旧 Member", "元のメンバー")}</dt>
             <dd>{placement?.replaced_member_cost ?? 0}</dd>
           </div>
           <div>
-            <dt>Baton 减免</dt>
+            <dt>{tr("Baton 减免", "バトンタッチ軽減")}</dt>
             <dd>-{reduction}</dd>
           </div>
           <div>
-            <dt>Energy 总数</dt>
+            <dt>{tr("Energy 总数", "エネルギー合計")}</dt>
             <dd>{player.energy_area.length}</dd>
           </div>
           <div>
-            <dt>可用 Active</dt>
+            <dt>{tr("可用 Active", "使用可能 Active")}</dt>
             <dd>{energy.length}</dd>
           </div>
           <div className="payment-total">
-            <dt>实付 Energy</dt>
+            <dt>{tr("实付 Energy", "支払うエネルギー")}</dt>
             <dd>{placement?.payment_cost ?? 0}</dd>
           </div>
         </dl>
@@ -1368,7 +1550,7 @@ function MemberPlayAction({
             });
           }}
         >
-          {placement?.use_baton_touch ? "バトンタッチ" : "登场"}
+          {placement?.use_baton_touch ? "バトンタッチ" : tr("登场", "登場")}
         </button>
       </div>
     </div>
@@ -1392,6 +1574,7 @@ function SelectionAction({
   onToggle: (id: string) => void;
   onSubmit: () => void;
 }) {
+  const { tr } = useUiLanguage();
   return (
     <div className="selection-action">
       <span>{title}</span>
@@ -1407,7 +1590,7 @@ function SelectionAction({
         ))}
       </div>
       <button className="primary-button" onClick={onSubmit}>
-        确认 {selected.length}
+        {tr("确认", "確定")} {selected.length}
         {maximum ? ` / ${maximum}` : ""}
       </button>
     </div>
@@ -1425,6 +1608,7 @@ function ManualDrawer({
   onClose: () => void;
   onSubmit: (playerId: string, payload: Record<string, unknown>) => void;
 }) {
+  const { locale, tr } = useUiLanguage();
   const [playerId, setPlayerId] = useState(
     source?.player_id ?? state.active_player_id ?? "player_1",
   );
@@ -1438,15 +1622,97 @@ function ManualDrawer({
   const [minimum, setMinimum] = useState("0");
   const [maximum, setMaximum] = useState("1");
   const [revealSelected, setRevealSelected] = useState(true);
+  const [targetSlot, setTargetSlot] = useState<"left" | "center" | "right">("center");
+  const [fromSlot, setFromSlot] = useState<"left" | "center" | "right">("center");
+  const [toSlot, setToSlot] = useState<"left" | "center" | "right">("left");
+  const [energyOrientation, setEnergyOrientation] = useState<"active" | "wait">("active");
+  const player = state.players[playerId];
+  const attachedIds = Object.values(player.member_area_attachments ?? {}).flat();
+  const genericCards = Object.values(state.cards).filter(
+    (card) => card.owner_id === playerId && !attachedIds.includes(card.instance_id),
+  );
+  const attachableCards = [
+    ...player.hand
+      .filter((id) => state.cards[id].card.card_type === "member")
+      .map((id) => state.cards[id]),
+    ...player.energy_area
+      .filter((id) => state.cards[id].card.card_type === "energy")
+      .map((id) => state.cards[id]),
+  ];
+  const attachedCards = attachedIds.map((id) => state.cards[id]);
+  const stageCards = MEMBER_SLOT_DISPLAY_ORDER
+    .map((slot) => player.member_area[slot])
+    .filter((id): id is string => id !== null)
+    .map((id) => state.cards[id]);
+  const selectableCards =
+    type === "attach_card_under_member"
+      ? attachableCards
+      : type === "move_attached_card"
+        ? attachedCards
+        : type === "move_member"
+          ? stageCards
+          : genericCards;
+  const selectedCard = cardId ? state.cards[cardId] : null;
+  const stageMemberIds = Object.values(player.member_area).filter(
+    (id): id is string => id !== null,
+  );
+  const selectedMemberSlot = cardId
+    ? MEMBER_SLOT_DISPLAY_ORDER.find((slot) => player.member_area[slot] === cardId)
+    : undefined;
+  const [formation, setFormation] = useState<Record<"left" | "center" | "right", string>>({
+    left: player.member_area.left ?? "",
+    center: player.member_area.center ?? "",
+    right: player.member_area.right ?? "",
+  });
+  useEffect(() => {
+    setCardId("");
+    const occupied = MEMBER_SLOT_SELECTION_PRIORITY.filter(
+      (slot) => player.member_area[slot],
+    );
+    const firstOccupied = occupied[0] ?? "center";
+    setTargetSlot(firstOccupied);
+    setFromSlot(firstOccupied);
+    setToSlot(
+      MEMBER_SLOT_SELECTION_PRIORITY.find((slot) => slot !== firstOccupied)
+        ?? "left",
+    );
+    setFormation({
+      left: player.member_area.left ?? "",
+      center: player.member_area.center ?? "",
+      right: player.member_area.right ?? "",
+    });
+  }, [playerId, state.revision]);
+  useEffect(() => {
+    if (type !== "move_attached_card") {
+      return;
+    }
+    setToZone(
+      selectedCard?.card.card_type === "energy" ? "energy_area" : "hand",
+    );
+  }, [type, selectedCard?.instance_id, selectedCard?.card.card_type]);
+  const formationIds = Object.values(formation).filter(Boolean);
+  const stageAdjustmentValid =
+    type === "attach_card_under_member"
+      ? Boolean(cardId && player.member_area[targetSlot])
+      : type === "move_attached_card"
+        ? Boolean(cardId)
+        : type === "move_member"
+          ? Boolean(cardId && selectedMemberSlot && selectedMemberSlot !== toSlot)
+          : type === "position_change"
+            ? Boolean(player.member_area[fromSlot] && fromSlot !== toSlot)
+          : type === "formation_change"
+            ? formationIds.length === stageMemberIds.length
+              && new Set(formationIds).size === stageMemberIds.length
+              && stageMemberIds.every((id) => formationIds.includes(id))
+            : true;
   const persistent = ["modify_score", "modify_heart", "modify_blade", "set_flag"].includes(type);
-  const cards = Object.values(state.cards).filter((card) => card.owner_id === playerId);
   return (
     <div className="drawer-backdrop" onMouseDown={onClose}>
       <aside className="manual-drawer" onMouseDown={(event) => event.stopPropagation()}>
         <header>
           <div>
             <strong>ManualAdjustmentAction</strong>
-            <span>结构化人工规则调整</span>
+            <span>{tr("结构化人工规则调整", "構造化手動ルール調整")}</span>
             {source && (
               <span>
                 {state.cards[source.source_card_instance_id].card.name_ja} · {source.effect_id}
@@ -1458,7 +1724,7 @@ function ManualDrawer({
           </button>
         </header>
         <label>
-          Target player
+          {tr("目标玩家", "対象プレイヤー")}
           <select value={playerId} onChange={(e) => setPlayerId(e.target.value)}>
             {Object.values(state.players).map((player) => (
               <option key={player.player_id} value={player.player_id}>
@@ -1468,10 +1734,20 @@ function ManualDrawer({
           </select>
         </label>
         <label>
-          Adjustment type
-          <select value={type} onChange={(e) => setType(e.target.value)}>
+          {tr("调整类型", "調整タイプ")}
+          <select
+            value={type}
+            onChange={(e) => {
+              setType(e.target.value);
+              setCardId("");
+            }}
+          >
             {[
               "move_card",
+              "move_member",
+              "attach_card_under_member",
+              "move_attached_card",
+              "formation_change",
               "draw_card",
               "inspect_top_cards",
               "discard_card",
@@ -1483,18 +1759,56 @@ function ManualDrawer({
               "set_flag",
               "clear_flag",
             ].map((item) => (
-              <option key={item}>{item}</option>
+              <option key={item} value={item}>
+                {adjustmentTypeLabel(item, locale)}
+              </option>
             ))}
           </select>
         </label>
-        {["move_card", "discard_card", "ready_energy", "pay_energy"].includes(type) && (
+        {[
+          "move_card",
+          "move_member",
+          "attach_card_under_member",
+          "move_attached_card",
+          "discard_card",
+          "ready_energy",
+          "pay_energy",
+        ].includes(type) && (
           <label>
-            Target card
+            {tr("目标卡牌", "対象カード")}
             <select value={cardId} onChange={(e) => setCardId(e.target.value)}>
-              <option value="">请选择</option>
-              {cards.map((card) => (
+              <option value="">{tr("请选择", "選択してください")}</option>
+              {selectableCards.map((card) => (
                 <option key={card.instance_id} value={card.instance_id}>
-                  {card.card.name_ja} · {card.instance_id}
+                  {card.card.name_ja}
+                  {type === "move_member"
+                    ? ` · ${memberSlotLabel(
+                        MEMBER_SLOT_DISPLAY_ORDER.find(
+                          (slot) => player.member_area[slot] === card.instance_id,
+                        ) ?? "",
+                        locale,
+                      )}`
+                    : ` · ${card.instance_id}`}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {type === "move_member" && (
+          <label>
+            {tr("目标位置", "移動先")}
+            <select
+              value={toSlot}
+              onChange={(e) =>
+                setToSlot(e.target.value as "left" | "center" | "right")
+              }
+            >
+              {MEMBER_SLOT_DISPLAY_ORDER.map((slot) => (
+                <option disabled={slot === selectedMemberSlot} key={slot} value={slot}>
+                  {memberSlotLabel(slot, locale)} ·{" "}
+                  {player.member_area[slot]
+                    ? state.cards[player.member_area[slot]!].card.name_ja
+                    : tr("空", "空き")}
                 </option>
               ))}
             </select>
@@ -1521,13 +1835,137 @@ function ManualDrawer({
             </select>
           </label>
         )}
+        {type === "attach_card_under_member" && (
+          <label>
+            Target Member Area
+            <select
+              value={targetSlot}
+              onChange={(e) =>
+                setTargetSlot(e.target.value as "left" | "center" | "right")
+              }
+            >
+              {MEMBER_SLOT_DISPLAY_ORDER.map((slot) => (
+                <option
+                  disabled={!player.member_area[slot]}
+                  key={slot}
+                  value={slot}
+                >
+                  {memberSlotLabel(slot)} ·{" "}
+                  {player.member_area[slot]
+                    ? state.cards[player.member_area[slot]!].card.name_ja
+                    : "空"}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {type === "move_attached_card" && (
+          <>
+            <label>
+              Target zone
+              <select value={toZone} onChange={(e) => setToZone(e.target.value)}>
+                {(selectedCard?.card.card_type === "energy"
+                  ? ["energy_area", "energy_deck"]
+                  : ["hand", "waiting_room", "member_left", "member_center", "member_right"]
+                ).map((item) => (
+                  <option
+                    disabled={
+                      item.startsWith("member_")
+                      && player.member_area[
+                        item.replace("member_", "") as "left" | "center" | "right"
+                      ] !== null
+                    }
+                    key={item}
+                  >
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {selectedCard?.card.card_type === "energy" && toZone === "energy_area" && (
+              <label>
+                Energy state
+                <select
+                  value={energyOrientation}
+                  onChange={(e) =>
+                    setEnergyOrientation(e.target.value as "active" | "wait")
+                  }
+                >
+                  <option value="active">Active</option>
+                  <option value="wait">Wait</option>
+                </select>
+              </label>
+            )}
+          </>
+        )}
+        {type === "position_change" && (
+          <div className="manual-range">
+            <label>
+              From
+              <select
+                value={fromSlot}
+                onChange={(e) =>
+                  setFromSlot(e.target.value as "left" | "center" | "right")
+                }
+              >
+                {MEMBER_SLOT_DISPLAY_ORDER.map((slot) => (
+                  <option disabled={!player.member_area[slot]} key={slot} value={slot}>
+                    {memberSlotLabel(slot)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              To
+              <select
+                value={toSlot}
+                onChange={(e) =>
+                  setToSlot(e.target.value as "left" | "center" | "right")
+                }
+              >
+                {MEMBER_SLOT_DISPLAY_ORDER.map((slot) => (
+                  <option disabled={slot === fromSlot} key={slot} value={slot}>
+                    {memberSlotLabel(slot)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        )}
+        {type === "formation_change" && (
+          <div className="formation-controls">
+            {MEMBER_SLOT_DISPLAY_ORDER.map((slot) => (
+              <label key={slot}>
+                {memberSlotLabel(slot)}
+                <select
+                  value={formation[slot]}
+                  onChange={(e) =>
+                    setFormation((current) => ({
+                      ...current,
+                      [slot]: e.target.value,
+                    }))
+                  }
+                >
+                  <option value="">空</option>
+                  {stageMemberIds.map((id) => (
+                    <option key={id} value={id}>
+                      {state.cards[id].card.name_ja}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ))}
+          </div>
+        )}
         {type === "modify_heart" && (
           <label>
-            Heart color
+            {tr("Heart 颜色", "ハートの色")}
             <select value={color} onChange={(e) => setColor(e.target.value)}>
               {["heart0", "heart01", "heart02", "heart03", "heart04", "heart05", "heart06"].map(
                 (item) => (
-                  <option key={item}>{item}</option>
+                  <option key={item} value={item}>
+                    {heartLabels[locale][item]}
+                  </option>
                 ),
               )}
             </select>
@@ -1592,6 +2030,7 @@ function ManualDrawer({
         )}
         <button
           className="primary-button"
+          disabled={!stageAdjustmentValid}
           onClick={() =>
             onSubmit(playerId, {
               reason: source
@@ -1607,7 +2046,31 @@ function ManualDrawer({
                   adjustment_type: type,
                   target_player_id: playerId,
                   target_card_instance_id: cardId || undefined,
-                  to_zone: type === "move_card" ? toZone : undefined,
+                  to_zone:
+                    type === "move_card" || type === "move_attached_card"
+                      ? toZone
+                      : undefined,
+                  target_slot:
+                    type === "attach_card_under_member" ? targetSlot : undefined,
+                  from_slot: type === "position_change" ? fromSlot : undefined,
+                  to_slot:
+                    type === "position_change" || type === "move_member"
+                      ? toSlot
+                      : undefined,
+                  slot_assignments:
+                    type === "formation_change"
+                      ? {
+                          left: formation.left || null,
+                          center: formation.center || null,
+                          right: formation.right || null,
+                        }
+                      : undefined,
+                  orientation:
+                    type === "move_attached_card"
+                    && selectedCard?.card.card_type === "energy"
+                    && toZone === "energy_area"
+                      ? energyOrientation
+                      : undefined,
                   color_slot: type === "modify_heart" ? color : undefined,
                   amount: ["draw_card", "modify_score", "modify_heart", "modify_blade"].includes(type)
                     || type === "inspect_top_cards"
@@ -1633,7 +2096,7 @@ function ManualDrawer({
             })
           }
         >
-          提交结构化调整
+          {tr("提交结构化调整", "構造化調整を送信")}
         </button>
       </aside>
     </div>
@@ -1649,6 +2112,7 @@ function CardDialog({
   state: MatchState;
   onClose: () => void;
 }) {
+  const { locale, tr } = useUiLanguage();
   const effects = instance.card.effect_ids
     .map((effectId) => state.effect_definitions[effectId])
     .filter(Boolean);
@@ -1673,9 +2137,11 @@ function CardDialog({
             <Metric label="Score" value={instance.card.score ?? "-"} />
             <Metric label="State" value={instance.orientation} />
           </div>
-          <h3>官方日文效果</h3>
-          <p className="effect-text">{instance.card.raw_effect_text_ja ?? "効果テキストなし"}</p>
-          <h3>技能执行支持</h3>
+          <h3>{tr("官方日文效果", "公式日本語テキスト")}</h3>
+          <p className="effect-text">
+            {formatEffectText(instance.card.raw_effect_text_ja, locale)}
+          </p>
+          <h3>{tr("技能执行支持", "能力実行サポート")}</h3>
           <div className="effect-support-list">
             <span className={`support-status ${instance.card.effect_registry_status}`}>
               {instance.card.effect_registry_status}
@@ -1691,8 +2157,21 @@ function CardDialog({
             ))}
           </div>
           <h3>Heart</h3>
-          <code>{JSON.stringify(instance.card.basic_hearts)}</code>
-          <code>{JSON.stringify(instance.card.required_hearts)}</code>
+          {Object.keys(instance.card.basic_hearts).length > 0 && (
+            <HeartLine
+              label={tr("基本 Heart", "基本ハート")}
+              hearts={instance.card.basic_hearts}
+            />
+          )}
+          {Object.keys(instance.card.required_hearts).length > 0 && (
+            <HeartLine
+              label={tr("所需 Heart", "必要ハート")}
+              hearts={instance.card.required_hearts}
+            />
+          )}
+          {Object.keys(instance.card.basic_hearts).length === 0
+            && Object.keys(instance.card.required_hearts).length === 0
+            && <span>{tr("无", "なし")}</span>}
         </div>
       </article>
     </div>
@@ -1758,8 +2237,44 @@ type MemberPlayMode = "normal" | "baton";
 const MEMBER_SLOT_DISPLAY_ORDER = ["left", "center", "right"] as const;
 const MEMBER_SLOT_SELECTION_PRIORITY = ["center", "left", "right"] as const;
 
-function memberSlotLabel(slot: string): string {
-  return slot === "left" ? "左" : slot === "center" ? "中" : slot === "right" ? "右" : slot;
+function memberSlotLabel(slot: string, locale: UiLocale = "zh"): string {
+  if (locale === "ja") {
+    return slot === "left"
+      ? "左"
+      : slot === "center"
+        ? "中央"
+        : slot === "right"
+          ? "右"
+          : slot;
+  }
+  return slot === "left"
+    ? "左"
+    : slot === "center"
+      ? "中"
+      : slot === "right"
+        ? "右"
+        : slot;
+}
+
+function adjustmentTypeLabel(type: string, locale: UiLocale): string {
+  const labels: Record<string, [string, string]> = {
+    move_card: ["通用卡牌移动", "カードを移動"],
+    move_member: ["移动场上 Member", "ステージのメンバーを移動"],
+    attach_card_under_member: ["附加到 Member 下方", "メンバーの下に置く"],
+    move_attached_card: ["移动附属卡", "下にあるカードを移動"],
+    formation_change: ["阵型变更", "フォーメーションチェンジ"],
+    draw_card: ["抽牌", "カードを引く"],
+    inspect_top_cards: ["检查牌库顶", "デッキ上を確認"],
+    discard_card: ["手牌送入控室", "手札を控え室に置く"],
+    ready_energy: ["Energy 变为 Active", "エネルギーをActiveにする"],
+    pay_energy: ["Energy 变为 Wait", "エネルギーをWaitにする"],
+    modify_score: ["调整分数", "スコアを調整"],
+    modify_heart: ["调整 Heart", "ハートを調整"],
+    modify_blade: ["调整 Blade", "ブレードを調整"],
+    set_flag: ["设置标记", "フラグを設定"],
+    clear_flag: ["清除标记", "フラグを解除"],
+  };
+  return labels[type]?.[locale === "zh" ? 0 : 1] ?? type;
 }
 
 export function resolveMemberPlaySelection(
