@@ -17,6 +17,7 @@ from loveca.simulation.engine import RuleEngineError, generate_legal_actions
 from loveca.simulation.models import ActionRequest
 from loveca.simulation.runtime import MatchNotFoundError, MatchRuntimeError
 from loveca.simulation.service import MatchService, MatchSetupError
+from loveca.simulation.effects import DEFAULT_EFFECT_REGISTRY
 
 
 PROJECT_ROOT = Path(__file__).parents[2]
@@ -40,6 +41,7 @@ class ApiSettings(BaseModel):
     image_cache_dir: Path
     web_dist_dir: Path
     allowed_deck_root: Path = Field(default=PROJECT_ROOT)
+    effect_registry_path: Path = Field(default=DEFAULT_EFFECT_REGISTRY)
 
 
 def default_settings() -> ApiSettings:
@@ -64,10 +66,11 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
     service = MatchService(
         resolved.card_database_path,
         resolved.runtime_database_path,
+        resolved.effect_registry_path,
     )
     app = FastAPI(
         title="LoveCA Visual Rules Debugger",
-        version="0.1.0",
+        version="0.3.0a1",
     )
     app.state.settings = resolved
     app.state.match_service = service

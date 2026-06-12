@@ -7,6 +7,7 @@ import {
   Database,
   Download,
   History,
+  Play,
   RefreshCw,
   Settings2,
   Swords,
@@ -22,6 +23,7 @@ import type {
   MatchState,
   MatchSummary,
   PlayerState,
+  EffectInvocation,
 } from "./types";
 
 const phaseLabels: Record<string, [string, string]> = {
@@ -69,6 +71,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [details, setDetails] = useState<CardInstance | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
+  const [manualSource, setManualSource] = useState<EffectInvocation | null>(null);
 
   useEffect(() => {
     listMatches().then(setMatches).catch(() => setMatches([]));
@@ -182,17 +185,31 @@ export default function App() {
           actions={match.legal_actions}
           loading={loading}
           onAction={handleAction}
-          onManual={() => setManualOpen(true)}
+          onManual={(source) => {
+            setManualSource(source ?? null);
+            setManualOpen(true);
+          }}
         />
       )}
 
-      {details && <CardDialog instance={details} onClose={() => setDetails(null)} />}
+      {details && (
+        <CardDialog
+          instance={details}
+          state={match.state}
+          onClose={() => setDetails(null)}
+        />
+      )}
       {manualOpen && (
         <ManualDrawer
           state={match.state}
-          onClose={() => setManualOpen(false)}
+          source={manualSource}
+          onClose={() => {
+            setManualOpen(false);
+            setManualSource(null);
+          }}
           onSubmit={(playerId, payload) => {
             setManualOpen(false);
+            setManualSource(null);
             void handleAction("manual_adjustment", playerId, payload);
           }}
         />
@@ -701,7 +718,7 @@ function ActionDock({
     playerId?: string | null,
     payload?: Record<string, unknown>,
   ) => void;
-  onManual: () => void;
+  onManual: (source?: EffectInvocation) => void;
 }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [liveOrder, setLiveOrder] = useState<string[]>([]);
@@ -720,11 +737,89 @@ function ActionDock({
       <div className="action-controls">
         {actions.map((action) => {
           if (action.action_type === "manual_adjustment") {
+            const sources = (action.options.source_invocations ?? []) as Array<{
+              invocation_id: string;
+              effect_id: string;
+              source_card_instance_id: string;
+            }>;
             return (
-              <button className="secondary-button" key={action.action_type} onClick={onManual}>
+              <button
+                className="secondary-button"
+                key={`${action.action_type}-${sources[0]?.invocation_id ?? "general"}`}
+                onClick={() => {
+                  const source = sources[0];
+                  onManual(
+                    source
+                      ? state.pending_effects.find(
+                          (item) => item.invocation_id === source.invocation_id,
+                        )
+                      : undefined,
+                  );
+                }}
+              >
                 <Settings2 size={17} />
                 {action.label_zh}
               </button>
+            );
+          }
+          if (action.action_type === "activate_effect") {
+            return (
+              <EffectActivationAction
+                key={`${action.action_type}-${state.revision}`}
+                action={action}
+                state={state}
+                loading={loading}
+                onAction={onAction}
+              />
+            );
+          }
+          if (action.action_type === "resolve_effect") {
+            return (
+              <EffectResolutionAction
+                key={`${action.action_type}-${state.revision}`}
+                action={action}
+                state={state}
+                loading={loading}
+                onAction={onAction}
+                onManual={onManual}
+              />
+            );
+          }
+          if (action.action_type === "resolve_manual_inspection") {
+            const inspected = action.options.inspected_card_instance_ids as string[];
+            const minimum = action.options.minimum as number;
+            const maximum = action.options.maximum as number;
+            return (
+              <div className="effect-resolution" key={action.action_type}>
+                <strong>检查牌堆顶卡牌</strong>
+                <span>
+                  选择 {minimum}–{maximum} 张
+                  {action.options.reveal_selected_to_opponent ? "，选中卡向对手公开" : ""}
+                </span>
+                <div className="inspection-card-grid">
+                  {inspected.map((instanceId) => (
+                    <InspectionCard
+                      key={instanceId}
+                      instance={state.cards[instanceId]}
+                      selected={selected.includes(instanceId)}
+                      onSelect={() =>
+                        toggleSelected(selected, instanceId, setSelected, maximum)
+                      }
+                    />
+                  ))}
+                </div>
+                <button
+                  className="primary-button"
+                  disabled={selected.length < minimum || selected.length > maximum}
+                  onClick={() =>
+                    onAction(action.action_type, action.player_id, {
+                      selected_card_instance_ids: selected,
+                    })
+                  }
+                >
+                  确认筛选结果
+                </button>
+              </div>
             );
           }
           if (action.action_type === "choose_first_player") {
@@ -856,6 +951,266 @@ function ActionDock({
         })}
       </div>
     </footer>
+  );
+}
+
+function InspectionCard({
+  instance,
+  selected,
+  onSelect,
+}: {
+  instance: CardInstance;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const card = instance.card;
+  return (
+    <button
+      className={`inspection-card ${selected ? "selected" : ""}`}
+      onClick={onSelect}
+      aria-pressed={selected}
+    >
+      <div className="inspection-card-image">
+        {!imageFailed ? (
+          <img
+            src={`/api/card-images/${encodeURIComponent(card.card_id)}`}
+            alt={card.name_ja}
+            onError={() => setImageFailed(true)}
+          />
+        ) : (
+          <div className={`card-fallback ${card.card_type}`}>
+            <span>{card.card_type.toUpperCase()}</span>
+            <strong>{card.name_ja}</strong>
+            <small>{card.card_code}</small>
+          </div>
+        )}
+        <span className="inspection-select-state">
+          {selected ? "已选择" : "点击选择"}
+        </span>
+      </div>
+      <div className="inspection-card-details">
+        <div>
+          <strong>{card.name_ja}</strong>
+          <span>{card.card_type.toUpperCase()} · {card.card_code}</span>
+        </div>
+        <dl>
+          {card.cost !== null && <><dt>Cost</dt><dd>{card.cost}</dd></>}
+          {card.blade !== null && <><dt>Blade</dt><dd>{card.blade}</dd></>}
+          {card.score !== null && <><dt>Score</dt><dd>{card.score}</dd></>}
+        </dl>
+        {Object.keys(card.basic_hearts).length > 0 && (
+          <span>Heart: {formatHeartSummary(card.basic_hearts)}</span>
+        )}
+        {Object.keys(card.required_hearts).length > 0 && (
+          <span>Required: {formatHeartSummary(card.required_hearts)}</span>
+        )}
+        <p>{card.raw_effect_text_ja ?? "効果テキストなし"}</p>
+      </div>
+    </button>
+  );
+}
+
+function formatHeartSummary(hearts: Record<string, number>): string {
+  return Object.entries(hearts)
+    .filter(([, amount]) => amount > 0)
+    .map(([color, amount]) => `${heartLabels[color] ?? color} ${amount}`)
+    .join(" / ");
+}
+
+function EffectActivationAction({
+  action,
+  state,
+  loading,
+  onAction,
+}: {
+  action: LegalAction;
+  state: MatchState;
+  loading: boolean;
+  onAction: (
+    actionType: string,
+    playerId?: string | null,
+    payload?: Record<string, unknown>,
+  ) => void;
+}) {
+  const activations = action.options.activations as Array<{
+    effect_id: string;
+    source_card_instance_id: string;
+    label_ja: string;
+    frequency_limit: string;
+  }>;
+  return (
+    <div className="effect-action">
+      <span className="effect-action-title">可发动技能</span>
+      <div className="effect-option-list">
+        {activations.map((activation) => (
+          <button
+            className="effect-option"
+            disabled={loading}
+            key={`${activation.effect_id}-${activation.source_card_instance_id}`}
+            onClick={() =>
+              onAction(action.action_type, action.player_id, {
+                effect_id: activation.effect_id,
+                source_card_instance_id: activation.source_card_instance_id,
+              })
+            }
+          >
+            <Play size={16} />
+            <span>
+              <strong>
+                {state.cards[activation.source_card_instance_id].card.name_ja}
+              </strong>
+              <small>{activation.label_ja}</small>
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EffectResolutionAction({
+  action,
+  state,
+  loading,
+  onAction,
+  onManual,
+}: {
+  action: LegalAction;
+  state: MatchState;
+  loading: boolean;
+  onAction: (
+    actionType: string,
+    playerId?: string | null,
+    payload?: Record<string, unknown>,
+  ) => void;
+  onManual: (source?: EffectInvocation) => void;
+}) {
+  const invocations = action.options.invocations as Array<{
+    invocation_id: string;
+    effect_id: string;
+    source_card_instance_id: string;
+    label_ja: string;
+    is_optional: boolean;
+    simulation_support: string;
+    candidate_card_instance_ids: string[];
+    energy_instance_ids?: string[];
+    energy_required?: number;
+  }>;
+  const [invocationId, setInvocationId] = useState(invocations[0]?.invocation_id ?? "");
+  const current =
+    invocations.find((item) => item.invocation_id === invocationId) ?? invocations[0];
+  const [selectedCards, setSelectedCards] = useState<string[]>([]);
+  const [selectedEnergy, setSelectedEnergy] = useState<string[]>([]);
+
+  useEffect(() => {
+    setSelectedCards([]);
+    setSelectedEnergy([]);
+  }, [current?.invocation_id]);
+
+  if (!current) return null;
+  const source = state.pending_effects.find(
+    (item) => item.invocation_id === current.invocation_id,
+  );
+  const manual = current.simulation_support === "manual_resolution";
+  const requiredEnergy = current.energy_required ?? 0;
+  return (
+    <div className="effect-resolution">
+      <div className="effect-resolution-header">
+        <span>待结算技能 {invocations.length > 1 ? `(${invocations.length})` : ""}</span>
+        {invocations.length > 1 && (
+          <select value={current.invocation_id} onChange={(event) => setInvocationId(event.target.value)}>
+            {invocations.map((item) => (
+              <option key={item.invocation_id} value={item.invocation_id}>
+                {state.cards[item.source_card_instance_id].card.name_ja}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+      <strong>{state.cards[current.source_card_instance_id].card.name_ja}</strong>
+      <p>{current.label_ja}</p>
+      {current.candidate_card_instance_ids.length > 0 && (
+        <div className="effect-candidates">
+          {current.candidate_card_instance_ids.map((instanceId) => (
+            <button
+              className={selectedCards.includes(instanceId) ? "selected" : ""}
+              key={instanceId}
+              onClick={() => setSelectedCards([instanceId])}
+            >
+              {state.cards[instanceId].card.name_ja}
+            </button>
+          ))}
+        </div>
+      )}
+      {requiredEnergy > 0 && (
+        <div className="effect-candidates">
+          {(current.energy_instance_ids ?? []).map((instanceId) => (
+            <button
+              className={selectedEnergy.includes(instanceId) ? "selected" : ""}
+              key={instanceId}
+              onClick={() =>
+                setSelectedEnergy(
+                  selectedEnergy.includes(instanceId)
+                    ? selectedEnergy.filter((item) => item !== instanceId)
+                    : selectedEnergy.length < requiredEnergy
+                      ? [...selectedEnergy, instanceId]
+                      : selectedEnergy,
+                )
+              }
+            >
+              Energy {instanceId.split("-").at(-1)}
+            </button>
+          ))}
+          <span>{selectedEnergy.length} / {requiredEnergy}</span>
+        </div>
+      )}
+      <div className="effect-resolution-buttons">
+        {manual ? (
+          <button className="primary-button" disabled={!source} onClick={() => onManual(source)}>
+            <Settings2 size={16} />
+            结构化人工处理
+          </button>
+        ) : (
+          <button
+            className="primary-button"
+            disabled={
+              loading ||
+              !canResolveEffect(
+                current.candidate_card_instance_ids.length,
+                selectedCards.length,
+                requiredEnergy,
+                selectedEnergy.length,
+              )
+            }
+            onClick={() =>
+              onAction(action.action_type, action.player_id, {
+                invocation_id: current.invocation_id,
+                accepted: true,
+                selected_card_instance_ids: selectedCards,
+                energy_instance_ids: selectedEnergy,
+              })
+            }
+          >
+            结算技能
+          </button>
+        )}
+        {current.is_optional && (
+          <button
+            className="secondary-button"
+            disabled={loading}
+            onClick={() =>
+              onAction(action.action_type, action.player_id, {
+                invocation_id: current.invocation_id,
+                accepted: false,
+              })
+            }
+          >
+            不使用
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -1061,14 +1416,18 @@ function SelectionAction({
 
 function ManualDrawer({
   state,
+  source,
   onClose,
   onSubmit,
 }: {
   state: MatchState;
+  source: EffectInvocation | null;
   onClose: () => void;
   onSubmit: (playerId: string, payload: Record<string, unknown>) => void;
 }) {
-  const [playerId, setPlayerId] = useState(state.active_player_id ?? "player_1");
+  const [playerId, setPlayerId] = useState(
+    source?.player_id ?? state.active_player_id ?? "player_1",
+  );
   const [type, setType] = useState("modify_score");
   const [amount, setAmount] = useState("1");
   const [cardId, setCardId] = useState("");
@@ -1076,6 +1435,9 @@ function ManualDrawer({
   const [color, setColor] = useState("heart01");
   const [duration, setDuration] = useState<"live" | "turn" | "game">("live");
   const [flag, setFlag] = useState("");
+  const [minimum, setMinimum] = useState("0");
+  const [maximum, setMaximum] = useState("1");
+  const [revealSelected, setRevealSelected] = useState(true);
   const persistent = ["modify_score", "modify_heart", "modify_blade", "set_flag"].includes(type);
   const cards = Object.values(state.cards).filter((card) => card.owner_id === playerId);
   return (
@@ -1085,6 +1447,11 @@ function ManualDrawer({
           <div>
             <strong>ManualAdjustmentAction</strong>
             <span>结构化人工规则调整</span>
+            {source && (
+              <span>
+                {state.cards[source.source_card_instance_id].card.name_ja} · {source.effect_id}
+              </span>
+            )}
           </div>
           <button className="icon-button" onClick={onClose}>
             <X size={18} />
@@ -1106,6 +1473,7 @@ function ManualDrawer({
             {[
               "move_card",
               "draw_card",
+              "inspect_top_cards",
               "discard_card",
               "ready_energy",
               "pay_energy",
@@ -1165,6 +1533,38 @@ function ManualDrawer({
             </select>
           </label>
         )}
+        {type === "inspect_top_cards" && (
+          <>
+            <div className="manual-range">
+              <label>
+                最少保留
+                <input
+                  type="number"
+                  min="0"
+                  value={minimum}
+                  onChange={(event) => setMinimum(event.target.value)}
+                />
+              </label>
+              <label>
+                最多保留
+                <input
+                  type="number"
+                  min="0"
+                  value={maximum}
+                  onChange={(event) => setMaximum(event.target.value)}
+                />
+              </label>
+            </div>
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={revealSelected}
+                onChange={(event) => setRevealSelected(event.target.checked)}
+              />
+              加入手牌前向对手公开
+            </label>
+          </>
+        )}
         {persistent && (
           <label>
             Duration
@@ -1184,7 +1584,7 @@ function ManualDrawer({
             <input value={flag} onChange={(e) => setFlag(e.target.value)} />
           </label>
         )}
-        {["draw_card", "modify_score", "modify_heart", "modify_blade"].includes(type) && (
+        {["draw_card", "inspect_top_cards", "modify_score", "modify_heart", "modify_blade"].includes(type) && (
           <label>
             Amount
             <input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" />
@@ -1194,9 +1594,14 @@ function ManualDrawer({
           className="primary-button"
           onClick={() =>
             onSubmit(playerId, {
-              reason: "UI manual rule verification",
+              reason: source
+                ? `Manual resolution for ${source.effect_id}`
+                : "UI manual rule verification",
               requires_confirmation: true,
               confirmed_by: "local_debugger",
+              source_invocation_id: source?.invocation_id,
+              source_effect_id: source?.effect_id,
+              source_card_instance_id: source?.source_card_instance_id,
               adjustments: [
                 {
                   adjustment_type: type,
@@ -1205,8 +1610,21 @@ function ManualDrawer({
                   to_zone: type === "move_card" ? toZone : undefined,
                   color_slot: type === "modify_heart" ? color : undefined,
                   amount: ["draw_card", "modify_score", "modify_heart", "modify_blade"].includes(type)
+                    || type === "inspect_top_cards"
                     ? Number(amount)
                     : undefined,
+                  minimum: type === "inspect_top_cards" ? Number(minimum) : undefined,
+                  maximum: type === "inspect_top_cards" ? Number(maximum) : undefined,
+                  reveal_selected_to_opponent:
+                    type === "inspect_top_cards" ? revealSelected : undefined,
+                  source_invocation_id:
+                    type === "inspect_top_cards" ? source?.invocation_id : undefined,
+                  source_effect_id:
+                    type === "inspect_top_cards" ? source?.effect_id : undefined,
+                  source_card_instance_id:
+                    type === "inspect_top_cards"
+                      ? source?.source_card_instance_id
+                      : undefined,
                   duration: persistent ? duration : undefined,
                   flag: ["set_flag", "clear_flag"].includes(type) ? flag : undefined,
                   value: type === "set_flag" ? true : undefined,
@@ -1222,7 +1640,18 @@ function ManualDrawer({
   );
 }
 
-function CardDialog({ instance, onClose }: { instance: CardInstance; onClose: () => void }) {
+function CardDialog({
+  instance,
+  state,
+  onClose,
+}: {
+  instance: CardInstance;
+  state: MatchState;
+  onClose: () => void;
+}) {
+  const effects = instance.card.effect_ids
+    .map((effectId) => state.effect_definitions[effectId])
+    .filter(Boolean);
   return (
     <div className="dialog-backdrop" onMouseDown={onClose}>
       <article className="card-dialog" onMouseDown={(event) => event.stopPropagation()}>
@@ -1246,6 +1675,21 @@ function CardDialog({ instance, onClose }: { instance: CardInstance; onClose: ()
           </div>
           <h3>官方日文效果</h3>
           <p className="effect-text">{instance.card.raw_effect_text_ja ?? "効果テキストなし"}</p>
+          <h3>技能执行支持</h3>
+          <div className="effect-support-list">
+            <span className={`support-status ${instance.card.effect_registry_status}`}>
+              {instance.card.effect_registry_status}
+            </span>
+            {effects.map((effect) => (
+              <div key={effect.effect_id}>
+                <strong>{effect.effect_id}</strong>
+                <span>{effect.simulation_support} · {effect.review_status}</span>
+              </div>
+            ))}
+            {instance.card.effect_registry_errors.map((error) => (
+              <code key={error}>{error}</code>
+            ))}
+          </div>
           <h3>Heart</h3>
           <code>{JSON.stringify(instance.card.basic_hearts)}</code>
           <code>{JSON.stringify(instance.card.required_hearts)}</code>
@@ -1286,6 +1730,18 @@ function moveItem(items: string[], from: number, to: number): string[] {
 
 export function availableValue(current: string, available: string[]): string {
   return available.includes(current) ? current : available[0] ?? "";
+}
+
+export function canResolveEffect(
+  candidateCount: number,
+  selectedCount: number,
+  requiredEnergy: number,
+  selectedEnergyCount: number,
+): boolean {
+  return (
+    (candidateCount === 0 || selectedCount > 0) &&
+    selectedEnergyCount === requiredEnergy
+  );
 }
 
 interface MemberPlacement {

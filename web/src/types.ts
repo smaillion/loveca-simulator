@@ -19,6 +19,38 @@ export interface CardDefinition {
   blade_heart_color_slot: string | null;
   special_blade_hearts: SpecialBladeHeart[];
   raw_effect_text_ja: string | null;
+  text_revision_id: number | null;
+  raw_text_hash: string | null;
+  work_keys: string[];
+  effect_ids: string[];
+  effect_registry_status: "supported" | "unregistered" | "hash_mismatch";
+  effect_registry_errors: string[];
+}
+
+export interface EffectDefinition {
+  effect_id: string;
+  card_code: string;
+  text_revision_id: number;
+  raw_text_hash: string;
+  effect_index: number;
+  label_ja: string;
+  effect_type: string;
+  timing: string;
+  trigger: string;
+  frequency_limit: string;
+  is_optional: boolean;
+  simulation_support: string;
+  review_status: string;
+}
+
+export interface EffectInvocation {
+  invocation_id: string;
+  effect_id: string;
+  source_card_instance_id: string;
+  player_id: string;
+  trigger_event: string;
+  trigger_data: Record<string, unknown>;
+  resolution_stage: "initial" | "after_cost";
 }
 
 export interface CardInstance {
@@ -51,6 +83,7 @@ export interface PlayerState {
     color_slot: string | null;
     flag: string | null;
     value: unknown;
+    target_card_instance_id: string | null;
   }>;
   refresh_count: number;
   live_result: {
@@ -86,7 +119,11 @@ export interface PlayerState {
 }
 
 export interface PendingChoice {
-  choice_type: "mulligan" | "live_requirements" | "success_live";
+  choice_type:
+    | "mulligan"
+    | "live_requirements"
+    | "success_live"
+    | "manual_card_selection";
   player_id: string;
   message_ja: string;
   message_zh: string;
@@ -107,6 +144,15 @@ export interface MatchState {
   active_player_id: string | null;
   players: Record<string, PlayerState>;
   cards: Record<string, CardInstance>;
+  effect_registry_version: string | null;
+  effect_definitions: Record<string, EffectDefinition>;
+  pending_effects: EffectInvocation[];
+  effect_usage: Array<{
+    effect_id: string;
+    source_card_instance_id: string;
+    turn_number: number;
+    usage_count: number;
+  }>;
   pending_choice: PendingChoice | null;
   live_winner_ids: string[];
   live_judgment_summary: {

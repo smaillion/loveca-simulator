@@ -23,6 +23,7 @@ Current specs are requirement and architecture specifications only. They do not 
 * [016 Terminology Normalization](016-terminology-normalization.spec.md)
 * [017 Public Release and Export Policy](017-public-release-and-export-policy.spec.md)
 * [018 Card Data Storage](018-card-data-storage.spec.md)
+* [019 Effect Execution MVP](019-effect-execution-mvp.spec.md)
 
 ## Dependency Graph
 
@@ -58,6 +59,7 @@ Current specs are requirement and architecture specifications only. They do not 
   -> 001 Deck Analyzer
   -> 007 Effect DSL
   -> 014 Data Importer
+  -> 019 Effect Execution MVP
 
 000 Card Database
   -> 001 Deck Analyzer
@@ -109,6 +111,16 @@ Current specs are requirement and architecture specifications only. They do not 
   -> 008 Randomness and Replay
   -> 010 Simple AI
   -> 011 Simulator MVP
+
+019 Effect Execution MVP
+  -> 002 Rule Engine
+  -> 003 GameState and Actions
+  -> 005 Action System
+  -> 007 Effect DSL
+  -> 008 Randomness and Replay
+  -> 012 Controller and Legal Actions
+  -> 015 Effect Taxonomy
+  -> 018 Card Data Storage
 ```
 
 ## Effect Modeling Rule

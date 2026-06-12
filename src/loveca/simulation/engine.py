@@ -14,6 +14,8 @@ from loveca.simulation.models import (
     GameEvent,
     LegalAction,
     LivePerformanceResult,
+    EffectInvocation,
+    EffectUsage,
     ManualModifier,
     MatchState,
     PendingChoice,
@@ -40,6 +42,12 @@ def apply_action(state: MatchState, action: ActionRequest) -> ActionResult:
         )
     if state.phase == "complete":
         raise IllegalActionError("the match is complete")
+    if state.pending_effects and action.action_type not in {
+        "resolve_effect",
+        "manual_adjustment",
+        "resolve_manual_inspection",
+    }:
+        raise IllegalActionError("a pending card effect must be resolved first")
 
     next_state = state.model_copy(deep=True)
     events: list[GameEvent] = []
@@ -53,6 +61,9 @@ def apply_action(state: MatchState, action: ActionRequest) -> ActionResult:
         "resolve_live_requirements": _resolve_live_requirements,
         "manual_adjustment": _manual_adjustment,
         "start_next_turn": _start_next_turn,
+        "activate_effect": _activate_effect,
+        "resolve_effect": _resolve_effect,
+        "resolve_manual_inspection": _resolve_manual_inspection,
     }
     handlers[action.action_type](next_state, action, events)
     next_state.revision += 1
@@ -66,6 +77,21 @@ def apply_action(state: MatchState, action: ActionRequest) -> ActionResult:
 def generate_legal_actions(state: MatchState) -> list[LegalAction]:
     if state.phase == "complete":
         return []
+    if (
+        state.pending_choice is not None
+        and state.pending_choice.choice_type == "manual_card_selection"
+    ):
+        return [
+            LegalAction(
+                action_type="resolve_manual_inspection",
+                player_id=state.pending_choice.player_id,
+                label_zh="提交牌堆检查结果",
+                label_ja="確認したカードの処理を確定",
+                options=state.pending_choice.options,
+            )
+        ]
+    if state.pending_effects:
+        return _pending_effect_legal_actions(state)
     if state.phase == "turn_complete":
         return [
             LegalAction(
@@ -100,13 +126,26 @@ def generate_legal_actions(state: MatchState) -> list[LegalAction]:
                     options=state.pending_choice.options,
                 )
             )
-        else:
+        elif state.pending_choice.choice_type in {
+            "live_requirements",
+            "success_live",
+        }:
             actions.append(
                 LegalAction(
                     action_type="resolve_live_requirements",
                     player_id=state.pending_choice.player_id,
                     label_zh="提交 Live 判定选择",
                     label_ja="ライブ判定の選択を確定",
+                    options=state.pending_choice.options,
+                )
+            )
+        else:
+            actions.append(
+                LegalAction(
+                    action_type="resolve_manual_inspection",
+                    player_id=state.pending_choice.player_id,
+                    label_zh="提交牌堆检查结果",
+                    label_ja="確認したカードの処理を確定",
                     options=state.pending_choice.options,
                 )
             )
@@ -167,6 +206,17 @@ def generate_legal_actions(state: MatchState) -> list[LegalAction]:
                     },
                 )
             )
+        activations = _legal_effect_activations(state, player.player_id)
+        if activations:
+            actions.append(
+                LegalAction(
+                    action_type="activate_effect",
+                    player_id=player.player_id,
+                    label_zh="发动技能",
+                    label_ja="能力を起動",
+                    options={"activations": activations},
+                )
+            )
         actions.append(
             LegalAction(
                 action_type="end_main_phase",
@@ -200,6 +250,7 @@ def generate_legal_actions(state: MatchState) -> list[LegalAction]:
                 "adjustment_types": [
                     "move_card",
                     "draw_card",
+                    "inspect_top_cards",
                     "discard_card",
                     "ready_energy",
                     "pay_energy",
@@ -334,9 +385,30 @@ def _advance_phase(
     if state.phase in {"performance_first", "performance_second"}:
         player_id = state.active_player_id or ""
         _reveal_current_live_cards(state, events)
-        state.phase = (
+        if state.players[player_id].live_area:
+            live_sources = [
+                instance_id
+                for instance_id in state.players[player_id].member_area.values()
+                if instance_id is not None
+            ]
+            live_sources.extend(state.players[player_id].live_area)
+            _queue_triggered_effects(
+                state,
+                "live_started",
+                events,
+                source_instance_ids=live_sources,
+                trigger_data={
+                    "turn_number": state.turn_number,
+                    "performance_player_id": player_id,
+                },
+            )
+            _resolve_automatic_effects(state, events)
+        next_phase = (
             "yell_first" if state.phase == "performance_first" else "yell_second"
         )
+        if state.pending_effects:
+            return
+        state.phase = next_phase
         events.append(
             GameEvent(
                 event_type="phase_changed",
@@ -480,6 +552,25 @@ def _play_member(
                 },
             )
         )
+    if use_baton_touch and replaced_instance_id is not None:
+        _queue_triggered_effects(
+            state,
+            "baton_touch_performed",
+            events,
+            source_instance_ids=[replaced_instance_id],
+            trigger_data={
+                "replacement_card_instance_id": instance_id,
+                "replaced_card_instance_id": replaced_instance_id,
+            },
+        )
+    _queue_triggered_effects(
+        state,
+        "member_played",
+        events,
+        source_instance_ids=[instance_id],
+        trigger_data={"card_instance_id": instance_id, "slot": slot},
+    )
+    _resolve_automatic_effects(state, events)
 
 
 def _end_main_phase(
@@ -605,22 +696,60 @@ def _manual_adjustment(
     action: ActionRequest,
     events: list[GameEvent],
 ) -> None:
+    source_invocation_id = action.payload.get("source_invocation_id")
+    source_effect_id = action.payload.get("source_effect_id")
+    if state.pending_effects and source_invocation_id is None:
+        raise IllegalActionError(
+            "pending effects require a source_invocation_id for manual adjustment"
+        )
+    if source_invocation_id is not None:
+        invocation = _find_pending_invocation(state, source_invocation_id)
+        if source_effect_id != invocation.effect_id:
+            raise IllegalActionError("manual adjustment source effect does not match")
+        effect = state.effect_definitions.get(invocation.effect_id)
+        if effect is None or effect.simulation_support != "manual_resolution":
+            raise IllegalActionError("pending effect does not allow manual resolution")
+        if action.payload.get("source_card_instance_id") != invocation.source_card_instance_id:
+            raise IllegalActionError("manual adjustment source card does not match")
     adjustments = action.payload.get("adjustments")
     if not isinstance(adjustments, list) or not adjustments:
         raise IllegalActionError("manual_adjustment requires at least one adjustment")
+    inspection_count = sum(
+        isinstance(item, dict)
+        and item.get("adjustment_type") == "inspect_top_cards"
+        for item in adjustments
+    )
+    if inspection_count and (inspection_count != 1 or len(adjustments) != 1):
+        raise IllegalActionError(
+            "inspect_top_cards must be the only manual adjustment entry"
+        )
     if action.payload.get("requires_confirmation") and not action.payload.get(
         "confirmed_by"
     ):
         raise IllegalActionError("confirmed_by is required for confirmed adjustments")
     action_key = action.action_id or f"revision-{state.revision}"
+    starts_inspection = False
     for adjustment_index, adjustment in enumerate(adjustments):
         if not isinstance(adjustment, dict):
             raise IllegalActionError("manual adjustment entries must be objects")
+        resolved_adjustment = dict(adjustment)
+        if resolved_adjustment.get("adjustment_type") == "inspect_top_cards":
+            resolved_adjustment.setdefault(
+                "source_invocation_id", source_invocation_id
+            )
+            resolved_adjustment.setdefault("source_effect_id", source_effect_id)
+            resolved_adjustment.setdefault(
+                "source_card_instance_id",
+                action.payload.get("source_card_instance_id"),
+            )
         _apply_manual_entry(
             state,
-            adjustment,
+            resolved_adjustment,
             events,
             modifier_id=f"{action_key}:{adjustment_index}",
+        )
+        starts_inspection = starts_inspection or (
+            adjustment.get("adjustment_type") == "inspect_top_cards"
         )
     events.append(
         GameEvent(
@@ -630,10 +759,703 @@ def _manual_adjustment(
                 "reason": action.payload.get("reason"),
                 "adjustments": adjustments,
                 "confirmed_by": action.payload.get("confirmed_by"),
+                "source_effect_id": source_effect_id,
+                "source_card_instance_id": action.payload.get(
+                    "source_card_instance_id"
+                ),
+                "source_invocation_id": source_invocation_id,
             },
             source="manual",
         )
     )
+    if source_invocation_id is not None and not starts_inspection:
+        invocation = _find_pending_invocation(state, source_invocation_id)
+        _record_effect_usage(state, invocation)
+        state.pending_effects.remove(invocation)
+        events.append(
+            GameEvent(
+                event_type="effect_manually_resolved",
+                player_id=invocation.player_id,
+                data={
+                    "invocation_id": invocation.invocation_id,
+                    "effect_id": invocation.effect_id,
+                    "source_card_instance_id": invocation.source_card_instance_id,
+                },
+                source="manual",
+            )
+        )
+        _resolve_automatic_effects(state, events)
+        _continue_after_effect_queue(state, events)
+
+
+def _resolve_manual_inspection(
+    state: MatchState,
+    action: ActionRequest,
+    events: list[GameEvent],
+) -> None:
+    pending = state.pending_choice
+    if (
+        pending is None
+        or pending.choice_type != "manual_card_selection"
+        or action.player_id != pending.player_id
+    ):
+        raise IllegalActionError("there is no matching manual card inspection")
+    inspected = list(pending.options.get("inspected_card_instance_ids", []))
+    selected = action.payload.get("selected_card_instance_ids", [])
+    if (
+        not isinstance(selected, list)
+        or any(not isinstance(item, str) for item in selected)
+        or len(selected) != len(set(selected))
+        or any(item not in inspected for item in selected)
+    ):
+        raise IllegalActionError("manual inspection selection is invalid")
+    minimum = int(pending.options.get("minimum", 0))
+    maximum = int(pending.options.get("maximum", 1))
+    if len(selected) < minimum or len(selected) > maximum:
+        raise IllegalActionError(
+            f"manual inspection requires {minimum} to {maximum} selected cards"
+        )
+    player = state.players[pending.player_id]
+    if any(item not in player.resolution_area for item in inspected):
+        raise IllegalActionError("inspected cards must remain in Resolution Area")
+    for instance_id in inspected:
+        player.resolution_area.remove(instance_id)
+        if instance_id in selected:
+            player.hand.append(instance_id)
+            state.cards[instance_id].face_up = True
+        else:
+            player.waiting_room.append(instance_id)
+            state.cards[instance_id].face_up = True
+    source_invocation_id = pending.options.get("source_invocation_id")
+    source_effect_id = pending.options.get("source_effect_id")
+    source_card_instance_id = pending.options.get("source_card_instance_id")
+    state.pending_choice = None
+    if source_invocation_id is not None:
+        invocation = _find_pending_invocation(state, source_invocation_id)
+        if (
+            invocation.effect_id != source_effect_id
+            or invocation.source_card_instance_id != source_card_instance_id
+        ):
+            raise IllegalActionError("manual inspection source does not match")
+        _record_effect_usage(state, invocation)
+        state.pending_effects.remove(invocation)
+    events.append(
+        GameEvent(
+            event_type="manual_card_inspection_resolved",
+            player_id=player.player_id,
+            data={
+                "inspected_card_instance_ids": inspected,
+                "selected_card_instance_ids": selected,
+                "moved_to_waiting_room_instance_ids": [
+                    item for item in inspected if item not in selected
+                ],
+                "reveal_selected_to_opponent": bool(
+                    pending.options.get("reveal_selected_to_opponent")
+                ),
+                "source_effect_id": source_effect_id,
+                "source_card_instance_id": source_card_instance_id,
+            },
+            source="manual",
+        )
+    )
+    _resolve_automatic_effects(state, events)
+    _continue_after_effect_queue(state, events)
+
+
+def _pending_effect_legal_actions(state: MatchState) -> list[LegalAction]:
+    owner_id = state.pending_effects[0].player_id
+    owned = [
+        invocation
+        for invocation in state.pending_effects
+        if invocation.player_id == owner_id
+    ]
+    invocations: list[dict[str, Any]] = []
+    has_manual = False
+    for invocation in owned:
+        effect = state.effect_definitions[invocation.effect_id]
+        options = _effect_resolution_options(state, invocation)
+        invocations.append(
+            {
+                "invocation_id": invocation.invocation_id,
+                "effect_id": effect.effect_id,
+                "source_card_instance_id": invocation.source_card_instance_id,
+                "label_ja": effect.label_ja,
+                "is_optional": effect.is_optional,
+                "simulation_support": effect.simulation_support,
+                "review_status": effect.review_status,
+                "choice": effect.choice.model_dump() if effect.choice else None,
+                **options,
+            }
+        )
+        has_manual = has_manual or effect.simulation_support == "manual_resolution"
+    actions = [
+        LegalAction(
+            action_type="resolve_effect",
+            player_id=owner_id,
+            label_zh="处理待结算技能",
+            label_ja="待機中の能力を解決",
+            options={"invocations": invocations},
+        )
+    ]
+    if has_manual:
+        actions.append(
+            LegalAction(
+                action_type="manual_adjustment",
+                player_id=owner_id,
+                label_zh="人工处理技能",
+                label_ja="能力を手動解決",
+                options={
+                    "source_invocations": [
+                        item
+                        for item in invocations
+                        if item["simulation_support"] == "manual_resolution"
+                    ]
+                },
+            )
+        )
+    return actions
+
+
+def _legal_effect_activations(
+    state: MatchState,
+    player_id: str,
+) -> list[dict[str, Any]]:
+    player = state.players[player_id]
+    activations: list[dict[str, Any]] = []
+    for instance_id in player.member_area.values():
+        if instance_id is None:
+            continue
+        instance = state.cards[instance_id]
+        for effect_id in instance.card.effect_ids:
+            effect = state.effect_definitions.get(effect_id)
+            if effect is None or effect.effect_type != "activated":
+                continue
+            if effect.timing != "activated_main":
+                continue
+            if _effect_used_this_turn(state, effect_id, instance_id):
+                continue
+            if effect.condition.get("source_orientation") == "active":
+                if instance.orientation != "active":
+                    continue
+            activations.append(
+                {
+                    "effect_id": effect_id,
+                    "source_card_instance_id": instance_id,
+                    "label_ja": effect.label_ja,
+                    "frequency_limit": effect.frequency_limit,
+                    "simulation_support": effect.simulation_support,
+                }
+            )
+    return activations
+
+
+def _activate_effect(
+    state: MatchState,
+    action: ActionRequest,
+    events: list[GameEvent],
+) -> None:
+    player_id = state.active_player_id or ""
+    if state.phase not in {"first_main", "second_main"}:
+        raise IllegalActionError("activated effects are only available in Main Phase")
+    if action.player_id != player_id:
+        raise IllegalActionError("only the active player may activate an effect")
+    effect_id = action.payload.get("effect_id")
+    source_id = action.payload.get("source_card_instance_id")
+    legal = {
+        (entry["effect_id"], entry["source_card_instance_id"])
+        for entry in _legal_effect_activations(state, player_id)
+    }
+    if (effect_id, source_id) not in legal:
+        raise IllegalActionError("the selected activated effect is not legal")
+    effect = state.effect_definitions[str(effect_id)]
+    invocation = EffectInvocation(
+        invocation_id=_new_invocation_id(state, effect.effect_id, str(source_id)),
+        effect_id=effect.effect_id,
+        source_card_instance_id=str(source_id),
+        player_id=player_id,
+        trigger_event="player_activation",
+        resolution_stage="after_cost",
+    )
+    _execute_operations(
+        state,
+        invocation,
+        effect.cost,
+        events,
+        selected_ids=[],
+    )
+    for operation in effect.actions:
+        if operation.action_type in {"discard_from_hand"}:
+            continue
+        _execute_operations(
+            state,
+            invocation,
+            [operation],
+            events,
+            selected_ids=[],
+        )
+    state.pending_effects.append(invocation)
+    events.append(
+        GameEvent(
+            event_type="effect_activated",
+            player_id=player_id,
+            data={
+                "invocation_id": invocation.invocation_id,
+                "effect_id": effect.effect_id,
+                "source_card_instance_id": source_id,
+            },
+            source="player",
+        )
+    )
+
+
+def _resolve_effect(
+    state: MatchState,
+    action: ActionRequest,
+    events: list[GameEvent],
+) -> None:
+    invocation_id = action.payload.get("invocation_id")
+    invocation = _find_pending_invocation(state, invocation_id)
+    if action.player_id != invocation.player_id:
+        raise IllegalActionError("only the effect owner may resolve this effect")
+    if invocation.player_id != state.pending_effects[0].player_id:
+        raise IllegalActionError("another player's effects must resolve first")
+    effect = state.effect_definitions[invocation.effect_id]
+    accepted = action.payload.get("accepted", True)
+    if not isinstance(accepted, bool):
+        raise IllegalActionError("effect accepted must be a boolean")
+    if not accepted:
+        if not effect.is_optional:
+            raise IllegalActionError("this effect is not optional")
+        state.pending_effects.remove(invocation)
+        _record_effect_usage(state, invocation)
+        events.append(
+            GameEvent(
+                event_type="effect_declined",
+                player_id=invocation.player_id,
+                data={
+                    "invocation_id": invocation.invocation_id,
+                    "effect_id": invocation.effect_id,
+                    "source_card_instance_id": invocation.source_card_instance_id,
+                },
+                source="player",
+            )
+        )
+        _resolve_automatic_effects(state, events)
+        _continue_after_effect_queue(state, events)
+        return
+    if effect.simulation_support == "manual_resolution":
+        raise IllegalActionError(
+            "manual_resolution effects require a ManualAdjustmentAction"
+        )
+
+    selected_ids = action.payload.get("selected_card_instance_ids", [])
+    if not isinstance(selected_ids, list) or any(
+        not isinstance(item, str) for item in selected_ids
+    ):
+        raise IllegalActionError("effect card selections must be a list of IDs")
+    candidates = _effect_choice_candidates(state, invocation)
+    if effect.choice is not None:
+        if (
+            len(selected_ids) < effect.choice.minimum
+            or len(selected_ids) > effect.choice.maximum
+            or len(selected_ids) != len(set(selected_ids))
+            or any(item not in candidates for item in selected_ids)
+        ):
+            raise IllegalActionError("effect card selection is not legal")
+    elif selected_ids:
+        raise IllegalActionError("this effect does not accept card selections")
+
+    if invocation.resolution_stage == "initial":
+        _execute_operations(
+            state,
+            invocation,
+            effect.cost,
+            events,
+            selected_ids=selected_ids,
+            energy_ids=action.payload.get("energy_instance_ids", []),
+        )
+        operations = effect.actions
+    else:
+        operations = [
+            operation
+            for operation in effect.actions
+            if operation.action_type == "discard_from_hand"
+        ]
+    _execute_operations(
+        state,
+        invocation,
+        operations,
+        events,
+        selected_ids=selected_ids,
+    )
+    state.pending_effects.remove(invocation)
+    _record_effect_usage(state, invocation)
+    events.append(
+        GameEvent(
+            event_type="effect_resolved",
+            player_id=invocation.player_id,
+            data={
+                "invocation_id": invocation.invocation_id,
+                "effect_id": invocation.effect_id,
+                "source_card_instance_id": invocation.source_card_instance_id,
+                "selected_card_instance_ids": selected_ids,
+            },
+            source="player",
+        )
+    )
+    _resolve_automatic_effects(state, events)
+    _continue_after_effect_queue(state, events)
+
+
+def _queue_triggered_effects(
+    state: MatchState,
+    trigger: str,
+    events: list[GameEvent],
+    *,
+    source_instance_ids: list[str],
+    trigger_data: dict[str, Any],
+) -> None:
+    for source_id in source_instance_ids:
+        source = state.cards[source_id]
+        for effect_id in source.card.effect_ids:
+            effect = state.effect_definitions.get(effect_id)
+            if effect is None or effect.trigger != trigger:
+                continue
+            if effect.frequency_limit in {"once_per_turn", "once_per_live"} and (
+                _effect_used_this_turn(state, effect_id, source_id)
+            ):
+                continue
+            invocation = EffectInvocation(
+                invocation_id=_new_invocation_id(state, effect_id, source_id),
+                effect_id=effect_id,
+                source_card_instance_id=source_id,
+                player_id=source.owner_id,
+                trigger_event=trigger,
+                trigger_data=trigger_data,
+            )
+            if not _effect_condition_met(state, invocation):
+                events.append(
+                    GameEvent(
+                        event_type="effect_not_triggered",
+                        player_id=source.owner_id,
+                        data={
+                            "effect_id": effect_id,
+                            "source_card_instance_id": source_id,
+                            "reason": "condition_or_target_unavailable",
+                        },
+                    )
+                )
+                continue
+            state.pending_effects.append(invocation)
+            events.append(
+                GameEvent(
+                    event_type="effect_triggered",
+                    player_id=source.owner_id,
+                    data={
+                        "invocation_id": invocation.invocation_id,
+                        "effect_id": effect_id,
+                        "source_card_instance_id": source_id,
+                        "trigger": trigger,
+                    },
+                )
+            )
+
+
+def _effect_condition_met(
+    state: MatchState,
+    invocation: EffectInvocation,
+) -> bool:
+    effect = state.effect_definitions[invocation.effect_id]
+    player = state.players[invocation.player_id]
+    minimum_energy = effect.condition.get("minimum_active_energy")
+    if isinstance(minimum_energy, int):
+        active = sum(
+            state.cards[item].orientation == "active" for item in player.energy_area
+        )
+        if active < minimum_energy:
+            return False
+    replacement_id = invocation.trigger_data.get("replacement_card_instance_id")
+    minimum_cost = effect.condition.get("replacement_member_minimum_cost")
+    if isinstance(minimum_cost, int):
+        if not isinstance(replacement_id, str):
+            return False
+        if (state.cards[replacement_id].card.cost or 0) < minimum_cost:
+            return False
+    work_key = effect.condition.get("replacement_member_work_key")
+    if isinstance(work_key, str):
+        if not isinstance(replacement_id, str):
+            return False
+        if work_key not in state.cards[replacement_id].card.work_keys:
+            return False
+    if effect.choice is not None and effect.choice.minimum > 0:
+        return len(_effect_choice_candidates(state, invocation)) >= effect.choice.minimum
+    if (
+        effect.choice is not None
+        and effect.choice.maximum > 0
+        and effect.choice.zone == "stage"
+        and not _effect_choice_candidates(state, invocation)
+    ):
+        return False
+    return True
+
+
+def _effect_resolution_options(
+    state: MatchState,
+    invocation: EffectInvocation,
+) -> dict[str, Any]:
+    effect = state.effect_definitions[invocation.effect_id]
+    options: dict[str, Any] = {
+        "candidate_card_instance_ids": _effect_choice_candidates(state, invocation)
+    }
+    pay_amount = sum(
+        operation.amount or 0
+        for operation in effect.cost
+        if operation.action_type == "pay_energy"
+    )
+    if pay_amount:
+        player = state.players[invocation.player_id]
+        options["energy_instance_ids"] = [
+            item
+            for item in player.energy_area
+            if state.cards[item].orientation == "active"
+        ]
+        options["energy_required"] = pay_amount
+    return options
+
+
+def _effect_choice_candidates(
+    state: MatchState,
+    invocation: EffectInvocation,
+) -> list[str]:
+    effect = state.effect_definitions[invocation.effect_id]
+    if effect.choice is None:
+        return []
+    player = state.players[invocation.player_id]
+    if effect.choice.zone == "waiting_room":
+        candidates = list(player.waiting_room)
+    elif effect.choice.zone == "hand":
+        candidates = list(player.hand)
+    elif effect.choice.zone == "stage":
+        candidates = [
+            item for item in player.member_area.values() if item is not None
+        ]
+    else:
+        return []
+    if effect.choice.card_type:
+        candidates = [
+            item
+            for item in candidates
+            if state.cards[item].card.card_type == effect.choice.card_type
+        ]
+    if effect.choice.orientation:
+        candidates = [
+            item
+            for item in candidates
+            if state.cards[item].orientation == effect.choice.orientation
+        ]
+    return candidates
+
+
+def _execute_operations(
+    state: MatchState,
+    invocation: EffectInvocation,
+    operations: list[Any],
+    events: list[GameEvent],
+    *,
+    selected_ids: list[str],
+    energy_ids: Any = None,
+) -> None:
+    player = state.players[invocation.player_id]
+    for operation in operations:
+        operation_type = operation.action_type
+        if operation_type == "apply_wait":
+            state.cards[invocation.source_card_instance_id].orientation = "wait"
+        elif operation_type == "draw_card":
+            _draw(
+                state,
+                invocation.player_id,
+                operation.amount or 0,
+                events,
+                reason=f"effect:{invocation.effect_id}",
+            )
+        elif operation_type == "discard_from_hand":
+            for instance_id in selected_ids:
+                if instance_id not in player.hand:
+                    raise IllegalActionError("effect discard target must be in hand")
+                player.hand.remove(instance_id)
+                player.waiting_room.append(instance_id)
+        elif operation_type == "return_from_waiting_room":
+            for instance_id in selected_ids:
+                if instance_id not in player.waiting_room:
+                    raise IllegalActionError("effect return target must be in Waiting Room")
+                player.waiting_room.remove(instance_id)
+                player.hand.append(instance_id)
+                state.cards[instance_id].face_up = True
+        elif operation_type == "ready_member":
+            for instance_id in selected_ids:
+                state.cards[instance_id].orientation = "active"
+        elif operation_type == "pay_energy":
+            required = operation.amount or 0
+            if (
+                not isinstance(energy_ids, list)
+                or len(energy_ids) != required
+                or len(energy_ids) != len(set(energy_ids))
+            ):
+                raise IllegalActionError(
+                    f"effect requires exactly {required} Active Energy"
+                )
+            for instance_id in energy_ids:
+                if (
+                    instance_id not in player.energy_area
+                    or state.cards[instance_id].orientation != "active"
+                ):
+                    raise IllegalActionError("effect payment requires Active Energy")
+                state.cards[instance_id].orientation = "wait"
+        elif operation_type == "gain_blade":
+            player.manual_modifiers.append(
+                ManualModifier(
+                    modifier_id=f"effect:{invocation.invocation_id}:blade",
+                    modifier_type="blade",
+                    duration="live",
+                    created_turn=state.turn_number,
+                    amount=operation.amount or 0,
+                    target_card_instance_id=invocation.source_card_instance_id,
+                )
+            )
+        elif operation_type == "ready_energy":
+            waiting = [
+                item
+                for item in player.energy_area
+                if state.cards[item].orientation == "wait"
+            ]
+            for instance_id in waiting[: operation.amount or 0]:
+                state.cards[instance_id].orientation = "active"
+        elif operation_type == "manual_resolution":
+            raise IllegalActionError("manual effect operations cannot auto-resolve")
+        else:
+            raise IllegalActionError(f"unsupported effect operation: {operation_type}")
+
+
+def _resolve_automatic_effects(
+    state: MatchState,
+    events: list[GameEvent],
+) -> None:
+    while state.pending_effects:
+        invocation = state.pending_effects[0]
+        effect = state.effect_definitions[invocation.effect_id]
+        if (
+            effect.is_optional
+            or effect.choice is not None
+            or effect.cost
+            or effect.simulation_support == "manual_resolution"
+        ):
+            return
+        _execute_operations(
+            state,
+            invocation,
+            effect.actions,
+            events,
+            selected_ids=[],
+        )
+        state.pending_effects.pop(0)
+        _record_effect_usage(state, invocation)
+        events.append(
+            GameEvent(
+                event_type="effect_auto_resolved",
+                player_id=invocation.player_id,
+                data={
+                    "invocation_id": invocation.invocation_id,
+                    "effect_id": invocation.effect_id,
+                    "source_card_instance_id": invocation.source_card_instance_id,
+                },
+            )
+        )
+
+
+def _continue_after_effect_queue(
+    state: MatchState,
+    events: list[GameEvent],
+) -> None:
+    if state.pending_effects:
+        return
+    if state.phase == "performance_first":
+        state.phase = "yell_first"
+    elif state.phase == "performance_second":
+        state.phase = "yell_second"
+    else:
+        return
+    events.append(
+        GameEvent(
+            event_type="phase_changed",
+            player_id=state.active_player_id,
+            data={"phase": state.phase},
+        )
+    )
+
+
+def _find_pending_invocation(
+    state: MatchState,
+    invocation_id: Any,
+) -> EffectInvocation:
+    if not isinstance(invocation_id, str):
+        raise IllegalActionError("source_invocation_id is required")
+    for invocation in state.pending_effects:
+        if invocation.invocation_id == invocation_id:
+            return invocation
+    raise IllegalActionError("pending effect invocation was not found")
+
+
+def _record_effect_usage(
+    state: MatchState,
+    invocation: EffectInvocation,
+) -> None:
+    state.effect_usage.append(
+        EffectUsage(
+            effect_id=invocation.effect_id,
+            source_card_instance_id=invocation.source_card_instance_id,
+            turn_number=state.turn_number,
+        )
+    )
+
+
+def _effect_used_this_turn(
+    state: MatchState,
+    effect_id: str,
+    source_instance_id: str,
+) -> bool:
+    return any(
+        usage.effect_id == effect_id
+        and usage.source_card_instance_id == source_instance_id
+        and usage.turn_number == state.turn_number
+        for usage in state.effect_usage
+    )
+
+
+def _new_invocation_id(
+    state: MatchState,
+    effect_id: str,
+    source_instance_id: str,
+) -> str:
+    ordinal = (
+        sum(
+            invocation.effect_id == effect_id
+            and invocation.source_card_instance_id == source_instance_id
+            for invocation in state.pending_effects
+        )
+        + sum(
+            usage.effect_id == effect_id
+            and usage.source_card_instance_id == source_instance_id
+            for usage in state.effect_usage
+        )
+        + 1
+    )
+    digest = hashlib.sha256(
+        (
+            f"{state.match_id}:{state.turn_number}:{state.revision}:"
+            f"{effect_id}:{source_instance_id}:{ordinal}"
+        ).encode()
+    ).hexdigest()
+    return f"effect-{digest[:20]}"
 
 
 def _reveal_current_live_cards(
@@ -687,6 +1509,7 @@ def _run_current_yell(
         member_hearts.update(member.card.basic_hearts)
         if member.orientation == "active":
             blade_count += member.card.blade or 0
+            blade_count += _target_modifier_total(player, "blade", instance_id)
 
     revealed: list[str] = []
     yell_hearts: Counter[str] = Counter()
@@ -1140,6 +1963,64 @@ def _apply_manual_entry(
     if adjustment_type == "draw_card":
         amount = _positive_amount(adjustment)
         _draw(state, player_id, amount, events, reason="manual")
+    elif adjustment_type == "inspect_top_cards":
+        if state.pending_choice is not None:
+            raise IllegalActionError("another choice is already pending")
+        amount = _positive_amount(adjustment)
+        minimum = adjustment.get("minimum", 0)
+        maximum = adjustment.get("maximum", 1)
+        if (
+            not isinstance(minimum, int)
+            or isinstance(minimum, bool)
+            or not isinstance(maximum, int)
+            or isinstance(maximum, bool)
+            or minimum < 0
+            or maximum < minimum
+            or maximum > amount
+        ):
+            raise IllegalActionError("manual inspection selection range is invalid")
+        inspected: list[str] = []
+        for _ in range(amount):
+            instance_id = _take_main_deck_card(state, player_id, events)
+            if instance_id is None:
+                break
+            player.resolution_area.append(instance_id)
+            state.cards[instance_id].face_up = True
+            inspected.append(instance_id)
+        state.pending_choice = PendingChoice(
+            choice_type="manual_card_selection",
+            player_id=player_id,
+            message_ja="確認したカードから条件を満たすカードを選んでください。",
+            message_zh="请从检查的卡牌中选择符合条件、加入手牌的卡。",
+            options={
+                "inspected_card_instance_ids": inspected,
+                "minimum": min(minimum, len(inspected)),
+                "maximum": min(maximum, len(inspected)),
+                "reveal_selected_to_opponent": bool(
+                    adjustment.get("reveal_selected_to_opponent", False)
+                ),
+                "source_invocation_id": adjustment.get("source_invocation_id"),
+                "source_effect_id": adjustment.get("source_effect_id"),
+                "source_card_instance_id": adjustment.get(
+                    "source_card_instance_id"
+                ),
+            },
+        )
+        events.append(
+            GameEvent(
+                event_type="manual_card_inspection_started",
+                player_id=player_id,
+                data={
+                    "inspected_card_instance_ids": inspected,
+                    "minimum": minimum,
+                    "maximum": maximum,
+                    "reveal_selected_to_opponent": bool(
+                        adjustment.get("reveal_selected_to_opponent", False)
+                    ),
+                },
+                source="manual",
+            )
+        )
     elif adjustment_type == "discard_card":
         instance_id = adjustment.get("target_card_instance_id")
         if instance_id not in player.hand:
@@ -1459,6 +2340,20 @@ def _modifier_total(player: Any, modifier_type: str) -> int:
         modifier.amount or 0
         for modifier in player.manual_modifiers
         if modifier.modifier_type == modifier_type
+        and modifier.target_card_instance_id is None
+    )
+
+
+def _target_modifier_total(
+    player: Any,
+    modifier_type: str,
+    target_card_instance_id: str,
+) -> int:
+    return sum(
+        modifier.amount or 0
+        for modifier in player.manual_modifiers
+        if modifier.modifier_type == modifier_type
+        and modifier.target_card_instance_id == target_card_instance_id
     )
 
 

@@ -26,8 +26,14 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
+}
+
+textarea {
+  min-height: 76px;
+  resize: vertical;
 }
 
 button {
@@ -727,6 +733,205 @@ button {
   gap: 8px;
 }
 
+.effect-action,
+.effect-resolution {
+  min-width: min(620px, calc(100vw - 220px));
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  padding: 10px;
+}
+
+.effect-action-title,
+.effect-resolution-header {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.effect-option-list,
+.effect-candidates,
+.effect-resolution-buttons {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.effect-option {
+  border: 1px solid var(--line);
+  background: white;
+  padding: 7px 9px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  text-align: left;
+}
+
+.effect-option span,
+.effect-resolution {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.effect-option small,
+.effect-resolution p {
+  color: var(--muted);
+  margin: 0;
+}
+
+.effect-resolution-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.effect-candidates button {
+  border: 1px solid var(--line);
+  background: white;
+  padding: 6px 8px;
+}
+
+.effect-candidates button.selected {
+  border-color: var(--teal);
+  background: #e6f5f3;
+}
+
+.inspection-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 9px;
+  max-height: min(460px, 58vh);
+  overflow-y: auto;
+}
+
+.inspection-card {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: white;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr);
+  gap: 10px;
+  text-align: left;
+  color: var(--ink);
+}
+
+.inspection-card.selected {
+  border-color: var(--teal);
+  outline: 2px solid var(--teal);
+  background: #f1fbfa;
+}
+
+.inspection-card-image {
+  position: relative;
+  min-height: 150px;
+}
+
+.inspection-card-image img,
+.inspection-card-image .card-fallback {
+  width: 100%;
+  height: 150px;
+  object-fit: contain;
+  background: var(--surface-soft);
+}
+
+.inspection-select-state {
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  background: rgba(30, 36, 40, 0.88);
+  color: white;
+  padding: 3px 5px;
+  font-size: 10px;
+}
+
+.inspection-card.selected .inspection-select-state {
+  background: var(--teal);
+}
+
+.inspection-card-details {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inspection-card-details > div:first-child {
+  display: flex;
+  flex-direction: column;
+}
+
+.inspection-card-details span,
+.inspection-card-details p {
+  font-size: 11px;
+}
+
+.inspection-card-details > div:first-child span {
+  color: var(--muted);
+}
+
+.inspection-card-details dl {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(6, auto);
+  justify-content: start;
+  gap: 3px 6px;
+}
+
+.inspection-card-details dt {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.inspection-card-details dd {
+  margin: 0;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.inspection-card-details p {
+  margin: 0;
+  white-space: pre-wrap;
+  line-height: 1.45;
+  max-height: 98px;
+  overflow-y: auto;
+}
+
+.effect-support-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.effect-support-list > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 7px;
+}
+
+.effect-support-list span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.support-status {
+  align-self: flex-start;
+  border: 1px solid var(--line);
+  padding: 3px 6px;
+}
+
+.support-status.supported {
+  color: var(--teal);
+  border-color: var(--teal);
+}
+
+.support-status.hash_mismatch {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 .member-play-action {
   flex: 1 1 680px;
   min-width: min(680px, calc(100vw - 230px));
@@ -1081,6 +1286,19 @@ label {
   font-size: 12px;
 }
 
+.manual-range {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.checkbox-label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
 .card-dialog {
   width: min(760px, calc(100vw - 30px));
   max-height: calc(100vh - 30px);
@@ -1238,6 +1456,28 @@ label {
     flex-direction: column;
     flex-wrap: nowrap;
     overflow-x: visible;
+  }
+
+  .effect-action,
+  .effect-resolution {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .inspection-card-grid {
+    grid-template-columns: 1fr;
+    max-height: 62vh;
+  }
+
+  .inspection-card {
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+
+  .inspection-card-image,
+  .inspection-card-image img,
+  .inspection-card-image .card-fallback {
+    min-height: 130px;
+    height: 130px;
   }
 
   .member-play-action {
