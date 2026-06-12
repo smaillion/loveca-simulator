@@ -13,7 +13,7 @@ from loveca.simulation.engine import (
     StaleRevisionError,
     generate_legal_actions,
 )
-from loveca.simulation.models import ActionRequest
+from loveca.simulation.models import ActionRequest, MatchState
 from loveca.simulation.runtime import RuntimeSchemaError, initialize_runtime_database
 from loveca.simulation.service import MatchService
 
@@ -34,6 +34,48 @@ SAMPLE_CARDS = (
 )
 NORMALIZATION = PROJECT_ROOT / "data_sources" / "card-entity-normalization.json"
 SAMPLE_DECK = PROJECT_ROOT / "examples" / "decks" / "sample-deck.json"
+
+
+def test_initial_main_deck_shuffle_is_seeded_and_observable(tmp_path):
+    first_service, first_match_id = _create_match(
+        tmp_path / "first",
+        seed=4242,
+    )
+    repeated_service, repeated_match_id = _create_match(
+        tmp_path / "repeated",
+        seed=4242,
+    )
+    different_service, different_match_id = _create_match(
+        tmp_path / "different",
+        seed=4243,
+    )
+
+    def choose_first(service, match_id):
+        state = service.repository.get_state(match_id)
+        return service.apply(
+            match_id,
+            ActionRequest(
+                action_type="choose_first_player",
+                expected_revision=state.revision,
+                payload={"first_player_id": "player_1"},
+            ),
+        )
+
+    first = choose_first(first_service, first_match_id)
+    repeated = choose_first(repeated_service, repeated_match_id)
+    different = choose_first(different_service, different_match_id)
+
+    assert first.state.players["player_1"].hand == repeated.state.players["player_1"].hand
+    assert first.state.players["player_1"].main_deck == repeated.state.players["player_1"].main_deck
+    assert first.state.players["player_1"].hand != different.state.players["player_1"].hand
+    shuffle_events = [
+        event for event in first.events if event.event_type == "deck_shuffled"
+    ]
+    assert {event.player_id for event in shuffle_events} == {
+        "player_1",
+        "player_2",
+    }
+    assert all(event.data["card_count"] == 60 for event in shuffle_events)
 
 
 def test_setup_phase_order_and_next_turn_start(tmp_path):
@@ -485,6 +527,43 @@ def test_baton_touch_replaces_member_and_pays_only_cost_difference(tmp_path):
             ),
         )
 
+    attached_member_id = next(
+        instance_id
+        for instance_id in state.players["player_1"].main_deck
+        if state.cards[instance_id].card.card_type == "member"
+        and instance_id not in {old_id, new_id}
+    )
+    attached_energy_id = state.players["player_1"].energy_area[0]
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "manual_adjustment",
+        player_id="player_1",
+        payload={
+            "reason": "prepare Baton Touch attachment cleanup",
+            "adjustments": [
+                {
+                    "adjustment_type": "move_card",
+                    "target_player_id": "player_1",
+                    "target_card_instance_id": attached_member_id,
+                    "to_zone": "hand",
+                },
+                {
+                    "adjustment_type": "attach_card_under_member",
+                    "target_player_id": "player_1",
+                    "target_card_instance_id": attached_member_id,
+                    "target_slot": "center",
+                },
+                {
+                    "adjustment_type": "attach_card_under_member",
+                    "target_player_id": "player_1",
+                    "target_card_instance_id": attached_energy_id,
+                    "target_slot": "center",
+                },
+            ],
+        },
+    )
     state = _complete_turn(service, match_id, state, set())
     state = _apply(service, match_id, state, "start_next_turn")
     for _ in range(3):
@@ -531,7 +610,10 @@ def test_baton_touch_replaces_member_and_pays_only_cost_difference(tmp_path):
     )
     state = result.state
     assert state.players["player_1"].member_area["center"] == new_id
+    assert state.players["player_1"].member_area_attachments["center"] == []
     assert old_id in state.players["player_1"].waiting_room
+    assert attached_member_id in state.players["player_1"].waiting_room
+    assert attached_energy_id in state.players["player_1"].energy_deck
     assert sum(
         state.cards[instance_id].orientation == "wait"
         for instance_id in state.players["player_1"].energy_area
@@ -541,6 +623,436 @@ def test_baton_touch_replaces_member_and_pays_only_cost_difference(tmp_path):
     )
     assert baton_event.data["replaced_card_instance_id"] == old_id
     assert baton_event.data["payment_cost"] == placement["payment_cost"]
+    assert any(
+        event.event_type == "stage_attachments_cleaned"
+        for event in result.events
+    )
+
+
+def test_stage_attachments_support_member_and_energy_cards(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=122)
+    state = _reach_first_main(service, match_id)
+    player = state.players["player_1"]
+    member_ids = [
+        instance_id
+        for instance_id in player.main_deck
+        if state.cards[instance_id].card.card_type == "member"
+    ][:2]
+    top_id, attached_member_id = member_ids
+    energy_id = player.energy_area[0]
+
+    result = service.apply(
+        match_id,
+        ActionRequest(
+            action_type="manual_adjustment",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={
+                "reason": "stage attachment rule test",
+                "adjustments": [
+                    {
+                        "adjustment_type": "move_card",
+                        "target_player_id": "player_1",
+                        "target_card_instance_id": top_id,
+                        "to_zone": "member_center",
+                    },
+                    {
+                        "adjustment_type": "move_card",
+                        "target_player_id": "player_1",
+                        "target_card_instance_id": attached_member_id,
+                        "to_zone": "hand",
+                    },
+                    {
+                        "adjustment_type": "attach_card_under_member",
+                        "target_player_id": "player_1",
+                        "target_card_instance_id": attached_member_id,
+                        "target_slot": "center",
+                    },
+                    {
+                        "adjustment_type": "attach_card_under_member",
+                        "target_player_id": "player_1",
+                        "target_card_instance_id": energy_id,
+                        "target_slot": "center",
+                    },
+                ],
+            },
+        ),
+    )
+
+    state = result.state
+    assert state.players["player_1"].member_area["center"] == top_id
+    assert state.players["player_1"].member_area_attachments["center"] == [
+        attached_member_id,
+        energy_id,
+    ]
+    assert energy_id not in state.players["player_1"].energy_area
+    assert attached_member_id not in state.players["player_1"].hand
+    assert sum(
+        event.event_type == "card_attached_under_member"
+        for event in result.events
+    ) == 2
+    assert service.repository.replay(match_id)["final_state"] == state.model_dump()
+
+
+def test_attached_cards_move_out_with_type_specific_validation(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=123)
+    state = _reach_first_main(service, match_id)
+    player = state.players["player_1"]
+    top_id, attached_member_id = [
+        instance_id
+        for instance_id in player.main_deck
+        if state.cards[instance_id].card.card_type == "member"
+    ][:2]
+    energy_id = player.energy_area[0]
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "manual_adjustment",
+        player_id="player_1",
+        payload={
+            "reason": "prepare attached card movement",
+            "adjustments": [
+                {
+                    "adjustment_type": "move_card",
+                    "target_player_id": "player_1",
+                    "target_card_instance_id": top_id,
+                    "to_zone": "member_center",
+                },
+                {
+                    "adjustment_type": "move_card",
+                    "target_player_id": "player_1",
+                    "target_card_instance_id": attached_member_id,
+                    "to_zone": "hand",
+                },
+                {
+                    "adjustment_type": "attach_card_under_member",
+                    "target_player_id": "player_1",
+                    "target_card_instance_id": attached_member_id,
+                    "target_slot": "center",
+                },
+                {
+                    "adjustment_type": "attach_card_under_member",
+                    "target_player_id": "player_1",
+                    "target_card_instance_id": energy_id,
+                    "target_slot": "center",
+                },
+            ],
+        },
+    )
+
+    with pytest.raises(IllegalActionError, match="requires orientation"):
+        _apply(
+            service,
+            match_id,
+            state,
+            "manual_adjustment",
+            player_id="player_1",
+            payload={
+                "reason": "invalid attached Energy movement",
+                "adjustments": [
+                    {
+                        "adjustment_type": "move_attached_card",
+                        "target_player_id": "player_1",
+                        "target_card_instance_id": energy_id,
+                        "to_zone": "energy_area",
+                    }
+                ],
+            },
+        )
+
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "manual_adjustment",
+        player_id="player_1",
+        payload={
+            "reason": "move attached cards",
+            "adjustments": [
+                {
+                    "adjustment_type": "move_attached_card",
+                    "target_player_id": "player_1",
+                    "target_card_instance_id": attached_member_id,
+                    "to_zone": "member_left",
+                },
+                {
+                    "adjustment_type": "move_attached_card",
+                    "target_player_id": "player_1",
+                    "target_card_instance_id": energy_id,
+                    "to_zone": "energy_area",
+                    "orientation": "wait",
+                },
+            ],
+        },
+    )
+
+    assert state.players["player_1"].member_area["left"] == attached_member_id
+    assert state.players["player_1"].member_area_attachments["center"] == []
+    assert energy_id in state.players["player_1"].energy_area
+    assert state.cards[energy_id].orientation == "wait"
+
+
+def test_position_and_formation_change_move_complete_member_groups(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=124)
+    state = _reach_first_main(service, match_id)
+    player = state.players["player_1"]
+    members = [
+        instance_id
+        for instance_id in player.main_deck
+        if state.cards[instance_id].card.card_type == "member"
+    ][:4]
+    left_id, center_id, right_id, attached_id = members
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "manual_adjustment",
+        player_id="player_1",
+        payload={
+            "reason": "prepare Stage groups",
+            "adjustments": [
+                *[
+                    {
+                        "adjustment_type": "move_card",
+                        "target_player_id": "player_1",
+                        "target_card_instance_id": instance_id,
+                        "to_zone": f"member_{slot}",
+                    }
+                    for slot, instance_id in (
+                        ("left", left_id),
+                        ("center", center_id),
+                        ("right", right_id),
+                    )
+                ],
+                {
+                    "adjustment_type": "move_card",
+                    "target_player_id": "player_1",
+                    "target_card_instance_id": attached_id,
+                    "to_zone": "hand",
+                },
+                {
+                    "adjustment_type": "attach_card_under_member",
+                    "target_player_id": "player_1",
+                    "target_card_instance_id": attached_id,
+                    "target_slot": "left",
+                },
+            ],
+        },
+    )
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "manual_adjustment",
+        player_id="player_1",
+        payload={
+            "reason": "position change",
+            "adjustments": [
+                {
+                    "adjustment_type": "position_change",
+                    "target_player_id": "player_1",
+                    "from_slot": "left",
+                    "to_slot": "center",
+                }
+            ],
+        },
+    )
+    assert state.players["player_1"].member_area["center"] == left_id
+    assert state.players["player_1"].member_area["left"] == center_id
+    assert state.players["player_1"].member_area_attachments["center"] == [
+        attached_id
+    ]
+
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "manual_adjustment",
+        player_id="player_1",
+        payload={
+            "reason": "formation change",
+            "adjustments": [
+                {
+                    "adjustment_type": "formation_change",
+                    "target_player_id": "player_1",
+                    "slot_assignments": {
+                        "left": right_id,
+                        "center": center_id,
+                        "right": left_id,
+                    },
+                }
+            ],
+        },
+    )
+    assert state.players["player_1"].member_area == {
+        "left": right_id,
+        "center": center_id,
+        "right": left_id,
+    }
+    assert state.players["player_1"].member_area_attachments["right"] == [
+        attached_id
+    ]
+
+
+def test_move_member_accepts_only_top_stage_member_and_derives_source_slot(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=126)
+    state = _reach_first_main(service, match_id)
+    player = state.players["player_1"]
+    stage_id, hand_id = [
+        instance_id
+        for instance_id in player.main_deck
+        if state.cards[instance_id].card.card_type == "member"
+    ][:2]
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "manual_adjustment",
+        player_id="player_1",
+        payload={
+            "reason": "prepare move_member",
+            "adjustments": [
+                {
+                    "adjustment_type": "move_card",
+                    "target_player_id": "player_1",
+                    "target_card_instance_id": stage_id,
+                    "to_zone": "member_left",
+                },
+                {
+                    "adjustment_type": "move_card",
+                    "target_player_id": "player_1",
+                    "target_card_instance_id": hand_id,
+                    "to_zone": "hand",
+                },
+            ],
+        },
+    )
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "manual_adjustment",
+        player_id="player_1",
+        payload={
+            "reason": "move top Member",
+            "adjustments": [
+                {
+                    "adjustment_type": "move_member",
+                    "target_player_id": "player_1",
+                    "target_card_instance_id": stage_id,
+                    "to_slot": "right",
+                }
+            ],
+        },
+    )
+    assert state.players["player_1"].member_area["left"] is None
+    assert state.players["player_1"].member_area["right"] == stage_id
+
+    with pytest.raises(
+        IllegalActionError,
+        match="top Member currently on Stage",
+    ):
+        _apply(
+            service,
+            match_id,
+            state,
+            "manual_adjustment",
+            player_id="player_1",
+            payload={
+                "reason": "reject hand Member",
+                "adjustments": [
+                    {
+                        "adjustment_type": "move_member",
+                        "target_player_id": "player_1",
+                        "target_card_instance_id": hand_id,
+                        "to_slot": "center",
+                    }
+                ],
+            },
+        )
+
+
+def test_top_member_departure_cleans_attached_member_and_energy(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=125)
+    state = _reach_first_main(service, match_id)
+    player = state.players["player_1"]
+    top_id, attached_member_id = [
+        instance_id
+        for instance_id in player.main_deck
+        if state.cards[instance_id].card.card_type == "member"
+    ][:2]
+    energy_id = player.energy_area[0]
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "manual_adjustment",
+        player_id="player_1",
+        payload={
+            "reason": "prepare Stage departure",
+            "adjustments": [
+                {
+                    "adjustment_type": "move_card",
+                    "target_player_id": "player_1",
+                    "target_card_instance_id": top_id,
+                    "to_zone": "member_center",
+                },
+                {
+                    "adjustment_type": "move_card",
+                    "target_player_id": "player_1",
+                    "target_card_instance_id": attached_member_id,
+                    "to_zone": "hand",
+                },
+                {
+                    "adjustment_type": "attach_card_under_member",
+                    "target_player_id": "player_1",
+                    "target_card_instance_id": attached_member_id,
+                    "target_slot": "center",
+                },
+                {
+                    "adjustment_type": "attach_card_under_member",
+                    "target_player_id": "player_1",
+                    "target_card_instance_id": energy_id,
+                    "target_slot": "center",
+                },
+            ],
+        },
+    )
+    result = service.apply(
+        match_id,
+        ActionRequest(
+            action_type="manual_adjustment",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={
+                "reason": "top Member leaves Stage",
+                "adjustments": [
+                    {
+                        "adjustment_type": "move_card",
+                        "target_player_id": "player_1",
+                        "target_card_instance_id": top_id,
+                        "to_zone": "waiting_room",
+                    }
+                ],
+            },
+        ),
+    )
+    state = result.state
+    assert state.players["player_1"].member_area["center"] is None
+    assert state.players["player_1"].member_area_attachments["center"] == []
+    assert top_id in state.players["player_1"].waiting_room
+    assert attached_member_id in state.players["player_1"].waiting_room
+    assert energy_id in state.players["player_1"].energy_deck
+    cleanup = next(
+        event
+        for event in result.events
+        if event.event_type == "stage_attachments_cleaned"
+    )
+    assert cleanup.data["member_to_waiting_room_instance_ids"] == [
+        attached_member_id
+    ]
+    assert cleanup.data["energy_to_energy_deck_instance_ids"] == [energy_id]
 
 
 def test_stale_or_illegal_action_does_not_persist(tmp_path):
@@ -600,6 +1112,26 @@ def test_replay_reconstructs_current_state(tmp_path):
 
     assert replay["final_state"] == state.model_dump()
     assert len(replay["actions"]) == 3
+
+
+def test_runtime_v2_snapshot_without_stage_attachments_uses_empty_defaults(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=78)
+    state_data = service.repository.get_state(match_id).model_dump()
+    for player in state_data["players"].values():
+        player.pop("member_area_attachments")
+
+    restored = MatchState.model_validate(state_data)
+
+    assert restored.players["player_1"].member_area_attachments == {
+        "left": [],
+        "center": [],
+        "right": [],
+    }
+    assert restored.players["player_2"].member_area_attachments == {
+        "left": [],
+        "center": [],
+        "right": [],
+    }
 
 
 def test_live_set_draws_exactly_the_number_of_set_cards(tmp_path):
@@ -808,6 +1340,7 @@ def test_runtime_v1_is_rejected_and_v2_initialization_is_idempotent(tmp_path):
 
 
 def _create_match(tmp_path: Path, *, seed: int) -> tuple[MatchService, str]:
+    tmp_path.mkdir(parents=True, exist_ok=True)
     card_database = tmp_path / "cards.sqlite3"
     import_normalized_cards(card_database, SAMPLE_CARDS, NORMALIZATION)
     service = MatchService(card_database, tmp_path / "matches.sqlite3")

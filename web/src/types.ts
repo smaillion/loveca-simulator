@@ -68,6 +68,7 @@ export interface PlayerState {
   energy_deck: string[];
   hand: string[];
   member_area: Record<"left" | "center" | "right", string | null>;
+  member_area_attachments: Record<"left" | "center" | "right", string[]>;
   member_areas_entered_this_turn: string[];
   energy_area: string[];
   live_area: string[];

@@ -69,6 +69,11 @@ Minimum adjustment entry fields:
 Initial `adjustment_type` values:
 
 * `move_card`
+* `move_member`
+* `attach_card_under_member`
+* `move_attached_card`
+* `position_change`
+* `formation_change`
 * `draw_card`
 * `inspect_top_cards`
 * `discard_card`
@@ -82,12 +87,17 @@ Initial `adjustment_type` values:
 * `set_flag`
 * `clear_flag`
 
+`move_member` accepts only a top Member currently occupying a Member Area.
+The engine derives the source slot from the card instance and rejects Members
+in the hand, decks, other zones, or attached under another Member. Moving to an
+occupied destination swaps the complete Member groups, including attachments.
+`position_change` remains the slot-oriented equivalent for replay compatibility.
+
 `inspect_top_cards` is a two-step manual operation. It moves a specified
 number of cards from the top of the main deck to the Resolution Area and
 creates a pending structured choice. The resolving Action must record:
 
 * inspected card instance IDs
-* Japanese selection criteria
 * minimum and maximum selection count
 * selected card instance IDs
 * whether selected cards are revealed to the opponent
@@ -96,6 +106,11 @@ creates a pending structured choice. The resolving Action must record:
 Selected cards may move to hand only after the pending choice is resolved.
 Unselected cards move to the destination required by the effect, initially
 Waiting Room. Treating this operation as ordinary `draw_card` is forbidden.
+
+Stage adjustment entries must preserve the distinction between a top Member
+and cards under that Member. Generic `move_card` must not silently detach a
+card from under a Member. Position and formation changes move the complete
+Member group, including all cards under the top Member.
 
 ## 5. Validation Requirements
 

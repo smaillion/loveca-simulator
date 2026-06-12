@@ -131,6 +131,9 @@ class PlayerState(BaseModel):
     member_area: dict[str, str | None] = Field(
         default_factory=lambda: {"left": None, "center": None, "right": None}
     )
+    member_area_attachments: dict[str, list[str]] = Field(
+        default_factory=lambda: {"left": [], "center": [], "right": []}
+    )
     member_areas_entered_this_turn: list[str] = Field(default_factory=list)
     energy_area: list[str] = Field(default_factory=list)
     live_area: list[str] = Field(default_factory=list)

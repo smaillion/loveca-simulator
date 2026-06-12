@@ -103,6 +103,40 @@ button {
   gap: 8px;
 }
 
+.start-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.language-toggle {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(48px, 1fr));
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.language-toggle button {
+  min-height: 30px;
+  padding: 4px 9px;
+  border: 0;
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.language-toggle button + button {
+  border-left: 1px solid var(--line);
+}
+
+.language-toggle button.selected {
+  background: var(--ink);
+  color: white;
+}
+
 .revision,
 .local-badge {
   color: var(--muted);
@@ -211,6 +245,59 @@ button {
   display: block;
   font-size: 11px;
   margin-bottom: 4px;
+}
+
+.stage-attachments-empty {
+  color: var(--muted);
+  display: block;
+  font-size: 9px;
+  margin-top: 5px;
+  text-align: center;
+}
+
+.stage-attachments {
+  border-top: 1px solid var(--line);
+  margin-top: 5px;
+  padding-top: 4px;
+}
+
+.stage-attachments summary {
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.stage-attachments summary small {
+  color: var(--muted);
+  display: block;
+  font-size: 8px;
+}
+
+.stage-attachment-list {
+  display: grid;
+  gap: 3px;
+  margin-top: 4px;
+}
+
+.stage-attachment-list button {
+  background: white;
+  border: 1px solid var(--line);
+  min-width: 0;
+  padding: 4px;
+  text-align: left;
+}
+
+.stage-attachment-list strong,
+.stage-attachment-list span {
+  display: block;
+  font-size: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stage-attachment-list span {
+  color: var(--muted);
 }
 
 .slot-empty,
@@ -1292,6 +1379,12 @@ label {
   gap: 10px;
 }
 
+.formation-controls {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .checkbox-label {
   display: flex;
   flex-direction: row;
@@ -1430,6 +1523,15 @@ label {
 }
 
 @media (max-width: 640px) {
+  .start-header {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .start-actions {
+    justify-content: space-between;
+  }
+
   .topbar {
     grid-template-columns: 1fr auto;
   }
@@ -1449,6 +1551,10 @@ label {
   .member-stage {
     grid-template-columns: repeat(3, minmax(86px, 1fr));
     overflow-x: auto;
+  }
+
+  .formation-controls {
+    grid-template-columns: 1fr;
   }
 
   .action-controls {
