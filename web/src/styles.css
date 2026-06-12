@@ -80,6 +80,12 @@ button {
   flex-direction: column;
 }
 
+.turn-number {
+  color: var(--accent-dark);
+  font-size: 11px;
+  font-weight: 700;
+}
+
 .phase-cn {
   font-weight: 700;
 }
@@ -392,6 +398,11 @@ button {
   font-size: 13px;
 }
 
+.judgment-basis .game-result {
+  color: var(--accent-dark);
+  font-weight: 700;
+}
+
 .live-breakdown-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -571,7 +582,7 @@ button {
   background: #fafbfb;
   padding: 7px;
   display: grid;
-  grid-template-columns: minmax(110px, 0.8fr) minmax(210px, 1.6fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 5px 8px;
   align-items: start;
 }
@@ -581,11 +592,11 @@ button {
 }
 
 .allocation-row .heart-line {
-  grid-column: 2;
+  grid-column: 1 / -1;
 }
 
 .allocation-row > strong {
-  grid-column: 3;
+  grid-column: 2;
   grid-row: 1;
   font-size: 11px;
 }
@@ -714,6 +725,166 @@ button {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.member-play-action {
+  flex: 1 1 680px;
+  min-width: min(680px, calc(100vw - 230px));
+  display: grid;
+  grid-template-columns: minmax(240px, 1.15fr) minmax(230px, 1fr) minmax(170px, 0.72fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+.member-play-step,
+.member-payment-summary {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  padding: 7px;
+}
+
+.member-play-label {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  margin-bottom: 5px;
+  text-transform: uppercase;
+}
+
+.member-choice-strip {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 2px 5px;
+}
+
+.member-choice-card {
+  flex: 0 0 auto;
+  display: grid;
+  gap: 2px;
+}
+
+.member-choice-card .card-tile {
+  width: 68px;
+  min-width: 68px;
+}
+
+.member-choice-card .card-tile img,
+.member-choice-card .card-fallback {
+  height: 70px;
+}
+
+.member-choice-card > span {
+  color: var(--muted);
+  font-size: 9px;
+  text-align: center;
+}
+
+.member-slot-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.member-slot-choice {
+  min-width: 0;
+  min-height: 54px;
+  border: 1px solid var(--line);
+  background: white;
+  padding: 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  text-align: left;
+}
+
+.member-slot-choice.selected {
+  border-color: var(--teal);
+  box-shadow: inset 0 0 0 1px var(--teal);
+  background: #e8f5f4;
+}
+
+.member-slot-choice:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.member-slot-choice strong {
+  font-size: 11px;
+}
+
+.member-slot-choice span {
+  width: 100%;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.member-slot-choice small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.member-play-modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.member-play-modes button {
+  border: 1px solid var(--line);
+  background: white;
+  min-height: 30px;
+  padding: 4px 7px;
+  font-size: 10px;
+}
+
+.member-play-modes button.selected {
+  border-color: var(--accent);
+  background: #fae8eb;
+  color: var(--accent-dark);
+  font-weight: 700;
+}
+
+.member-payment-summary {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+.member-payment-summary dl {
+  margin: 0 0 6px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 3px 8px;
+}
+
+.member-payment-summary dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  border-bottom: 1px solid #dbe0e2;
+  padding: 2px 0;
+}
+
+.member-payment-summary dt {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.member-payment-summary dd {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.member-payment-summary .payment-total {
+  color: var(--accent-dark);
 }
 
 .selection-action > span {
@@ -1026,6 +1197,15 @@ label {
     display: none;
   }
 
+  .action-controls {
+    flex-wrap: wrap;
+  }
+
+  .member-play-action {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+
   .start-grid {
     grid-template-columns: 1fr;
   }
@@ -1051,6 +1231,27 @@ label {
   .member-stage {
     grid-template-columns: repeat(3, minmax(86px, 1fr));
     overflow-x: auto;
+  }
+
+  .action-controls {
+    align-items: stretch;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    overflow-x: visible;
+  }
+
+  .member-play-action {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: 1fr;
+  }
+
+  .member-choice-strip {
+    max-width: calc(100vw - 42px);
+  }
+
+  .member-payment-summary dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .player-heading {

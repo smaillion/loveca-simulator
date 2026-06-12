@@ -10,9 +10,11 @@ from typing import Any
 from loveca.simulation.models import (
     ActionRequest,
     ActionResult,
+    GameResult,
     GameEvent,
     LegalAction,
     LivePerformanceResult,
+    ManualModifier,
     MatchState,
     PendingChoice,
 )
@@ -37,7 +39,7 @@ def apply_action(state: MatchState, action: ActionRequest) -> ActionResult:
             f"{state.revision}"
         )
     if state.phase == "complete":
-        raise IllegalActionError("the first-Live validation slice is complete")
+        raise IllegalActionError("the match is complete")
 
     next_state = state.model_copy(deep=True)
     events: list[GameEvent] = []
@@ -50,6 +52,7 @@ def apply_action(state: MatchState, action: ActionRequest) -> ActionResult:
         "set_live_cards": _set_live_cards,
         "resolve_live_requirements": _resolve_live_requirements,
         "manual_adjustment": _manual_adjustment,
+        "start_next_turn": _start_next_turn,
     }
     handlers[action.action_type](next_state, action, events)
     next_state.revision += 1
@@ -63,6 +66,19 @@ def apply_action(state: MatchState, action: ActionRequest) -> ActionResult:
 def generate_legal_actions(state: MatchState) -> list[LegalAction]:
     if state.phase == "complete":
         return []
+    if state.phase == "turn_complete":
+        return [
+            LegalAction(
+                action_type="start_next_turn",
+                player_id=state.next_first_player_id,
+                label_zh="开始下一回合",
+                label_ja="次のターンを開始",
+                options={
+                    "turn_number": state.turn_number + 1,
+                    "first_player_id": state.next_first_player_id,
+                },
+            )
+        ]
     actions: list[LegalAction] = []
     if state.phase == "setup_choose_first":
         actions.append(
@@ -128,21 +144,17 @@ def generate_legal_actions(state: MatchState) -> list[LegalAction]:
         )
     elif state.phase.endswith("_main"):
         player = state.players[state.active_player_id or ""]
-        empty_slots = [
-            slot for slot, instance_id in player.member_area.items() if instance_id is None
-        ]
         active_energy = [
             instance_id
             for instance_id in player.energy_area
             if state.cards[instance_id].orientation == "active"
         ]
-        playable = [
-            instance_id
-            for instance_id in player.hand
-            if state.cards[instance_id].card.card_type == "member"
-            and (state.cards[instance_id].card.cost or 0) <= len(active_energy)
-        ]
-        if empty_slots and playable:
+        placements = _legal_member_placements(
+            state,
+            player.player_id,
+            len(active_energy),
+        )
+        if placements:
             actions.append(
                 LegalAction(
                     action_type="play_member",
@@ -150,8 +162,7 @@ def generate_legal_actions(state: MatchState) -> list[LegalAction]:
                     label_zh="登场 Member",
                     label_ja="メンバーをプレイ",
                     options={
-                        "card_instance_ids": playable,
-                        "slots": empty_slots,
+                        "placements": placements,
                         "active_energy_instance_ids": active_energy,
                     },
                 )
@@ -266,6 +277,8 @@ def _submit_mulligan(
         player.hand.remove(instance_id)
     _draw(state, player.player_id, len(selected), events, reason="mulligan_draw")
     if selected:
+        for instance_id in selected:
+            state.cards[instance_id].face_up = False
         player.main_deck.extend(selected)
         player.main_deck = _deterministic_shuffle(
             player.main_deck,
@@ -374,20 +387,41 @@ def _play_member(
     instance_id = action.payload.get("card_instance_id")
     slot = action.payload.get("slot")
     energy_ids = action.payload.get("energy_instance_ids", [])
+    use_baton_touch = action.payload.get("use_baton_touch", False)
     if instance_id not in player.hand:
         raise IllegalActionError("the selected Member is not in hand")
     card = state.cards[instance_id]
     if card.card.card_type != "member":
         raise IllegalActionError("only Member cards can be played")
-    if slot not in player.member_area or player.member_area[slot] is not None:
-        raise IllegalActionError("the selected Member Area slot is not empty")
+    if slot not in player.member_area:
+        raise IllegalActionError("the selected Member Area slot is invalid")
+    if slot in player.member_areas_entered_this_turn:
+        raise IllegalActionError(
+            "the selected Member Area received a Member from outside the Stage this turn"
+        )
+    if not isinstance(use_baton_touch, bool):
+        raise IllegalActionError("use_baton_touch must be a boolean")
+    replaced_instance_id = player.member_area[slot]
     cost = card.card.cost or 0
+    payment_cost = cost
+    replaced_cost = 0
+    if use_baton_touch:
+        if replaced_instance_id is None:
+            raise IllegalActionError("Baton Touch requires a Member in the selected area")
+        if cost <= 0:
+            raise IllegalActionError(
+                "Baton Touch requires at least one unpaid Energy cost"
+            )
+        replaced_cost = state.cards[replaced_instance_id].card.cost or 0
+        payment_cost = max(0, cost - replaced_cost)
     if (
         not isinstance(energy_ids, list)
-        or len(energy_ids) != cost
+        or len(energy_ids) != payment_cost
         or len(energy_ids) != len(set(energy_ids))
     ):
-        raise IllegalActionError(f"playing this Member requires exactly {cost} Energy")
+        raise IllegalActionError(
+            f"playing this Member requires exactly {payment_cost} Energy"
+        )
     for energy_id in energy_ids:
         if energy_id not in player.energy_area:
             raise IllegalActionError("payment Energy must be in the Energy Area")
@@ -395,8 +429,27 @@ def _play_member(
             raise IllegalActionError("payment Energy must be Active")
     for energy_id in energy_ids:
         state.cards[energy_id].orientation = "wait"
+    if use_baton_touch and replaced_instance_id is not None:
+        player.member_area[slot] = None
+        player.waiting_room.append(replaced_instance_id)
+        events.append(
+            GameEvent(
+                event_type="baton_touch_performed",
+                player_id=player_id,
+                data={
+                    "replaced_card_instance_id": replaced_instance_id,
+                    "replaced_member_cost": replaced_cost,
+                    "new_member_cost": cost,
+                    "payment_cost": payment_cost,
+                    "slot": slot,
+                },
+                source="player",
+            )
+        )
     player.hand.remove(instance_id)
     player.member_area[slot] = instance_id
+    if slot not in player.member_areas_entered_this_turn:
+        player.member_areas_entered_this_turn.append(slot)
     card.face_up = True
     card.orientation = "active"
     events.append(
@@ -407,10 +460,26 @@ def _play_member(
                 "card_instance_id": instance_id,
                 "slot": slot,
                 "energy_instance_ids": energy_ids,
+                "payment_cost": payment_cost,
+                "baton_touch": use_baton_touch,
+                "replaced_card_instance_id": replaced_instance_id,
             },
             source="player",
         )
     )
+    if replaced_instance_id is not None and not use_baton_touch:
+        player.waiting_room.append(replaced_instance_id)
+        events.append(
+            GameEvent(
+                event_type="duplicate_member_resolved",
+                player_id=player_id,
+                data={
+                    "kept_card_instance_id": instance_id,
+                    "moved_to_waiting_room_instance_id": replaced_instance_id,
+                    "slot": slot,
+                },
+            )
+        )
 
 
 def _end_main_phase(
@@ -464,11 +533,21 @@ def _set_live_cards(
         player.hand.remove(instance_id)
         player.live_area.append(instance_id)
         state.cards[instance_id].face_up = False
+    _draw(
+        state,
+        player.player_id,
+        len(selected),
+        events,
+        reason="live_set_replacement",
+    )
     events.append(
         GameEvent(
             event_type="live_cards_set",
             player_id=player.player_id,
-            data={"count": len(selected)},
+            data={
+                "count": len(selected),
+                "replacement_draw_count": len(selected),
+            },
             source="player",
         )
     )
@@ -505,6 +584,7 @@ def _resolve_live_requirements(
         player = state.players[pending.player_id]
         player.live_area.remove(selected)
         player.success_live_area.append(selected)
+        _record_success_live_move(state, player.player_id)
         events.append(
             GameEvent(
                 event_type="success_live_selected",
@@ -532,10 +612,16 @@ def _manual_adjustment(
         "confirmed_by"
     ):
         raise IllegalActionError("confirmed_by is required for confirmed adjustments")
-    for adjustment in adjustments:
+    action_key = action.action_id or f"revision-{state.revision}"
+    for adjustment_index, adjustment in enumerate(adjustments):
         if not isinstance(adjustment, dict):
             raise IllegalActionError("manual adjustment entries must be objects")
-        _apply_manual_entry(state, adjustment)
+        _apply_manual_entry(
+            state,
+            adjustment,
+            events,
+            modifier_id=f"{action_key}:{adjustment_index}",
+        )
     events.append(
         GameEvent(
             event_type="manual_adjustment_applied",
@@ -592,7 +678,7 @@ def _run_current_yell(
         events.append(GameEvent(event_type="yell_skipped", player_id=player_id))
         return
 
-    blade_count = player.manual_blade_modifier
+    blade_count = _modifier_total(player, "blade")
     member_hearts: Counter[str] = Counter()
     for instance_id in player.member_area.values():
         if instance_id is None:
@@ -606,12 +692,12 @@ def _run_current_yell(
     yell_hearts: Counter[str] = Counter()
     all_color_hearts = 0
     draw_count = 0
-    score_bonus = player.manual_score_modifier
+    score_bonus = 0
     special_results: list[dict[str, Any]] = []
     for _ in range(max(0, blade_count)):
-        if not player.main_deck:
+        instance_id = _take_main_deck_card(state, player_id, events)
+        if instance_id is None:
             break
-        instance_id = player.main_deck.pop(0)
         player.resolution_area.append(instance_id)
         state.cards[instance_id].face_up = True
         revealed.append(instance_id)
@@ -637,14 +723,15 @@ def _run_current_yell(
     if draw_count:
         _draw(state, player_id, draw_count, events, reason="special_blade_heart_draw")
 
+    manual_hearts = _heart_modifiers(player)
     hearts = Counter(member_hearts)
-    hearts.update(player.manual_heart_modifiers)
+    hearts.update(manual_hearts)
     hearts.update(yell_hearts)
     player.live_result = LivePerformanceResult(
         blade_count=blade_count,
         revealed_instance_ids=revealed,
         member_hearts=dict(sorted(member_hearts.items())),
-        manual_hearts=dict(sorted(player.manual_heart_modifiers.items())),
+        manual_hearts=dict(sorted(manual_hearts.items())),
         yell_hearts=dict(sorted(yell_hearts.items())),
         available_hearts=dict(sorted(hearts.items())),
         all_color_hearts=all_color_hearts,
@@ -660,7 +747,7 @@ def _run_current_yell(
                 "blade_count": blade_count,
                 "revealed_instance_ids": revealed,
                 "member_hearts": dict(member_hearts),
-                "manual_hearts": dict(player.manual_heart_modifiers),
+                "manual_hearts": dict(manual_hearts),
                 "yell_hearts": dict(yell_hearts),
                 "live_owned_hearts": dict(hearts),
                 "all_color_hearts": all_color_hearts,
@@ -762,6 +849,7 @@ def _apply_live_requirements(
         player.live_result.base_score = sum(
             state.cards[instance_id].card.score or 0 for instance_id in player.live_area
         )
+        player.live_result.score_bonus += _modifier_total(player, "score")
         player.live_result.total_score = (
             player.live_result.base_score + player.live_result.score_bonus
         )
@@ -786,6 +874,9 @@ def _continue_after_yell(
     state: MatchState,
     events: list[GameEvent],
 ) -> None:
+    player_id = state.active_player_id
+    if player_id:
+        _expire_modifiers(state, player_id, "live", events)
     if state.phase == "yell_first":
         state.phase = "performance_second"
         state.active_player_id = state.second_player_id
@@ -812,6 +903,7 @@ def _begin_live_judgment(
     state: MatchState,
     events: list[GameEvent],
 ) -> None:
+    state.success_live_moved_player_ids = []
     first_id = state.first_player_id or ""
     second_id = state.second_player_id or ""
     first = state.players[first_id]
@@ -875,6 +967,48 @@ def _begin_live_judgment(
     _finish_judgment_choices(state, list(winners), events)
 
 
+def _start_next_turn(
+    state: MatchState,
+    action: ActionRequest,
+    events: list[GameEvent],
+) -> None:
+    if state.phase != "turn_complete":
+        raise IllegalActionError("the next turn can only start after turn completion")
+    next_first = state.next_first_player_id
+    if next_first not in state.players:
+        raise IllegalActionError("next first player is not available")
+    next_second = next(
+        player_id for player_id in state.players if player_id != next_first
+    )
+    for player_id in state.players:
+        _expire_modifiers(state, player_id, "turn", events)
+        state.players[player_id].live_result = LivePerformanceResult()
+        state.players[player_id].member_areas_entered_this_turn = []
+    state.turn_number += 1
+    state.first_player_id = next_first
+    state.second_player_id = next_second
+    state.next_first_player_id = None
+    state.success_live_moved_player_ids = []
+    state.live_winner_ids = []
+    state.live_judgment_summary = None
+    state.pending_choice = None
+    state.completed_reason = None
+    state.phase = "first_active"
+    state.active_player_id = next_first
+    events.append(
+        GameEvent(
+            event_type="turn_started",
+            player_id=next_first,
+            data={
+                "turn_number": state.turn_number,
+                "first_player_id": next_first,
+                "second_player_id": next_second,
+            },
+            source="player",
+        )
+    )
+
+
 def _finish_judgment_choices(
     state: MatchState,
     remaining_winners: list[str],
@@ -891,6 +1025,7 @@ def _finish_judgment_choices(
         if len(player.live_area) == 1:
             selected = player.live_area.pop()
             player.success_live_area.append(selected)
+            _record_success_live_move(state, player_id)
             events.append(
                 GameEvent(
                     event_type="success_live_selected",
@@ -912,10 +1047,10 @@ def _finish_judgment_choices(
             )
             state.active_player_id = player_id
             return
-    _complete_first_live(state, events)
+    _complete_live_judgment(state, events)
 
 
-def _complete_first_live(
+def _complete_live_judgment(
     state: MatchState,
     events: list[GameEvent],
 ) -> None:
@@ -925,18 +1060,78 @@ def _complete_first_live(
                 zone.remove(instance_id)
                 player.waiting_room.append(instance_id)
     state.pending_choice = None
-    state.phase = "complete"
     state.active_player_id = None
-    state.completed_reason = "live_judgment_completed"
+    success_counts = {
+        player_id: len(player.success_live_area)
+        for player_id, player in state.players.items()
+    }
+    threshold_players = [
+        player_id for player_id, count in success_counts.items() if count >= 3
+    ]
+    if len(threshold_players) == 2:
+        state.game_result = GameResult(
+            outcome="draw",
+            winner_player_ids=[],
+            final_turn=state.turn_number,
+        )
+    elif len(threshold_players) == 1:
+        state.game_result = GameResult(
+            outcome="win",
+            winner_player_ids=threshold_players,
+            final_turn=state.turn_number,
+        )
+
+    if state.game_result is not None:
+        state.phase = "complete"
+        state.completed_reason = "success_live_threshold"
+        state.next_first_player_id = None
+        events.append(
+            GameEvent(
+                event_type="match_completed",
+                data={
+                    "game_result": state.game_result.model_dump(),
+                    "success_live_counts": success_counts,
+                },
+            )
+        )
+    else:
+        moved = state.success_live_moved_player_ids
+        state.next_first_player_id = (
+            moved[0] if len(moved) == 1 else state.first_player_id
+        )
+        state.phase = "turn_complete"
+        state.completed_reason = None
+        events.append(
+            GameEvent(
+                event_type="turn_completed",
+                data={
+                    "turn_number": state.turn_number,
+                    "next_first_player_id": state.next_first_player_id,
+                    "success_live_moved_player_ids": list(moved),
+                    "success_live_counts": success_counts,
+                },
+            )
+        )
     events.append(
         GameEvent(
             event_type="live_judgment_completed",
-            data={"winner_ids": state.live_winner_ids},
+            data={
+                "winner_ids": state.live_winner_ids,
+                "success_live_moved_player_ids": list(
+                    state.success_live_moved_player_ids
+                ),
+            },
         )
     )
 
 
-def _apply_manual_entry(state: MatchState, adjustment: dict[str, Any]) -> None:
+def _apply_manual_entry(
+    state: MatchState,
+    adjustment: dict[str, Any],
+    events: list[GameEvent],
+    *,
+    modifier_id: str,
+) -> None:
     adjustment_type = adjustment.get("adjustment_type")
     player_id = adjustment.get("target_player_id")
     if player_id not in state.players:
@@ -944,7 +1139,7 @@ def _apply_manual_entry(state: MatchState, adjustment: dict[str, Any]) -> None:
     player = state.players[player_id]
     if adjustment_type == "draw_card":
         amount = _positive_amount(adjustment)
-        _draw(state, player_id, amount, [], reason="manual")
+        _draw(state, player_id, amount, events, reason="manual")
     elif adjustment_type == "discard_card":
         instance_id = adjustment.get("target_card_instance_id")
         if instance_id not in player.hand:
@@ -962,26 +1157,44 @@ def _apply_manual_entry(state: MatchState, adjustment: dict[str, Any]) -> None:
         state.cards[instance_id].orientation = (
             "active" if adjustment_type == "ready_energy" else "wait"
         )
-    elif adjustment_type == "modify_score":
-        player.manual_score_modifier += _integer_amount(adjustment)
-    elif adjustment_type == "modify_blade":
-        player.manual_blade_modifier += _integer_amount(adjustment)
-    elif adjustment_type == "modify_heart":
+    elif adjustment_type in {"modify_score", "modify_blade", "modify_heart"}:
+        duration = _modifier_duration(adjustment)
         color = adjustment.get("color_slot")
-        if not isinstance(color, str):
+        if adjustment_type == "modify_heart" and not isinstance(color, str):
             raise IllegalActionError("modify_heart requires color_slot")
-        player.manual_heart_modifiers[color] = (
-            player.manual_heart_modifiers.get(color, 0)
-            + _integer_amount(adjustment)
+        player.manual_modifiers.append(
+            ManualModifier(
+                modifier_id=modifier_id,
+                modifier_type=adjustment_type.removeprefix("modify_"),
+                duration=duration,
+                created_turn=state.turn_number,
+                amount=_integer_amount(adjustment),
+                color_slot=color if adjustment_type == "modify_heart" else None,
+            )
         )
     elif adjustment_type in {"set_flag", "clear_flag"}:
         flag = adjustment.get("flag")
         if not isinstance(flag, str) or not flag:
             raise IllegalActionError("flag adjustment requires a flag name")
         if adjustment_type == "set_flag":
-            player.flags[flag] = adjustment.get("value", True)
+            player.manual_modifiers.append(
+                ManualModifier(
+                    modifier_id=modifier_id,
+                    modifier_type="flag",
+                    duration=_modifier_duration(adjustment),
+                    created_turn=state.turn_number,
+                    flag=flag,
+                    value=adjustment.get("value", True),
+                )
+            )
         else:
-            player.flags.pop(flag, None)
+            player.manual_modifiers = [
+                modifier
+                for modifier in player.manual_modifiers
+                if not (
+                    modifier.modifier_type == "flag" and modifier.flag == flag
+                )
+            ]
     else:
         raise IllegalActionError(f"unsupported manual adjustment: {adjustment_type}")
 
@@ -997,6 +1210,7 @@ def _manual_move_card(
     if state.cards[instance_id].owner_id != player_id:
         raise IllegalActionError("manual move target must belong to target player")
     player = state.players[player_id]
+    was_on_stage = instance_id in player.member_area.values()
     _remove_from_player_zones(player, instance_id)
     simple_zones = {
         "hand": player.hand,
@@ -1010,12 +1224,16 @@ def _manual_move_card(
     }
     if to_zone in simple_zones:
         simple_zones[to_zone].append(instance_id)
+        if to_zone in {"main_deck", "energy_deck"}:
+            state.cards[instance_id].face_up = False
         return
     if to_zone in {"member_left", "member_center", "member_right"}:
         slot = str(to_zone).removeprefix("member_")
         if player.member_area[slot] is not None:
             raise IllegalActionError("manual move Member Area slot is occupied")
         player.member_area[slot] = instance_id
+        if not was_on_stage and slot not in player.member_areas_entered_this_turn:
+            player.member_areas_entered_this_turn.append(slot)
         return
     raise IllegalActionError("manual move target zone is invalid")
 
@@ -1049,9 +1267,9 @@ def _draw(
     player = state.players[player_id]
     drawn: list[str] = []
     for _ in range(amount):
-        if not player.main_deck:
+        instance_id = _take_main_deck_card(state, player_id, events)
+        if instance_id is None:
             break
-        instance_id = player.main_deck.pop(0)
         player.hand.append(instance_id)
         state.cards[instance_id].face_up = True
         drawn.append(instance_id)
@@ -1063,6 +1281,50 @@ def _draw(
                 data={"instance_ids": drawn, "reason": reason},
             )
         )
+
+
+def _take_main_deck_card(
+    state: MatchState,
+    player_id: str,
+    events: list[GameEvent],
+) -> str | None:
+    player = state.players[player_id]
+    if not player.main_deck:
+        _refresh_main_deck(state, player_id, events)
+    if not player.main_deck:
+        return None
+    return player.main_deck.pop(0)
+
+
+def _refresh_main_deck(
+    state: MatchState,
+    player_id: str,
+    events: list[GameEvent],
+) -> None:
+    player = state.players[player_id]
+    if player.main_deck or not player.waiting_room:
+        return
+    moved = list(player.waiting_room)
+    player.waiting_room.clear()
+    for instance_id in moved:
+        state.cards[instance_id].face_up = False
+    player.refresh_count += 1
+    player.main_deck = _deterministic_shuffle(
+        moved,
+        state.seed,
+        f"refresh:{player_id}:{player.refresh_count}",
+    )
+    events.append(
+        GameEvent(
+            event_type="deck_refreshed",
+            player_id=player_id,
+            data={
+                "instance_ids": moved,
+                "count": len(moved),
+                "refresh_count": player.refresh_count,
+            },
+        )
+    )
 
 
 def _move_energy_to_area(
@@ -1120,6 +1382,55 @@ def _deterministic_shuffle(items: list[str], seed: int, salt: str) -> list[str]:
     return shuffled
 
 
+def _legal_member_placements(
+    state: MatchState,
+    player_id: str,
+    active_energy_count: int,
+) -> list[dict[str, Any]]:
+    player = state.players[player_id]
+    placements: list[dict[str, Any]] = []
+    for instance_id in player.hand:
+        definition = state.cards[instance_id].card
+        if definition.card_type != "member":
+            continue
+        new_cost = definition.cost or 0
+        for slot, current_instance_id in player.member_area.items():
+            if slot in player.member_areas_entered_this_turn:
+                continue
+            if new_cost <= active_energy_count:
+                replaced_cost = (
+                    state.cards[current_instance_id].card.cost or 0
+                    if current_instance_id is not None
+                    else 0
+                )
+                placements.append(
+                    {
+                        "card_instance_id": instance_id,
+                        "slot": slot,
+                        "payment_cost": new_cost,
+                        "use_baton_touch": False,
+                        "replaced_card_instance_id": current_instance_id,
+                        "replaced_member_cost": replaced_cost,
+                    }
+                )
+            if current_instance_id is None or new_cost <= 0:
+                continue
+            replaced_cost = state.cards[current_instance_id].card.cost or 0
+            payment_cost = max(0, new_cost - replaced_cost)
+            if payment_cost <= active_energy_count:
+                placements.append(
+                    {
+                        "card_instance_id": instance_id,
+                        "slot": slot,
+                        "payment_cost": payment_cost,
+                        "use_baton_touch": True,
+                        "replaced_card_instance_id": current_instance_id,
+                        "replaced_member_cost": replaced_cost,
+                    }
+                )
+    return placements
+
+
 def _positive_amount(adjustment: dict[str, Any]) -> int:
     amount = adjustment.get("amount")
     if not isinstance(amount, int) or isinstance(amount, bool) or amount <= 0:
@@ -1132,3 +1443,62 @@ def _integer_amount(adjustment: dict[str, Any]) -> int:
     if not isinstance(amount, int) or isinstance(amount, bool):
         raise IllegalActionError("manual adjustment amount must be an integer")
     return amount
+
+
+def _modifier_duration(adjustment: dict[str, Any]) -> str:
+    duration = adjustment.get("duration")
+    if duration not in {"live", "turn", "game"}:
+        raise IllegalActionError(
+            "persistent manual adjustment requires duration live, turn, or game"
+        )
+    return duration
+
+
+def _modifier_total(player: Any, modifier_type: str) -> int:
+    return sum(
+        modifier.amount or 0
+        for modifier in player.manual_modifiers
+        if modifier.modifier_type == modifier_type
+    )
+
+
+def _heart_modifiers(player: Any) -> Counter[str]:
+    hearts: Counter[str] = Counter()
+    for modifier in player.manual_modifiers:
+        if modifier.modifier_type == "heart" and modifier.color_slot:
+            hearts[modifier.color_slot] += modifier.amount or 0
+    return hearts
+
+
+def _expire_modifiers(
+    state: MatchState,
+    player_id: str,
+    duration: str,
+    events: list[GameEvent],
+) -> None:
+    player = state.players[player_id]
+    expired = [
+        modifier.modifier_id
+        for modifier in player.manual_modifiers
+        if modifier.duration == duration
+    ]
+    if not expired:
+        return
+    player.manual_modifiers = [
+        modifier
+        for modifier in player.manual_modifiers
+        if modifier.duration != duration
+    ]
+    events.append(
+        GameEvent(
+            event_type="manual_modifiers_expired",
+            player_id=player_id,
+            data={"duration": duration, "modifier_ids": expired},
+            source="system",
+        )
+    )
+
+
+def _record_success_live_move(state: MatchState, player_id: str) -> None:
+    if player_id not in state.success_live_moved_player_ids:
+        state.success_live_moved_player_ids.append(player_id)

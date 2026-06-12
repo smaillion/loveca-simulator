@@ -8,16 +8,23 @@ import pytest
 
 from loveca.cards.importer import import_normalized_cards
 from loveca.decks.analyzer import load_deck
-from loveca.simulation.engine import IllegalActionError, StaleRevisionError
+from loveca.simulation.engine import (
+    IllegalActionError,
+    StaleRevisionError,
+    generate_legal_actions,
+)
 from loveca.simulation.models import ActionRequest
+from loveca.simulation.runtime import RuntimeSchemaError, initialize_runtime_database
 from loveca.simulation.service import MatchService
 
 
 # Official comprehensive rules ver. 1.06:
 # 6.2.1.5 opening hand 6; 6.2.1.6 mulligan; 6.2.1.7 initial Energy 3;
-# 7.1.2 and 7.3.3 phase order; 8.2 set up to 3 cards; 8.3 performance;
+# 7.1.2 and 7.3.3 phase order; 8.2.2/8.2.4 set up to 3 cards and draw
+# the same count; 8.3 performance;
 # 8.3.10-8.3.15 Blade total, Yell, Live owned Hearts, and requirements;
-# 8.4.2-8.4.6 score calculation and first Live judgment.
+# 8.4.2-8.4.7 score calculation and Live judgment; 8.4.13 next first player;
+# 10.2 deck refresh; 1.2.1.1-1.2.1.2 victory and simultaneous draw.
 PROJECT_ROOT = Path(__file__).parents[1]
 SAMPLE_CARDS = (
     PROJECT_ROOT
@@ -29,7 +36,7 @@ NORMALIZATION = PROJECT_ROOT / "data_sources" / "card-entity-normalization.json"
 SAMPLE_DECK = PROJECT_ROOT / "examples" / "decks" / "sample-deck.json"
 
 
-def test_setup_phase_order_and_first_live_completion(tmp_path):
+def test_setup_phase_order_and_next_turn_start(tmp_path):
     service, match_id = _create_match(tmp_path, seed=260428)
 
     state = service.repository.get_state(match_id)
@@ -82,7 +89,7 @@ def test_setup_phase_order_and_first_live_completion(tmp_path):
         "performance_second",
         "yell_second",
         "live_judgment",
-        "complete",
+        "turn_complete",
     ]
     for expected in expected_phases:
         if state.phase.endswith(("_active", "_energy", "_draw")):
@@ -102,9 +109,17 @@ def test_setup_phase_order_and_first_live_completion(tmp_path):
             payload={"card_instance_ids": []} if action_type == "set_live_cards" else {},
         )
         assert state.phase == expected
-    assert state.completed_reason == "live_judgment_completed"
+    assert state.completed_reason is None
     assert state.live_judgment_summary is not None
     assert state.live_judgment_summary["basis"] == "no_successful_live"
+    assert state.next_first_player_id == "player_1"
+    assert _match_status(service, match_id) == "active"
+
+    state = _apply(service, match_id, state, "start_next_turn")
+    assert state.phase == "first_active"
+    assert state.turn_number == 2
+    assert state.first_player_id == "player_1"
+    assert state.live_judgment_summary is None
 
 
 def test_yell_and_live_requirement_details_are_preserved(tmp_path):
@@ -196,11 +211,12 @@ def test_yell_and_live_requirement_details_are_preserved(tmp_path):
             "requires_confirmation": True,
             "confirmed_by": "tester",
             "adjustments": [
-                {
-                    "adjustment_type": "modify_blade",
-                    "target_player_id": "player_1",
-                    "amount": 2,
-                }
+                    {
+                        "adjustment_type": "modify_blade",
+                        "target_player_id": "player_1",
+                        "amount": 2,
+                        "duration": "live",
+                    }
             ],
         },
     )
@@ -229,6 +245,122 @@ def test_yell_and_live_requirement_details_are_preserved(tmp_path):
     assert result.live_allocations[0]["required_hearts"]
     assert "consumed_hearts" in result.live_allocations[0]
     assert "missing_hearts" in result.live_allocations[0]
+
+
+def test_two_successful_live_cards_use_combined_score_but_move_only_one(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=20842)
+    state = _reach_first_main(service, match_id)
+    player_id = state.first_player_id or ""
+    live_ids = [
+        instance_id
+        for instance_id in state.players[player_id].main_deck
+        if state.cards[instance_id].card.card_type == "live"
+        and state.cards[instance_id].card.required_hearts
+    ][:2]
+    assert len(live_ids) == 2
+    colors = {
+        color
+        for instance_id in live_ids
+        for color in state.cards[instance_id].card.required_hearts
+    }
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "manual_adjustment",
+        player_id=player_id,
+        payload={
+            "reason": "prepare two-Live total score rule test",
+            "adjustments": [
+                *[
+                    {
+                        "adjustment_type": "move_card",
+                        "target_player_id": player_id,
+                        "target_card_instance_id": instance_id,
+                        "to_zone": "hand",
+                    }
+                    for instance_id in live_ids
+                ],
+                *[
+                    {
+                        "adjustment_type": "modify_heart",
+                        "target_player_id": player_id,
+                        "color_slot": color,
+                        "amount": 20,
+                        "duration": "live",
+                    }
+                    for color in colors
+                ],
+            ],
+        },
+    )
+    state = _reach_live_set_from_first_main(service, match_id, state)
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "set_live_cards",
+        player_id=player_id,
+        payload={"card_instance_ids": live_ids},
+    )
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "set_live_cards",
+        player_id=state.second_player_id,
+        payload={"card_instance_ids": []},
+    )
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "advance_phase",
+        player_id=player_id,
+    )
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "advance_phase",
+        player_id=player_id,
+    )
+    assert state.pending_choice is not None
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "resolve_live_requirements",
+        player_id=player_id,
+        payload={"live_instance_ids": live_ids},
+    )
+    for _ in range(2):
+        state = _apply(
+            service,
+            match_id,
+            state,
+            "advance_phase",
+            player_id=state.second_player_id,
+        )
+
+    expected_score = sum(state.cards[item].card.score or 0 for item in live_ids)
+    assert state.players[player_id].live_result.base_score == expected_score
+    assert state.players[player_id].live_result.total_score == expected_score
+
+    state = _apply(service, match_id, state, "advance_phase")
+    assert state.pending_choice is not None
+    assert state.pending_choice.choice_type == "success_live"
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "resolve_live_requirements",
+        player_id=player_id,
+        payload={"success_live_instance_id": live_ids[0]},
+    )
+    assert state.phase == "turn_complete"
+    assert state.players[player_id].success_live_area == [live_ids[0]]
+    assert live_ids[1] in state.players[player_id].waiting_room
 
 
 def test_manual_adjustment_and_member_play_are_action_only(tmp_path):
@@ -278,6 +410,137 @@ def test_manual_adjustment_and_member_play_are_action_only(tmp_path):
     )
     assert state.players["player_1"].member_area["center"] == member_id
     assert all(state.cards[item].orientation == "wait" for item in energy_ids)
+    assert state.players["player_1"].member_areas_entered_this_turn == ["center"]
+
+
+def test_baton_touch_replaces_member_and_pays_only_cost_difference(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=121)
+    state = _reach_first_main(service, match_id)
+    player = state.players["player_1"]
+    members = sorted(
+        (
+            instance_id
+            for instance_id in player.main_deck
+            if state.cards[instance_id].card.card_type == "member"
+        ),
+        key=lambda instance_id: state.cards[instance_id].card.cost or 0,
+    )
+    old_id, new_id = next(
+        (old_id, new_id)
+        for old_id in members
+        for new_id in reversed(members)
+        if (state.cards[old_id].card.cost or 0) <= len(player.energy_area)
+        and (state.cards[new_id].card.cost or 0)
+        > (state.cards[old_id].card.cost or 0)
+        and (state.cards[new_id].card.cost or 0)
+        - (state.cards[old_id].card.cost or 0)
+        <= len(player.energy_area) + 1
+    )
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "manual_adjustment",
+        player_id="player_1",
+        payload={
+            "reason": "prepare Baton Touch rule test",
+            "adjustments": [
+                {
+                    "adjustment_type": "move_card",
+                    "target_player_id": "player_1",
+                    "target_card_instance_id": instance_id,
+                    "to_zone": "hand",
+                }
+                for instance_id in (old_id, new_id)
+            ],
+        },
+    )
+    old_cost = state.cards[old_id].card.cost or 0
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "play_member",
+        player_id="player_1",
+        payload={
+            "card_instance_id": old_id,
+            "slot": "center",
+            "use_baton_touch": False,
+            "energy_instance_ids": state.players["player_1"].energy_area[:old_cost],
+        },
+    )
+    with pytest.raises(IllegalActionError, match="outside the Stage this turn"):
+        service.apply(
+            match_id,
+            ActionRequest(
+                action_type="play_member",
+                expected_revision=state.revision,
+                player_id="player_1",
+                payload={
+                    "card_instance_id": new_id,
+                    "slot": "center",
+                    "use_baton_touch": True,
+                    "energy_instance_ids": [],
+                },
+            ),
+        )
+
+    state = _complete_turn(service, match_id, state, set())
+    state = _apply(service, match_id, state, "start_next_turn")
+    for _ in range(3):
+        state = _apply(
+            service,
+            match_id,
+            state,
+            "advance_phase",
+            player_id="player_1",
+        )
+    assert state.phase == "first_main"
+    assert state.players["player_1"].member_areas_entered_this_turn == []
+
+    play_action = next(
+        action
+        for action in generate_legal_actions(state)
+        if action.action_type == "play_member"
+    )
+    placement = next(
+        item
+        for item in play_action.options["placements"]
+        if item["card_instance_id"] == new_id
+        and item["slot"] == "center"
+        and item["use_baton_touch"]
+    )
+    new_cost = state.cards[new_id].card.cost or 0
+    assert placement["payment_cost"] == max(0, new_cost - old_cost)
+
+    result = service.apply(
+        match_id,
+        ActionRequest(
+            action_type="play_member",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={
+                "card_instance_id": new_id,
+                "slot": "center",
+                "use_baton_touch": True,
+                "energy_instance_ids": state.players["player_1"].energy_area[
+                    : placement["payment_cost"]
+                ],
+            },
+        ),
+    )
+    state = result.state
+    assert state.players["player_1"].member_area["center"] == new_id
+    assert old_id in state.players["player_1"].waiting_room
+    assert sum(
+        state.cards[instance_id].orientation == "wait"
+        for instance_id in state.players["player_1"].energy_area
+    ) == placement["payment_cost"]
+    baton_event = next(
+        event for event in result.events if event.event_type == "baton_touch_performed"
+    )
+    assert baton_event.data["replaced_card_instance_id"] == old_id
+    assert baton_event.data["payment_cost"] == placement["payment_cost"]
 
 
 def test_stale_or_illegal_action_does_not_persist(tmp_path):
@@ -339,6 +602,211 @@ def test_replay_reconstructs_current_state(tmp_path):
     assert len(replay["actions"]) == 3
 
 
+def test_live_set_draws_exactly_the_number_of_set_cards(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=808)
+    state = _reach_live_set(service, match_id)
+    player = state.players[state.first_player_id or ""]
+    selected = player.hand[:3]
+    before_hand = len(player.hand)
+
+    result = service.apply(
+        match_id,
+        ActionRequest(
+            action_type="set_live_cards",
+            expected_revision=state.revision,
+            player_id=player.player_id,
+            payload={"card_instance_ids": selected},
+        ),
+    )
+
+    assert len(result.state.players[player.player_id].hand) == before_hand
+    drawn = next(event for event in result.events if event.event_type == "cards_drawn")
+    assert drawn.data["reason"] == "live_set_replacement"
+    assert len(drawn.data["instance_ids"]) == 3
+
+
+def test_draw_refreshes_main_deck_deterministically_and_replays(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=909)
+    state = _reach_first_main(service, match_id)
+    player = state.players["player_1"]
+    move_to_waiting = [
+        {
+            "adjustment_type": "move_card",
+            "target_player_id": "player_1",
+            "target_card_instance_id": instance_id,
+            "to_zone": "waiting_room",
+        }
+        for instance_id in player.main_deck[1:]
+    ]
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "manual_adjustment",
+        player_id="player_1",
+        payload={
+            "reason": "prepare deterministic refresh",
+            "adjustments": move_to_waiting,
+        },
+    )
+    result = service.apply(
+        match_id,
+        ActionRequest(
+            action_type="manual_adjustment",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={
+                "reason": "draw across deck boundary",
+                "adjustments": [
+                    {
+                        "adjustment_type": "draw_card",
+                        "target_player_id": "player_1",
+                        "amount": 2,
+                    }
+                ],
+            },
+        ),
+    )
+
+    refreshed = [
+        event for event in result.events if event.event_type == "deck_refreshed"
+    ]
+    assert len(refreshed) == 1
+    assert result.state.players["player_1"].refresh_count == 1
+    assert all(
+        not result.state.cards[instance_id].face_up
+        for instance_id in result.state.players["player_1"].main_deck
+    )
+    assert service.repository.replay(match_id)["final_state"] == result.state.model_dump()
+
+
+@pytest.mark.parametrize(
+    ("successful_roles", "expected_role"),
+    [
+        (set(), "first"),
+        ({"first"}, "first"),
+        ({"second"}, "second"),
+        ({"first", "second"}, "first"),
+    ],
+)
+def test_next_first_player_rule(tmp_path, successful_roles, expected_role):
+    service, match_id = _create_match(
+        tmp_path,
+        seed=1200 + len(successful_roles) * 10 + (1 if "second" in successful_roles else 0),
+    )
+    state = _reach_first_main(service, match_id)
+    original_first = state.first_player_id
+    original_second = state.second_player_id
+    successful_players = {
+        original_first if role == "first" else original_second
+        for role in successful_roles
+    }
+    state = _complete_turn(service, match_id, state, successful_players)
+
+    assert state.phase == "turn_complete"
+    expected = original_first if expected_role == "first" else original_second
+    assert state.next_first_player_id == expected
+
+
+def test_third_success_live_wins_and_match_rejects_further_actions(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=1337)
+    state = _reach_first_main(service, match_id)
+    winner_id = state.first_player_id or ""
+    state = _preload_success_lives(service, match_id, state, [winner_id], count=2)
+    state = _complete_turn(service, match_id, state, {winner_id})
+
+    assert state.phase == "complete"
+    assert state.game_result is not None
+    assert state.game_result.outcome == "win"
+    assert state.game_result.winner_player_ids == [winner_id]
+    assert _match_status(service, match_id) == "complete"
+    with pytest.raises(IllegalActionError):
+        _apply(service, match_id, state, "start_next_turn")
+
+
+def test_simultaneous_third_success_live_is_a_draw(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=1441)
+    state = _reach_first_main(service, match_id)
+    players = {state.first_player_id or "", state.second_player_id or ""}
+    state = _preload_success_lives(
+        service,
+        match_id,
+        state,
+        list(players),
+        count=2,
+    )
+    state = _complete_turn(service, match_id, state, players)
+
+    assert state.phase == "complete"
+    assert state.game_result is not None
+    assert state.game_result.outcome == "draw"
+    assert state.game_result.winner_player_ids == []
+
+
+def test_manual_modifier_durations_expire_at_live_turn_and_game_boundaries(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=1551)
+    state = _reach_first_main(service, match_id)
+    adjustments = []
+    for duration in ("live", "turn", "game"):
+        adjustments.append(
+            {
+                "adjustment_type": "modify_blade",
+                "target_player_id": "player_1",
+                "amount": 1,
+                "duration": duration,
+            }
+        )
+        adjustments.append(
+            {
+                "adjustment_type": "set_flag",
+                "target_player_id": "player_1",
+                "flag": f"{duration}_flag",
+                "value": True,
+                "duration": duration,
+            }
+        )
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "manual_adjustment",
+        player_id="player_1",
+        payload={"reason": "duration test", "adjustments": adjustments},
+    )
+    assert len(state.players["player_1"].manual_modifiers) == 6
+
+    state = _complete_turn(service, match_id, state, set())
+    remaining = state.players["player_1"].manual_modifiers
+    assert {modifier.duration for modifier in remaining} == {"turn", "game"}
+
+    state = _apply(service, match_id, state, "start_next_turn")
+    remaining = state.players["player_1"].manual_modifiers
+    assert {modifier.duration for modifier in remaining} == {"game"}
+
+
+def test_runtime_v1_is_rejected_and_v2_initialization_is_idempotent(tmp_path):
+    runtime_path = tmp_path / "runtime-v1.sqlite3"
+    with closing(sqlite3.connect(runtime_path)) as connection:
+        connection.execute(
+            "CREATE TABLE runtime_metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+        )
+        connection.execute(
+            "INSERT INTO runtime_metadata (key, value) VALUES ('schema_version', '1')"
+        )
+        connection.commit()
+    with pytest.raises(RuntimeSchemaError, match="expected 2"):
+        initialize_runtime_database(runtime_path)
+
+    v2_path = tmp_path / "runtime-v2.sqlite3"
+    initialize_runtime_database(v2_path)
+    initialize_runtime_database(v2_path)
+    with closing(sqlite3.connect(v2_path)) as connection:
+        version = connection.execute(
+            "SELECT value FROM runtime_metadata WHERE key = 'schema_version'"
+        ).fetchone()[0]
+    assert version == "2"
+
+
 def _create_match(tmp_path: Path, *, seed: int) -> tuple[MatchService, str]:
     card_database = tmp_path / "cards.sqlite3"
     import_normalized_cards(card_database, SAMPLE_CARDS, NORMALIZATION)
@@ -383,6 +851,200 @@ def _reach_first_main(service: MatchService, match_id: str):
     return state
 
 
+def _reach_live_set(service: MatchService, match_id: str):
+    state = _reach_first_main(service, match_id)
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "end_main_phase",
+        player_id=state.first_player_id,
+    )
+    for _ in range(3):
+        state = _apply(
+            service,
+            match_id,
+            state,
+            "advance_phase",
+            player_id=state.second_player_id,
+        )
+    return _apply(
+        service,
+        match_id,
+        state,
+        "end_main_phase",
+        player_id=state.second_player_id,
+    )
+
+
+def _preload_success_lives(
+    service: MatchService,
+    match_id: str,
+    state,
+    player_ids: list[str],
+    *,
+    count: int,
+):
+    adjustments = []
+    for player_id in player_ids:
+        live_ids = [
+            instance_id
+            for instance_id in state.players[player_id].main_deck
+            if state.cards[instance_id].card.card_type == "live"
+        ][:count]
+        assert len(live_ids) == count
+        adjustments.extend(
+            {
+                "adjustment_type": "move_card",
+                "target_player_id": player_id,
+                "target_card_instance_id": instance_id,
+                "to_zone": "success_live_area",
+            }
+            for instance_id in live_ids
+        )
+    return _apply(
+        service,
+        match_id,
+        state,
+        "manual_adjustment",
+        player_id=state.active_player_id,
+        payload={"reason": "prepare success threshold", "adjustments": adjustments},
+    )
+
+
+def _complete_turn(
+    service: MatchService,
+    match_id: str,
+    state,
+    successful_player_ids: set[str],
+):
+    live_by_player: dict[str, str] = {}
+    adjustments = []
+    for player_id in successful_player_ids:
+        live_id = next(
+            instance_id
+            for instance_id in state.players[player_id].main_deck
+            if state.cards[instance_id].card.card_type == "live"
+            and state.cards[instance_id].card.required_hearts
+        )
+        live_by_player[player_id] = live_id
+        adjustments.append(
+            {
+                "adjustment_type": "move_card",
+                "target_player_id": player_id,
+                "target_card_instance_id": live_id,
+                "to_zone": "hand",
+            }
+        )
+        for color in state.cards[live_id].card.required_hearts:
+            adjustments.append(
+                {
+                    "adjustment_type": "modify_heart",
+                    "target_player_id": player_id,
+                    "color_slot": color,
+                    "amount": 20,
+                    "duration": "live",
+                }
+            )
+    if len(live_by_player) == 2:
+        target_score = max(
+            state.cards[live_id].card.score or 0
+            for live_id in live_by_player.values()
+        )
+        for player_id, live_id in live_by_player.items():
+            score_delta = target_score - (state.cards[live_id].card.score or 0)
+            if score_delta:
+                adjustments.append(
+                    {
+                        "adjustment_type": "modify_score",
+                        "target_player_id": player_id,
+                        "amount": score_delta,
+                        "duration": "live",
+                    }
+                )
+    if adjustments:
+        state = _apply(
+            service,
+            match_id,
+            state,
+            "manual_adjustment",
+            player_id=state.active_player_id,
+            payload={"reason": "prepare successful Live", "adjustments": adjustments},
+        )
+
+    state = _reach_live_set_from_first_main(service, match_id, state)
+    for player_id in (state.first_player_id, state.second_player_id):
+        selected = [live_by_player[player_id]] if player_id in live_by_player else []
+        state = _apply(
+            service,
+            match_id,
+            state,
+            "set_live_cards",
+            player_id=player_id,
+            payload={"card_instance_ids": selected},
+        )
+    for player_id in (state.first_player_id, state.second_player_id):
+        state = _apply(
+            service,
+            match_id,
+            state,
+            "advance_phase",
+            player_id=player_id,
+        )
+        state = _apply(
+            service,
+            match_id,
+            state,
+            "advance_phase",
+            player_id=player_id,
+        )
+        if state.pending_choice is not None:
+            state = _apply(
+                service,
+                match_id,
+                state,
+                "resolve_live_requirements",
+                player_id=player_id,
+                payload={
+                    "live_instance_ids": list(
+                        state.pending_choice.options["live_instance_ids"]
+                    )
+                },
+            )
+    assert state.phase == "live_judgment"
+    return _apply(
+        service,
+        match_id,
+        state,
+        "advance_phase",
+    )
+
+
+def _reach_live_set_from_first_main(service: MatchService, match_id: str, state):
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "end_main_phase",
+        player_id=state.first_player_id,
+    )
+    for _ in range(3):
+        state = _apply(
+            service,
+            match_id,
+            state,
+            "advance_phase",
+            player_id=state.second_player_id,
+        )
+    return _apply(
+        service,
+        match_id,
+        state,
+        "end_main_phase",
+        player_id=state.second_player_id,
+    )
+
+
 def _apply(
     service: MatchService,
     match_id: str,
@@ -401,3 +1063,11 @@ def _apply(
             payload=payload or {},
         ),
     ).state
+
+
+def _match_status(service: MatchService, match_id: str) -> str:
+    with closing(sqlite3.connect(service.repository.path)) as connection:
+        return connection.execute(
+            "SELECT status FROM matches WHERE match_id = ?",
+            (match_id,),
+        ).fetchone()[0]

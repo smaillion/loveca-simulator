@@ -43,7 +43,8 @@ const phaseLabels: Record<string, [string, string]> = {
   performance_second: ["后攻 Live 公开", "後攻パフォーマンスフェイズ"],
   yell_second: ["后攻应援", "後攻エール"],
   live_judgment: ["Live 胜负判定", "ライブ勝敗判定"],
-  complete: ["首轮判定完成", "ライブ判定完了"],
+  turn_complete: ["本回合判定完成", "ターン完了"],
+  complete: ["对局结束", "対戦終了"],
 };
 
 const heartLabels: Record<string, string> = {
@@ -130,6 +131,7 @@ export default function App() {
           </div>
         </div>
         <div className="phase-status">
+          <span className="turn-number">第 {match.state.turn_number} 回合</span>
           <span className="phase-cn">{phaseLabels[match.state.phase]?.[0]}</span>
           <span>{phaseLabels[match.state.phase]?.[1] ?? match.state.phase}</span>
         </div>
@@ -233,7 +235,7 @@ function StartScreen({
             <CirclePlay size={20} />
             <div>
               <h1>创建规则验证对局</h1>
-              <p>使用已导入的 60+12 张示例牌组，运行到第一次 Live 判定。</p>
+              <p>使用已导入的 60+12 张示例牌组，运行完整对局并保留 Replay。</p>
             </div>
           </div>
           <div className="form-grid">
@@ -314,6 +316,9 @@ function PlayerBoard({
   compact?: boolean;
   onCard: (card: CardInstance) => void;
 }) {
+  const activeEnergy = player.energy_area.filter(
+    (instanceId) => state.cards[instanceId].orientation === "active",
+  ).length;
   return (
     <section className={`player-board ${compact ? "compact" : ""}`}>
       <div className="player-heading">
@@ -324,7 +329,8 @@ function PlayerBoard({
         <div className="player-metrics">
           <Metric label="Deck" value={player.main_deck.length} />
           <Metric label="Energy" value={player.energy_area.length} />
-          <Metric label="Success" value={player.success_live_area.length} />
+          <Metric label="Active" value={activeEnergy} />
+          <Metric label="Success" value={`${player.success_live_area.length} / 3`} />
           <Metric label="Score" value={player.live_result.total_score} />
         </div>
       </div>
@@ -382,6 +388,7 @@ function LiveAnalysisPanel({
     state.phase.startsWith("performance") ||
     state.phase.startsWith("yell") ||
     state.phase === "live_judgment" ||
+    state.phase === "turn_complete" ||
     state.phase === "complete";
   const summary = state.live_judgment_summary;
   const winners = summary?.winner_ids.map((id) => state.players[id].name) ?? [];
@@ -415,6 +422,20 @@ function LiveAnalysisPanel({
           </strong>
           {summary && (
             <span>{winners.length > 0 ? `胜者：${winners.join("、")}` : "无胜者"}</span>
+          )}
+          {state.phase === "turn_complete" && state.next_first_player_id && (
+            <span>
+              下一回合先攻：{state.players[state.next_first_player_id].name}
+            </span>
+          )}
+          {state.game_result && (
+            <span className="game-result">
+              {state.game_result.outcome === "draw"
+                ? "最终结果：平局"
+                : `最终胜者：${state.game_result.winner_player_ids
+                    .map((id) => state.players[id].name)
+                    .join("、")}`}
+            </span>
           )}
         </div>
       </header>
@@ -683,13 +704,10 @@ function ActionDock({
   onManual: () => void;
 }) {
   const [selected, setSelected] = useState<string[]>([]);
-  const [slot, setSlot] = useState("center");
-  const [memberId, setMemberId] = useState("");
   const [liveOrder, setLiveOrder] = useState<string[]>([]);
 
   useEffect(() => {
     setSelected([]);
-    setMemberId("");
     setLiveOrder([]);
   }, [state.revision]);
 
@@ -760,40 +778,14 @@ function ActionDock({
             );
           }
           if (action.action_type === "play_member") {
-            const cardIds = action.options.card_instance_ids as string[];
-            const slots = action.options.slots as string[];
-            const energy = action.options.active_energy_instance_ids as string[];
-            const chosen = memberId || cardIds[0] || "";
-            const cost = chosen ? state.cards[chosen].card.cost ?? 0 : 0;
             return (
-              <div className="inline-action" key={action.action_type}>
-                <select value={chosen} onChange={(e) => setMemberId(e.target.value)}>
-                  {cardIds.map((id) => (
-                    <option key={id} value={id}>
-                      {state.cards[id].card.name_ja} · cost {state.cards[id].card.cost}
-                    </option>
-                  ))}
-                </select>
-                <select value={slot} onChange={(e) => setSlot(e.target.value)}>
-                  {slots.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  className="primary-button"
-                  onClick={() =>
-                    onAction(action.action_type, action.player_id, {
-                      card_instance_id: chosen,
-                      slot,
-                      energy_instance_ids: energy.slice(0, cost),
-                    })
-                  }
-                >
-                  登场
-                </button>
-              </div>
+              <MemberPlayAction
+                key={`${action.action_type}-${state.revision}`}
+                action={action}
+                state={state}
+                loading={loading}
+                onAction={onAction}
+              />
             );
           }
           if (action.action_type === "resolve_live_requirements") {
@@ -867,6 +859,167 @@ function ActionDock({
   );
 }
 
+function MemberPlayAction({
+  action,
+  state,
+  loading,
+  onAction,
+}: {
+  action: LegalAction;
+  state: MatchState;
+  loading: boolean;
+  onAction: (
+    actionType: string,
+    playerId?: string | null,
+    payload?: Record<string, unknown>,
+  ) => void;
+}) {
+  const placements = action.options.placements as MemberPlacement[];
+  const energy = action.options.active_energy_instance_ids as string[];
+  const [selectedMemberId, setSelectedMemberId] = useState("");
+  const [selectedSlot, setSelectedSlot] = useState("");
+  const [selectedPlayMode, setSelectedPlayMode] = useState<MemberPlayMode | "">("");
+  const selection = resolveMemberPlaySelection(
+    placements,
+    selectedMemberId,
+    selectedSlot,
+    selectedPlayMode,
+  );
+  const player = state.players[action.player_id ?? ""];
+  const placement = selection.placement;
+  const newCost = placement
+    ? state.cards[placement.card_instance_id].card.cost ?? 0
+    : 0;
+  const reduction = placement?.use_baton_touch
+    ? Math.min(newCost, placement.replaced_member_cost)
+    : 0;
+
+  return (
+    <div className="member-play-action">
+      <div className="member-play-step member-card-step">
+        <span className="member-play-label">1 · 选择 Member</span>
+        <div className="member-choice-strip">
+          {selection.memberIds.map((instanceId) => (
+            <div
+              className="member-choice-card"
+              data-instance-id={instanceId}
+              key={instanceId}
+            >
+              <CardTile
+                instance={state.cards[instanceId]}
+                selected={instanceId === selection.selectedMemberId}
+                onClick={() => {
+                  setSelectedMemberId(instanceId);
+                  setSelectedSlot("");
+                  setSelectedPlayMode("");
+                }}
+              />
+              <span>cost {state.cards[instanceId].card.cost ?? 0}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="member-play-step member-target-step">
+        <span className="member-play-label">2 · 选择区域</span>
+        <div className="member-slot-options">
+          {MEMBER_SLOT_DISPLAY_ORDER.map((slot) => {
+            const currentId = player.member_area[slot];
+            const legal = selection.availableSlots.includes(slot);
+            const enteredThisTurn = player.member_areas_entered_this_turn.includes(slot);
+            return (
+              <button
+                className={`member-slot-choice ${
+                  slot === selection.selectedSlot ? "selected" : ""
+                }`}
+                data-slot={slot}
+                disabled={!legal}
+                key={slot}
+                onClick={() => {
+                  setSelectedSlot(slot);
+                  setSelectedPlayMode("");
+                }}
+              >
+                <strong>{memberSlotLabel(slot)}</strong>
+                <span>
+                  {currentId
+                    ? state.cards[currentId].card.name_ja
+                    : enteredThisTurn
+                      ? "本回合不可指定"
+                      : "空"}
+                </span>
+                {currentId && (
+                  <small>cost {state.cards[currentId].card.cost ?? 0}</small>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {placement?.replaced_card_instance_id && (
+          <div className="member-play-modes" aria-label="登场方式">
+            {selection.availableModes.map((mode) => (
+              <button
+                className={mode === selection.selectedMode ? "selected" : ""}
+                data-mode={mode}
+                key={mode}
+                onClick={() => setSelectedPlayMode(mode)}
+              >
+                {mode === "baton" ? "バトンタッチ" : "通常登场"}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="member-payment-summary">
+        <span className="member-play-label">费用</span>
+        <dl>
+          <div>
+            <dt>新 Member</dt>
+            <dd>{newCost}</dd>
+          </div>
+          <div>
+            <dt>旧 Member</dt>
+            <dd>{placement?.replaced_member_cost ?? 0}</dd>
+          </div>
+          <div>
+            <dt>Baton 减免</dt>
+            <dd>-{reduction}</dd>
+          </div>
+          <div>
+            <dt>Energy 总数</dt>
+            <dd>{player.energy_area.length}</dd>
+          </div>
+          <div>
+            <dt>可用 Active</dt>
+            <dd>{energy.length}</dd>
+          </div>
+          <div className="payment-total">
+            <dt>实付 Energy</dt>
+            <dd>{placement?.payment_cost ?? 0}</dd>
+          </div>
+        </dl>
+        <button
+          className="primary-button"
+          disabled={loading || !placement}
+          onClick={() => {
+            if (!placement) return;
+            onAction(action.action_type, action.player_id, {
+              card_instance_id: placement.card_instance_id,
+              slot: placement.slot,
+              use_baton_touch: placement.use_baton_touch,
+              energy_instance_ids: energy.slice(0, placement.payment_cost),
+            });
+          }}
+        >
+          {placement?.use_baton_touch ? "バトンタッチ" : "登场"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function SelectionAction({
   title,
   ids,
@@ -921,6 +1074,9 @@ function ManualDrawer({
   const [cardId, setCardId] = useState("");
   const [toZone, setToZone] = useState("waiting_room");
   const [color, setColor] = useState("heart01");
+  const [duration, setDuration] = useState<"live" | "turn" | "game">("live");
+  const [flag, setFlag] = useState("");
+  const persistent = ["modify_score", "modify_heart", "modify_blade", "set_flag"].includes(type);
   const cards = Object.values(state.cards).filter((card) => card.owner_id === playerId);
   return (
     <div className="drawer-backdrop" onMouseDown={onClose}>
@@ -956,6 +1112,8 @@ function ManualDrawer({
               "modify_score",
               "modify_heart",
               "modify_blade",
+              "set_flag",
+              "clear_flag",
             ].map((item) => (
               <option key={item}>{item}</option>
             ))}
@@ -1007,6 +1165,25 @@ function ManualDrawer({
             </select>
           </label>
         )}
+        {persistent && (
+          <label>
+            Duration
+            <select
+              value={duration}
+              onChange={(e) => setDuration(e.target.value as "live" | "turn" | "game")}
+            >
+              <option value="live">live · 本次 Performance</option>
+              <option value="turn">turn · 本回合</option>
+              <option value="game">game · 整场对局</option>
+            </select>
+          </label>
+        )}
+        {["set_flag", "clear_flag"].includes(type) && (
+          <label>
+            Flag name
+            <input value={flag} onChange={(e) => setFlag(e.target.value)} />
+          </label>
+        )}
         {["draw_card", "modify_score", "modify_heart", "modify_blade"].includes(type) && (
           <label>
             Amount
@@ -1027,7 +1204,12 @@ function ManualDrawer({
                   target_card_instance_id: cardId || undefined,
                   to_zone: type === "move_card" ? toZone : undefined,
                   color_slot: type === "modify_heart" ? color : undefined,
-                  amount: Number(amount),
+                  amount: ["draw_card", "modify_score", "modify_heart", "modify_blade"].includes(type)
+                    ? Number(amount)
+                    : undefined,
+                  duration: persistent ? duration : undefined,
+                  flag: ["set_flag", "clear_flag"].includes(type) ? flag : undefined,
+                  value: type === "set_flag" ? true : undefined,
                 },
               ],
             })
@@ -1100,4 +1282,72 @@ function moveItem(items: string[], from: number, to: number): string[] {
   const [item] = next.splice(from, 1);
   next.splice(to, 0, item);
   return next;
+}
+
+export function availableValue(current: string, available: string[]): string {
+  return available.includes(current) ? current : available[0] ?? "";
+}
+
+interface MemberPlacement {
+  card_instance_id: string;
+  slot: string;
+  payment_cost: number;
+  use_baton_touch: boolean;
+  replaced_card_instance_id: string | null;
+  replaced_member_cost: number;
+}
+
+type MemberPlayMode = "normal" | "baton";
+
+const MEMBER_SLOT_DISPLAY_ORDER = ["left", "center", "right"] as const;
+const MEMBER_SLOT_SELECTION_PRIORITY = ["center", "left", "right"] as const;
+
+function memberSlotLabel(slot: string): string {
+  return slot === "left" ? "左" : slot === "center" ? "中" : slot === "right" ? "右" : slot;
+}
+
+export function resolveMemberPlaySelection(
+  placements: MemberPlacement[],
+  currentMemberId: string,
+  currentSlot: string,
+  currentMode: MemberPlayMode | "",
+) {
+  const memberIds = [...new Set(placements.map((item) => item.card_instance_id))];
+  const selectedMemberId = availableValue(currentMemberId, memberIds);
+  const memberPlacements = placements.filter(
+    (item) => item.card_instance_id === selectedMemberId,
+  );
+  const availableSlots = MEMBER_SLOT_SELECTION_PRIORITY.filter((slot) =>
+    memberPlacements.some((item) => item.slot === slot),
+  );
+  const selectedSlot = availableValue(currentSlot, availableSlots);
+  const slotPlacements = memberPlacements.filter(
+    (item) => item.slot === selectedSlot,
+  );
+  const availableModes: MemberPlayMode[] = [
+    ...(slotPlacements.some((item) => !item.use_baton_touch)
+      ? (["normal"] as const)
+      : []),
+    ...(slotPlacements.some((item) => item.use_baton_touch)
+      ? (["baton"] as const)
+      : []),
+  ];
+  const selectedMode = availableModes.includes(currentMode as MemberPlayMode)
+    ? (currentMode as MemberPlayMode)
+    : availableModes.includes("baton")
+      ? "baton"
+      : availableModes[0] ?? "normal";
+  const placement =
+    slotPlacements.find(
+      (item) => item.use_baton_touch === (selectedMode === "baton"),
+    ) ?? null;
+  return {
+    memberIds,
+    selectedMemberId,
+    availableSlots,
+    selectedSlot,
+    availableModes,
+    selectedMode,
+    placement,
+  };
 }

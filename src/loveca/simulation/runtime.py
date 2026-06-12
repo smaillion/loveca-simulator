@@ -119,7 +119,12 @@ def initialize_runtime_database(path: Path) -> None:
                 "SELECT value FROM runtime_metadata WHERE key = 'schema_version'"
             ).fetchone()
             if row is None or int(row[0]) != MATCH_RUNTIME_SCHEMA_VERSION:
-                raise RuntimeSchemaError("unsupported runtime database schema version")
+                found = "missing" if row is None else str(row[0])
+                raise RuntimeSchemaError(
+                    "unsupported runtime database schema version "
+                    f"{found}; expected {MATCH_RUNTIME_SCHEMA_VERSION}. "
+                    "Delete the disposable local runtime database and restart."
+                )
         connection.executescript(RUNTIME_SCHEMA_SQL)
 
 
