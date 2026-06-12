@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 
 RULE_VERSION = "1.06"
-MATCH_RUNTIME_SCHEMA_VERSION = 1
+MATCH_RUNTIME_SCHEMA_VERSION = 2
 
 Phase = Literal[
     "setup_choose_first",
@@ -29,8 +29,12 @@ Phase = Literal[
     "performance_second",
     "yell_second",
     "live_judgment",
+    "turn_complete",
     "complete",
 ]
+
+ModifierDuration = Literal["live", "turn", "game"]
+ModifierType = Literal["score", "blade", "heart", "flag"]
 
 
 class SpecialBladeHeart(BaseModel):
@@ -79,6 +83,17 @@ class LivePerformanceResult(BaseModel):
     total_score: int = 0
 
 
+class ManualModifier(BaseModel):
+    modifier_id: str
+    modifier_type: ModifierType
+    duration: ModifierDuration
+    created_turn: int
+    amount: int | None = None
+    color_slot: str | None = None
+    flag: str | None = None
+    value: Any = None
+
+
 class PlayerState(BaseModel):
     player_id: str
     name: str
@@ -88,15 +103,14 @@ class PlayerState(BaseModel):
     member_area: dict[str, str | None] = Field(
         default_factory=lambda: {"left": None, "center": None, "right": None}
     )
+    member_areas_entered_this_turn: list[str] = Field(default_factory=list)
     energy_area: list[str] = Field(default_factory=list)
     live_area: list[str] = Field(default_factory=list)
     waiting_room: list[str] = Field(default_factory=list)
     resolution_area: list[str] = Field(default_factory=list)
     success_live_area: list[str] = Field(default_factory=list)
-    manual_score_modifier: int = 0
-    manual_blade_modifier: int = 0
-    manual_heart_modifiers: dict[str, int] = Field(default_factory=dict)
-    flags: dict[str, Any] = Field(default_factory=dict)
+    manual_modifiers: list[ManualModifier] = Field(default_factory=list)
+    refresh_count: int = 0
     live_result: LivePerformanceResult = Field(default_factory=LivePerformanceResult)
 
 
@@ -112,6 +126,13 @@ class PendingChoice(BaseModel):
     options: dict[str, Any] = Field(default_factory=dict)
 
 
+class GameResult(BaseModel):
+    outcome: Literal["win", "draw"]
+    winner_player_ids: list[str] = Field(default_factory=list)
+    reason: Literal["success_live_threshold"] = "success_live_threshold"
+    final_turn: int
+
+
 class MatchState(BaseModel):
     match_id: str
     rule_version: str = RULE_VERSION
@@ -120,12 +141,16 @@ class MatchState(BaseModel):
     phase: Phase = "setup_choose_first"
     first_player_id: str | None = None
     second_player_id: str | None = None
+    turn_number: int = 1
+    next_first_player_id: str | None = None
+    success_live_moved_player_ids: list[str] = Field(default_factory=list)
     active_player_id: str | None = None
     players: dict[str, PlayerState]
     cards: dict[str, CardInstance]
     pending_choice: PendingChoice | None = None
     live_winner_ids: list[str] = Field(default_factory=list)
     live_judgment_summary: dict[str, Any] | None = None
+    game_result: GameResult | None = None
     completed_reason: str | None = None
 
 
@@ -140,6 +165,7 @@ class ActionRequest(BaseModel):
         "set_live_cards",
         "resolve_live_requirements",
         "manual_adjustment",
+        "start_next_turn",
     ]
     expected_revision: int
     player_id: str | None = None

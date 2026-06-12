@@ -33,7 +33,7 @@
 
 * React、TypeScript、Vite SPA。
 * FastAPI 本地权威服务。
-* 独立 runtime SQLite：
+* 版本化 runtime SQLite v2：
   * `matches`
   * `match_actions`
   * `match_events`
@@ -43,39 +43,38 @@
 * 使用 seed 和有序 Actions 进行确定性 Replay。
 * 双方公开信息的本地规则调试模式。
 * 中文操作界面，同时显示官方日文阶段名、卡名和技能原文。
-* 已支持的首轮流程：
+* 已支持的完整对局流程：
   * 创建对局与确定先后攻
   * 起手 6 张与双方调度
   * 初始 Energy 3 张
   * Active、Energy、Draw 和 Main 阶段
-  * 基础 Energy 支付与 Member 登场
-  * Live Set 与 Live 公开
+  * 基础 Energy 支付、Member 登场、满区域替换与 `バトンタッチ`
+  * Live Set、等量补抽与 Live 公开
   * 应援（エール）
   * Blade 合计与应援翻牌
   * 成员 Heart、应援 Heart 和任意色 Heart 计算
   * 逐张 Live 所需 Heart 分配
   * 特殊 Blade Heart 的 `ALLn`、`ドローn` 和 `スコアn`
-  * Live 基础分、特殊加分、总分与首次胜负判定
+  * Live 基础分、特殊加分、总分与每回合胜负判定
   * 成功 Live 选择
+  * 主牌库耗尽时从控室确定性刷新并继续抽牌或应援
+  * 根据成功 Live 移动结果决定下一回合先攻
+  * 连续回合与成功 Live `3` 张正式胜利
+  * 双方同时达到成功 Live `3` 张时判定平局
 * 中央 Live 区显示判定基准、Heart 消费、缺口、分数构成与结果。
-* 不支持的卡牌语义技能可通过 replay-safe `ManualAdjustmentAction` 处理。
+* 不支持的卡牌语义技能可通过 replay-safe `ManualAdjustmentAction` 处理，持续调整支持 `live`、`turn` 和 `game` 生命周期。
 * 卡图缺失时使用文字卡面降级，不由 UI 自动联网。
 
 ### 当前边界
 
-* 对局在第一次 Live 胜负判定完成后停止。
 * 当前目标是人工验证规则模型，不是胜率估算或自动对战。
-* Member 只能进入空的左、中、右 Member Area。
 * 卡牌语义技能不会根据日文原文自动执行。
 * 规则基线为本地审查的综合规则 `ver. 1.06`（2026-04-28）。
 * 当前卡牌库只包含 30 张跨产品审查样本，不是全量官方卡表。
 
 ### 尚未实现
 
-* 多回合对局循环。
-* 成功 Live 达到 3 张时的正式胜利或同时达成时的平局。
-* 根据 Live 判定结果变更下一回合先攻玩家。
-* Member 替换、叠放与 Baton 等完整 Main 阶段规则。
+* Member 叠放及由卡牌效果产生的复杂 Stage 移动。
 * 完整卡牌技能触发、Effect DSL 与可执行效果审查流程。
 * Simple AI、AI vs AI、Monte Carlo 与胜率引擎。
 * WebSocket、账户、在线多人和服务器部署。
@@ -159,16 +158,17 @@ loveca web serve `
 浏览器打开 <http://127.0.0.1:8765>。
 
 卡牌数据库和对局 runtime 数据库彼此独立。`data/`、本地 SQLite、卡图缓存和浏览器测试截图均不提交 Git。
+runtime v2 不自动迁移旧的开发对局；若启动时报告 schema version 1，删除可丢弃的 `data/matches.sqlite3` 后重新启动。
 
 ## 验证状态
 
 当前验证基线：
 
-* 49 个 Python/pytest 测试通过。
+* 61 个 Python/pytest 测试通过。
 * Vitest 前端组件测试通过。
 * TypeScript 与 Vite production build 通过。
-* Playwright 通过完整首轮流程、桌面布局、移动布局和卡图降级验证。
-* `npm audit` 未报告已知依赖漏洞。
+* Playwright 通过回合结束、进入下一回合、正式胜负、连续 Member 登场、满区域 `バトンタッチ`、桌面布局、移动布局和卡图降级验证。
+* `npm audit` 需要可访问 npm audit endpoint；离线或受限网络环境下不计入验证基线。
 
 运行 Python 测试：
 

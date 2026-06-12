@@ -36,15 +36,23 @@ export interface PlayerState {
   energy_deck: string[];
   hand: string[];
   member_area: Record<"left" | "center" | "right", string | null>;
+  member_areas_entered_this_turn: string[];
   energy_area: string[];
   live_area: string[];
   waiting_room: string[];
   resolution_area: string[];
   success_live_area: string[];
-  manual_score_modifier: number;
-  manual_blade_modifier: number;
-  manual_heart_modifiers: Record<string, number>;
-  flags: Record<string, unknown>;
+  manual_modifiers: Array<{
+    modifier_id: string;
+    modifier_type: "score" | "blade" | "heart" | "flag";
+    duration: "live" | "turn" | "game";
+    created_turn: number;
+    amount: number | null;
+    color_slot: string | null;
+    flag: string | null;
+    value: unknown;
+  }>;
+  refresh_count: number;
   live_result: {
     blade_count: number;
     revealed_instance_ids: string[];
@@ -93,6 +101,9 @@ export interface MatchState {
   phase: string;
   first_player_id: string | null;
   second_player_id: string | null;
+  turn_number: number;
+  next_first_player_id: string | null;
+  success_live_moved_player_ids: string[];
   active_player_id: string | null;
   players: Record<string, PlayerState>;
   cards: Record<string, CardInstance>;
@@ -112,6 +123,12 @@ export interface MatchState {
         total_score: number;
       }
     >;
+  } | null;
+  game_result: {
+    outcome: "win" | "draw";
+    winner_player_ids: string[];
+    reason: "success_live_threshold";
+    final_turn: number;
   } | null;
   completed_reason: string | null;
 }
