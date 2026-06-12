@@ -1,0 +1,62 @@
+sources:
+  official_root:
+    url: "https://llofficial-cardgame.com/"
+    type: "official_site"
+    priority: 1
+
+  card_list:
+    url: "https://llofficial-cardgame.com/cardlist/"
+    type: "card_database"
+    priority: 1
+    expected_use:
+      - card metadata
+      - card text
+      - product information
+
+  deck_recipe:
+    url: "https://llofficial-cardgame.com/deckrecipe/"
+    type: "official_deck_recipe"
+    priority: 1
+    expected_use:
+      - sample decks
+      - winning decks
+      - environment reference
+
+  beginner_guide:
+    url: "https://llofficial-cardgame.com/for-beginners/"
+    type: "beginner_rules"
+    priority: 1
+
+  rule_qa:
+    url: "https://llofficial-cardgame.com/rule/"
+    type: "rules_and_qa"
+    priority: 1
+
+  rule_pdf_1_06:
+    url: "https://llofficial-cardgame.com/wordpress/wp-content/uploads/2026/04/28140005/LoveLiveTCG_cr_1.06_260428.pdf"
+    type: "comprehensive_rules_pdf"
+    priority: 1
+    expected_use:
+      - rule terminology
+      - MVP rule subset confirmation
+      - effect timing confirmation
+    access_note: "Search-indexed official PDF; direct request returned 404 from current environment on 2026-06-06 JST."
+
+  quick_manual_mus:
+    url: "https://llofficial-cardgame.com/wordpress/wp-content/uploads/2025/09/04114714/L_TCG_-Manuel_%CE%BCs.pdf"
+    type: "official_quick_manual_pdf"
+    priority: 1
+    expected_use:
+      - special Blade Heart terminology
+      - Yell timing
+      - Live success and score timing
+    access_note: "Single-page image-based PDF reviewed with PyMuPDF rendering; no extractable text layer."
+
+  loveca_point_system:
+    url: "https://llofficial-cardgame.com/lovecapointsystem/"
+    type: "deck_construction_restriction"
+    priority: 1
+    expected_use:
+      - restricted card point values
+      - deck legality point total validation
+    local_review_copy: "raw_doc/カードの使用制限に関するルール 「ラブカポイントシステム」について _ ラブライブ！シリーズ　オフィシャルカードゲーム 公式サイト.html"

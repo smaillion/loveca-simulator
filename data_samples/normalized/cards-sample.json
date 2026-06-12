@@ -1,0 +1,558 @@
+[
+  {
+    "card_id": "PL!-bp6-001-R＋",
+    "name": "高坂穂乃果",
+    "card_type": "メンバー",
+    "product": "ブースターパック Royal Holiday",
+    "rarity": "R+",
+    "member_attributes": {
+      "cost": 2,
+      "heart_by_color": {
+        "heart01": null,
+        "heart02": null,
+        "heart03": 1,
+        "heart04": null,
+        "heart05": null,
+        "heart06": null
+      },
+      "blade": null,
+      "blade_heart_color": null
+    },
+    "live_attributes": null,
+    "raw_effect_text": "【ライブ開始時】【センター】自分のライブカード置き場に『µ's』のカードがある場合、ライブ終了時まで、自分のステージにいるすべての『μ's』のメンバーは【ブレード】を得る。 【ライブ成功時】エールにより公開された自分のカードの中に、ブレードハートを持たない『μ's』のメンバーカードがある場合、カードを1枚引き、手札を1枚控え室に置く。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP06/PL!-bp6-001-R2.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=M&cardno=PL%21-bp6-001-R%EF%BC%8B",
+    "fetched_at": "2026-06-07T06:41:10+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [
+        "【ライブ開始時】",
+        "【センター】自分のライブカード置き場に『µ's』のカードがある場合、ライブ終了時まで、自分のステージにいるすべての『μ's』のメンバーは",
+        "【ブレード】を得る。",
+        "【ライブ成功時】エールにより公開された自分のカードの中に、ブレードハートを持たない『μ's』のメンバーカードがある場合、カードを1枚引き、手札を1枚控え室に置く。"
+      ],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        },
+        {
+          "label": "参加ユニット",
+          "raw_text": "Printemps"
+        }
+      ],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=M"
+    }
+  },
+  {
+    "card_id": "PL!-bp6-001-P",
+    "name": "高坂穂乃果",
+    "card_type": "メンバー",
+    "product": "ブースターパック Royal Holiday",
+    "rarity": "P",
+    "member_attributes": {
+      "cost": 2,
+      "heart_by_color": {
+        "heart01": null,
+        "heart02": null,
+        "heart03": 1,
+        "heart04": null,
+        "heart05": null,
+        "heart06": null
+      },
+      "blade": null,
+      "blade_heart_color": null
+    },
+    "live_attributes": null,
+    "raw_effect_text": "【ライブ開始時】【センター】自分のライブカード置き場に『µ's』のカードがある場合、ライブ終了時まで、自分のステージにいるすべての『μ's』のメンバーは【ブレード】を得る。 【ライブ成功時】エールにより公開された自分のカードの中に、ブレードハートを持たない『μ's』のメンバーカードがある場合、カードを1枚引き、手札を1枚控え室に置く。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP06/PL!-bp6-001-P.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=M&cardno=PL%21-bp6-001-P",
+    "fetched_at": "2026-06-07T06:41:11+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [
+        "【ライブ開始時】",
+        "【センター】自分のライブカード置き場に『µ's』のカードがある場合、ライブ終了時まで、自分のステージにいるすべての『μ's』のメンバーは",
+        "【ブレード】を得る。",
+        "【ライブ成功時】エールにより公開された自分のカードの中に、ブレードハートを持たない『μ's』のメンバーカードがある場合、カードを1枚引き、手札を1枚控え室に置く。"
+      ],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        },
+        {
+          "label": "参加ユニット",
+          "raw_text": "Printemps"
+        }
+      ],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=M"
+    }
+  },
+  {
+    "card_id": "PL!-bp6-001-P＋",
+    "name": "高坂穂乃果",
+    "card_type": "メンバー",
+    "product": "ブースターパック Royal Holiday",
+    "rarity": "P+",
+    "member_attributes": {
+      "cost": 2,
+      "heart_by_color": {
+        "heart01": null,
+        "heart02": null,
+        "heart03": 1,
+        "heart04": null,
+        "heart05": null,
+        "heart06": null
+      },
+      "blade": null,
+      "blade_heart_color": null
+    },
+    "live_attributes": null,
+    "raw_effect_text": "\"【ライブ開始時】【センター】自分のライブカード置き場に『µ's』のカードがある場合、ライブ終了時まで、自分のステージにいるすべての『μ's』のメンバーは【ブレード】を得る。 【ライブ成功時】エールにより公開された自分のカードの中に、ブレードハートを持たない『μ's』のメンバーカードがある場合、カードを1枚引き、手札を1枚控え室に置く。\"",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP06/PL!-bp6-001-P2.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=M&cardno=PL%21-bp6-001-P%EF%BC%8B",
+    "fetched_at": "2026-06-07T06:41:12+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [
+        "\"",
+        "【ライブ開始時】",
+        "【センター】自分のライブカード置き場に『µ's』のカードがある場合、ライブ終了時まで、自分のステージにいるすべての『μ's』のメンバーは",
+        "【ブレード】を得る。",
+        "【ライブ成功時】エールにより公開された自分のカードの中に、ブレードハートを持たない『μ's』のメンバーカードがある場合、カードを1枚引き、手札を1枚控え室に置く。\""
+      ],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        },
+        {
+          "label": "参加ユニット",
+          "raw_text": "Printemps"
+        }
+      ],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=M"
+    }
+  },
+  {
+    "card_id": "PL!-bp6-001-SEC",
+    "name": "高坂穂乃果",
+    "card_type": "メンバー",
+    "product": "ブースターパック Royal Holiday",
+    "rarity": "SEC",
+    "member_attributes": {
+      "cost": 2,
+      "heart_by_color": {
+        "heart01": null,
+        "heart02": null,
+        "heart03": 1,
+        "heart04": null,
+        "heart05": null,
+        "heart06": null
+      },
+      "blade": null,
+      "blade_heart_color": null
+    },
+    "live_attributes": null,
+    "raw_effect_text": "\"【ライブ開始時】【センター】自分のライブカード置き場に『µ's』のカードがある場合、ライブ終了時まで、自分のステージにいるすべての『μ's』のメンバーは【ブレード】を得る。 【ライブ成功時】エールにより公開された自分のカードの中に、ブレードハートを持たない『μ's』のメンバーカードがある場合、カードを1枚引き、手札を1枚控え室に置く。\"",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP06/PL!-bp6-001-SEC.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=M&cardno=PL%21-bp6-001-SEC",
+    "fetched_at": "2026-06-07T06:41:13+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [
+        "\"",
+        "【ライブ開始時】",
+        "【センター】自分のライブカード置き場に『µ's』のカードがある場合、ライブ終了時まで、自分のステージにいるすべての『μ's』のメンバーは",
+        "【ブレード】を得る。",
+        "【ライブ成功時】エールにより公開された自分のカードの中に、ブレードハートを持たない『μ's』のメンバーカードがある場合、カードを1枚引き、手札を1枚控え室に置く。\""
+      ],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        },
+        {
+          "label": "参加ユニット",
+          "raw_text": "Printemps"
+        }
+      ],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=M"
+    }
+  },
+  {
+    "card_id": "PL!-bp6-002-R",
+    "name": "絢瀬絵里",
+    "card_type": "メンバー",
+    "product": "ブースターパック Royal Holiday",
+    "rarity": "R",
+    "member_attributes": {
+      "cost": 2,
+      "heart_by_color": {
+        "heart01": null,
+        "heart02": null,
+        "heart03": null,
+        "heart04": null,
+        "heart05": null,
+        "heart06": 1
+      },
+      "blade": 1,
+      "blade_heart_color": "heart06"
+    },
+    "live_attributes": null,
+    "raw_effect_text": "【登場】自分のデッキの上からカードを2枚見る。その中から能力を持たない『μ's』のカードか【常時】能力を持つ『μ's』のカードを1枚公開して手札に加えてもよい。残りを控え室に置く。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP06/PL!-bp6-002-R.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=M&cardno=PL%21-bp6-002-R",
+    "fetched_at": "2026-06-07T06:41:14+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [
+        "【登場】自分のデッキの上からカードを2枚見る。その中から能力を持たない『μ's』のカードか",
+        "【常時】能力を持つ『μ's』のカードを1枚公開して手札に加えてもよい。残りを控え室に置く。"
+      ],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        },
+        {
+          "label": "参加ユニット",
+          "raw_text": "BiBi"
+        }
+      ],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=M"
+    }
+  },
+  {
+    "card_id": "PL!-bp4-022-SECL",
+    "name": "No brand girls",
+    "card_type": "ライブ",
+    "product": "ブースターパック Royal Holiday",
+    "rarity": "SECL",
+    "member_attributes": null,
+    "live_attributes": {
+      "required_heart_by_color": {
+        "heart0": 9,
+        "heart01": 3,
+        "heart02": null,
+        "heart03": 3,
+        "heart04": null,
+        "heart05": null,
+        "heart06": 3
+      },
+      "score": 7,
+      "blade_heart_color": null,
+      "special_blade_hearts": [
+        {
+          "effect_type": "score",
+          "value": 1,
+          "resolution_timing": "live_judgment",
+          "source_alt": "スコア1",
+          "source_field": "特殊ハート"
+        }
+      ]
+    },
+    "raw_effect_text": "【ライブ開始時】自分のセンターエリアに【ブレード】を9つ以上持つ『μ's』のメンバーがいる場合、このカードのスコアを＋２する。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP06/PL!-bp4-022-SECL.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=L&cardno=PL%21-bp4-022-SECL",
+    "fetched_at": "2026-06-07T06:41:18+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [
+        "【ライブ開始時】自分のセンターエリアに",
+        "【ブレード】を9つ以上持つ『μ's』のメンバーがいる場合、このカードのスコアを＋２する。"
+      ],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        }
+      ],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=L"
+    }
+  },
+  {
+    "card_id": "PL!-bp6-019-L",
+    "name": "Music S.T.A.R.T!!",
+    "card_type": "ライブ",
+    "product": "ブースターパック Royal Holiday",
+    "rarity": "L",
+    "member_attributes": null,
+    "live_attributes": {
+      "required_heart_by_color": {
+        "heart0": 2,
+        "heart01": 1,
+        "heart02": null,
+        "heart03": 1,
+        "heart04": null,
+        "heart05": null,
+        "heart06": 1
+      },
+      "score": 2,
+      "blade_heart_color": "heart0",
+      "special_blade_hearts": [
+        {
+          "effect_type": "all_color",
+          "value": 1,
+          "resolution_timing": "live_success_judgment",
+          "source_alt": "ALL1",
+          "source_field": "ブレードハート"
+        }
+      ]
+    },
+    "raw_effect_text": "【常時】このカードが自分の成功ライブカード置き場にあるかぎり、元々のコストが17以上の『μ's』のメンバーカードを自分の手札から登場させるためのコストは2減る。この効果は重複しない。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP06/PL!-bp6-019-L.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=L&cardno=PL%21-bp6-019-L",
+    "fetched_at": "2026-06-07T06:41:19+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        }
+      ],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=L"
+    }
+  },
+  {
+    "card_id": "PL!-bp6-020-L",
+    "name": "Dancing stars on me!",
+    "card_type": "ライブ",
+    "product": "ブースターパック Royal Holiday",
+    "rarity": "L",
+    "member_attributes": null,
+    "live_attributes": {
+      "required_heart_by_color": {
+        "heart0": 6,
+        "heart01": 2,
+        "heart02": null,
+        "heart03": 2,
+        "heart04": null,
+        "heart05": null,
+        "heart06": 2
+      },
+      "score": 5,
+      "blade_heart_color": "heart01",
+      "special_blade_hearts": [
+        {
+          "effect_type": "draw",
+          "value": 1,
+          "resolution_timing": "after_yell",
+          "source_alt": "ドロー1",
+          "source_field": "特殊ハート"
+        }
+      ]
+    },
+    "raw_effect_text": "【自動】【ターン1回】自分のステージのセンターエリアにいる『μ's』のメンバーの【ライブ開始時】能力が解決したとき、そのメンバーをポジションチェンジする。 【自動】【ターン1回】自分のステージのセンターエリアにいる『μ's』のメンバーの【ライブ成功時】能力が解決したとき、そのメンバーがこのターン中に移動している場合、このカードのスコアを＋１する。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP06/PL!-bp6-020-L.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=L&cardno=PL%21-bp6-020-L",
+    "fetched_at": "2026-06-07T06:41:20+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [
+        "【自動】",
+        "【ターン1回】自分のステージのセンターエリアにいる『μ's』のメンバーの",
+        "【ライブ開始時】能力が解決したとき、そのメンバーをポジションチェンジする。",
+        "【自動】",
+        "【ターン1回】自分のステージのセンターエリアにいる『μ's』のメンバーの",
+        "【ライブ成功時】能力が解決したとき、そのメンバーがこのターン中に移動している場合、このカードのスコアを＋１する。"
+      ],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        }
+      ],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=L"
+    }
+  },
+  {
+    "card_id": "PL!-bp6-021-L",
+    "name": "Wonderful Rush",
+    "card_type": "ライブ",
+    "product": "ブースターパック Royal Holiday",
+    "rarity": "L",
+    "member_attributes": null,
+    "live_attributes": {
+      "required_heart_by_color": {
+        "heart0": 7,
+        "heart01": null,
+        "heart02": null,
+        "heart03": 8,
+        "heart04": null,
+        "heart05": null,
+        "heart06": null
+      },
+      "score": 7,
+      "blade_heart_color": "heart0",
+      "special_blade_hearts": [
+        {
+          "effect_type": "all_color",
+          "value": 1,
+          "resolution_timing": "live_success_judgment",
+          "source_alt": "ALL1",
+          "source_field": "ブレードハート"
+        }
+      ]
+    },
+    "raw_effect_text": "【ライブ成功時】『μ's』のメンバー1人をステージから控え室に置いてもよい：このカードのスコアを＋１し、自分の控え室から『μ's』のライブカード1枚を手札に加える。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP06/PL!-bp6-021-L.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=L&cardno=PL%21-bp6-021-L",
+    "fetched_at": "2026-06-07T06:41:22+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        }
+      ],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=L"
+    }
+  },
+  {
+    "card_id": "PL!-bp6-022-L",
+    "name": "Dreamin' Go! Go!!",
+    "card_type": "ライブ",
+    "product": "ブースターパック Royal Holiday",
+    "rarity": "L",
+    "member_attributes": null,
+    "live_attributes": {
+      "required_heart_by_color": {
+        "heart0": 5,
+        "heart01": 5,
+        "heart02": null,
+        "heart03": 5,
+        "heart04": null,
+        "heart05": null,
+        "heart06": 5
+      },
+      "score": 9,
+      "blade_heart_color": null,
+      "special_blade_hearts": [
+        {
+          "effect_type": "score",
+          "value": 1,
+          "resolution_timing": "live_judgment",
+          "source_alt": "スコア1",
+          "source_field": "特殊ハート"
+        }
+      ]
+    },
+    "raw_effect_text": "【常時】このカードが自分の成功ライブカード置き場にあるかぎり、自分の元々のスコアが５以上の『μ's』のライブカードの必要ハートを【heart0】【heart0】減らす。この効果は重複しない。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP06/PL!-bp6-022-L.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=L&cardno=PL%21-bp6-022-L",
+    "fetched_at": "2026-06-07T06:41:23+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [
+        "【常時】このカードが自分の成功ライブカード置き場にあるかぎり、自分の元々のスコアが５以上の『μ's』のライブカードの必要ハートを",
+        "【heart0】",
+        "【heart0】減らす。この効果は重複しない。"
+      ],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        }
+      ],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=L"
+    }
+  },
+  {
+    "card_id": "PL!-bp6-E01-SECE",
+    "name": "高坂穂乃果",
+    "card_type": "エネルギー",
+    "product": "ブースターパック Royal Holiday",
+    "rarity": "SECE",
+    "member_attributes": null,
+    "live_attributes": null,
+    "raw_effect_text": null,
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP06/PL!-bp6-E01-SECE.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=E&cardno=PL%21-bp6-E01-SECE",
+    "fetched_at": "2026-06-07T06:41:25+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        },
+        {
+          "label": "参加ユニット",
+          "raw_text": "Printemps"
+        }
+      ],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=E"
+    }
+  },
+  {
+    "card_id": "PL!-bp6-E02-SECE",
+    "name": "南ことり",
+    "card_type": "エネルギー",
+    "product": "ブースターパック Royal Holiday",
+    "rarity": "SECE",
+    "member_attributes": null,
+    "live_attributes": null,
+    "raw_effect_text": null,
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP06/PL!-bp6-E02-SECE.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=E&cardno=PL%21-bp6-E02-SECE",
+    "fetched_at": "2026-06-07T06:41:27+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        },
+        {
+          "label": "参加ユニット",
+          "raw_text": "Printemps"
+        }
+      ],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?card_kind=E"
+    }
+  }
+]

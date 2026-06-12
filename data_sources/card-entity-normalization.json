@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "review_status": "reviewed_for_cross_product_v0.3",
+  "source_artifact": "data_samples/normalized/cards-cross-product-sample.json",
+  "works": {
+    "ラブライブ！": [
+      {
+        "key": "love_live",
+        "canonical_name_ja": "ラブライブ！"
+      }
+    ],
+    "ラブライブ！サンシャイン!!": [
+      {
+        "key": "love_live_sunshine",
+        "canonical_name_ja": "ラブライブ！サンシャイン!!"
+      }
+    ],
+    "ラブライブ！虹ヶ咲学園スクールアイドル同好会": [
+      {
+        "key": "nijigasaki",
+        "canonical_name_ja": "ラブライブ！虹ヶ咲学園スクールアイドル同好会"
+      }
+    ],
+    "蓮ノ空女学院スクールアイドルクラブ": [
+      {
+        "key": "hasunosora",
+        "canonical_name_ja": "蓮ノ空女学院スクールアイドルクラブ"
+      }
+    ],
+    "ラブライブ！虹ヶ咲学園スクールアイドル同好会 ラブライブ！スーパースター!! 蓮ノ空女学院スクールアイドルクラブ": [
+      {
+        "key": "nijigasaki",
+        "canonical_name_ja": "ラブライブ！虹ヶ咲学園スクールアイドル同好会"
+      },
+      {
+        "key": "love_live_superstar",
+        "canonical_name_ja": "ラブライブ！スーパースター!!"
+      },
+      {
+        "key": "hasunosora",
+        "canonical_name_ja": "蓮ノ空女学院スクールアイドルクラブ"
+      }
+    ]
+  },
+  "units": {
+    "A・ZU・NA": [
+      {
+        "key": "a_zu_na",
+        "canonical_name_ja": "A・ZU・NA"
+      }
+    ],
+    "Printemps": [
+      {
+        "key": "printemps",
+        "canonical_name_ja": "Printemps"
+      }
+    ],
+    "BiBi": [
+      {
+        "key": "bibi",
+        "canonical_name_ja": "BiBi"
+      }
+    ],
+    "lily white": [
+      {
+        "key": "lily_white",
+        "canonical_name_ja": "lily white"
+      }
+    ],
+    "スリーズブーケ": [
+      {
+        "key": "cerise_bouquet",
+        "canonical_name_ja": "スリーズブーケ"
+      }
+    ],
+    "DOLLCHESTRA": [
+      {
+        "key": "dollchestra",
+        "canonical_name_ja": "DOLLCHESTRA"
+      }
+    ]
+  }
+}

@@ -1,0 +1,1912 @@
+[
+  {
+    "card_id": "LL-bp1-001-R＋",
+    "name": "上原歩夢&澁谷かのん&日野下花帆",
+    "card_type": "メンバー",
+    "product": "ブースターパック vol.1",
+    "rarity": "R+",
+    "member_attributes": {
+      "cost": 20,
+      "heart_by_color": {
+        "heart01": 3,
+        "heart02": null,
+        "heart03": null,
+        "heart04": 3,
+        "heart05": null,
+        "heart06": 3
+      },
+      "blade": 5,
+      "blade_heart_color": null
+    },
+    "live_attributes": null,
+    "raw_effect_text": "【登場】自分の控え室からメンバーカードを1枚手札に加える。 【ライブ開始時】手札の「上原歩夢」と「澁谷かのん」と「日野下花帆」を、好きな組み合わせで合計3枚、控え室に置いてもよい：ライブ終了時まで、「【常時】ライブの合計スコアを＋３する。」を得る。 （手札のこのカードもこの効果で控え室に置ける。）",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP01/LL-bp1-001-R2.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP01&card_kind=M&cardno=LL-bp1-001-R%EF%BC%8B",
+    "fetched_at": "2026-06-07T07:20:11+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [
+        "【登場】自分の控え室からメンバーカードを1枚手札に加える。",
+        "【ライブ開始時】手札の「上原歩夢」と「澁谷かのん」と「日野下花帆」を、好きな組み合わせで合計3枚、控え室に置いてもよい：ライブ終了時まで、「",
+        "【常時】ライブの合計スコアを＋３する。」を得る。 （手札のこのカードもこの効果で控え室に置ける。）"
+      ],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！虹ヶ咲学園スクールアイドル同好会 ラブライブ！スーパースター!! 蓮ノ空女学院スクールアイドルクラブ"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP01&card_kind=M",
+      "sample_profile": "cross-product",
+      "requested_product_code": "BP01",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "コスト",
+        "ブレード",
+        "レアリティ",
+        "作品名",
+        "収録商品",
+        "基本ハート"
+      ]
+    },
+    "card_code": "LL-bp1-001",
+    "product_code": "BP01",
+    "related_printing_ids": [],
+    "printing_group_ids": [
+      "LL-bp1-001-R＋"
+    ]
+  },
+  {
+    "card_id": "PL!N-bp1-001-R",
+    "name": "上原歩夢",
+    "card_type": "メンバー",
+    "product": "ブースターパック vol.1",
+    "rarity": "R",
+    "member_attributes": {
+      "cost": 9,
+      "heart_by_color": {
+        "heart01": 3,
+        "heart02": null,
+        "heart03": null,
+        "heart04": null,
+        "heart05": null,
+        "heart06": null
+      },
+      "blade": 4,
+      "blade_heart_color": null
+    },
+    "live_attributes": null,
+    "raw_effect_text": "【ライブ開始時】【E】支払ってもよい：ライブ終了時まで、【ブレード】を得る。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP01/PL!N-bp1-001-R.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP01&card_kind=M&cardno=PL%21N-bp1-001-R",
+    "fetched_at": "2026-06-07T07:20:13+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [
+        "【ライブ開始時】",
+        "【E】支払ってもよい：ライブ終了時まで、",
+        "【ブレード】を得る。"
+      ],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！虹ヶ咲学園スクールアイドル同好会"
+        },
+        {
+          "label": "参加ユニット",
+          "raw_text": "A・ZU・NA"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP01&card_kind=M",
+      "sample_profile": "cross-product",
+      "requested_product_code": "BP01",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "コスト",
+        "ブレード",
+        "レアリティ",
+        "作品名",
+        "参加ユニット",
+        "収録商品",
+        "基本ハート"
+      ]
+    },
+    "card_code": "PL!N-bp1-001",
+    "product_code": "BP01",
+    "related_printing_ids": [
+      "PL!N-bp1-001-P"
+    ],
+    "printing_group_ids": [
+      "PL!N-bp1-001-R",
+      "PL!N-bp1-001-P"
+    ]
+  },
+  {
+    "card_id": "PL!N-bp1-025-L",
+    "name": "虹色Passions！",
+    "card_type": "ライブ",
+    "product": "ブースターパック vol.1",
+    "rarity": "L",
+    "member_attributes": null,
+    "live_attributes": {
+      "required_heart_by_color": {
+        "heart0": 3,
+        "heart01": null,
+        "heart02": null,
+        "heart03": null,
+        "heart04": 1,
+        "heart05": 1,
+        "heart06": null
+      },
+      "score": 2,
+      "blade_heart_color": "heart0",
+      "special_blade_hearts": [
+        {
+          "effect_type": "all_color",
+          "value": 1,
+          "resolution_timing": "live_success_judgment",
+          "source_alt": "ALL1",
+          "source_field": "ブレードハート"
+        }
+      ]
+    },
+    "raw_effect_text": "(必要ハートを確認する時、エールで出た【ALLブレード】は任意の色のハートとして扱う。)",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP01/PL!N-bp1-025-L.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP01&card_kind=L&cardno=PL%21N-bp1-025-L",
+    "fetched_at": "2026-06-07T07:20:16+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [
+        "(必要ハートを確認する時、エールで出た",
+        "【ALLブレード】は任意の色のハートとして扱う。)"
+      ],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！虹ヶ咲学園スクールアイドル同好会"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP01&card_kind=L",
+      "sample_profile": "cross-product",
+      "requested_product_code": "BP01",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "スコア",
+        "ブレードハート",
+        "レアリティ",
+        "作品名",
+        "収録商品",
+        "必要ハート"
+      ]
+    },
+    "card_code": "PL!N-bp1-025",
+    "product_code": "BP01",
+    "related_printing_ids": [],
+    "printing_group_ids": [
+      "PL!N-bp1-025-L"
+    ]
+  },
+  {
+    "card_id": "PL!N-bp1-026-L",
+    "name": "Poppin' Up!",
+    "card_type": "ライブ",
+    "product": "ブースターパック vol.1",
+    "rarity": "L",
+    "member_attributes": null,
+    "live_attributes": {
+      "required_heart_by_color": {
+        "heart0": 2,
+        "heart01": null,
+        "heart02": null,
+        "heart03": 1,
+        "heart04": null,
+        "heart05": null,
+        "heart06": null
+      },
+      "score": 1,
+      "blade_heart_color": "heart0",
+      "special_blade_hearts": [
+        {
+          "effect_type": "all_color",
+          "value": 1,
+          "resolution_timing": "live_success_judgment",
+          "source_alt": "ALL1",
+          "source_field": "ブレードハート"
+        }
+      ]
+    },
+    "raw_effect_text": "【ライブ成功時】ライブの合計スコアが相手より高い場合、エールにより公開された自分のカードの中から、『虹ヶ咲』のカードを1枚手札に加える。 (必要ハートを確認する時、エールで出た【ALLブレード】は任意の色のハートとして扱う。)",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP01/PL!N-bp1-026-L.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP01&card_kind=L&cardno=PL%21N-bp1-026-L",
+    "fetched_at": "2026-06-07T07:20:17+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [
+        "【ライブ成功時】ライブの合計スコアが相手より高い場合、エールにより公開された自分のカードの中から、『虹ヶ咲』のカードを1枚手札に加える。 (必要ハートを確認する時、エールで出た",
+        "【ALLブレード】は任意の色のハートとして扱う。)"
+      ],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！虹ヶ咲学園スクールアイドル同好会"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP01&card_kind=L",
+      "sample_profile": "cross-product",
+      "requested_product_code": "BP01",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "スコア",
+        "ブレードハート",
+        "レアリティ",
+        "作品名",
+        "収録商品",
+        "必要ハート"
+      ]
+    },
+    "card_code": "PL!N-bp1-026",
+    "product_code": "BP01",
+    "related_printing_ids": [],
+    "printing_group_ids": [
+      "PL!N-bp1-026-L"
+    ]
+  },
+  {
+    "card_id": "PL!-bp1-000-LLE",
+    "name": "高坂穂乃果",
+    "card_type": "エネルギー",
+    "product": "ブースターパック vol.1",
+    "rarity": "LLE",
+    "member_attributes": null,
+    "live_attributes": null,
+    "raw_effect_text": null,
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP01/PL!-bp1-000-LLE.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP01&card_kind=E&cardno=PL%21-bp1-000-LLE",
+    "fetched_at": "2026-06-07T07:20:20+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        },
+        {
+          "label": "参加ユニット",
+          "raw_text": "Printemps"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP01&card_kind=E",
+      "sample_profile": "cross-product",
+      "requested_product_code": "BP01",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "レアリティ",
+        "作品名",
+        "参加ユニット",
+        "収録商品"
+      ]
+    },
+    "card_code": "PL!-bp1-000",
+    "product_code": "BP01",
+    "related_printing_ids": [],
+    "printing_group_ids": [
+      "PL!-bp1-000-LLE"
+    ]
+  },
+  {
+    "card_id": "PL!-bp3-001-R",
+    "name": "高坂穂乃果",
+    "card_type": "メンバー",
+    "product": "ブースターパック 夏、はじまる。",
+    "rarity": "R",
+    "member_attributes": {
+      "cost": 13,
+      "heart_by_color": {
+        "heart01": 2,
+        "heart02": null,
+        "heart03": 2,
+        "heart04": null,
+        "heart05": null,
+        "heart06": 2
+      },
+      "blade": 3,
+      "blade_heart_color": "heart03"
+    },
+    "live_attributes": null,
+    "raw_effect_text": "【起動】【ターン1回】このメンバーをウェイトにする：カードを1枚引き、手札を1枚控え室に置く。（ウェイト状態のメンバーが持つ【ブレード】は、エールで公開する枚数を増やさない。） 【ライブ開始時】自分のステージにいるメンバーを1人までアクティブにする。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP03/PL!-bp3-R-001-R.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP03&card_kind=M&cardno=PL%21-bp3-001-R",
+    "fetched_at": "2026-06-07T07:20:22+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [
+        "【起動】",
+        "【ターン1回】このメンバーをウェイトにする：カードを1枚引き、手札を1枚控え室に置く。（ウェイト状態のメンバーが持つ",
+        "【ブレード】は、エールで公開する枚数を増やさない。）",
+        "【ライブ開始時】自分のステージにいるメンバーを1人までアクティブにする。"
+      ],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        },
+        {
+          "label": "参加ユニット",
+          "raw_text": "Printemps"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP03&card_kind=M",
+      "sample_profile": "cross-product",
+      "requested_product_code": "BP03",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "コスト",
+        "ブレード",
+        "ブレードハート",
+        "レアリティ",
+        "作品名",
+        "参加ユニット",
+        "収録商品",
+        "基本ハート"
+      ]
+    },
+    "card_code": "PL!-bp3-001",
+    "product_code": "BP03",
+    "related_printing_ids": [
+      "PL!-bp3-001-P"
+    ],
+    "printing_group_ids": [
+      "PL!-bp3-001-R",
+      "PL!-bp3-001-P"
+    ]
+  },
+  {
+    "card_id": "PL!-bp3-002-R",
+    "name": "絢瀬絵里",
+    "card_type": "メンバー",
+    "product": "ブースターパック 夏、はじまる。",
+    "rarity": "R",
+    "member_attributes": {
+      "cost": 9,
+      "heart_by_color": {
+        "heart01": 1,
+        "heart02": null,
+        "heart03": 1,
+        "heart04": null,
+        "heart05": null,
+        "heart06": 2
+      },
+      "blade": 1,
+      "blade_heart_color": null
+    },
+    "live_attributes": null,
+    "raw_effect_text": "【登場】手札を1枚控え室に置いてもよい：相手のステージにいるコスト4以下のメンバーを2人までウェイトにする。（ウェイト状態のメンバーが持つ【ブレード】は、エールで公開する枚数を増やさない。） 【常時】相手のステージにいるウェイト状態のメンバー1人につき、【ブレード】を得る。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP03/PL!-bp3-R-002-R.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP03&card_kind=M&cardno=PL%21-bp3-002-R",
+    "fetched_at": "2026-06-07T07:20:24+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [
+        "【登場】手札を1枚控え室に置いてもよい：相手のステージにいるコスト4以下のメンバーを2人までウェイトにする。（ウェイト状態のメンバーが持つ",
+        "【ブレード】は、エールで公開する枚数を増やさない。）",
+        "【常時】相手のステージにいるウェイト状態のメンバー1人につき、",
+        "【ブレード】を得る。"
+      ],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        },
+        {
+          "label": "参加ユニット",
+          "raw_text": "BiBi"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP03&card_kind=M",
+      "sample_profile": "cross-product",
+      "requested_product_code": "BP03",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "コスト",
+        "ブレード",
+        "レアリティ",
+        "作品名",
+        "参加ユニット",
+        "収録商品",
+        "基本ハート"
+      ]
+    },
+    "card_code": "PL!-bp3-002",
+    "product_code": "BP03",
+    "related_printing_ids": [
+      "PL!-bp3-002-P"
+    ],
+    "printing_group_ids": [
+      "PL!-bp3-002-R",
+      "PL!-bp3-002-P"
+    ]
+  },
+  {
+    "card_id": "PL!-bp3-019-L",
+    "name": "僕らのLIVE 君とのLIFE",
+    "card_type": "ライブ",
+    "product": "ブースターパック 夏、はじまる。",
+    "rarity": "L",
+    "member_attributes": null,
+    "live_attributes": {
+      "required_heart_by_color": {
+        "heart0": null,
+        "heart01": 1,
+        "heart02": null,
+        "heart03": null,
+        "heart04": null,
+        "heart05": null,
+        "heart06": 1
+      },
+      "score": 0,
+      "blade_heart_color": null,
+      "special_blade_hearts": null
+    },
+    "raw_effect_text": "【ライブ開始時】自分のライブ中の『μ's』のカードが2枚以上ある場合、このカードのスコアを＋１する。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP03/PL!-bp3-L-019-L.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP03&card_kind=L&cardno=PL%21-bp3-019-L",
+    "fetched_at": "2026-06-07T07:20:26+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP03&card_kind=L",
+      "sample_profile": "cross-product",
+      "requested_product_code": "BP03",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "スコア",
+        "レアリティ",
+        "作品名",
+        "収録商品",
+        "必要ハート",
+        "特殊ハート"
+      ]
+    },
+    "card_code": "PL!-bp3-019",
+    "product_code": "BP03",
+    "related_printing_ids": [],
+    "printing_group_ids": [
+      "PL!-bp3-019-L"
+    ]
+  },
+  {
+    "card_id": "PL!-bp3-020-L",
+    "name": "Snow halation",
+    "card_type": "ライブ",
+    "product": "ブースターパック 夏、はじまる。",
+    "rarity": "L",
+    "member_attributes": null,
+    "live_attributes": {
+      "required_heart_by_color": {
+        "heart0": 3,
+        "heart01": 1,
+        "heart02": null,
+        "heart03": null,
+        "heart04": null,
+        "heart05": null,
+        "heart06": 1
+      },
+      "score": 2,
+      "blade_heart_color": "heart0",
+      "special_blade_hearts": [
+        {
+          "effect_type": "all_color",
+          "value": 1,
+          "resolution_timing": "live_success_judgment",
+          "source_alt": "ALL1",
+          "source_field": "ブレードハート"
+        }
+      ]
+    },
+    "raw_effect_text": null,
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP03/PL!-bp3-L-020-L.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP03&card_kind=L&cardno=PL%21-bp3-020-L",
+    "fetched_at": "2026-06-07T07:20:28+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP03&card_kind=L",
+      "sample_profile": "cross-product",
+      "requested_product_code": "BP03",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "スコア",
+        "ブレードハート",
+        "レアリティ",
+        "作品名",
+        "収録商品",
+        "必要ハート"
+      ]
+    },
+    "card_code": "PL!-bp3-020",
+    "product_code": "BP03",
+    "related_printing_ids": [
+      "PL!-bp3-020-L＋",
+      "PL!-bp3-020-SECL"
+    ],
+    "printing_group_ids": [
+      "PL!-bp3-020-L",
+      "PL!-bp3-020-L＋",
+      "PL!-bp3-020-SECL"
+    ]
+  },
+  {
+    "card_id": "PL!-bp3-027-SECE",
+    "name": "園田海未",
+    "card_type": "エネルギー",
+    "product": "ブースターパック 夏、はじまる。",
+    "rarity": "SECE",
+    "member_attributes": null,
+    "live_attributes": null,
+    "raw_effect_text": null,
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP03/PL!-bp3-SECE-027-SECE.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP03&card_kind=E&cardno=PL%21-bp3-027-SECE",
+    "fetched_at": "2026-06-07T07:20:30+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        },
+        {
+          "label": "参加ユニット",
+          "raw_text": "lily white"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP03&card_kind=E",
+      "sample_profile": "cross-product",
+      "requested_product_code": "BP03",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "レアリティ",
+        "作品名",
+        "参加ユニット",
+        "収録商品"
+      ]
+    },
+    "card_code": "PL!-bp3-027",
+    "product_code": "BP03",
+    "related_printing_ids": [],
+    "printing_group_ids": [
+      "PL!-bp3-027-SECE"
+    ]
+  },
+  {
+    "card_id": "PL!-bp6-001-R＋",
+    "name": "高坂穂乃果",
+    "card_type": "メンバー",
+    "product": "ブースターパック Royal Holiday",
+    "rarity": "R+",
+    "member_attributes": {
+      "cost": 2,
+      "heart_by_color": {
+        "heart01": null,
+        "heart02": null,
+        "heart03": 1,
+        "heart04": null,
+        "heart05": null,
+        "heart06": null
+      },
+      "blade": null,
+      "blade_heart_color": null
+    },
+    "live_attributes": null,
+    "raw_effect_text": "【ライブ開始時】【センター】自分のライブカード置き場に『µ's』のカードがある場合、ライブ終了時まで、自分のステージにいるすべての『μ's』のメンバーは【ブレード】を得る。 【ライブ成功時】エールにより公開された自分のカードの中に、ブレードハートを持たない『μ's』のメンバーカードがある場合、カードを1枚引き、手札を1枚控え室に置く。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP06/PL!-bp6-001-R2.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP06&card_kind=M&cardno=PL%21-bp6-001-R%EF%BC%8B",
+    "fetched_at": "2026-06-07T07:20:33+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [
+        "【ライブ開始時】",
+        "【センター】自分のライブカード置き場に『µ's』のカードがある場合、ライブ終了時まで、自分のステージにいるすべての『μ's』のメンバーは",
+        "【ブレード】を得る。",
+        "【ライブ成功時】エールにより公開された自分のカードの中に、ブレードハートを持たない『μ's』のメンバーカードがある場合、カードを1枚引き、手札を1枚控え室に置く。"
+      ],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        },
+        {
+          "label": "参加ユニット",
+          "raw_text": "Printemps"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP06&card_kind=M",
+      "sample_profile": "cross-product",
+      "requested_product_code": "BP06",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "コスト",
+        "レアリティ",
+        "作品名",
+        "参加ユニット",
+        "収録商品",
+        "基本ハート"
+      ]
+    },
+    "card_code": "PL!-bp6-001",
+    "product_code": "BP06",
+    "related_printing_ids": [
+      "PL!-bp6-001-P",
+      "PL!-bp6-001-P＋",
+      "PL!-bp6-001-SEC"
+    ],
+    "printing_group_ids": [
+      "PL!-bp6-001-R＋",
+      "PL!-bp6-001-P",
+      "PL!-bp6-001-P＋",
+      "PL!-bp6-001-SEC"
+    ]
+  },
+  {
+    "card_id": "PL!-bp6-002-R",
+    "name": "絢瀬絵里",
+    "card_type": "メンバー",
+    "product": "ブースターパック Royal Holiday",
+    "rarity": "R",
+    "member_attributes": {
+      "cost": 2,
+      "heart_by_color": {
+        "heart01": null,
+        "heart02": null,
+        "heart03": null,
+        "heart04": null,
+        "heart05": null,
+        "heart06": 1
+      },
+      "blade": 1,
+      "blade_heart_color": "heart06"
+    },
+    "live_attributes": null,
+    "raw_effect_text": "【登場】自分のデッキの上からカードを2枚見る。その中から能力を持たない『μ's』のカードか【常時】能力を持つ『μ's』のカードを1枚公開して手札に加えてもよい。残りを控え室に置く。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP06/PL!-bp6-002-R.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP06&card_kind=M&cardno=PL%21-bp6-002-R",
+    "fetched_at": "2026-06-07T07:20:34+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [
+        "【登場】自分のデッキの上からカードを2枚見る。その中から能力を持たない『μ's』のカードか",
+        "【常時】能力を持つ『μ's』のカードを1枚公開して手札に加えてもよい。残りを控え室に置く。"
+      ],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        },
+        {
+          "label": "参加ユニット",
+          "raw_text": "BiBi"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP06&card_kind=M",
+      "sample_profile": "cross-product",
+      "requested_product_code": "BP06",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "コスト",
+        "ブレード",
+        "ブレードハート",
+        "レアリティ",
+        "作品名",
+        "参加ユニット",
+        "収録商品",
+        "基本ハート"
+      ]
+    },
+    "card_code": "PL!-bp6-002",
+    "product_code": "BP06",
+    "related_printing_ids": [
+      "PL!-bp6-002-P"
+    ],
+    "printing_group_ids": [
+      "PL!-bp6-002-R",
+      "PL!-bp6-002-P"
+    ]
+  },
+  {
+    "card_id": "PL!-bp4-022-SECL",
+    "name": "No brand girls",
+    "card_type": "ライブ",
+    "product": "ブースターパック Royal Holiday",
+    "rarity": "SECL",
+    "member_attributes": null,
+    "live_attributes": {
+      "required_heart_by_color": {
+        "heart0": 9,
+        "heart01": 3,
+        "heart02": null,
+        "heart03": 3,
+        "heart04": null,
+        "heart05": null,
+        "heart06": 3
+      },
+      "score": 7,
+      "blade_heart_color": null,
+      "special_blade_hearts": [
+        {
+          "effect_type": "score",
+          "value": 1,
+          "resolution_timing": "live_judgment",
+          "source_alt": "スコア1",
+          "source_field": "特殊ハート"
+        }
+      ]
+    },
+    "raw_effect_text": "【ライブ開始時】自分のセンターエリアに【ブレード】を9つ以上持つ『μ's』のメンバーがいる場合、このカードのスコアを＋２する。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP06/PL!-bp4-022-SECL.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP06&card_kind=L&cardno=PL%21-bp4-022-SECL",
+    "fetched_at": "2026-06-07T07:20:37+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [
+        "【ライブ開始時】自分のセンターエリアに",
+        "【ブレード】を9つ以上持つ『μ's』のメンバーがいる場合、このカードのスコアを＋２する。"
+      ],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP06&card_kind=L",
+      "sample_profile": "cross-product",
+      "requested_product_code": "BP06",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "スコア",
+        "レアリティ",
+        "作品名",
+        "収録商品",
+        "必要ハート",
+        "特殊ハート"
+      ]
+    },
+    "card_code": "PL!-bp4-022",
+    "product_code": "BP06",
+    "related_printing_ids": [
+      "PL!-bp4-022-L"
+    ],
+    "printing_group_ids": [
+      "PL!-bp4-022-SECL",
+      "PL!-bp4-022-L"
+    ]
+  },
+  {
+    "card_id": "PL!-bp6-019-L",
+    "name": "Music S.T.A.R.T!!",
+    "card_type": "ライブ",
+    "product": "ブースターパック Royal Holiday",
+    "rarity": "L",
+    "member_attributes": null,
+    "live_attributes": {
+      "required_heart_by_color": {
+        "heart0": 2,
+        "heart01": 1,
+        "heart02": null,
+        "heart03": 1,
+        "heart04": null,
+        "heart05": null,
+        "heart06": 1
+      },
+      "score": 2,
+      "blade_heart_color": "heart0",
+      "special_blade_hearts": [
+        {
+          "effect_type": "all_color",
+          "value": 1,
+          "resolution_timing": "live_success_judgment",
+          "source_alt": "ALL1",
+          "source_field": "ブレードハート"
+        }
+      ]
+    },
+    "raw_effect_text": "【常時】このカードが自分の成功ライブカード置き場にあるかぎり、元々のコストが17以上の『μ's』のメンバーカードを自分の手札から登場させるためのコストは2減る。この効果は重複しない。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP06/PL!-bp6-019-L.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP06&card_kind=L&cardno=PL%21-bp6-019-L",
+    "fetched_at": "2026-06-07T07:20:38+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP06&card_kind=L",
+      "sample_profile": "cross-product",
+      "requested_product_code": "BP06",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "スコア",
+        "ブレードハート",
+        "レアリティ",
+        "作品名",
+        "収録商品",
+        "必要ハート"
+      ]
+    },
+    "card_code": "PL!-bp6-019",
+    "product_code": "BP06",
+    "related_printing_ids": [],
+    "printing_group_ids": [
+      "PL!-bp6-019-L"
+    ]
+  },
+  {
+    "card_id": "PL!-bp6-E01-SECE",
+    "name": "高坂穂乃果",
+    "card_type": "エネルギー",
+    "product": "ブースターパック Royal Holiday",
+    "rarity": "SECE",
+    "member_attributes": null,
+    "live_attributes": null,
+    "raw_effect_text": null,
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP06/PL!-bp6-E01-SECE.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP06&card_kind=E&cardno=PL%21-bp6-E01-SECE",
+    "fetched_at": "2026-06-07T07:20:41+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        },
+        {
+          "label": "参加ユニット",
+          "raw_text": "Printemps"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP06&card_kind=E",
+      "sample_profile": "cross-product",
+      "requested_product_code": "BP06",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "レアリティ",
+        "作品名",
+        "参加ユニット",
+        "収録商品"
+      ]
+    },
+    "card_code": "PL!-bp6-E01",
+    "product_code": "BP06",
+    "related_printing_ids": [],
+    "printing_group_ids": [
+      "PL!-bp6-E01-SECE"
+    ]
+  },
+  {
+    "card_id": "PL!-sd1-001-SD",
+    "name": "高坂 穂乃果",
+    "card_type": "メンバー",
+    "product": "スタートデッキ ラブライブ！",
+    "rarity": "SD",
+    "member_attributes": {
+      "cost": 11,
+      "heart_by_color": {
+        "heart01": 1,
+        "heart02": null,
+        "heart03": 2,
+        "heart04": null,
+        "heart05": null,
+        "heart06": 1
+      },
+      "blade": 3,
+      "blade_heart_color": null
+    },
+    "live_attributes": null,
+    "raw_effect_text": "【登場】自分の成功ライブカード置き場にカードが2枚以上ある場合、自分の控え室からライブカードを1枚手札に加える。 【常時】自分の成功ライブカード置き場にあるカード1枚につき、【ブレード】を得る。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/PLSD01/PL!-sd1-001-SD.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=PLSD01&card_kind=M&cardno=PL%21-sd1-001-SD",
+    "fetched_at": "2026-06-07T07:20:44+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [
+        "【登場】自分の成功ライブカード置き場にカードが2枚以上ある場合、自分の控え室からライブカードを1枚手札に加える。",
+        "【常時】自分の成功ライブカード置き場にあるカード1枚につき、",
+        "【ブレード】を得る。"
+      ],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        },
+        {
+          "label": "参加ユニット",
+          "raw_text": "Printemps"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=PLSD01&card_kind=M",
+      "sample_profile": "cross-product",
+      "requested_product_code": "PLSD01",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "コスト",
+        "ブレード",
+        "レアリティ",
+        "作品名",
+        "参加ユニット",
+        "収録商品",
+        "基本ハート"
+      ]
+    },
+    "card_code": "PL!-sd1-001",
+    "product_code": "PLSD01",
+    "related_printing_ids": [],
+    "printing_group_ids": [
+      "PL!-sd1-001-SD"
+    ]
+  },
+  {
+    "card_id": "PL!-sd1-002-SD",
+    "name": "絢瀬 絵里",
+    "card_type": "メンバー",
+    "product": "スタートデッキ ラブライブ！",
+    "rarity": "SD",
+    "member_attributes": {
+      "cost": 2,
+      "heart_by_color": {
+        "heart01": null,
+        "heart02": null,
+        "heart03": null,
+        "heart04": null,
+        "heart05": null,
+        "heart06": 1
+      },
+      "blade": 1,
+      "blade_heart_color": "heart06"
+    },
+    "live_attributes": null,
+    "raw_effect_text": "【起動】このメンバーをステージから控え室に置く：自分の控え室からメンバーカードを1枚手札に加える。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/PLSD01/PL!-sd1-002-SD.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=PLSD01&card_kind=M&cardno=PL%21-sd1-002-SD",
+    "fetched_at": "2026-06-07T07:20:45+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        },
+        {
+          "label": "参加ユニット",
+          "raw_text": "BiBi"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=PLSD01&card_kind=M",
+      "sample_profile": "cross-product",
+      "requested_product_code": "PLSD01",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "コスト",
+        "ブレード",
+        "ブレードハート",
+        "レアリティ",
+        "作品名",
+        "参加ユニット",
+        "収録商品",
+        "基本ハート"
+      ]
+    },
+    "card_code": "PL!-sd1-002",
+    "product_code": "PLSD01",
+    "related_printing_ids": [],
+    "printing_group_ids": [
+      "PL!-sd1-002-SD"
+    ]
+  },
+  {
+    "card_id": "PL!-sd1-019-SD",
+    "name": "START:DASH!!",
+    "card_type": "ライブ",
+    "product": "スタートデッキ ラブライブ！",
+    "rarity": "SD",
+    "member_attributes": null,
+    "live_attributes": {
+      "required_heart_by_color": {
+        "heart0": null,
+        "heart01": 1,
+        "heart02": null,
+        "heart03": 1,
+        "heart04": null,
+        "heart05": null,
+        "heart06": 1
+      },
+      "score": 1,
+      "blade_heart_color": null,
+      "special_blade_hearts": [
+        {
+          "effect_type": "score",
+          "value": 1,
+          "resolution_timing": "live_judgment",
+          "source_alt": "スコア1",
+          "source_field": "特殊ハート"
+        }
+      ]
+    },
+    "raw_effect_text": "【ライブ成功時】自分のデッキの上からカードを3枚見る。その中から好きな枚数を好きな順番でデッキの上に置き、残りを控え室に置く。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/PLSD01/PL!-pb1-019-SD.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=PLSD01&card_kind=L&cardno=PL%21-sd1-019-SD",
+    "fetched_at": "2026-06-07T07:20:48+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=PLSD01&card_kind=L",
+      "sample_profile": "cross-product",
+      "requested_product_code": "PLSD01",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "スコア",
+        "レアリティ",
+        "作品名",
+        "収録商品",
+        "必要ハート",
+        "特殊ハート"
+      ]
+    },
+    "card_code": "PL!-sd1-019",
+    "product_code": "PLSD01",
+    "related_printing_ids": [],
+    "printing_group_ids": [
+      "PL!-sd1-019-SD"
+    ]
+  },
+  {
+    "card_id": "PL!-sd1-020-SD",
+    "name": "きっと青春が聞こえる",
+    "card_type": "ライブ",
+    "product": "スタートデッキ ラブライブ！",
+    "rarity": "SD",
+    "member_attributes": null,
+    "live_attributes": {
+      "required_heart_by_color": {
+        "heart0": 3,
+        "heart01": 1,
+        "heart02": null,
+        "heart03": 1,
+        "heart04": null,
+        "heart05": null,
+        "heart06": null
+      },
+      "score": 2,
+      "blade_heart_color": "heart0",
+      "special_blade_hearts": [
+        {
+          "effect_type": "all_color",
+          "value": 1,
+          "resolution_timing": "live_success_judgment",
+          "source_alt": "ALL1",
+          "source_field": "ブレードハート"
+        }
+      ]
+    },
+    "raw_effect_text": null,
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/PLSD01/PL!-pb1-020-SD.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=PLSD01&card_kind=L&cardno=PL%21-sd1-020-SD",
+    "fetched_at": "2026-06-07T07:20:49+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=PLSD01&card_kind=L",
+      "sample_profile": "cross-product",
+      "requested_product_code": "PLSD01",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "スコア",
+        "ブレードハート",
+        "レアリティ",
+        "作品名",
+        "収録商品",
+        "必要ハート"
+      ]
+    },
+    "card_code": "PL!-sd1-020",
+    "product_code": "PLSD01",
+    "related_printing_ids": [],
+    "printing_group_ids": [
+      "PL!-sd1-020-SD"
+    ]
+  },
+  {
+    "card_id": "LL-E-001-SD",
+    "name": "エネルギーカード",
+    "card_type": "エネルギー",
+    "product": "スタートデッキ ラブライブ！",
+    "rarity": "SD",
+    "member_attributes": null,
+    "live_attributes": null,
+    "raw_effect_text": null,
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/PLSD01/LL-E-001-SD.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=PLSD01&card_kind=E&cardno=LL-E-001-SD",
+    "fetched_at": "2026-06-07T07:20:53+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=PLSD01&card_kind=E",
+      "sample_profile": "cross-product",
+      "requested_product_code": "PLSD01",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "レアリティ",
+        "作品名",
+        "収録商品"
+      ]
+    },
+    "card_code": "LL-E-001",
+    "product_code": "PLSD01",
+    "related_printing_ids": [],
+    "printing_group_ids": [
+      "LL-E-001-SD"
+    ]
+  },
+  {
+    "card_id": "PL!HS-sd1-001-SD",
+    "name": "日野下花帆",
+    "card_type": "メンバー",
+    "product": "スタートデッキ ラブライブ！蓮ノ空女学院スクールアイドルクラブ",
+    "rarity": "SD",
+    "member_attributes": {
+      "cost": 9,
+      "heart_by_color": {
+        "heart01": null,
+        "heart02": null,
+        "heart03": null,
+        "heart04": 3,
+        "heart05": null,
+        "heart06": null
+      },
+      "blade": 2,
+      "blade_heart_color": null
+    },
+    "live_attributes": null,
+    "raw_effect_text": "【自動】このメンバーがコスト 10 以上の『蓮ノ空』のメンバーとバトンタッチして控え室に置かれた とき、エネルギーを2枚アクティブにする。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/HSSD01/PL!HS-sd1-001-SD.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=HSSD01&card_kind=M&cardno=PL%21HS-sd1-001-SD",
+    "fetched_at": "2026-06-07T07:20:55+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "蓮ノ空女学院スクールアイドルクラブ"
+        },
+        {
+          "label": "参加ユニット",
+          "raw_text": "スリーズブーケ"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=HSSD01&card_kind=M",
+      "sample_profile": "cross-product",
+      "requested_product_code": "HSSD01",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "コスト",
+        "ブレード",
+        "レアリティ",
+        "作品名",
+        "参加ユニット",
+        "収録商品",
+        "基本ハート"
+      ]
+    },
+    "card_code": "PL!HS-sd1-001",
+    "product_code": "HSSD01",
+    "related_printing_ids": [],
+    "printing_group_ids": [
+      "PL!HS-sd1-001-SD"
+    ]
+  },
+  {
+    "card_id": "PL!HS-sd1-002-SD",
+    "name": "村野さやか",
+    "card_type": "メンバー",
+    "product": "スタートデッキ ラブライブ！蓮ノ空女学院スクールアイドルクラブ",
+    "rarity": "SD",
+    "member_attributes": {
+      "cost": 11,
+      "heart_by_color": {
+        "heart01": 1,
+        "heart02": null,
+        "heart03": null,
+        "heart04": 1,
+        "heart05": 4,
+        "heart06": null
+      },
+      "blade": 2,
+      "blade_heart_color": null
+    },
+    "live_attributes": null,
+    "raw_effect_text": "【ライブ開始時】手札を2枚控え室に置いてもよい：自分のデッキの上からカードを5枚見る。その中からメンバーカードを1枚公開して手札に加えてもよい。残りを控え室に置く。これにより『蓮ノ空』のカードを手札に加えた場合、ライブ終了時まで、【heart05】【ブレード】を得る。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/HSSD01/PL!HS-sd1-002-SD.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=HSSD01&card_kind=M&cardno=PL%21HS-sd1-002-SD",
+    "fetched_at": "2026-06-07T07:20:57+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [
+        "【ライブ開始時】手札を2枚控え室に置いてもよい：自分のデッキの上からカードを5枚見る。その中からメンバーカードを1枚公開して手札に加えてもよい。残りを控え室に置く。これにより『蓮ノ空』のカードを手札に加えた場合、ライブ終了時まで、",
+        "【heart05】",
+        "【ブレード】を得る。"
+      ],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "蓮ノ空女学院スクールアイドルクラブ"
+        },
+        {
+          "label": "参加ユニット",
+          "raw_text": "DOLLCHESTRA"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=HSSD01&card_kind=M",
+      "sample_profile": "cross-product",
+      "requested_product_code": "HSSD01",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "コスト",
+        "ブレード",
+        "レアリティ",
+        "作品名",
+        "参加ユニット",
+        "収録商品",
+        "基本ハート"
+      ]
+    },
+    "card_code": "PL!HS-sd1-002",
+    "product_code": "HSSD01",
+    "related_printing_ids": [],
+    "printing_group_ids": [
+      "PL!HS-sd1-002-SD"
+    ]
+  },
+  {
+    "card_id": "PL!HS-sd1-017-SD",
+    "name": "夏めきペイン",
+    "card_type": "ライブ",
+    "product": "スタートデッキ ラブライブ！蓮ノ空女学院スクールアイドルクラブ",
+    "rarity": "SD",
+    "member_attributes": null,
+    "live_attributes": {
+      "required_heart_by_color": {
+        "heart0": 2,
+        "heart01": 1,
+        "heart02": null,
+        "heart03": null,
+        "heart04": 1,
+        "heart05": 1,
+        "heart06": null
+      },
+      "score": 2,
+      "blade_heart_color": "heart0",
+      "special_blade_hearts": [
+        {
+          "effect_type": "all_color",
+          "value": 1,
+          "resolution_timing": "live_success_judgment",
+          "source_alt": "ALL1",
+          "source_field": "ブレードハート"
+        }
+      ]
+    },
+    "raw_effect_text": "【ライブ成功時】自分のステージに『蓮ノ空』のメンバーがいる場合、カードを1枚引き、手札を1枚控え室に置く。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/HSSD01/PL!HS-sd1-017-SD.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=HSSD01&card_kind=L&cardno=PL%21HS-sd1-017-SD",
+    "fetched_at": "2026-06-07T07:21:01+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "蓮ノ空女学院スクールアイドルクラブ"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=HSSD01&card_kind=L",
+      "sample_profile": "cross-product",
+      "requested_product_code": "HSSD01",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "スコア",
+        "ブレードハート",
+        "レアリティ",
+        "作品名",
+        "収録商品",
+        "必要ハート"
+      ]
+    },
+    "card_code": "PL!HS-sd1-017",
+    "product_code": "HSSD01",
+    "related_printing_ids": [],
+    "printing_group_ids": [
+      "PL!HS-sd1-017-SD"
+    ]
+  },
+  {
+    "card_id": "PL!HS-sd1-018-SD",
+    "name": "Dream Believers（105期Ver.）",
+    "card_type": "ライブ",
+    "product": "スタートデッキ ラブライブ！蓮ノ空女学院スクールアイドルクラブ",
+    "rarity": "SD",
+    "member_attributes": null,
+    "live_attributes": {
+      "required_heart_by_color": {
+        "heart0": 4,
+        "heart01": 1,
+        "heart02": null,
+        "heart03": null,
+        "heart04": 1,
+        "heart05": 1,
+        "heart06": 1
+      },
+      "score": 3,
+      "blade_heart_color": "heart0",
+      "special_blade_hearts": [
+        {
+          "effect_type": "all_color",
+          "value": 1,
+          "resolution_timing": "live_success_judgment",
+          "source_alt": "ALL1",
+          "source_field": "ブレードハート"
+        }
+      ]
+    },
+    "raw_effect_text": "【ライブ開始時】自分のステージに『蓮ノ空』のメンバーが3人以上いて、かつ自分の控え室にカード名に「Dream Believers」を含むライブカードがある場合、このカードのスコアを＋１する。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/HSSD01/PL!HS-sd1-018-SD.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=HSSD01&card_kind=L&cardno=PL%21HS-sd1-018-SD",
+    "fetched_at": "2026-06-07T07:21:04+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "蓮ノ空女学院スクールアイドルクラブ"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=HSSD01&card_kind=L",
+      "sample_profile": "cross-product",
+      "requested_product_code": "HSSD01",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "スコア",
+        "ブレードハート",
+        "レアリティ",
+        "作品名",
+        "収録商品",
+        "必要ハート"
+      ]
+    },
+    "card_code": "PL!HS-sd1-018",
+    "product_code": "HSSD01",
+    "related_printing_ids": [
+      "PL!HS-sd1-018-SECL"
+    ],
+    "printing_group_ids": [
+      "PL!HS-sd1-018-SD",
+      "PL!HS-sd1-018-SECL"
+    ]
+  },
+  {
+    "card_id": "LL-E-002-SD",
+    "name": "エネルギーカード",
+    "card_type": "エネルギー",
+    "product": "スタートデッキ ラブライブ！蓮ノ空女学院スクールアイドルクラブ",
+    "rarity": "SD",
+    "member_attributes": null,
+    "live_attributes": null,
+    "raw_effect_text": null,
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/HSSD01/LL-E-002-SD.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=HSSD01&card_kind=E&cardno=LL-E-002-SD",
+    "fetched_at": "2026-06-07T07:21:06+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "蓮ノ空女学院スクールアイドルクラブ"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=HSSD01&card_kind=E",
+      "sample_profile": "cross-product",
+      "requested_product_code": "HSSD01",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "レアリティ",
+        "作品名",
+        "収録商品"
+      ]
+    },
+    "card_code": "LL-E-002",
+    "product_code": "HSSD01",
+    "related_printing_ids": [
+      "LL-E-002-PR"
+    ],
+    "printing_group_ids": [
+      "LL-E-002-SD",
+      "LL-E-002-PR"
+    ]
+  },
+  {
+    "card_id": "PL!-bp3-012-PR",
+    "name": "南 ことり",
+    "card_type": "メンバー",
+    "product": "PRカード",
+    "rarity": "PR",
+    "member_attributes": {
+      "cost": 2,
+      "heart_by_color": {
+        "heart01": null,
+        "heart02": null,
+        "heart03": null,
+        "heart04": null,
+        "heart05": null,
+        "heart06": null
+      },
+      "blade": 2,
+      "blade_heart_color": "heart03"
+    },
+    "live_attributes": null,
+    "raw_effect_text": "【ライブ開始時】【heart01】か【heart03】か【heart06】のうち、1つを選ぶ。ライブ終了時まで、自分の成功ライブカード置き場にあるカード1枚につき、選んだハートを1つ得る。",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/PR/PL!-bp3-012-PR.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=PR&card_kind=M&cardno=PL%21-bp3-012-PR",
+    "fetched_at": "2026-06-07T07:21:09+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [
+        "【ライブ開始時】",
+        "【heart01】か",
+        "【heart03】か",
+        "【heart06】のうち、1つを選ぶ。ライブ終了時まで、自分の成功ライブカード置き場にあるカード1枚につき、選んだハートを1つ得る。"
+      ],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        },
+        {
+          "label": "参加ユニット",
+          "raw_text": "Printemps"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=PR&card_kind=M",
+      "sample_profile": "cross-product",
+      "requested_product_code": "PR",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "コスト",
+        "ブレード",
+        "ブレードハート",
+        "レアリティ",
+        "作品名",
+        "参加ユニット",
+        "収録商品",
+        "基本ハート"
+      ]
+    },
+    "card_code": "PL!-bp3-012",
+    "product_code": "PR",
+    "related_printing_ids": [
+      "PL!-bp3-012-N",
+      "PL!-bp3-012-RM"
+    ],
+    "printing_group_ids": [
+      "PL!-bp3-012-PR",
+      "PL!-bp3-012-N",
+      "PL!-bp3-012-RM"
+    ]
+  },
+  {
+    "card_id": "PL!-bp3-014-PR",
+    "name": "星空 凛",
+    "card_type": "メンバー",
+    "product": "PRカード",
+    "rarity": "PR",
+    "member_attributes": {
+      "cost": 4,
+      "heart_by_color": {
+        "heart01": 1,
+        "heart02": null,
+        "heart03": null,
+        "heart04": null,
+        "heart05": null,
+        "heart06": null
+      },
+      "blade": 2,
+      "blade_heart_color": "heart01"
+    },
+    "live_attributes": null,
+    "raw_effect_text": "【登場】このメンバーをウェイトにしてもよい：自分のデッキの上からカードを2枚見る。その中から好きな枚数を好きな順番でデッキの上に置き、残りを控え室に置く。（ウェイト状態のメンバーが持つ【ブレード】は、エールで公開する枚数を増やさない。）",
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/PR/PL!-bp3-014-PR.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=PR&card_kind=M&cardno=PL%21-bp3-014-PR",
+    "fetched_at": "2026-06-07T07:21:10+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [
+        "【登場】このメンバーをウェイトにしてもよい：自分のデッキの上からカードを2枚見る。その中から好きな枚数を好きな順番でデッキの上に置き、残りを控え室に置く。（ウェイト状態のメンバーが持つ",
+        "【ブレード】は、エールで公開する枚数を増やさない。）"
+      ],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！"
+        },
+        {
+          "label": "参加ユニット",
+          "raw_text": "lily white"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=PR&card_kind=M",
+      "sample_profile": "cross-product",
+      "requested_product_code": "PR",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "コスト",
+        "ブレード",
+        "ブレードハート",
+        "レアリティ",
+        "作品名",
+        "参加ユニット",
+        "収録商品",
+        "基本ハート"
+      ]
+    },
+    "card_code": "PL!-bp3-014",
+    "product_code": "PR",
+    "related_printing_ids": [
+      "PL!-bp3-014-N"
+    ],
+    "printing_group_ids": [
+      "PL!-bp3-014-PR",
+      "PL!-bp3-014-N"
+    ]
+  },
+  {
+    "card_id": "PL!S-PR-022-PR",
+    "name": "HAPPY PARTY TRAIN",
+    "card_type": "ライブ",
+    "product": "PRカード",
+    "rarity": "PR",
+    "member_attributes": null,
+    "live_attributes": {
+      "required_heart_by_color": {
+        "heart0": null,
+        "heart01": null,
+        "heart02": 1,
+        "heart03": null,
+        "heart04": 1,
+        "heart05": 1,
+        "heart06": null
+      },
+      "score": 1,
+      "blade_heart_color": "heart0",
+      "special_blade_hearts": [
+        {
+          "effect_type": "all_color",
+          "value": 1,
+          "resolution_timing": "live_success_judgment",
+          "source_alt": "ALL1",
+          "source_field": "ブレードハート"
+        }
+      ]
+    },
+    "raw_effect_text": null,
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/PR/PL!S-PR-022-PR.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=PR&card_kind=L&cardno=PL%21S-PR-022-PR",
+    "fetched_at": "2026-06-07T07:21:13+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！サンシャイン!!"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=PR&card_kind=L",
+      "sample_profile": "cross-product",
+      "requested_product_code": "PR",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "スコア",
+        "ブレードハート",
+        "レアリティ",
+        "作品名",
+        "収録商品",
+        "必要ハート"
+      ]
+    },
+    "card_code": "PL!S-PR-022",
+    "product_code": "PR",
+    "related_printing_ids": [],
+    "printing_group_ids": [
+      "PL!S-PR-022-PR"
+    ]
+  },
+  {
+    "card_id": "PL!S-PR-023-PR",
+    "name": "恋になりたいAQUARIUM",
+    "card_type": "ライブ",
+    "product": "PRカード",
+    "rarity": "PR",
+    "member_attributes": null,
+    "live_attributes": {
+      "required_heart_by_color": {
+        "heart0": 1,
+        "heart01": null,
+        "heart02": 2,
+        "heart03": null,
+        "heart04": 2,
+        "heart05": 2,
+        "heart06": null
+      },
+      "score": 3,
+      "blade_heart_color": "heart0",
+      "special_blade_hearts": [
+        {
+          "effect_type": "all_color",
+          "value": 1,
+          "resolution_timing": "live_success_judgment",
+          "source_alt": "ALL1",
+          "source_field": "ブレードハート"
+        }
+      ]
+    },
+    "raw_effect_text": null,
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/PR/PL!S-PR-023-PR.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=PR&card_kind=L&cardno=PL%21S-PR-023-PR",
+    "fetched_at": "2026-06-07T07:21:15+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [],
+      "unmapped_fields": [
+        {
+          "label": "作品名",
+          "raw_text": "ラブライブ！サンシャイン!!"
+        }
+      ],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=PR&card_kind=L",
+      "sample_profile": "cross-product",
+      "requested_product_code": "PR",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "スコア",
+        "ブレードハート",
+        "レアリティ",
+        "作品名",
+        "収録商品",
+        "必要ハート"
+      ]
+    },
+    "card_code": "PL!S-PR-023",
+    "product_code": "PR",
+    "related_printing_ids": [],
+    "printing_group_ids": [
+      "PL!S-PR-023-PR"
+    ]
+  },
+  {
+    "card_id": "LL-PR-001-PR",
+    "name": "ラブライブ！オフィシャルカードゲーム",
+    "card_type": "エネルギー",
+    "product": "PRカード",
+    "rarity": "PR",
+    "member_attributes": null,
+    "live_attributes": null,
+    "raw_effect_text": null,
+    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/PR/LL-PR-001-PR.png",
+    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=PR&card_kind=E&cardno=LL-PR-001-PR",
+    "fetched_at": "2026-06-07T07:21:17+00:00",
+    "parser_version": "cardlist_spike_v0.3",
+    "parse_notes": {
+      "source": "card_detail_ajax",
+      "detail_endpoint": "https://llofficial-cardgame.com/cardlist/detail/",
+      "detail_method": "POST",
+      "candidate_effect_blocks": [],
+      "unmapped_fields": [],
+      "unmapped_icons": [],
+      "search_result_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=PR&card_kind=E",
+      "sample_profile": "cross-product",
+      "requested_product_code": "PR",
+      "source_field_labels": [
+        "カードタイプ",
+        "カード番号",
+        "レアリティ",
+        "収録商品"
+      ]
+    },
+    "card_code": "LL-PR-001",
+    "product_code": "PR",
+    "related_printing_ids": [],
+    "printing_group_ids": [
+      "LL-PR-001-PR"
+    ]
+  }
+]
