@@ -13,7 +13,7 @@ from loveca.decks.library import (
 
 
 PROJECT_ROOT = Path(__file__).parents[1]
-SAMPLE_DECK = PROJECT_ROOT / "examples" / "decks" / "sample-deck.json"
+SAMPLE_DECK = PROJECT_ROOT / "tests" / "fixtures" / "legal-deck.json"
 
 
 def test_deck_library_crud_round_trip(tmp_path: Path):
@@ -24,12 +24,12 @@ def test_deck_library_crud_round_trip(tmp_path: Path):
 
     decks = list_saved_decks(library_root)
     assert len(decks) == 1
-    assert decks[0].name == "Cross Product Sample Legal Deck"
+    assert decks[0].name == "Legal Test Deck"
     assert decks[0].main_card_count == 60
     assert decks[0].energy_card_count == 12
 
     loaded = load_saved_deck(library_root, saved.stem)
-    assert loaded.name == "Cross Product Sample Legal Deck"
+    assert loaded.name == "Legal Test Deck"
     assert loaded.version == "decklist.v0"
 
     renamed = rename_saved_deck(library_root, saved.stem, "Renamed Deck")

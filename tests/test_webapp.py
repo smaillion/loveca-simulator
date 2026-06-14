@@ -17,7 +17,7 @@ SAMPLE_CARDS = (
     / "cards-cross-product-sample.json"
 )
 NORMALIZATION = PROJECT_ROOT / "data_sources" / "card-entity-normalization.json"
-SAMPLE_DECK = PROJECT_ROOT / "examples" / "decks" / "sample-deck.json"
+SAMPLE_DECK = PROJECT_ROOT / "tests" / "fixtures" / "legal-deck.json"
 
 
 def test_match_api_create_act_resume_and_replay(tmp_path):
@@ -132,13 +132,9 @@ def test_deck_library_api_round_trip(tmp_path):
     assert deleted.json()["status"] == "deleted"
 
 
-def test_sample_deck_and_deck_analyze_api(tmp_path):
+def test_deck_analyze_api(tmp_path):
     client = _client(tmp_path)
-
-    sample_response = client.get("/api/decks/examples/sample")
-    assert sample_response.status_code == 200
-    sample_deck = sample_response.json()
-    assert sample_deck["version"] == "decklist.v0"
+    sample_deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
 
     analyze_response = client.post("/api/decks/analyze", json={"deck": sample_deck})
     assert analyze_response.status_code == 200

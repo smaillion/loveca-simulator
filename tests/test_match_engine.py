@@ -33,7 +33,7 @@ SAMPLE_CARDS = (
     / "cards-cross-product-sample.json"
 )
 NORMALIZATION = PROJECT_ROOT / "data_sources" / "card-entity-normalization.json"
-SAMPLE_DECK = PROJECT_ROOT / "examples" / "decks" / "sample-deck.json"
+SAMPLE_DECK = PROJECT_ROOT / "tests" / "fixtures" / "legal-deck.json"
 
 
 def test_initial_main_deck_shuffle_is_seeded_and_observable(tmp_path):

@@ -46,13 +46,13 @@ const placements = [
 
 const SAMPLE_DECK = {
   version: "decklist.v0" as const,
-  name: "Sample Deck",
+  name: "Test Deck",
   main_deck: [],
   energy_deck: [],
 };
 
 const ANALYSIS_RESPONSE = {
-  deck_name: "Sample Deck",
+  deck_name: "Test Deck",
   is_legal: false,
   issues: [
     {
@@ -260,7 +260,6 @@ function jsonResponse(data: unknown): Response {
 function createFetchMock(overrides: {
   matches?: unknown;
   savedDecks?: unknown;
-  sampleDeck?: unknown;
   matchCreate?: unknown;
   catalogCards?: unknown;
   catalogDetail?: unknown;
@@ -280,10 +279,17 @@ function createFetchMock(overrides: {
       return jsonResponse(overrides.matchCreate ?? MATCH_PAYLOAD);
     }
     if (url === "/api/decks" && method === "GET") {
-      return jsonResponse(overrides.savedDecks ?? []);
-    }
-    if (url === "/api/decks/examples/sample") {
-      return jsonResponse(overrides.sampleDeck ?? SAMPLE_DECK);
+      return jsonResponse(
+        overrides.savedDecks ?? [
+          {
+            name: "Test Deck",
+            path: "data/decks/test.json",
+            version: "decklist.v0",
+            main_card_count: 0,
+            energy_card_count: 0,
+          },
+        ],
+      );
     }
     if (url === "/api/decks/analyze" && method === "POST") {
       return jsonResponse(overrides.deckAnalysis ?? ANALYSIS_RESPONSE);
@@ -357,7 +363,7 @@ describe("App", () => {
 
     expect(screen.getByText("创建规则验证对局")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByLabelText("Player 1 牌组")).toBeInTheDocument());
-    expect(screen.getAllByText("示例牌组").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Test Deck").length).toBeGreaterThan(0);
     expect(screen.getByPlaceholderText("自动生成")).toHaveValue("");
     await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/matches", expect.anything()));
   });

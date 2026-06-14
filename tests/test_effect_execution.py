@@ -22,7 +22,7 @@ SAMPLE_CARDS = (
     PROJECT_ROOT / "data_samples" / "normalized" / "cards-cross-product-sample.json"
 )
 NORMALIZATION = PROJECT_ROOT / "data_sources" / "card-entity-normalization.json"
-SAMPLE_DECK = PROJECT_ROOT / "examples" / "decks" / "sample-deck.json"
+SAMPLE_DECK = PROJECT_ROOT / "tests" / "fixtures" / "legal-deck.json"
 REGISTRY = PROJECT_ROOT / "data_sources" / "effect-registry.v0.json"
 
 

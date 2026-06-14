@@ -48,6 +48,7 @@ class SpecialBladeHeart(BaseModel):
 class CardDefinition(BaseModel):
     card_code: str
     card_id: str
+    image_url: str | None = None
     name_ja: str
     card_type: Literal["member", "live", "energy"]
     cost: int | None = None

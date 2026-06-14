@@ -24,7 +24,7 @@ SAMPLE_CARDS_PATH = (
     / "cards-cross-product-sample.json"
 )
 NORMALIZATION_PATH = PROJECT_ROOT / "data_sources" / "card-entity-normalization.json"
-SAMPLE_DECK_PATH = PROJECT_ROOT / "examples" / "decks" / "sample-deck.json"
+SAMPLE_DECK_PATH = PROJECT_ROOT / "tests" / "fixtures" / "legal-deck.json"
 
 
 def test_sample_deck_is_legal_and_reports_core_statistics(tmp_path):

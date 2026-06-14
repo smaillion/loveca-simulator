@@ -8,7 +8,7 @@
 
 ## 現在の状態
 
-`v0.4.0-alpha.1` の収録内容:
+`v0.4.0-alpha.2` の収録内容:
 
 - 公式 `card_list` からの正式カード importer
 - SQLite Schema v2 のローカルカード DB
@@ -31,6 +31,20 @@
 - 全カード効果の自動化
 - AI、Monte Carlo、勝率エンジン
 - オンライン対戦、アカウント、同期機能
+
+## 画面イメージ
+
+開始画面: 保存済みデッキを選び、そのまま対局作成まで進められます。
+
+![開始画面](docs/images/home-desktop.png)
+
+Deck Builder: 右側でカード検索と絞り込み、中央で構築内容と分析結果を確認します。
+
+![Deck Builder](docs/images/deck-builder-desktop.png)
+
+ルール検証 UI: 盤面、Action/Event Log、手動調整を同じ画面で追えます。
+
+![ルール検証 UI](docs/images/match-actions-desktop.png)
 
 ## 動作環境
 
@@ -103,6 +117,8 @@ loveca web serve `
 
 ブラウザで <http://127.0.0.1:8765> を開きます。
 
+`8765` が使用中なら `--port 8766` のように変更してください。
+
 ## よく使うコマンド
 
 Deck Analyzer:
@@ -110,7 +126,7 @@ Deck Analyzer:
 ```powershell
 loveca decks analyze `
   --database data/loveca.sqlite3 `
-  --deck examples/decks/sample-deck.json `
+  --deck data/decks/your-deck.json `
   --output text
 ```
 
