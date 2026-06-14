@@ -1,0 +1,38 @@
+{
+  "version": "decklist.v0",
+  "name": "Legal Test Deck",
+  "main_deck": [
+    { "card_code": "LL-bp1-001", "quantity": 4, "preferred_printing_id": "LL-bp1-001-R＋" },
+    { "card_code": "PL!N-bp1-001", "quantity": 4, "preferred_printing_id": "PL!N-bp1-001-R" },
+    { "card_code": "PL!-bp3-001", "quantity": 4, "preferred_printing_id": "PL!-bp3-001-R" },
+    { "card_code": "PL!-bp3-002", "quantity": 4, "preferred_printing_id": "PL!-bp3-002-R" },
+    { "card_code": "PL!-bp6-001", "quantity": 4, "preferred_printing_id": "PL!-bp6-001-R＋" },
+    { "card_code": "PL!-bp6-002", "quantity": 4, "preferred_printing_id": "PL!-bp6-002-R" },
+    { "card_code": "PL!-sd1-001", "quantity": 4, "preferred_printing_id": "PL!-sd1-001-SD" },
+    { "card_code": "PL!-sd1-002", "quantity": 4, "preferred_printing_id": "PL!-sd1-002-SD" },
+    { "card_code": "PL!HS-sd1-001", "quantity": 4, "preferred_printing_id": "PL!HS-sd1-001-SD" },
+    { "card_code": "PL!HS-sd1-002", "quantity": 4, "preferred_printing_id": "PL!HS-sd1-002-SD" },
+    { "card_code": "PL!-bp3-012", "quantity": 4, "preferred_printing_id": "PL!-bp3-012-PR" },
+    { "card_code": "PL!-bp3-014", "quantity": 4, "preferred_printing_id": "PL!-bp3-014-PR" },
+    { "card_code": "PL!N-bp1-025", "quantity": 1, "preferred_printing_id": "PL!N-bp1-025-L" },
+    { "card_code": "PL!N-bp1-026", "quantity": 1, "preferred_printing_id": "PL!N-bp1-026-L" },
+    { "card_code": "PL!-bp3-019", "quantity": 1, "preferred_printing_id": "PL!-bp3-019-L" },
+    { "card_code": "PL!-bp3-020", "quantity": 1, "preferred_printing_id": "PL!-bp3-020-L" },
+    { "card_code": "PL!-bp4-022", "quantity": 1, "preferred_printing_id": "PL!-bp4-022-SECL" },
+    { "card_code": "PL!-bp6-019", "quantity": 1, "preferred_printing_id": "PL!-bp6-019-L" },
+    { "card_code": "PL!-sd1-019", "quantity": 1, "preferred_printing_id": "PL!-sd1-019-SD" },
+    { "card_code": "PL!-sd1-020", "quantity": 1, "preferred_printing_id": "PL!-sd1-020-SD" },
+    { "card_code": "PL!HS-sd1-017", "quantity": 1, "preferred_printing_id": "PL!HS-sd1-017-SD" },
+    { "card_code": "PL!HS-sd1-018", "quantity": 1, "preferred_printing_id": "PL!HS-sd1-018-SD" },
+    { "card_code": "PL!S-PR-022", "quantity": 1, "preferred_printing_id": "PL!S-PR-022-PR" },
+    { "card_code": "PL!S-PR-023", "quantity": 1, "preferred_printing_id": "PL!S-PR-023-PR" }
+  ],
+  "energy_deck": [
+    { "card_code": "PL!-bp1-000", "quantity": 2, "preferred_printing_id": "PL!-bp1-000-LLE" },
+    { "card_code": "PL!-bp3-027", "quantity": 2, "preferred_printing_id": "PL!-bp3-027-SECE" },
+    { "card_code": "PL!-bp6-E01", "quantity": 2, "preferred_printing_id": "PL!-bp6-E01-SECE" },
+    { "card_code": "LL-E-001", "quantity": 2, "preferred_printing_id": "LL-E-001-SD" },
+    { "card_code": "LL-E-002", "quantity": 2, "preferred_printing_id": "LL-E-002-SD" },
+    { "card_code": "LL-PR-001", "quantity": 2, "preferred_printing_id": "LL-PR-001-PR" }
+  ]
+}

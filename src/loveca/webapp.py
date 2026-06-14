@@ -20,7 +20,7 @@ from loveca.cards.catalog import (
     list_catalog_facets,
     list_review_candidates,
 )
-from loveca.decks.analyzer import DeckFileError, analyze_deck, load_deck, parse_deck
+from loveca.decks.analyzer import DeckFileError, analyze_deck, parse_deck
 from loveca.decks.library import (
     DeckLibraryError,
     delete_saved_deck,
@@ -38,7 +38,6 @@ from loveca.simulation.effects import DEFAULT_EFFECT_REGISTRY
 
 
 PROJECT_ROOT = Path(__file__).parents[2]
-SAMPLE_DECK_PATH = PROJECT_ROOT / "examples/decks/sample-deck.json"
 
 
 class PlayerSetup(BaseModel):
@@ -93,7 +92,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
     )
     app = FastAPI(
         title="LoveCA Visual Rules Debugger",
-        version="0.4.0a1",
+        version="0.4.0a2",
     )
     app.state.settings = resolved
     app.state.match_service = service
@@ -191,13 +190,6 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
             ]
         except DeckLibraryError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-    @app.get("/api/decks/examples/sample")
-    def get_sample_deck() -> dict[str, Any]:
-        try:
-            return asdict(load_deck(SAMPLE_DECK_PATH))
-        except DeckFileError as exc:
-            raise HTTPException(status_code=500, detail=str(exc)) from exc
 
     @app.get("/api/decks/{deck_id}")
     def get_deck(deck_id: str) -> dict[str, Any]:

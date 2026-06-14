@@ -167,7 +167,7 @@ def test_decks_analyze_command_outputs_json_for_sample_deck(tmp_path, capsys):
             "--database",
             str(database_path),
             "--deck",
-            str(PROJECT_ROOT / "examples" / "decks" / "sample-deck.json"),
+            str(PROJECT_ROOT / "tests" / "fixtures" / "legal-deck.json"),
             "--output",
             "json",
         ]

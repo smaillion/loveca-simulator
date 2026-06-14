@@ -8,7 +8,7 @@
 
 ## 当前状态
 
-`v0.4.0-alpha.1` 当前已收录:
+`v0.4.0-alpha.2` 当前已收录:
 
 - 正式官方 `card_list` 卡牌 importer
 - SQLite Schema v2 本地卡牌数据库
@@ -31,6 +31,20 @@
 - 全卡技能自动执行
 - AI、Monte Carlo、胜率引擎
 - 在线对战、账户和同步
+
+## 界面预览
+
+启动页：可直接选择已保存牌组并创建对局。
+
+![启动页](docs/images/home-desktop.png)
+
+Deck Builder：右侧筛选选卡，中央查看构筑与分析结果。
+
+![Deck Builder](docs/images/deck-builder-desktop.png)
+
+规则验证器：同屏查看盘面、Action/Event Log 与人工规则调整。
+
+![规则验证器](docs/images/match-actions-desktop.png)
 
 ## 环境要求
 
@@ -103,6 +117,8 @@ loveca web serve `
 
 浏览器访问 <http://127.0.0.1:8765>。
 
+如果 `8765` 已被占用，可以改成 `--port 8766`。
+
 ## 常用命令
 
 牌组分析:
@@ -110,7 +126,7 @@ loveca web serve `
 ```powershell
 loveca decks analyze `
   --database data/loveca.sqlite3 `
-  --deck examples/decks/sample-deck.json `
+  --deck data/decks/your-deck.json `
   --output text
 ```
 

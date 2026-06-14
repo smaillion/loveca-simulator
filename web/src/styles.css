@@ -1441,6 +1441,25 @@ label {
   max-height: 440px;
 }
 
+.dialog-image .card-fallback {
+  width: 100%;
+  max-width: 100%;
+  height: 440px;
+  padding: 20px;
+  justify-content: center;
+  gap: 12px;
+}
+
+.dialog-image .card-fallback span,
+.dialog-image .card-fallback small {
+  font-size: 14px;
+}
+
+.dialog-image .card-fallback strong {
+  font-size: 20px;
+  line-height: 1.35;
+}
+
 .dialog-content {
   padding: 26px;
 }

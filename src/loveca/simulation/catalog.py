@@ -127,6 +127,7 @@ def _load_definition(
             card.canonical_name_ja,
             card.card_type,
             printing.card_id,
+            printing.image_url,
             member.cost,
             member.blade,
             member.blade_heart_color_slot AS member_blade_heart,
@@ -237,6 +238,7 @@ def _load_definition(
     return CardDefinition(
         card_code=str(row["card_code"]),
         card_id=str(row["card_id"]),
+        image_url=row["image_url"],
         name_ja=str(row["canonical_name_ja"]),
         card_type=str(row["card_type"]),
         cost=row["cost"],

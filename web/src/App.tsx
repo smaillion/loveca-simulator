@@ -19,7 +19,6 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import {
   createMatch,
   getMatch,
-  getSampleDeck,
   getSavedDeck,
   listMatches,
   listSavedDecks,
@@ -66,22 +65,11 @@ const phaseLabels: Record<string, [string, string]> = {
 type UiLocale = "zh" | "ja";
 type StartDeckSource = {
   id: string;
-  kind: "sample" | "draft" | "saved";
+  kind: "draft" | "saved";
   label: string;
   mainCount: number;
   energyCount: number;
 };
-
-function isDeckList(value: unknown): value is DeckList {
-  return Boolean(
-    value &&
-      typeof value === "object" &&
-      "main_deck" in value &&
-      "energy_deck" in value &&
-      Array.isArray((value as DeckList).main_deck) &&
-      Array.isArray((value as DeckList).energy_deck),
-  );
-}
 
 const UiLanguageContext = createContext<{
   locale: UiLocale;
@@ -125,7 +113,6 @@ export default function App() {
   const [match, setMatch] = useState<MatchPayload | null>(null);
   const [matches, setMatches] = useState<MatchSummary[]>([]);
   const [savedDecks, setSavedDecks] = useState<SavedDeckSummary[]>([]);
-  const [sampleDeck, setSampleDeck] = useState<DeckList | null>(null);
   const [draftDeck, setDraftDeck] = useState<DeckList | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -136,9 +123,6 @@ export default function App() {
   useEffect(() => {
     listMatches().then(setMatches).catch(() => setMatches([]));
     listSavedDecks().then(setSavedDecks).catch(() => setSavedDecks([]));
-    getSampleDeck()
-      .then((value) => setSampleDeck(isDeckList(value) ? value : null))
-      .catch(() => setSampleDeck(null));
   }, []);
   useEffect(() => {
     localStorage.setItem("loveca-ui-locale", locale);
@@ -147,15 +131,6 @@ export default function App() {
 
   const deckSources = useMemo<StartDeckSource[]>(() => {
     const sources: StartDeckSource[] = [];
-      if (sampleDeck) {
-        sources.push({
-          id: "sample",
-          kind: "sample",
-        label: locale === "zh" ? "示例牌组" : "サンプルデッキ",
-        mainCount: sampleDeck.main_deck.reduce((sum, entry) => sum + entry.quantity, 0),
-        energyCount: sampleDeck.energy_deck.reduce((sum, entry) => sum + entry.quantity, 0),
-      });
-    }
     if (draftDeck) {
       sources.push({
         id: "draft",
@@ -177,7 +152,7 @@ export default function App() {
       });
     }
     return sources;
-  }, [draftDeck, locale, sampleDeck, savedDecks]);
+  }, [draftDeck, locale, savedDecks]);
 
   async function run<T>(operation: () => Promise<T>, apply: (value: T) => void) {
     setLoading(true);
@@ -214,16 +189,6 @@ export default function App() {
   }
 
   async function resolveDeckSource(sourceId: string): Promise<DeckList> {
-    if (sourceId === "sample") {
-      if (sampleDeck) {
-        return sampleDeck;
-      }
-      const deck = await getSampleDeck();
-      if (!isDeckList(deck)) {
-        throw new Error(locale === "zh" ? "示例牌组数据无效。" : "サンプルデッキデータが不正です。");
-      }
-      return deck;
-    }
     if (sourceId === "draft") {
       if (!draftDeck) {
         throw new Error(locale === "zh" ? "当前没有临时牌组。" : "一時デッキがありません。");
@@ -1041,26 +1006,13 @@ function CardTile({
   onClick: (card: CardInstance) => void;
   selected?: boolean;
 }) {
-  const [imageFailed, setImageFailed] = useState(false);
   return (
     <button
       className={`card-tile ${instance.orientation === "wait" ? "wait" : ""} ${selected ? "selected" : ""}`}
       onClick={() => onClick(instance)}
       title={instance.card.name_ja}
     >
-      {!imageFailed ? (
-        <img
-          src={`/api/card-images/${encodeURIComponent(instance.card.card_id)}`}
-          alt={instance.card.name_ja}
-          onError={() => setImageFailed(true)}
-        />
-      ) : (
-        <div className={`card-fallback ${instance.card.card_type}`}>
-          <span>{instance.card.card_type.toUpperCase()}</span>
-          <strong>{instance.card.name_ja}</strong>
-          <small>{instance.card.card_code}</small>
-        </div>
-      )}
+      <LocalCardArt card={instance.card} />
       <div className="card-caption">
         <span>{instance.card.name_ja}</span>
         {instance.orientation === "wait" && <em>WAIT</em>}
@@ -1398,7 +1350,6 @@ function InspectionCard({
   onSelect: () => void;
 }) {
   const { locale } = useUiLanguage();
-  const [imageFailed, setImageFailed] = useState(false);
   const card = instance.card;
   return (
     <button
@@ -1407,19 +1358,7 @@ function InspectionCard({
       aria-pressed={selected}
     >
       <div className="inspection-card-image">
-        {!imageFailed ? (
-          <img
-            src={`/api/card-images/${encodeURIComponent(card.card_id)}`}
-            alt={card.name_ja}
-            onError={() => setImageFailed(true)}
-          />
-        ) : (
-          <div className={`card-fallback ${card.card_type}`}>
-            <span>{card.card_type.toUpperCase()}</span>
-            <strong>{card.name_ja}</strong>
-            <small>{card.card_code}</small>
-          </div>
-        )}
+        <LocalCardArt card={card} />
         <span className="inspection-select-state">
           {selected
             ? locale === "zh" ? "已选择" : "選択済み"
@@ -2397,10 +2336,7 @@ function CardDialog({
           <X size={18} />
         </button>
         <div className="dialog-image">
-          <img
-            src={`/api/card-images/${encodeURIComponent(instance.card.card_id)}`}
-            alt={instance.card.name_ja}
-          />
+          <LocalCardArt card={instance.card} className="dialog-card-art" />
         </div>
         <div className="dialog-content">
           <span>{instance.card.card_type.toUpperCase()} · {instance.card.card_code}</span>
@@ -2448,6 +2384,50 @@ function CardDialog({
             && <span>{tr("无", "なし")}</span>}
         </div>
       </article>
+    </div>
+  );
+}
+
+function LocalCardArt({
+  card,
+  className = "",
+}: {
+  card: CardInstance["card"];
+  className?: string;
+}) {
+  const [sourceMode, setSourceMode] = useState<"local" | "remote" | "fallback">(
+    card.card_id ? "local" : card.image_url ? "remote" : "fallback",
+  );
+
+  useEffect(() => {
+    setSourceMode(card.card_id ? "local" : card.image_url ? "remote" : "fallback");
+  }, [card.card_id, card.image_url]);
+
+  if (sourceMode !== "fallback") {
+    const src =
+      sourceMode === "local"
+        ? `/api/card-images/${encodeURIComponent(card.card_id)}`
+        : (card.image_url ?? "");
+    return (
+      <img
+        className={className}
+        src={src}
+        alt={card.name_ja}
+        onError={() => {
+          if (sourceMode === "local" && card.image_url) {
+            setSourceMode("remote");
+            return;
+          }
+          setSourceMode("fallback");
+        }}
+      />
+    );
+  }
+  return (
+    <div className={`card-fallback ${card.card_type} ${className}`.trim()}>
+      <span>{card.card_type.toUpperCase()}</span>
+      <strong>{card.name_ja}</strong>
+      <small>{card.card_code}</small>
     </div>
   );
 }

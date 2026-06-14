@@ -207,6 +207,7 @@ export interface SpecialBladeHeart {
 export interface CardDefinition {
   card_code: string;
   card_id: string;
+  image_url?: string | null;
   name_ja: string;
   card_type: CardType;
   cost: number | null;

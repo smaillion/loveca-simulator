@@ -141,10 +141,6 @@ export function listSavedDecks(): Promise<SavedDeckSummary[]> {
   return request("/api/decks");
 }
 
-export function getSampleDeck(): Promise<DeckList> {
-  return request("/api/decks/examples/sample");
-}
-
 export function getSavedDeck(deckId: string): Promise<DeckList> {
   return request(`/api/decks/${encodeURIComponent(deckId)}`);
 }
