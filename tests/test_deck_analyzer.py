@@ -74,6 +74,23 @@ def test_unknown_card_and_copy_limit_are_reported(tmp_path):
     assert "deck_count_mismatch" in issue_codes
 
 
+def test_energy_cards_are_not_limited_to_four_copies(tmp_path):
+    database_path = _import_sample_database(tmp_path)
+    deck = _sample_deck_payload()
+    deck["energy_deck"] = [
+        {
+            "card_code": deck["energy_deck"][0]["card_code"],
+            "quantity": 12,
+        }
+    ]
+    deck_path = _write_deck(tmp_path, deck)
+
+    analysis = analyze_deck_file(database_path, deck_path)
+
+    assert analysis.is_legal is True
+    assert all(issue.code != "copy_limit_exceeded" for issue in analysis.issues)
+
+
 def test_wrong_deck_section_is_reported(tmp_path):
     database_path = _import_sample_database(tmp_path)
     deck = _sample_deck_payload()

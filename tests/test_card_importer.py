@@ -12,6 +12,7 @@ from loveca.cards.importer import (
     CardImportConflictError,
     CardImportValidationError,
     import_normalized_cards,
+    validate_normalized_cards,
 )
 
 
@@ -99,6 +100,44 @@ def test_reimport_is_idempotent_for_canonical_and_observation_data(tmp_path):
         ).fetchone()[0] == 2
 
 
+def test_validate_cross_product_sample_reports_no_errors(tmp_path):
+    summary = validate_normalized_cards(SAMPLE_PATH, NORMALIZATION_PATH)
+
+    assert summary.records_seen == 30
+    assert summary.records_selected == 30
+    assert summary.error_count == 0
+    assert summary.warning_count == 0
+    assert summary.review_candidates == 0
+    assert summary.per_card_set_counts == {
+        "BP01": 5,
+        "BP03": 5,
+        "BP06": 5,
+        "HSSD01": 5,
+        "PLSD01": 5,
+        "PR": 5,
+    }
+
+
+def test_incremental_import_filters_target_card_sets(tmp_path):
+    database_path = tmp_path / "catalog.sqlite3"
+
+    summary = import_normalized_cards(
+        database_path,
+        SAMPLE_PATH,
+        NORMALIZATION_PATH,
+        card_set_codes=("BP01", "PR"),
+    )
+
+    assert summary.status == "completed"
+    assert summary.records_seen == 10
+    assert summary.records_imported == 10
+    assert summary.targeted_card_sets == ("BP01", "PR")
+    with closing(sqlite3.connect(database_path)) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM source_observations").fetchone()[0] == 10
+        assert connection.execute("SELECT COUNT(*) FROM card_sets").fetchone()[0] == 2
+        assert connection.execute("SELECT COUNT(*) FROM card_printings").fetchone()[0] == 10
+
+
 def test_conflict_rolls_back_whole_batch_and_records_failure(tmp_path):
     database_path = tmp_path / "catalog.sqlite3"
     import_normalized_cards(database_path, SAMPLE_PATH, NORMALIZATION_PATH)
@@ -159,6 +198,70 @@ def test_unknown_entity_creates_review_candidate(tmp_path):
             """
         ).fetchone()
     assert candidate == ("unit", "A・ZU・NA", "pending")
+
+
+def test_duplicate_energy_card_codes_are_promoted_to_full_card_ids(tmp_path):
+    database_path = tmp_path / "catalog.sqlite3"
+    input_path = tmp_path / "duplicate-energy.json"
+    input_path.write_text(
+        json.dumps(
+            [
+                {
+                    "card_id": "PL!SP-bp1-032-PE",
+                    "card_code": "PL!SP-bp1-032",
+                    "name": "ARASHI CHISATO",
+                    "card_type": "エネルギー",
+                    "product": "ブースターパック vol.1",
+                    "product_code": "BP01",
+                    "rarity": "PE",
+                    "member_attributes": None,
+                    "live_attributes": None,
+                    "raw_effect_text": None,
+                    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP01/PL!SP-bp1-032-PE.png",
+                    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP01&card_kind=E&cardno=PL%21SP-bp1-032-PE",
+                    "fetched_at": "2026-06-14T03:40:10+00:00",
+                    "parser_version": "cardlist_spike_v0.3",
+                    "parse_notes": {"import_source": "official_full_import"},
+                },
+                {
+                    "card_id": "PL!SP-bp1-032-PE＋",
+                    "card_code": "PL!SP-bp1-032",
+                    "name": "ARASHI CHISATO",
+                    "card_type": "エネルギー",
+                    "product": "ブースターパック vol.1",
+                    "product_code": "BP01",
+                    "rarity": "PE+",
+                    "member_attributes": None,
+                    "live_attributes": None,
+                    "raw_effect_text": None,
+                    "image_url": "https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP01/PL!SP-bp1-032-PE2.png",
+                    "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP01&card_kind=E&cardno=PL%21SP-bp1-032-PE%EF%BC%8B",
+                    "fetched_at": "2026-06-14T03:40:12+00:00",
+                    "parser_version": "cardlist_spike_v0.3",
+                    "parse_notes": {"import_source": "official_full_import"},
+                },
+            ],
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    summary = import_normalized_cards(database_path, input_path, NORMALIZATION_PATH)
+
+    assert summary.status == "completed"
+    with closing(sqlite3.connect(database_path)) as connection:
+        rows = connection.execute(
+            """
+            SELECT card_code
+            FROM gameplay_cards
+            ORDER BY card_code
+            """
+        ).fetchall()
+        assert [row[0] for row in rows] == [
+            "PL!SP-bp1-032-PE",
+            "PL!SP-bp1-032-PE＋",
+        ]
+        assert connection.execute("SELECT COUNT(*) FROM card_printings").fetchone()[0] == 2
 
 
 def test_unofficial_source_url_is_rejected_and_audited(tmp_path):

@@ -13,6 +13,18 @@ from loveca.decks.analyzer import (
     render_analysis_json,
     render_analysis_text,
 )
+from loveca.decks.library import (
+    DeckLibraryError,
+    SavedDeck,
+    delete_saved_deck,
+    list_saved_decks,
+    load_saved_deck,
+    rename_saved_deck,
+    resolve_saved_deck_path,
+    save_deck_file,
+    save_deck_payload,
+    update_saved_deck,
+)
 
 __all__ = [
     "DeckAnalysis",
@@ -20,10 +32,20 @@ __all__ = [
     "DeckEntry",
     "DeckFileError",
     "DeckList",
+    "DeckLibraryError",
     "analyze_deck",
     "analyze_deck_file",
+    "delete_saved_deck",
+    "list_saved_decks",
     "load_deck",
+    "load_saved_deck",
     "parse_deck",
+    "rename_saved_deck",
+    "resolve_saved_deck_path",
     "render_analysis_json",
     "render_analysis_text",
+    "SavedDeck",
+    "save_deck_file",
+    "save_deck_payload",
+    "update_saved_deck",
 ]
