@@ -3,13 +3,22 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from collections.abc import Sequence
+from dataclasses import asdict
 from pathlib import Path
 
 from loveca import __version__
 from loveca.cards.images import ImageCacheError, cache_card_images
-from loveca.cards.importer import CardImportError, import_normalized_cards
+from loveca.cards.importer import (
+    CardImportError,
+    import_normalized_cards,
+    validate_normalized_cards,
+    write_import_report,
+    write_validation_report,
+)
+from loveca.cards.official_importer import run_official_card_import
 from loveca.db.bootstrap import (
     DatabaseSchemaError,
     get_schema_version,
@@ -20,6 +29,14 @@ from loveca.decks.analyzer import (
     analyze_deck_file,
     render_analysis_json,
     render_analysis_text,
+)
+from loveca.decks.library import (
+    DeckLibraryError,
+    delete_saved_deck,
+    list_saved_decks,
+    load_saved_deck,
+    rename_saved_deck,
+    save_deck_file,
 )
 
 
@@ -66,6 +83,72 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         help="Reviewed Work and Unit normalization JSON path.",
     )
+    cards_import_parser.add_argument(
+        "--card-set",
+        action="append",
+        dest="card_sets",
+        help="Optional card_set_code filter for incremental imports. Repeatable.",
+    )
+    cards_import_parser.add_argument(
+        "--report",
+        type=Path,
+        help="Optional Markdown report path for import results.",
+    )
+    cards_validate_parser = cards_subparsers.add_parser(
+        "validate",
+        help="Validate normalized local card JSON without writing SQLite data.",
+    )
+    cards_validate_parser.add_argument("--input", type=Path, required=True)
+    cards_validate_parser.add_argument("--normalization", type=Path, required=True)
+    cards_validate_parser.add_argument(
+        "--card-set",
+        action="append",
+        dest="card_sets",
+        help="Optional card_set_code filter for incremental validation. Repeatable.",
+    )
+    cards_validate_parser.add_argument(
+        "--report",
+        type=Path,
+        help="Optional Markdown report path for validation results.",
+    )
+    cards_official_import_parser = cards_subparsers.add_parser(
+        "import-official",
+        help="Fetch the official card list and write a full normalized artifact.",
+    )
+    cards_official_import_parser.add_argument(
+        "--output-root",
+        type=Path,
+        default=Path("data/imports/official"),
+        help="Directory for raw, normalized, and report artifacts.",
+    )
+    cards_official_import_parser.add_argument(
+        "--database",
+        type=Path,
+        help="Optional SQLite card database path to populate after fetching.",
+    )
+    cards_official_import_parser.add_argument(
+        "--normalization",
+        type=Path,
+        help="Reviewed Work and Unit normalization JSON path required with --database.",
+    )
+    cards_official_import_parser.add_argument(
+        "--delay",
+        type=float,
+        default=1.0,
+        help="Delay in seconds between sequential official requests.",
+    )
+    cards_official_import_parser.add_argument(
+        "--mode",
+        choices=("full-refresh", "incremental-set"),
+        default="full-refresh",
+        help="Official importer mode.",
+    )
+    cards_official_import_parser.add_argument(
+        "--card-set",
+        action="append",
+        dest="card_sets",
+        help="Target card_set_code values for incremental official imports. Repeatable.",
+    )
     cards_subparsers.add_parser("export", help="Export card data from the local database.")
     cards_subparsers.add_parser("search", help="Search cards in the local database.")
     cards_cache_parser = cards_subparsers.add_parser(
@@ -100,6 +183,62 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("text", "json"),
         default="text",
         help="Output format.",
+    )
+    decks_save_parser = decks_subparsers.add_parser(
+        "save",
+        help="Save a decklist.v0 file into the local deck library.",
+    )
+    decks_save_parser.add_argument("--deck", type=Path, required=True)
+    decks_save_parser.add_argument(
+        "--library-root",
+        type=Path,
+        default=Path("data/decks"),
+    )
+    decks_save_parser.add_argument("--name")
+    decks_save_parser.add_argument("--overwrite", action="store_true")
+
+    decks_list_parser = decks_subparsers.add_parser(
+        "list",
+        help="List saved decks in the local deck library.",
+    )
+    decks_list_parser.add_argument(
+        "--library-root",
+        type=Path,
+        default=Path("data/decks"),
+    )
+
+    decks_load_parser = decks_subparsers.add_parser(
+        "load",
+        help="Print a saved deck to stdout.",
+    )
+    decks_load_parser.add_argument("--deck", required=True)
+    decks_load_parser.add_argument(
+        "--library-root",
+        type=Path,
+        default=Path("data/decks"),
+    )
+
+    decks_rename_parser = decks_subparsers.add_parser(
+        "rename",
+        help="Rename a saved deck file and deck name.",
+    )
+    decks_rename_parser.add_argument("--deck", required=True)
+    decks_rename_parser.add_argument("--name", required=True)
+    decks_rename_parser.add_argument(
+        "--library-root",
+        type=Path,
+        default=Path("data/decks"),
+    )
+
+    decks_delete_parser = decks_subparsers.add_parser(
+        "delete",
+        help="Delete a saved deck from the local deck library.",
+    )
+    decks_delete_parser.add_argument("--deck", required=True)
+    decks_delete_parser.add_argument(
+        "--library-root",
+        type=Path,
+        default=Path("data/decks"),
     )
 
     sim_parser = subparsers.add_parser("sim", help="Simulation commands.")
@@ -157,7 +296,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                 args.database,
                 args.input,
                 args.normalization,
+                card_set_codes=tuple(args.card_sets or ()),
             )
+            if args.report:
+                write_import_report(
+                    args.report,
+                    input_path=args.input,
+                    normalization_path=args.normalization,
+                    summary=summary,
+                )
         except (CardImportError, DatabaseSchemaError, OSError) as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 1
@@ -171,6 +318,85 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "require review.",
                 file=sys.stderr,
             )
+        return 0
+
+    if args.command == "cards" and args.cards_command == "validate":
+        try:
+            summary = validate_normalized_cards(
+                args.input,
+                args.normalization,
+                card_set_codes=tuple(args.card_sets or ()),
+            )
+            if args.report:
+                write_validation_report(
+                    args.report,
+                    input_path=args.input,
+                    normalization_path=args.normalization,
+                    summary=summary,
+                )
+        except (CardImportError, DatabaseSchemaError, OSError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        print(
+            f"Validated {summary.records_selected}/{summary.records_seen} records "
+            f"(errors={summary.error_count}, warnings={summary.warning_count}, "
+            f"review={summary.review_candidates})."
+        )
+        if summary.error_count:
+            for issue in summary.issues[:10]:
+                if issue.severity != "error":
+                    continue
+                print(
+                    f"error: record {issue.record_index} [{issue.field}] {issue.message}",
+                    file=sys.stderr,
+                )
+            return 1
+        if summary.review_candidates:
+            print(
+                f"warning: {summary.review_candidates} normalization candidate(s) "
+                "require review.",
+                file=sys.stderr,
+            )
+        if summary.warning_count > summary.review_candidates:
+            print(
+                f"warning: {summary.warning_count - summary.review_candidates} "
+                "non-blocking validation warning(s) reported.",
+                file=sys.stderr,
+            )
+        return 0
+
+    if args.command == "cards" and args.cards_command == "import-official":
+        try:
+            if args.mode == "incremental-set" and not args.card_sets:
+                raise ValueError("--mode incremental-set requires at least one --card-set")
+            official_result = run_official_card_import(
+                output_root=args.output_root,
+                database_path=args.database,
+                normalization_path=args.normalization,
+                delay=args.delay,
+                card_set_codes=tuple(args.card_sets or ()),
+                import_mode=args.mode,
+            )
+        except (CardImportError, DatabaseSchemaError, OSError, ValueError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        print(
+            f"Fetched {len(official_result.cards)} official card records into "
+            f"{official_result.normalized_path}."
+        )
+        if official_result.db_import_summary is not None:
+            db_summary = official_result.db_import_summary
+            print(
+                f"Imported {db_summary.records_imported}/{db_summary.records_seen} "
+                f"records into {args.database} (batch {db_summary.batch_id}, "
+                f"{db_summary.status})."
+            )
+            if db_summary.status == "completed_with_review":
+                print(
+                    f"warning: {db_summary.review_candidates} normalization candidate(s) "
+                    "require review.",
+                    file=sys.stderr,
+                )
         return 0
 
     if args.command == "cards" and args.cards_command == "cache-images":
@@ -201,6 +427,60 @@ def main(argv: Sequence[str] | None = None) -> int:
         else:
             print(render_analysis_text(analysis))
         return 0 if analysis.is_legal else 1
+
+    if args.command == "decks" and args.decks_command == "save":
+        try:
+            destination = save_deck_file(
+                args.deck,
+                args.library_root,
+                name=args.name,
+                overwrite=args.overwrite,
+            )
+        except (DeckAnalyzerError, DeckLibraryError, OSError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        print(f"Saved deck to {destination}.")
+        return 0
+
+    if args.command == "decks" and args.decks_command == "list":
+        try:
+            decks = list_saved_decks(args.library_root)
+        except DeckLibraryError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        for deck in decks:
+            print(
+                f"{deck.path.name}\t{deck.name or '(unnamed)'}\t"
+                f"main={deck.main_card_count}\tenergy={deck.energy_card_count}"
+            )
+        return 0
+
+    if args.command == "decks" and args.decks_command == "load":
+        try:
+            deck = load_saved_deck(args.library_root, args.deck)
+        except (DeckAnalyzerError, DeckLibraryError, OSError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        print(json.dumps(asdict(deck), ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+
+    if args.command == "decks" and args.decks_command == "rename":
+        try:
+            destination = rename_saved_deck(args.library_root, args.deck, args.name)
+        except (DeckAnalyzerError, DeckLibraryError, OSError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        print(f"Renamed deck to {destination}.")
+        return 0
+
+    if args.command == "decks" and args.decks_command == "delete":
+        try:
+            delete_saved_deck(args.library_root, args.deck)
+        except (DeckAnalyzerError, DeckLibraryError, OSError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        print("Deleted deck.")
+        return 0
 
     if args.command == "web" and args.web_command == "serve":
         import uvicorn

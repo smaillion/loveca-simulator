@@ -99,6 +99,82 @@ def test_uncached_card_image_returns_404(tmp_path):
     assert response.status_code == 404
 
 
+def test_deck_library_api_round_trip(tmp_path):
+    client = _client(tmp_path)
+    deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
+
+    created = client.post(
+        "/api/decks",
+        json={"deck": deck, "name": "Library Deck"},
+    )
+    assert created.status_code == 200
+    created_payload = created.json()
+    deck_path = created_payload["path"]
+    assert created_payload["deck"]["name"] == "Library Deck"
+
+    listed = client.get("/api/decks")
+    assert listed.status_code == 200
+    assert listed.json()
+
+    loaded = client.get(f"/api/decks/{deck_path}")
+    assert loaded.status_code == 200
+    assert loaded.json()["name"] == "Library Deck"
+
+    renamed = client.post(
+        f"/api/decks/{deck_path}/rename",
+        json={"name": "Renamed Library Deck"},
+    )
+    assert renamed.status_code == 200
+    assert renamed.json()["deck"]["name"] == "Renamed Library Deck"
+
+    deleted = client.delete(f"/api/decks/{renamed.json()['path']}")
+    assert deleted.status_code == 200
+    assert deleted.json()["status"] == "deleted"
+
+
+def test_sample_deck_and_deck_analyze_api(tmp_path):
+    client = _client(tmp_path)
+
+    sample_response = client.get("/api/decks/examples/sample")
+    assert sample_response.status_code == 200
+    sample_deck = sample_response.json()
+    assert sample_deck["version"] == "decklist.v0"
+
+    analyze_response = client.post("/api/decks/analyze", json={"deck": sample_deck})
+    assert analyze_response.status_code == 200
+    analysis = analyze_response.json()
+    assert "is_legal" in analysis
+    assert "issues" in analysis
+
+
+def test_catalog_api_exposes_card_review_data(tmp_path):
+    client = _client(tmp_path)
+
+    list_response = client.get("/api/catalog/cards?limit=5")
+    assert list_response.status_code == 200
+    list_payload = list_response.json()
+    assert list_payload["items"]
+
+    card_code = list_payload["items"][0]["card_code"]
+    detail_response = client.get(f"/api/catalog/cards/{card_code}")
+    assert detail_response.status_code == 200
+    detail_payload = detail_response.json()
+    assert detail_payload["card"]["card_code"] == card_code
+    assert "printings" in detail_payload
+    assert "source_observations" in detail_payload
+
+    review_response = client.get("/api/catalog/review-candidates")
+    assert review_response.status_code == 200
+    review_payload = review_response.json()
+    assert "items" in review_payload
+
+    facets_response = client.get("/api/catalog/facets")
+    assert facets_response.status_code == 200
+    facets_payload = facets_response.json()
+    assert "works" in facets_payload
+    assert "units" in facets_payload
+
+
 def _client(tmp_path: Path) -> TestClient:
     card_database = tmp_path / "cards.sqlite3"
     import_normalized_cards(card_database, SAMPLE_CARDS, NORMALIZATION)
@@ -108,6 +184,7 @@ def _client(tmp_path: Path) -> TestClient:
             runtime_database_path=tmp_path / "matches.sqlite3",
             image_cache_dir=tmp_path / "images",
             web_dist_dir=tmp_path / "missing-dist",
+            deck_library_root=tmp_path / "decks",
             allowed_deck_root=PROJECT_ROOT,
         )
     )

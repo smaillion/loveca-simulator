@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 import sqlite3
+import unicodedata
 import urllib.parse
 from contextlib import closing
 from dataclasses import dataclass
@@ -58,6 +59,38 @@ class ImportSummary:
     records_seen: int
     records_imported: int
     review_candidates: int
+    targeted_card_sets: tuple[str, ...] = ()
+    new_gameplay_cards: int = 0
+    new_card_printings: int = 0
+    new_text_revisions: int = 0
+    reused_text_revisions: int = 0
+
+
+@dataclass(frozen=True)
+class ValidationIssue:
+    severity: str
+    record_index: int
+    field: str
+    message: str
+    card_id: str | None = None
+
+
+@dataclass(frozen=True)
+class ValidationSummary:
+    records_seen: int
+    records_selected: int
+    targeted_card_sets: tuple[str, ...]
+    review_candidates: int
+    per_card_set_counts: dict[str, int]
+    issues: tuple[ValidationIssue, ...]
+
+    @property
+    def error_count(self) -> int:
+        return sum(1 for issue in self.issues if issue.severity == "error")
+
+    @property
+    def warning_count(self) -> int:
+        return sum(1 for issue in self.issues if issue.severity == "warning")
 
 
 @dataclass(frozen=True)
@@ -84,15 +117,27 @@ def import_normalized_cards(
     database_path: Path,
     input_path: Path,
     normalization_path: Path,
+    card_set_codes: tuple[str, ...] | None = None,
 ) -> ImportSummary:
     input_bytes = input_path.read_bytes()
     normalization_bytes = normalization_path.read_bytes()
-    records = _load_card_records(input_bytes, input_path)
+    all_records = _prepare_loaded_records(_load_card_records(input_bytes, input_path))
     normalization = _load_normalization(normalization_bytes, normalization_path)
+    targeted_card_sets = _normalize_card_set_codes(card_set_codes)
+    records = _select_records_by_card_set(all_records, targeted_card_sets)
     parser_version = _common_parser_version(records)
+    validation = _validate_loaded_records(
+        all_records,
+        normalization,
+        card_set_codes=card_set_codes,
+    )
 
     initialize_database(database_path)
     started_at = _utc_now()
+    new_gameplay_cards = 0
+    new_card_printings = 0
+    new_text_revisions = 0
+    reused_text_revisions = 0
 
     with closing(connect_database(database_path)) as connection:
         batch_id = _create_import_batch(
@@ -107,11 +152,32 @@ def import_normalized_cards(
         )
         connection.commit()
 
+        if validation.error_count:
+            connection.execute(
+                """
+                UPDATE import_batches
+                SET finished_at = ?,
+                    status = 'failed',
+                    records_imported = 0,
+                    review_candidates = ?,
+                    error_message = ?
+                WHERE id = ?
+                """,
+                (
+                    _utc_now(),
+                    validation.review_candidates,
+                    _format_validation_errors(validation),
+                    batch_id,
+                ),
+            )
+            connection.commit()
+            raise CardImportValidationError(_format_validation_errors(validation))
+
         review_candidates: set[tuple[str, str]] = set()
         try:
             connection.execute("BEGIN IMMEDIATE")
             for index, record in enumerate(records):
-                _import_card_record(
+                import_outcome = _import_card_record(
                     connection,
                     record=record,
                     record_index=index,
@@ -119,6 +185,14 @@ def import_normalized_cards(
                     normalization=normalization,
                     review_candidates=review_candidates,
                 )
+                if import_outcome["new_gameplay_card"]:
+                    new_gameplay_cards += 1
+                if import_outcome["new_card_printing"]:
+                    new_card_printings += 1
+                if import_outcome["new_text_revision"]:
+                    new_text_revisions += 1
+                if import_outcome["reused_text_revision"]:
+                    reused_text_revisions += 1
 
             status = (
                 "completed_with_review" if review_candidates else "completed"
@@ -169,7 +243,107 @@ def import_normalized_cards(
         records_seen=len(records),
         records_imported=len(records),
         review_candidates=len(review_candidates),
+        targeted_card_sets=targeted_card_sets,
+        new_gameplay_cards=new_gameplay_cards,
+        new_card_printings=new_card_printings,
+        new_text_revisions=new_text_revisions,
+        reused_text_revisions=reused_text_revisions,
     )
+
+
+def validate_normalized_cards(
+    input_path: Path,
+    normalization_path: Path,
+    card_set_codes: tuple[str, ...] | None = None,
+) -> ValidationSummary:
+    input_bytes = input_path.read_bytes()
+    normalization_bytes = normalization_path.read_bytes()
+    records = _prepare_loaded_records(_load_card_records(input_bytes, input_path))
+    normalization = _load_normalization(normalization_bytes, normalization_path)
+    return _validate_loaded_records(records, normalization, card_set_codes=card_set_codes)
+
+
+def write_validation_report(
+    report_path: Path,
+    *,
+    input_path: Path,
+    normalization_path: Path,
+    summary: ValidationSummary,
+) -> None:
+    lines = [
+        "# Card Import Validation Report",
+        "",
+        "## Summary",
+        "",
+        f"* Input: `{input_path}`",
+        f"* Normalization: `{normalization_path}`",
+        f"* Records seen: `{summary.records_seen}`",
+        f"* Records selected: `{summary.records_selected}`",
+        f"* Targeted card sets: `{', '.join(summary.targeted_card_sets) or 'all'}`",
+        f"* Errors: `{summary.error_count}`",
+        f"* Warnings: `{summary.warning_count}`",
+        f"* Review candidates: `{summary.review_candidates}`",
+        "",
+        "## Card Set Coverage",
+        "",
+        "| card_set_code | selected_records |",
+        "| --- | ---: |",
+    ]
+    for card_set_code, count in summary.per_card_set_counts.items():
+        lines.append(f"| `{card_set_code}` | {count} |")
+    if not summary.per_card_set_counts:
+        lines.append("| - | 0 |")
+
+    lines.extend(
+        [
+            "",
+            "## Issues",
+            "",
+            "| severity | record | card_id | field | message |",
+            "| --- | ---: | --- | --- | --- |",
+        ]
+    )
+    if summary.issues:
+        for issue in summary.issues:
+            lines.append(
+                f"| `{issue.severity}` | {issue.record_index} | "
+                f"`{issue.card_id or '-'}` | `{issue.field}` | {issue.message} |"
+            )
+    else:
+        lines.append("| `ok` | - | `-` | `-` | no issues |")
+
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def write_import_report(
+    report_path: Path,
+    *,
+    input_path: Path,
+    normalization_path: Path,
+    summary: ImportSummary,
+) -> None:
+    lines = [
+        "# Card Import Report",
+        "",
+        "## Summary",
+        "",
+        f"* Input: `{input_path}`",
+        f"* Normalization: `{normalization_path}`",
+        f"* Batch id: `{summary.batch_id}`",
+        f"* Status: `{summary.status}`",
+        f"* Records seen: `{summary.records_seen}`",
+        f"* Records imported: `{summary.records_imported}`",
+        f"* Targeted card sets: `{', '.join(summary.targeted_card_sets) or 'all'}`",
+        f"* New Gameplay Cards: `{summary.new_gameplay_cards}`",
+        f"* New Card Printings: `{summary.new_card_printings}`",
+        f"* New Text Revisions: `{summary.new_text_revisions}`",
+        f"* Reused Text Revisions: `{summary.reused_text_revisions}`",
+        f"* Review candidates: `{summary.review_candidates}`",
+        "",
+    ]
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text("\n".join(lines), encoding="utf-8")
 
 
 def normalize_effect_text(raw_text: str) -> str:
@@ -253,6 +427,275 @@ def _load_entity_mapping(
     return result
 
 
+def _validate_loaded_records(
+    records: list[dict[str, Any]],
+    normalization: EntityNormalization,
+    *,
+    card_set_codes: tuple[str, ...] | None,
+) -> ValidationSummary:
+    targeted_card_sets = _normalize_card_set_codes(card_set_codes)
+    selected_records = _select_records_by_card_set(records, targeted_card_sets)
+    issues: list[ValidationIssue] = []
+    review_candidates: set[tuple[str, str]] = set()
+    per_card_set_counts: dict[str, int] = {}
+
+    if targeted_card_sets and not selected_records:
+        issues.append(
+            ValidationIssue(
+                severity="error",
+                record_index=-1,
+                card_id=None,
+                field="card_set_codes",
+                message=(
+                    "no records matched requested card_set_codes "
+                    + ", ".join(targeted_card_sets)
+                ),
+            )
+        )
+
+    for index, record in enumerate(selected_records):
+        card_set_code = record.get("product_code")
+        if isinstance(card_set_code, str) and card_set_code:
+            per_card_set_counts[card_set_code] = per_card_set_counts.get(card_set_code, 0) + 1
+        issues.extend(
+            _validate_record_for_import(
+                record,
+                record_index=index,
+                normalization=normalization,
+                review_candidates=review_candidates,
+            )
+        )
+
+    return ValidationSummary(
+        records_seen=len(records),
+        records_selected=len(selected_records),
+        targeted_card_sets=targeted_card_sets,
+        review_candidates=len(review_candidates),
+        per_card_set_counts=dict(sorted(per_card_set_counts.items())),
+        issues=tuple(issues),
+    )
+
+
+def _prepare_loaded_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return _promote_duplicate_energy_card_codes(
+        _backfill_names_from_card_code(records)
+    )
+
+
+def _normalize_card_set_codes(card_set_codes: tuple[str, ...] | None) -> tuple[str, ...]:
+    if not card_set_codes:
+        return ()
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for value in card_set_codes:
+        if not isinstance(value, str) or not value.strip():
+            raise CardImportValidationError("card_set_codes must be non-empty strings")
+        item = value.strip()
+        if item in seen:
+            continue
+        seen.add(item)
+        normalized.append(item)
+    return tuple(normalized)
+
+
+def _select_records_by_card_set(
+    records: list[dict[str, Any]],
+    card_set_codes: tuple[str, ...],
+) -> list[dict[str, Any]]:
+    if not card_set_codes:
+        return list(records)
+    allowed = set(card_set_codes)
+    return [
+        record
+        for record in records
+        if isinstance(record.get("product_code"), str) and record["product_code"] in allowed
+    ]
+
+
+def _backfill_names_from_card_code(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    names_by_code: dict[str, str] = {}
+    ambiguous_codes: set[str] = set()
+    for record in records:
+        card_code = record.get("card_code")
+        name = record.get("name")
+        if not isinstance(card_code, str) or not card_code:
+            continue
+        if not isinstance(name, str) or not name:
+            continue
+        existing = names_by_code.get(card_code)
+        if existing is None:
+            names_by_code[card_code] = name
+        elif existing != name:
+            ambiguous_codes.add(card_code)
+
+    enriched_records: list[dict[str, Any]] = []
+    for record in records:
+        card_code = record.get("card_code")
+        if (
+            isinstance(card_code, str)
+            and card_code not in ambiguous_codes
+            and record.get("name") in (None, "")
+            and card_code in names_by_code
+        ):
+            cloned = dict(record)
+            parse_notes = dict(cloned.get("parse_notes") or {})
+            parse_notes["name_backfilled_from_card_code"] = card_code
+            cloned["parse_notes"] = parse_notes
+            cloned["name"] = names_by_code[card_code]
+            enriched_records.append(cloned)
+            continue
+        if (
+            isinstance(card_code, str)
+            and card_code
+            and record.get("card_type") in {"エネルギー", "energy"}
+            and record.get("name") in (None, "")
+        ):
+            cloned = dict(record)
+            parse_notes = dict(cloned.get("parse_notes") or {})
+            parse_notes["name_placeholder_from_card_code"] = card_code
+            cloned["parse_notes"] = parse_notes
+            cloned["name"] = card_code
+            enriched_records.append(cloned)
+            continue
+        enriched_records.append(record)
+    return enriched_records
+
+
+def _promote_duplicate_energy_card_codes(
+    records: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for record in records:
+        card_code = record.get("card_code")
+        card_id = record.get("card_id")
+        if not isinstance(card_code, str) or not isinstance(card_id, str):
+            continue
+        if not card_code or not card_id:
+            continue
+        grouped.setdefault(card_code, []).append(record)
+
+    promoted_ids: set[str] = set()
+    for card_code, items in grouped.items():
+        if len(items) < 2:
+            continue
+        if not all(record.get("card_type") in {"エネルギー", "energy"} for record in items):
+            continue
+        if len({str(record.get("card_id")) for record in items}) < 2:
+            continue
+        promoted_ids.update(str(record.get("card_id")) for record in items)
+
+    if not promoted_ids:
+        return records
+
+    promoted_records: list[dict[str, Any]] = []
+    for record in records:
+        card_id = record.get("card_id")
+        card_code = record.get("card_code")
+        if (
+            isinstance(card_id, str)
+            and card_id in promoted_ids
+            and isinstance(card_code, str)
+            and card_id != card_code
+        ):
+            cloned = dict(record)
+            parse_notes = dict(cloned.get("parse_notes") or {})
+            parse_notes["gameplay_card_code_strategy"] = "full_card_id_conflict_fallback"
+            parse_notes.setdefault("derived_card_code", card_code)
+            parse_notes["duplicate_energy_card_code_fallback"] = True
+            cloned["parse_notes"] = parse_notes
+            cloned["card_code"] = card_id
+            promoted_records.append(cloned)
+            continue
+        promoted_records.append(record)
+    return promoted_records
+
+
+def _validate_record_for_import(
+    record: dict[str, Any],
+    *,
+    record_index: int,
+    normalization: EntityNormalization,
+    review_candidates: set[tuple[str, str]],
+) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    card_id = _safe_record_string(record.get("card_id"))
+    try:
+        required_values = {
+            "card_id": _required_string(record, "card_id", record_index),
+            "card_code": _required_string(record, "card_code", record_index),
+            "name": _required_string(record, "name", record_index),
+            "product_code": _required_string(record, "product_code", record_index),
+            "source_url": _required_string(record, "source_url", record_index),
+            "fetched_at": _required_string(record, "fetched_at", record_index),
+            "parser_version": _required_string(record, "parser_version", record_index),
+        }
+        card_type = _normalize_card_type(record.get("card_type"), record_index)
+        parse_notes = record.get("parse_notes")
+        if not isinstance(parse_notes, dict):
+            raise CardImportValidationError(
+                f"record {record_index}: parse_notes must be an object"
+            )
+        if "name_placeholder_from_card_code" in parse_notes:
+            issues.append(
+                ValidationIssue(
+                    severity="warning",
+                    record_index=record_index,
+                    card_id=required_values["card_id"],
+                    field="name",
+                    message=(
+                        "official name missing; using card_code placeholder "
+                        f"{parse_notes['name_placeholder_from_card_code']!r}"
+                    ),
+                )
+            )
+        _validate_timestamp(required_values["fetched_at"], record_index)
+        _card_list_root(required_values["source_url"])
+        if not _card_code_matches_identity(
+            card_id=required_values["card_id"],
+            card_code=required_values["card_code"],
+            card_type=card_type,
+            parse_notes=parse_notes,
+        ):
+            raise CardImportValidationError(
+                f"record {record_index}: card_id {required_values['card_id']!r} does not derive "
+                f"card_code {required_values['card_code']!r}"
+            )
+        _validate_type_attributes(record, card_type, record_index)
+        _validate_heart_values(record, card_type)
+        _validate_special_blade_hearts(record, card_type)
+        _validate_related_printing_ids(record, required_values["card_code"])
+        _validate_entity_mappings(
+            parse_notes=parse_notes,
+            normalization=normalization,
+            review_candidates=review_candidates,
+            record_index=record_index,
+            card_id=required_values["card_id"],
+            issues=issues,
+        )
+    except CardImportValidationError as exc:
+        field, message = _split_validation_message(str(exc))
+        issues.append(
+            ValidationIssue(
+                severity="error",
+                record_index=record_index,
+                card_id=card_id,
+                field=field,
+                message=message,
+            )
+        )
+    except CardImportConflictError as exc:
+        issues.append(
+            ValidationIssue(
+                severity="error",
+                record_index=record_index,
+                card_id=card_id,
+                field="conflict",
+                message=str(exc),
+            )
+        )
+    return issues
+
+
 def _create_import_batch(
     connection: sqlite3.Connection,
     *,
@@ -299,41 +742,46 @@ def _import_card_record(
     batch_id: int,
     normalization: EntityNormalization,
     review_candidates: set[tuple[str, str]],
-) -> None:
+) -> dict[str, bool]:
     card_id = _required_string(record, "card_id", record_index)
     card_code = _required_string(record, "card_code", record_index)
-    if derive_card_code(card_id) != card_code:
+    card_type = _normalize_card_type(record.get("card_type"), record_index)
+    parse_notes = record.get("parse_notes")
+    if not isinstance(parse_notes, dict):
+        raise CardImportValidationError(
+            f"record {record_index}: parse_notes must be an object"
+        )
+    if not _card_code_matches_identity(
+        card_id=card_id,
+        card_code=card_code,
+        card_type=card_type,
+        parse_notes=parse_notes,
+    ):
         raise CardImportValidationError(
             f"record {record_index}: card_id {card_id!r} does not derive "
             f"card_code {card_code!r}"
         )
 
     name = _required_string(record, "name", record_index)
-    card_type = _normalize_card_type(record.get("card_type"), record_index)
     card_set_code = _required_string(record, "product_code", record_index)
     source_url = _required_string(record, "source_url", record_index)
     fetched_at = _required_string(record, "fetched_at", record_index)
     _validate_timestamp(fetched_at, record_index)
     parser_version = _required_string(record, "parser_version", record_index)
-    parse_notes = record.get("parse_notes")
-    if not isinstance(parse_notes, dict):
-        raise CardImportValidationError(
-            f"record {record_index}: parse_notes must be an object"
-        )
 
     _validate_type_attributes(record, card_type, record_index)
-    card_set_id = _upsert_card_set(
+    card_set_id, _new_card_set = _upsert_card_set(
         connection,
         card_set_code=card_set_code,
         source_url=_card_list_root(source_url),
     )
-    gameplay_card_id = _upsert_gameplay_card(
+    gameplay_card_id, new_gameplay_card = _upsert_gameplay_card(
         connection,
         card_code=card_code,
         name=name,
         card_type=card_type,
     )
-    printing_id = _upsert_card_printing(
+    printing_id, new_card_printing = _upsert_card_printing(
         connection,
         card_id=card_id,
         gameplay_card_id=gameplay_card_id,
@@ -370,7 +818,7 @@ def _import_card_record(
         raw_product_label=record.get("product"),
         parse_notes=parse_notes,
     )
-    _upsert_text_revision(
+    text_revision_outcome = _upsert_text_revision(
         connection,
         gameplay_card_id=gameplay_card_id,
         observation_id=observation_id,
@@ -392,6 +840,12 @@ def _import_card_record(
         card_code=card_code,
         related_ids=record.get("related_printing_ids"),
     )
+    return {
+        "new_gameplay_card": new_gameplay_card,
+        "new_card_printing": new_card_printing,
+        "new_text_revision": text_revision_outcome["new_text_revision"],
+        "reused_text_revision": text_revision_outcome["reused_text_revision"],
+    }
 
 
 def _validate_type_attributes(
@@ -421,12 +875,115 @@ def _validate_type_attributes(
         )
 
 
+def _validate_heart_values(record: dict[str, Any], card_type: str) -> None:
+    if card_type == "member":
+        role = "basic"
+        values = record["member_attributes"].get("heart_by_color")
+    elif card_type == "live":
+        role = "required"
+        values = record["live_attributes"].get("required_heart_by_color")
+    else:
+        return
+    if not isinstance(values, dict):
+        raise CardImportValidationError(f"{role} Heart values must be an object")
+    for color_slot, raw_value in values.items():
+        if color_slot not in HEART_COLOR_SLOTS:
+            raise CardImportValidationError(f"unknown Heart color slot: {color_slot!r}")
+        if raw_value is None:
+            continue
+        _positive_int(raw_value, f"{role} Heart {color_slot}")
+        if role == "basic" and color_slot == "heart0":
+            raise CardImportValidationError("Member basic Heart cannot use heart0")
+
+
+def _validate_special_blade_hearts(record: dict[str, Any], card_type: str) -> None:
+    if card_type != "live":
+        return
+    entries = record["live_attributes"].get("special_blade_hearts") or []
+    if not isinstance(entries, list):
+        raise CardImportValidationError("special_blade_hearts must be an array")
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise CardImportValidationError("special_blade_hearts entries must be objects")
+        effect_type = _required_mapping_string(entry, "effect_type")
+        if effect_type not in {"all_color", "draw", "score", "unknown"}:
+            raise CardImportValidationError(
+                f"unknown special Blade Heart type: {effect_type!r}"
+            )
+        value = entry.get("value")
+        normalized_value = (
+            None if value is None else _positive_int(value, "special Blade Heart value")
+        )
+        if effect_type != "unknown" and normalized_value is None:
+            raise CardImportValidationError(
+                f"special Blade Heart {effect_type!r} requires a value"
+            )
+        _required_mapping_string(entry, "source_alt")
+        _required_mapping_string(entry, "source_field")
+        _optional_string(entry.get("resolution_timing"), "resolution_timing")
+
+
+def _validate_related_printing_ids(record: dict[str, Any], card_code: str) -> None:
+    related_ids = record.get("related_printing_ids")
+    if related_ids is None:
+        return
+    if not isinstance(related_ids, list):
+        raise CardImportValidationError("related_printing_ids must be an array")
+    for related_card_id in related_ids:
+        if not isinstance(related_card_id, str) or not related_card_id:
+            raise CardImportValidationError(
+                "related_printing_ids entries must be non-empty strings"
+            )
+        related_card_code = derive_card_code(related_card_id)
+        if related_card_code != card_code:
+            raise CardImportConflictError(
+                f"related printing {related_card_id!r} does not share "
+                f"card_code {card_code!r}"
+            )
+
+
+def _validate_entity_mappings(
+    *,
+    parse_notes: dict[str, Any],
+    normalization: EntityNormalization,
+    review_candidates: set[tuple[str, str]],
+    record_index: int,
+    card_id: str,
+    issues: list[ValidationIssue],
+) -> None:
+    fields = parse_notes.get("unmapped_fields") or []
+    if not isinstance(fields, list):
+        raise CardImportValidationError("parse_notes.unmapped_fields must be an array")
+    for field in fields:
+        if not isinstance(field, dict):
+            raise CardImportValidationError("unmapped_fields entries must be objects")
+        entity_type = ENTITY_SOURCE_LABELS.get(field.get("label"))
+        if entity_type is None:
+            continue
+        raw_value = field.get("raw_text")
+        if not isinstance(raw_value, str) or not raw_value:
+            raise CardImportValidationError(
+                f"{entity_type} source label must contain Japanese raw text"
+            )
+        if normalization.resolve(entity_type, raw_value) is None:
+            review_candidates.add((entity_type, raw_value))
+            issues.append(
+                ValidationIssue(
+                    severity="warning",
+                    record_index=record_index,
+                    card_id=card_id,
+                    field=entity_type,
+                    message=f"{entity_type} {raw_value!r} requires normalization review",
+                )
+            )
+
+
 def _upsert_card_set(
     connection: sqlite3.Connection,
     *,
     card_set_code: str,
     source_url: str,
-) -> int:
+) -> tuple[int, bool]:
     row = connection.execute(
         "SELECT id, source_url FROM card_sets WHERE card_set_code = ?",
         (card_set_code,),
@@ -439,7 +996,7 @@ def _upsert_card_set(
             """,
             (card_set_code, source_url),
         )
-        return int(cursor.lastrowid)
+        return int(cursor.lastrowid), True
     _merge_optional_value(
         connection,
         table="card_sets",
@@ -449,7 +1006,7 @@ def _upsert_card_set(
         incoming=source_url,
         identity=f"Card Set {card_set_code}",
     )
-    return int(row["id"])
+    return int(row["id"]), False
 
 
 def _upsert_gameplay_card(
@@ -458,7 +1015,7 @@ def _upsert_gameplay_card(
     card_code: str,
     name: str,
     card_type: str,
-) -> int:
+) -> tuple[int, bool]:
     row = connection.execute(
         """
         SELECT id, canonical_name_ja, card_type
@@ -479,18 +1036,38 @@ def _upsert_gameplay_card(
             """,
             (card_code, name, card_type),
         )
-        return int(cursor.lastrowid)
-    _require_equal(
-        row["canonical_name_ja"],
-        name,
-        f"Gameplay Card {card_code} canonical_name_ja",
-    )
+        return int(cursor.lastrowid), True
+    existing_name = str(row["canonical_name_ja"])
+    if not _names_match(existing_name, name):
+        if _looks_like_name_fallback(existing_name, card_code) and not _looks_like_name_fallback(
+            name,
+            card_code,
+        ):
+            connection.execute(
+                """
+                UPDATE gameplay_cards
+                SET canonical_name_ja = ?
+                WHERE id = ?
+                """,
+                (name, row["id"]),
+            )
+        elif not _looks_like_name_fallback(existing_name, card_code) and _looks_like_name_fallback(
+            name,
+            card_code,
+        ):
+            pass
+        else:
+            _require_equal(
+                existing_name,
+                name,
+                f"Gameplay Card {card_code} canonical_name_ja",
+            )
     _require_equal(
         row["card_type"],
         card_type,
         f"Gameplay Card {card_code} card_type",
     )
-    return int(row["id"])
+    return int(row["id"]), False
 
 
 def _upsert_card_printing(
@@ -501,7 +1078,7 @@ def _upsert_card_printing(
     card_set_id: int,
     rarity: Any,
     image_url: Any,
-) -> int:
+) -> tuple[int, bool]:
     rarity_value = _optional_string(rarity, "rarity")
     image_value = _optional_string(image_url, "image_url")
     row = connection.execute(
@@ -526,7 +1103,7 @@ def _upsert_card_printing(
             """,
             (card_id, gameplay_card_id, card_set_id, rarity_value, image_value),
         )
-        return int(cursor.lastrowid)
+        return int(cursor.lastrowid), True
     _require_equal(
         int(row["gameplay_card_id"]),
         gameplay_card_id,
@@ -555,7 +1132,7 @@ def _upsert_card_printing(
         incoming=image_value,
         identity=f"Card Printing {card_id}",
     )
-    return int(row["id"])
+    return int(row["id"]), False
 
 
 def _upsert_type_attributes(
@@ -844,13 +1421,13 @@ def _upsert_text_revision(
     observation_id: int,
     fetched_at: str,
     raw_text: Any,
-) -> None:
+) -> dict[str, bool]:
     text = _optional_string(raw_text, "raw_effect_text")
     if text is None:
-        return
+        return {"new_text_revision": False, "reused_text_revision": False}
     normalized_text = normalize_effect_text(text)
     if not normalized_text:
-        return
+        return {"new_text_revision": False, "reused_text_revision": False}
     raw_text_hash = hash_effect_text(normalized_text)
     row = connection.execute(
         """
@@ -896,6 +1473,7 @@ def _upsert_text_revision(
             ),
         )
         revision_id = int(cursor.lastrowid)
+        outcome = {"new_text_revision": True, "reused_text_revision": False}
     else:
         _require_equal(
             row["raw_effect_text_ja"],
@@ -912,6 +1490,7 @@ def _upsert_text_revision(
             """,
             (fetched_at, fetched_at, revision_id),
         )
+        outcome = {"new_text_revision": False, "reused_text_revision": True}
     connection.execute(
         """
         INSERT OR IGNORE INTO card_text_revision_observations (
@@ -922,6 +1501,7 @@ def _upsert_text_revision(
         """,
         (revision_id, observation_id),
     )
+    return outcome
 
 
 def _upsert_entities(
@@ -1101,6 +1681,34 @@ def _required_string(
     return value
 
 
+def _safe_record_string(value: Any) -> str | None:
+    if isinstance(value, str) and value:
+        return value
+    return None
+
+
+def _split_validation_message(message: str) -> tuple[str, str]:
+    normalized = message.strip()
+    if ": " not in normalized:
+        return "record", normalized
+    prefix, detail = normalized.split(": ", 1)
+    if prefix.startswith("record "):
+        return "record", detail
+    return prefix, detail
+
+
+def _format_validation_errors(summary: ValidationSummary) -> str:
+    errors = [issue for issue in summary.issues if issue.severity == "error"]
+    if not errors:
+        return "validation failed"
+    preview = "; ".join(
+        f"record {issue.record_index} [{issue.field}] {issue.message}"
+        for issue in errors[:5]
+    )
+    suffix = "" if len(errors) <= 5 else f"; ... {len(errors) - 5} more error(s)"
+    return preview + suffix
+
+
 def _required_mapping_string(record: dict[str, Any], field: str) -> str:
     value = record.get(field)
     if not isinstance(value, str) or not value:
@@ -1203,3 +1811,45 @@ def _sha256(data: bytes) -> str:
 
 def _utc_now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
+
+
+def _card_code_matches_identity(
+    *,
+    card_id: str,
+    card_code: str,
+    card_type: str,
+    parse_notes: Any,
+) -> bool:
+    derived = derive_card_code(card_id)
+    if derived == card_code:
+        return True
+    if card_type == "energy" and card_code == card_id:
+        return True
+    if isinstance(parse_notes, dict):
+        strategy = parse_notes.get("gameplay_card_code_strategy")
+        if strategy == "full_card_id_conflict_fallback" and card_code == card_id:
+            return True
+    return False
+
+
+def _names_match(existing: str, incoming: str) -> bool:
+    return _normalize_name_identity(existing) == _normalize_name_identity(incoming)
+
+
+def _normalize_name_identity(value: str) -> str:
+    normalized = unicodedata.normalize("NFKC", value)
+    return "".join(
+        part
+        for part in normalized
+        if not part.isspace() and part not in {"+", "＋"}
+    )
+
+
+def _looks_like_name_fallback(value: str, card_code: str) -> bool:
+    normalized_name = _normalize_name_identity(value)
+    normalized_code = _normalize_name_identity(card_code)
+    return normalized_name == normalized_code or (
+        normalized_name.startswith(normalized_code)
+        and len(normalized_name) > len(normalized_code)
+        and normalized_name[len(normalized_code)] == "-"
+    )

@@ -467,6 +467,9 @@ def _validate_deck_counts(
             )
 
     for card_code, quantity in _copy_counts(deck).items():
+        card = cards.get(card_code)
+        if card is None or card.card_type == "energy":
+            continue
         if quantity > MAX_COPIES_PER_CARD_CODE:
             issues.append(
                 DeckIssue(

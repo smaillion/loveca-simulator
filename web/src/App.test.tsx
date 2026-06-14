@@ -44,26 +44,349 @@ const placements = [
   },
 ];
 
+const SAMPLE_DECK = {
+  version: "decklist.v0" as const,
+  name: "Sample Deck",
+  main_deck: [],
+  energy_deck: [],
+};
+
+const ANALYSIS_RESPONSE = {
+  deck_name: "Sample Deck",
+  is_legal: false,
+  issues: [
+    {
+      severity: "error",
+      code: "main_deck_count",
+      message: "Main deck must contain 60 cards.",
+      section: "main_deck",
+      card_code: null,
+    },
+  ],
+  card_type_counts: { main_deck: { member: 0, live: 0 }, energy_deck: { energy: 0 } },
+  copy_counts: {},
+  member_cost_curve: {},
+  member_basic_heart_distribution: {},
+  live_required_heart_distribution: {},
+  member_blade_summary: {},
+  live_score_distribution: {},
+  special_blade_heart_summary: {},
+};
+
+const CATALOG_SUMMARY = {
+  gameplay_card_id: 1,
+  card_code: "LL-TEST-001",
+  name_ja: "テストカード",
+  card_type: "member",
+  validation_status: "source_confirmed",
+  card_id: "LL-TEST-001-PR",
+  card_set_code: "PR",
+  rarity_ja: "PR",
+  image_url: null,
+  cost: 1,
+  blade: 2,
+  member_blade_heart_color_slot: "heart01",
+  score: null,
+  live_blade_heart_color_slot: null,
+  basic_heart_by_color: { heart01: 1 },
+  basic_heart_total: 1,
+  required_heart_by_color: {},
+  required_heart_total: 0,
+  has_live_blade_heart: false,
+  printing_count: 1,
+  revision_count: 1,
+  observation_count: 1,
+  pending_candidate_count: 0,
+  unresolved_reference_count: 0,
+  review_issue_count: 0,
+};
+
+const CATALOG_DETAIL = {
+  card: {
+    gameplay_card_id: 1,
+    card_code: "LL-TEST-001",
+    name_ja: "テストカード",
+    card_type: "member",
+    validation_status: "source_confirmed",
+    cost: 1,
+    blade: 2,
+    member_blade_heart_color_slot: "heart01",
+    score: null,
+    live_blade_heart_color_slot: null,
+    heart_values: { basic: { heart01: 1 } },
+    special_blade_hearts: [],
+    works: [],
+    units: [],
+    review_candidates: [],
+    printing_references: [],
+  },
+  printings: [
+    {
+      card_id: "LL-TEST-001-PR",
+      card_set_code: "PR",
+      rarity_ja: "PR",
+      image_url: null,
+      source_url: "https://llofficial-cardgame.com",
+      fetched_at: "2026-06-14T00:00:00+00:00",
+      parser_version: "test",
+      raw_product_label_ja: "PR",
+      language: "ja",
+      raw_fields: {},
+      parse_notes: {},
+    },
+  ],
+  source_observations: [
+    {
+      source_observation_id: 1,
+      source_url: "https://llofficial-cardgame.com",
+      source_version: "test",
+      fetched_at: "2026-06-14T00:00:00+00:00",
+      parser_version: "test",
+      language: "ja",
+      raw_product_label_ja: "PR",
+      card_id: "LL-TEST-001-PR",
+      raw_fields: {},
+      parse_notes: {},
+    },
+  ],
+  text_revisions: [
+    {
+      revision_id: 1,
+      revision_number: 1,
+      raw_effect_text_ja: "【登場】テスト。",
+      raw_text_hash: "hash",
+      revision_status: "current",
+      first_observed_at: "2026-06-14T00:00:00+00:00",
+      last_observed_at: "2026-06-14T00:00:00+00:00",
+      source_url: "https://llofficial-cardgame.com",
+    },
+  ],
+};
+
+const LIVE_SUMMARY = {
+  ...CATALOG_SUMMARY,
+  gameplay_card_id: 2,
+  card_code: "LL-LIVE-001",
+  name_ja: "テストライブ",
+  card_type: "live",
+  card_id: "LL-LIVE-001-L",
+  cost: null,
+  blade: null,
+  member_blade_heart_color_slot: null,
+  score: 5,
+  live_blade_heart_color_slot: "heart0",
+  basic_heart_by_color: {},
+  basic_heart_total: 0,
+  required_heart_by_color: { heart0: 6 },
+  required_heart_total: 6,
+  has_live_blade_heart: true,
+};
+
+const MATCH_PAYLOAD = {
+  state: {
+    match_id: "match-1",
+    rule_version: "1.06",
+    seed: 42,
+    revision: 0,
+    phase: "setup_choose_first",
+    first_player_id: null,
+    second_player_id: null,
+    turn_number: 1,
+    next_first_player_id: null,
+    success_live_moved_player_ids: [],
+    active_player_id: null,
+    players: {
+      player_1: createPlayerState("player_1", "Player 1"),
+      player_2: createPlayerState("player_2", "Player 2"),
+    },
+    cards: {},
+    effect_registry_version: null,
+    effect_definitions: {},
+    pending_effects: [],
+    effect_usage: [],
+    pending_choice: null,
+    live_winner_ids: [],
+    live_judgment_summary: null,
+    game_result: null,
+    completed_reason: null,
+  },
+  events: [],
+  legal_actions: [],
+};
+
+function createPlayerState(playerId: string, name: string) {
+  return {
+    player_id: playerId,
+    name,
+    main_deck: [],
+    energy_deck: [],
+    hand: [],
+    member_area: { left: null, center: null, right: null },
+    member_area_attachments: { left: [], center: [], right: [] },
+    member_areas_entered_this_turn: [],
+    energy_area: [],
+    live_area: [],
+    waiting_room: [],
+    resolution_area: [],
+    success_live_area: [],
+    manual_modifiers: [],
+    refresh_count: 0,
+    live_result: {
+      blade_count: 0,
+      revealed_instance_ids: [],
+      member_hearts: {},
+      manual_hearts: {},
+      yell_hearts: {},
+      available_hearts: {},
+      all_color_hearts: 0,
+      special_blade_heart_results: [],
+      draw_count: 0,
+      live_allocations: [],
+      score_bonus: 0,
+      base_score: 0,
+      requirements_satisfied: null,
+      total_score: 0,
+    },
+  };
+}
+
+function jsonResponse(data: unknown): Response {
+  return {
+    ok: true,
+    json: async () => data,
+  } as Response;
+}
+
+function createFetchMock(overrides: {
+  matches?: unknown;
+  savedDecks?: unknown;
+  sampleDeck?: unknown;
+  matchCreate?: unknown;
+  catalogCards?: unknown;
+  catalogDetail?: unknown;
+  catalogFacets?: unknown;
+  reviewCandidates?: unknown;
+  deckAnalysis?: unknown;
+  savedDeckGet?: unknown;
+  deckSaveResponse?: unknown;
+}) {
+  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = input.toString();
+    const method = init?.method ?? "GET";
+    if (url === "/api/matches" && method === "GET") {
+      return jsonResponse(overrides.matches ?? []);
+    }
+    if (url === "/api/matches" && method === "POST") {
+      return jsonResponse(overrides.matchCreate ?? MATCH_PAYLOAD);
+    }
+    if (url === "/api/decks" && method === "GET") {
+      return jsonResponse(overrides.savedDecks ?? []);
+    }
+    if (url === "/api/decks/examples/sample") {
+      return jsonResponse(overrides.sampleDeck ?? SAMPLE_DECK);
+    }
+    if (url === "/api/decks/analyze" && method === "POST") {
+      return jsonResponse(overrides.deckAnalysis ?? ANALYSIS_RESPONSE);
+    }
+    if (url === "/api/decks" && method === "POST") {
+      return jsonResponse(
+        overrides.deckSaveResponse ?? {
+          path: "data/decks/test.json",
+          deck: {
+            version: "decklist.v0",
+            name: "Test Deck",
+            main_deck: [
+              {
+                card_code: "LL-TEST-001",
+                quantity: 1,
+                preferred_printing_id: "LL-TEST-001-PR",
+              },
+            ],
+            energy_deck: [],
+          },
+        },
+      );
+    }
+    if (url.startsWith("/api/decks/")) {
+      if (method === "GET") {
+        return jsonResponse(overrides.savedDeckGet ?? SAMPLE_DECK);
+      }
+      if (method === "PUT" || method === "POST" || method === "DELETE") {
+        return jsonResponse({ status: "ok", path: "data/decks/test.json", deck: SAMPLE_DECK });
+      }
+    }
+    if (url.startsWith("/api/catalog/facets")) {
+      return jsonResponse(
+        overrides.catalogFacets ?? {
+          works: [{ work_key: "love_live", canonical_name_ja: "ラブライブ！" }],
+          units: [{ unit_key: "muse", canonical_name_ja: "μ's" }],
+        },
+      );
+    }
+    if (url.startsWith("/api/catalog/cards/")) {
+      return jsonResponse(overrides.catalogDetail ?? CATALOG_DETAIL);
+    }
+    if (url.startsWith("/api/catalog/cards?")) {
+      return jsonResponse(
+        overrides.catalogCards ?? {
+          items: [CATALOG_SUMMARY],
+          total: 1,
+          limit: 80,
+          offset: 0,
+        },
+      );
+    }
+    if (url.startsWith("/api/catalog/review-candidates")) {
+      return jsonResponse(
+        overrides.reviewCandidates ?? { items: [], total: 0, limit: 100, offset: 0 },
+      );
+    }
+    return jsonResponse([]);
+  });
+}
+
 describe("App", () => {
   beforeEach(() => {
     cleanup();
     localStorage.clear();
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => ({
-        ok: true,
-        json: async () => [],
-      })),
-    );
+    vi.stubGlobal("fetch", createFetchMock({}));
   });
 
   it("renders the local match creation workflow", async () => {
     render(<App />);
 
     expect(screen.getByText("创建规则验证对局")).toBeInTheDocument();
-    expect(screen.getByText("examples/decks/sample-deck.json")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByLabelText("Player 1 牌组")).toBeInTheDocument());
+    expect(screen.getAllByText("示例牌组").length).toBeGreaterThan(0);
     expect(screen.getByPlaceholderText("自动生成")).toHaveValue("");
     await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/matches", expect.anything()));
+  });
+
+  it("creates a match with inline deck payloads instead of a hardcoded deck path", async () => {
+    const fetchMock = createFetchMock({});
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByLabelText("Player 1 牌组")).toBeInTheDocument());
+    const createButton = screen.getByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/matches",
+        expect.objectContaining({ method: "POST" }),
+      ),
+    );
+    const matchCreateCall = fetchMock.mock.calls.find(
+      ([input, init]) => input.toString() === "/api/matches" && init?.method === "POST",
+    );
+    expect(matchCreateCall).toBeTruthy();
+    const requestBody = JSON.parse(String(matchCreateCall?.[1]?.body));
+    expect(requestBody.player_1.deck).toEqual(SAMPLE_DECK);
+    expect(requestBody.player_2.deck).toEqual(SAMPLE_DECK);
+    expect(requestBody.player_1.deck_path).toBeUndefined();
+    expect(requestBody.player_2.deck_path).toBeUndefined();
   });
 
   it("switches the operational UI to Japanese and persists the choice", async () => {
@@ -190,5 +513,317 @@ describe("App", () => {
     expect(screen.getByText("Member 1 · Energy 1")).toBeInTheDocument();
     screen.getByText("下のメンバー").click();
     expect(onCard).toHaveBeenCalledWith(state.cards["attached-member"]);
+  });
+
+  it("opens the catalog browser and shows a selected card detail", async () => {
+    vi.stubGlobal(
+      "fetch",
+      createFetchMock({
+        catalogCards: { items: [CATALOG_SUMMARY], total: 1, limit: 200, offset: 0 },
+      }),
+    );
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "浏览卡牌库" }));
+
+    await waitFor(() => expect(screen.getByText("全卡浏览与人工审核")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("テストカード")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("【登場】テスト。")).toBeInTheDocument());
+  });
+
+  it("shows separate rows for distinct card ids in the catalog browser", async () => {
+    const printingRows = [
+      {
+        ...CATALOG_SUMMARY,
+        card_id: "PL!SP-bp1-032-PE",
+        rarity_ja: "PE",
+      },
+      {
+        ...CATALOG_SUMMARY,
+        card_id: "PL!SP-bp1-032-PE＋",
+        rarity_ja: "PE＋",
+      },
+    ];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input.toString();
+      const method = init?.method ?? "GET";
+      if (url === "/api/matches" && method === "GET") {
+        return jsonResponse([]);
+      }
+      if (url === "/api/decks" && method === "GET") {
+        return jsonResponse([]);
+      }
+      if (url.startsWith("/api/catalog/facets")) {
+        return jsonResponse({ works: [], units: [] });
+      }
+      if (url.startsWith("/api/catalog/review-candidates")) {
+        return jsonResponse({ items: [], total: 0, limit: 100, offset: 0 });
+      }
+      if (url.startsWith("/api/catalog/cards/")) {
+        return jsonResponse(CATALOG_DETAIL);
+      }
+      if (url.startsWith("/api/catalog/cards?")) {
+        return jsonResponse({
+          items: printingRows,
+          total: 2,
+          limit: 100,
+          offset: 0,
+        });
+      }
+      return jsonResponse({});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "浏览卡牌库" }));
+
+    await waitFor(() => expect(screen.getByText("全卡浏览与人工审核")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("PL!SP-bp1-032-PE")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("PL!SP-bp1-032-PE＋")).toBeInTheDocument());
+  });
+
+  it("opens the deck builder and saves a local deck", async () => {
+    vi.stubGlobal("fetch", createFetchMock({}));
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "牌组编辑器" }));
+
+    await waitFor(() => expect(screen.getByText("牌组编辑与保存")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("テストカード")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "加入主牌组" }));
+    await waitFor(() => expect(screen.getAllByText("LL-TEST-001").length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getByText("当前牌组分析")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("当前牌组不合法")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("牌组名称"), { target: { value: "Test Deck" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+    await waitFor(() => expect(screen.getByText("牌组已保存。")).toBeInTheDocument());
+  });
+
+  it("filters the deck-builder catalog visually and shows attribute summaries on rows", async () => {
+    vi.stubGlobal(
+      "fetch",
+      createFetchMock({
+        catalogCards: {
+          items: [CATALOG_SUMMARY, LIVE_SUMMARY],
+          total: 2,
+          limit: 24,
+          offset: 0,
+        },
+      }),
+    );
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "牌组编辑器" }));
+
+    await waitFor(() => expect(screen.getByText("牌组编辑与保存")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("テストカード")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("テストライブ")).toBeInTheDocument());
+    expect(screen.getByText("Cost 1")).toBeInTheDocument();
+    expect(screen.getByText("应援棒 2")).toBeInTheDocument();
+    expect(screen.getByText("基本 Heart 粉色 1")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("基本 Heart 颜色"), { target: { value: "heart01" } });
+    fireEvent.change(screen.getByLabelText("角色费用最小"), { target: { value: "1" } });
+
+    await waitFor(() => expect(screen.getAllByText("テストカード").length).toBeGreaterThan(0));
+    expect(screen.queryByText("テストライブ")).not.toBeInTheDocument();
+  });
+
+  it("opens an enlarged card preview from the deck builder catalog", async () => {
+    vi.stubGlobal("fetch", createFetchMock({}));
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "牌组编辑器" }));
+
+    await waitFor(() => expect(screen.getByText("牌组编辑与保存")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("button", { name: "详情" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "详情" }));
+
+    await waitFor(() => expect(screen.getByText("当前印刷版本")).toBeInTheDocument());
+    expect(screen.getAllByText("テストカード").length).toBeGreaterThan(0);
+  });
+
+  it("blocks adding the 49th Member card to the main deck", async () => {
+    const fullMemberDeck = {
+      version: "decklist.v0" as const,
+      name: "Full Members",
+      main_deck: Array.from({ length: 48 }, (_, index) => ({
+        card_code: `LL-MEMBER-${index + 1}`,
+        quantity: 1,
+        preferred_printing_id: null,
+      })),
+      energy_deck: [],
+    };
+    vi.stubGlobal(
+      "fetch",
+      createFetchMock({
+        savedDecks: [
+          {
+            name: "Full Members",
+            path: "data/decks/full-members.json",
+            version: "decklist.v0",
+            main_card_count: 48,
+            energy_card_count: 0,
+          },
+        ],
+        savedDeckGet: fullMemberDeck,
+      }),
+    );
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "牌组编辑器" }));
+
+    await waitFor(() => expect(screen.getByText("Full Members")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Full Members"));
+    await waitFor(() => expect(screen.getByText("主牌组 48")).toBeInTheDocument());
+    const addButtons = screen.getAllByRole("button", { name: "加入主牌组" });
+    expect(addButtons[0]).toBeDisabled();
+  });
+
+  it("allows more than four copies for energy cards", async () => {
+    const energySummary = {
+      ...CATALOG_SUMMARY,
+      card_code: "LL-ENERGY-001",
+      card_id: "LL-ENERGY-001-N",
+      name_ja: "エネルギーカード",
+      card_type: "energy",
+      cost: null,
+      blade: null,
+      member_blade_heart_color_slot: null,
+      score: null,
+      live_blade_heart_color_slot: null,
+    };
+    const energyDetail = {
+      ...CATALOG_DETAIL,
+      card: {
+        ...CATALOG_DETAIL.card,
+        card_code: "LL-ENERGY-001",
+        name_ja: "エネルギーカード",
+        card_type: "energy",
+        cost: null,
+        blade: null,
+        member_blade_heart_color_slot: null,
+        score: null,
+        live_blade_heart_color_slot: null,
+      },
+      printings: [
+        {
+          ...CATALOG_DETAIL.printings[0],
+          card_id: "LL-ENERGY-001-N",
+        },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      createFetchMock({
+        catalogCards: { items: [energySummary], total: 1, limit: 24, offset: 0 },
+        catalogDetail: energyDetail,
+      }),
+    );
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "牌组编辑器" }));
+
+    await waitFor(() => expect(screen.getByText("牌组编辑与保存")).toBeInTheDocument());
+    const addButton = screen.getByRole("button", { name: "加入能量组" });
+    fireEvent.click(addButton);
+    fireEvent.click(addButton);
+    fireEvent.click(addButton);
+    fireEvent.click(addButton);
+    fireEvent.click(addButton);
+
+    await waitFor(() => expect(screen.getByText("能量组 5")).toBeInTheDocument());
+    expect(addButton).not.toBeDisabled();
+  });
+
+  it("paginates the catalog card list in the deck builder", async () => {
+    const fetchMock = createFetchMock({
+      catalogCards: {
+        items: [CATALOG_SUMMARY],
+        total: 30,
+        limit: 24,
+        offset: 0,
+      },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "牌组编辑器" }));
+
+    await waitFor(() => expect(screen.getByText("第 1 / 2 页 · 共 30 张")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "下一页" }));
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(([input]) => input.toString().includes("offset=24")),
+      ).toBe(true),
+    );
+  });
+
+  it("sends attribute filters from the deck builder catalog", async () => {
+    const fetchMock = createFetchMock({
+      catalogCards: { items: [CATALOG_SUMMARY], total: 1, limit: 24, offset: 0 },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "牌组编辑器" }));
+
+    await waitFor(() => expect(screen.getByText("牌组编辑与保存")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("基本 Heart 颜色"), { target: { value: "heart01" } });
+    fireEvent.change(screen.getByLabelText("应援棒最小"), { target: { value: "2" } });
+    fireEvent.change(screen.getByLabelText("所需 Heart 颜色"), { target: { value: "heart0" } });
+    fireEvent.change(screen.getByLabelText("Score 最小"), { target: { value: "3" } });
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(([input]) => {
+          const url = input.toString();
+          return (
+            url.includes("/api/catalog/cards?") &&
+            url.includes("basic_heart_color=heart01") &&
+            url.includes("member_blade_min=2") &&
+            url.includes("required_heart_color=heart0") &&
+            url.includes("live_score_min=3")
+          );
+        }),
+      ).toBe(true),
+    );
+  });
+
+  it("sends work and unit filters from the catalog browser", async () => {
+    const fetchMock = createFetchMock({
+      catalogCards: { items: [CATALOG_SUMMARY], total: 1, limit: 100, offset: 0 },
+      catalogDetail: {
+        ...CATALOG_DETAIL,
+        printings: [],
+        source_observations: [],
+        text_revisions: [],
+      },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "浏览卡牌库" }));
+    await waitFor(() => expect(screen.getByText("全卡浏览与人工审核")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("作品"), { target: { value: "love_live" } });
+    fireEvent.change(screen.getByLabelText("组合"), { target: { value: "muse" } });
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/api/catalog/cards?"),
+        expect.anything(),
+      ),
+    );
+    expect(
+      fetchMock.mock.calls.some(([input]) => {
+        const url = input.toString();
+        return (
+          url.includes("/api/catalog/cards?") &&
+          url.includes("work_key=love_live") &&
+          url.includes("unit_key=muse")
+        );
+      }),
+    ).toBe(true);
   });
 });

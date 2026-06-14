@@ -1,5 +1,203 @@
 export type CardType = "member" | "live" | "energy";
 
+export interface DeckEntry {
+  card_code: string;
+  quantity: number;
+  preferred_printing_id: string | null;
+}
+
+export interface DeckList {
+  version: "decklist.v0";
+  name: string | null;
+  main_deck: DeckEntry[];
+  energy_deck: DeckEntry[];
+}
+
+export interface SavedDeckSummary {
+  name: string | null;
+  path: string;
+  version: string;
+  main_card_count: number;
+  energy_card_count: number;
+}
+
+export interface SavedDeckResponse {
+  path: string;
+  deck: DeckList;
+}
+
+export interface DeckAnalysisIssue {
+  severity: string;
+  code: string;
+  message: string;
+  section: string | null;
+  card_code: string | null;
+}
+
+export interface DeckAnalysisResponse {
+  deck_name: string | null;
+  is_legal: boolean;
+  issues: DeckAnalysisIssue[];
+  card_type_counts: Record<string, Record<string, number>>;
+  copy_counts: Record<string, number>;
+  member_cost_curve: Record<string, number>;
+  member_basic_heart_distribution: Record<string, number>;
+  live_required_heart_distribution: Record<string, number>;
+  member_blade_summary: Record<string, number>;
+  live_score_distribution: Record<string, number>;
+  special_blade_heart_summary: Record<string, number>;
+}
+
+export interface CatalogCardSummary {
+  gameplay_card_id: number;
+  card_code: string;
+  name_ja: string;
+  card_type: CardType;
+  validation_status: string;
+  card_id: string | null;
+  card_set_code: string | null;
+  rarity_ja: string | null;
+  image_url: string | null;
+  cost: number | null;
+  blade: number | null;
+  member_blade_heart_color_slot: string | null;
+  score: number | null;
+  live_blade_heart_color_slot: string | null;
+  basic_heart_by_color: Record<string, number>;
+  basic_heart_total: number;
+  required_heart_by_color: Record<string, number>;
+  required_heart_total: number;
+  has_live_blade_heart: boolean;
+  printing_count: number;
+  revision_count: number;
+  observation_count: number;
+  pending_candidate_count: number;
+  unresolved_reference_count: number;
+  review_issue_count: number;
+}
+
+export interface CatalogListResponse {
+  items: CatalogCardSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface CatalogFacetsResponse {
+  works: Array<{
+    work_key: string;
+    canonical_name_ja: string;
+  }>;
+  units: Array<{
+    unit_key: string;
+    canonical_name_ja: string;
+  }>;
+}
+
+export interface CatalogReviewCandidate {
+  candidate_id: number;
+  entity_type: "work" | "unit";
+  raw_value_ja: string;
+  review_status: string;
+  created_at: string;
+  source_url: string;
+  fetched_at: string;
+  card_id: string;
+  card_code: string;
+  name_ja: string;
+  card_type: CardType;
+}
+
+export interface CatalogReviewCandidateList {
+  items: CatalogReviewCandidate[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface CatalogCardDetail {
+  card: {
+    gameplay_card_id: number;
+    card_code: string;
+    name_ja: string;
+    card_type: CardType;
+    validation_status: string;
+    cost: number | null;
+    blade: number | null;
+    member_blade_heart_color_slot: string | null;
+    score: number | null;
+    live_blade_heart_color_slot: string | null;
+    heart_values: Record<string, Record<string, number>>;
+    special_blade_hearts: Array<{
+      ordinal: number;
+      effect_type: string;
+      value: number | null;
+      resolution_timing: string | null;
+      source_alt: string;
+      source_field: string;
+    }>;
+    works: Array<{
+      work_key: string;
+      canonical_name_ja: string;
+      raw_label_ja: string;
+    }>;
+    units: Array<{
+      unit_key: string;
+      canonical_name_ja: string;
+      raw_label_ja: string;
+    }>;
+    review_candidates: Array<{
+      candidate_id: number;
+      entity_type: "work" | "unit";
+      raw_value_ja: string;
+      review_status: string;
+      created_at: string;
+    }>;
+    printing_references: Array<{
+      reference_id: number;
+      related_card_id: string;
+      related_card_code: string;
+      review_status: string;
+      source_observation_id: number;
+    }>;
+  };
+  printings: Array<{
+    card_id: string;
+    card_set_code: string;
+    rarity_ja: string | null;
+    image_url: string | null;
+    source_url: string | null;
+    fetched_at: string | null;
+    parser_version: string | null;
+    raw_product_label_ja: string | null;
+    language: string | null;
+    raw_fields: Record<string, unknown> | null;
+    parse_notes: Record<string, unknown> | null;
+  }>;
+  source_observations: Array<{
+    source_observation_id: number;
+    source_url: string;
+    source_version: string | null;
+    fetched_at: string;
+    parser_version: string;
+    language: string;
+    raw_product_label_ja: string | null;
+    card_id: string;
+    raw_fields: Record<string, unknown> | null;
+    parse_notes: Record<string, unknown> | null;
+  }>;
+  text_revisions: Array<{
+    revision_id: number;
+    revision_number: number;
+    raw_effect_text_ja: string;
+    raw_text_hash: string;
+    revision_status: string;
+    first_observed_at: string;
+    last_observed_at: string;
+    source_url: string;
+  }>;
+}
+
 export interface SpecialBladeHeart {
   effect_type: "all_color" | "draw" | "score" | "unknown";
   value: number | null;

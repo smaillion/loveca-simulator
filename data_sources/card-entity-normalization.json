@@ -21,7 +21,69 @@
         "canonical_name_ja": "ラブライブ！虹ヶ咲学園スクールアイドル同好会"
       }
     ],
+    "ラブライブ！スーパースター!!": [
+      {
+        "key": "love_live_superstar",
+        "canonical_name_ja": "ラブライブ！スーパースター!!"
+      }
+    ],
     "蓮ノ空女学院スクールアイドルクラブ": [
+      {
+        "key": "hasunosora",
+        "canonical_name_ja": "蓮ノ空女学院スクールアイドルクラブ"
+      }
+    ],
+    "ラブライブ！ ラブライブ！サンシャイン!! ラブライブ！虹ヶ咲学園スクールアイドル同好会": [
+      {
+        "key": "love_live",
+        "canonical_name_ja": "ラブライブ！"
+      },
+      {
+        "key": "love_live_sunshine",
+        "canonical_name_ja": "ラブライブ！サンシャイン!!"
+      },
+      {
+        "key": "nijigasaki",
+        "canonical_name_ja": "ラブライブ！虹ヶ咲学園スクールアイドル同好会"
+      }
+    ],
+    "ラブライブ！ ラブライブ！サンシャイン!! 蓮ノ空女学院スクールアイドルクラブ": [
+      {
+        "key": "love_live",
+        "canonical_name_ja": "ラブライブ！"
+      },
+      {
+        "key": "love_live_sunshine",
+        "canonical_name_ja": "ラブライブ！サンシャイン!!"
+      },
+      {
+        "key": "hasunosora",
+        "canonical_name_ja": "蓮ノ空女学院スクールアイドルクラブ"
+      }
+    ],
+    "ラブライブ！ ラブライブ！虹ヶ咲学園スクールアイドル同好会 ラブライブ！スーパースター!!": [
+      {
+        "key": "love_live",
+        "canonical_name_ja": "ラブライブ！"
+      },
+      {
+        "key": "nijigasaki",
+        "canonical_name_ja": "ラブライブ！虹ヶ咲学園スクールアイドル同好会"
+      },
+      {
+        "key": "love_live_superstar",
+        "canonical_name_ja": "ラブライブ！スーパースター!!"
+      }
+    ],
+    "ラブライブ！サンシャイン!! ラブライブ！スーパースター!! 蓮ノ空女学院スクールアイドルクラブ": [
+      {
+        "key": "love_live_sunshine",
+        "canonical_name_ja": "ラブライブ！サンシャイン!!"
+      },
+      {
+        "key": "love_live_superstar",
+        "canonical_name_ja": "ラブライブ！スーパースター!!"
+      },
       {
         "key": "hasunosora",
         "canonical_name_ja": "蓮ノ空女学院スクールアイドルクラブ"
@@ -77,6 +139,112 @@
       {
         "key": "dollchestra",
         "canonical_name_ja": "DOLLCHESTRA"
+      }
+    ],
+    "5yncri5e!": [
+      {
+        "key": "5yncri5e",
+        "canonical_name_ja": "5yncri5e!"
+      }
+    ],
+    "A-RISE": [
+      {
+        "key": "a_rise",
+        "canonical_name_ja": "A-RISE"
+      }
+    ],
+    "AZALEA": [
+      {
+        "key": "azalea",
+        "canonical_name_ja": "AZALEA"
+      }
+    ],
+    "AiScReam": [
+      {
+        "key": "aiscream",
+        "canonical_name_ja": "AiScReam"
+      }
+    ],
+    "Aqours/Saint Snow": [
+      {
+        "key": "aqours",
+        "canonical_name_ja": "Aqours"
+      },
+      {
+        "key": "saint_snow",
+        "canonical_name_ja": "Saint Snow"
+      }
+    ],
+    "CYaRon！": [
+      {
+        "key": "cyaron",
+        "canonical_name_ja": "CYaRon！"
+      }
+    ],
+    "CatChu!": [
+      {
+        "key": "catchu",
+        "canonical_name_ja": "CatChu!"
+      }
+    ],
+    "DiverDiva": [
+      {
+        "key": "diverdiva",
+        "canonical_name_ja": "DiverDiva"
+      }
+    ],
+    "Edel Note": [
+      {
+        "key": "edel_note",
+        "canonical_name_ja": "Edel Note"
+      }
+    ],
+    "Guilty Kiss": [
+      {
+        "key": "guilty_kiss",
+        "canonical_name_ja": "Guilty Kiss"
+      }
+    ],
+    "KALEIDOSCORE": [
+      {
+        "key": "kaleidoscore",
+        "canonical_name_ja": "KALEIDOSCORE"
+      }
+    ],
+    "QU4RTZ": [
+      {
+        "key": "qu4rtz",
+        "canonical_name_ja": "QU4RTZ"
+      }
+    ],
+    "R3BIRTH": [
+      {
+        "key": "r3birth",
+        "canonical_name_ja": "R3BIRTH"
+      }
+    ],
+    "Saint Snow": [
+      {
+        "key": "saint_snow",
+        "canonical_name_ja": "Saint Snow"
+      }
+    ],
+    "Sunny Passion": [
+      {
+        "key": "sunny_passion",
+        "canonical_name_ja": "Sunny Passion"
+      }
+    ],
+    "みらくらぱーく!": [
+      {
+        "key": "miracra_park",
+        "canonical_name_ja": "みらくらぱーく!"
+      }
+    ],
+    "みらくらぱーく！": [
+      {
+        "key": "miracra_park",
+        "canonical_name_ja": "みらくらぱーく!"
       }
     ]
   }

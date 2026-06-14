@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -12,7 +13,23 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from loveca.cards.images import resolve_cached_image
-from loveca.decks.analyzer import DeckFileError, parse_deck
+from loveca.cards.catalog import (
+    CardCatalogError,
+    get_catalog_card,
+    list_catalog_cards,
+    list_catalog_facets,
+    list_review_candidates,
+)
+from loveca.decks.analyzer import DeckFileError, analyze_deck, load_deck, parse_deck
+from loveca.decks.library import (
+    DeckLibraryError,
+    delete_saved_deck,
+    list_saved_decks,
+    load_saved_deck,
+    rename_saved_deck,
+    save_deck_payload,
+    update_saved_deck,
+)
 from loveca.simulation.engine import RuleEngineError, generate_legal_actions
 from loveca.simulation.models import ActionRequest
 from loveca.simulation.runtime import MatchNotFoundError, MatchRuntimeError
@@ -21,6 +38,7 @@ from loveca.simulation.effects import DEFAULT_EFFECT_REGISTRY
 
 
 PROJECT_ROOT = Path(__file__).parents[2]
+SAMPLE_DECK_PATH = PROJECT_ROOT / "examples/decks/sample-deck.json"
 
 
 class PlayerSetup(BaseModel):
@@ -35,11 +53,16 @@ class CreateMatchRequest(BaseModel):
     seed: int | None = None
 
 
+class AnalyzeDeckRequest(BaseModel):
+    deck: dict[str, Any]
+
+
 class ApiSettings(BaseModel):
     card_database_path: Path
     runtime_database_path: Path
     image_cache_dir: Path
     web_dist_dir: Path
+    deck_library_root: Path = Field(default=PROJECT_ROOT / "data/decks")
     allowed_deck_root: Path = Field(default=PROJECT_ROOT)
     effect_registry_path: Path = Field(default=DEFAULT_EFFECT_REGISTRY)
 
@@ -152,6 +175,183 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         if path is None:
             raise HTTPException(status_code=404, detail="card image is not cached")
         return FileResponse(path)
+
+    @app.get("/api/decks")
+    def list_decks() -> list[dict[str, Any]]:
+        try:
+            return [
+                {
+                    "name": item.name,
+                    "path": str(item.path),
+                    "version": item.version,
+                    "main_card_count": item.main_card_count,
+                    "energy_card_count": item.energy_card_count,
+                }
+                for item in list_saved_decks(resolved.deck_library_root)
+            ]
+        except DeckLibraryError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/api/decks/examples/sample")
+    def get_sample_deck() -> dict[str, Any]:
+        try:
+            return asdict(load_deck(SAMPLE_DECK_PATH))
+        except DeckFileError as exc:
+            raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    @app.get("/api/decks/{deck_id}")
+    def get_deck(deck_id: str) -> dict[str, Any]:
+        try:
+            deck = load_saved_deck(resolved.deck_library_root, deck_id)
+            return asdict(deck)
+        except DeckLibraryError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.post("/api/decks")
+    def create_deck(request: dict[str, Any]) -> dict[str, Any]:
+        try:
+            deck = request.get("deck")
+            if deck is None:
+                deck = request
+            path = save_deck_payload(
+                deck,
+                resolved.deck_library_root,
+                name=request.get("name"),
+                overwrite=bool(request.get("overwrite", False)),
+            )
+            return {
+                "path": str(path),
+                "deck": asdict(load_saved_deck(resolved.deck_library_root, str(path))),
+            }
+        except (DeckLibraryError, DeckFileError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/decks/analyze")
+    def analyze_deck_payload(request: AnalyzeDeckRequest) -> dict[str, Any]:
+        try:
+            deck = parse_deck(request.deck)
+            return analyze_deck(resolved.card_database_path, deck).to_dict()
+        except (DeckLibraryError, DeckFileError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.put("/api/decks/{deck_id}")
+    def update_deck(deck_id: str, request: dict[str, Any]) -> dict[str, Any]:
+        try:
+            deck = request.get("deck")
+            if deck is None:
+                deck = request
+            path = update_saved_deck(
+                resolved.deck_library_root,
+                deck_id,
+                deck,
+                name=request.get("name"),
+                overwrite=bool(request.get("overwrite", True)),
+            )
+            return {
+                "path": str(path),
+                "deck": asdict(load_saved_deck(resolved.deck_library_root, str(path))),
+            }
+        except (DeckLibraryError, DeckFileError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.post("/api/decks/{deck_id}/rename")
+    def rename_deck(deck_id: str, request: dict[str, Any]) -> dict[str, Any]:
+        try:
+            path = rename_saved_deck(resolved.deck_library_root, deck_id, str(request["name"]))
+            return {
+                "path": str(path),
+                "deck": asdict(load_saved_deck(resolved.deck_library_root, str(path))),
+            }
+        except (DeckLibraryError, DeckFileError, KeyError) as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.delete("/api/decks/{deck_id}")
+    def remove_deck(deck_id: str) -> dict[str, Any]:
+        try:
+            delete_saved_deck(resolved.deck_library_root, deck_id)
+            return {"status": "deleted"}
+        except DeckLibraryError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.get("/api/catalog/cards")
+    def catalog_cards(
+        q: str | None = None,
+        card_type: str | None = None,
+        product_code: str | None = None,
+        work_key: str | None = None,
+        unit_key: str | None = None,
+        basic_heart_color: str | None = None,
+        member_cost_min: int | None = None,
+        member_cost_max: int | None = None,
+        member_blade_min: int | None = None,
+        member_blade_max: int | None = None,
+        member_blade_heart_color: str | None = None,
+        required_heart_color: str | None = None,
+        required_heart_min: int | None = None,
+        required_heart_max: int | None = None,
+        live_score_min: int | None = None,
+        live_score_max: int | None = None,
+        has_live_blade_heart: bool | None = None,
+        live_blade_heart_color: str | None = None,
+        review_only: bool = False,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        try:
+            return list_catalog_cards(
+                resolved.card_database_path,
+                query=q,
+                card_type=card_type,
+                product_code=product_code,
+                work_key=work_key,
+                unit_key=unit_key,
+                basic_heart_color=basic_heart_color,
+                member_cost_min=member_cost_min,
+                member_cost_max=member_cost_max,
+                member_blade_min=member_blade_min,
+                member_blade_max=member_blade_max,
+                member_blade_heart_color=member_blade_heart_color,
+                required_heart_color=required_heart_color,
+                required_heart_min=required_heart_min,
+                required_heart_max=required_heart_max,
+                live_score_min=live_score_min,
+                live_score_max=live_score_max,
+                has_live_blade_heart=has_live_blade_heart,
+                live_blade_heart_color=live_blade_heart_color,
+                review_only=review_only,
+                limit=limit,
+                offset=offset,
+            )
+        except CardCatalogError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/api/catalog/facets")
+    def catalog_facets() -> dict[str, Any]:
+        try:
+            return list_catalog_facets(resolved.card_database_path)
+        except CardCatalogError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/api/catalog/cards/{card_code}")
+    def catalog_card(card_code: str) -> dict[str, Any]:
+        try:
+            return get_catalog_card(resolved.card_database_path, card_code)
+        except CardCatalogError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+    @app.get("/api/catalog/review-candidates")
+    def catalog_review_candidates(
+        limit: int = 100,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        try:
+            return list_review_candidates(
+                resolved.card_database_path,
+                limit=limit,
+                offset=offset,
+            )
+        except CardCatalogError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     if resolved.web_dist_dir.is_dir():
         assets = resolved.web_dist_dir / "assets"

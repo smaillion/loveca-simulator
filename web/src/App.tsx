@@ -1,6 +1,8 @@
 import {
   Activity,
   ArrowDownToLine,
+  BookOpen,
+  ClipboardList,
   ChevronDown,
   ChevronUp,
   CirclePlay,
@@ -13,15 +15,27 @@ import {
   Swords,
   X,
 } from "lucide-react";
-import { createContext, useContext, useEffect, useState } from "react";
-import { createMatch, getMatch, listMatches, submitAction } from "./api";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createMatch,
+  getMatch,
+  getSampleDeck,
+  getSavedDeck,
+  listMatches,
+  listSavedDecks,
+  submitAction,
+} from "./api";
+import { CatalogBrowser } from "./catalog-browser";
+import { DeckBuilder } from "./deck-builder";
 import type {
   CardInstance,
+  DeckList,
   GameEvent,
   LegalAction,
   MatchPayload,
   MatchState,
   MatchSummary,
+  SavedDeckSummary,
   PlayerState,
   EffectInvocation,
 } from "./types";
@@ -50,6 +64,24 @@ const phaseLabels: Record<string, [string, string]> = {
 };
 
 type UiLocale = "zh" | "ja";
+type StartDeckSource = {
+  id: string;
+  kind: "sample" | "draft" | "saved";
+  label: string;
+  mainCount: number;
+  energyCount: number;
+};
+
+function isDeckList(value: unknown): value is DeckList {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      "main_deck" in value &&
+      "energy_deck" in value &&
+      Array.isArray((value as DeckList).main_deck) &&
+      Array.isArray((value as DeckList).energy_deck),
+  );
+}
 
 const UiLanguageContext = createContext<{
   locale: UiLocale;
@@ -89,8 +121,12 @@ export default function App() {
     const stored = localStorage.getItem("loveca-ui-locale");
     return stored === "ja" ? "ja" : "zh";
   });
+  const [screen, setScreen] = useState<"home" | "match" | "catalog" | "decks">("home");
   const [match, setMatch] = useState<MatchPayload | null>(null);
   const [matches, setMatches] = useState<MatchSummary[]>([]);
+  const [savedDecks, setSavedDecks] = useState<SavedDeckSummary[]>([]);
+  const [sampleDeck, setSampleDeck] = useState<DeckList | null>(null);
+  const [draftDeck, setDraftDeck] = useState<DeckList | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [details, setDetails] = useState<CardInstance | null>(null);
@@ -99,11 +135,49 @@ export default function App() {
 
   useEffect(() => {
     listMatches().then(setMatches).catch(() => setMatches([]));
+    listSavedDecks().then(setSavedDecks).catch(() => setSavedDecks([]));
+    getSampleDeck()
+      .then((value) => setSampleDeck(isDeckList(value) ? value : null))
+      .catch(() => setSampleDeck(null));
   }, []);
   useEffect(() => {
     localStorage.setItem("loveca-ui-locale", locale);
     document.documentElement.lang = locale === "ja" ? "ja" : "zh-CN";
   }, [locale]);
+
+  const deckSources = useMemo<StartDeckSource[]>(() => {
+    const sources: StartDeckSource[] = [];
+      if (sampleDeck) {
+        sources.push({
+          id: "sample",
+          kind: "sample",
+        label: locale === "zh" ? "示例牌组" : "サンプルデッキ",
+        mainCount: sampleDeck.main_deck.reduce((sum, entry) => sum + entry.quantity, 0),
+        energyCount: sampleDeck.energy_deck.reduce((sum, entry) => sum + entry.quantity, 0),
+      });
+    }
+    if (draftDeck) {
+      sources.push({
+        id: "draft",
+        kind: "draft",
+        label:
+          draftDeck.name ??
+          (locale === "zh" ? "当前编辑中牌组" : "編集中のデッキ"),
+        mainCount: draftDeck.main_deck.reduce((sum, entry) => sum + entry.quantity, 0),
+        energyCount: draftDeck.energy_deck.reduce((sum, entry) => sum + entry.quantity, 0),
+      });
+    }
+    for (const item of savedDecks) {
+      sources.push({
+        id: `saved:${item.path}`,
+        kind: "saved",
+        label: item.name ?? item.path,
+        mainCount: item.main_card_count,
+        energyCount: item.energy_card_count,
+      });
+    }
+    return sources;
+  }, [draftDeck, locale, sampleDeck, savedDecks]);
 
   async function run<T>(operation: () => Promise<T>, apply: (value: T) => void) {
     setLoading(true);
@@ -139,18 +213,122 @@ export default function App() {
     );
   }
 
+  async function resolveDeckSource(sourceId: string): Promise<DeckList> {
+    if (sourceId === "sample") {
+      if (sampleDeck) {
+        return sampleDeck;
+      }
+      const deck = await getSampleDeck();
+      if (!isDeckList(deck)) {
+        throw new Error(locale === "zh" ? "示例牌组数据无效。" : "サンプルデッキデータが不正です。");
+      }
+      return deck;
+    }
+    if (sourceId === "draft") {
+      if (!draftDeck) {
+        throw new Error(locale === "zh" ? "当前没有临时牌组。" : "一時デッキがありません。");
+      }
+      return draftDeck;
+    }
+    if (sourceId.startsWith("saved:")) {
+      return getSavedDeck(sourceId.slice("saved:".length));
+    }
+    throw new Error(locale === "zh" ? "未知牌组来源。" : "不明なデッキソースです。");
+  }
+
   if (!match) {
+    if (screen === "catalog") {
+      return (
+        <UiLanguageContext.Provider value={{ locale, setLocale }}>
+          <CatalogBrowser
+            locale={locale}
+            setLocale={setLocale}
+            onBack={() => setScreen("home")}
+          />
+        </UiLanguageContext.Provider>
+      );
+    }
+    if (screen === "decks") {
+      return (
+        <UiLanguageContext.Provider value={{ locale, setLocale }}>
+          <DeckBuilder
+            locale={locale}
+            setLocale={setLocale}
+            onBack={() => {
+              listSavedDecks().then(setSavedDecks).catch(() => setSavedDecks([]));
+              setScreen("home");
+            }}
+            onUseForMatch={(deck) => {
+              setDraftDeck(deck);
+              setMatch(null);
+              setScreen("home");
+            }}
+          />
+        </UiLanguageContext.Provider>
+      );
+    }
     return (
       <UiLanguageContext.Provider value={{ locale, setLocale }}>
         <StartScreen
           matches={matches}
+          deckSources={deckSources}
           loading={loading}
           error={error}
-          onCreate={(input) => run(() => createMatch(input), setMatch)}
-          onResume={(id) => run(() => getMatch(id), setMatch)}
+          onBrowse={() => setScreen("catalog")}
+          onDeckBuilder={() => setScreen("decks")}
+          onCreate={async (input) => {
+            await run(
+              async () =>
+                createMatch({
+                  player1Name: input.player1Name,
+                  player1Deck: await resolveDeckSource(input.player1SourceId),
+                  player2Name: input.player2Name,
+                  player2Deck: await resolveDeckSource(input.player2SourceId),
+                  seed: input.seed,
+                }),
+              (next) => {
+                setMatch(next);
+                setScreen("match");
+              },
+            );
+          }}
+          onResume={(id) =>
+            run(() => getMatch(id), (next) => {
+              setMatch(next);
+              setScreen("match");
+            })
+          }
         />
       </UiLanguageContext.Provider>
     );
+  }
+
+  if (screen === "catalog") {
+    return (
+      <UiLanguageContext.Provider value={{ locale, setLocale }}>
+        <CatalogBrowser
+          locale={locale}
+          setLocale={setLocale}
+          onBack={() => setScreen("match")}
+        />
+      </UiLanguageContext.Provider>
+    );
+  }
+  if (screen === "decks") {
+    return (
+        <UiLanguageContext.Provider value={{ locale, setLocale }}>
+          <DeckBuilder
+            locale={locale}
+            setLocale={setLocale}
+            onBack={() => setScreen("match")}
+            onUseForMatch={(deck) => {
+              setDraftDeck(deck);
+              setMatch(null);
+              setScreen("home");
+            }}
+          />
+        </UiLanguageContext.Provider>
+      );
   }
 
   return (
@@ -176,6 +354,20 @@ export default function App() {
         <div className="top-actions">
           <LanguageToggle />
           <span className="revision">rev {match.state.revision}</span>
+          <button
+            className="icon-button"
+            title={locale === "zh" ? "浏览卡牌库" : "カード閲覧"}
+            onClick={() => setScreen("catalog")}
+          >
+            <BookOpen size={18} />
+          </button>
+          <button
+            className="icon-button"
+            title={locale === "zh" ? "牌组编辑器" : "デッキ編集"}
+            onClick={() => setScreen("decks")}
+          >
+            <ClipboardList size={18} />
+          </button>
           <a
             className="icon-button"
             href={`/api/matches/${match.state.match_id}/replay`}
@@ -287,21 +479,53 @@ function LanguageToggle() {
 
 function StartScreen({
   matches,
+  deckSources,
   loading,
   error,
+  onBrowse,
+  onDeckBuilder,
   onCreate,
   onResume,
 }: {
   matches: MatchSummary[];
+  deckSources: StartDeckSource[];
   loading: boolean;
   error: string | null;
-  onCreate: (input: { player1Name: string; player2Name: string; seed?: number }) => void;
+  onBrowse: () => void;
+  onDeckBuilder: () => void;
+  onCreate: (input: {
+    player1Name: string;
+    player1SourceId: string;
+    player2Name: string;
+    player2SourceId: string;
+    seed?: number;
+  }) => void | Promise<void>;
   onResume: (id: string) => void;
 }) {
   const { tr } = useUiLanguage();
   const [player1Name, setPlayer1Name] = useState("Player 1");
   const [player2Name, setPlayer2Name] = useState("Player 2");
   const [seed, setSeed] = useState("");
+  const [player1SourceId, setPlayer1SourceId] = useState("");
+  const [player2SourceId, setPlayer2SourceId] = useState("");
+
+  useEffect(() => {
+    if (deckSources.length === 0) {
+      setPlayer1SourceId("");
+      setPlayer2SourceId("");
+      return;
+    }
+    setPlayer1SourceId((current) =>
+      deckSources.some((item) => item.id === current) ? current : deckSources[0].id,
+    );
+    setPlayer2SourceId((current) =>
+      deckSources.some((item) => item.id === current) ? current : deckSources[0].id,
+    );
+  }, [deckSources]);
+
+  const player1Source = deckSources.find((item) => item.id === player1SourceId) ?? null;
+  const player2Source = deckSources.find((item) => item.id === player2SourceId) ?? null;
+
   return (
     <div className="start-page">
       <header className="start-header">
@@ -324,8 +548,8 @@ function StartScreen({
             <div>
               <h1>{tr("创建规则验证对局", "ルール検証対戦を作成")}</h1>
               <p>{tr(
-                "使用已导入的 60+12 张示例牌组，运行完整对局并保留 Replay。",
-                "インポート済みのサンプルデッキ（60+12枚）で対戦し、リプレイを保存します。",
+                "选择双方牌组来源，运行完整对局并保留 Replay。",
+                "両プレイヤーのデッキを選択して対戦を開始し、リプレイを保存します。",
               )}</p>
             </div>
           </div>
@@ -339,6 +563,32 @@ function StartScreen({
               <input value={player2Name} onChange={(e) => setPlayer2Name(e.target.value)} />
             </label>
             <label>
+              {tr("Player 1 牌组", "Player 1 デッキ")}
+              <select
+                value={player1SourceId}
+                onChange={(event) => setPlayer1SourceId(event.target.value)}
+              >
+                {deckSources.map((source) => (
+                  <option key={source.id} value={source.id}>
+                    {source.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              {tr("Player 2 牌组", "Player 2 デッキ")}
+              <select
+                value={player2SourceId}
+                onChange={(event) => setPlayer2SourceId(event.target.value)}
+              >
+                {deckSources.map((source) => (
+                  <option key={source.id} value={source.id}>
+                    {source.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
               {tr("随机种子（留空则每局随机）", "ランダムシード（空欄なら対戦ごとに生成）")}
               <input
                 value={seed}
@@ -347,25 +597,49 @@ function StartScreen({
                 placeholder={tr("自动生成", "自動生成")}
               />
             </label>
-            <div className="deck-source">
-              <Database size={18} />
-              <span>examples/decks/sample-deck.json</span>
+            <div className="deck-source-grid">
+              <div className="deck-source">
+                <Database size={18} />
+                <span>
+                  {player1Source
+                    ? `${player1Source.label} · ${player1Source.mainCount}+${player1Source.energyCount}`
+                    : tr("暂无牌组来源", "デッキソースなし")}
+                </span>
+              </div>
+              <div className="deck-source">
+                <Database size={18} />
+                <span>
+                  {player2Source
+                    ? `${player2Source.label} · ${player2Source.mainCount}+${player2Source.energyCount}`
+                    : tr("暂无牌组来源", "デッキソースなし")}
+                </span>
+              </div>
             </div>
           </div>
           {error && <div className="error-banner">{error}</div>}
           <button
             className="primary-button"
-            disabled={loading}
+            disabled={loading || !player1SourceId || !player2SourceId}
             onClick={() =>
               onCreate({
                 player1Name,
+                player1SourceId,
                 player2Name,
+                player2SourceId,
                 seed: seed ? Number(seed) : undefined,
               })
             }
           >
             {loading ? <RefreshCw className="spin" size={18} /> : <CirclePlay size={18} />}
             {tr("创建对局", "対戦を作成")}
+          </button>
+          <button className="secondary-button" disabled={loading} onClick={onBrowse}>
+            <BookOpen size={18} />
+            {tr("浏览卡牌库", "カードを閲覧")}
+          </button>
+          <button className="secondary-button" disabled={loading} onClick={onDeckBuilder}>
+            <ClipboardList size={18} />
+            {tr("牌组编辑器", "デッキ編集")}
           </button>
         </section>
 
