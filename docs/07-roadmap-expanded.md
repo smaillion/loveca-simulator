@@ -20,7 +20,7 @@ Current project status:
 * Phase 6 Rule Expansion has not started as a broad phase.
 * Phase 7 Simple UI has been pulled forward to support human rule validation and Deck Builder workflows.
 * Phase 8 Advanced AI is now the lowest-priority major phase.
-* Phase 9 and Phase 10 should start earlier as a parallel adoption and feedback track, using low-cost local-engine online play before authoritative competitive infrastructure exists.
+* Phase 9 and Phase 10 should start earlier as a parallel adoption and feedback track, using a low-cost hosted FastAPI online MVP before authoritative competitive infrastructure exists.
 
 This adjustment preserves the original direction. It changes the planning model so the next work can focus on effect trigger detection, structured prompts, replay-safe resolution, and early online human feedback before returning to AI, Monte Carlo, or win-rate simulation.
 
@@ -39,7 +39,10 @@ Parallel infrastructure track:
 * copyright-sensitive official assets require source-policy review before public packaging
 * online relay infrastructure must remain separate from asset distribution and must not become user-data storage
 * incremental local updates and backward compatibility are required so testers can keep playing online while the engine evolves
-* browser play should use the dual-engine strategy in [021 Browser Engine and Local-Rule Online](../specs/021-browser-engine-and-local-online.spec.md): Python remains the rule-development oracle, while TypeScript becomes the GitHub Pages and future low-cost online runtime
+* Preview pages should first serve catalog, Deck Builder, import/export, and battle UI showcase needs; they are not blockers for project-level online play
+* short-term online should use hosted FastAPI and the existing Python engine with room codes, no accounts, no persistent user data, and runtime match expiry
+* medium-term online work should standardize ActionEnvelope, compatibility fingerprints, replay export, and migration-safe protocol boundaries
+* long-term browser play should use the dual-engine strategy in [021 Browser Engine and Local-Rule Online](../specs/021-browser-engine-and-local-online.spec.md): Python remains the rule-development oracle, while TypeScript becomes the eventual pure browser runtime after rules stabilize
 
 ## 2. Phase 0: Research and Documentation
 

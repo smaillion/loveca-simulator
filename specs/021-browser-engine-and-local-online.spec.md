@@ -2,22 +2,24 @@
 
 ## 1. Purpose
 
-This specification defines the browser-side rule engine strategy and the local-rule online architecture.
+This specification defines the long-term browser-side rule engine strategy and the local-rule online architecture.
 
-The goal is to make the GitHub Pages preview eventually playable without a Python/FastAPI server, while preserving the current Python engine as the faster rule-development and regression-testing implementation.
+The goal is to preserve a path toward pure browser play and low-cost local-rule online after the rules stabilize. It is not a blocker for the current GitHub Pages preview, and it is not the short-term online MVP.
+
+Short-term online play should use hosted FastAPI with the existing Python engine. The browser engine is a later cost-reduction and offline/static-play track.
 
 This specification does not define a production relay server, account system, matchmaking system, anti-cheat model, or authoritative competitive server.
 
 ## 2. Core Decision
 
-The project uses a dual-engine strategy:
+The long-term project strategy uses a dual-engine model:
 
 * Python engine: reference implementation, rule exploration environment, sandbox runner, importer-adjacent validation, pytest oracle.
 * TypeScript browser engine: browser runtime for GitHub Pages, local browser play, future low-cost online play, and user-facing preview builds.
 
 The TypeScript browser engine should not fork game rules conceptually. It must implement the same serialized GameState, Action, Event, LegalAction, deterministic randomness, and replay boundaries defined by the existing core specs.
 
-Python remains useful even after the browser engine exists. It should continue to serve as the faster place to prototype rules and generate cross-engine fixtures.
+Python remains the primary development and hosted-online engine until the TypeScript engine has enough parity to replace it for browser-only play.
 
 ## 3. Non-Goals
 
@@ -53,9 +55,9 @@ The Python and TypeScript engines must share these conceptual contracts:
 
 The browser engine may use TypeScript-native data structures internally, but its exported state and replay artifacts must remain compatible with the project-level serialized model.
 
-## 5. Browser Engine MVP Scope
+## 5. Long-Term Browser Engine MVP Scope
 
-The first browser engine MVP should cover one complete local two-player match without a backend.
+The first browser engine MVP, when scheduled, should cover one complete local two-player match without a backend.
 
 Required rules:
 
@@ -229,9 +231,24 @@ If fingerprints differ, the UI must warn users before match start. Online mode m
 
 ## 11. Low-Cost Online Relationship
 
-The browser engine is the prerequisite for the cheapest online model.
+The browser engine is the prerequisite for the cheapest long-term online model, but not for the first hosted online MVP.
 
-Target online model:
+Short-term online model:
+
+* GitHub Pages SPA connects to hosted FastAPI
+* hosted FastAPI runs the existing Python engine
+* hosted runtime MatchState expires automatically
+* no accounts, cloud deck storage, or permanent user history
+
+Medium-term protocol work:
+
+* ActionEnvelope
+* compatibility fingerprint
+* replay export
+* protocol versioning
+* room lifecycle contracts
+
+Long-term local-rule target online model:
 
 * both browsers run the TypeScript engine locally
 * both browsers load local/static card data
@@ -318,11 +335,11 @@ Recommended order:
 10. cross-engine fixture parity
 11. ActionEnvelope scaffold
 
-This order allows the GitHub Pages preview to become locally playable before online relay work begins.
+This order applies when the browser engine track is scheduled. It should not block hosted online MVP work or battle UI demo preview work.
 
 ## 14. Estimated Effort
 
-For the first TypeScript browser engine MVP, assuming one developer already familiar with the project:
+For the first TypeScript browser engine MVP, assuming one developer already familiar with the project and after the project chooses to start this long-term track:
 
 * optimistic: 4 to 6 focused development days
 * realistic: 1.5 to 2.5 weeks
@@ -332,9 +349,9 @@ The estimate includes tests and UI wiring for the MVP rules. It does not include
 
 ## 15. Acceptance Criteria
 
-The MVP is complete when:
+The long-term browser-engine MVP is complete when:
 
-* GitHub Pages preview can create a local two-player match without FastAPI
+* a static browser build can create a local two-player match without FastAPI
 * a match can proceed through at least one complete Live judgment
 * a match can continue until normal three-successful-Live victory or draw
 * browser replay export works
