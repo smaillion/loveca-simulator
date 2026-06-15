@@ -21,6 +21,9 @@
   - 392 条为 `test_validated_executable`
   - 533 条为 timing prompt / 未支持处理用 `manual_resolution`
 - 面向未来低成本 online 同步的 state hash / compatibility metadata 基础
+- GitHub Pages browser preview 用静态 SPA 发布 workflow
+  - preview data package 只包含解析后的卡牌 / 技能数据
+  - 不打包卡图文件，牌面图片走官方 `image_url`
 
 当前开发主线:
 
@@ -58,6 +61,7 @@ Deck Builder 当前状态:
 - 面向全量卡池的完整技能提示覆盖
 - AI、Monte Carlo、胜率引擎
 - 在线对战、账户和同步
+- GitHub Pages preview 当前处于发布底座阶段；不依赖 FastAPI 即可完整游玩的 browser runtime adapter 是下一步实现目标。
 
 ## 已知限制
 
@@ -160,7 +164,7 @@ loveca web serve `
 
 长期来看，可以提供包含预构建 SQLite 卡牌数据库、effect registry、manifest 和 checksum 的版本化 asset package，让用户无需每次从官网全量抓取即可直接启动。
 
-但官方卡图、官方效果文本和官方 PDF 派生的大量数据涉及再分发边界。在权利确认前，公开 asset 更适合只包含应用本体、schema、importer、manifest、checksum 和项目自有 metadata；卡牌 DB 与图片 cache 优先由用户本地 importer 从官方来源构建。
+但官方效果文本全文、官方 PDF 派生的大量数据和下载后的卡图文件涉及再分发边界。GitHub Pages preview 的公开 asset 应限制为解析后的卡牌数据、解析后的技能数据、manifest、checksum 和项目自有 metadata；卡图文件不随包发布，牌面显示直接使用官方 `image_url`。
 
 如果向 private tester 提供预构建 DB，也应明确 release version、schema version、parser version、card database fingerprint 和 effect registry hash。任何破坏兼容性的版本更新后，都需要重新导入。
 
@@ -243,5 +247,4 @@ npm run build
 - `docs/14-database-migration-and-update-guide.md`: SQLite 重建、增量更新和 runtime 生命周期指引
 - `docs/15-project-guidance.md`: changelog 语言等维护指引
 - `docs/16-low-cost-online-battle-plan.md`: 低成本网络双人规则验证模式规划
-
-
+- `docs/17-browser-only-preview-and-pages-release.md`: GitHub Pages browser preview 与静态数据包计划
