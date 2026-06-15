@@ -26,6 +26,8 @@
 - `ライブ成功時` の効果 trigger 境界を追加し、成功 Live 移動後に replay-safe な pending / auto resolve を行えるようにした。
 - 効果による Heart 獲得、score 変更、Energy の Active / Wait 変更を構造化 operation として追加。
 - 処理できない pending effect をデバッグ用に `skip_effect` で飛ばし、replay-safe な `effect_skipped_due_to_error` event として記録できるようにした。
+- Hosted Online MVP の準備として FastAPI backend 用 `Dockerfile`、`compose.api.yml`、`.dockerignore` を追加。
+- API Docker image を GHCR に build / push する GitHub Actions workflow を追加。
 
 中文:
 
@@ -51,6 +53,8 @@
 - 新增 `ライブ成功時` 技能触发边界，成功 Live 移动后可进行可回放的 pending / 自动结算。
 - 将技能产生的 Heart 获得、score 修改、Energy Active / Wait 改变建模为结构化 operation。
 - 新增调试用 `skip_effect`，无法处理的 pending effect 可被跳过并生成 replay-safe 的 `effect_skipped_due_to_error` event。
+- 为 Hosted Online MVP 准备新增 FastAPI backend 用 `Dockerfile`、`compose.api.yml` 和 `.dockerignore`。
+- 新增 GitHub Actions workflow，用于构建 API Docker image 并推送到 GHCR。
 
 ### 変更 / 变更
 
@@ -58,6 +62,7 @@
 - 効果 execution MVP spec を現在の Phase 5 実装状態に合わせて更新。
 - Phase 8 AI の優先度を下げ、Phase 9 / 10 の低コスト online 検証を早期並行 track として roadmap に反映。
 - 分岐選択効果の UI を二段式に更新し、初回は `selected_branch` を、後続処理では分岐ごとの選択カードを送信するようにした。
+- FastAPI に `LOVECA_ALLOWED_ORIGINS` ベースの CORS 設定を追加し、GitHub Pages SPA から Hosted API へ接続しやすくした。
 
 中文:
 
@@ -65,6 +70,7 @@
 - 更新 Effect Execution MVP spec，使其符合当前 Phase 5 实装状态。
 - 下调 Phase 8 AI 优先级，并将 Phase 9 / 10 低成本 online 验证写成提前并行路线。
 - 将分支选择技能 UI 改为两段式，第一次提交 `selected_branch`，后续再提交该分支需要的选卡。
+- FastAPI 增加基于 `LOVECA_ALLOWED_ORIGINS` 的 CORS 配置，方便 GitHub Pages SPA 连接 Hosted API。
 
 ### 修正 / 修复
 

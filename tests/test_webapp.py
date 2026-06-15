@@ -98,6 +98,32 @@ def test_uncached_card_image_returns_404(tmp_path):
     assert response.status_code == 404
 
 
+def test_cors_allowed_origins_are_applied(tmp_path):
+    app = create_app(
+        ApiSettings(
+            card_database_path=tmp_path / "cards.sqlite3",
+            runtime_database_path=tmp_path / "matches.sqlite3",
+            image_cache_dir=tmp_path / "images",
+            web_dist_dir=tmp_path / "missing-dist",
+            deck_library_root=tmp_path / "decks",
+            allowed_deck_root=PROJECT_ROOT,
+            allowed_origins=["https://smaillion.github.io"],
+        )
+    )
+    client = TestClient(app)
+
+    response = client.options(
+        "/api/health",
+        headers={
+            "Origin": "https://smaillion.github.io",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "https://smaillion.github.io"
+
+
 def test_deck_library_api_round_trip(tmp_path):
     client = _client(tmp_path)
     deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
