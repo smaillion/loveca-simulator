@@ -82,6 +82,7 @@ jobs:
         env:
           VITE_BASE_PATH: /loveca-simulator/
           VITE_BROWSER_PREVIEW: "true"
+          VITE_HOSTED_API_BASE_URL: ${{ vars.VITE_HOSTED_API_BASE_URL || '' }}
         run: npm run build
 
       - name: Create static preview data placeholder

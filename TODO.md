@@ -2,6 +2,13 @@
 
 ## Low Priority
 
+### Mobile UI Sandbox Feedback
+
+- Run dedicated mobile viewport checks for 390 x 844 and 430 x 932 after hosted room UI stabilizes.
+- Pages to check: start / online room create / room join, Deck Builder, Match board, Action Dock, pending effect panel, Manual Adjustment drawer, Card detail dialog, Live judgment detail panel, Event Log.
+- Fix blockers immediately: horizontal overflow, unclickable buttons, modal/drawer that cannot close, hidden submit controls, or Action Dock covering required game zones.
+- Record visual-only issues separately so they do not block Phase 5 engine work.
+
 ### Effect Prompt UI Known Issues
 
 - Branch-choice effects are not yet rendered as a clear choice control in the

@@ -28,6 +28,9 @@
 - 処理できない pending effect をデバッグ用に `skip_effect` で飛ばし、replay-safe な `effect_skipped_due_to_error` event として記録できるようにした。
 - Hosted Online MVP の準備として FastAPI backend 用 `Dockerfile`、`compose.api.yml`、`.dockerignore` を追加。
 - API Docker image を GHCR に build / push する GitHub Actions workflow を追加。
+- Hosted Online MVP の room API を追加し、room code による host / guest 参加、HTTP polling、remote Action submit、room replay、TTL cleanup に対応。
+- GitHub Pages preview が `VITE_HOSTED_API_BASE_URL` を受け取り、Hosted FastAPI に接続できるようにした。
+- VPS / Cloudflare Tunnel 運用向けに、GHCR image を build / push して SSH で compose service を更新する手動 deploy workflow を追加。
 
 中文:
 
@@ -55,6 +58,9 @@
 - 新增调试用 `skip_effect`，无法处理的 pending effect 可被跳过并生成 replay-safe 的 `effect_skipped_due_to_error` event。
 - 为 Hosted Online MVP 准备新增 FastAPI backend 用 `Dockerfile`、`compose.api.yml` 和 `.dockerignore`。
 - 新增 GitHub Actions workflow，用于构建 API Docker image 并推送到 GHCR。
+- 新增 Hosted Online MVP 的 room API，支持 room code 创建 / 加入、HTTP polling、远程提交 Action、room replay 和 TTL cleanup。
+- GitHub Pages preview 现在可以读取 `VITE_HOSTED_API_BASE_URL`，连接 Hosted FastAPI。
+- 面向 VPS / Cloudflare Tunnel 运行方式，新增手动 deploy workflow，可构建 / 推送 GHCR image 并通过 SSH 更新 compose service。
 
 ### 変更 / 变更
 

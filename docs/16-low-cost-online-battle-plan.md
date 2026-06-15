@@ -8,7 +8,35 @@ The product goal is to collect more human playtest feedback as early as possible
 
 User data should remain local. The online layer should not introduce accounts, cloud deck storage, cloud card libraries, ranked identity, or authoritative rule judgment.
 
-This is a planning document only. It does not define implementation code, database migrations, deployment scripts, or final API schemas.
+This document is both the long-term planning reference and the status note for the first Hosted Online MVP slice. It does not replace the API implementation or tests, and it should avoid becoming a full protocol spec.
+
+## 1A. Current Implementation Status
+
+As of `v0.4.2-alpha.1` development, the first hosted slice exists:
+
+* room creation by host deck payload
+* guest join by room code and deck payload
+* temporary room records in runtime SQLite
+* lightweight host / guest player tokens
+* match creation after the guest joins
+* HTTP polling through `GET /api/rooms/{room_code}`
+* remote Action submission through `POST /api/rooms/{room_code}/actions`
+* room Replay export
+* expired-room cleanup
+* GitHub Pages build-time `VITE_HOSTED_API_BASE_URL`
+* manual GitHub Actions deploy workflow for a Dockerized FastAPI backend
+
+Still not implemented:
+
+* WebSocket transport
+* account or identity system
+* room list / matchmaking
+* cloud deck persistence
+* strict anti-cheat
+* browser-local TypeScript Rule Engine
+* local-engine peer synchronization
+
+The current hosted slice is intentionally disposable and suitable for low-cost playtest feedback, not competitive service operation.
 
 ## 2. Core Decision
 

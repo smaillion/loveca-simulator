@@ -9,6 +9,7 @@ import type {
   SavedDeckSummary,
   MatchPayload,
   MatchSummary,
+  RoomPayload,
 } from "./types";
 import {
   getPreviewCatalogCard,
@@ -30,6 +31,11 @@ const viteEnv = (import.meta as unknown as {
   env?: Record<string, string | boolean | undefined>;
 }).env;
 const browserPreview = viteEnv?.VITE_BROWSER_PREVIEW === "true";
+const hostedApiBaseUrl = normalizeBaseUrl(
+  typeof viteEnv?.VITE_HOSTED_API_BASE_URL === "string"
+    ? viteEnv.VITE_HOSTED_API_BASE_URL
+    : "",
+);
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
@@ -41,6 +47,19 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     throw new Error(body.detail ?? response.statusText);
   }
   return response.json() as Promise<T>;
+}
+
+function normalizeBaseUrl(value: string): string {
+  return value.trim().replace(/\/+$/, "");
+}
+
+function hostedUrl(path: string): string {
+  if (!hostedApiBaseUrl) return path;
+  return `${hostedApiBaseUrl}${path}`;
+}
+
+export function hostedOnlineAvailable(): boolean {
+  return hostedApiBaseUrl.length > 0;
 }
 
 export function listMatches(): Promise<MatchSummary[]> {
@@ -87,6 +106,76 @@ export function submitAction(
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export function createRoom(input: {
+  playerName: string;
+  deck: DeckList;
+  seed?: number;
+}): Promise<RoomPayload> {
+  if (!hostedApiBaseUrl) {
+    return Promise.reject(new Error("Hosted API base URL is not configured."));
+  }
+  return request(hostedUrl("/api/rooms"), {
+    method: "POST",
+    body: JSON.stringify({
+      player_name: input.playerName,
+      deck: input.deck,
+      seed: input.seed,
+    }),
+  });
+}
+
+export function joinRoom(input: {
+  roomCode: string;
+  playerName: string;
+  deck: DeckList;
+}): Promise<RoomPayload> {
+  if (!hostedApiBaseUrl) {
+    return Promise.reject(new Error("Hosted API base URL is not configured."));
+  }
+  return request(hostedUrl(`/api/rooms/${encodeURIComponent(input.roomCode)}/join`), {
+    method: "POST",
+    body: JSON.stringify({
+      player_name: input.playerName,
+      deck: input.deck,
+    }),
+  });
+}
+
+export function getRoom(roomCode: string, playerToken: string): Promise<RoomPayload> {
+  if (!hostedApiBaseUrl) {
+    return Promise.reject(new Error("Hosted API base URL is not configured."));
+  }
+  const params = new URLSearchParams({ player_token: playerToken });
+  return request(hostedUrl(`/api/rooms/${encodeURIComponent(roomCode)}?${params.toString()}`));
+}
+
+export function submitRoomAction(
+  roomCode: string,
+  playerToken: string,
+  input: {
+    action_type: string;
+    expected_revision: number;
+    player_id?: string | null;
+    payload?: Record<string, unknown>;
+  },
+): Promise<MatchPayload> {
+  if (!hostedApiBaseUrl) {
+    return Promise.reject(new Error("Hosted API base URL is not configured."));
+  }
+  return request(hostedUrl(`/api/rooms/${encodeURIComponent(roomCode)}/actions`), {
+    method: "POST",
+    body: JSON.stringify({
+      player_token: playerToken,
+      action: input,
+    }),
+  });
+}
+
+export function roomReplayUrl(roomCode: string, playerToken: string): string {
+  const params = new URLSearchParams({ player_token: playerToken });
+  return hostedUrl(`/api/rooms/${encodeURIComponent(roomCode)}/replay?${params.toString()}`);
 }
 
 export function listCatalogCards(input: {

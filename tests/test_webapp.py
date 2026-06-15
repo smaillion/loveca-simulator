@@ -64,6 +64,73 @@ def test_match_api_create_act_resume_and_replay(tmp_path):
     assert replay.json()["final_state"]["revision"] == 1
 
 
+def test_hosted_room_api_create_join_act_and_replay(tmp_path):
+    client = _client(tmp_path)
+    deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
+
+    created = client.post(
+        "/api/rooms",
+        json={"player_name": "Host", "deck": deck, "seed": 106},
+    )
+    assert created.status_code == 200
+    room_payload = created.json()
+    room_code = room_payload["room_code"]
+    host_token = room_payload["player_token"]
+    assert room_payload["status"] == "waiting_for_guest"
+    assert room_payload["player_id"] == "player_1"
+    assert room_payload["match"] is None
+
+    joined = client.post(
+        f"/api/rooms/{room_code}/join",
+        json={"player_name": "Guest", "deck": deck},
+    )
+    assert joined.status_code == 200
+    joined_payload = joined.json()
+    guest_token = joined_payload["player_token"]
+    assert joined_payload["status"] == "active"
+    assert joined_payload["player_id"] == "player_2"
+    assert joined_payload["match"]["state"]["revision"] == 0
+
+    hidden = client.get(f"/api/rooms/{room_code}")
+    assert hidden.status_code == 200
+    assert hidden.json()["match"] is None
+
+    wrong_token = client.post(
+        f"/api/rooms/{room_code}/actions",
+        json={
+            "player_token": "wrong",
+            "action": {
+                "action_type": "choose_first_player",
+                "expected_revision": 0,
+                "payload": {"first_player_id": "player_1"},
+            },
+        },
+    )
+    assert wrong_token.status_code == 403
+
+    acted = client.post(
+        f"/api/rooms/{room_code}/actions",
+        json={
+            "player_token": host_token,
+            "action": {
+                "action_type": "choose_first_player",
+                "expected_revision": 0,
+                "payload": {"first_player_id": "player_1"},
+            },
+        },
+    )
+    assert acted.status_code == 200
+    assert acted.json()["state"]["revision"] == 1
+
+    polled = client.get(f"/api/rooms/{room_code}?player_token={guest_token}")
+    assert polled.status_code == 200
+    assert polled.json()["match"]["state"]["revision"] == 1
+
+    replay = client.get(f"/api/rooms/{room_code}/replay?player_token={host_token}")
+    assert replay.status_code == 200
+    assert replay.json()["final_state"]["revision"] == 1
+
+
 def test_api_rejects_stale_revision_without_mutation(tmp_path):
     client = _client(tmp_path)
     deck_path = str(SAMPLE_DECK.relative_to(PROJECT_ROOT))

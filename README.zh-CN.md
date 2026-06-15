@@ -21,6 +21,11 @@
   - 392 条为 `test_validated_executable`
   - 533 条为 timing prompt / 未支持处理用 `manual_resolution`
 - 面向未来低成本 online 同步的 state hash / compatibility metadata 基础
+- Hosted Online MVP 房间 API
+  - 通过 room code 创建 / 加入房间
+  - 使用 HTTP polling 同步状态
+  - 服务端复用 Python Rule Engine
+  - 临时 room 默认 24 小时过期
 - GitHub Pages browser preview 用静态 SPA 发布 workflow
   - preview data package 只包含解析后的卡牌 / 技能数据
   - 不打包卡图文件，牌面图片走官方 `image_url`
@@ -60,8 +65,8 @@ Deck Builder 当前状态:
 - 全卡技能自动执行
 - 面向全量卡池的完整技能提示覆盖
 - AI、Monte Carlo、胜率引擎
-- 在线对战、账户和同步
-- GitHub Pages preview 在打包解析后 data package 时，已经可以不依赖 FastAPI 浏览卡库、使用浏览器本地 deck 保存，并执行 MVP deck 分析。对战 runtime 的 browser adapter 是下一步实现目标。
+- 正式在线运营、账户、用户同步和严格防作弊
+- GitHub Pages preview 在打包解析后 data package 时，已经可以不依赖 FastAPI 浏览卡库、使用浏览器本地 deck 保存，并执行 MVP deck 分析。对战需要设置 `VITE_HOSTED_API_BASE_URL` 后连接 Hosted FastAPI。
 
 ## 已知限制
 
@@ -70,6 +75,7 @@ Deck Builder 当前状态:
 - 依赖 FAQ 或个别裁定的效果尚未规格化。
 - 当 importer、parser、卡号正规化、SQLite schema 或 effect registry 兼容性相关内容发生更新后，不建议继续复用旧的 `data/loveca.sqlite3`，应通过官方 importer 重建或重新导入卡牌数据库。保存牌组是 `decklist.v0` 用户数据，可以和卡牌数据库分开保留。
 - Web/API 测试依赖 `httpx2`。环境缺少该依赖时，`tests/test_catalog_api.py` 和 `tests/test_webapp.py` 会在收集阶段停止。
+- Hosted Online MVP 只用于低成本测试反馈。规则判定由 FastAPI 侧 Python engine 执行，但不包含账号、长期保存或严格防作弊。
 
 ## 界面预览
 
@@ -196,7 +202,18 @@ GitHub Actions：
 - `.github/workflows/api-image.yml` 会构建 Docker image。
 - Pull Request 只做 build 验证。
 - push 到 `develop` / `preview` 或手动执行时，会推送 GHCR 镜像 `ghcr.io/smaillion/loveca-simulator-api`。
-- 目前还不包含自动部署到服务器。Cloudflare Tunnel / VM 准备好后再补 deploy secrets 和部署 job。
+- `.github/workflows/deploy-api.yml` 可手动执行，构建 / 推送 GHCR image，并通过 SSH 更新 VPS 上的 compose service。
+
+部署需要的 GitHub Secrets：
+
+- `DEPLOY_HOST`
+- `DEPLOY_USER`
+- `DEPLOY_SSH_KEY`
+- `DEPLOY_PATH`
+- `API_BASE_URL`
+- `LOVECA_ALLOWED_ORIGINS`
+
+如果 GitHub Pages 要连接 Hosted API，请在 repository variable `VITE_HOSTED_API_BASE_URL` 中设置 Cloudflare Tunnel 公网 URL。
 
 ## 卡牌 DB 与 asset 分发方针
 

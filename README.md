@@ -21,6 +21,11 @@
   - 392 件は `test_validated_executable`
   - 533 件は timing prompt / 未対応処理用の `manual_resolution`
 - 将来の低コスト online 同期に向けた state hash / compatibility metadata の基礎
+- Hosted Online MVP の room API
+  - room code による host / guest 参加
+  - HTTP polling による状態同期
+  - Python Rule Engine をサーバー側で再利用
+  - 24 時間 TTL の一時 room
 - GitHub Pages browser preview 用の静的 SPA release workflow
   - preview data package は解析済みカード / skill data のみを含む
   - カード画像は同梱せず、公式 `image_url` を参照する
@@ -60,8 +65,8 @@ Deck Builder の現在の到達点:
 - 全カード効果の自動化
 - 全量カードプールに対する完全な効果 prompt coverage
 - AI、Monte Carlo、勝率エンジン
-- オンライン対戦、アカウント、同期機能
-- GitHub Pages preview は解析済み data package を同梱した場合、FastAPI なしでカードカタログ閲覧、browser local deck 保存、MVP deck 分析まで動作します。対戦 runtime の browser adapter は次の実装対象です。
+- 本格的な online 運用、アカウント、ユーザー同期、防作弊
+- GitHub Pages preview は解析済み data package を同梱した場合、FastAPI なしでカードカタログ閲覧、browser local deck 保存、MVP deck 分析まで動作します。対戦は `VITE_HOSTED_API_BASE_URL` を設定した場合のみ Hosted FastAPI に接続できます。
 
 ## 既知の制限
 
@@ -70,6 +75,7 @@ Deck Builder の現在の到達点:
 - FAQ / 個別裁定に依存する効果はまだ仕様化していません。
 - importer、parser、カード番号正規化、SQLite schema、または effect registry の互換性に関わる更新後は、既存の `data/loveca.sqlite3` を再利用せず、公式 importer でカード DB を再構築または再導入してください。保存済みデッキは `decklist.v0` のユーザーデータなので、カード DB とは分けて保持できます。
 - Web/API テストには `httpx2` が必要です。環境に未導入の場合、`tests/test_catalog_api.py` と `tests/test_webapp.py` は収集段階で停止します。
+- Hosted Online MVP は低コスト検証用です。ルール判定は FastAPI 側の Python engine が行いますが、アカウント、恒久保存、厳密な不正対策はありません。
 
 ## 画面イメージ
 
@@ -196,7 +202,18 @@ GitHub Actions:
 - `.github/workflows/api-image.yml` は Docker image を build します。
 - Pull Request では build 検証のみ行います。
 - `develop` / `preview` への push または手動実行では GHCR に `ghcr.io/smaillion/loveca-simulator-api` として push します。
-- サーバーへの自動 deploy はまだ含めていません。Cloudflare Tunnel / VM の準備後に secrets を決めて追加します。
+- `.github/workflows/deploy-api.yml` は手動実行で GHCR image を build / push し、SSH で VPS 上の compose service を更新します。
+
+Deploy に必要な GitHub Secrets:
+
+- `DEPLOY_HOST`
+- `DEPLOY_USER`
+- `DEPLOY_SSH_KEY`
+- `DEPLOY_PATH`
+- `API_BASE_URL`
+- `LOVECA_ALLOWED_ORIGINS`
+
+GitHub Pages から Hosted API に接続する場合は、repository variable `VITE_HOSTED_API_BASE_URL` に Cloudflare Tunnel の公開 URL を設定してください。
 
 ## カード DB と asset 配布方針
 
