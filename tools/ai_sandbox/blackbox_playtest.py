@@ -347,6 +347,32 @@ def choose_action(
         payload: dict[str, Any] = {"invocation_id": invocation["invocation_id"]}
         candidates = list(invocation.get("candidate_card_instance_ids", []))
         choice = invocation.get("choice") or {}
+        choice_type = invocation.get("choice_type") or choice.get("choice_type")
+        card_minimum = int(
+            invocation.get(
+                "card_selection_minimum",
+                choice.get("minimum", 0),
+            )
+        )
+        available_energy = list(
+            invocation.get("energy_instance_ids", [])
+            or invocation.get("active_energy_instance_ids", [])
+        )
+        energy_required = int(invocation.get("energy_required", 0))
+        if invocation.get("is_optional") and (
+            (card_minimum > 0 and len(candidates) < card_minimum)
+            or (energy_required > 0 and len(available_energy) < energy_required)
+        ):
+            return (
+                action.action_type,
+                action.player_id,
+                {"invocation_id": invocation["invocation_id"], "accepted": False},
+            )
+        if choice_type in {
+            "multi_player_discard_to_hand_size_then_draw",
+            "multi_player_deploy_waiting_member",
+        }:
+            return action.action_type, action.player_id, payload
         if choice.get("choice_type") == "choose_effect_branch":
             selected_branch = invocation.get("selected_branch")
             if selected_branch:
@@ -372,15 +398,35 @@ def choose_action(
                 if branches:
                     payload["selected_branch"] = branches[0]
         elif candidates:
-            payload["selected_card_instance_ids"] = candidates[: choice.get("minimum", 1)]
+            minimum = int(
+                invocation.get(
+                    "card_selection_minimum",
+                    choice.get("minimum", 1),
+                )
+            )
+            maximum = int(
+                invocation.get(
+                    "card_selection_maximum",
+                    choice.get("maximum", len(candidates)),
+                )
+            )
+            payload["selected_card_instance_ids"] = candidates[
+                : max(minimum, min(maximum, len(candidates)))
+            ]
         if choice.get("choice_type") == "choose_color":
             colors = list(choice.get("color_slots", []))
             payload["selected_color_slot"] = colors[0] if colors else "heart01"
         if choice.get("choice_type") == "choose_count":
             payload["selected_count"] = choice.get("minimum", 0)
-        energy = list(invocation.get("active_energy_instance_ids", []))
+        energy = available_energy
         if energy:
-            payload["energy_instance_ids"] = energy[: choice.get("minimum", 1)]
+            required = int(
+                invocation.get(
+                    "energy_required",
+                    choice.get("minimum", 1),
+                )
+            )
+            payload["energy_instance_ids"] = energy[:required]
         return action.action_type, action.player_id, payload
     if "play_member" in by_type:
         action = by_type["play_member"]
