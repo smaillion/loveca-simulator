@@ -12,6 +12,7 @@
       "effect_type": "triggered",
       "timing": "on_play",
       "trigger": "member_played",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "condition": {},
@@ -43,6 +44,7 @@
       "effect_type": "manual",
       "timing": "live_start",
       "trigger": "live_started",
+      "execution_mode": "manual_resolution",
       "frequency_limit": "once_per_live",
       "is_optional": true,
       "condition": {},
@@ -68,6 +70,7 @@
       "effect_type": "activated",
       "timing": "activated_main",
       "trigger": "player_activation",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "once_per_turn",
       "is_optional": false,
       "condition": {
@@ -110,6 +113,7 @@
       "effect_type": "triggered",
       "timing": "live_start",
       "trigger": "live_started",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "once_per_live",
       "is_optional": true,
       "condition": {},
@@ -133,6 +137,53 @@
       "source_reference": "Official card text; comprehensive rules ver. 1.06 Live start timing"
     },
     {
+      "effect_id": "PL!-bp3-014:1",
+      "card_code": "PL!-bp3-014",
+      "text_revision_id": 455,
+      "raw_text_hash": "6953753e9080812f6d81106d8ef1a50adbe8a563f6046052b9e6a141b3911695",
+      "effect_index": 1,
+      "label_ja": "【登場】このメンバーをウェイトにしてもよい：自分のデッキの上からカードを2枚見る。その中から好きな枚数を好きな順番でデッキの上に置き、残りを控え室に置く。",
+      "effect_type": "triggered",
+      "timing": "on_play",
+      "trigger": "member_played",
+      "execution_mode": "prompt_then_resolve",
+      "frequency_limit": "none",
+      "is_optional": true,
+      "condition": {},
+      "cost": [
+        {
+          "action_type": "apply_wait",
+          "target": "source"
+        }
+      ],
+      "choice": {
+        "choice_type": "inspect_top_select",
+        "amount": 2,
+        "minimum": 0,
+        "maximum": 2,
+        "requires_order": true,
+        "selected_destination": "main_deck_top_ordered",
+        "unselected_destination": "waiting_room",
+        "reveal_selected_to_opponent": false
+      },
+      "actions": [
+        {
+          "action_type": "inspect_top_cards",
+          "amount": 2
+        },
+        {
+          "action_type": "reorder_deck_top"
+        },
+        {
+          "action_type": "move_remaining_cards"
+        }
+      ],
+      "duration": null,
+      "simulation_support": "test_validated_executable",
+      "review_status": "test_validated",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 on-play timing"
+    },
+    {
       "effect_id": "PL!N-bp1-001:1",
       "card_code": "PL!N-bp1-001",
       "text_revision_id": 2,
@@ -142,6 +193,7 @@
       "effect_type": "triggered",
       "timing": "live_start",
       "trigger": "live_started",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "once_per_live",
       "is_optional": true,
       "condition": {
@@ -166,6 +218,298 @@
       "source_reference": "Official card text; comprehensive rules ver. 1.06 Live start timing"
     },
     {
+      "effect_id": "PL!-bp6-002:1",
+      "card_code": "PL!-bp6-002",
+      "text_revision_id": 3,
+      "raw_text_hash": "ffe3a1bb73e3e051a8508cd5697a2148ff8ae52b31c9e56396ba343510603077",
+      "effect_index": 1,
+      "label_ja": "【登場】自分のデッキの上からカードを2枚見る。その中から能力を持たない『μ's』のカードか【常時】能力を持つ『μ's』のカードを1枚公開して手札に加えてもよい。残りを控え室に置く。",
+      "effect_type": "triggered",
+      "timing": "on_play",
+      "trigger": "member_played",
+      "execution_mode": "prompt_then_resolve",
+      "frequency_limit": "none",
+      "is_optional": false,
+      "condition": {},
+      "cost": [],
+      "choice": {
+        "choice_type": "inspect_top_select",
+        "amount": 2,
+        "minimum": 0,
+        "maximum": 1,
+        "requires_order": false,
+        "selected_destination": "hand",
+        "unselected_destination": "waiting_room",
+        "reveal_selected_to_opponent": true,
+        "work_key": "muse",
+        "ability_bucket": [
+          "none",
+          "static_only"
+        ]
+      },
+      "actions": [
+        {
+          "action_type": "inspect_top_cards",
+          "amount": 2
+        },
+        {
+          "action_type": "reveal_cards",
+          "amount": 1
+        },
+        {
+          "action_type": "select_to_hand_from_inspected",
+          "amount": 1
+        },
+        {
+          "action_type": "move_remaining_cards"
+        }
+      ],
+      "duration": null,
+      "simulation_support": "test_validated_executable",
+      "review_status": "test_validated",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 on-play timing"
+    },
+    {
+      "effect_id": "PL!SP-PR-004:1",
+      "card_code": "PL!SP-PR-004",
+      "text_revision_id": 764,
+      "raw_text_hash": "e265aa3650daa72a3459f55faf73e40226d3132d5a51e6efa97e0b63d13adb69",
+      "effect_index": 1,
+      "label_ja": "【登場】手札を1枚控え室に置いてもよい：自分のエネルギーデッキから、エネルギーカードを1枚ウェイト状態で置く。",
+      "effect_type": "triggered",
+      "timing": "on_play",
+      "trigger": "member_played",
+      "execution_mode": "prompt_then_resolve",
+      "frequency_limit": "none",
+      "is_optional": true,
+      "condition": {
+        "minimum_energy_deck_cards": 1
+      },
+      "cost": [
+        {
+          "action_type": "discard_from_hand"
+        }
+      ],
+      "choice": {
+        "choice_type": "card_from_zone",
+        "zone": "hand",
+        "minimum": 1,
+        "maximum": 1
+      },
+      "actions": [
+        {
+          "action_type": "place_energy_from_deck",
+          "target": "self",
+          "amount": 1,
+          "orientation": "wait"
+        }
+      ],
+      "duration": null,
+      "simulation_support": "test_validated_executable",
+      "review_status": "test_validated",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 on-play timing"
+    },
+    {
+      "effect_id": "PL!SP-PR-006:1",
+      "card_code": "PL!SP-PR-006",
+      "text_revision_id": 765,
+      "raw_text_hash": "e265aa3650daa72a3459f55faf73e40226d3132d5a51e6efa97e0b63d13adb69",
+      "effect_index": 1,
+      "label_ja": "【登場】手札を1枚控え室に置いてもよい：自分のエネルギーデッキから、エネルギーカードを1枚ウェイト状態で置く。",
+      "effect_type": "triggered",
+      "timing": "on_play",
+      "trigger": "member_played",
+      "execution_mode": "prompt_then_resolve",
+      "frequency_limit": "none",
+      "is_optional": true,
+      "condition": {
+        "minimum_energy_deck_cards": 1
+      },
+      "cost": [
+        {
+          "action_type": "discard_from_hand"
+        }
+      ],
+      "choice": {
+        "choice_type": "card_from_zone",
+        "zone": "hand",
+        "minimum": 1,
+        "maximum": 1
+      },
+      "actions": [
+        {
+          "action_type": "place_energy_from_deck",
+          "target": "self",
+          "amount": 1,
+          "orientation": "wait"
+        }
+      ],
+      "duration": null,
+      "simulation_support": "test_validated_executable",
+      "review_status": "test_validated",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 on-play timing"
+    },
+    {
+      "effect_id": "PL!SP-PR-013:1",
+      "card_code": "PL!SP-PR-013",
+      "text_revision_id": 771,
+      "raw_text_hash": "e265aa3650daa72a3459f55faf73e40226d3132d5a51e6efa97e0b63d13adb69",
+      "effect_index": 1,
+      "label_ja": "【登場】手札を1枚控え室に置いてもよい：自分のエネルギーデッキから、エネルギーカードを1枚ウェイト状態で置く。",
+      "effect_type": "triggered",
+      "timing": "on_play",
+      "trigger": "member_played",
+      "execution_mode": "prompt_then_resolve",
+      "frequency_limit": "none",
+      "is_optional": true,
+      "condition": {
+        "minimum_energy_deck_cards": 1
+      },
+      "cost": [
+        {
+          "action_type": "discard_from_hand"
+        }
+      ],
+      "choice": {
+        "choice_type": "card_from_zone",
+        "zone": "hand",
+        "minimum": 1,
+        "maximum": 1
+      },
+      "actions": [
+        {
+          "action_type": "place_energy_from_deck",
+          "target": "self",
+          "amount": 1,
+          "orientation": "wait"
+        }
+      ],
+      "duration": null,
+      "simulation_support": "test_validated_executable",
+      "review_status": "test_validated",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 on-play timing"
+    },
+    {
+      "effect_id": "PL!SP-bp1-021:1",
+      "card_code": "PL!SP-bp1-021",
+      "text_revision_id": 652,
+      "raw_text_hash": "e265aa3650daa72a3459f55faf73e40226d3132d5a51e6efa97e0b63d13adb69",
+      "effect_index": 1,
+      "label_ja": "【登場】手札を1枚控え室に置いてもよい：自分のエネルギーデッキから、エネルギーカードを1枚ウェイト状態で置く。",
+      "effect_type": "triggered",
+      "timing": "on_play",
+      "trigger": "member_played",
+      "execution_mode": "prompt_then_resolve",
+      "frequency_limit": "none",
+      "is_optional": true,
+      "condition": {
+        "minimum_energy_deck_cards": 1
+      },
+      "cost": [
+        {
+          "action_type": "discard_from_hand"
+        }
+      ],
+      "choice": {
+        "choice_type": "card_from_zone",
+        "zone": "hand",
+        "minimum": 1,
+        "maximum": 1
+      },
+      "actions": [
+        {
+          "action_type": "place_energy_from_deck",
+          "target": "self",
+          "amount": 1,
+          "orientation": "wait"
+        }
+      ],
+      "duration": null,
+      "simulation_support": "test_validated_executable",
+      "review_status": "test_validated",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 on-play timing"
+    },
+    {
+      "effect_id": "PL!SP-sd1-014:1",
+      "card_code": "PL!SP-sd1-014",
+      "text_revision_id": 705,
+      "raw_text_hash": "e265aa3650daa72a3459f55faf73e40226d3132d5a51e6efa97e0b63d13adb69",
+      "effect_index": 1,
+      "label_ja": "【登場】手札を1枚控え室に置いてもよい：自分のエネルギーデッキから、エネルギーカードを1枚ウェイト状態で置く。",
+      "effect_type": "triggered",
+      "timing": "on_play",
+      "trigger": "member_played",
+      "execution_mode": "prompt_then_resolve",
+      "frequency_limit": "none",
+      "is_optional": true,
+      "condition": {
+        "minimum_energy_deck_cards": 1
+      },
+      "cost": [
+        {
+          "action_type": "discard_from_hand"
+        }
+      ],
+      "choice": {
+        "choice_type": "card_from_zone",
+        "zone": "hand",
+        "minimum": 1,
+        "maximum": 1
+      },
+      "actions": [
+        {
+          "action_type": "place_energy_from_deck",
+          "target": "self",
+          "amount": 1,
+          "orientation": "wait"
+        }
+      ],
+      "duration": null,
+      "simulation_support": "test_validated_executable",
+      "review_status": "test_validated",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 on-play timing"
+    },
+    {
+      "effect_id": "PL!SP-sd1-016:1",
+      "card_code": "PL!SP-sd1-016",
+      "text_revision_id": 706,
+      "raw_text_hash": "e265aa3650daa72a3459f55faf73e40226d3132d5a51e6efa97e0b63d13adb69",
+      "effect_index": 1,
+      "label_ja": "【登場】手札を1枚控え室に置いてもよい：自分のエネルギーデッキから、エネルギーカードを1枚ウェイト状態で置く。",
+      "effect_type": "triggered",
+      "timing": "on_play",
+      "trigger": "member_played",
+      "execution_mode": "prompt_then_resolve",
+      "frequency_limit": "none",
+      "is_optional": true,
+      "condition": {
+        "minimum_energy_deck_cards": 1
+      },
+      "cost": [
+        {
+          "action_type": "discard_from_hand"
+        }
+      ],
+      "choice": {
+        "choice_type": "card_from_zone",
+        "zone": "hand",
+        "minimum": 1,
+        "maximum": 1
+      },
+      "actions": [
+        {
+          "action_type": "place_energy_from_deck",
+          "target": "self",
+          "amount": 1,
+          "orientation": "wait"
+        }
+      ],
+      "duration": null,
+      "simulation_support": "test_validated_executable",
+      "review_status": "test_validated",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 on-play timing"
+    },
+    {
       "effect_id": "PL!HS-sd1-001:1",
       "card_code": "PL!HS-sd1-001",
       "text_revision_id": 15,
@@ -175,6 +519,7 @@
       "effect_type": "triggered",
       "timing": "auto_event",
       "trigger": "baton_touch_performed",
+      "execution_mode": "auto_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "condition": {

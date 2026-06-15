@@ -16,7 +16,6 @@ from typing import Any
 
 from loveca.db.bootstrap import connect_database, initialize_database
 
-
 CARD_TYPE_MAP = {
     "メンバー": "member",
     "ライブ": "live",
@@ -38,6 +37,8 @@ ENTITY_SOURCE_LABELS = {
     "作品名": "work",
     "参加ユニット": "unit",
 }
+FULLWIDTH_PLUS = "＋"
+ASCII_PLUS = "+"
 
 
 class CardImportError(RuntimeError):
@@ -354,13 +355,20 @@ def hash_effect_text(raw_text: str) -> str:
     return _sha256(normalize_effect_text(raw_text).encode("utf-8"))
 
 
+def normalize_card_identifier(value: str) -> str:
+    """Normalize card business identifiers without changing Japanese source text."""
+
+    return unicodedata.normalize("NFC", value.strip()).replace(FULLWIDTH_PLUS, ASCII_PLUS)
+
+
 def derive_card_code(card_id: str) -> str:
+    normalized_card_id = normalize_card_identifier(card_id)
     match = re.match(
         r"^(?P<card_code>.+?-(?:E)?\d{2,4})(?:-.+)?$",
-        card_id,
+        normalized_card_id,
         re.IGNORECASE,
     )
-    return match.group("card_code") if match else card_id
+    return match.group("card_code") if match else normalized_card_id
 
 
 def _load_card_records(data: bytes, path: Path) -> list[dict[str, Any]]:
@@ -477,9 +485,46 @@ def _validate_loaded_records(
 
 
 def _prepare_loaded_records(records: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    records = _normalize_record_identifiers(records)
     return _promote_duplicate_energy_card_codes(
         _backfill_names_from_card_code(records)
     )
+
+
+def _normalize_record_identifiers(
+    records: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    normalized_records: list[dict[str, Any]] = []
+    for record in records:
+        cloned = dict(record)
+        for field in ("card_id", "card_code"):
+            value = cloned.get(field)
+            if isinstance(value, str):
+                cloned[field] = normalize_card_identifier(value)
+
+        for field in ("related_printing_ids", "printing_group_ids"):
+            value = cloned.get(field)
+            if isinstance(value, list):
+                cloned[field] = [
+                    normalize_card_identifier(item) if isinstance(item, str) else item
+                    for item in value
+                ]
+
+        parse_notes = cloned.get("parse_notes")
+        if isinstance(parse_notes, dict):
+            cloned_notes = dict(parse_notes)
+            for field in (
+                "derived_card_code",
+                "name_backfilled_from_card_code",
+                "name_placeholder_from_card_code",
+            ):
+                value = cloned_notes.get(field)
+                if isinstance(value, str):
+                    cloned_notes[field] = normalize_card_identifier(value)
+            cloned["parse_notes"] = cloned_notes
+
+        normalized_records.append(cloned)
+    return normalized_records
 
 
 def _normalize_card_set_codes(card_set_codes: tuple[str, ...] | None) -> tuple[str, ...]:
@@ -575,7 +620,7 @@ def _promote_duplicate_energy_card_codes(
         grouped.setdefault(card_code, []).append(record)
 
     promoted_ids: set[str] = set()
-    for card_code, items in grouped.items():
+    for _card_code, items in grouped.items():
         if len(items) < 2:
             continue
         if not all(record.get("card_type") in {"エネルギー", "energy"} for record in items):

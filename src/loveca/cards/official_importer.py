@@ -9,24 +9,40 @@ result into the versioned SQLite catalog.
 
 from __future__ import annotations
 
-import json
 import re
-import urllib.parse
+import sys
 import unicodedata
+import urllib.parse
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from loveca.cards.importer import ImportSummary, import_normalized_cards
+from loveca.cards.importer import (
+    ImportSummary,
+    derive_card_code,
+    import_normalized_cards,
+    normalize_card_identifier,
+)
 
 try:
     from tools.importer_spike import cardlist_sample as spike
 except ImportError as exc:  # pragma: no cover - source checkout dependency
-    raise ImportError(
-        "The formal importer depends on tools.importer_spike.cardlist_sample in "
-        "the source checkout."
-    ) from exc
+    project_root = Path(__file__).parents[3]
+    if (project_root / "tools" / "importer_spike" / "cardlist_sample.py").is_file():
+        sys.path.insert(0, str(project_root))
+        try:
+            from tools.importer_spike import cardlist_sample as spike
+        except ImportError as retry_exc:
+            raise ImportError(
+                "The formal importer depends on tools.importer_spike.cardlist_sample "
+                "in the source checkout."
+            ) from retry_exc
+    else:
+        raise ImportError(
+            "The formal importer depends on tools.importer_spike.cardlist_sample in "
+            "the source checkout."
+        ) from exc
 
 
 OFFICIAL_IMPORTER_VERSION = "official_import_v1"
@@ -291,7 +307,10 @@ def _crawl_bucket(
             ajax=True,
         )
         inspected_pages.append(
-            spike.page_record(detail_result, f"card_detail_{product_code.lower()}_{card_kind.lower()}_{card_id}")
+            spike.page_record(
+                detail_result,
+                f"card_detail_{product_code.lower()}_{card_kind.lower()}_{card_id}",
+            )
         )
         if detail_result.error is not None:
             continue
@@ -308,10 +327,15 @@ def _crawl_bucket(
             detail_result.fetched_at,
             detail_endpoint="/cardlist/detail/",
         )
-        enriched = spike.merge_card_candidate(candidate, detail_card)
-        derived_card_code = spike.derive_card_code(enriched.get("card_id"))
+        enriched = _normalize_card_record_identifiers(
+            spike.merge_card_candidate(candidate, detail_card)
+        )
+        enriched_card_id = enriched.get("card_id")
+        derived_card_code = (
+            derive_card_code(enriched_card_id) if isinstance(enriched_card_id, str) else ""
+        )
         gameplay_card_code = _choose_gameplay_card_code(
-            card_id=enriched.get("card_id"),
+            card_id=enriched_card_id,
             derived_card_code=derived_card_code,
             name=enriched.get("name"),
             card_type=enriched.get("card_type"),
@@ -345,6 +369,12 @@ def _choose_gameplay_card_code(
     card_type: str | None,
     seen_gameplay_codes: dict[str, tuple[str, str]],
 ) -> str:
+    card_id = normalize_card_identifier(card_id) if card_id else card_id
+    derived_card_code = (
+        normalize_card_identifier(derived_card_code)
+        if derived_card_code
+        else derived_card_code
+    )
     if not card_id:
         return derived_card_code or ""
     if not derived_card_code:
@@ -365,10 +395,25 @@ def _choose_gameplay_card_code(
 
 
 def _normalize_name_identity(value: str) -> str:
+    ignored_separators = {
+        "・",
+        "･",
+        "/",
+        "\\",
+        "-",
+        "‐",
+        "‑",
+        "–",
+        "—",
+        "〜",
+        "~",
+        "＿",
+        "_",
+    }
     return "".join(
         part
         for part in unicodedata.normalize("NFKC", value)
-        if not part.isspace() and part not in {"・", "･", "/", "\\", "-", "‐", "‑", "–", "—", "〜", "~", "＿", "_"}
+        if not part.isspace() and part not in ignored_separators
     )
 
 
@@ -381,11 +426,27 @@ def _dedupe_printing_ids(
         card_id = card.get("card_id")
         if not isinstance(card_id, str) or not card_id:
             continue
-        if card_id in seen_printing_ids:
+        normalized_card_id = normalize_card_identifier(card_id)
+        if normalized_card_id in seen_printing_ids:
             continue
-        seen_printing_ids.add(card_id)
+        seen_printing_ids.add(normalized_card_id)
         deduped.append(card)
     return deduped
+
+
+def _normalize_card_record_identifiers(card: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(card)
+    for field in ("card_id", "card_code"):
+        value = normalized.get(field)
+        if isinstance(value, str):
+            normalized[field] = normalize_card_identifier(value)
+    related_ids = normalized.get("related_printing_ids")
+    if isinstance(related_ids, list):
+        normalized["related_printing_ids"] = [
+            normalize_card_identifier(item) if isinstance(item, str) else item
+            for item in related_ids
+        ]
+    return normalized
 
 
 def _discover_product_codes(
@@ -566,7 +627,8 @@ def _write_reports(
                 f"* Status: `{db_import_summary.status}`",
                 f"* Records seen: `{db_import_summary.records_seen}`",
                 f"* Records imported: `{db_import_summary.records_imported}`",
-                f"* Targeted card sets: `{', '.join(db_import_summary.targeted_card_sets) or 'all'}`",
+                "* Targeted card sets: "
+                f"`{', '.join(db_import_summary.targeted_card_sets) or 'all'}`",
                 f"* New Gameplay Cards: `{db_import_summary.new_gameplay_cards}`",
                 f"* New Card Printings: `{db_import_summary.new_card_printings}`",
                 f"* New Text Revisions: `{db_import_summary.new_text_revisions}`",

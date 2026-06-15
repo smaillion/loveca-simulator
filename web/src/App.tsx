@@ -671,7 +671,7 @@ function PlayerBoard({
         <div className="player-metrics">
           <Metric label={tr("牌库", "デッキ")} value={player.main_deck.length} />
           <Metric label="Energy" value={player.energy_area.length} />
-          <Metric label={tr("可用", "Active")} value={activeEnergy} />
+          <Metric label={tr("可用能量", "Active Energy")} value={activeEnergy} />
           <Metric label={tr("成功 Live", "成功ライブ")} value={`${player.success_live_area.length} / 3`} />
           <Metric label={tr("分数", "スコア")} value={player.live_result.total_score} />
         </div>
@@ -1169,43 +1169,30 @@ function ActionDock({
               />
             );
           }
-          if (action.action_type === "resolve_manual_inspection") {
-            const inspected = action.options.inspected_card_instance_ids as string[];
-            const minimum = action.options.minimum as number;
-            const maximum = action.options.maximum as number;
+          if (action.action_type === "resolve_effect_choice") {
             return (
-              <div className="effect-resolution" key={action.action_type}>
-                <strong>{tr("检查牌堆顶卡牌", "デッキ上のカードを確認")}</strong>
-                <span>
-                  {tr("选择", "選択")} {minimum}–{maximum} {tr("张", "枚")}
-                  {action.options.reveal_selected_to_opponent
-                    ? tr("，选中卡向对手公开", "。選んだカードを相手に公開")
-                    : ""}
-                </span>
-                <div className="inspection-card-grid">
-                  {inspected.map((instanceId) => (
-                    <InspectionCard
-                      key={instanceId}
-                      instance={state.cards[instanceId]}
-                      selected={selected.includes(instanceId)}
-                      onSelect={() =>
-                        toggleSelected(selected, instanceId, setSelected, maximum)
-                      }
-                    />
-                  ))}
-                </div>
-                <button
-                  className="primary-button"
-                  disabled={selected.length < minimum || selected.length > maximum}
-                  onClick={() =>
-                    onAction(action.action_type, action.player_id, {
-                      selected_card_instance_ids: selected,
-                    })
-                  }
-                >
-                  {tr("确认筛选结果", "選択結果を確定")}
-                </button>
-              </div>
+              <InspectionChoiceAction
+                key={`${action.action_type}-${state.revision}`}
+                action={action}
+                state={state}
+                loading={loading}
+                onAction={onAction}
+                title={tr("技能检查结果", "能力による確認結果")}
+                submitLabel={tr("确认技能处理", "能力の処理を確定")}
+              />
+            );
+          }
+          if (action.action_type === "resolve_manual_inspection") {
+            return (
+              <InspectionChoiceAction
+                key={`${action.action_type}-${state.revision}`}
+                action={action}
+                state={state}
+                loading={loading}
+                onAction={onAction}
+                title={tr("检查牌堆顶卡牌", "デッキ上のカードを確認")}
+                submitLabel={tr("确认筛选结果", "選択結果を確定")}
+              />
             );
           }
           if (action.action_type === "choose_first_player") {
@@ -1343,26 +1330,33 @@ function ActionDock({
 function InspectionCard({
   instance,
   selected,
+  disabled = false,
+  badge,
   onSelect,
 }: {
   instance: CardInstance;
   selected: boolean;
+  disabled?: boolean;
+  badge?: string;
   onSelect: () => void;
 }) {
   const { locale } = useUiLanguage();
   const card = instance.card;
   return (
     <button
-      className={`inspection-card ${selected ? "selected" : ""}`}
+      className={`inspection-card ${selected ? "selected" : ""} ${disabled ? "disabled" : ""}`}
       onClick={onSelect}
       aria-pressed={selected}
+      disabled={disabled}
     >
       <div className="inspection-card-image">
         <LocalCardArt card={card} />
         <span className="inspection-select-state">
-          {selected
-            ? locale === "zh" ? "已选择" : "選択済み"
-            : locale === "zh" ? "点击选择" : "クリックして選択"}
+          {badge
+            ? badge
+            : selected
+              ? locale === "zh" ? "已选择" : "選択済み"
+              : locale === "zh" ? "点击选择" : "クリックして選択"}
         </span>
       </div>
       <div className="inspection-card-details">
@@ -1408,6 +1402,52 @@ export function formatEffectText(
   );
 }
 
+function effectTriggerLabel(trigger: string, locale: UiLocale): string {
+  const labels: Record<string, [string, string]> = {
+    member_played: ["登場", "登場"],
+    player_activation: ["起動", "起動"],
+    live_started: ["ライブ開始時", "ライブ開始時"],
+    baton_touch_performed: ["バトンタッチ時", "バトンタッチ時"],
+  };
+  const label = labels[trigger];
+  if (!label) return trigger;
+  return locale === "zh" ? label[0] : label[1];
+}
+
+function effectExecutionModeLabel(mode: string, locale: UiLocale): string {
+  const labels: Record<string, [string, string]> = {
+    auto_resolve: ["自动结算", "自動解決"],
+    prompt_then_resolve: ["提示后处理", "選択して解決"],
+    manual_resolution: ["人工处理", "手動処理"],
+  };
+  const label = labels[mode];
+  if (!label) return mode;
+  return locale === "zh" ? label[0] : label[1];
+}
+
+function effectSupportStatusLabel(status: string, locale: UiLocale): string {
+  const labels: Record<string, [string, string]> = {
+    supported: ["已接入", "対応済み"],
+    unregistered: ["未注册", "未登録"],
+    hash_mismatch: ["文本不匹配", "テキスト不一致"],
+  };
+  const label = labels[status];
+  if (!label) return status;
+  return locale === "zh" ? label[0] : label[1];
+}
+
+function effectTimingSummaryLabel(key: string, locale: UiLocale): string {
+  const labels: Record<string, [string, string]> = {
+    on_play: ["登場", "登場"],
+    activated: ["起動", "起動"],
+    live_start: ["ライブ開始時", "ライブ開始時"],
+    baton_touch: ["バトンタッチ時", "バトンタッチ時"],
+  };
+  const label = labels[key];
+  if (!label) return key;
+  return locale === "zh" ? label[0] : label[1];
+}
+
 function EffectActivationAction({
   action,
   state,
@@ -1428,7 +1468,11 @@ function EffectActivationAction({
     effect_id: string;
     source_card_instance_id: string;
     label_ja: string;
+    trigger: string;
+    timing: string;
+    execution_mode: string;
     frequency_limit: string;
+    simulation_support: string;
   }>;
   return (
     <div className="effect-action">
@@ -1451,6 +1495,10 @@ function EffectActivationAction({
               <strong>
                 {state.cards[activation.source_card_instance_id].card.name_ja}
               </strong>
+              <small>
+                {effectTriggerLabel(activation.trigger, locale)} ·{" "}
+                {effectExecutionModeLabel(activation.execution_mode, locale)}
+              </small>
               <small>{formatEffectText(activation.label_ja, locale)}</small>
             </span>
           </button>
@@ -1460,7 +1508,7 @@ function EffectActivationAction({
   );
 }
 
-function EffectResolutionAction({
+export function EffectResolutionAction({
   action,
   state,
   loading,
@@ -1483,12 +1531,19 @@ function EffectResolutionAction({
     effect_id: string;
     source_card_instance_id: string;
     label_ja: string;
+    trigger: string;
+    timing: string;
+    execution_mode: string;
     is_optional: boolean;
     simulation_support: string;
     candidate_card_instance_ids: string[];
+    card_selection_minimum?: number;
+    card_selection_maximum?: number;
+    choice_zone?: string;
     energy_instance_ids?: string[];
     energy_required?: number;
   }>;
+  const waitingPlayerIds = (action.options.waiting_player_ids ?? []) as string[];
   const [invocationId, setInvocationId] = useState(invocations[0]?.invocation_id ?? "");
   const current =
     invocations.find((item) => item.invocation_id === invocationId) ?? invocations[0];
@@ -1506,6 +1561,9 @@ function EffectResolutionAction({
   );
   const manual = current.simulation_support === "manual_resolution";
   const requiredEnergy = current.energy_required ?? 0;
+  const minimumCards = current.card_selection_minimum ?? (current.candidate_card_instance_ids.length > 0 ? 1 : 0);
+  const maximumCards = current.card_selection_maximum ?? Math.max(minimumCards, current.candidate_card_instance_ids.length);
+  const isEnergyChoice = current.choice_zone === "energy_area";
   return (
     <div className="effect-resolution">
       <div className="effect-resolution-header">
@@ -1522,7 +1580,17 @@ function EffectResolutionAction({
           </select>
         )}
       </div>
+      {waitingPlayerIds.length > 0 && (
+        <small>
+          {tr("另一方技能需等待当前玩家处理完毕。", "相手側の能力は現在の解決完了まで待機します。")}
+        </small>
+      )}
       <strong>{state.cards[current.source_card_instance_id].card.name_ja}</strong>
+      <small>
+        {effectTriggerLabel(current.trigger, locale)} ·{" "}
+        {effectExecutionModeLabel(current.execution_mode, locale)} ·{" "}
+        {current.is_optional ? tr("可选", "任意") : tr("强制", "強制")}
+      </small>
       <p>{formatEffectText(current.label_ja, locale)}</p>
       {current.candidate_card_instance_ids.length > 0 && (
         <div className="effect-candidates">
@@ -1530,11 +1598,30 @@ function EffectResolutionAction({
             <button
               className={selectedCards.includes(instanceId) ? "selected" : ""}
               key={instanceId}
-              onClick={() => setSelectedCards([instanceId])}
+              onClick={() =>
+                setSelectedCards((currentSelected) => {
+                  if (currentSelected.includes(instanceId)) {
+                    return currentSelected.filter((item) => item !== instanceId);
+                  }
+                  if (maximumCards <= 1) {
+                    return [instanceId];
+                  }
+                  if (currentSelected.length < maximumCards) {
+                    return [...currentSelected, instanceId];
+                  }
+                  return currentSelected;
+                })
+              }
             >
-              {state.cards[instanceId].card.name_ja}
+              {isEnergyChoice
+                ? `${state.cards[instanceId].card.name_ja} · ${state.cards[instanceId].orientation.toUpperCase()}`
+                : state.cards[instanceId].card.name_ja}
             </button>
           ))}
+          <span>
+            {selectedCards.length} / {maximumCards}
+            {minimumCards > 0 ? ` · min ${minimumCards}` : ""}
+          </span>
         </div>
       )}
       {requiredEnergy > 0 && (
@@ -1571,7 +1658,8 @@ function EffectResolutionAction({
             disabled={
               loading ||
               !canResolveEffect(
-                current.candidate_card_instance_ids.length,
+                minimumCards,
+                maximumCards,
                 selectedCards.length,
                 requiredEnergy,
                 selectedEnergy.length,
@@ -1604,6 +1692,127 @@ function EffectResolutionAction({
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+export function InspectionChoiceAction({
+  action,
+  state,
+  loading,
+  onAction,
+  title,
+  submitLabel,
+}: {
+  action: LegalAction;
+  state: MatchState;
+  loading: boolean;
+  onAction: (
+    actionType: string,
+    playerId?: string | null,
+    payload?: Record<string, unknown>,
+  ) => void;
+  title: string;
+  submitLabel: string;
+}) {
+  const { locale, tr } = useUiLanguage();
+  const inspected = ((action.options.inspected_card_instance_ids ?? []) as string[]).filter(
+    (item): item is string => typeof item === "string",
+  );
+  const candidateIds = ((action.options.candidate_card_instance_ids ?? inspected) as string[]).filter(
+    (item): item is string => typeof item === "string",
+  );
+  const candidates = new Set(candidateIds);
+  const minimum = Number(action.options.minimum ?? 0);
+  const maximum = Number(action.options.maximum ?? 0);
+  const requiresOrder = Boolean(action.options.requires_order);
+  const selectedDestination = String(action.options.selected_destination ?? "");
+  const [selected, setSelected] = useState<string[]>([]);
+
+  useEffect(() => {
+    setSelected([]);
+  }, [state.revision, action.action_type]);
+
+  const isValidSelection =
+    selected.length >= minimum &&
+    selected.length <= maximum &&
+    selected.every((item) => candidates.has(item));
+
+  return (
+    <div className="effect-resolution">
+      <strong>{title}</strong>
+      <span>
+        {tr("选择", "選択")} {minimum}–{maximum} {tr("张", "枚")}
+        {action.options.reveal_selected_to_opponent
+          ? tr("，选中的卡会公开给对手", "。選んだカードは相手に公開されます")
+          : ""}
+      </span>
+      {selectedDestination === "main_deck_top_ordered" && (
+        <small>
+          {tr(
+            "已选卡牌的排列顺序会按从左到右放回牌堆顶。",
+            "選択済みカードは左から右の順でデッキ上に戻ります。",
+          )}
+        </small>
+      )}
+      <div className="inspection-card-grid">
+        {inspected.map((instanceId) => {
+          const candidate = candidates.has(instanceId);
+          return (
+            <InspectionCard
+              key={instanceId}
+              instance={state.cards[instanceId]}
+              selected={selected.includes(instanceId)}
+              disabled={!candidate}
+              badge={
+                candidate ? undefined : locale === "zh" ? "不符合条件" : "条件外"
+              }
+              onSelect={() =>
+                candidate
+                  ? toggleSelected(selected, instanceId, setSelected, maximum)
+                  : undefined
+              }
+            />
+          );
+        })}
+      </div>
+      {requiresOrder && selected.length > 0 && (
+        <div className="order-action">
+          {selected.map((id, index) => (
+            <span key={id}>
+              {state.cards[id].card.name_ja}
+              <button
+                className="mini-icon"
+                disabled={index === 0}
+                aria-label={tr("上移已选卡", "選択カードを上へ")}
+                onClick={() => setSelected(moveItem(selected, index, index - 1))}
+              >
+                <ChevronUp size={14} />
+              </button>
+              <button
+                className="mini-icon"
+                disabled={index === selected.length - 1}
+                aria-label={tr("下移已选卡", "選択カードを下へ")}
+                onClick={() => setSelected(moveItem(selected, index, index + 1))}
+              >
+                <ChevronDown size={14} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <button
+        className="primary-button"
+        disabled={loading || !isValidSelection}
+        onClick={() =>
+          onAction(action.action_type, action.player_id, {
+            selected_card_instance_ids: selected,
+            ordered_card_instance_ids: requiresOrder ? selected : undefined,
+          })
+        }
+      >
+        {submitLabel}
+      </button>
     </div>
   );
 }
@@ -1742,7 +1951,7 @@ function MemberPlayAction({
             <dd>{player.energy_area.length}</dd>
           </div>
           <div>
-            <dt>{tr("可用 Active", "使用可能 Active")}</dt>
+            <dt>{tr("可用能量", "使用可能エネルギー")}</dt>
             <dd>{energy.length}</dd>
           </div>
           <div className="payment-total">
@@ -1828,6 +2037,7 @@ function ManualDrawer({
   const [type, setType] = useState("modify_score");
   const [amount, setAmount] = useState("1");
   const [cardId, setCardId] = useState("");
+  const [cardIds, setCardIds] = useState<string[]>([]);
   const [toZone, setToZone] = useState("waiting_room");
   const [color, setColor] = useState("heart01");
   const [duration, setDuration] = useState<"live" | "turn" | "game">("live");
@@ -1864,6 +2074,8 @@ function ManualDrawer({
         ? attachedCards
         : type === "move_member"
           ? stageCards
+          : ["ready_energy", "pay_energy"].includes(type)
+            ? player.energy_area.map((id) => state.cards[id])
           : genericCards;
   const selectedCard = cardId ? state.cards[cardId] : null;
   const stageMemberIds = Object.values(player.member_area).filter(
@@ -1879,6 +2091,7 @@ function ManualDrawer({
   });
   useEffect(() => {
     setCardId("");
+    setCardIds([]);
     const occupied = MEMBER_SLOT_SELECTION_PRIORITY.filter(
       (slot) => player.member_area[slot],
     );
@@ -1917,6 +2130,8 @@ function ManualDrawer({
             ? formationIds.length === stageMemberIds.length
               && new Set(formationIds).size === stageMemberIds.length
               && stageMemberIds.every((id) => formationIds.includes(id))
+            : ["ready_energy", "pay_energy"].includes(type)
+              ? cardIds.length > 0
             : true;
   const persistent = ["modify_score", "modify_heart", "modify_blade", "set_flag"].includes(type);
   return (
@@ -1953,6 +2168,7 @@ function ManualDrawer({
             onChange={(e) => {
               setType(e.target.value);
               setCardId("");
+              setCardIds([]);
             }}
           >
             {[
@@ -1984,8 +2200,6 @@ function ManualDrawer({
           "attach_card_under_member",
           "move_attached_card",
           "discard_card",
-          "ready_energy",
-          "pay_energy",
         ].includes(type) && (
           <label>
             {tr("目标卡牌", "対象カード")}
@@ -2006,6 +2220,27 @@ function ManualDrawer({
               ))}
             </select>
           </label>
+        )}
+        {["ready_energy", "pay_energy"].includes(type) && (
+          <div className="effect-candidates">
+            {selectableCards.map((card) => (
+              <button
+                className={cardIds.includes(card.instance_id) ? "selected" : ""}
+                key={card.instance_id}
+                type="button"
+                onClick={() =>
+                  setCardIds((current) =>
+                    current.includes(card.instance_id)
+                      ? current.filter((item) => item !== card.instance_id)
+                      : [...current, card.instance_id],
+                  )
+                }
+              >
+                {card.card.name_ja} · {card.orientation.toUpperCase()}
+              </button>
+            ))}
+            <span>{tr("已选", "選択")} {cardIds.length}</span>
+          </div>
         )}
         {type === "move_member" && (
           <label>
@@ -2258,7 +2493,14 @@ function ManualDrawer({
                 {
                   adjustment_type: type,
                   target_player_id: playerId,
-                  target_card_instance_id: cardId || undefined,
+                  target_card_instance_id:
+                    ["ready_energy", "pay_energy"].includes(type)
+                      ? undefined
+                      : cardId || undefined,
+                  target_card_instance_ids:
+                    ["ready_energy", "pay_energy"].includes(type)
+                      ? cardIds
+                      : undefined,
                   to_zone:
                     type === "move_card" || type === "move_attached_card"
                       ? toZone
@@ -2354,12 +2596,17 @@ function CardDialog({
           <h3>{tr("技能执行支持", "能力実行サポート")}</h3>
           <div className="effect-support-list">
             <span className={`support-status ${instance.card.effect_registry_status}`}>
-              {instance.card.effect_registry_status}
+              {effectSupportStatusLabel(instance.card.effect_registry_status, locale)}
             </span>
             {effects.map((effect) => (
               <div key={effect.effect_id}>
                 <strong>{effect.effect_id}</strong>
-                <span>{effect.simulation_support} · {effect.review_status}</span>
+                <span>
+                  {effectTriggerLabel(effect.trigger, locale)} ·{" "}
+                  {effectExecutionModeLabel(effect.execution_mode, locale)} ·{" "}
+                  {effect.simulation_support} · {effect.review_status}
+                </span>
+                <small>{formatEffectText(effect.label_ja, locale)}</small>
               </div>
             ))}
             {instance.card.effect_registry_errors.map((error) => (
@@ -2466,13 +2713,15 @@ export function availableValue(current: string, available: string[]): string {
 }
 
 export function canResolveEffect(
-  candidateCount: number,
+  minimumCards: number,
+  maximumCards: number,
   selectedCount: number,
   requiredEnergy: number,
   selectedEnergyCount: number,
 ): boolean {
   return (
-    (candidateCount === 0 || selectedCount > 0) &&
+    selectedCount >= minimumCards &&
+    selectedCount <= maximumCards &&
     selectedEnergyCount === requiredEnergy
   );
 }

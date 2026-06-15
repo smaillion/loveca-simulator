@@ -8,7 +8,6 @@ from fastapi.testclient import TestClient
 from loveca.cards.importer import import_normalized_cards
 from loveca.webapp import ApiSettings, create_app
 
-
 PROJECT_ROOT = Path(__file__).parents[1]
 SAMPLE_CARDS = (
     PROJECT_ROOT
@@ -158,6 +157,8 @@ def test_catalog_api_exposes_card_review_data(tmp_path):
     assert detail_payload["card"]["card_code"] == card_code
     assert "printings" in detail_payload
     assert "source_observations" in detail_payload
+    assert "effect_registry_status" in detail_payload["card"]
+    assert "effects" in detail_payload["card"]
 
     review_response = client.get("/api/catalog/review-candidates")
     assert review_response.status_code == 200

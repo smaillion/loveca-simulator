@@ -18,6 +18,14 @@ build/
 web/node_modules/
 web/test-results/
 web/playwright-report/
+web/playwright.config.js
+web/playwright.config.d.ts
+web/vite.config.js
+web/vite.config.d.ts
+web/vitest.config.js
+web/vitest.config.d.ts
+web/tsconfig.app.tsbuildinfo
+web/tsconfig.node.tsbuildinfo
 
 logs/*
 !logs/.gitkeep

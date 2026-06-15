@@ -8,9 +8,10 @@
 
 ## 当前状态
 
-`v0.4.0-alpha.2` 当前已收录:
+`v0.4.0-alpha.3` 当前已收录:
 
 - 正式官方 `card_list` 卡牌 importer
+- 避免 `＋` / `+` 混用的卡号正规化
 - SQLite Schema v2 本地卡牌数据库
 - 带本地保存能力的 Deck Builder
 - 基于 `decklist.v0` 的 Deck Analyzer
@@ -24,13 +25,31 @@
 - Live Set、等量补抽、Live 公开、应援
 - Heart 分配、部分特殊 Blade Heart 自动处理
 - 成功 Live 移动、下一回合先攻判定、3 张成功 Live 胜负
-- 尚未自动化的技能通过 `ManualAdjustmentAction` 处理
+- 少量技能具有限定的结构化 prompt
+- 更广泛的技能提示与选择体系仍在重设计，未自动化部分通过 `ManualAdjustmentAction` 补充
+
+Deck Builder 当前状态:
+
+- 创建、读取、更新、删除本地保存牌组
+- 按 `Member` / `Live` / `Energy` 分区显示已组牌组
+- 检查 `Member 48` / `Live 12` / `Energy 12` 的构筑数量
+- 按作品、组合、Heart 颜色、Blade、Live 所需 Heart、Score、Blade Heart 筛选
+- 在卡牌详情弹窗中选择印刷版本并确认卡图
+- 通过 dashboard 查看 cost、Heart、score、特殊 Blade Heart 与技能时点统计
 
 当前还没有:
 
 - 全卡技能自动执行
+- 面向全量卡池的完整技能提示覆盖
 - AI、Monte Carlo、胜率引擎
 - 在线对战、账户和同步
+
+## 已知限制
+
+- 还没有覆盖全卡技能提示 / 自动执行。
+- 依赖 FAQ 或个别裁定的效果尚未规格化。
+- 如果既有本地数据库里仍有全角 `＋` 卡号，需要通过正式 importer 重新导入更新。
+- Web/API 测试依赖 `httpx2`。环境缺少该依赖时，`tests/test_catalog_api.py` 和 `tests/test_webapp.py` 会在收集阶段停止。
 
 ## 界面预览
 
@@ -164,6 +183,10 @@ cd web
 npm run test -- --run
 npm run build
 ```
+
+## 变更记录
+
+每个版本的详细变更见 [CHANGELOG.md](./CHANGELOG.md)。
 
 ## 目录概览
 

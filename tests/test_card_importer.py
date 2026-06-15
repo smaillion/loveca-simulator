@@ -15,7 +15,6 @@ from loveca.cards.importer import (
     validate_normalized_cards,
 )
 
-
 PROJECT_ROOT = Path(__file__).parents[1]
 SAMPLE_PATH = (
     PROJECT_ROOT
@@ -259,8 +258,20 @@ def test_duplicate_energy_card_codes_are_promoted_to_full_card_ids(tmp_path):
         ).fetchall()
         assert [row[0] for row in rows] == [
             "PL!SP-bp1-032-PE",
-            "PL!SP-bp1-032-PE＋",
+            "PL!SP-bp1-032-PE+",
         ]
+        printing_ids = connection.execute(
+            """
+            SELECT card_id
+            FROM card_printings
+            ORDER BY card_id
+            """
+        ).fetchall()
+        assert [row[0] for row in printing_ids] == [
+            "PL!SP-bp1-032-PE",
+            "PL!SP-bp1-032-PE+",
+        ]
+        assert all("＋" not in row[0] for row in printing_ids)
         assert connection.execute("SELECT COUNT(*) FROM card_printings").fetchone()[0] == 2
 
 

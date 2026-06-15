@@ -9,7 +9,6 @@ from fastapi.testclient import TestClient
 from loveca.cards.importer import import_normalized_cards
 from loveca.webapp import ApiSettings, create_app
 
-
 PROJECT_ROOT = Path(__file__).parents[1]
 SAMPLE_CARDS = (
     PROJECT_ROOT
@@ -150,7 +149,10 @@ def test_catalog_api_supports_member_and_live_attribute_filters(tmp_path):
     assert member_response.status_code == 200
     member_payload = member_response.json()
     assert any(item["card_code"] == member["card_code"] for item in member_payload["items"])
-    assert all(item["basic_heart_by_color"].get(member_color, 0) > 0 for item in member_payload["items"])
+    assert all(
+        item["basic_heart_by_color"].get(member_color, 0) > 0
+        for item in member_payload["items"]
+    )
 
     live = next(
         item
@@ -177,7 +179,10 @@ def test_catalog_api_supports_member_and_live_attribute_filters(tmp_path):
     assert live_response.status_code == 200
     live_payload = live_response.json()
     assert any(item["card_code"] == live["card_code"] for item in live_payload["items"])
-    assert all(item["required_heart_by_color"].get(required_color, 0) >= required_amount for item in live_payload["items"])
+    assert all(
+        item["required_heart_by_color"].get(required_color, 0) >= required_amount
+        for item in live_payload["items"]
+    )
 
 
 def test_catalog_api_type_specific_filters_do_not_cross_eliminate_other_card_types(tmp_path):

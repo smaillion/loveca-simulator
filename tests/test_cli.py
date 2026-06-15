@@ -7,7 +7,6 @@ from loveca import __version__
 from loveca.cards.importer import import_normalized_cards
 from loveca.cli import main
 
-
 PROJECT_ROOT = Path(__file__).parents[1]
 
 

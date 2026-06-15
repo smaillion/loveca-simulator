@@ -19,7 +19,6 @@ from loveca.simulation.models import (
     MatchState,
 )
 
-
 RUNTIME_SCHEMA_SQL = f"""
 PRAGMA foreign_keys = ON;
 

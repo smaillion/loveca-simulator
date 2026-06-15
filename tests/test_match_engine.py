@@ -17,7 +17,6 @@ from loveca.simulation.models import ActionRequest, MatchState
 from loveca.simulation.runtime import RuntimeSchemaError, initialize_runtime_database
 from loveca.simulation.service import MatchService
 
-
 # Official comprehensive rules ver. 1.06:
 # 6.2.1.5 opening hand 6; 6.2.1.6 mulligan; 6.2.1.7 initial Energy 3;
 # 7.1.2 and 7.3.3 phase order; 8.2.2/8.2.4 set up to 3 cards and draw
@@ -453,6 +452,50 @@ def test_manual_adjustment_and_member_play_are_action_only(tmp_path):
     assert state.players["player_1"].member_area["center"] == member_id
     assert all(state.cards[item].orientation == "wait" for item in energy_ids)
     assert state.players["player_1"].member_areas_entered_this_turn == ["center"]
+
+
+def test_manual_energy_adjustment_supports_multiple_targets(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=19)
+    state = _reach_first_main(service, match_id)
+    energy_ids = state.players["player_1"].energy_area[:2]
+
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "manual_adjustment",
+        player_id="player_1",
+        payload={
+          "reason": "set multiple Energy to Wait",
+          "adjustments": [
+              {
+                  "adjustment_type": "pay_energy",
+                  "target_player_id": "player_1",
+                  "target_card_instance_ids": energy_ids,
+              }
+          ],
+        },
+    )
+    assert all(state.cards[item].orientation == "wait" for item in energy_ids)
+
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "manual_adjustment",
+        player_id="player_1",
+        payload={
+          "reason": "ready multiple Energy",
+          "adjustments": [
+              {
+                  "adjustment_type": "ready_energy",
+                  "target_player_id": "player_1",
+                  "target_card_instance_ids": energy_ids,
+              }
+          ],
+        },
+    )
+    assert all(state.cards[item].orientation == "active" for item in energy_ids)
 
 
 def test_baton_touch_replaces_member_and_pays_only_cost_difference(tmp_path):

@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
-
 import sqlite3
+from pathlib import Path
 
 from loveca.cards.importer import import_normalized_cards
 from loveca.cards.official_importer import (
@@ -11,7 +10,6 @@ from loveca.cards.official_importer import (
     _choose_gameplay_card_code,
     crawl_official_card_catalog,
 )
-
 
 PROJECT_ROOT = Path(__file__).parents[1]
 NORMALIZATION_PATH = PROJECT_ROOT / "data_sources" / "card-entity-normalization.json"
@@ -138,7 +136,7 @@ def test_energy_cards_with_suffix_use_full_card_id_as_gameplay_code():
     )
 
     assert first == "PL!SP-bp1-032-PE"
-    assert second == "PL!SP-bp1-032-PE＋"
+    assert second == "PL!SP-bp1-032-PE+"
 
 
 def _card_list_html() -> str:

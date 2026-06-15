@@ -8,9 +8,10 @@
 
 ## 現在の状態
 
-`v0.4.0-alpha.2` の収録内容:
+`v0.4.0-alpha.3` の収録内容:
 
 - 公式 `card_list` からの正式カード importer
+- `＋` / `+` 混在を避けるカード番号正規化
 - SQLite Schema v2 のローカルカード DB
 - デッキ保存機能付き Deck Builder
 - `decklist.v0` ベースの Deck Analyzer
@@ -24,13 +25,31 @@
 - Live Set、同数補充、Live 公開、エール
 - Heart 割り当て、特殊 Blade Heart の一部自動処理
 - 成功 Live の移動、次ターン先攻判定、3 枚成功による勝敗
-- 未自動化のカード効果は `ManualAdjustmentAction` で再現
+- 一部のカード効果は限定的な構造化 prompt に対応
+- 広範なカード効果提示・選択体系はまだ再設計中で、未自動化部分は `ManualAdjustmentAction` で補完
+
+Deck Builder の現在の到達点:
+
+- 保存済みデッキの作成、読み込み、更新、削除
+- `Member` / `Live` / `Energy` の分割表示
+- `Member 48` / `Live 12` / `Energy 12` の構築数チェック
+- 作品、ユニット、Heart 色、Blade、Live 必要 Heart、Score、Blade Heart による絞り込み
+- カード詳細ダイアログでの印刷版選択とカード画像確認
+- デッキ分析 dashboard による cost、Heart、score、特殊 Blade Heart、効果タイミングの確認
 
 未実装または未収録:
 
 - 全カード効果の自動化
+- 全量カードプールに対する完全な効果 prompt coverage
 - AI、Monte Carlo、勝率エンジン
 - オンライン対戦、アカウント、同期機能
+
+## 既知の制限
+
+- 全カード効果の prompt / 自動実行 coverage はまだありません。
+- FAQ / 個別裁定に依存する効果はまだ仕様化していません。
+- 既存のローカル DB に全角 `＋` のカード番号が残っている場合は、正式 importer で再導入して更新してください。
+- Web/API テストには `httpx2` が必要です。環境に未導入の場合、`tests/test_catalog_api.py` と `tests/test_webapp.py` は収集段階で停止します。
 
 ## 画面イメージ
 
@@ -164,6 +183,10 @@ cd web
 npm run test -- --run
 npm run build
 ```
+
+## 変更履歴
+
+リリースごとの詳細は [CHANGELOG.md](./CHANGELOG.md) を参照してください。
 
 ## リポジトリの見どころ
 
