@@ -2,6 +2,30 @@
 
 This file records maintenance rules that should stay stable across releases.
 
+## Branch and Release Flow
+
+### 日本語
+
+- 通常の新機能ブランチは `develop` から作成する。
+- `preview` は公開 GitHub Pages preview 用の独立ブランチとして扱う。
+- `preview` や preview 専用ブランチから通常の feature branch を切らない。
+- 公開 preview を更新する場合のみ、安定した時点の成果を `preview` に同期する。
+- 誤って preview 系ブランチから作業を始めた場合は、`develop` ベースの replacement branch を作成するか、必要に応じて history を rewrite して修正する。
+- Hosted Online 機能が安定するまでは、VPS が一時的に frontend と backend の両方を提供してよい。
+- Hosted Online 機能が安定した後は、正式 frontend 配布を `develop` または `main` の安定 build に切り替え、`VITE_HOSTED_API_BASE_URL` で hosted API に接続する。
+- その後、VPS の frontend 静的配信は停止し、backend API のみを担当させる。
+
+### 简体中文
+
+- 常规新功能分支默认从 `develop` 创建。
+- `preview` 作为公开 GitHub Pages preview 的独立分支保留。
+- 不从 `preview` 或 preview 专用分支继续创建常规 feature branch。
+- 只有准备更新公开 preview 时，才把稳定点同步到 `preview`。
+- 如果误从 preview 系分支开始开发，应创建 develop-based replacement branch，必要时 rewrite 历史修正。
+- Hosted Online 功能稳定前，VPS 可以临时同时提供 frontend 和 backend。
+- Hosted Online 功能稳定后，正式 frontend 分发应切换为 `develop` 或 `main` 的稳定构建，并通过 `VITE_HOSTED_API_BASE_URL` 连接 hosted API。
+- 此后 VPS 应停止托管前端静态文件，只保留 backend API 职责。
+
 ## Changelog Language
 
 ### 日本語

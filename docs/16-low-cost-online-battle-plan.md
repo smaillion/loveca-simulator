@@ -38,11 +38,52 @@ Still not implemented:
 
 The current hosted slice is intentionally disposable and suitable for low-cost playtest feedback, not competitive service operation.
 
+## 1B. Hosting Transition Stages
+
+The online rollout uses three hosting stages so early testing can start before the
+final distribution model is ready.
+
+### Stage A: VPS Frontend + Backend Test Mode
+
+During early hosted testing, the VPS may serve both the built React frontend and
+the FastAPI backend.
+
+This mode is intentionally temporary. It is useful for verifying room creation,
+guest join, polling, action submission, replay export, CORS, Cloudflare Tunnel
+health checks, and operational logs without also debugging GitHub Pages release
+timing.
+
+### Stage B: Static Frontend + VPS Backend
+
+After room flow is stable, the frontend should move back to static hosting such
+as GitHub Pages while the VPS keeps serving only the FastAPI API.
+
+The static frontend must be built with `VITE_HOSTED_API_BASE_URL` pointing at the
+hosted API URL. This stage validates the real cross-origin deployment model:
+static app, remote API, local user deck data, and runtime match state on the
+temporary hosted backend.
+
+### Stage C: Official Frontend Distribution + Backend-Only VPS
+
+Once online testing is stable, the old `preview` branch should no longer be used
+as the main product entry. A stable build from `develop` or `main` should become
+the official frontend distribution.
+
+At that point, the VPS should stop serving frontend static files and retain only
+backend API duties. The backend remains intentionally low-cost and temporary:
+room records expire, user accounts are not introduced, and user deck data is not
+stored permanently by the service.
+
 ## 2. Core Decision
 
-The first online mode should not be a full authoritative game server.
+The long-term online mode should not be a full authoritative game server.
 
-Instead, the first online mode should use:
+The short-term Hosted Online MVP is an exception made for speed: it reuses the
+existing Python Rule Engine on the FastAPI backend so testers can play online
+before a browser-local or peer-synchronized engine exists. This is a practical
+bridge, not the final architecture.
+
+The long-term low-cost mode should use:
 
 * local rule engines on both players' machines
 * deterministic GameState serialization

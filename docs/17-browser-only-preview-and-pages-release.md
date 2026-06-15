@@ -6,8 +6,13 @@ This document defines the preview release plan for a static, low-cost browser
 build hosted on GitHub Pages.
 
 The preview goal is to let more players try the simulator without installing a
-server or running FastAPI locally. It is explicitly **not** the online two-player
-mode. Network battle remains a later track.
+server or running FastAPI locally. The `preview` branch remains an independent
+public preview branch until hosted online testing is stable.
+
+Hosted Online is a separate track. During online testing, the VPS may temporarily
+serve both frontend and backend. After hosted play is stable, the official static
+frontend should move to a stable `develop` or `main` build configured with
+`VITE_HOSTED_API_BASE_URL`, and the VPS should keep only backend API duties.
 
 ## 2. Product Boundary
 
@@ -129,8 +134,12 @@ Workflow:
 
 Triggers:
 
-* `push` to `develop`
+* `push` to `preview`
 * manual `workflow_dispatch`
+
+Daily feature work should not branch from `preview`. Normal feature branches
+start from `develop`; `preview` is updated only when preparing a public Pages
+preview refresh.
 
 Default behavior:
 
@@ -206,5 +215,16 @@ The browser-only preview and low-cost online mode should share:
 * replay export
 * compatibility fingerprints
 
-Online mode later adds only the relay/protocol layer. It should not require
-cloud card libraries, cloud decks, or authoritative server rule execution.
+Current Hosted Online testing may reuse the Python FastAPI backend as a temporary
+authoritative match service so testers can start playing sooner. That hosted
+backend should keep room data temporary and should not store cloud decks or user
+accounts.
+
+After online testing is stable, the old `preview` branch should be retired as the
+main product entry. The official frontend distribution should come from a stable
+`develop` or `main` build, connect to the hosted API through
+`VITE_HOSTED_API_BASE_URL`, and allow the VPS to stop serving frontend static
+files.
+
+The longer-term low-cost direction remains a thinner relay/protocol layer. It
+should not require cloud card libraries, cloud decks, or permanent user data.
