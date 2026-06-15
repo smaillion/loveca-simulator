@@ -113,7 +113,8 @@ const judgmentBasisLabels: Record<string, [string, string]> = {
 export default function App() {
   const [locale, setLocale] = useState<UiLocale>(() => {
     const stored = localStorage.getItem("loveca-ui-locale");
-    return stored === "ja" ? "ja" : "zh";
+    if (stored === "ja" || stored === "zh") return stored;
+    return browserPreview ? "ja" : "zh";
   });
   const [screen, setScreen] = useState<"home" | "match" | "catalog" | "decks">("home");
   const [match, setMatch] = useState<MatchPayload | null>(null);
@@ -468,6 +469,8 @@ function PreviewNotice({
               <li>{locale === "zh" ? "浏览已打包的卡库数据" : "同梱済みカードデータの閲覧"}</li>
               <li>{locale === "zh" ? "查看卡牌详情和官方图片链接" : "カード詳細と公式画像 URL の確認"}</li>
               <li>{locale === "zh" ? "在浏览器本地保存牌组" : "ブラウザローカルでデッキ保存"}</li>
+              <li>{locale === "zh" ? "查看 20 个初始测试牌组" : "20個の初期テストデッキの確認"}</li>
+              <li>{locale === "zh" ? "导入 / 导出 decklist.v0 JSON" : "decklist.v0 JSON の読み込み / 書き出し"}</li>
               <li>{locale === "zh" ? "进行 MVP 牌组合法性和属性分析" : "MVP デッキ合法性 / 属性分析"}</li>
             </ul>
           </section>

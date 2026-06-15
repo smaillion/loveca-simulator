@@ -68,6 +68,7 @@ Target browser services:
   * supports create, read, update, rename, delete
   * supports JSON import/export
   * initially uses localStorage for low-cost GitHub Pages preview builds
+  * seeds 20 generated preview sample decks on first launch
   * includes MVP deck legality and attribute analysis in TypeScript
 * `BrowserMatchRuntime`
   * stores match snapshots, events, and actions in IndexedDB
@@ -87,6 +88,13 @@ The first deck browser adapter uses localStorage because deck records are small,
 easy to export as JSON, and do not require IndexedDB complexity yet. If tester
 data grows or replay history becomes large, deck and replay persistence should
 move to IndexedDB.
+
+Deck storage is expected to stay small. A typical `decklist.v0` record stores
+only `card_code`, quantity, optional preferred printing, and a deck name. Even
+20 generated sample decks plus dozens of user decks should usually remain well
+below common browser localStorage limits. The preview still provides JSON import
+and export so users can back up, migrate, or share decks before clearing browser
+storage.
 
 ## 5. Data Package Policy
 
@@ -206,6 +214,7 @@ Before announcing the GitHub Pages preview as playable:
 * card images load from official `image_url` values, with text fallback
 * deck create/save/load/delete works in browser storage
 * browser deck analysis covers MVP legality and visible attribute summaries
+* the first launch provides 20 sample decks for browsing and testing
 * deck import/export works
 * at least one local two-player match can be created from browser data
 * action logs and replay export work from browser storage
