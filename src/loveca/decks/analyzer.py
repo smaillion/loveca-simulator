@@ -149,9 +149,10 @@ def analyze_deck(database_path: Path, deck: DeckList) -> DeckAnalysis:
 
     card_codes = {entry.card_code for entry in (*deck.main_deck, *deck.energy_deck)}
     printing_ids = {
-        entry.preferred_printing_id
+        variant
         for entry in (*deck.main_deck, *deck.energy_deck)
         if entry.preferred_printing_id is not None
+        for variant in _card_identifier_variants(entry.preferred_printing_id)
     }
     registry = load_effect_registry(DEFAULT_EFFECT_REGISTRY)
     effects_by_card: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -271,6 +272,13 @@ def _load_entries(payload: Any, field_name: str) -> tuple[DeckEntry, ...]:
 
 def _normalize_card_identifier(value: str) -> str:
     return unicodedata.normalize("NFC", value.strip()).replace(FULLWIDTH_PLUS, ASCII_PLUS)
+
+
+def _card_identifier_variants(value: str) -> set[str]:
+    normalized = unicodedata.normalize("NFC", value.strip())
+    ascii_plus = normalized.replace(FULLWIDTH_PLUS, ASCII_PLUS)
+    fullwidth_plus = normalized.replace(ASCII_PLUS, FULLWIDTH_PLUS)
+    return {normalized, ascii_plus, fullwidth_plus}
 
 
 def _normalize_preferred_printing_id(value: str | None) -> str | None:
@@ -401,7 +409,13 @@ def _load_printing_card_codes(
         """,
         tuple(sorted(printing_ids)),
     ).fetchall()
-    return {str(row["card_id"]): str(row["card_code"]) for row in rows}
+    mapping: dict[str, str] = {}
+    for row in rows:
+        card_id = str(row["card_id"])
+        card_code = str(row["card_code"])
+        for variant in _card_identifier_variants(card_id):
+            mapping[variant] = card_code
+    return mapping
 
 
 def _validate_entries(
@@ -453,7 +467,7 @@ def _validate_entries(
             if printing_card_code is None:
                 issues.append(
                     DeckIssue(
-                        severity="error",
+                        severity="warning",
                         code="unknown_preferred_printing",
                         section=section_name,
                         card_code=entry.card_code,
@@ -466,7 +480,7 @@ def _validate_entries(
             elif printing_card_code != entry.card_code:
                 issues.append(
                     DeckIssue(
-                        severity="error",
+                        severity="warning",
                         code="preferred_printing_mismatch",
                         section=section_name,
                         card_code=entry.card_code,

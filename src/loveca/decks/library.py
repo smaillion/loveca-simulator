@@ -24,6 +24,13 @@ class SavedDeck:
     energy_card_count: int
 
 
+@dataclass(frozen=True)
+class DeckImportResult:
+    source: Path
+    destination: Path
+    name: str | None
+
+
 def save_deck_file(
     deck_path: Path,
     library_root: Path,
@@ -59,6 +66,38 @@ def save_deck_payload(
         destination = _resolve_destination(library_root, destination, overwrite=overwrite)
     destination.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return destination
+
+
+def import_deck_directory(
+    source_root: Path,
+    library_root: Path,
+    *,
+    name_prefix: str | None = None,
+    overwrite: bool = False,
+) -> list[DeckImportResult]:
+    if not source_root.exists() or not source_root.is_dir():
+        raise DeckLibraryError(f"deck source directory does not exist: {source_root}")
+
+    results: list[DeckImportResult] = []
+    for source in sorted(source_root.glob("*.json")):
+        deck = load_deck(source)
+        name = deck.name
+        if name_prefix and not (name or source.stem).startswith(name_prefix):
+            name = f"{name_prefix} {name or source.stem}".strip()
+        destination = save_deck_payload(
+            deck,
+            library_root,
+            name=name,
+            overwrite=overwrite,
+        )
+        results.append(
+            DeckImportResult(
+                source=source,
+                destination=destination,
+                name=name,
+            )
+        )
+    return results
 
 
 def update_saved_deck(

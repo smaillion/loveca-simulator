@@ -1182,6 +1182,17 @@ function ActionDock({
               />
             );
           }
+          if (action.action_type === "skip_effect") {
+            return (
+              <SkipEffectAction
+                key={`${action.action_type}-${state.revision}`}
+                action={action}
+                state={state}
+                loading={loading}
+                onAction={onAction}
+              />
+            );
+          }
           if (action.action_type === "resolve_manual_inspection") {
             return (
               <InspectionChoiceAction
@@ -1407,6 +1418,7 @@ function effectTriggerLabel(trigger: string, locale: UiLocale): string {
     member_played: ["登場", "登場"],
     player_activation: ["起動", "起動"],
     live_started: ["ライブ開始時", "ライブ開始時"],
+    live_succeeded: ["ライブ成功時", "ライブ成功時"],
     baton_touch_performed: ["バトンタッチ時", "バトンタッチ時"],
   };
   const label = labels[trigger];
@@ -1436,11 +1448,27 @@ function effectSupportStatusLabel(status: string, locale: UiLocale): string {
   return locale === "zh" ? label[0] : label[1];
 }
 
+function effectBranchLabel(branchId: string, locale: UiLocale): string {
+  const labels: Record<string, [string, string]> = {
+    draw_discard: ["抽 1 张后弃 1 张手牌", "1枚引いて手札を1枚控え室へ"],
+    wait_opponent_cost2: [
+      "将对手全部 cost 2 以下 Member 变为 Wait",
+      "相手のコスト2以下メンバーすべてをウェイト",
+    ],
+    ready_member: ["选择 Member 变为 Active", "メンバーを選んでアクティブ"],
+    ready_energy: ["选择 Energy 变为 Active", "エネルギーを選んでアクティブ"],
+  };
+  const label = labels[branchId];
+  if (!label) return branchId;
+  return locale === "zh" ? label[0] : label[1];
+}
+
 function effectTimingSummaryLabel(key: string, locale: UiLocale): string {
   const labels: Record<string, [string, string]> = {
     on_play: ["登場", "登場"],
     activated: ["起動", "起動"],
     live_start: ["ライブ開始時", "ライブ開始時"],
+    live_success: ["ライブ成功時", "ライブ成功時"],
     baton_touch: ["バトンタッチ時", "バトンタッチ時"],
   };
   const label = labels[key];
@@ -1508,6 +1536,74 @@ function EffectActivationAction({
   );
 }
 
+function SkipEffectAction({
+  action,
+  state,
+  loading,
+  onAction,
+}: {
+  action: LegalAction;
+  state: MatchState;
+  loading: boolean;
+  onAction: (
+    actionType: string,
+    playerId?: string | null,
+    payload?: Record<string, unknown>,
+  ) => void;
+}) {
+  const { tr } = useUiLanguage();
+  const invocations = (action.options.invocations ?? []) as Array<{
+    invocation_id: string;
+    effect_id: string;
+    source_card_instance_id: string;
+    label_ja: string;
+  }>;
+  const pendingChoice = action.options.pending_choice as
+    | { options?: Record<string, unknown> }
+    | null
+    | undefined;
+  const defaultInvocationId =
+    (pendingChoice?.options?.invocation_id as string | undefined) ??
+    invocations[0]?.invocation_id ??
+    "";
+  const [invocationId, setInvocationId] = useState(defaultInvocationId);
+  const current =
+    invocations.find((item) => item.invocation_id === invocationId) ?? invocations[0];
+  if (!current) return null;
+  return (
+    <div className="skip-effect-action">
+      <span>
+        {tr(
+          "调试用：当前技能无法处理时可跳过，并在日志中记录错误。",
+          "デバッグ用：処理できない能力をスキップし、ログにエラーを記録します。",
+        )}
+      </span>
+      {invocations.length > 1 && (
+        <select value={current.invocation_id} onChange={(event) => setInvocationId(event.target.value)}>
+          {invocations.map((invocation) => (
+            <option key={invocation.invocation_id} value={invocation.invocation_id}>
+              {state.cards[invocation.source_card_instance_id]?.card.name_ja ?? invocation.effect_id}
+            </option>
+          ))}
+        </select>
+      )}
+      <button
+        className="skip-effect-button"
+        disabled={loading}
+        onClick={() =>
+          onAction(action.action_type, action.player_id, {
+            invocation_id: current.invocation_id,
+            reason: "UI debug skip",
+            error_message: "effect handling is not available or failed",
+          })
+        }
+      >
+        {tr("跳过并记录错误", "スキップしてエラー記録")}
+      </button>
+    </div>
+  );
+}
+
 export function EffectResolutionAction({
   action,
   state,
@@ -1537,11 +1633,16 @@ export function EffectResolutionAction({
     is_optional: boolean;
     simulation_support: string;
     candidate_card_instance_ids: string[];
+    choice_type?: string;
     card_selection_minimum?: number;
     card_selection_maximum?: number;
     choice_zone?: string;
+    choice_orientation?: string;
+    color_slots?: string[];
     energy_instance_ids?: string[];
     energy_required?: number;
+    branch_ids?: string[];
+    selected_branch?: string;
   }>;
   const waitingPlayerIds = (action.options.waiting_player_ids ?? []) as string[];
   const [invocationId, setInvocationId] = useState(invocations[0]?.invocation_id ?? "");
@@ -1549,10 +1650,16 @@ export function EffectResolutionAction({
     invocations.find((item) => item.invocation_id === invocationId) ?? invocations[0];
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [selectedEnergy, setSelectedEnergy] = useState<string[]>([]);
+  const [selectedColor, setSelectedColor] = useState("");
+  const [selectedCount, setSelectedCount] = useState<number | null>(null);
+  const [selectedBranch, setSelectedBranch] = useState("");
 
   useEffect(() => {
     setSelectedCards([]);
     setSelectedEnergy([]);
+    setSelectedColor("");
+    setSelectedCount(null);
+    setSelectedBranch("");
   }, [current?.invocation_id]);
 
   if (!current) return null;
@@ -1561,9 +1668,26 @@ export function EffectResolutionAction({
   );
   const manual = current.simulation_support === "manual_resolution";
   const requiredEnergy = current.energy_required ?? 0;
-  const minimumCards = current.card_selection_minimum ?? (current.candidate_card_instance_ids.length > 0 ? 1 : 0);
-  const maximumCards = current.card_selection_maximum ?? Math.max(minimumCards, current.candidate_card_instance_ids.length);
+  const choiceType = current.choice_type ?? "";
+  const usesCardChoice = ["card_from_zone", "energy_from_area", "member_from_stage"].includes(choiceType)
+    || Boolean(current.choice_zone && current.candidate_card_instance_ids.length > 0);
+  const minimumCards = usesCardChoice
+    ? current.card_selection_minimum ?? (current.candidate_card_instance_ids.length > 0 ? 1 : 0)
+    : 0;
+  const maximumCards = usesCardChoice
+    ? current.card_selection_maximum ?? Math.max(minimumCards, current.candidate_card_instance_ids.length)
+    : 0;
   const isEnergyChoice = current.choice_zone === "energy_area";
+  const colorSlots = current.color_slots ?? [];
+  const requiresColor = choiceType === "choose_color";
+  const requiresCount = choiceType === "choose_count";
+  const branchIds = current.branch_ids ?? [];
+  const isBranchChoice = choiceType === "choose_effect_branch";
+  const resolvedBranch = current.selected_branch || selectedBranch;
+  const requiresBranch = isBranchChoice && !current.selected_branch;
+  const minimumCount = current.card_selection_minimum ?? 0;
+  const maximumCount = current.card_selection_maximum ?? 0;
+  const resolvedSelectedCount = selectedCount ?? minimumCount;
   return (
     <div className="effect-resolution">
       <div className="effect-resolution-header">
@@ -1592,7 +1716,29 @@ export function EffectResolutionAction({
         {current.is_optional ? tr("可选", "任意") : tr("强制", "強制")}
       </small>
       <p>{formatEffectText(current.label_ja, locale)}</p>
-      {current.candidate_card_instance_ids.length > 0 && (
+      {isBranchChoice && (
+        <div className="effect-candidates effect-branch-choices">
+          {branchIds.map((branchId) => (
+            <button
+              className={resolvedBranch === branchId ? "selected" : ""}
+              key={branchId}
+              type="button"
+              disabled={Boolean(current.selected_branch)}
+              onClick={() => setSelectedBranch(branchId)}
+            >
+              {effectBranchLabel(branchId, locale)}
+            </button>
+          ))}
+          {current.selected_branch && (
+            <span>
+              {tr("已选择", "選択済み")}:
+              {" "}
+              {effectBranchLabel(current.selected_branch, locale)}
+            </span>
+          )}
+        </div>
+      )}
+      {usesCardChoice && current.candidate_card_instance_ids.length > 0 && (
         <div className="effect-candidates">
           {current.candidate_card_instance_ids.map((instanceId) => (
             <button
@@ -1623,6 +1769,34 @@ export function EffectResolutionAction({
             {minimumCards > 0 ? ` · min ${minimumCards}` : ""}
           </span>
         </div>
+      )}
+      {requiresColor && (
+        <div className="effect-candidates effect-color-choices">
+          {colorSlots.map((colorSlot) => (
+            <button
+              className={selectedColor === colorSlot ? "selected" : ""}
+              key={colorSlot}
+              type="button"
+              onClick={() => setSelectedColor(colorSlot)}
+            >
+              <span className={`heart-dot ${colorSlot}`} />
+              {heartLabels[locale][colorSlot] ?? colorSlot}
+            </button>
+          ))}
+        </div>
+      )}
+      {requiresCount && (
+        <label className="effect-count-choice">
+          {tr("选择数量", "数を選択")}
+          <input
+            type="number"
+            min={minimumCount}
+            max={maximumCount}
+            value={selectedCount ?? minimumCount}
+            onChange={(event) => setSelectedCount(Number(event.target.value))}
+          />
+          <span>{minimumCount}–{maximumCount}</span>
+        </label>
       )}
       {requiredEnergy > 0 && (
         <div className="effect-candidates">
@@ -1663,16 +1837,33 @@ export function EffectResolutionAction({
                 selectedCards.length,
                 requiredEnergy,
                 selectedEnergy.length,
+                requiresColor,
+                Boolean(selectedColor),
+                requiresCount,
+                resolvedSelectedCount >= minimumCount
+                  && resolvedSelectedCount <= maximumCount,
+                requiresBranch,
+                Boolean(resolvedBranch),
               )
             }
-            onClick={() =>
-              onAction(action.action_type, action.player_id, {
+            onClick={() => {
+              const payload: Record<string, unknown> = {
                 invocation_id: current.invocation_id,
                 accepted: true,
                 selected_card_instance_ids: selectedCards,
                 energy_instance_ids: selectedEnergy,
-              })
-            }
+              };
+              if (requiresColor) {
+                payload.selected_color_slot = selectedColor;
+              }
+              if (requiresCount) {
+                payload.selected_count = resolvedSelectedCount;
+              }
+              if (isBranchChoice) {
+                payload.selected_branch = resolvedBranch;
+              }
+              onAction(action.action_type, action.player_id, payload);
+            }}
           >
             {tr("结算技能", "能力を解決")}
           </button>
@@ -2718,11 +2909,20 @@ export function canResolveEffect(
   selectedCount: number,
   requiredEnergy: number,
   selectedEnergyCount: number,
+  requiresColor = false,
+  hasColor = true,
+  requiresCount = false,
+  hasCount = true,
+  requiresBranch = false,
+  hasBranch = true,
 ): boolean {
   return (
     selectedCount >= minimumCards &&
     selectedCount <= maximumCards &&
-    selectedEnergyCount === requiredEnergy
+    selectedEnergyCount === requiredEnergy &&
+    (!requiresColor || hasColor) &&
+    (!requiresCount || hasCount) &&
+    (!requiresBranch || hasBranch)
   );
 }
 

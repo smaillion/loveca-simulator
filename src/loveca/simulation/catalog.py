@@ -24,6 +24,9 @@ from loveca.simulation.models import (
     SpecialBladeHeart,
 )
 
+FULLWIDTH_PLUS = "＋"
+ASCII_PLUS = "+"
+
 
 @dataclass(frozen=True)
 class MatchPlayerInput:
@@ -168,12 +171,90 @@ def _load_definition(
         JOIN card_printings AS printing
             ON printing.gameplay_card_id = card.id
         WHERE card.card_code = ?
-          AND (? IS NULL OR printing.card_id = ?)
-        ORDER BY printing.card_id
+          AND (
+            ? IS NULL
+            OR printing.card_id = ?
+            OR replace(printing.card_id, ?, ?) = ?
+          )
+        ORDER BY
+          CASE
+            WHEN ? IS NOT NULL AND printing.card_id = ? THEN 0
+            WHEN ? IS NOT NULL AND replace(printing.card_id, ?, ?) = ? THEN 1
+            ELSE 2
+          END,
+          printing.card_id
         LIMIT 1
         """,
-        (card_code, preferred_printing_id, preferred_printing_id),
+        (
+            card_code,
+            preferred_printing_id,
+            preferred_printing_id,
+            FULLWIDTH_PLUS,
+            ASCII_PLUS,
+            preferred_printing_id,
+            preferred_printing_id,
+            preferred_printing_id,
+            preferred_printing_id,
+            FULLWIDTH_PLUS,
+            ASCII_PLUS,
+            preferred_printing_id,
+        ),
     ).fetchone()
+    if row is None and preferred_printing_id is not None:
+        row = connection.execute(
+            """
+            SELECT
+                card.id AS gameplay_card_id,
+                card.card_code,
+                card.canonical_name_ja,
+                card.card_type,
+                printing.card_id,
+                printing.image_url,
+                member.cost,
+                member.blade,
+                member.blade_heart_color_slot AS member_blade_heart,
+                live.score,
+                live.blade_heart_color_slot AS live_blade_heart,
+                (
+                    SELECT revision.raw_effect_text_ja
+                    FROM card_text_revisions AS revision
+                    WHERE revision.gameplay_card_id = card.id
+                    ORDER BY
+                        CASE revision.revision_status WHEN 'current' THEN 0 ELSE 1 END,
+                        revision.revision_number DESC
+                    LIMIT 1
+                ) AS raw_effect_text_ja
+                ,(
+                    SELECT revision.id
+                    FROM card_text_revisions AS revision
+                    WHERE revision.gameplay_card_id = card.id
+                    ORDER BY
+                        CASE revision.revision_status WHEN 'current' THEN 0 ELSE 1 END,
+                        revision.revision_number DESC
+                    LIMIT 1
+                ) AS text_revision_id
+                ,(
+                    SELECT revision.raw_text_hash
+                    FROM card_text_revisions AS revision
+                    WHERE revision.gameplay_card_id = card.id
+                    ORDER BY
+                        CASE revision.revision_status WHEN 'current' THEN 0 ELSE 1 END,
+                        revision.revision_number DESC
+                    LIMIT 1
+                ) AS raw_text_hash
+            FROM gameplay_cards AS card
+            LEFT JOIN member_card_attributes AS member
+                ON member.gameplay_card_id = card.id
+            LEFT JOIN live_card_attributes AS live
+                ON live.gameplay_card_id = card.id
+            JOIN card_printings AS printing
+                ON printing.gameplay_card_id = card.id
+            WHERE card.card_code = ?
+            ORDER BY printing.card_id
+            LIMIT 1
+            """,
+            (card_code,),
+        ).fetchone()
     if row is None:
         identity = preferred_printing_id or card_code
         raise DeckDatabaseError(f"card or preferred printing is unavailable: {identity}")
@@ -222,6 +303,19 @@ def _load_definition(
             (gameplay_card_id,),
         )
     ]
+    unit_keys = [
+        str(unit["unit_key"])
+        for unit in connection.execute(
+            """
+            SELECT DISTINCT unit.unit_key
+            FROM gameplay_card_units AS link
+            JOIN units AS unit ON unit.id = link.unit_id
+            WHERE link.gameplay_card_id = ?
+            ORDER BY unit.unit_key
+            """,
+            (gameplay_card_id,),
+        )
+    ]
     raw_effect_text = row["raw_effect_text_ja"]
     card_effect_ids = sorted(
         effect.effect_id
@@ -253,6 +347,7 @@ def _load_definition(
         text_revision_id=row["text_revision_id"],
         raw_text_hash=row["raw_text_hash"],
         work_keys=work_keys,
+        unit_keys=unit_keys,
         ability_bucket=_ability_bucket(raw_effect_text),
         effect_ids=card_effect_ids,
         effect_registry_status=registry_status,

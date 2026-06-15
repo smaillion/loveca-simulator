@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from contextlib import closing
 from pathlib import Path
@@ -7,14 +8,18 @@ from pathlib import Path
 import pytest
 
 from loveca.cards.importer import import_normalized_cards
-from loveca.decks.analyzer import load_deck
+from loveca.decks.analyzer import load_deck, parse_deck
 from loveca.simulation.engine import (
     IllegalActionError,
     StaleRevisionError,
     generate_legal_actions,
 )
 from loveca.simulation.models import ActionRequest, MatchState
-from loveca.simulation.runtime import RuntimeSchemaError, initialize_runtime_database
+from loveca.simulation.runtime import (
+    MatchRepository,
+    RuntimeSchemaError,
+    initialize_runtime_database,
+)
 from loveca.simulation.service import MatchService
 
 # Official comprehensive rules ver. 1.06:
@@ -33,6 +38,26 @@ SAMPLE_CARDS = (
 )
 NORMALIZATION = PROJECT_ROOT / "data_sources" / "card-entity-normalization.json"
 SAMPLE_DECK = PROJECT_ROOT / "tests" / "fixtures" / "legal-deck.json"
+
+
+def test_unavailable_preferred_printing_falls_back_for_match_setup(tmp_path):
+    card_database = tmp_path / "cards.sqlite3"
+    import_normalized_cards(card_database, SAMPLE_CARDS, NORMALIZATION)
+    service = MatchService(card_database, tmp_path / "matches.sqlite3")
+    payload = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
+    payload["main_deck"][0]["preferred_printing_id"] = "LL-bp1-001-MISSING"
+    deck = parse_deck(payload)
+
+    result = service.create_match(
+        first_name="A",
+        first_deck=deck,
+        second_name="B",
+        second_deck=deck,
+        seed=1,
+    )
+
+    assert result.state.match_id
+    assert result.state.cards[result.state.players["player_1"].main_deck[0]].card.card_code
 
 
 def test_initial_main_deck_shuffle_is_seeded_and_observable(tmp_path):
@@ -292,13 +317,7 @@ def test_two_successful_live_cards_use_combined_score_but_move_only_one(tmp_path
     service, match_id = _create_match(tmp_path, seed=20842)
     state = _reach_first_main(service, match_id)
     player_id = state.first_player_id or ""
-    live_ids = [
-        instance_id
-        for instance_id in state.players[player_id].main_deck
-        if state.cards[instance_id].card.card_type == "live"
-        and state.cards[instance_id].card.required_hearts
-    ][:2]
-    assert len(live_ids) == 2
+    live_ids = _flow_test_live_cards(state, player_id, count=2)
     colors = {
         color
         for instance_id in live_ids
@@ -1382,6 +1401,88 @@ def test_runtime_v1_is_rejected_and_v2_initialization_is_idempotent(tmp_path):
     assert version == "2"
 
 
+def test_runtime_prunes_old_matches_with_cascading_records(tmp_path):
+    runtime_path = tmp_path / "runtime-prune.sqlite3"
+    initialize_runtime_database(runtime_path)
+    with closing(sqlite3.connect(runtime_path)) as connection:
+        for index in range(30):
+            match_id = f"match-{index:02d}"
+            timestamp = f"2026-06-15T00:{index:02d}:00+00:00"
+            connection.execute(
+                """
+                INSERT INTO matches (
+                    match_id,
+                    card_database_path,
+                    rule_version,
+                    seed,
+                    status,
+                    revision,
+                    initial_state_json,
+                    current_state_json,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, 'cards.sqlite3', 'test', ?, 'active', 0, '{}', '{}', ?, ?)
+                """,
+                (match_id, index, timestamp, timestamp),
+            )
+            connection.execute(
+                """
+                INSERT INTO match_actions (
+                    match_id,
+                    sequence,
+                    action_id,
+                    action_type,
+                    payload_json,
+                    expected_revision,
+                    result_revision,
+                    created_at
+                )
+                VALUES (?, 1, ?, 'test_action', '{}', 0, 1, ?)
+                """,
+                (match_id, f"action-{index:02d}", timestamp),
+            )
+            connection.execute(
+                """
+                INSERT INTO match_events (
+                    match_id,
+                    action_sequence,
+                    event_index,
+                    event_type,
+                    event_json
+                )
+                VALUES (?, 1, 0, 'test_event', '{}')
+                """,
+                (match_id,),
+            )
+            connection.execute(
+                """
+                INSERT INTO match_snapshots (
+                    match_id,
+                    revision,
+                    action_sequence,
+                    state_json,
+                    created_at
+                )
+                VALUES (?, 0, 0, '{}', ?)
+                """,
+                (match_id, timestamp),
+            )
+        connection.commit()
+
+    repository = MatchRepository(runtime_path)
+    assert repository.prune_old_matches() == 5
+    assert [row["match_id"] for row in repository.list_matches()][0] == "match-29"
+
+    with closing(sqlite3.connect(runtime_path)) as connection:
+        for table in ("matches", "match_actions", "match_events", "match_snapshots"):
+            assert connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] == 25
+        oldest_remaining = connection.execute(
+            "SELECT match_id FROM matches ORDER BY updated_at ASC LIMIT 1"
+        ).fetchone()[0]
+    assert oldest_remaining == "match-05"
+
+
 def _create_match(tmp_path: Path, *, seed: int) -> tuple[MatchService, str]:
     tmp_path.mkdir(parents=True, exist_ok=True)
     card_database = tmp_path / "cards.sqlite3"
@@ -1453,6 +1554,24 @@ def _reach_live_set(service: MatchService, match_id: str):
     )
 
 
+def _flow_test_live_cards(
+    state,
+    player_id: str,
+    *,
+    count: int,
+    require_hearts: bool = True,
+) -> list[str]:
+    live_ids = [
+        instance_id
+        for instance_id in state.players[player_id].main_deck
+        if state.cards[instance_id].card.card_type == "live"
+        and (not require_hearts or state.cards[instance_id].card.required_hearts)
+        and not state.cards[instance_id].card.effect_ids
+    ]
+    assert len(live_ids) >= count
+    return live_ids[:count]
+
+
 def _preload_success_lives(
     service: MatchService,
     match_id: str,
@@ -1463,12 +1582,12 @@ def _preload_success_lives(
 ):
     adjustments = []
     for player_id in player_ids:
-        live_ids = [
-            instance_id
-            for instance_id in state.players[player_id].main_deck
-            if state.cards[instance_id].card.card_type == "live"
-        ][:count]
-        assert len(live_ids) == count
+        live_ids = _flow_test_live_cards(
+            state,
+            player_id,
+            count=count,
+            require_hearts=False,
+        )
         adjustments.extend(
             {
                 "adjustment_type": "move_card",
@@ -1497,12 +1616,7 @@ def _complete_turn(
     live_by_player: dict[str, str] = {}
     adjustments = []
     for player_id in successful_player_ids:
-        live_id = next(
-            instance_id
-            for instance_id in state.players[player_id].main_deck
-            if state.cards[instance_id].card.card_type == "live"
-            and state.cards[instance_id].card.required_hearts
-        )
+        live_id = _flow_test_live_cards(state, player_id, count=1)[0]
         live_by_player[player_id] = live_id
         adjustments.append(
             {

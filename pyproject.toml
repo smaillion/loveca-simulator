@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "loveca-simulation"
-version = "0.4.0a3"
+version = "0.4.2a1"
 description = "Local card database, deck analysis, and simulation tools for Love Live! Series Official Card Game."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -29,6 +29,9 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+    "sandbox: black-box 20 deck x 20 match sandbox flow using the local full card database",
+]
 
 [tool.ruff]
 line-length = 100

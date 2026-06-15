@@ -120,6 +120,22 @@ For public release, prefer:
 * links to official sources
 * optional local importer
 
+### Local Bootstrap Asset Packages
+
+The project may provide a simplified local initialization path through downloadable asset packages.
+
+Technically, a user should eventually be able to install the application, download a versioned local asset package, verify it, and run the simulator without manually importing every card.
+
+However, public CDN distribution must respect the local-use vs public-release boundary:
+
+* application binaries, source code, schemas, import tools, manifests, checksums, and project-owned metadata are suitable for public static distribution
+* user-owned deck files are local user data and should not be uploaded to a project CDN
+* bulk official card images, full official effect text, full official PDF text, and other copyright-sensitive official assets require explicit redistribution review before public CDN packaging
+* if redistribution rights are unclear, prefer an installer or importer that builds the local cache from official sources on the user's machine
+* private tester packages may be considered separately, but they must be clearly labeled as local-use review artifacts and not treated as public datasets
+
+A CDN package should be a static bootstrap artifact, not a cloud data service. It should not introduce accounts, user tracking, cloud deck storage, or server-side rule validation.
+
 ## 7. Update Strategy
 
 Card data and rules may change over time.

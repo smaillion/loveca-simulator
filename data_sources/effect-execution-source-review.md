@@ -35,6 +35,24 @@ Canonical source:
 | `PL!N-bp1-001` | Live-start Energy payment and Blade gain | `test_validated_executable` | Optional; one Active Energy is paid and the modifier lasts through that Live. |
 | `PL!HS-sd1-001` | Baton Touch automatic Energy ready | `test_validated_executable` | Trigger condition checks the replacement Member's cost and `蓮ノ空` Work association. |
 
+## Exact-Text Pattern Expansion
+
+The `v0.4.2-alpha.1` registry expansion keeps the same source basis and only
+adds exact Japanese text patterns already supported by the restricted executor.
+
+| pattern | support | notes |
+| --- | --- | --- |
+| `登場` self-Wait, inspect top 2, reorder any number, remaining to Waiting Room | `test_validated_executable` | Registered for same-hash entries including `PL!-bp3-017`, `PL!-bp3-018`, `PL!N-bp3-022`, `PL!N-bp4-016`, and `PL!S-bp6-018`. |
+| `登場` inspect top 2, reorder any number, remaining to Waiting Room | `test_validated_executable` | Registered for exact no-cost entries including `PL!HS-bp2-016` and `PL!HS-pb1-024`. |
+| `ライブ成功時` inspect top 3 and return all in chosen order | `test_validated_executable` | Registered for `PL!-bp6-016`. |
+| `ライブ成功時` inspect top 3, reorder any number, remaining to Waiting Room | `test_validated_executable` | Registered for `PL!-sd1-019`. |
+| `起動` self-Wait, ready another Stage Member | `test_validated_executable` | Registered for `PL!-bp6-008`; selected target excludes the source Member. |
+
+Composite effects that require both a cost card choice and a later top-deck
+inspection choice, such as hand-discard plus top-5 search patterns, remain
+deferred until the executor supports multi-stage structured choices within one
+invocation.
+
 ## Deferred Rules
 
 The following remain outside this MVP:

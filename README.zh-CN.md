@@ -8,7 +8,7 @@
 
 ## 当前状态
 
-`v0.4.0-alpha.3` 当前已收录:
+`v0.4.2-alpha.1` 当前已收录:
 
 - 正式官方 `card_list` 卡牌 importer
 - 避免 `＋` / `+` 混用的卡号正规化
@@ -17,6 +17,18 @@
 - 基于 `decklist.v0` 的 Deck Analyzer
 - FastAPI + React SPA 可视化规则验证器
 - 可回放的 Action-only GameState
+- 925 条 effect registry entry
+  - 392 条为 `test_validated_executable`
+  - 533 条为 timing prompt / 未支持处理用 `manual_resolution`
+- 面向未来低成本 online 同步的 state hash / compatibility metadata 基础
+
+当前开发主线:
+
+- Roadmap 上当前集中在 Phase 5 Effect DSL / 结构化技能执行。
+- Phase 1 / 2 / 3 已基本实现，进入维护和改善阶段。
+- Phase 4 的 Human-vs-Human 验证器和 Phase 7 的 UI 已提前完成大部分。
+- Phase 9 / 10 的低成本 online 验证会和 Phase 5 并行提前推进。
+- Simple AI、AI-vs-AI、Monte Carlo 和胜率引擎已降为最低优先级。
 
 当前规则验证器已覆盖:
 
@@ -25,8 +37,11 @@
 - Live Set、等量补抽、Live 公开、应援
 - Heart 分配、部分特殊 Blade Heart 自动处理
 - 成功 Live 移动、下一回合先攻判定、3 张成功 Live 胜负
-- 少量技能具有限定的结构化 prompt
-- 更广泛的技能提示与选择体系仍在重设计，未自动化部分通过 `ManualAdjustmentAction` 补充
+- 少量技能支持包含手牌 / Energy / Stage Member / Heart 颜色 / 牌堆顶检查的限定结构化 prompt
+- 部分双方都需要选择的效果已可通过 multi-player pending choice 顺序处理
+- `test_validated_executable` 覆盖率按当前本地卡池粗略全技能数量计算已达到 20.07%
+- 暂不能自动执行的技能通过 `ManualAdjustmentAction` 补充
+- 无法处理的技能可以用调试用 `effect_skipped_due_to_error` 显式记录后跳过
 
 Deck Builder 当前状态:
 
@@ -46,9 +61,10 @@ Deck Builder 当前状态:
 
 ## 已知限制
 
-- 还没有覆盖全卡技能提示 / 自动执行。
+- 还没有覆盖全卡技能自动执行。
+- 当前 broad prompt coverage 大量包含 timing-only manual fallback。
 - 依赖 FAQ 或个别裁定的效果尚未规格化。
-- 如果既有本地数据库里仍有全角 `＋` 卡号，需要通过正式 importer 重新导入更新。
+- 当 importer、parser、卡号正规化、SQLite schema 或 effect registry 兼容性相关内容发生更新后，不建议继续复用旧的 `data/loveca.sqlite3`，应通过官方 importer 重建或重新导入卡牌数据库。保存牌组是 `decklist.v0` 用户数据，可以和卡牌数据库分开保留。
 - Web/API 测试依赖 `httpx2`。环境缺少该依赖时，`tests/test_catalog_api.py` 和 `tests/test_webapp.py` 会在收集阶段停止。
 
 ## 界面预览
@@ -87,6 +103,8 @@ cd ..
 ```powershell
 loveca cards init --database data/loveca.sqlite3
 ```
+
+版本更新后如果 importer / parser / schema 有变化，请先备份或删除旧的 `data/loveca.sqlite3`，再按本流程重建卡牌数据库。继续使用旧 DB 可能导致卡号、图片、effect registry 或 online compatibility fingerprint 不一致。
 
 2. 从官网抓取卡牌并生成本地规范化产物。
 
@@ -138,6 +156,14 @@ loveca web serve `
 
 如果 `8765` 已被占用，可以改成 `--port 8766`。
 
+## 卡牌 DB 与 asset 分发方针
+
+长期来看，可以提供包含预构建 SQLite 卡牌数据库、effect registry、manifest 和 checksum 的版本化 asset package，让用户无需每次从官网全量抓取即可直接启动。
+
+但官方卡图、官方效果文本和官方 PDF 派生的大量数据涉及再分发边界。在权利确认前，公开 asset 更适合只包含应用本体、schema、importer、manifest、checksum 和项目自有 metadata；卡牌 DB 与图片 cache 优先由用户本地 importer 从官方来源构建。
+
+如果向 private tester 提供预构建 DB，也应明确 release version、schema version、parser version、card database fingerprint 和 effect registry hash。任何破坏兼容性的版本更新后，都需要重新导入。
+
 ## 常用命令
 
 牌组分析:
@@ -176,6 +202,23 @@ Python:
 python -m pytest
 ```
 
+AI sandbox 的 20 deck x 20 match 黑盒 smoke 已纳入 pytest。
+没有本地正式卡牌数据库的环境会自动 skip。需要单独生成审查报告时:
+
+```powershell
+$env:PYTHONPATH="src;."
+python -m tools.ai_sandbox.blackbox_playtest `
+  --database data/loveca.sqlite3 `
+  --output logs/ai_sandbox/manual-run `
+  --decks 20 `
+  --matches 20 `
+  --manual-policy block
+```
+
+使用 `--manual-policy skip` 时，未支持的强制技能会记录为
+`effect_skipped_due_to_error` 后继续推进。这个能力只用于规则调试，
+不是正式技能结算。
+
 前端:
 
 ```powershell
@@ -190,9 +233,15 @@ npm run build
 
 ## 目录概览
 
+- `TODO.md`: 低优先级待办
 - `src/loveca/cards/`: importer、catalog、图片缓存
 - `src/loveca/decks/`: 牌组格式、分析器、本地牌组库
 - `src/loveca/simulation/`: GameState、Action、runtime、effects
 - `src/loveca/webapp.py`: FastAPI 与 SPA 分发
 - `web/`: React 规则验证 UI
 - `docs/`, `specs/`: 架构文档与规格
+- `docs/14-database-migration-and-update-guide.md`: SQLite 重建、增量更新和 runtime 生命周期指引
+- `docs/15-project-guidance.md`: changelog 语言等维护指引
+- `docs/16-low-cost-online-battle-plan.md`: 低成本网络双人规则验证模式规划
+
+

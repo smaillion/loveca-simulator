@@ -42,6 +42,7 @@ The initial effect actions are:
 
 * `activate_effect`
 * `resolve_effect`
+* `resolve_effect_choice`
 * `manual_adjustment` with effect source fields
 
 UI code must not execute effects, detect effects authoritatively, or mutate GameState directly.
@@ -53,6 +54,7 @@ The MVP supports:
 * `member_played` for `登場`
 * player activation during Main Phase for `起動`
 * `live_started` at comprehensive rule 8.3.8 timing
+* `live_succeeded` after successful Live movement is determined
 * `baton_touch_performed` after the Baton Touch event
 
 Trigger detection belongs to the Rule Engine. Pending effects must originate from rule events, not from UI fallback or manual prompt creation.
@@ -81,10 +83,14 @@ The restricted executor supports:
 * discard a selected hand card
 * return a selected Member from Waiting Room to hand
 * apply Wait to the source Member
+* apply Wait to selected Energy
 * ready a selected Member
 * pay Active Energy
+* gain Heart until a bounded duration
 * gain Blade until Live end
+* modify score until a bounded duration
 * ready Energy
+* inspect top cards, select, reveal, reorder, and move remaining cards for registered patterns
 * place the top Energy Deck card into the Energy Area as Active or Wait
 * manual resolution
 
@@ -92,13 +98,21 @@ Unknown operations must fail registry validation.
 
 The structured operation for Energy Deck placement is `place_energy_from_deck`. It must not expose the Energy Deck as a player card-selection zone. Resolution takes the deterministic top card, records the source as the Energy Deck, and records the resulting orientation. If an optional effect requires this operation and the Energy Deck is empty, the effect is not offered as activatable.
 
+The MVP supports these prompt shapes for registered effects:
+
+* card selection from hand, Waiting Room, Stage, or Energy Area
+* Energy-instance selection
+* Heart color selection
+* count selection
+* inspect-top selection and ordering
+
 The MVP does not yet claim broad support for:
 
-* inspect-top-and-filter search effects
-* complex reveal-and-keep semantics
-* color-choice effects
+* arbitrary reveal-and-keep semantics outside registered patterns
 * attached-card deployment flows
 * arbitrary target-filter prompts
+* continuous effects
+* replacement effects
 
 These gaps must remain explicit in docs and review artifacts until modeled.
 
@@ -119,10 +133,18 @@ The current reviewed implementation set is limited to:
 
 * `LL-bp1-001`
 * `PL!-bp3-001`
+* `PL!-bp3-014`
+* exact-text `登場` top-2 reorder entries registered in `effect-registry.v0.json`
+* exact-text `ライブ成功時` top-3 reorder entries registered in `effect-registry.v0.json`
+* `PL!-bp6-002`
+* `PL!-bp6-008`
 * `PL!N-bp1-001`
 * `PL!HS-sd1-001`
+* exact-text Energy Deck placement entries registered in `effect-registry.v0.json`
 
-This is an intentionally narrow MVP slice. It must not be described as broad skill prompting coverage.
+In addition, the registry may include broad timing-only `manual_resolution` entries for `登場`, `起動`, `ライブ開始時`, and `ライブ成功時` effects. These entries exist so the Rule Engine and LegalActionGenerator can surface replay-safe prompts at the correct timing. They do not imply structured semantic execution.
+
+The executable subset remains intentionally narrow. Broad timing prompt coverage must not be described as broad automatic skill execution coverage.
 
 Automated entries may be `test_validated_executable` after rule tests pass. Human review remains mandatory for `reviewed_executable`.
 

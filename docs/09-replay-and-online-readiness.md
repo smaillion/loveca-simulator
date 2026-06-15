@@ -134,6 +134,23 @@ In this model:
 
 This reduces cheating risk and keeps players synchronized.
 
+## 9A. Low-Cost Local-Engine Online Track
+
+Before a full authoritative server exists, the project may support a low-cost online testing mode where both players run the rule engine locally and a lightweight relay only forwards versioned protocol messages.
+
+This mode is intended for human rules testing and feedback collection. It is not a competitive, anti-cheat, or ranked-play architecture.
+
+The low-cost track still depends on the same replay-ready foundations:
+
+* deterministic GameState serialization
+* deterministic random seed handling
+* serializable Actions
+* revision checks
+* canonical state hashes
+* divergence reports
+
+The detailed plan is owned by [16-low-cost-online-battle-plan.md](16-low-cost-online-battle-plan.md).
+
 ## 10. Client and Server Separation
 
 Client state and server state should be conceptually separate.
