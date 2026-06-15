@@ -303,3 +303,4 @@ npm run build
 - `docs/15-project-guidance.md`: changelog 语言等维护指引
 - `docs/16-low-cost-online-battle-plan.md`: 低成本网络双人规则验证模式规划
 - `docs/17-browser-only-preview-and-pages-release.md`: GitHub Pages browser preview 与静态数据包计划
+- `docs/18-hosted-online-smoke-checklist.md`: Hosted Online MVP 合并 / 部署前 smoke checklist

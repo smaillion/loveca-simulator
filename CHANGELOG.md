@@ -31,6 +31,7 @@
 - Hosted Online MVP の room API を追加し、room code による host / guest 参加、HTTP polling、remote Action submit、room replay、TTL cleanup に対応。
 - GitHub Pages preview が `VITE_HOSTED_API_BASE_URL` を受け取り、Hosted FastAPI に接続できるようにした。
 - VPS / Cloudflare Tunnel 運用向けに、GHCR image を build / push して SSH で compose service を更新する手動 deploy workflow を追加。
+- Hosted Online MVP の merge / deploy 前チェックとして、API、Docker、二ブラウザ、VPS / Cloudflare Tunnel の smoke checklist を追加。
 
 中文:
 
@@ -61,6 +62,7 @@
 - 新增 Hosted Online MVP 的 room API，支持 room code 创建 / 加入、HTTP polling、远程提交 Action、room replay 和 TTL cleanup。
 - GitHub Pages preview 现在可以读取 `VITE_HOSTED_API_BASE_URL`，连接 Hosted FastAPI。
 - 面向 VPS / Cloudflare Tunnel 运行方式，新增手动 deploy workflow，可构建 / 推送 GHCR image 并通过 SSH 更新 compose service。
+- 新增 Hosted Online MVP 合并 / 部署前 smoke checklist，覆盖 API、Docker、双浏览器、VPS / Cloudflare Tunnel 检查。
 
 ### 変更 / 变更
 

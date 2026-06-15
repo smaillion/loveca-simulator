@@ -303,3 +303,4 @@ npm run build
 - `docs/15-project-guidance.md`: changelog 言語などの保守指針
 - `docs/16-low-cost-online-battle-plan.md`: 低コストなネットワーク対戦検証モードの計画
 - `docs/17-browser-only-preview-and-pages-release.md`: GitHub Pages browser preview と静的 data package の計画
+- `docs/18-hosted-online-smoke-checklist.md`: Hosted Online MVP の merge / deploy 前 smoke checklist
