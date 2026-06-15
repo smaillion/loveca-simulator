@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -67,6 +68,7 @@ class ApiSettings(BaseModel):
     deck_library_root: Path = Field(default=PROJECT_ROOT / "data/decks")
     allowed_deck_root: Path = Field(default=PROJECT_ROOT)
     effect_registry_path: Path = Field(default=DEFAULT_EFFECT_REGISTRY)
+    allowed_origins: list[str] = Field(default_factory=list)
 
 
 def default_settings() -> ApiSettings:
@@ -83,6 +85,7 @@ def default_settings() -> ApiSettings:
         web_dist_dir=Path(
             os.environ.get("LOVECA_WEB_DIST", PROJECT_ROOT / "web/dist")
         ),
+        allowed_origins=_parse_allowed_origins(os.environ.get("LOVECA_ALLOWED_ORIGINS", "")),
     )
 
 
@@ -97,6 +100,14 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         title="LoveCA Visual Rules Debugger",
         version="0.4.2a1",
     )
+    if resolved.allowed_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=resolved.allowed_origins,
+            allow_credentials=False,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
     app.state.settings = resolved
     app.state.match_service = service
 
@@ -364,6 +375,10 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
             return FileResponse(resolved.web_dist_dir / "index.html")
 
     return app
+
+
+def _parse_allowed_origins(value: str) -> list[str]:
+    return [item.strip() for item in value.split(",") if item.strip()]
 
 
 def _resolve_deck(player: PlayerSetup, allowed_root: Path):

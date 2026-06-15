@@ -162,6 +162,44 @@ loveca web serve `
 
 如果 `8765` 已被占用，可以改成 `--port 8766`。
 
+## Docker API 服务器
+
+如果要用 Cloudflare Tunnel 或小型 VM 试运行 Hosted Online MVP，可以先只把 FastAPI backend 打成 Docker 镜像运行。
+
+前提：
+
+- 已经构建好 `data/loveca.sqlite3`
+- `data/` 和 `logs/` 保留在宿主机
+- 如果 GitHub Pages 要连接这个 API，需要把 Pages 地址写入 `LOVECA_ALLOWED_ORIGINS`
+
+本地 build：
+
+```powershell
+docker build -t loveca-simulator-api:local .
+```
+
+compose 启动：
+
+```powershell
+$env:LOVECA_ALLOWED_ORIGINS="https://smaillion.github.io,http://127.0.0.1:8765,http://localhost:8765"
+docker compose -f compose.api.yml up -d --build
+```
+
+health check：
+
+```powershell
+curl http://127.0.0.1:8765/api/health
+```
+
+如果使用 Cloudflare Tunnel，把 Tunnel 的公开 URL 转发到这个 `8765` 端口即可。后端不负责公开再分发卡图，通常使用官方 `image_url` 或本地缓存 fallback。
+
+GitHub Actions：
+
+- `.github/workflows/api-image.yml` 会构建 Docker image。
+- Pull Request 只做 build 验证。
+- push 到 `develop` / `preview` 或手动执行时，会推送 GHCR 镜像 `ghcr.io/smaillion/loveca-simulator-api`。
+- 目前还不包含自动部署到服务器。Cloudflare Tunnel / VM 准备好后再补 deploy secrets 和部署 job。
+
 ## 卡牌 DB 与 asset 分发方针
 
 长期来看，可以提供包含预构建 SQLite 卡牌数据库、effect registry、manifest 和 checksum 的版本化 asset package，让用户无需每次从官网全量抓取即可直接启动。
