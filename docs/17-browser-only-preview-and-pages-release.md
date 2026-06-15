@@ -148,6 +148,18 @@ Manual data build behavior:
 3. export parsed card/effect JSON with `scripts/export-preview-data.py`
 4. deploy the static data package together with the SPA
 
+To keep release runs fast and reduce official site load, the workflow restores a
+GitHub Actions cache containing `data/loveca.sqlite3` and the normalized official
+import artifact before it attempts a fresh fetch. The cache key includes importer
+code, database code, the source manifest, Work / Unit normalization mapping, the
+preview exporter, and `official_cache_version`.
+
+When official card releases change but importer code does not, bump
+`official_cache_version` in a manual workflow run or set the repository variable
+`OFFICIAL_CARD_CACHE_VERSION` to a new value before publishing from `develop`.
+This forces a new cache without committing generated card data or downloaded
+images to the repository.
+
 The data export keeps official image URLs as references but does not download,
 copy, or publish official card image files.
 

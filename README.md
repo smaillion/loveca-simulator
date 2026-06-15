@@ -166,6 +166,8 @@ loveca web serve `
 
 ただし、公式効果テキスト全文、公式 PDF 由来の大量データ、ダウンロード済みカード画像ファイルは再配布可否の確認が必要です。GitHub Pages preview で公開する asset は、解析済みカード data、解析済み skill data、manifest、checksum、プロジェクト独自 metadata に限定し、カード画像は同梱せず公式 `image_url` を参照する方針です。
 
+Pages workflow は `data/loveca.sqlite3` と公式 import artifact を GitHub Actions cache に保存します。通常の publish は cache hit 時に公式サイトへ再アクセスせず、cache miss 時だけ importer を実行します。新しい公式弾を反映したい場合は、manual workflow の `official_cache_version`、または repository variable `OFFICIAL_CARD_CACHE_VERSION` を新しい値に変更して cache を更新してください。
+
 private tester 向けに事前構築 DB を渡す場合も、release version、schema version、parser version、card database fingerprint、effect registry hash を明示し、互換性が崩れる更新後は再導入が必要です。
 
 ## よく使うコマンド

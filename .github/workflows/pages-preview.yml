@@ -19,6 +19,10 @@ on:
         options:
           - "false"
           - "true"
+      official_cache_version:
+        description: "Bump this value to force a new official card database cache, for example bp07-2026-06"
+        required: true
+        default: "v1"
       public_data_acknowledgement:
         description: "Required when bundling official text: type REVIEWED_PUBLIC_DATA_POLICY"
         required: false
@@ -46,6 +50,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      OFFICIAL_CACHE_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.official_cache_version || vars.OFFICIAL_CARD_CACHE_VERSION || 'v1' }}
 
     steps:
       - name: Checkout
@@ -107,9 +113,20 @@ jobs:
           echo "Re-run with public_data_acknowledgement=REVIEWED_PUBLIC_DATA_POLICY after review."
           exit 1
 
-      - name: Build local card database from official source
+      - name: Restore official card database cache
+        id: official-card-cache
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.include_official_card_data == 'true' }}
+        uses: actions/cache@v4
+        with:
+          path: |
+            data/loveca.sqlite3
+            data/imports/official
+          key: official-card-db-${{ runner.os }}-${{ env.OFFICIAL_CACHE_VERSION }}-${{ hashFiles('pyproject.toml', 'data_sources/source-manifest.yaml', 'data_sources/card-entity-normalization.json', 'src/loveca/cards/**/*.py', 'src/loveca/db/**/*.py', 'tools/importer_spike/**/*.py', 'scripts/export-preview-data.py') }}
+
+      - name: Build local card database from official source
+        if: ${{ (github.event_name != 'workflow_dispatch' || inputs.include_official_card_data == 'true') && steps.official-card-cache.outputs.cache-hit != 'true' }}
         run: |
+          echo "Official card database cache miss. Building from official source."
           loveca cards init --database data/loveca.sqlite3
           loveca cards import-official --output-root data/imports/official --delay 1
           loveca cards import \
@@ -117,6 +134,10 @@ jobs:
             --input data/imports/official/normalized/cards-official.json \
             --normalization data_sources/card-entity-normalization.json \
             --report logs/pages-preview-import.md
+
+      - name: Report official card database cache hit
+        if: ${{ (github.event_name != 'workflow_dispatch' || inputs.include_official_card_data == 'true') && steps.official-card-cache.outputs.cache-hit == 'true' }}
+        run: echo "Using cached official card database for preview data export."
 
       - name: Export static preview data
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.include_official_card_data == 'true' }}
