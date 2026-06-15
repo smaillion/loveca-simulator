@@ -6,11 +6,11 @@ on:
       include_official_card_data:
         description: "Fetch official card data and bundle parsed static preview data, without card image files"
         required: true
-        default: "false"
+        default: "true"
         type: choice
         options:
-          - "false"
           - "true"
+          - "false"
       include_official_text:
         description: "Include full official Japanese effect text in the static data package"
         required: true
@@ -85,7 +85,7 @@ jobs:
         run: npm run build
 
       - name: Create static preview data placeholder
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.include_official_card_data != 'true' }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.include_official_card_data != 'true' }}
         run: |
           mkdir -p web/dist/preview-data
           cat > web/dist/preview-data/manifest.json <<'JSON'
@@ -108,7 +108,7 @@ jobs:
           exit 1
 
       - name: Build local card database from official source
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.include_official_card_data == 'true' }}
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.include_official_card_data == 'true' }}
         run: |
           loveca cards init --database data/loveca.sqlite3
           loveca cards import-official --output-root data/imports/official --delay 1
@@ -119,7 +119,7 @@ jobs:
             --report logs/pages-preview-import.md
 
       - name: Export static preview data
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.include_official_card_data == 'true' }}
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.include_official_card_data == 'true' }}
         run: |
           # Export parsed card/effect data only. Card images are not bundled into
           # the Pages artifact; the browser preview uses official image URLs.
