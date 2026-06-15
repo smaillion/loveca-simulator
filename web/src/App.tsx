@@ -80,7 +80,6 @@ const viteEnv = (import.meta as unknown as {
   env?: Record<string, string | boolean | undefined>;
 }).env;
 const browserPreview = viteEnv?.VITE_BROWSER_PREVIEW === "true";
-const previewNoticeStorageKey = "loveca-browser-preview-notice.v0";
 
 const heartLabels: Record<UiLocale, Record<string, string>> = {
   zh: {
@@ -126,9 +125,7 @@ export default function App() {
   const [details, setDetails] = useState<CardInstance | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualSource, setManualSource] = useState<EffectInvocation | null>(null);
-  const [showPreviewNotice, setShowPreviewNotice] = useState(() =>
-    browserPreview && localStorage.getItem(previewNoticeStorageKey) !== "dismissed",
-  );
+  const [showPreviewNotice, setShowPreviewNotice] = useState(browserPreview);
 
   useEffect(() => {
     listMatches().then(setMatches).catch(() => setMatches([]));
@@ -143,7 +140,6 @@ export default function App() {
     <PreviewNotice
       locale={locale}
       onClose={() => {
-        localStorage.setItem(previewNoticeStorageKey, "dismissed");
         setShowPreviewNotice(false);
       }}
     />
