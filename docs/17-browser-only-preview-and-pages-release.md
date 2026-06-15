@@ -17,7 +17,7 @@ The preview version should eventually support:
 * browsing the bundled card catalog
 * building and saving decks in the browser
 * importing and exporting deck files
-* starting local two-player rule verification from browser-owned data
+* starting local two-player rule verification from browser-owned data through the TypeScript browser engine defined by [021 Browser Engine and Local-Rule Online](../specs/021-browser-engine-and-local-online.spec.md)
 * exporting play history / replay logs as files
 
 The preview version should not require:
@@ -207,7 +207,7 @@ Suggested export files:
 
 ## 8. Acceptance Criteria for First Public Preview
 
-Before announcing the GitHub Pages preview as playable:
+Before announcing the GitHub Pages preview as a playable match simulator:
 
 * the app loads from GitHub Pages without a FastAPI server
 * catalog browsing works from static JSON
@@ -220,6 +220,8 @@ Before announcing the GitHub Pages preview as playable:
 * action logs and replay export work from browser storage
 * unsupported effects can still be skipped with explicit debug events
 * static data package contents have passed public-release review
+
+Until the browser engine exists, the GitHub Pages preview should be described as a catalog, deck builder, deck analysis, and import/export preview, not as a playable battle preview.
 
 ## 9. Future Relationship to Online Play
 

@@ -1524,6 +1524,14 @@ label {
   margin: 8px 12px;
 }
 
+.info-banner {
+  background: #eaf5ff;
+  color: #17456d;
+  border: 1px solid #b8d7f0;
+  padding: 9px 12px;
+  margin: 8px 12px;
+}
+
 .drawer-backdrop,
 .dialog-backdrop {
   position: fixed;

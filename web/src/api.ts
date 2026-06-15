@@ -44,10 +44,16 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export function listMatches(): Promise<MatchSummary[]> {
+  if (browserPreview) {
+    return Promise.resolve([]);
+  }
   return request("/api/matches");
 }
 
 export function getMatch(matchId: string): Promise<MatchPayload> {
+  if (browserPreview) {
+    return Promise.reject(previewMatchUnavailableError());
+  }
   return request(`/api/matches/${matchId}`);
 }
 
@@ -58,6 +64,9 @@ export function createMatch(input: {
   player2Deck: DeckList;
   seed?: number;
 }): Promise<MatchPayload> {
+  if (browserPreview) {
+    return Promise.reject(previewMatchUnavailableError());
+  }
   return request("/api/matches", {
     method: "POST",
     body: JSON.stringify({
@@ -83,10 +92,19 @@ export function submitAction(
     payload?: Record<string, unknown>;
   },
 ): Promise<MatchPayload> {
+  if (browserPreview) {
+    return Promise.reject(previewMatchUnavailableError());
+  }
   return request(`/api/matches/${matchId}/actions`, {
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+function previewMatchUnavailableError(): Error {
+  return new Error(
+    "Browser Preview does not include the local FastAPI rule engine. Use the local app to play matches.",
+  );
 }
 
 export function listCatalogCards(input: {

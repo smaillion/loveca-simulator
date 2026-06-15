@@ -39,6 +39,7 @@ Parallel infrastructure track:
 * copyright-sensitive official assets require source-policy review before public packaging
 * online relay infrastructure must remain separate from asset distribution and must not become user-data storage
 * incremental local updates and backward compatibility are required so testers can keep playing online while the engine evolves
+* browser play should use the dual-engine strategy in [021 Browser Engine and Local-Rule Online](../specs/021-browser-engine-and-local-online.spec.md): Python remains the rule-development oracle, while TypeScript becomes the GitHub Pages and future low-cost online runtime
 
 ## 2. Phase 0: Research and Documentation
 

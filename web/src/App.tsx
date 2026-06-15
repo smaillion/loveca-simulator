@@ -80,7 +80,6 @@ const viteEnv = (import.meta as unknown as {
   env?: Record<string, string | boolean | undefined>;
 }).env;
 const browserPreview = viteEnv?.VITE_BROWSER_PREVIEW === "true";
-const previewNoticeStorageKey = "loveca-browser-preview-notice.v0";
 
 const heartLabels: Record<UiLocale, Record<string, string>> = {
   zh: {
@@ -126,9 +125,7 @@ export default function App() {
   const [details, setDetails] = useState<CardInstance | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualSource, setManualSource] = useState<EffectInvocation | null>(null);
-  const [showPreviewNotice, setShowPreviewNotice] = useState(() =>
-    browserPreview && localStorage.getItem(previewNoticeStorageKey) !== "dismissed",
-  );
+  const [showPreviewNotice, setShowPreviewNotice] = useState(browserPreview);
 
   useEffect(() => {
     listMatches().then(setMatches).catch(() => setMatches([]));
@@ -143,7 +140,6 @@ export default function App() {
     <PreviewNotice
       locale={locale}
       onClose={() => {
-        localStorage.setItem(previewNoticeStorageKey, "dismissed");
         setShowPreviewNotice(false);
       }}
     />
@@ -260,6 +256,10 @@ export default function App() {
           deckSources={deckSources}
           loading={loading}
           error={error}
+          matchCreationDisabled={browserPreview}
+          matchCreationDisabledMessage={locale === "zh"
+            ? "浏览器 Preview 版暂不包含本地规则引擎。请使用本地版启动对战。"
+            : "ブラウザ Preview 版にはローカルルールエンジンが含まれていません。対戦はローカル版で起動してください。"}
           onBrowse={() => setScreen("catalog")}
           onDeckBuilder={() => setScreen("decks")}
           onCreate={async (input) => {
@@ -516,6 +516,8 @@ function StartScreen({
   deckSources,
   loading,
   error,
+  matchCreationDisabled,
+  matchCreationDisabledMessage,
   onBrowse,
   onDeckBuilder,
   onCreate,
@@ -525,6 +527,8 @@ function StartScreen({
   deckSources: StartDeckSource[];
   loading: boolean;
   error: string | null;
+  matchCreationDisabled: boolean;
+  matchCreationDisabledMessage: string;
   onBrowse: () => void;
   onDeckBuilder: () => void;
   onCreate: (input: {
@@ -572,7 +576,9 @@ function StartScreen({
         </div>
         <div className="start-actions">
           <LanguageToggle />
-          <span className="local-badge">127.0.0.1 · Local</span>
+          <span className="local-badge">
+            {browserPreview ? "GitHub Pages · Preview" : "127.0.0.1 · Local"}
+          </span>
         </div>
       </header>
       <main className="start-grid">
@@ -581,10 +587,17 @@ function StartScreen({
             <CirclePlay size={20} />
             <div>
               <h1>{tr("创建规则验证对局", "ルール検証対戦を作成")}</h1>
-              <p>{tr(
-                "选择双方牌组来源，运行完整对局并保留 Replay。",
-                "両プレイヤーのデッキを選択して対戦を開始し、リプレイを保存します。",
-              )}</p>
+              <p>
+                {browserPreview
+                  ? tr(
+                    "Preview 版可编辑和分析牌组；对战需要本地规则引擎。",
+                    "Preview 版ではデッキ編集と分析が利用できます。対戦にはローカルルールエンジンが必要です。",
+                  )
+                  : tr(
+                    "选择双方牌组来源，运行完整对局并保留 Replay。",
+                    "両プレイヤーのデッキを選択して対戦を開始し、リプレイを保存します。",
+                  )}
+              </p>
             </div>
           </div>
           <div className="form-grid">
@@ -651,9 +664,12 @@ function StartScreen({
             </div>
           </div>
           {error && <div className="error-banner">{error}</div>}
+          {matchCreationDisabled && (
+            <div className="info-banner">{matchCreationDisabledMessage}</div>
+          )}
           <button
             className="primary-button"
-            disabled={loading || !player1SourceId || !player2SourceId}
+            disabled={matchCreationDisabled || loading || !player1SourceId || !player2SourceId}
             onClick={() =>
               onCreate({
                 player1Name,
@@ -665,7 +681,7 @@ function StartScreen({
             }
           >
             {loading ? <RefreshCw className="spin" size={18} /> : <CirclePlay size={18} />}
-            {tr("创建对局", "対戦を作成")}
+            {matchCreationDisabled ? tr("本地版可用", "ローカル版のみ") : tr("创建对局", "対戦を作成")}
           </button>
           <button className="secondary-button" disabled={loading} onClick={onBrowse}>
             <BookOpen size={18} />
@@ -682,7 +698,11 @@ function StartScreen({
             <History size={20} />
             <div>
               <h2>{tr("最近对局", "最近の対戦")}</h2>
-              <p>{tr("从独立 runtime SQLite 恢复。", "専用 runtime SQLite から再開します。")}</p>
+              <p>
+                {browserPreview
+                  ? tr("Preview 版暂不保存对局。", "Preview 版では対戦履歴は保存されません。")
+                  : tr("从独立 runtime SQLite 恢复。", "専用 runtime SQLite から再開します。")}
+              </p>
             </div>
           </div>
           <div className="match-list">
