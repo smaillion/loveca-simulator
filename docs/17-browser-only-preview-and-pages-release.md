@@ -129,7 +129,7 @@ Workflow:
 
 Triggers:
 
-* `push` to `develop`
+* `push` to `preview`
 * manual `workflow_dispatch`
 
 Default behavior:
@@ -138,27 +138,31 @@ Default behavior:
 2. run Python tests
 3. run frontend tests
 4. build the React app with GitHub Pages base path
-5. write a placeholder `preview-data/manifest.json`
+5. export parsed preview data from committed `data/loveca.sqlite3`
 6. deploy `web/dist` to GitHub Pages
 
-Manual data build behavior:
+Manual placeholder behavior:
 
-1. run the official importer in GitHub Actions
-2. import normalized card data into a temporary SQLite database
+* `workflow_dispatch` may set `include_official_card_data=false` to publish only
+  a placeholder manifest for workflow debugging.
+
+Preview branch data build behavior:
+
+1. commit the reviewed preview SQLite database to `data/loveca.sqlite3` on the
+   dedicated `preview` branch
+2. build the React SPA with `VITE_BROWSER_PREVIEW=true`
 3. export parsed card/effect JSON with `scripts/export-preview-data.py`
 4. deploy the static data package together with the SPA
 
-To keep release runs fast and reduce official site load, the workflow restores a
-GitHub Actions cache containing `data/loveca.sqlite3` and the normalized official
-import artifact before it attempts a fresh fetch. The cache key includes importer
-code, database code, the source manifest, Work / Unit normalization mapping, the
-preview exporter, and `official_cache_version`.
+The `preview` branch intentionally owns the public browser preview snapshot. It
+does not track every `develop` change and should be updated only when the preview
+experience is ready to publish. This keeps GitHub Pages releases fast and avoids
+running the official importer on every development update.
 
-When official card releases change but importer code does not, bump
-`official_cache_version` in a manual workflow run or set the repository variable
-`OFFICIAL_CARD_CACHE_VERSION` to a new value before publishing from `develop`.
-This forces a new cache without committing generated card data or downloaded
-images to the repository.
+When official card releases change, rebuild the local SQLite database from the
+official importer, review the generated preview data, then commit the updated
+`data/loveca.sqlite3` to the `preview` branch. The workflow does not publish
+downloaded card images; it exports official image URLs only.
 
 The data export keeps official image URLs as references but does not download,
 copy, or publish official card image files.

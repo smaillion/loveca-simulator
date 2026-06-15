@@ -155,6 +155,69 @@ button {
   color: white;
 }
 
+.preview-notice-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(18, 25, 30, 0.56);
+}
+
+.preview-notice {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 36px);
+  overflow: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: 0 20px 52px rgba(18, 25, 30, 0.28);
+  padding: 20px;
+}
+
+.preview-notice-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.preview-notice-header strong {
+  font-size: 18px;
+}
+
+.preview-notice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.preview-notice section {
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+  padding: 14px;
+}
+
+.preview-notice h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.preview-notice ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.preview-notice p {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .revision,
 .local-badge {
   color: var(--muted);
@@ -1658,6 +1721,10 @@ label {
 }
 
 @media (max-width: 640px) {
+  .preview-notice-grid {
+    grid-template-columns: 1fr;
+  }
+
   .start-header {
     grid-template-columns: 1fr;
     gap: 10px;

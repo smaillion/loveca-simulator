@@ -166,7 +166,7 @@ loveca web serve `
 
 但官方效果文本全文、官方 PDF 派生的大量数据和下载后的卡图文件涉及再分发边界。GitHub Pages preview 的公开 asset 应限制为解析后的卡牌数据、解析后的技能数据、manifest、checksum 和项目自有 metadata；卡图文件不随包发布，牌面显示直接使用官方 `image_url`。
 
-Pages workflow 会把 `data/loveca.sqlite3` 和官方 import artifact 保存进 GitHub Actions cache。一般发布时如果 cache 命中，就不会重新访问官网；只有 cache miss 时才执行 importer。需要反映新的官方补充包时，请在手动 workflow 中修改 `official_cache_version`，或更新仓库变量 `OFFICIAL_CARD_CACHE_VERSION` 来刷新 cache。
+公开 preview 从专用 `preview` 分支发布。这个分支会直接提交已审核的 `data/loveca.sqlite3`，GitHub Pages workflow 从这个 SQLite 导出静态 JSON。`develop` 可以继续高频开发，不会触发 Pages 重建；只有准备更新公开 preview 时才同步到 `preview` 分支。
 
 如果向 private tester 提供预构建 DB，也应明确 release version、schema version、parser version、card database fingerprint 和 effect registry hash。任何破坏兼容性的版本更新后，都需要重新导入。
 

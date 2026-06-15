@@ -15,6 +15,7 @@ import {
   Swords,
   X,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import {
   createMatch,
@@ -75,6 +76,11 @@ const UiLanguageContext = createContext<{
   locale: UiLocale;
   setLocale: (locale: UiLocale) => void;
 }>({ locale: "zh", setLocale: () => undefined });
+const viteEnv = (import.meta as unknown as {
+  env?: Record<string, string | boolean | undefined>;
+}).env;
+const browserPreview = viteEnv?.VITE_BROWSER_PREVIEW === "true";
+const previewNoticeStorageKey = "loveca-browser-preview-notice.v0";
 
 const heartLabels: Record<UiLocale, Record<string, string>> = {
   zh: {
@@ -119,6 +125,9 @@ export default function App() {
   const [details, setDetails] = useState<CardInstance | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualSource, setManualSource] = useState<EffectInvocation | null>(null);
+  const [showPreviewNotice, setShowPreviewNotice] = useState(() =>
+    browserPreview && localStorage.getItem(previewNoticeStorageKey) !== "dismissed",
+  );
 
   useEffect(() => {
     listMatches().then(setMatches).catch(() => setMatches([]));
@@ -128,6 +137,22 @@ export default function App() {
     localStorage.setItem("loveca-ui-locale", locale);
     document.documentElement.lang = locale === "ja" ? "ja" : "zh-CN";
   }, [locale]);
+
+  const previewNotice = browserPreview && showPreviewNotice ? (
+    <PreviewNotice
+      locale={locale}
+      onClose={() => {
+        localStorage.setItem(previewNoticeStorageKey, "dismissed");
+        setShowPreviewNotice(false);
+      }}
+    />
+  ) : null;
+  const renderShell = (content: ReactNode) => (
+    <UiLanguageContext.Provider value={{ locale, setLocale }}>
+      {content}
+      {previewNotice}
+    </UiLanguageContext.Provider>
+  );
 
   const deckSources = useMemo<StartDeckSource[]>(() => {
     const sources: StartDeckSource[] = [];
@@ -203,19 +228,16 @@ export default function App() {
 
   if (!match) {
     if (screen === "catalog") {
-      return (
-        <UiLanguageContext.Provider value={{ locale, setLocale }}>
+      return renderShell(
           <CatalogBrowser
             locale={locale}
             setLocale={setLocale}
             onBack={() => setScreen("home")}
-          />
-        </UiLanguageContext.Provider>
+          />,
       );
     }
     if (screen === "decks") {
-      return (
-        <UiLanguageContext.Provider value={{ locale, setLocale }}>
+      return renderShell(
           <DeckBuilder
             locale={locale}
             setLocale={setLocale}
@@ -228,12 +250,10 @@ export default function App() {
               setMatch(null);
               setScreen("home");
             }}
-          />
-        </UiLanguageContext.Provider>
+          />,
       );
     }
-    return (
-      <UiLanguageContext.Provider value={{ locale, setLocale }}>
+    return renderShell(
         <StartScreen
           matches={matches}
           deckSources={deckSources}
@@ -263,25 +283,21 @@ export default function App() {
               setScreen("match");
             })
           }
-        />
-      </UiLanguageContext.Provider>
+        />,
     );
   }
 
   if (screen === "catalog") {
-    return (
-      <UiLanguageContext.Provider value={{ locale, setLocale }}>
+    return renderShell(
         <CatalogBrowser
           locale={locale}
           setLocale={setLocale}
           onBack={() => setScreen("match")}
-        />
-      </UiLanguageContext.Provider>
+        />,
     );
   }
   if (screen === "decks") {
-    return (
-        <UiLanguageContext.Provider value={{ locale, setLocale }}>
+    return renderShell(
           <DeckBuilder
             locale={locale}
             setLocale={setLocale}
@@ -291,13 +307,11 @@ export default function App() {
               setMatch(null);
               setScreen("home");
             }}
-          />
-        </UiLanguageContext.Provider>
+          />,
       );
   }
 
-  return (
-    <UiLanguageContext.Provider value={{ locale, setLocale }}>
+  return renderShell(
     <div className="app-shell">
       <header className="topbar">
         <div className="brand-lockup">
@@ -416,7 +430,6 @@ export default function App() {
         />
       )}
     </div>
-    </UiLanguageContext.Provider>
   );
 }
 
@@ -426,6 +439,59 @@ function useUiLanguage() {
     ...context,
     tr: (zh: string, ja: string) => (context.locale === "zh" ? zh : ja),
   };
+}
+
+function PreviewNotice({
+  locale,
+  onClose,
+}: {
+  locale: UiLocale;
+  onClose: () => void;
+}) {
+  return (
+    <div className="preview-notice-backdrop" role="dialog" aria-modal="true">
+      <section className="preview-notice">
+        <div className="preview-notice-header">
+          <strong>{locale === "zh" ? "浏览器 Preview 版" : "ブラウザ Preview 版"}</strong>
+          <button
+            className="mini-icon"
+            onClick={onClose}
+            aria-label={locale === "zh" ? "关闭" : "閉じる"}
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="preview-notice-grid">
+          <section>
+            <h3>{locale === "zh" ? "当前可以做" : "現在できること"}</h3>
+            <ul>
+              <li>{locale === "zh" ? "浏览已打包的卡库数据" : "同梱済みカードデータの閲覧"}</li>
+              <li>{locale === "zh" ? "查看卡牌详情和官方图片链接" : "カード詳細と公式画像 URL の確認"}</li>
+              <li>{locale === "zh" ? "在浏览器本地保存牌组" : "ブラウザローカルでデッキ保存"}</li>
+              <li>{locale === "zh" ? "进行 MVP 牌组合法性和属性分析" : "MVP デッキ合法性 / 属性分析"}</li>
+            </ul>
+          </section>
+          <section>
+            <h3>{locale === "zh" ? "当前还不能做" : "まだできないこと"}</h3>
+            <ul>
+              <li>{locale === "zh" ? "浏览器内完整对战验证" : "ブラウザ内の完全な対戦検証"}</li>
+              <li>{locale === "zh" ? "在线双人对战" : "オンライン二人対戦"}</li>
+              <li>{locale === "zh" ? "完整技能自动化" : "全スキル自動化"}</li>
+              <li>{locale === "zh" ? "云端账号、同步或防作弊" : "クラウドアカウント、同期、不正対策"}</li>
+            </ul>
+          </section>
+        </div>
+        <p>
+          {locale === "zh"
+            ? "数据保存在当前浏览器中。这个 preview 分支用于稳定公开体验，开发中的规则引擎仍会在 develop 上继续快速迭代。"
+            : "データはこのブラウザ内に保存されます。この preview ブランチは公開体験を安定させるためのもので、開発中のルールエンジンは develop で継続して更新されます。"}
+        </p>
+        <button className="primary-button" onClick={onClose}>
+          {locale === "zh" ? "开始使用" : "始める"}
+        </button>
+      </section>
+    </div>
+  );
 }
 
 function LanguageToggle() {

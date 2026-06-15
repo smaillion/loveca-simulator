@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       include_official_card_data:
-        description: "Fetch official card data and bundle parsed static preview data, without card image files"
+        description: "Bundle parsed static preview data from committed data/loveca.sqlite3, without card image files"
         required: true
         default: "true"
         type: choice
@@ -19,23 +19,20 @@ on:
         options:
           - "false"
           - "true"
-      official_cache_version:
-        description: "Bump this value to force a new official card database cache, for example bp07-2026-06"
-        required: true
-        default: "v1"
       public_data_acknowledgement:
         description: "Required when bundling official text: type REVIEWED_PUBLIC_DATA_POLICY"
         required: false
         default: ""
   push:
     branches:
-      - develop
+      - preview
     paths:
       - ".github/workflows/pages-preview.yml"
       - "web/**"
       - "src/**"
       - "scripts/export-preview-data.py"
       - "data_sources/effect-registry.v0.json"
+      - "data/loveca.sqlite3"
       - "pyproject.toml"
 
 permissions:
@@ -50,8 +47,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      OFFICIAL_CACHE_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.official_cache_version || vars.OFFICIAL_CARD_CACHE_VERSION || 'v1' }}
 
     steps:
       - name: Checkout
@@ -113,31 +108,18 @@ jobs:
           echo "Re-run with public_data_acknowledgement=REVIEWED_PUBLIC_DATA_POLICY after review."
           exit 1
 
-      - name: Restore official card database cache
-        id: official-card-cache
+      - name: Verify committed preview card database
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.include_official_card_data == 'true' }}
-        uses: actions/cache@v4
-        with:
-          path: |
-            data/loveca.sqlite3
-            data/imports/official
-          key: official-card-db-${{ runner.os }}-${{ env.OFFICIAL_CACHE_VERSION }}-${{ hashFiles('pyproject.toml', 'data_sources/source-manifest.yaml', 'data_sources/card-entity-normalization.json', 'src/loveca/cards/**/*.py', 'src/loveca/db/**/*.py', 'tools/importer_spike/**/*.py', 'scripts/export-preview-data.py') }}
-
-      - name: Build local card database from official source
-        if: ${{ (github.event_name != 'workflow_dispatch' || inputs.include_official_card_data == 'true') && steps.official-card-cache.outputs.cache-hit != 'true' }}
         run: |
-          echo "Official card database cache miss. Building from official source."
-          loveca cards init --database data/loveca.sqlite3
-          loveca cards import-official --output-root data/imports/official --delay 1
-          loveca cards import \
-            --database data/loveca.sqlite3 \
-            --input data/imports/official/normalized/cards-official.json \
-            --normalization data_sources/card-entity-normalization.json \
-            --report logs/pages-preview-import.md
-
-      - name: Report official card database cache hit
-        if: ${{ (github.event_name != 'workflow_dispatch' || inputs.include_official_card_data == 'true') && steps.official-card-cache.outputs.cache-hit == 'true' }}
-        run: echo "Using cached official card database for preview data export."
+          test -f data/loveca.sqlite3
+          python - <<'PY'
+          import sqlite3
+          from pathlib import Path
+          path = Path("data/loveca.sqlite3")
+          with sqlite3.connect(path) as connection:
+              count = connection.execute("SELECT COUNT(*) FROM gameplay_cards").fetchone()[0]
+          print(f"Using committed preview card database: {path} ({count} gameplay cards)")
+          PY
 
       - name: Export static preview data
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.include_official_card_data == 'true' }}
