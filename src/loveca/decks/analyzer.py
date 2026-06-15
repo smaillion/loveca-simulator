@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import unicodedata
 from collections import Counter, defaultdict
 from contextlib import closing
 from dataclasses import dataclass, field
@@ -12,13 +13,15 @@ from typing import Any
 
 from loveca.db.bootstrap import connect_database, get_schema_version
 from loveca.db.schema import SCHEMA_VERSION
-
+from loveca.simulation.effects import DEFAULT_EFFECT_REGISTRY, load_effect_registry
 
 DECKLIST_VERSION = "decklist.v0"
 MAIN_DECK_MEMBER_COUNT = 48
 MAIN_DECK_LIVE_COUNT = 12
 ENERGY_DECK_COUNT = 12
 MAX_COPIES_PER_CARD_CODE = 4
+FULLWIDTH_PLUS = "＋"
+ASCII_PLUS = "+"
 
 
 class DeckAnalyzerError(RuntimeError):
@@ -70,6 +73,7 @@ class CardSnapshot:
     live_blade_heart_color_slot: str | None = None
     hearts: dict[str, dict[str, int]] = field(default_factory=dict)
     special_blade_hearts: tuple[dict[str, Any], ...] = ()
+    effect_summaries: tuple[dict[str, Any], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -85,6 +89,8 @@ class DeckAnalysis:
     member_blade_summary: dict[str, float | int]
     live_score_distribution: dict[str, int]
     special_blade_heart_summary: dict[str, int]
+    effect_timing_summary: dict[str, int]
+    effect_execution_summary: dict[str, int]
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -99,6 +105,8 @@ class DeckAnalysis:
             "member_blade_summary": self.member_blade_summary,
             "live_score_distribution": self.live_score_distribution,
             "special_blade_heart_summary": self.special_blade_heart_summary,
+            "effect_timing_summary": self.effect_timing_summary,
+            "effect_execution_summary": self.effect_execution_summary,
         }
 
 
@@ -145,9 +153,22 @@ def analyze_deck(database_path: Path, deck: DeckList) -> DeckAnalysis:
         for entry in (*deck.main_deck, *deck.energy_deck)
         if entry.preferred_printing_id is not None
     }
+    registry = load_effect_registry(DEFAULT_EFFECT_REGISTRY)
+    effects_by_card: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for effect in registry.effects:
+        effects_by_card[effect.card_code].append(
+            {
+                "effect_id": effect.effect_id,
+                "trigger": effect.trigger,
+                "timing": effect.timing,
+                "execution_mode": effect.execution_mode,
+                "simulation_support": effect.simulation_support,
+                "review_status": effect.review_status,
+            }
+        )
 
     with closing(connect_database(database_path)) as connection:
-        cards = _load_card_snapshots(connection, card_codes)
+        cards = _load_card_snapshots(connection, card_codes, effects_by_card)
         printing_map = _load_printing_card_codes(connection, printing_ids)
 
     issues: list[DeckIssue] = []
@@ -201,6 +222,12 @@ def render_analysis_text(analysis: DeckAnalysis) -> str:
             "",
             "Special Blade Heart Summary:",
             _format_counts(analysis.special_blade_heart_summary),
+            "",
+            "Effect Timing Summary:",
+            _format_counts(analysis.effect_timing_summary),
+            "",
+            "Effect Execution Summary:",
+            _format_counts(analysis.effect_execution_summary),
         ]
     )
     return "\n".join(lines)
@@ -231,19 +258,31 @@ def _load_entries(payload: Any, field_name: str) -> tuple[DeckEntry, ...]:
             raise DeckFileError(
                 f"{field_name}[{index}].preferred_printing_id must be non-empty or null"
             )
+        normalized_printing_id = _normalize_preferred_printing_id(preferred_printing_id)
         entries.append(
             DeckEntry(
-                card_code=card_code,
+                card_code=_normalize_card_identifier(card_code),
                 quantity=quantity,
-                preferred_printing_id=preferred_printing_id,
+                preferred_printing_id=normalized_printing_id,
             )
         )
     return tuple(entries)
 
 
+def _normalize_card_identifier(value: str) -> str:
+    return unicodedata.normalize("NFC", value.strip()).replace(FULLWIDTH_PLUS, ASCII_PLUS)
+
+
+def _normalize_preferred_printing_id(value: str | None) -> str | None:
+    if value is None:
+        return None
+    return _normalize_card_identifier(value)
+
+
 def _load_card_snapshots(
     connection: sqlite3.Connection,
     card_codes: set[str],
+    effects_by_card: dict[str, list[dict[str, Any]]],
 ) -> dict[str, CardSnapshot]:
     if not card_codes:
         return {}
@@ -282,6 +321,7 @@ def _load_card_snapshots(
             member_blade_heart_color_slot=row["member_blade_heart_color_slot"],
             score=row["score"],
             live_blade_heart_color_slot=row["live_blade_heart_color_slot"],
+            effect_summaries=tuple(effects_by_card.get(str(row["card_code"]), [])),
         )
         for row in rows
     }
@@ -338,6 +378,7 @@ def _load_card_snapshots(
             live_blade_heart_color_slot=snapshot.live_blade_heart_color_slot,
             hearts=hearts_by_id[snapshot.gameplay_card_id],
             special_blade_hearts=tuple(specials_by_id[snapshot.gameplay_card_id]),
+            effect_summaries=snapshot.effect_summaries,
         )
         for card_code, snapshot in snapshots.items()
     }
@@ -506,11 +547,16 @@ def _build_analysis(
     live_required_hearts: Counter[str] = Counter()
     live_score_distribution: Counter[str] = Counter()
     special_blade_summary: Counter[str] = Counter()
+    effect_timing_summary: Counter[str] = Counter()
+    effect_execution_summary: Counter[str] = Counter()
 
     for entry in deck.main_deck:
         card = cards.get(entry.card_code)
         if card is None:
             continue
+        for effect in card.effect_summaries:
+            effect_timing_summary[_effect_timing_key(effect["trigger"])] += entry.quantity
+            effect_execution_summary[str(effect["execution_mode"])] += entry.quantity
         if card.card_type == "member":
             member_cost_curve[_nullable_key(card.cost)] += entry.quantity
             for color_slot, value in card.hearts.get("basic", {}).items():
@@ -550,6 +596,8 @@ def _build_analysis(
         },
         live_score_distribution=dict(sorted(live_score_distribution.items())),
         special_blade_heart_summary=dict(sorted(special_blade_summary.items())),
+        effect_timing_summary=dict(sorted(effect_timing_summary.items())),
+        effect_execution_summary=dict(sorted(effect_execution_summary.items())),
     )
 
 
@@ -582,6 +630,16 @@ def _special_blade_key(special: dict[str, Any]) -> str:
     effect_type = special.get("effect_type")
     value = special.get("value")
     return f"{effect_type}{value if value is not None else ''}"
+
+
+def _effect_timing_key(trigger: str) -> str:
+    mapping = {
+        "member_played": "on_play",
+        "player_activation": "activated",
+        "live_started": "live_start",
+        "baton_touch_performed": "baton_touch",
+    }
+    return mapping.get(trigger, trigger)
 
 
 def _sort_nested_counts(

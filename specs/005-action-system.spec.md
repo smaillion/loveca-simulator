@@ -6,7 +6,7 @@ This spec defines conceptual requirements for replay-safe Actions, including man
 
 It does not define implementation code, database schema, APIs, or UI behavior.
 
-GameState ownership and high-level transition requirements are defined by [003-gamestate-and-actions.spec.md](003-gamestate-and-actions.spec.md). This spec owns Action safety and manual adjustment structure.
+GameState ownership and high-level transition requirements are defined by [003-gamestate-and-actions.spec.md](003-gamestate-and-actions.spec.md). This spec owns Action safety, structured prompt follow-up, and manual adjustment boundaries.
 
 ## 2. Core Action Rule
 
@@ -21,7 +21,22 @@ Actions must:
 * preserve enough context for validation
 * avoid direct GameState mutation outside ActionResolver
 
-## 3. ManualAdjustmentAction
+## 3. Structured Effect Follow-Up
+
+An effect that requires user choice must first become a structured pending decision owned by the Rule Engine and LegalActionGenerator.
+
+Examples include:
+
+* inspect top cards, then keep some
+* choose specific Energy cards for a cost or state change
+* choose a target Member to ready or apply Wait
+* choose a Heart color
+* choose card order on top of deck
+* accept or decline an optional effect
+
+These are not generic manual adjustments. They are structured effect-resolution steps and should be represented by dedicated Actions such as `resolve_effect` or future choice-resolution Actions.
+
+## 4. ManualAdjustmentAction
 
 Manual resolution must produce structured, serializable, replayable `ManualAdjustmentAction` records.
 
@@ -49,7 +64,11 @@ Minimum `ManualAdjustmentAction` fields:
 
 `source_card_instance_id` identifies the runtime card copy in GameState. It must not be confused with official printing `card_id` or Gameplay Card `card_code`.
 
-## 4. Adjustment Entry
+`ManualAdjustmentAction` is the replay-safe boundary for semantic remainder that is still unresolved after structured trigger, cost, choice, target, and visibility handling have been modeled.
+
+It is not a generic skill interpreter.
+
+## 5. Adjustment Entry
 
 Each `ManualAdjustmentAction` contains one or more adjustment entries.
 
@@ -112,7 +131,22 @@ and cards under that Member. Generic `move_card` must not silently detach a
 card from under a Member. Position and formation changes move the complete
 Member group, including all cards under the top Member.
 
-## 5. Validation Requirements
+## 6. Manual-Adjustment Boundaries
+
+`ManualAdjustmentAction` must not be used to replace effect semantics that should already be modeled as structured prompt data.
+
+The following distinctions are required:
+
+* `draw_card` must not be used to represent top-deck inspection, reveal, filtered keep-to-hand, or search.
+* `pay_energy` must be distinct from choosing Energy cards to become Wait or Active.
+* moving a new Energy card from the Energy Deck into the Energy Area must use a structured effect operation and must not be represented as `draw_card`, `move_card`, or a manual Energy adjustment.
+* `discard_card` must be distinct from choosing cards from hand under modeled effect filters.
+* selecting cards to keep after inspection must not be modeled as generic draw.
+* target selection for ready or Wait effects must not be represented only as a free-form note.
+
+If an effect depends on inspect, reveal, choose, target, or cost selection, the engine should first surface a structured pending choice. Manual adjustment should only capture the unresolved semantic remainder and resulting state changes.
+
+## 7. Validation Requirements
 
 `ManualAdjustmentAction` must be validated at least for:
 
@@ -123,9 +157,9 @@ Member group, including all cards under the top Member.
 * basic structural consistency
 * required confirmation when `requires_confirmation` is true
 
-Manual adjustment validation is not a substitute for full semantic effect execution. It is the replay-safe boundary for manual resolution.
+Manual adjustment validation is not a substitute for full semantic effect execution. It is the replay-safe boundary for manual resolution after structured prompt boundaries have already been respected.
 
-## 6. Forbidden Patterns
+## 8. Forbidden Patterns
 
 Manual resolution must not:
 
@@ -135,8 +169,9 @@ Manual resolution must not:
 * skip ActionResolver
 * rely on UI-only state
 * produce unreplayable match history
+* serve as the first and only modeling layer for a choice-driven effect
 
-## 7. Dependencies
+## 9. Dependencies
 
 Informs:
 

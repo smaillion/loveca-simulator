@@ -17,8 +17,9 @@ Every definition must identify:
 * `text_revision_id`
 * `raw_text_hash`
 * `effect_index`
-* trigger, condition, cost, choice, action, and duration data
+* trigger, timing, condition, cost, choice, visibility, action, and duration data
 * `simulation_support`
+* `execution_mode`
 * `review_status`
 
 The registry must be validated against Card Text Revision data when a match is created. A missing revision or hash mismatch prevents that effect from loading.
@@ -43,7 +44,7 @@ The initial effect actions are:
 * `resolve_effect`
 * `manual_adjustment` with effect source fields
 
-UI code must not execute effects or mutate GameState directly.
+UI code must not execute effects, detect effects authoritatively, or mutate GameState directly.
 
 ## 4. Trigger And Resolution Rules
 
@@ -54,11 +55,25 @@ The MVP supports:
 * `live_started` at comprehensive rule 8.3.8 timing
 * `baton_touch_performed` after the Baton Touch event
 
-Multiple waiting automatic abilities owned by the same player must be exposed as selectable pending invocations. Forced effects with no player choice may resolve deterministically inside the Action that produced the trigger.
+Trigger detection belongs to the Rule Engine. Pending effects must originate from rule events, not from UI fallback or manual prompt creation.
+
+Multiple waiting abilities owned by the same player must be exposed as selectable pending invocations. Forced effects with no player choice may resolve deterministically inside the Action that produced the trigger.
 
 Optional effects may be declined explicitly. Silent skipping is forbidden.
 
-## 5. Initial Supported Operations
+## 5. Execution Modes
+
+The MVP must distinguish:
+
+* `auto_resolve`
+* `prompt_then_resolve`
+* `manual_resolution`
+
+`prompt_then_resolve` is the default mode when a trigger is detected but a player must still confirm, choose a target, choose a card, choose Energy, choose count, choose order, or choose color.
+
+`manual_resolution` must be reserved for unresolved semantic remainder after structured trigger and prompt boundaries are already known.
+
+## 6. Initial Supported Operations
 
 The restricted executor supports:
 
@@ -70,11 +85,24 @@ The restricted executor supports:
 * pay Active Energy
 * gain Blade until Live end
 * ready Energy
+* place the top Energy Deck card into the Energy Area as Active or Wait
 * manual resolution
 
 Unknown operations must fail registry validation.
 
-## 6. Manual Resolution
+The structured operation for Energy Deck placement is `place_energy_from_deck`. It must not expose the Energy Deck as a player card-selection zone. Resolution takes the deterministic top card, records the source as the Energy Deck, and records the resulting orientation. If an optional effect requires this operation and the Energy Deck is empty, the effect is not offered as activatable.
+
+The MVP does not yet claim broad support for:
+
+* inspect-top-and-filter search effects
+* complex reveal-and-keep semantics
+* color-choice effects
+* attached-card deployment flows
+* arbitrary target-filter prompts
+
+These gaps must remain explicit in docs and review artifacts until modeled.
+
+## 7. Manual Resolution
 
 An effect with `manual_resolution` support must remain pending until:
 
@@ -83,24 +111,28 @@ An effect with `manual_resolution` support must remain pending until:
 
 Free-text-only resolution and direct UI mutation are forbidden.
 
-## 7. Initial Card Coverage
+`manual_resolution` must not be used as a generic substitute for structured target selection, Energy selection, or top-deck inspection when those prompt boundaries are already known.
 
-The first reviewed implementation set is limited to:
+## 8. Initial Card Coverage
+
+The current reviewed implementation set is limited to:
 
 * `LL-bp1-001`
 * `PL!-bp3-001`
 * `PL!N-bp1-001`
 * `PL!HS-sd1-001`
 
+This is an intentionally narrow MVP slice. It must not be described as broad skill prompting coverage.
+
 Automated entries may be `test_validated_executable` after rule tests pass. Human review remains mandatory for `reviewed_executable`.
 
-## 8. Replay Requirements
+## 9. Replay Requirements
 
-Invocation IDs, modifier IDs, choices, costs, results, and usage records must be deterministic and serializable.
+Invocation IDs, modifier IDs, choices, costs, results, visibility requirements, and usage records must be deterministic and serializable.
 
 The same initial state and Action sequence must reproduce the same final state even if the external registry later changes.
 
-## 9. Dependencies
+## 10. Dependencies
 
 Depends on:
 

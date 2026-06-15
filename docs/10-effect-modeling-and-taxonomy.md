@@ -55,6 +55,12 @@ These effects cannot remain plain text forever because the analyzer, simulator, 
 
 The correct strategy is layered modeling.
 
+The project also needs a strict boundary between:
+
+* effect trigger detection
+* structured prompts for costs, targets, and choices
+* unresolved semantic remainder that still needs manual completion
+
 ## 3. Required Layered Effect Model
 
 Card effects must be modeled in four separate layers.
@@ -124,6 +130,14 @@ Executable behavior should only be trusted after validation and review. It shoul
 
 Every card effect must have a simulation support status.
 
+Every card effect also needs an execution mode that describes how the simulator currently interacts with it:
+
+* `auto_resolve`
+* `prompt_then_resolve`
+* `manual_resolution`
+
+These two classifications are related but different. Support status describes automation maturity. Execution mode describes runtime interaction shape.
+
 ### unsupported
 
 Only raw official text is stored.
@@ -141,6 +155,12 @@ Deck Analyzer may use the tags for search, summaries, or heuristic scoring. Batt
 The simulator can display the raw Japanese effect text and ask the player to resolve it manually.
 
 This is acceptable for the MVP, especially for complex or uncommon effects.
+
+However, `manual_resolution` should not be used as a generic substitute for promptable semantics that are already structurally known. If the effect clearly requires choosing a target, selecting Energy, inspecting top cards, choosing order, or choosing a color, the preferred architecture is:
+
+* detect trigger in the Rule Engine
+* surface a structured prompt through LegalActionGenerator
+* reserve manual adjustment for any remaining unresolved semantic step
 
 ### partially_executable
 
@@ -306,6 +326,12 @@ Change Energy from inactive or rested state to active or ready state.
 
 Pay Energy as a cost.
 
+### place_energy_from_deck
+
+Move the deterministic top card of an Energy Deck into the Energy Area with an explicit Active or Wait orientation. This action does not select an Energy card, does not draw from the main deck, and is not the same as paying or readying Energy already in the Energy Area.
+
+For an optional effect such as discarding one hand card to place one Energy as Wait, the Rule Engine must first confirm that both a discard candidate and an Energy Deck card exist. Accepting the prompt resolves the discard cost and Energy placement atomically through the effect Action. `ManualAdjustmentAction` is not an appropriate substitute.
+
 ### position_change
 
 Move or swap Member position on stage according to game rules.
@@ -397,10 +423,14 @@ A condition based on opponent board, zones, or successful Lives.
 The future Effect DSL should follow this conceptual flow:
 
 ```text
-Trigger -> Condition -> Cost -> Choice -> Target -> Action -> Duration
+Trigger -> Condition -> Cost -> Choice -> Target -> Visibility -> Action -> Duration
 ```
 
 This flow is a modeling principle, not an execution implementation.
+
+Visibility matters because many official effects do not behave like ordinary draws. Some inspect privately, some reveal publicly, and some reveal only the selected kept card.
+
+The simulator must not collapse deck inspection or reveal semantics into generic draw behavior.
 
 The model should support:
 
@@ -490,6 +520,8 @@ Battle Simulator may use:
 The simulator should not auto-resolve effects with `unsupported`, `tagged_only`, or `manual_resolution` support status.
 
 Manual resolution is acceptable for MVP, but the simulator must record the result as structured `ManualAdjustmentAction` records. Note-only annotations are not replay-safe, and manual resolution must not mutate GameState directly.
+
+Current repository state remains intentionally narrow. It has only a small reviewed executable slice and does not yet provide broad, complete skill prompting coverage across the full local card pool.
 
 ## 14. AI Usage
 

@@ -10,6 +10,11 @@ from typing import Any
 
 from loveca.db.bootstrap import connect_database, get_schema_version
 from loveca.db.schema import SCHEMA_VERSION
+from loveca.simulation.effects import (
+    DEFAULT_EFFECT_REGISTRY,
+    load_effect_registry,
+    validate_registry_for_cards,
+)
 
 
 class CardCatalogError(RuntimeError):
@@ -107,6 +112,10 @@ def get_catalog_card(database_path: Path, card_code: str) -> dict[str, Any]:
             raise CardCatalogError(f"card not found: {card_code}")
 
         gameplay_card_id = int(row["gameplay_card_id"])
+        registry = load_effect_registry(DEFAULT_EFFECT_REGISTRY)
+        valid_effects, effect_errors = validate_registry_for_cards(
+            connection, registry, {card_code}
+        )
         printings = _load_printings(connection, gameplay_card_id)
         source_observations = _load_source_observations(connection, gameplay_card_id)
         text_revisions = _load_text_revisions(connection, gameplay_card_id)
@@ -137,6 +146,11 @@ def get_catalog_card(database_path: Path, card_code: str) -> dict[str, Any]:
             "units": units,
             "review_candidates": review_candidates,
             "printing_references": printing_references,
+            "effect_registry_status": _effect_registry_status(
+                card_code, valid_effects, effect_errors
+            ),
+            "effect_registry_errors": effect_errors.get(card_code, []),
+            "effects": _effect_summaries(card_code, valid_effects, effect_errors),
         },
         "printings": printings,
         "source_observations": source_observations,
@@ -448,7 +462,10 @@ def _matches_summary(
         if not card_type and live_filters_active and not member_filters_active:
             return False
     elif row["card_type"] == "live":
-        if required_heart_color and row["required_heart_by_color"].get(required_heart_color, 0) <= 0:
+        if (
+            required_heart_color
+            and row["required_heart_by_color"].get(required_heart_color, 0) <= 0
+        ):
             return False
         required_heart_value = (
             row["required_heart_by_color"].get(required_heart_color, 0)
@@ -911,3 +928,42 @@ def _safe_json_loads(value: str | None) -> Any:
         return json.loads(value)
     except json.JSONDecodeError:
         return value
+
+
+def _effect_registry_status(
+    card_code: str,
+    valid_effects: dict[str, Any],
+    effect_errors: dict[str, list[str]],
+) -> str:
+    if effect_errors.get(card_code):
+        return "hash_mismatch"
+    if any(effect.card_code == card_code for effect in valid_effects.values()):
+        return "supported"
+    return "unregistered"
+
+
+def _effect_summaries(
+    card_code: str,
+    valid_effects: dict[str, Any],
+    effect_errors: dict[str, list[str]],
+) -> list[dict[str, Any]]:
+    summaries = [
+        {
+            "effect_id": effect.effect_id,
+            "label_ja": effect.label_ja,
+            "effect_type": effect.effect_type,
+            "timing": effect.timing,
+            "trigger": effect.trigger,
+            "execution_mode": effect.execution_mode,
+            "frequency_limit": effect.frequency_limit,
+            "is_optional": effect.is_optional,
+            "simulation_support": effect.simulation_support,
+            "review_status": effect.review_status,
+        }
+        for effect in valid_effects.values()
+        if effect.card_code == card_code
+    ]
+    summaries.sort(key=lambda item: item["effect_id"])
+    if summaries or not effect_errors.get(card_code):
+        return summaries
+    return []

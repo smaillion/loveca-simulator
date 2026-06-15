@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 VALID_CARD_TYPES = frozenset(
     {
         "member",

@@ -8,7 +8,6 @@ from pydantic import BaseModel, Field
 
 from loveca.simulation.effects import EffectDefinition
 
-
 RULE_VERSION = "1.06"
 MATCH_RUNTIME_SCHEMA_VERSION = 2
 
@@ -62,6 +61,7 @@ class CardDefinition(BaseModel):
     text_revision_id: int | None = None
     raw_text_hash: str | None = None
     work_keys: list[str] = Field(default_factory=list)
+    ability_bucket: Literal["none", "static_only", "other"] = "none"
     effect_ids: list[str] = Field(default_factory=list)
     effect_registry_status: Literal[
         "supported", "unregistered", "hash_mismatch"
@@ -152,6 +152,7 @@ class PendingChoice(BaseModel):
         "live_requirements",
         "success_live",
         "manual_card_selection",
+        "effect_inspection_selection",
     ]
     player_id: str
     message_ja: str
@@ -205,6 +206,7 @@ class ActionRequest(BaseModel):
         "start_next_turn",
         "activate_effect",
         "resolve_effect",
+        "resolve_effect_choice",
         "resolve_manual_inspection",
     ]
     expected_revision: int

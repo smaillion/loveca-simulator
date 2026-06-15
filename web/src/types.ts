@@ -46,6 +46,8 @@ export interface DeckAnalysisResponse {
   member_blade_summary: Record<string, number>;
   live_score_distribution: Record<string, number>;
   special_blade_heart_summary: Record<string, number>;
+  effect_timing_summary: Record<string, number>;
+  effect_execution_summary: Record<string, number>;
 }
 
 export interface CatalogCardSummary {
@@ -160,6 +162,20 @@ export interface CatalogCardDetail {
       review_status: string;
       source_observation_id: number;
     }>;
+    effect_registry_status: "supported" | "unregistered" | "hash_mismatch";
+    effect_registry_errors: string[];
+    effects: Array<{
+      effect_id: string;
+      label_ja: string;
+      effect_type: string;
+      timing: string;
+      trigger: string;
+      execution_mode: "auto_resolve" | "prompt_then_resolve" | "manual_resolution";
+      frequency_limit: string;
+      is_optional: boolean;
+      simulation_support: string;
+      review_status: string;
+    }>;
   };
   printings: Array<{
     card_id: string;
@@ -221,6 +237,7 @@ export interface CardDefinition {
   text_revision_id: number | null;
   raw_text_hash: string | null;
   work_keys: string[];
+  ability_bucket: "none" | "static_only" | "other";
   effect_ids: string[];
   effect_registry_status: "supported" | "unregistered" | "hash_mismatch";
   effect_registry_errors: string[];
@@ -236,6 +253,7 @@ export interface EffectDefinition {
   effect_type: string;
   timing: string;
   trigger: string;
+  execution_mode: "auto_resolve" | "prompt_then_resolve" | "manual_resolution";
   frequency_limit: string;
   is_optional: boolean;
   simulation_support: string;
@@ -323,7 +341,8 @@ export interface PendingChoice {
     | "mulligan"
     | "live_requirements"
     | "success_live"
-    | "manual_card_selection";
+    | "manual_card_selection"
+    | "effect_inspection_selection";
   player_id: string;
   message_ja: string;
   message_zh: string;

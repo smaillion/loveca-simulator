@@ -11,17 +11,17 @@ from pathlib import Path
 from loveca.db.bootstrap import connect_database, get_schema_version
 from loveca.db.schema import SCHEMA_VERSION
 from loveca.decks.analyzer import DeckDatabaseError, DeckList
-from loveca.simulation.models import (
-    CardDefinition,
-    CardInstance,
-    PlayerState,
-    SpecialBladeHeart,
-)
 from loveca.simulation.effects import (
     DEFAULT_EFFECT_REGISTRY,
     EffectDefinition,
     load_effect_registry,
     validate_registry_for_cards,
+)
+from loveca.simulation.models import (
+    CardDefinition,
+    CardInstance,
+    PlayerState,
+    SpecialBladeHeart,
 )
 
 
@@ -222,6 +222,7 @@ def _load_definition(
             (gameplay_card_id,),
         )
     ]
+    raw_effect_text = row["raw_effect_text_ja"]
     card_effect_ids = sorted(
         effect.effect_id
         for effect in effects.values()
@@ -248,11 +249,33 @@ def _load_definition(
         required_hearts=hearts["required"],
         blade_heart_color_slot=blade_heart,
         special_blade_hearts=specials,
-        raw_effect_text_ja=row["raw_effect_text_ja"],
+        raw_effect_text_ja=raw_effect_text,
         text_revision_id=row["text_revision_id"],
         raw_text_hash=row["raw_text_hash"],
         work_keys=work_keys,
+        ability_bucket=_ability_bucket(raw_effect_text),
         effect_ids=card_effect_ids,
         effect_registry_status=registry_status,
         effect_registry_errors=errors,
     )
+
+
+def _ability_bucket(raw_effect_text_ja: str | None) -> str:
+    if not raw_effect_text_ja:
+        return "none"
+    labels: list[str] = []
+    cursor = 0
+    while True:
+        start = raw_effect_text_ja.find("【", cursor)
+        if start == -1:
+            break
+        end = raw_effect_text_ja.find("】", start + 1)
+        if end == -1:
+            break
+        labels.append(raw_effect_text_ja[start + 1 : end])
+        cursor = end + 1
+    if not labels:
+        return "none"
+    if all(label == "常時" for label in labels):
+        return "static_only"
+    return "other"

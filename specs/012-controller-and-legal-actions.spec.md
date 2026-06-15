@@ -29,6 +29,7 @@ LegalActionGenerator produces legal Actions for:
 * rule version
 * relevant zones and resources
 * effect support status when applicable
+* effect execution mode when applicable
 
 LegalActionGenerator is part of the Rule Engine boundary.
 
@@ -42,6 +43,7 @@ HumanController must:
 * avoid direct GameState mutation
 * submit selected Actions for validation and resolution
 * use ManualAdjustmentAction for manual resolution results
+* use structured effect-resolution prompts when the Rule Engine exposes them
 
 ## 5. SimpleAIController Requirements
 
@@ -62,6 +64,7 @@ UI must not:
 
 * directly mutate GameState
 * create unvalidated state changes
+* authoritatively decide when an effect is triggered
 * implement card effect logic as authoritative behavior
 * bypass ActionResolver
 
@@ -84,4 +87,3 @@ Informs:
 
 * [010-simple-ai.spec.md](010-simple-ai.spec.md)
 * [011-simulator-mvp.spec.md](011-simulator-mvp.spec.md)
-

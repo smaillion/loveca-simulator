@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 import sqlite3
 from pathlib import Path
+from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
-
 
 DEFAULT_EFFECT_REGISTRY = (
     Path(__file__).parents[3] / "data_sources" / "effect-registry.v0.json"
@@ -18,11 +18,17 @@ SUPPORTED_EFFECT_ACTIONS = {
     "discard_from_hand",
     "draw_card",
     "gain_blade",
+    "inspect_top_cards",
     "manual_resolution",
+    "move_remaining_cards",
     "pay_energy",
+    "place_energy_from_deck",
     "ready_energy",
     "ready_member",
+    "reorder_deck_top",
+    "reveal_cards",
     "return_from_waiting_room",
+    "select_to_hand_from_inspected",
 }
 
 
@@ -34,15 +40,38 @@ class EffectOperation(BaseModel):
     action_type: str
     target: str | None = None
     amount: int | None = None
+    orientation: Literal["active", "wait"] | None = None
+
+    @model_validator(mode="after")
+    def validate_operation_shape(self) -> EffectOperation:
+        if self.action_type == "place_energy_from_deck":
+            if self.target not in {None, "self"}:
+                raise ValueError("place_energy_from_deck only supports target=self")
+            if self.amount is None or self.amount < 1:
+                raise ValueError("place_energy_from_deck requires a positive amount")
+            if self.orientation is None:
+                raise ValueError("place_energy_from_deck requires an orientation")
+        elif self.orientation is not None:
+            raise ValueError(
+                f"orientation is not supported for effect operation {self.action_type}"
+            )
+        return self
 
 
 class EffectChoice(BaseModel):
     choice_type: str
-    zone: str
+    zone: str | None = None
     card_type: str | None = None
     orientation: str | None = None
     minimum: int = 0
     maximum: int = 1
+    amount: int | None = None
+    requires_order: bool = False
+    selected_destination: str | None = None
+    unselected_destination: str | None = None
+    reveal_selected_to_opponent: bool = False
+    work_key: str | None = None
+    ability_bucket: list[str] = Field(default_factory=list)
 
 
 class EffectDefinition(BaseModel):
@@ -55,6 +84,7 @@ class EffectDefinition(BaseModel):
     effect_type: str
     timing: str
     trigger: str
+    execution_mode: str
     frequency_limit: str
     is_optional: bool
     condition: dict[str, object] = Field(default_factory=dict)
@@ -67,7 +97,7 @@ class EffectDefinition(BaseModel):
     source_reference: str
 
     @model_validator(mode="after")
-    def validate_operations(self) -> "EffectDefinition":
+    def validate_operations(self) -> EffectDefinition:
         operations = [*self.cost, *self.actions]
         unknown = {
             operation.action_type
@@ -76,6 +106,22 @@ class EffectDefinition(BaseModel):
         }
         if unknown:
             raise ValueError(f"unsupported effect operations: {sorted(unknown)}")
+        if self.execution_mode not in {
+            "auto_resolve",
+            "prompt_then_resolve",
+            "manual_resolution",
+        }:
+            raise ValueError(f"unsupported execution_mode: {self.execution_mode}")
+        if self.execution_mode == "manual_resolution":
+            if self.simulation_support != "manual_resolution":
+                raise ValueError(
+                    "manual_resolution execution_mode requires manual_resolution support"
+                )
+        elif self.execution_mode == "auto_resolve":
+            if self.is_optional or self.choice is not None or self.cost:
+                raise ValueError(
+                    "auto_resolve execution_mode requires no option, choice, or cost"
+                )
         return self
 
 
@@ -85,7 +131,7 @@ class EffectRegistry(BaseModel):
     effects: list[EffectDefinition]
 
     @model_validator(mode="after")
-    def validate_unique_effects(self) -> "EffectRegistry":
+    def validate_unique_effects(self) -> EffectRegistry:
         ids = [effect.effect_id for effect in self.effects]
         if len(ids) != len(set(ids)):
             raise ValueError("effect registry contains duplicate effect_id values")
@@ -129,6 +175,19 @@ def validate_registry_for_cards(
             """,
             (effect.card_code, effect.text_revision_id),
         ).fetchone()
+        if row is None:
+            row = connection.execute(
+                """
+                SELECT revision.id, revision.raw_text_hash
+                FROM gameplay_cards AS card
+                JOIN card_text_revisions AS revision
+                  ON revision.gameplay_card_id = card.id
+                WHERE card.card_code = ?
+                  AND revision.raw_text_hash = ?
+                LIMIT 1
+                """,
+                (effect.card_code, effect.raw_text_hash),
+            ).fetchone()
         if row is None:
             errors.setdefault(effect.card_code, []).append(
                 f"{effect.effect_id}: text revision {effect.text_revision_id} is unavailable"

@@ -24,25 +24,51 @@ Every DSL draft must identify `card_code`, `text_revision_id`, and `raw_text_has
 The DSL should follow:
 
 ```text
-Trigger -> Condition -> Cost -> Choice -> Target -> Action -> Duration
+Trigger -> Condition -> Cost -> Choice -> Target -> Visibility -> Action -> Duration
 ```
 
 This shape must support future validation, manual review, replay, and deterministic simulation.
 
-The DSL describes structured effect meaning. It does not itself mutate GameState. Executable behavior must resolve through Rule Engine validation and Action boundaries.
+The DSL describes structured effect meaning. It does not itself mutate GameState. Executable behavior must resolve through Rule Engine validation, LegalActionGenerator prompts, and Action boundaries.
 
 ## 4. Required Taxonomy
 
 The DSL must align with [015-effect-taxonomy.spec.md](015-effect-taxonomy.spec.md), including:
 
 * effect types
+* trigger families
 * timing types
-* action categories
+* action families
 * condition categories
+* choice shapes
+* visibility model
+* source and target constraints
 * effect instance conceptual fields
 * support statuses
+* execution modes
 
-## 5. Review Requirements
+## 5. Required Prompt Boundary
+
+The DSL must support the distinction between:
+
+* effects that resolve automatically
+* effects that require structured player choice
+* effects that require manual completion after structured trigger detection
+
+The DSL must therefore carry enough information for LegalActionGenerator to produce replay-safe prompts for:
+
+* accept or decline
+* target selection
+* card selection
+* Energy-instance selection
+* count selection
+* order selection
+* color selection
+* selection visibility and reveal requirements
+
+A DSL draft that cannot express the necessary structured prompt boundary must not be promoted to `partially_executable`.
+
+## 6. Review Requirements
 
 Every DSL draft should record:
 
@@ -53,7 +79,7 @@ Every DSL draft should record:
 
 LLM-assisted DSL drafts are untrusted until validated and reviewed.
 
-## 6. Execution Boundary
+## 7. Execution Boundary
 
 DSL representation is not the same as executable implementation.
 
@@ -66,11 +92,11 @@ A DSL effect may be:
 * test validated executable
 * reviewed executable
 
-The simulator must check support status before automatic resolution.
+The simulator must check both `simulation_support` and `execution_mode` before automatic resolution.
 
 `reviewed_executable` requires human review. Automated rule-test validation alone may support `test_validated_executable`, but it is not sufficient for reviewed status.
 
-## 7. Dependencies
+## 8. Dependencies
 
 Depends on:
 

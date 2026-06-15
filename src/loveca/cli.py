@@ -18,7 +18,6 @@ from loveca.cards.importer import (
     write_import_report,
     write_validation_report,
 )
-from loveca.cards.official_importer import run_official_card_import
 from loveca.db.bootstrap import (
     DatabaseSchemaError,
     get_schema_version,
@@ -38,6 +37,14 @@ from loveca.decks.library import (
     rename_saved_deck,
     save_deck_file,
 )
+
+
+def run_official_card_import(**kwargs):
+    """Load the official importer only for the command that needs it."""
+
+    from loveca.cards.official_importer import run_official_card_import as run_import
+
+    return run_import(**kwargs)
 
 
 def build_parser() -> argparse.ArgumentParser:

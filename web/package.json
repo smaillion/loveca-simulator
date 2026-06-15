@@ -1,14 +1,14 @@
 {
   "name": "loveca-rules-debugger",
   "private": true,
-  "version": "0.4.0-alpha.2",
+  "version": "0.4.0-alpha.3",
   "type": "module",
   "engines": {
     "node": "^20.0.0 || ^22.0.0 || >=24.0.0"
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc -b && vite build",
+    "build": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json && vite build",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "smoke:e2e": "node e2e/smoke.mjs"
@@ -24,10 +24,13 @@
     "@testing-library/react": "^16.1.0",
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@vitejs/plugin-react": "^6.0.2",
     "jsdom": "^25.0.1",
     "typescript": "~5.7.2",
-    "vite": "^6.0.5",
+    "vite": "^8.0.16",
     "vitest": "^4.1.8"
+  },
+  "optionalDependencies": {
+    "@rolldown/binding-win32-x64-msvc": "^1.0.3"
   }
 }

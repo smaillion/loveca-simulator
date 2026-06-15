@@ -11,7 +11,6 @@ from loveca.decks.library import (
     save_deck_file,
 )
 
-
 PROJECT_ROOT = Path(__file__).parents[1]
 SAMPLE_DECK = PROJECT_ROOT / "tests" / "fixtures" / "legal-deck.json"
 

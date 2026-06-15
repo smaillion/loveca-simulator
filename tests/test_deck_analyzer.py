@@ -11,10 +11,10 @@ from loveca.decks.analyzer import (
     DeckFileError,
     analyze_deck_file,
     load_deck,
+    parse_deck,
     render_analysis_json,
     render_analysis_text,
 )
-
 
 PROJECT_ROOT = Path(__file__).parents[1]
 SAMPLE_CARDS_PATH = (
@@ -115,6 +115,17 @@ def test_preferred_printing_must_match_card_code(tmp_path):
     assert any(
         issue.code == "preferred_printing_mismatch" for issue in analysis.issues
     )
+
+
+def test_plus_card_identifiers_are_normalized_to_ascii():
+    deck = _sample_deck_payload()
+    deck["main_deck"][0]["card_code"] = "PL!SP-bp1-003-P＋"
+    deck["main_deck"][0]["preferred_printing_id"] = "PL!SP-bp1-003-P＋"
+
+    parsed = parse_deck(deck)
+
+    assert parsed.main_deck[0].card_code == "PL!SP-bp1-003-P+"
+    assert parsed.main_deck[0].preferred_printing_id == "PL!SP-bp1-003-P+"
 
 
 def test_deck_file_contract_is_validated(tmp_path):

@@ -70,6 +70,44 @@ function heartColorLabel(locale: UiLocale, value: string): string {
   return locale === "zh" ? label.zh : label.ja;
 }
 
+function effectTriggerLabel(locale: UiLocale, trigger: string): string {
+  const labels: Record<string, { zh: string; ja: string }> = {
+    member_played: { zh: "登場", ja: "登場" },
+    player_activation: { zh: "起動", ja: "起動" },
+    live_started: { zh: "ライブ開始時", ja: "ライブ開始時" },
+    baton_touch_performed: { zh: "バトンタッチ時", ja: "バトンタッチ時" },
+    on_play: { zh: "登場", ja: "登場" },
+    activated: { zh: "起動", ja: "起動" },
+    live_start: { zh: "ライブ開始時", ja: "ライブ開始時" },
+    baton_touch: { zh: "バトンタッチ時", ja: "バトンタッチ時" },
+  };
+  const label = labels[trigger];
+  if (!label) return trigger;
+  return locale === "zh" ? label.zh : label.ja;
+}
+
+function effectExecutionModeLabel(locale: UiLocale, mode: string): string {
+  const labels: Record<string, { zh: string; ja: string }> = {
+    auto_resolve: { zh: "自动结算", ja: "自動解決" },
+    prompt_then_resolve: { zh: "提示后处理", ja: "選択して解決" },
+    manual_resolution: { zh: "人工处理", ja: "手動処理" },
+  };
+  const label = labels[mode];
+  if (!label) return mode;
+  return locale === "zh" ? label.zh : label.ja;
+}
+
+function effectSupportStatusLabel(locale: UiLocale, status: string): string {
+  const labels: Record<string, { zh: string; ja: string }> = {
+    supported: { zh: "已接入", ja: "対応済み" },
+    unregistered: { zh: "未注册", ja: "未登録" },
+    hash_mismatch: { zh: "文本不匹配", ja: "テキスト不一致" },
+  };
+  const label = labels[status];
+  if (!label) return status;
+  return locale === "zh" ? label.zh : label.ja;
+}
+
 export function DeckBuilder({
   locale,
   setLocale,
@@ -105,13 +143,13 @@ export function DeckBuilder({
   const [summaryCache, setSummaryCache] = useState<Record<string, CatalogCardSummary>>({});
   const [detailCache, setDetailCache] = useState<Record<string, CatalogCardDetail>>({});
   const [selectedCardCode, setSelectedCardCode] = useState<string | null>(null);
+  const [selectedCatalogKey, setSelectedCatalogKey] = useState<string | null>(null);
   const [detail, setDetail] = useState<CatalogCardDetail | null>(null);
   const [savedDecks, setSavedDecks] = useState<SavedDeckSummary[]>([]);
   const [selectedDeckId, setSelectedDeckId] = useState<string | null>(null);
   const [deck, setDeck] = useState<DeckList>(EMPTY_DECK);
   const [deckName, setDeckName] = useState("");
   const [loadingCards, setLoadingCards] = useState(false);
-  const [loadingDetail, setLoadingDetail] = useState(false);
   const [loadingDecks, setLoadingDecks] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -122,7 +160,7 @@ export function DeckBuilder({
 
   const visibleCards = useMemo(
     () =>
-      cards.filter((card) =>
+      aggregateDeckCatalogCards(cards.filter((card) =>
         matchesCatalogCardFilters(card, {
           cardType,
           basicHeartColor,
@@ -140,7 +178,7 @@ export function DeckBuilder({
             hasLiveBladeHeart === "" ? undefined : hasLiveBladeHeart === "true",
           liveBladeHeartColor,
         }),
-      ),
+      )),
     [
       basicHeartColor,
       cardType,
@@ -160,8 +198,11 @@ export function DeckBuilder({
     ],
   );
   const selectedSummary = useMemo(
-    () => visibleCards.find((card) => card.card_code === selectedCardCode) ?? null,
-    [visibleCards, selectedCardCode],
+    () =>
+      visibleCards.find((card) => catalogRowKey(card) === selectedCatalogKey) ??
+      visibleCards.find((card) => card.card_code === selectedCardCode) ??
+      null,
+    [selectedCardCode, selectedCatalogKey, visibleCards],
   );
   const mainCount = sumDeck(deck.main_deck);
   const energyCount = sumDeck(deck.energy_deck);
@@ -172,6 +213,14 @@ export function DeckBuilder({
   );
   const memberCount = deckTypeCounts.member;
   const liveCount = deckTypeCounts.live;
+  const memberEntries = useMemo(
+    () => filterDeckEntriesByType(deck.main_deck, summaryCache, detailCache, "member"),
+    [deck.main_deck, detailCache, summaryCache],
+  );
+  const liveEntries = useMemo(
+    () => filterDeckEntriesByType(deck.main_deck, summaryCache, detailCache, "live"),
+    [deck.main_deck, detailCache, summaryCache],
+  );
   const deckCardCodes = useMemo(
     () =>
       [...new Set([...deck.main_deck, ...deck.energy_deck].map((entry) => entry.card_code))],
@@ -235,10 +284,16 @@ export function DeckBuilder({
           }
           return next;
         });
+        const first = aggregateDeckCatalogCards(response.items)[0] ?? null;
         setSelectedCardCode((current) =>
           current && response.items.some((item) => item.card_code === current)
             ? current
-            : response.items[0]?.card_code ?? null,
+            : first?.card_code ?? null,
+        );
+        setSelectedCatalogKey((current) =>
+          current && response.items.some((item) => catalogRowKey(item) === current)
+            ? current
+            : first ? catalogRowKey(first) : null,
         );
       })
       .catch((reason) => {
@@ -295,11 +350,18 @@ export function DeckBuilder({
   ]);
 
   useEffect(() => {
-    setSelectedCardCode((current) =>
-      current && visibleCards.some((card) => card.card_code === current)
-        ? current
-        : visibleCards[0]?.card_code ?? null,
-    );
+    setSelectedCatalogKey((current) => {
+      if (current && visibleCards.some((card) => catalogRowKey(card) === current)) {
+        return current;
+      }
+      return visibleCards[0] ? catalogRowKey(visibleCards[0]) : null;
+    });
+    setSelectedCardCode((current) => {
+      if (current && visibleCards.some((card) => card.card_code === current)) {
+        return current;
+      }
+      return visibleCards[0]?.card_code ?? null;
+    });
   }, [visibleCards]);
 
   useEffect(() => {
@@ -328,7 +390,6 @@ export function DeckBuilder({
       return;
     }
     let active = true;
-    setLoadingDetail(true);
     getCatalogCard(selectedCardCode)
       .then((response) => {
         if (!active) return;
@@ -338,9 +399,6 @@ export function DeckBuilder({
       .catch((reason) => {
         if (!active) return;
         setMessage(reason instanceof Error ? reason.message : String(reason));
-      })
-      .finally(() => {
-        if (active) setLoadingDetail(false);
       });
     return () => {
       active = false;
@@ -594,12 +652,10 @@ export function DeckBuilder({
   }
 
   const analyzedEnergyCount = analysis?.card_type_counts.energy_deck?.energy ?? energyCount;
-  const selectedPrintingForDetail =
-    detail?.printings.find((printing) => printing.card_id === selectedSummary?.card_id)
-    ?? detail?.printings[0]
-    ?? null;
-  const selectedCardImageId = selectedPrintingForDetail?.card_id ?? selectedSummary?.card_id ?? null;
-  const selectedCardImageUrl = selectedPrintingForDetail?.image_url ?? selectedSummary?.image_url ?? null;
+  function selectCatalogCard(card: CatalogCardSummary) {
+    setSelectedCardCode(card.card_code);
+    setSelectedCatalogKey(catalogRowKey(card));
+  }
 
   return (
     <div className="catalog-shell">
@@ -683,6 +739,41 @@ export function DeckBuilder({
         </section>
 
         <section className="deck-center">
+          <div className="deck-overview" aria-label={tr(locale, "牌组状态总览", "デッキ状態")}>
+            <div className="deck-overview-card">
+              <small>{tr(locale, "主牌组", "メインデッキ")}</small>
+              <strong>{mainCount} / {MAIN_DECK_LIMIT}</strong>
+              <span>
+                {tr(
+                  locale,
+                  `Member ${memberCount}/${MAIN_DECK_MEMBER_TARGET} · Live ${liveCount}/${MAIN_DECK_LIVE_TARGET}`,
+                  `メンバー ${memberCount}/${MAIN_DECK_MEMBER_TARGET} · ライブ ${liveCount}/${MAIN_DECK_LIVE_TARGET}`,
+                )}
+              </span>
+            </div>
+            <div className="deck-overview-card">
+              <small>{tr(locale, "能量组", "エネルギーデッキ")}</small>
+              <strong>{energyCount} / {ENERGY_DECK_LIMIT}</strong>
+              <span>{tr(locale, "能量卡不受同卡 4 张限制", "エネルギーは同名4枚制限なし")}</span>
+            </div>
+            <div className={`deck-overview-card ${analysis?.is_legal ? "legal" : "review"}`}>
+              <small>{tr(locale, "合法性", "合法性")}</small>
+              <strong>
+                {analyzing
+                  ? tr(locale, "分析中", "分析中")
+                  : analysis
+                    ? analysis.is_legal
+                      ? tr(locale, "合法", "合法")
+                      : tr(locale, "需修正", "要修正")
+                    : tr(locale, "等待分析", "分析待ち")}
+              </strong>
+              <span>
+                {analysis
+                  ? tr(locale, `问题 ${analysis.issues.length}`, `問題 ${analysis.issues.length}`)
+                  : tr(locale, `${totalCount} 张总计`, `${totalCount}枚合計`)}
+              </span>
+            </div>
+          </div>
           <div className="deck-toolbar">
             <label className="deck-name-field">
               {tr(locale, "牌组名称", "デッキ名")}
@@ -719,16 +810,11 @@ export function DeckBuilder({
               </button>
             </div>
           </div>
-          <div className="deck-counts">
-            <span>{tr(locale, `主牌组 ${mainCount}`, `メイン ${mainCount}`)}</span>
-            <span>{tr(locale, `能量组 ${energyCount}`, `エネルギー ${energyCount}`)}</span>
-            <span>{tr(locale, `${totalCount} 总数`, `${totalCount} 合計`)}</span>
-          </div>
           <div className="deck-sections">
             <DeckSection
               locale={locale}
-              title={tr(locale, "主牌组", "メインデッキ")}
-              entries={deck.main_deck}
+              title={tr(locale, `Member ${memberCount} / ${MAIN_DECK_MEMBER_TARGET}`, `メンバー ${memberCount} / ${MAIN_DECK_MEMBER_TARGET}`)}
+              entries={memberEntries}
               summaryCache={summaryCache}
               detailCache={detailCache}
               selectedCardCode={selectedCardCode}
@@ -755,7 +841,35 @@ export function DeckBuilder({
             />
             <DeckSection
               locale={locale}
-              title={tr(locale, "能量组", "エネルギーデッキ")}
+              title={tr(locale, `Live ${liveCount} / ${MAIN_DECK_LIVE_TARGET}`, `ライブ ${liveCount} / ${MAIN_DECK_LIVE_TARGET}`)}
+              entries={liveEntries}
+              summaryCache={summaryCache}
+              detailCache={detailCache}
+              selectedCardCode={selectedCardCode}
+              onDecrease={(cardCode) => addQuantity("main_deck", cardCode, -1)}
+              onIncrease={(cardCode) => addQuantity("main_deck", cardCode, 1)}
+              onPreferred={(cardCode, value) => updatePreferredPrinting("main_deck", cardCode, value)}
+              onSelectCard={setSelectedCardCode}
+              canIncrease={(cardCode) =>
+                !additionError(
+                  "main_deck",
+                  cardTypeForDeckEntry(cardCode, summaryCache, detailCache, "live"),
+                  mainCount,
+                  currentEntryQuantity(deck.main_deck, cardCode),
+                  1,
+                  locale,
+                  memberCount,
+                  liveCount,
+                )
+              }
+              onPreview={(cardCode) => {
+                setSelectedCardCode(cardCode);
+                setPreviewOpen(true);
+              }}
+            />
+            <DeckSection
+              locale={locale}
+              title={tr(locale, `Energy ${energyCount} / ${ENERGY_DECK_LIMIT}`, `エネルギー ${energyCount} / ${ENERGY_DECK_LIMIT}`)}
               entries={deck.energy_deck}
               summaryCache={summaryCache}
               detailCache={detailCache}
@@ -780,15 +894,25 @@ export function DeckBuilder({
                 setSelectedCardCode(cardCode);
                 setPreviewOpen(true);
               }}
+              compact
             />
           </div>
           <section className="deck-analysis-panel">
-            <div className="section-heading compact-heading">
-              <Activity size={18} />
-              <div>
-                <h2>{tr(locale, "当前牌组分析", "現在のデッキ分析")}</h2>
-                <p>{tr(locale, "使用本地 Deck Analyzer 自动刷新。", "ローカル Deck Analyzer で自動更新します。")}</p>
+            <div className="deck-analysis-header">
+              <div className="deck-analysis-title">
+                <Activity size={18} />
+                <div>
+                  <h2>{tr(locale, "当前牌组分析", "現在のデッキ分析")}</h2>
+                  <p>{tr(locale, "自动刷新构筑合法性和 Live 判定相关指标。", "構築合法性とライブ判定関連指標を自動更新します。")}</p>
+                </div>
               </div>
+              {analysis && (
+                <span className={`deck-analysis-pill ${analysis.is_legal ? "legal" : "illegal"}`}>
+                  {analysis.is_legal
+                    ? tr(locale, "当前牌组合法", "現在のデッキは合法です")
+                    : tr(locale, "当前牌组不合法", "現在のデッキは不正です")}
+                </span>
+              )}
             </div>
             {!analysis && !analyzing && !analysisError && (
               <div className="empty-state">
@@ -806,50 +930,83 @@ export function DeckBuilder({
             )}
             {analysis && (
               <div className="deck-analysis-grid">
-                <div className={`deck-analysis-status ${analysis.is_legal ? "legal" : "illegal"}`}>
-                  {analysis.is_legal
-                    ? tr(locale, "当前牌组合法", "現在のデッキは合法です")
-                    : tr(locale, "当前牌组不合法", "現在のデッキは不正です")}
+                <div className="deck-analysis-metrics">
+                  <div className="deck-analysis-metric">
+                    <small>{tr(locale, "主牌组", "メイン")}</small>
+                    <strong>{mainCount} / {MAIN_DECK_LIMIT}</strong>
+                    <span>{tr(locale, "Member + Live", "メンバー + ライブ")}</span>
+                  </div>
+                  <div className="deck-analysis-metric">
+                    <small>Member</small>
+                    <strong>{memberCount} / {MAIN_DECK_MEMBER_TARGET}</strong>
+                    <span>{tr(locale, "角色卡", "メンバー")}</span>
+                  </div>
+                  <div className="deck-analysis-metric">
+                    <small>Live</small>
+                    <strong>{liveCount} / {MAIN_DECK_LIVE_TARGET}</strong>
+                    <span>{tr(locale, "Live 卡", "ライブ")}</span>
+                  </div>
+                  <div className="deck-analysis-metric">
+                    <small>Energy</small>
+                    <strong>{analyzedEnergyCount} / {ENERGY_DECK_LIMIT}</strong>
+                    <span>{tr(locale, "能量组", "エネルギー")}</span>
+                  </div>
+                  <div className={`deck-analysis-metric issue-count ${analysis.issues.length ? "warn" : "ok"}`}>
+                    <small>{tr(locale, "问题", "問題")}</small>
+                    <strong>{analysis.issues.length}</strong>
+                    <span>{analysis.issues.length ? tr(locale, "需要处理", "要対応") : tr(locale, "无", "なし")}</span>
+                  </div>
                 </div>
-                <div className="deck-analysis-stats">
-                  <span>{tr(locale, `主牌组 ${mainCount} / ${MAIN_DECK_LIMIT}`, `メイン ${mainCount} / ${MAIN_DECK_LIMIT}`)}</span>
-                  <span>{tr(locale, `Member ${memberCount} / ${MAIN_DECK_MEMBER_TARGET}`, `メンバー ${memberCount} / ${MAIN_DECK_MEMBER_TARGET}`)}</span>
-                  <span>{tr(locale, `Live ${liveCount} / ${MAIN_DECK_LIVE_TARGET}`, `ライブ ${liveCount} / ${MAIN_DECK_LIVE_TARGET}`)}</span>
-                  <span>{tr(locale, `能量组 ${analyzedEnergyCount} / ${ENERGY_DECK_LIMIT}`, `エネルギー ${analyzedEnergyCount} / ${ENERGY_DECK_LIMIT}`)}</span>
-                  <span>{tr(locale, `问题 ${analysis.issues.length}`, `問題 ${analysis.issues.length}`)}</span>
-                </div>
-                <div className="deck-analysis-summary">
-                  <strong>{tr(locale, "Member cost curve", "メンバーコスト分布")}</strong>
-                  <span>{formatMetricMap(analysis.member_cost_curve)}</span>
-                </div>
-                <div className="deck-analysis-summary">
-                  <strong>{tr(locale, "基本 Heart", "基本ハート")}</strong>
-                  <span>{formatMetricMap(analysis.member_basic_heart_distribution)}</span>
-                </div>
-                <div className="deck-analysis-summary">
-                  <strong>{tr(locale, "所需 Heart", "必要ハート")}</strong>
-                  <span>{formatMetricMap(analysis.live_required_heart_distribution)}</span>
-                </div>
-                <div className="deck-analysis-summary">
-                  <strong>{tr(locale, "Live score", "ライブスコア")}</strong>
-                  <span>{formatMetricMap(analysis.live_score_distribution)}</span>
-                </div>
-                <div className="deck-analysis-summary">
-                  <strong>{tr(locale, "Special Blade Heart", "特殊ブレードハート")}</strong>
-                  <span>{formatMetricMap(analysis.special_blade_heart_summary)}</span>
-                </div>
-                <div className="deck-analysis-issues">
-                  <strong>{tr(locale, "Issues", "問題一覧")}</strong>
-                  {analysis.issues.length === 0 ? (
-                    <div className="empty-state">{tr(locale, "无", "なし")}</div>
-                  ) : (
-                    analysis.issues.map((issue, index) => (
-                      <div key={`${issue.code}-${index}`} className="deck-analysis-issue">
-                        <strong>{issue.code}</strong>
-                        <span>{issue.message}</span>
-                      </div>
-                    ))
-                  )}
+                <div className="deck-analysis-dashboard">
+                  <div className="deck-analysis-summary">
+                    <strong>{tr(locale, "Member cost curve", "メンバーコスト分布")}</strong>
+                    <DistributionChips
+                      locale={locale}
+                      values={analysis.member_cost_curve}
+                      itemLabel={tr(locale, "Cost", "コスト")}
+                    />
+                  </div>
+                  <div className="deck-analysis-summary emphasis">
+                    <strong>{tr(locale, "基本 Heart", "基本ハート")}</strong>
+                    <span>{formatColorValueMap(locale, analysis.member_basic_heart_distribution)}</span>
+                  </div>
+                  <div className="deck-analysis-summary emphasis">
+                    <strong>{tr(locale, "所需 Heart", "必要ハート")}</strong>
+                    <span>{formatColorValueMap(locale, analysis.live_required_heart_distribution)}</span>
+                  </div>
+                  <div className="deck-analysis-summary">
+                    <strong>{tr(locale, "Live score", "ライブスコア")}</strong>
+                    <DistributionChips
+                      locale={locale}
+                      values={analysis.live_score_distribution}
+                      itemLabel="Score"
+                    />
+                  </div>
+                  <div className="deck-analysis-summary">
+                    <strong>{tr(locale, "Special Blade Heart", "特殊ブレードハート")}</strong>
+                    <span>{formatMetricMap(analysis.special_blade_heart_summary)}</span>
+                  </div>
+                  <div className="deck-analysis-summary">
+                    <strong>{tr(locale, "技能时点", "能力タイミング")}</strong>
+                    <span>{formatEffectTimingSummary(locale, analysis.effect_timing_summary)}</span>
+                  </div>
+                  <div className="deck-analysis-summary">
+                    <strong>{tr(locale, "技能处理方式", "能力解決方式")}</strong>
+                    <span>{formatEffectExecutionSummary(locale, analysis.effect_execution_summary)}</span>
+                  </div>
+                  <div className="deck-analysis-issues">
+                    <strong>{tr(locale, "Issues", "問題一覧")}</strong>
+                    {analysis.issues.length === 0 ? (
+                      <div className="deck-analysis-empty">{tr(locale, "无", "なし")}</div>
+                    ) : (
+                      analysis.issues.map((issue, index) => (
+                        <div key={`${issue.code}-${index}`} className="deck-analysis-issue">
+                          <strong>{issue.code}</strong>
+                          <span>{issue.message}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -1073,13 +1230,13 @@ export function DeckBuilder({
             )}
             {visibleCards.map((card) => (
               <div
-                key={card.card_id ?? card.card_code}
-                className={`catalog-row ${selectedCardCode === card.card_code ? "selected" : ""}`}
+                key={catalogRowKey(card)}
+                className={`catalog-row ${selectedCatalogKey === catalogRowKey(card) ? "selected" : ""}`}
               >
                 <button
                   className="catalog-row-main"
                   type="button"
-                  onClick={() => setSelectedCardCode(card.card_code)}
+                  onClick={() => selectCatalogCard(card)}
                 >
                   <span className="catalog-row-top">
                     <strong>{card.name_ja}</strong>
@@ -1131,7 +1288,7 @@ export function DeckBuilder({
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation();
-                      setSelectedCardCode(card.card_code);
+                      selectCatalogCard(card);
                       setPreviewOpen(true);
                     }}
                   >
@@ -1141,59 +1298,6 @@ export function DeckBuilder({
                 </span>
               </div>
             ))}
-          </div>
-          <div className="catalog-detail-mini">
-            {loadingDetail && (
-              <div className="catalog-loading">
-                <LoaderCircle size={16} className="spin" />
-                {tr(locale, "加载卡详情中", "カード詳細を読み込み中")}
-              </div>
-            )}
-            {detail && (
-              <>
-                <button
-                  className="catalog-detail-preview"
-                  type="button"
-                  onClick={() => setPreviewOpen(true)}
-                >
-                  <DeckThumbnail
-                    locale={locale}
-                    localCardId={selectedCardImageId}
-                    remoteImageUrl={selectedCardImageUrl}
-                    alt={detail.card.name_ja}
-                    className="catalog-detail-thumbnail"
-                  />
-                  <span>{tr(locale, "点击放大预览", "クリックで拡大表示")}</span>
-                </button>
-                <strong>{detail.card.name_ja}</strong>
-                <span>{detail.card.card_code}</span>
-                <p>{detail.text_revisions[0]?.raw_effect_text_ja ?? tr(locale, "无文本", "テキストなし")}</p>
-                {detail.printings.length > 0 && (
-                  <div className="catalog-printing-select">
-                    <label>
-                      {tr(locale, "印刷版本", "印刷版")}
-                      <select
-                        value={selectedSummary?.card_id ?? detail.printings[0].card_id}
-                        onChange={(event) => {
-                          const printingId = event.target.value;
-                          if (!selectedSummary) return;
-                          const section = selectedSummary.card_type === "energy" ? "energy_deck" : "main_deck";
-                          const current = deck[section].find((entry) => entry.card_code === selectedSummary.card_code);
-                          if (!current) return;
-                          updatePreferredPrinting(section, selectedSummary.card_code, printingId);
-                        }}
-                      >
-                        {detail.printings.map((printing) => (
-                          <option key={printing.card_id} value={printing.card_id}>
-                            {printing.card_id}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-                )}
-              </>
-            )}
           </div>
         </section>
       </main>
@@ -1222,6 +1326,7 @@ function DeckSection({
   onSelectCard,
   canIncrease,
   onPreview,
+  compact = false,
 }: {
   locale: UiLocale;
   title: string;
@@ -1235,36 +1340,35 @@ function DeckSection({
   onSelectCard: (cardCode: string) => void;
   canIncrease: (cardCode: string) => boolean;
   onPreview: (cardCode: string) => void;
+  compact?: boolean;
 }) {
   return (
-    <section className="deck-section">
+    <section className={`deck-section ${compact ? "compact" : ""}`}>
       <h3>{title}</h3>
       {entries.length === 0 && <div className="empty-state">{tr(locale, "空", "空")}</div>}
       <div className="deck-entry-list">
         {entries.map((entry) => {
-          const detail = detailCache[entry.card_code] ?? null;
+          const detail = detailForCardCode(entry.card_code, detailCache);
           const summary = summaryCache[entry.card_code] ?? null;
           const printings = detail?.printings ?? [];
           const selectedPrinting =
             printings.find((item) => item.card_id === entry.preferred_printing_id) ??
             printings[0] ??
             null;
-          const imageCardId = selectedPrinting?.card_id ?? summary?.card_id ?? null;
-          const imageUrl = selectedPrinting?.image_url ?? summary?.image_url ?? null;
-          const cardType = detail?.card.card_type ?? summary?.card_type ?? "member";
           return (
-            <button
+            <div
               key={entry.card_code}
+              role="button"
+              tabIndex={0}
               className={`deck-entry ${selectedCardCode === entry.card_code ? "selected" : ""}`}
               onClick={() => onSelectCard(entry.card_code)}
-              type="button"
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelectCard(entry.card_code);
+                }
+              }}
             >
-              <DeckThumbnail
-                locale={locale}
-                localCardId={imageCardId}
-                remoteImageUrl={imageUrl}
-                alt={detail?.card.name_ja ?? summary?.name_ja ?? entry.card_code}
-              />
               <div className="deck-entry-body">
                 <div className="deck-entry-head">
                   <div className="deck-entry-title">
@@ -1274,7 +1378,6 @@ function DeckSection({
                   <span className="deck-entry-quantity">x{entry.quantity}</span>
                 </div>
                 <div className="deck-entry-meta">
-                  <span>{formatCardType(locale, cardType)}</span>
                   {selectedPrinting && (
                     <span>
                       {selectedPrinting.card_id}
@@ -1333,7 +1436,7 @@ function DeckSection({
                   </label>
                 </div>
               </div>
-            </button>
+            </div>
           );
         })}
       </div>
@@ -1401,8 +1504,14 @@ function CatalogPreviewDialog({
   summary: CatalogCardSummary | null;
   onClose: () => void;
 }) {
+  const defaultPrintingId = summary?.card_id ?? detail.printings[0]?.card_id ?? "";
+  const [selectedPrintingId, setSelectedPrintingId] = useState(defaultPrintingId);
+  useEffect(() => {
+    setSelectedPrintingId(defaultPrintingId);
+  }, [defaultPrintingId, detail.card.card_code]);
   const selectedPrinting =
-    detail.printings.find((printing) => printing.card_id === summary?.card_id)
+    detail.printings.find((printing) => printing.card_id === selectedPrintingId)
+    ?? detail.printings.find((printing) => printing.card_id === summary?.card_id)
     ?? detail.printings[0]
     ?? null;
   const text = detail.text_revisions[0]?.raw_effect_text_ja ?? tr(locale, "无文本", "テキストなし");
@@ -1433,12 +1542,49 @@ function CatalogPreviewDialog({
             <DeckMetric label="Printing" value={selectedPrinting?.card_id ?? "-"} />
           </div>
           <h3>{tr(locale, "当前印刷版本", "現在の印刷版")}</h3>
-          <p className="effect-text">
-            {selectedPrinting?.card_id ?? "-"}
-            {selectedPrinting?.rarity_ja ? ` · ${selectedPrinting.rarity_ja}` : ""}
-          </p>
+          {detail.printings.length > 1 ? (
+            <label className="deck-preview-printing">
+              <span>{tr(locale, "选择卡面", "カード画像を選択")}</span>
+              <select
+                value={selectedPrinting?.card_id ?? ""}
+                onChange={(event) => setSelectedPrintingId(event.target.value)}
+              >
+                {detail.printings.map((printing) => (
+                  <option key={printing.card_id} value={printing.card_id}>
+                    {printing.card_id}
+                    {printing.rarity_ja ? ` · ${printing.rarity_ja}` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <p className="effect-text">
+              {selectedPrinting?.card_id ?? "-"}
+              {selectedPrinting?.rarity_ja ? ` · ${selectedPrinting.rarity_ja}` : ""}
+            </p>
+          )}
           <h3>{tr(locale, "官方日文效果", "公式日本語テキスト")}</h3>
           <p className="effect-text">{text}</p>
+          <h3>{tr(locale, "技能执行支持", "能力実行サポート")}</h3>
+          <div className="effect-support-list">
+            <span className={`support-status ${detail.card.effect_registry_status}`}>
+              {effectSupportStatusLabel(locale, detail.card.effect_registry_status)}
+            </span>
+            {detail.card.effects.map((effect) => (
+              <div key={effect.effect_id}>
+                <strong>{effect.effect_id}</strong>
+                <span>
+                  {effectTriggerLabel(locale, effect.trigger)} ·{" "}
+                  {effectExecutionModeLabel(locale, effect.execution_mode)} ·{" "}
+                  {effect.simulation_support} · {effect.review_status}
+                </span>
+                <small>{effect.label_ja}</small>
+              </div>
+            ))}
+            {detail.card.effect_registry_errors.map((error) => (
+              <code key={error}>{error}</code>
+            ))}
+          </div>
         </div>
       </article>
     </div>
@@ -1450,6 +1596,34 @@ function DeckMetric({ label, value }: { label: string; value: string | number })
     <span className="metric">
       <small>{label}</small>
       <strong>{value}</strong>
+    </span>
+  );
+}
+
+function DistributionChips({
+  locale,
+  values,
+  itemLabel,
+}: {
+  locale: UiLocale;
+  values: Record<string, number>;
+  itemLabel: string;
+}) {
+  const entries = Object.entries(values).filter(([, value]) => value > 0);
+  if (entries.length === 0) {
+    return <span className="deck-distribution-empty">-</span>;
+  }
+  return (
+    <span className="deck-distribution-chips">
+      {entries.map(([key, value]) => (
+        <span className="deck-distribution-chip" key={key}>
+          <small>
+            {itemLabel} {formatDistributionKey(locale, key)}
+          </small>
+          <strong>{value}</strong>
+          <em>{tr(locale, "张", "枚")}</em>
+        </span>
+      ))}
     </span>
   );
 }
@@ -1663,10 +1837,54 @@ function cardTypeForDeckEntry(
   detailCache: Record<string, CatalogCardDetail>,
   fallback: "member" | "live" | "energy" | null,
 ): "member" | "live" | "energy" {
-  return detailCache[cardCode]?.card.card_type
+  return detailForCardCode(cardCode, detailCache)?.card.card_type
     ?? summaryCache[cardCode]?.card_type
     ?? fallback
     ?? "member";
+}
+
+function detailForCardCode(
+  cardCode: string,
+  detailCache: Record<string, CatalogCardDetail>,
+): CatalogCardDetail | null {
+  const detail = detailCache[cardCode];
+  return detail?.card.card_code === cardCode ? detail : null;
+}
+
+function catalogRowKey(card: CatalogCardSummary): string {
+  if (card.card_type === "energy") {
+    return `energy:${card.card_id ?? card.card_code}`;
+  }
+  return `${card.card_type}:${card.card_code}`;
+}
+
+function aggregateDeckCatalogCards(cards: CatalogCardSummary[]): CatalogCardSummary[] {
+  const rows: CatalogCardSummary[] = [];
+  const seenRuleCards = new Set<string>();
+  for (const card of cards) {
+    if (card.card_type === "energy") {
+      rows.push(card);
+      continue;
+    }
+    const key = `${card.card_type}:${card.card_code}`;
+    if (seenRuleCards.has(key)) {
+      continue;
+    }
+    seenRuleCards.add(key);
+    rows.push(card);
+  }
+  return rows;
+}
+
+function filterDeckEntriesByType(
+  entries: DeckEntry[],
+  summaryCache: Record<string, CatalogCardSummary>,
+  detailCache: Record<string, CatalogCardDetail>,
+  cardType: "member" | "live",
+): DeckEntry[] {
+  return entries.filter(
+    (entry) => cardTypeForDeckEntry(entry.card_code, summaryCache, detailCache, null) === cardType,
+  );
 }
 
 function mergeEntry(
@@ -1700,6 +1918,39 @@ function formatMetricMap(values: Record<string, number>): string {
     return "-";
   }
   return entries.map(([key, value]) => `${key} ${value}`).join(" / ");
+}
+
+function formatDistributionKey(locale: UiLocale, key: string): string {
+  if (key === "null") {
+    return tr(locale, "不明", "不明");
+  }
+  return key;
+}
+
+function formatEffectTimingSummary(
+  locale: UiLocale,
+  values: Record<string, number>,
+): string {
+  const entries = Object.entries(values).filter(([, value]) => value > 0);
+  if (entries.length === 0) {
+    return "-";
+  }
+  return entries
+    .map(([key, value]) => `${effectTriggerLabel(locale, key)} ${value}`)
+    .join(" / ");
+}
+
+function formatEffectExecutionSummary(
+  locale: UiLocale,
+  values: Record<string, number>,
+): string {
+  const entries = Object.entries(values).filter(([, value]) => value > 0);
+  if (entries.length === 0) {
+    return "-";
+  }
+  return entries
+    .map(([key, value]) => `${effectExecutionModeLabel(locale, key)} ${value}`)
+    .join(" / ");
 }
 
 function formatColorValueMap(

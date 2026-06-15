@@ -1,6 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App, {
+  EffectResolutionAction,
+  InspectionChoiceAction,
   StageAttachments,
   availableValue,
   canResolveEffect,
@@ -66,11 +68,13 @@ const ANALYSIS_RESPONSE = {
   card_type_counts: { main_deck: { member: 0, live: 0 }, energy_deck: { energy: 0 } },
   copy_counts: {},
   member_cost_curve: {},
-  member_basic_heart_distribution: {},
-  live_required_heart_distribution: {},
+  member_basic_heart_distribution: { heart01: 2 },
+  live_required_heart_distribution: { heart0: 3, heart06: 1 },
   member_blade_summary: {},
   live_score_distribution: {},
   special_blade_heart_summary: {},
+  effect_timing_summary: { on_play: 1, activated: 2 },
+  effect_execution_summary: { prompt_then_resolve: 3, manual_resolution: 1 },
 };
 
 const CATALOG_SUMMARY = {
@@ -119,6 +123,22 @@ const CATALOG_DETAIL = {
     units: [],
     review_candidates: [],
     printing_references: [],
+    effect_registry_status: "supported",
+    effect_registry_errors: [],
+    effects: [
+      {
+        effect_id: "LL-TEST-001:1",
+        label_ja: "【登場】テスト。",
+        effect_type: "triggered",
+        timing: "on_play",
+        trigger: "member_played",
+        execution_mode: "prompt_then_resolve",
+        frequency_limit: "none",
+        is_optional: false,
+        simulation_support: "test_validated_executable",
+        review_status: "test_validated",
+      },
+    ],
   },
   printings: [
     {
@@ -212,6 +232,174 @@ const MATCH_PAYLOAD = {
   },
   events: [],
   legal_actions: [],
+};
+
+const INSPECTION_CARDS = {
+  "player_1-M001": {
+    instance_id: "player_1-M001",
+    owner_id: "player_1",
+    orientation: "active" as const,
+    face_up: true,
+    card: {
+      card_id: "PL-BP6-002-R",
+      card_code: "PL!-bp6-002",
+      image_url: null,
+      name_ja: "確認メンバー",
+      card_type: "member" as const,
+      cost: 0,
+      blade: 1,
+      score: null,
+      basic_hearts: { heart01: 1 },
+      required_hearts: {},
+      blade_heart_color_slot: null,
+      special_blade_hearts: [],
+      raw_effect_text_ja: "【登場】デッキの上から2枚見る。",
+      text_revision_id: 1,
+      raw_text_hash: "hash-source",
+      work_keys: ["muse"],
+      ability_bucket: "other" as const,
+      effect_ids: ["PL!-bp6-002:1"],
+      effect_registry_status: "supported" as const,
+      effect_registry_errors: [],
+    },
+  },
+  "player_1-M002": {
+    instance_id: "player_1-M002",
+    owner_id: "player_1",
+    orientation: "active" as const,
+    face_up: true,
+    card: {
+      card_id: "KEEP-001",
+      card_code: "KEEP-001",
+      image_url: null,
+      name_ja: "候補カード",
+      card_type: "member" as const,
+      cost: 1,
+      blade: 0,
+      score: null,
+      basic_hearts: {},
+      required_hearts: {},
+      blade_heart_color_slot: null,
+      special_blade_hearts: [],
+      raw_effect_text_ja: "【常時】テスト。",
+      text_revision_id: 2,
+      raw_text_hash: "hash-keep",
+      work_keys: ["muse"],
+      ability_bucket: "static_only" as const,
+      effect_ids: [],
+      effect_registry_status: "unregistered" as const,
+      effect_registry_errors: [],
+    },
+  },
+  "player_1-M003": {
+    instance_id: "player_1-M003",
+    owner_id: "player_1",
+    orientation: "active" as const,
+    face_up: true,
+    card: {
+      card_id: "REJECT-001",
+      card_code: "REJECT-001",
+      image_url: null,
+      name_ja: "条件外カード",
+      card_type: "member" as const,
+      cost: 1,
+      blade: 0,
+      score: null,
+      basic_hearts: {},
+      required_hearts: {},
+      blade_heart_color_slot: null,
+      special_blade_hearts: [],
+      raw_effect_text_ja: "【登場】テスト。",
+      text_revision_id: 3,
+      raw_text_hash: "hash-reject",
+      work_keys: ["muse"],
+      ability_bucket: "other" as const,
+      effect_ids: [],
+      effect_registry_status: "unregistered" as const,
+      effect_registry_errors: [],
+    },
+  },
+};
+
+const INSPECTION_MATCH_PAYLOAD = {
+  state: {
+    ...MATCH_PAYLOAD.state,
+    match_id: "match-inspection",
+    phase: "first_main",
+    revision: 3,
+    active_player_id: "player_1",
+    cards: INSPECTION_CARDS,
+    effect_definitions: {
+      "PL!-bp6-002:1": {
+        effect_id: "PL!-bp6-002:1",
+        card_code: "PL!-bp6-002",
+        text_revision_id: 1,
+        raw_text_hash: "hash-source",
+        effect_index: 1,
+        label_ja: "【登場】自分のデッキの上からカードを2枚見る。",
+        effect_type: "triggered",
+        timing: "on_play",
+        trigger: "member_played",
+        execution_mode: "prompt_then_resolve" as const,
+        frequency_limit: "none",
+        is_optional: false,
+        simulation_support: "test_validated_executable",
+        review_status: "test_validated",
+      },
+    },
+    pending_effects: [
+      {
+        invocation_id: "effect-001",
+        effect_id: "PL!-bp6-002:1",
+        source_card_instance_id: "player_1-M001",
+        player_id: "player_1",
+        trigger_event: "member_played",
+        trigger_data: {},
+        resolution_stage: "after_cost" as const,
+      },
+    ],
+    pending_choice: {
+      choice_type: "effect_inspection_selection" as const,
+      player_id: "player_1",
+      message_ja: "確認したカードの処理を選んでください。",
+      message_zh: "请选择检查后的卡牌处理结果。",
+      options: {
+        invocation_id: "effect-001",
+        effect_id: "PL!-bp6-002:1",
+        source_card_instance_id: "player_1-M001",
+        inspected_card_instance_ids: ["player_1-M002", "player_1-M003"],
+        candidate_card_instance_ids: ["player_1-M002"],
+        minimum: 0,
+        maximum: 1,
+        requires_order: false,
+        selected_destination: "hand",
+        unselected_destination: "waiting_room",
+        reveal_selected_to_opponent: true,
+      },
+    },
+  },
+  events: [],
+  legal_actions: [
+    {
+      action_type: "resolve_effect_choice",
+      player_id: "player_1",
+      label_zh: "提交技能检查结果",
+      label_ja: "能力による確認結果を確定",
+      options: {
+        invocation_id: "effect-001",
+        effect_id: "PL!-bp6-002:1",
+        source_card_instance_id: "player_1-M001",
+        inspected_card_instance_ids: ["player_1-M002", "player_1-M003"],
+        candidate_card_instance_ids: ["player_1-M002"],
+        minimum: 0,
+        maximum: 1,
+        requires_order: false,
+        selected_destination: "hand",
+        unselected_destination: "waiting_room",
+        reveal_selected_to_opponent: true,
+      },
+    },
+  ],
 };
 
 function createPlayerState(playerId: string, name: string) {
@@ -470,10 +658,11 @@ describe("App", () => {
   });
 
   it("requires effect card and Energy selections before resolution", () => {
-    expect(canResolveEffect(1, 0, 0, 0)).toBe(false);
-    expect(canResolveEffect(1, 1, 1, 0)).toBe(false);
-    expect(canResolveEffect(1, 1, 1, 1)).toBe(true);
-    expect(canResolveEffect(0, 0, 0, 0)).toBe(true);
+    expect(canResolveEffect(1, 1, 0, 0, 0)).toBe(false);
+    expect(canResolveEffect(1, 1, 1, 1, 0)).toBe(false);
+    expect(canResolveEffect(1, 1, 1, 1, 1)).toBe(true);
+    expect(canResolveEffect(0, 0, 0, 0, 0)).toBe(true);
+    expect(canResolveEffect(1, 2, 2, 0, 0)).toBe(true);
   });
 
   it("shows attached Member and Energy cards under a Stage Member", () => {
@@ -600,9 +789,51 @@ describe("App", () => {
     await waitFor(() => expect(screen.getAllByText("LL-TEST-001").length).toBeGreaterThan(0));
     await waitFor(() => expect(screen.getByText("当前牌组分析")).toBeInTheDocument());
     await waitFor(() => expect(screen.getByText("当前牌组不合法")).toBeInTheDocument());
+    expect(screen.getByText("粉色 2")).toBeInTheDocument();
+    expect(screen.getByText("任意色 3 / 紫色 1")).toBeInTheDocument();
+    expect(screen.getByText("技能时点")).toBeInTheDocument();
+    expect(
+      screen.getByText((content) => content.includes("登場 1") && content.includes("起動 2")),
+    ).toBeInTheDocument();
+    expect(screen.getByText("技能处理方式")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        (content) => content.includes("提示后处理 3") && content.includes("人工处理 1"),
+      ),
+    ).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("牌组名称"), { target: { value: "Test Deck" } });
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
     await waitFor(() => expect(screen.getByText("牌组已保存。")).toBeInTheDocument());
+  });
+
+  it("splits the built deck into Member, Live, and compact Energy sections without thumbnails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      createFetchMock({
+        catalogCards: {
+          items: [CATALOG_SUMMARY, LIVE_SUMMARY],
+          total: 2,
+          limit: 24,
+          offset: 0,
+        },
+      }),
+    );
+
+    const { container } = render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "牌组编辑器" }));
+
+    await waitFor(() => expect(screen.getByText("牌组编辑与保存")).toBeInTheDocument());
+    const addMainButtons = await screen.findAllByRole("button", { name: "加入主牌组" });
+    fireEvent.click(addMainButtons[0]);
+    fireEvent.click(addMainButtons[1]);
+
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Member 1 / 48" })).toBeInTheDocument());
+    expect(screen.getByRole("heading", { name: "Live 1 / 12" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Energy 0 / 12" })).toBeInTheDocument();
+    expect(container.querySelector(".deck-section .deck-card-thumbnail")).toBeNull();
+
+    fireEvent.click(screen.getAllByRole("button", { name: "详情" })[0]);
+    await waitFor(() => expect(screen.getByText("当前印刷版本")).toBeInTheDocument());
   });
 
   it("filters the deck-builder catalog visually and shows attribute summaries on rows", async () => {
@@ -635,6 +866,51 @@ describe("App", () => {
     expect(screen.queryByText("テストライブ")).not.toBeInTheDocument();
   });
 
+  it("aggregates Member and Live catalog rows by rule card while keeping Energy rows separate", async () => {
+    const duplicateMember = {
+      ...CATALOG_SUMMARY,
+      card_id: "LL-TEST-001-R",
+      rarity_ja: "R",
+    };
+    const secondEnergy = {
+      ...CATALOG_SUMMARY,
+      card_code: "LL-ENERGY-001",
+      card_id: "LL-ENERGY-001-P",
+      name_ja: "エネルギーカード",
+      card_type: "energy",
+      rarity_ja: "P",
+      cost: null,
+      blade: null,
+      member_blade_heart_color_slot: null,
+      score: null,
+      live_blade_heart_color_slot: null,
+    };
+    const thirdEnergy = {
+      ...secondEnergy,
+      card_id: "LL-ENERGY-001-R",
+      rarity_ja: "R",
+    };
+    vi.stubGlobal(
+      "fetch",
+      createFetchMock({
+        catalogCards: {
+          items: [CATALOG_SUMMARY, duplicateMember, secondEnergy, thirdEnergy],
+          total: 4,
+          limit: 24,
+          offset: 0,
+        },
+      }),
+    );
+
+    const { container } = render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "牌组编辑器" }));
+
+    await waitFor(() => expect(screen.getByText("牌组编辑与保存")).toBeInTheDocument());
+    await waitFor(() => expect(container.querySelectorAll(".catalog-row").length).toBe(3));
+    expect(screen.getAllByText("エネルギーカード").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByRole("button", { name: "加入能量组" }).length).toBe(2);
+  });
+
   it("opens an enlarged card preview from the deck builder catalog", async () => {
     vi.stubGlobal("fetch", createFetchMock({}));
 
@@ -646,7 +922,47 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "详情" }));
 
     await waitFor(() => expect(screen.getByText("当前印刷版本")).toBeInTheDocument());
+    expect(screen.getByText("技能执行支持")).toBeInTheDocument();
+    expect(
+      screen.getByText("登場 · 提示后处理 · test_validated_executable · test_validated"),
+    ).toBeInTheDocument();
     expect(screen.getAllByText("テストカード").length).toBeGreaterThan(0);
+  });
+
+  it("switches the card face printing inside the deck-builder preview dialog", async () => {
+    vi.stubGlobal(
+      "fetch",
+      createFetchMock({
+        catalogDetail: {
+          ...CATALOG_DETAIL,
+          printings: [
+            ...CATALOG_DETAIL.printings,
+            {
+              ...CATALOG_DETAIL.printings[0],
+              card_id: "LL-TEST-001-SR",
+              rarity_ja: "SR",
+              image_url: "https://example.test/sr.png",
+            },
+          ],
+        },
+      }),
+    );
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "牌组编辑器" }));
+
+    await waitFor(() => expect(screen.getByText("牌组编辑与保存")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "详情" }));
+    await waitFor(() => expect(screen.getByLabelText("选择卡面")).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText("选择卡面"), {
+      target: { value: "LL-TEST-001-SR" },
+    });
+
+    expect(screen.getByText("LL-TEST-001-SR")).toBeInTheDocument();
+    expect(screen.getByAltText("テストカード")).toHaveAttribute(
+      "src",
+      "/api/card-images/LL-TEST-001-SR",
+    );
   });
 
   it("blocks adding the 49th Member card to the main deck", async () => {
@@ -681,7 +997,7 @@ describe("App", () => {
 
     await waitFor(() => expect(screen.getByText("Full Members")).toBeInTheDocument());
     fireEvent.click(screen.getByText("Full Members"));
-    await waitFor(() => expect(screen.getByText("主牌组 48")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("Member 48 / 48").length).toBeGreaterThan(0));
     const addButtons = screen.getAllByRole("button", { name: "加入主牌组" });
     expect(addButtons[0]).toBeDisabled();
   });
@@ -738,7 +1054,7 @@ describe("App", () => {
     fireEvent.click(addButton);
     fireEvent.click(addButton);
 
-    await waitFor(() => expect(screen.getByText("能量组 5")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("Energy 5 / 12").length).toBeGreaterThan(0));
     expect(addButton).not.toBeDisabled();
   });
 
@@ -831,5 +1147,102 @@ describe("App", () => {
         );
       }),
     ).toBe(true);
+  });
+
+  it("renders structured effect inspection choices and submits the selected kept card", async () => {
+    const onAction = vi.fn();
+    render(
+      <InspectionChoiceAction
+        action={INSPECTION_MATCH_PAYLOAD.legal_actions[0] as never}
+        state={INSPECTION_MATCH_PAYLOAD.state as never}
+        loading={false}
+        onAction={onAction}
+        title="技能检查结果"
+        submitLabel="确认技能处理"
+      />,
+    );
+
+    expect(screen.getByText("技能检查结果")).toBeInTheDocument();
+    expect(screen.getByText("候補カード")).toBeInTheDocument();
+    expect(screen.getByText("条件外カード")).toBeInTheDocument();
+    expect(screen.getByText("不符合条件")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /候補カード/ }));
+    fireEvent.click(screen.getByRole("button", { name: "确认技能处理" }));
+
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_1", {
+      selected_card_instance_ids: ["player_1-M002"],
+      ordered_card_instance_ids: undefined,
+    });
+  });
+
+  it("resolves optional discard-to-Wait-Energy effects without manual adjustment", () => {
+    const onAction = vi.fn();
+    const onManual = vi.fn();
+    const state = {
+      ...INSPECTION_MATCH_PAYLOAD.state,
+      pending_choice: null,
+      pending_effects: [
+        {
+          invocation_id: "energy-effect-001",
+          effect_id: "PL!SP-bp1-021:1",
+          source_card_instance_id: "player_1-M001",
+          player_id: "player_1",
+          trigger_event: "member_played",
+          trigger_data: {},
+          resolution_stage: "initial" as const,
+        },
+      ],
+    };
+    const action = {
+      action_type: "resolve_effect",
+      player_id: "player_1",
+      label_zh: "处理待结算技能",
+      label_ja: "待機中の能力を解決",
+      options: {
+        invocations: [
+          {
+            invocation_id: "energy-effect-001",
+            effect_id: "PL!SP-bp1-021:1",
+            source_card_instance_id: "player_1-M001",
+            label_ja:
+              "【登場】手札を1枚控え室に置いてもよい：自分のエネルギーデッキから、エネルギーカードを1枚ウェイト状態で置く。",
+            trigger: "member_played",
+            timing: "on_play",
+            execution_mode: "prompt_then_resolve",
+            is_optional: true,
+            simulation_support: "test_validated_executable",
+            candidate_card_instance_ids: ["player_1-M002"],
+            card_selection_minimum: 1,
+            card_selection_maximum: 1,
+            choice_zone: "hand",
+          },
+        ],
+        waiting_player_ids: [],
+      },
+    };
+
+    render(
+      <EffectResolutionAction
+        action={action as never}
+        state={state as never}
+        loading={false}
+        onAction={onAction}
+        onManual={onManual}
+      />,
+    );
+
+    expect(screen.queryByText("结构化人工处理")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "候補カード" }));
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "energy-effect-001",
+      accepted: true,
+      selected_card_instance_ids: ["player_1-M002"],
+      energy_instance_ids: [],
+    });
+    expect(onManual).not.toHaveBeenCalled();
   });
 });

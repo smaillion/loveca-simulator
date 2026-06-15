@@ -32,6 +32,9 @@ The Rule Engine owns:
 * victory condition checks
 * state invariant validation
 * effect execution boundaries
+* effect trigger detection
+* pending effect queue creation
+* structured effect-choice validation
 * rule-version-aware validation
 
 ## 4. MVP Rule Boundary
@@ -62,6 +65,7 @@ The Rule Engine validates whether an Action is legal for:
 * available resources
 * rule version
 * effect support status when applicable
+* effect execution mode when applicable
 
 Invalid Actions must be rejected before resolution.
 
@@ -91,6 +95,14 @@ Battle Simulator must use Rule Engine validation for legal action generation, ac
 
 Simulator MVP may use manual resolution for unsupported effects, but manual resolution must still produce replay-safe Actions.
 
+The Rule Engine is also responsible for determining when an effect is triggered and whether it should appear as:
+
+* an automatic resolution
+* a structured pending effect prompt
+* a manual-resolution boundary
+
+UI code must not authoritatively detect or enqueue effects on its own.
+
 ## 9. Online Readiness
 
 The Rule Engine should be compatible with future authoritative server use.
@@ -112,4 +124,3 @@ Informs:
 * [010-simple-ai.spec.md](010-simple-ai.spec.md)
 * [011-simulator-mvp.spec.md](011-simulator-mvp.spec.md)
 * [012-controller-and-legal-actions.spec.md](012-controller-and-legal-actions.spec.md)
-
