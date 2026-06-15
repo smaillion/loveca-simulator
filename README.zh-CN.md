@@ -61,7 +61,7 @@ Deck Builder 当前状态:
 - 面向全量卡池的完整技能提示覆盖
 - AI、Monte Carlo、胜率引擎
 - 在线对战、账户和同步
-- GitHub Pages preview 当前处于发布底座阶段；不依赖 FastAPI 即可完整游玩的 browser runtime adapter 是下一步实现目标。
+- GitHub Pages preview 在打包解析后 data package 时，已经可以不依赖 FastAPI 浏览卡库。Deck 保存、牌组分析和对战 runtime 的 browser adapter 是下一步实现目标。
 
 ## 已知限制
 

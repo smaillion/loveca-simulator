@@ -10,6 +10,17 @@ import type {
   MatchPayload,
   MatchSummary,
 } from "./types";
+import {
+  getPreviewCatalogCard,
+  listPreviewCatalogCards,
+  listPreviewCatalogFacets,
+  listPreviewCatalogReviewCandidates,
+} from "./browser-preview-api";
+
+const viteEnv = (import.meta as unknown as {
+  env?: Record<string, string | boolean | undefined>;
+}).env;
+const browserPreview = viteEnv?.VITE_BROWSER_PREVIEW === "true";
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
@@ -92,6 +103,9 @@ export function listCatalogCards(input: {
   limit?: number;
   offset?: number;
 } = {}): Promise<CatalogListResponse> {
+  if (browserPreview) {
+    return listPreviewCatalogCards(input);
+  }
   const params = new URLSearchParams();
   if (input.q) params.set("q", input.q);
   if (input.cardType) params.set("card_type", input.cardType);
@@ -119,10 +133,16 @@ export function listCatalogCards(input: {
 }
 
 export function listCatalogFacets(): Promise<CatalogFacetsResponse> {
+  if (browserPreview) {
+    return listPreviewCatalogFacets();
+  }
   return request("/api/catalog/facets");
 }
 
 export function getCatalogCard(cardCode: string): Promise<CatalogCardDetail> {
+  if (browserPreview) {
+    return getPreviewCatalogCard(cardCode);
+  }
   return request(`/api/catalog/cards/${encodeURIComponent(cardCode)}`);
 }
 
@@ -130,6 +150,9 @@ export function listCatalogReviewCandidates(input: {
   limit?: number;
   offset?: number;
 } = {}): Promise<CatalogReviewCandidateList> {
+  if (browserPreview) {
+    return listPreviewCatalogReviewCandidates(input);
+  }
   const params = new URLSearchParams();
   if (input.limit !== undefined) params.set("limit", String(input.limit));
   if (input.offset !== undefined) params.set("offset", String(input.offset));

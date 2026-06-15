@@ -61,7 +61,7 @@ Deck Builder の現在の到達点:
 - 全量カードプールに対する完全な効果 prompt coverage
 - AI、Monte Carlo、勝率エンジン
 - オンライン対戦、アカウント、同期機能
-- GitHub Pages preview は現在 release 基盤の段階です。FastAPI なしで完全に遊べる browser runtime adapter は次の実装対象です。
+- GitHub Pages preview は解析済み data package を同梱した場合、FastAPI なしでカードカタログ閲覧まで動作します。Deck 保存、deck 分析、対戦 runtime の browser adapter は次の実装対象です。
 
 ## 既知の制限
 

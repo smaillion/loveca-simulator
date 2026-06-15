@@ -44,10 +44,11 @@ GitHub Pages cannot run FastAPI or SQLite. Therefore the browser-only preview
 requires a dedicated browser runtime adapter before it can fully replace the
 local server.
 
-The GitHub Pages workflow added in this phase is a deployment foundation. It can
-publish the static SPA shell and, when explicitly requested, a static preview
-data package. It does not by itself make Python-only rule engine code execute in
-the browser.
+The GitHub Pages workflow added in this phase is a deployment foundation plus a
+static catalog preview. When a parsed data package is bundled, the browser can
+load the catalog, facets, card detail data, effect registry summaries, and
+official image URLs without FastAPI. It does not by itself make Python-only rule
+engine code execute in the browser.
 
 ## 4. Browser Runtime Target
 
@@ -60,6 +61,7 @@ Target browser services:
   * reads `preview-data/manifest.json`
   * reads static card summary/detail JSON
   * applies catalog filters in TypeScript
+  * is the first browser runtime adapter implemented for the preview
 * `BrowserDeckLibrary`
   * stores saved decks in IndexedDB or localStorage
   * supports create, read, update, rename, delete
@@ -177,6 +179,7 @@ Before announcing the GitHub Pages preview as playable:
 
 * the app loads from GitHub Pages without a FastAPI server
 * catalog browsing works from static JSON
+* card images load from official `image_url` values, with text fallback
 * deck create/save/load/delete works in browser storage
 * deck import/export works
 * at least one local two-player match can be created from browser data
