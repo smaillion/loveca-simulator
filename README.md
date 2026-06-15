@@ -21,6 +21,9 @@
   - 392 件は `test_validated_executable`
   - 533 件は timing prompt / 未対応処理用の `manual_resolution`
 - 将来の低コスト online 同期に向けた state hash / compatibility metadata の基礎
+- GitHub Pages browser preview 用の静的 SPA release workflow
+  - preview data package は解析済みカード / skill data のみを含む
+  - カード画像は同梱せず、公式 `image_url` を参照する
 
 現在の開発主線:
 
@@ -58,6 +61,7 @@ Deck Builder の現在の到達点:
 - 全量カードプールに対する完全な効果 prompt coverage
 - AI、Monte Carlo、勝率エンジン
 - オンライン対戦、アカウント、同期機能
+- GitHub Pages preview は現在 release 基盤の段階です。FastAPI なしで完全に遊べる browser runtime adapter は次の実装対象です。
 
 ## 既知の制限
 
@@ -160,7 +164,7 @@ loveca web serve `
 
 将来的には、構築済みの SQLite カード DB、effect registry、manifest、checksum を含む versioned asset package を配布し、ユーザーが公式サイトから毎回全量取得しなくても起動できる形にできます。
 
-ただし、公式カード画像、公式効果テキスト、公式 PDF 由来の大量データは再配布可否の確認が必要です。権利面が未確認の間は、公開配布する asset にはアプリ本体、schema、importer、manifest、checksum、プロジェクト独自 metadata を含め、カード DB と画像 cache はユーザーのローカル importer で公式ソースから構築する方針を優先します。
+ただし、公式効果テキスト全文、公式 PDF 由来の大量データ、ダウンロード済みカード画像ファイルは再配布可否の確認が必要です。GitHub Pages preview で公開する asset は、解析済みカード data、解析済み skill data、manifest、checksum、プロジェクト独自 metadata に限定し、カード画像は同梱せず公式 `image_url` を参照する方針です。
 
 private tester 向けに事前構築 DB を渡す場合も、release version、schema version、parser version、card database fingerprint、effect registry hash を明示し、互換性が崩れる更新後は再導入が必要です。
 
@@ -243,5 +247,4 @@ npm run build
 - `docs/14-database-migration-and-update-guide.md`: SQLite の再構築、増分更新、runtime lifecycle 指針
 - `docs/15-project-guidance.md`: changelog 言語などの保守指針
 - `docs/16-low-cost-online-battle-plan.md`: 低コストなネットワーク対戦検証モードの計画
-
-
+- `docs/17-browser-only-preview-and-pages-release.md`: GitHub Pages browser preview と静的 data package の計画

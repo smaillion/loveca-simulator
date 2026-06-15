@@ -4,6 +4,9 @@
 
 ### 追加 / 新增
 
+- GitHub Pages browser preview release workflow を追加し、`develop` への push または手動実行で静的 SPA を Pages artifact として公開できるようにした。
+- `scripts/export-preview-data.py` を追加し、ローカル SQLite カード DB から browser preview 用の静的 JSON data package を生成できるようにした。preview package は解析済みカード / skill data と公式画像 URL 参照のみを含み、カード画像ファイルは同梱しない。
+- Browser-only preview の設計文書を追加し、IndexedDB / localStorage、deck import/export、play history export、public data policy の境界を整理。
 - effect registry を 925 件に拡張し、同文の top-deck reorder、Live-success reorder、起動 self-Wait / ready-other Member pattern を追加。
 - `test_validated_executable` effect を 392 件まで拡張し、現在のローカルカードプールの粗い全効果数に対して 20.07% coverage に到達。
 - on-play ready / wait、Waiting Room recovery、draw-then-discard、conditional mill、Energy placement、temporary Blade / Heart / score modifier pattern を追加。
@@ -24,6 +27,9 @@
 
 中文:
 
+- 新增 GitHub Pages browser preview 发布 workflow，可在 `develop` push 或手动执行时发布静态 SPA。
+- 新增 `scripts/export-preview-data.py`，可从本地 SQLite 卡牌库导出 browser preview 用静态 JSON 数据包。preview package 只包含解析后的卡牌 / 技能数据和官方图片 URL 引用，不打包卡图文件。
+- 新增 Browser-only preview 设计文档，整理 IndexedDB / localStorage、牌组导入导出、游玩履历导出和 public data policy 边界。
 - 将 effect registry 扩展到 925 条，新增同文 top-deck reorder、Live 成功 reorder、起动 self-Wait / ready-other Member 模式。
 - 将 `test_validated_executable` 技能扩展到 392 条，按当前本地卡池粗略全技能数量计算达到 20.07% 覆盖率。
 - 新增登场 ready / wait、控室回收、抽牌后弃牌、条件 mill、Energy 放置，以及临时 Blade / Heart / score 修正模式。
@@ -131,4 +137,3 @@
 - 全卡技能自动化尚未完成。
 - 未支持或规则含义仍不明确的技能仍需要 `ManualAdjustmentAction`。
 - 在线对战、AI、Monte Carlo 和胜率模拟仍不在当前范围。
-

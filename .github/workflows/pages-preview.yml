@@ -1,0 +1,154 @@
+name: Browser Preview Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      include_official_card_data:
+        description: "Fetch official card data and bundle parsed static preview data, without card image files"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      include_official_text:
+        description: "Include full official Japanese effect text in the static data package"
+        required: true
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      public_data_acknowledgement:
+        description: "Required when bundling official text: type REVIEWED_PUBLIC_DATA_POLICY"
+        required: false
+        default: ""
+  push:
+    branches:
+      - develop
+    paths:
+      - ".github/workflows/pages-preview.yml"
+      - "web/**"
+      - "src/**"
+      - "scripts/export-preview-data.py"
+      - "data_sources/effect-registry.v0.json"
+      - "pyproject.toml"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-preview
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install Python package
+        run: python -m pip install -e ".[dev]"
+
+      - name: Install web dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Run Python tests
+        run: python -m pytest
+
+      - name: Run web tests
+        working-directory: web
+        run: npm run test -- --run
+
+      - name: Build web app
+        working-directory: web
+        env:
+          VITE_BASE_PATH: /loveca-simulator/
+          VITE_BROWSER_PREVIEW: "true"
+        run: npm run build
+
+      - name: Create static preview data placeholder
+        if: ${{ github.event_name != 'workflow_dispatch' || inputs.include_official_card_data != 'true' }}
+        run: |
+          mkdir -p web/dist/preview-data
+          cat > web/dist/preview-data/manifest.json <<'JSON'
+          {
+            "data_version": "browser-preview-data.placeholder",
+            "include_official_text": false,
+            "image_strategy": "official_url_only",
+            "bundles_card_images": false,
+            "card_count": 0,
+            "effect_count": 0,
+            "public_release_note": "This build does not bundle parsed official card data. Reviewed preview packages may include parsed data and official image URLs, but not downloaded card image files."
+          }
+          JSON
+
+      - name: Guard official text bundling
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.include_official_text == 'true' && inputs.public_data_acknowledgement != 'REVIEWED_PUBLIC_DATA_POLICY' }}
+        run: |
+          echo "Bundling full official text requires public data policy review."
+          echo "Re-run with public_data_acknowledgement=REVIEWED_PUBLIC_DATA_POLICY after review."
+          exit 1
+
+      - name: Build local card database from official source
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.include_official_card_data == 'true' }}
+        run: |
+          loveca cards init --database data/loveca.sqlite3
+          loveca cards import-official --output-root data/imports/official --delay 1
+          loveca cards import \
+            --database data/loveca.sqlite3 \
+            --input data/imports/official/normalized/cards-official.json \
+            --normalization data_sources/card-entity-normalization.json \
+            --report logs/pages-preview-import.md
+
+      - name: Export static preview data
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.include_official_card_data == 'true' }}
+        run: |
+          # Export parsed card/effect data only. Card images are not bundled into
+          # the Pages artifact; the browser preview uses official image URLs.
+          args=(
+            --database data/loveca.sqlite3
+            --output-dir web/dist/preview-data
+            --effect-registry data_sources/effect-registry.v0.json
+          )
+          if [ "${{ inputs.include_official_text }}" = "true" ]; then
+            args+=(--include-official-text)
+          fi
+          python scripts/export-preview-data.py "${args[@]}"
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
