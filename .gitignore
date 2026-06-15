@@ -29,3 +29,5 @@ web/tsconfig.node.tsbuildinfo
 
 logs/*
 !logs/.gitkeep
+
+.deploy_keys/
