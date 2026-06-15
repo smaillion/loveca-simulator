@@ -39,6 +39,10 @@ from loveca.simulation.service import MatchService, MatchSetupError
 PROJECT_ROOT = Path(__file__).parents[2]
 
 
+def _saved_deck_identifier(path: Path) -> str:
+    return path.name
+
+
 class PlayerSetup(BaseModel):
     name: str
     deck: dict[str, Any] | None = None
@@ -180,7 +184,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
             return [
                 {
                     "name": item.name,
-                    "path": str(item.path),
+                    "path": _saved_deck_identifier(item.path),
                     "version": item.version,
                     "main_card_count": item.main_card_count,
                     "energy_card_count": item.energy_card_count,
@@ -211,8 +215,8 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
                 overwrite=bool(request.get("overwrite", False)),
             )
             return {
-                "path": str(path),
-                "deck": asdict(load_saved_deck(resolved.deck_library_root, str(path))),
+                "path": _saved_deck_identifier(path),
+                "deck": asdict(load_saved_deck(resolved.deck_library_root, path.name)),
             }
         except (DeckLibraryError, DeckFileError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -239,8 +243,8 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
                 overwrite=bool(request.get("overwrite", True)),
             )
             return {
-                "path": str(path),
-                "deck": asdict(load_saved_deck(resolved.deck_library_root, str(path))),
+                "path": _saved_deck_identifier(path),
+                "deck": asdict(load_saved_deck(resolved.deck_library_root, path.name)),
             }
         except (DeckLibraryError, DeckFileError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -250,8 +254,8 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         try:
             path = rename_saved_deck(resolved.deck_library_root, deck_id, str(request["name"]))
             return {
-                "path": str(path),
-                "deck": asdict(load_saved_deck(resolved.deck_library_root, str(path))),
+                "path": _saved_deck_identifier(path),
+                "deck": asdict(load_saved_deck(resolved.deck_library_root, path.name)),
             }
         except (DeckLibraryError, DeckFileError, KeyError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
