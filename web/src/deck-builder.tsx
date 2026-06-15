@@ -773,7 +773,7 @@ export function DeckBuilder({
             </button>
             <button className="secondary-button" onClick={() => importInputRef.current?.click()}>
               <Upload size={16} />
-              {tr(locale, "导入 JSON", "JSON読込")}
+              {tr(locale, "导入 JSON", "JSONを読み込み")}
             </button>
             <input
               ref={importInputRef}
@@ -788,7 +788,7 @@ export function DeckBuilder({
             />
             <button className="secondary-button" onClick={exportCurrentDeck}>
               <Download size={16} />
-              {tr(locale, "导出当前", "現在を出力")}
+              {tr(locale, "导出当前", "デッキを書き出し")}
             </button>
             <button
               className="secondary-button"
