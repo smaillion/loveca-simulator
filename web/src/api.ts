@@ -16,6 +16,15 @@ import {
   listPreviewCatalogFacets,
   listPreviewCatalogReviewCandidates,
 } from "./browser-preview-api";
+import {
+  analyzePreviewDeck,
+  createPreviewSavedDeck,
+  deletePreviewSavedDeck,
+  getPreviewSavedDeck,
+  listPreviewSavedDecks,
+  renamePreviewSavedDeck,
+  updatePreviewSavedDeck,
+} from "./browser-preview-decks";
 
 const viteEnv = (import.meta as unknown as {
   env?: Record<string, string | boolean | undefined>;
@@ -161,10 +170,16 @@ export function listCatalogReviewCandidates(input: {
 }
 
 export function listSavedDecks(): Promise<SavedDeckSummary[]> {
+  if (browserPreview) {
+    return listPreviewSavedDecks();
+  }
   return request("/api/decks");
 }
 
 export function getSavedDeck(deckId: string): Promise<DeckList> {
+  if (browserPreview) {
+    return getPreviewSavedDeck(deckId);
+  }
   return request(`/api/decks/${encodeURIComponent(deckId)}`);
 }
 
@@ -173,6 +188,9 @@ export function createSavedDeck(input: {
   name?: string | null;
   overwrite?: boolean;
 }): Promise<SavedDeckResponse> {
+  if (browserPreview) {
+    return createPreviewSavedDeck(input);
+  }
   return request("/api/decks", {
     method: "POST",
     body: JSON.stringify(input),
@@ -187,6 +205,9 @@ export function updateSavedDeck(
     overwrite?: boolean;
   },
 ): Promise<SavedDeckResponse> {
+  if (browserPreview) {
+    return updatePreviewSavedDeck(deckId, input);
+  }
   return request(`/api/decks/${encodeURIComponent(deckId)}`, {
     method: "PUT",
     body: JSON.stringify(input),
@@ -197,6 +218,9 @@ export function renameSavedDeck(
   deckId: string,
   input: { name: string },
 ): Promise<SavedDeckResponse> {
+  if (browserPreview) {
+    return renamePreviewSavedDeck(deckId, input);
+  }
   return request(`/api/decks/${encodeURIComponent(deckId)}/rename`, {
     method: "POST",
     body: JSON.stringify(input),
@@ -204,6 +228,9 @@ export function renameSavedDeck(
 }
 
 export function deleteSavedDeck(deckId: string): Promise<{ status: string }> {
+  if (browserPreview) {
+    return deletePreviewSavedDeck(deckId);
+  }
   return request(`/api/decks/${encodeURIComponent(deckId)}`, {
     method: "DELETE",
   });
@@ -212,6 +239,9 @@ export function deleteSavedDeck(deckId: string): Promise<{ status: string }> {
 export function analyzeDeck(
   deck: DeckList,
 ): Promise<DeckAnalysisResponse> {
+  if (browserPreview) {
+    return analyzePreviewDeck(deck);
+  }
   return request("/api/decks/analyze", {
     method: "POST",
     body: JSON.stringify({ deck }),

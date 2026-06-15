@@ -47,7 +47,8 @@ local server.
 The GitHub Pages workflow added in this phase is a deployment foundation plus a
 static catalog preview. When a parsed data package is bundled, the browser can
 load the catalog, facets, card detail data, effect registry summaries, and
-official image URLs without FastAPI. It does not by itself make Python-only rule
+official image URLs without FastAPI. It also provides browser-local deck storage
+and a TypeScript MVP deck analyzer. It does not by itself make Python-only rule
 engine code execute in the browser.
 
 ## 4. Browser Runtime Target
@@ -66,6 +67,8 @@ Target browser services:
   * stores saved decks in IndexedDB or localStorage
   * supports create, read, update, rename, delete
   * supports JSON import/export
+  * initially uses localStorage for low-cost GitHub Pages preview builds
+  * includes MVP deck legality and attribute analysis in TypeScript
 * `BrowserMatchRuntime`
   * stores match snapshots, events, and actions in IndexedDB
   * enforces revision checks locally
@@ -79,6 +82,11 @@ The preferred storage is IndexedDB for larger data and localStorage only for
 small settings. If implementation complexity needs to stay low, the first
 preview may use localStorage for deck data and match history with documented
 size limits.
+
+The first deck browser adapter uses localStorage because deck records are small,
+easy to export as JSON, and do not require IndexedDB complexity yet. If tester
+data grows or replay history becomes large, deck and replay persistence should
+move to IndexedDB.
 
 ## 5. Data Package Policy
 
@@ -181,6 +189,7 @@ Before announcing the GitHub Pages preview as playable:
 * catalog browsing works from static JSON
 * card images load from official `image_url` values, with text fallback
 * deck create/save/load/delete works in browser storage
+* browser deck analysis covers MVP legality and visible attribute summaries
 * deck import/export works
 * at least one local two-player match can be created from browser data
 * action logs and replay export work from browser storage

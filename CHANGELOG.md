@@ -7,6 +7,7 @@
 - GitHub Pages browser preview release workflow を追加し、`develop` への push または手動実行で静的 SPA を Pages artifact として公開できるようにした。
 - `scripts/export-preview-data.py` を追加し、ローカル SQLite カード DB から browser preview 用の静的 JSON data package を生成できるようにした。preview package は解析済みカード / skill data と公式画像 URL 参照のみを含み、カード画像ファイルは同梱しない。
 - `VITE_BROWSER_PREVIEW=true` で catalog / facets / card detail を `preview-data/*.json` から読む browser catalog adapter を追加し、GitHub Pages 上でカードカタログを閲覧できるようにした。
+- `VITE_BROWSER_PREVIEW=true` で deck 保存 / 読み込み / 更新 / リネーム / 削除を browser localStorage に保存し、MVP deck 分析を TypeScript adapter で実行できるようにした。
 - Browser-only preview の設計文書を追加し、IndexedDB / localStorage、deck import/export、play history export、public data policy の境界を整理。
 - effect registry を 925 件に拡張し、同文の top-deck reorder、Live-success reorder、起動 self-Wait / ready-other Member pattern を追加。
 - `test_validated_executable` effect を 392 件まで拡張し、現在のローカルカードプールの粗い全効果数に対して 20.07% coverage に到達。
@@ -31,6 +32,7 @@
 - 新增 GitHub Pages browser preview 发布 workflow，可在 `develop` push 或手动执行时发布静态 SPA。
 - 新增 `scripts/export-preview-data.py`，可从本地 SQLite 卡牌库导出 browser preview 用静态 JSON 数据包。preview package 只包含解析后的卡牌 / 技能数据和官方图片 URL 引用，不打包卡图文件。
 - 新增 `VITE_BROWSER_PREVIEW=true` 下的 browser catalog adapter，从 `preview-data/*.json` 读取 catalog / facets / card detail，使 GitHub Pages 上可以浏览卡库。
+- 新增 `VITE_BROWSER_PREVIEW=true` 下的 browser deck library，将牌组保存 / 读取 / 更新 / 重命名 / 删除写入 localStorage，并用 TypeScript adapter 执行 MVP deck 分析。
 - 新增 Browser-only preview 设计文档，整理 IndexedDB / localStorage、牌组导入导出、游玩履历导出和 public data policy 边界。
 - 将 effect registry 扩展到 925 条，新增同文 top-deck reorder、Live 成功 reorder、起动 self-Wait / ready-other Member 模式。
 - 将 `test_validated_executable` 技能扩展到 392 条，按当前本地卡池粗略全技能数量计算达到 20.07% 覆盖率。
