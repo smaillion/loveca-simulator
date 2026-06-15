@@ -25,6 +25,7 @@ import {
   listSavedDecks,
   submitAction,
 } from "./api";
+import { createPreviewDemoMatch } from "./browser-preview-match-demo";
 import { CatalogBrowser } from "./catalog-browser";
 import { DeckBuilder } from "./deck-builder";
 import type {
@@ -260,6 +261,14 @@ export default function App() {
           matchCreationDisabledMessage={locale === "zh"
             ? "浏览器 Preview 版暂不包含本地规则引擎。请使用本地版启动对战。"
             : "ブラウザ Preview 版にはローカルルールエンジンが含まれていません。対戦はローカル版で起動してください。"}
+          onOpenPreviewDemo={browserPreview
+            ? () => {
+              void run(createPreviewDemoMatch, (next) => {
+                setMatch(next);
+                setScreen("match");
+              });
+            }
+            : undefined}
           onBrowse={() => setScreen("catalog")}
           onDeckBuilder={() => setScreen("decks")}
           onCreate={async (input) => {
@@ -348,13 +357,23 @@ export default function App() {
           >
             <ClipboardList size={18} />
           </button>
-          <a
-            className="icon-button"
-            href={`/api/matches/${match.state.match_id}/replay`}
-            title={locale === "zh" ? "导出 Replay JSON" : "リプレイ JSON を出力"}
-          >
-            <Download size={18} />
-          </a>
+          {browserPreview ? (
+            <button
+              className="icon-button"
+              disabled
+              title={locale === "zh" ? "Preview demo 不支持 Replay 导出" : "Preview デモではリプレイ出力は未対応"}
+            >
+              <Download size={18} />
+            </button>
+          ) : (
+            <a
+              className="icon-button"
+              href={`/api/matches/${match.state.match_id}/replay`}
+              title={locale === "zh" ? "导出 Replay JSON" : "リプレイ JSON を出力"}
+            >
+              <Download size={18} />
+            </a>
+          )}
           <button
             className="icon-button"
             title={locale === "zh" ? "返回对局列表" : "対戦一覧へ戻る"}
@@ -518,6 +537,7 @@ function StartScreen({
   error,
   matchCreationDisabled,
   matchCreationDisabledMessage,
+  onOpenPreviewDemo,
   onBrowse,
   onDeckBuilder,
   onCreate,
@@ -529,6 +549,7 @@ function StartScreen({
   error: string | null;
   matchCreationDisabled: boolean;
   matchCreationDisabledMessage: string;
+  onOpenPreviewDemo?: () => void;
   onBrowse: () => void;
   onDeckBuilder: () => void;
   onCreate: (input: {
@@ -683,6 +704,12 @@ function StartScreen({
             {loading ? <RefreshCw className="spin" size={18} /> : <CirclePlay size={18} />}
             {matchCreationDisabled ? tr("本地版可用", "ローカル版のみ") : tr("创建对局", "対戦を作成")}
           </button>
+          {onOpenPreviewDemo && (
+            <button className="secondary-button" disabled={loading} onClick={onOpenPreviewDemo}>
+              <Swords size={18} />
+              {tr("查看对战 UI Demo", "対戦UIデモを見る")}
+            </button>
+          )}
           <button className="secondary-button" disabled={loading} onClick={onBrowse}>
             <BookOpen size={18} />
             {tr("浏览卡牌库", "カードを閲覧")}

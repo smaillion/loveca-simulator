@@ -35,7 +35,7 @@ The project now advances through a main phase plus parallel product tracks:
 * Phase 6 Rule Expansion has not started as a broad phase.
 * Phase 7 Simple UI has been pulled forward to support human rule validation and Deck Builder workflows.
 * Phase 8 Advanced AI is now the lowest-priority major phase and should not block online testing.
-* Phase 9 and Phase 10 should begin earlier as a parallel adoption and feedback track, using low-cost local-engine online play.
+* Phase 9 and Phase 10 should begin earlier as a parallel adoption and feedback track, starting with a low-cost hosted FastAPI online MVP before any local-engine browser rewrite.
 
 This is a planned adjustment, not a project direction change. The current priority is to stabilize effect trigger detection, structured prompts, replay-safe effect resolution, and early online feedback loops before returning to AI, Monte Carlo, or win-rate work.
 
@@ -45,7 +45,9 @@ Parallel infrastructure track:
 * initialization should prioritize a local importer that builds card data and cache from official sources on the user's machine
 * future setup may support versioned bootstrap asset packages for app-owned metadata, manifests, checksums, and redistribution-approved artifacts
 * CDN/static packaging must stay inside the source and public-release policy; copyright-sensitive official assets require redistribution review
-* online relay work must not become a card data, image, account, or deck storage service
+* short-term hosted online work must not become a card data, image, account, or deck storage service
+* medium-term protocol work should standardize ActionEnvelope, compatibility fingerprints, and replay export
+* long-term browser engine work remains a cost-reduction and pure-static-play direction after rules stabilize
 * incremental local updates and backward compatibility are required so users can keep testing online while the rule engine evolves
 
 ## 2. Phase 0: Research and Documentation

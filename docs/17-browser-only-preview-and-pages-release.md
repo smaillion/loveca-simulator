@@ -5,9 +5,10 @@
 This document defines the preview release plan for a static, low-cost browser
 build hosted on GitHub Pages.
 
-The preview goal is to let more players try the simulator without installing a
-server or running FastAPI locally. It is explicitly **not** the online two-player
-mode. Network battle remains a later track.
+The preview goal is to let more players inspect the current card catalog, Deck
+Builder, and battle UI direction without installing a server or running FastAPI
+locally. It is explicitly **not** the online two-player mode and does not claim
+browser-side rule-engine parity.
 
 ## 2. Product Boundary
 
@@ -17,8 +18,8 @@ The preview version should eventually support:
 * browsing the bundled card catalog
 * building and saving decks in the browser
 * importing and exporting deck files
-* starting local two-player rule verification from browser-owned data through the TypeScript browser engine defined by [021 Browser Engine and Local-Rule Online](../specs/021-browser-engine-and-local-online.spec.md)
-* exporting play history / replay logs as files
+* opening a static battle UI demo that shows what the rule verifier screen looks like
+* exporting and importing deck data files
 
 The preview version should not require:
 
@@ -41,8 +42,8 @@ The current React SPA calls FastAPI `/api/*` endpoints for:
 * cached card image lookup
 
 GitHub Pages cannot run FastAPI or SQLite. Therefore the browser-only preview
-requires a dedicated browser runtime adapter before it can fully replace the
-local server.
+does not attempt to replace the local server yet. It uses browser adapters for
+catalog and deck workflows, and a static battle UI demo for visual onboarding.
 
 The GitHub Pages workflow added in this phase is a deployment foundation plus a
 static catalog preview. When a parsed data package is bundled, the browser can
@@ -70,10 +71,10 @@ Target browser services:
   * initially uses localStorage for low-cost GitHub Pages preview builds
   * seeds 20 generated preview sample decks on first launch
   * includes MVP deck legality and attribute analysis in TypeScript
-* `BrowserMatchRuntime`
-  * stores match snapshots, events, and actions in IndexedDB
-  * enforces revision checks locally
-  * exports replay JSON
+* `BrowserBattleUiDemo`
+  * creates a static, non-interactive MatchState-like demo payload
+  * reuses the production battle UI components
+  * marks itself clearly as a preview demo, not a playable match
 * `BrowserAssetResolver`
   * resolves official `image_url` values from the static card data package
   * never requires bundled card image files in the GitHub Pages artifact
@@ -81,8 +82,9 @@ Target browser services:
 
 The preferred storage is IndexedDB for larger data and localStorage only for
 small settings. If implementation complexity needs to stay low, the first
-preview may use localStorage for deck data and match history with documented
-size limits.
+preview may use localStorage for deck data with documented size limits. Match
+history should not be promised until a real hosted or browser match runtime
+exists.
 
 The first deck browser adapter uses localStorage because deck records are small,
 easy to export as JSON, and do not require IndexedDB complexity yet. If tester
@@ -191,23 +193,21 @@ Data owned by the user:
 
 * saved decks
 * current editing deck
-* match history
-* replay logs
 * UI preferences
 
-The preview must provide file export/import for deck data and replay data before
-it is presented as suitable for broad testers.
+The preview must provide file export/import for deck data before it is presented
+as suitable for broad testers. Replay export belongs to the hosted online MVP or
+future browser engine, not to the static UI demo.
 
 Suggested export files:
 
 * `decklist.v0.json`
 * `loveca-deck-library.v0.json`
-* `loveca-replay.v0.json`
 * `loveca-browser-backup.v0.json`
 
 ## 8. Acceptance Criteria for First Public Preview
 
-Before announcing the GitHub Pages preview as a playable match simulator:
+Before announcing the GitHub Pages preview as a public preview:
 
 * the app loads from GitHub Pages without a FastAPI server
 * catalog browsing works from static JSON
@@ -216,12 +216,13 @@ Before announcing the GitHub Pages preview as a playable match simulator:
 * browser deck analysis covers MVP legality and visible attribute summaries
 * the first launch provides 20 sample decks for browsing and testing
 * deck import/export works
-* at least one local two-player match can be created from browser data
-* action logs and replay export work from browser storage
-* unsupported effects can still be skipped with explicit debug events
+* a static battle UI demo can be opened so users can see the board, Live judgment panel, and event log layout
+* the battle UI demo is clearly labeled as non-playable
 * static data package contents have passed public-release review
 
-Until the browser engine exists, the GitHub Pages preview should be described as a catalog, deck builder, deck analysis, and import/export preview, not as a playable battle preview.
+Until a hosted online MVP or future browser engine exists, the GitHub Pages
+preview should be described as a catalog, Deck Builder, deck analysis,
+import/export, and battle UI showcase preview, not as a playable battle preview.
 
 ## 9. Future Relationship to Online Play
 
@@ -230,8 +231,9 @@ The browser-only preview and low-cost online mode should share:
 * static app deployment
 * local card data strategy
 * deck import/export
-* replay export
-* compatibility fingerprints
+* preview data package structure
+* eventual compatibility fingerprints
 
-Online mode later adds only the relay/protocol layer. It should not require
-cloud card libraries, cloud decks, or authoritative server rule execution.
+Short-term online mode is expected to use hosted FastAPI with the existing
+Python rule engine. Long-term browser-only play may later reuse the same static
+data strategy after the TypeScript browser engine is mature.

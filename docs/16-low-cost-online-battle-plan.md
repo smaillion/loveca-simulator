@@ -4,46 +4,59 @@
 
 This document defines the planning direction for a low-cost online battle mode.
 
-The product goal is to collect more human playtest feedback as early as possible without building a full live-service platform. The technical goal is to extend the current local two-player rule verifier into a network two-player mode while keeping the rule engine local.
+The product goal is to collect more human playtest feedback as early as possible without building a full live-service platform. The technical goal is to extend the current local two-player rule verifier into a network two-player mode with the least implementation cost first, then gradually move toward stronger protocol boundaries and eventual browser-local execution.
 
-User data should remain local. The online layer should not introduce accounts, cloud deck storage, cloud card libraries, ranked identity, or authoritative rule judgment.
+User data should remain local where practical. The online layer should not introduce accounts, cloud deck storage, cloud card libraries, ranked identity, or long-term user data. The short-term hosted mode may keep temporary runtime MatchState so players can share a room and test rules, but it must expire that data automatically.
 
 This is a planning document only. It does not define implementation code, database migrations, deployment scripts, or final API schemas.
 
 ## 2. Core Decision
 
-The first online mode should not be a full authoritative game server.
+The first deployable online mode should be a hosted FastAPI MVP that reuses the existing Python rule engine.
 
-Instead, the first online mode should use:
+Short-term hosted MVP:
 
-* local rule engines on both players' machines
+* GitHub Pages SPA connects to a small hosted FastAPI service
+* the hosted service runs the current Python Rule Engine
+* the hosted service owns authoritative temporary MatchState for the room
+* users join by room code
+* no accounts, ranking, cloud deck library, or persistent user profile
+* runtime matches expire automatically
+* official card images are not downloaded or served by the hosted service
+
+This is intentionally not the final architecture. It is the fastest path to remote human playtesting because it avoids rewriting the engine in TypeScript before the rules are stable.
+
+Medium-term protocol work should standardize:
+
+* ActionEnvelope
+* compatibility fingerprints
+* replay export
+* room lifecycle messages
+* divergence/debug reports
+* migration-safe protocol versions
+
+Long-term browser-local play may then use:
+
+* TypeScript browser engine
+* local rule execution
 * deterministic GameState serialization
 * deterministic random seed handling
 * serialized Actions
 * state snapshot hashes
-* a lightweight network relay
+* a lightweight relay that only forwards messages
 
-The relay should coordinate rooms and forward protocol messages. It should not need the full official card database, card images, raw official card text, or card effect execution logic.
-
-The relay should also avoid storing user decks, player profiles, match history, or permanent personal data.
-
-This keeps operating cost low and allows online testing before the rule engine is complete enough for a trusted authoritative service.
-
-The online prototype does not need to wait for all local phases to be complete. It may start while card import, Deck Builder, effect execution, and rule coverage are still improving, as long as compatibility checks and replay-safe Action logs protect users from silent divergence.
-
-The browser-side rule runtime is specified separately in [021 Browser Engine and Local-Rule Online](../specs/021-browser-engine-and-local-online.spec.md). That spec is the required bridge between the current Python reference engine and the future low-cost relay model.
+This staged approach keeps the first online release cheap to implement, while preserving a path toward the local-rule architecture described in [021 Browser Engine and Local-Rule Online](../specs/021-browser-engine-and-local-online.spec.md).
 
 ## 3. Architecture Summary
 
-The target architecture has three participants:
+The short-term target architecture has three participants:
 
 * Player 1 client
 * Player 2 client
-* lightweight relay service
+* hosted FastAPI room service
 
-Each client runs the same local application stack:
+Each client runs the React UI and local browser deck workflows. The hosted service runs the existing Python simulator stack:
 
-* card database
 * deck validation
 * GameState model
 * Rule Engine
@@ -51,47 +64,46 @@ Each client runs the same local application stack:
 * Action resolver
 * replay/export tooling
 
-The relay owns only:
+The hosted service owns only:
 
 * room lifecycle
-* peer connection state
-* protocol message forwarding
-* temporary message buffering for reconnects
-* optional short-lived audit metadata
+* temporary MatchState
+* Action submission
+* legality validation through the existing Python engine
+* Event and replay logs for the room lifetime
+* automatic room expiry
 
-The relay must not become the source of rules truth in this phase.
+The hosted service is authoritative for the short-term MVP, but not a full live-service platform.
 
 ```mermaid
 flowchart LR
-    A["Player 1 Browser / Local App"] --> B["Local Rule Engine"]
-    B --> C["Action Envelope"]
-    C --> R["Lightweight Relay"]
-    R --> D["Action Envelope"]
-    D --> E["Local Rule Engine"]
-    E --> F["Player 2 Browser / Local App"]
+    A["Player 1 GitHub Pages SPA"] --> S["Hosted FastAPI Room Service"]
+    F["Player 2 GitHub Pages SPA"] --> S
+    S --> B["Python Rule Engine"]
+    S -. "runtime MatchState, TTL" .- R["Ephemeral Runtime Store"]
 
-    A -. "local deck DB / images / saved decks" .- G["Player 1 Local Data"]
-    F -. "local deck DB / images / saved decks" .- H["Player 2 Local Data"]
-    R -. "room state only, TTL" .- I["Ephemeral Relay Memory"]
+    A -. "browser decks / preferences" .- G["Player 1 Local Data"]
+    F -. "browser decks / preferences" .- H["Player 2 Local Data"]
 ```
 
-## 3A. Minimal Relay Responsibilities
+## 3A. Minimal Hosted Service Responsibilities
 
-The relay should do only what is necessary for two clients to find each other and exchange messages.
+The hosted service should do only what is necessary for two clients to share a playable rules-validation room.
 
-Relay responsibilities:
+Hosted service responsibilities:
 
 * create short-lived private rooms
-* accept one host and one guest connection
+* accept one host and one guest
 * assign or confirm player seats
-* verify basic protocol envelope shape
-* forward messages to the other connected peer
-* buffer recent messages for reconnect within room TTL
+* create a match from submitted deck payloads
+* validate and apply Actions through the Python engine
+* return updated MatchState, legal actions, and Events
+* expose replay export while the room is alive
 * send heartbeat and disconnect notices
 * enforce message size and rate limits
 * expire idle rooms
 
-Relay non-responsibilities:
+Hosted service non-responsibilities:
 
 * no user accounts
 * no login
@@ -101,37 +113,36 @@ Relay non-responsibilities:
 * no cloud card database
 * no card image hosting
 * no official text hosting
-* no rule validation
-* no Action legality judgment
-* no random shuffle authority
+* no long-term user data
+* no permanent match archive
 * no hidden-information enforcement
 * no anti-cheat guarantee
-* no permanent match history
 * no ranking or tournament state
-
-If a feature requires the relay to understand official card data or game rules, it should be deferred or kept local.
 
 ## 3B. Local Client Responsibilities
 
-Each local client remains a complete simulator instance.
+In the short-term hosted MVP, each local client is a React UI and local user-data container. It does not need to run the full Rule Engine.
 
-Client responsibilities:
+Short-term client responsibilities:
 
-* load local card database
 * load local saved decks
-* validate deck legality locally
-* create or verify initial MatchState
-* run Rule Engine
-* run LegalActionGenerator
-* resolve Actions
-* maintain runtime SQLite for local match state
-* calculate canonical state hashes
-* keep local replay logs
-* export local divergence bundles
-* display card images from local cache
-* handle ManualAdjustmentAction locally and synchronize it as an Action
+* edit, import, export, and select decks
+* submit deck payloads to the hosted room
+* render hosted MatchState, legal actions, and Events
+* submit chosen Actions to the hosted room service
+* display card images from official URLs or local cache
+* export deck files and, when supported, replay files returned by the service
 
-The client should treat the network as a transport for already-structured simulator messages, not as a remote rules service.
+Long-term browser-local responsibilities, after the TypeScript engine exists:
+
+* run Rule Engine locally
+* run LegalActionGenerator locally
+* resolve Actions locally
+* calculate canonical state hashes
+* export local divergence bundles
+* synchronize structured Actions through a relay
+
+The short-term client treats the hosted service as the temporary rules authority. The long-term client should treat the network as a transport for already-structured simulator messages.
 
 ## 3C. Data Locality Model
 
@@ -147,34 +158,44 @@ Local persistent data:
 * divergence report bundles
 * local user display preferences
 
-Relay data:
+Hosted service runtime data:
 
 * room id
 * room code
-* connected socket ids
+* connected clients or session ids
 * player seat mapping
 * protocol version
-* recent message buffer
+* temporary MatchState
+* Action and Event log for the room lifetime
 * last heartbeat timestamps
 * optional short-lived room diagnostics
 
-Relay data should be deleted automatically when the room expires. The first version should not require backups.
+Hosted runtime data should be deleted automatically when the room expires. The first version should not require backups.
 
 ## 3D. Required Client-Side Architecture Pieces
 
-The current local architecture should gain a thin online adapter rather than a separate online engine.
+The current local architecture should gain a thin hosted-online adapter first, then a local-engine transport adapter later.
 
-Planned client-side pieces:
+Short-term planned pieces:
+
+* `HostedRoomClient`: owns HTTP/WebSocket connection to the hosted FastAPI service.
+* `HostedMatchController`: submits deck payloads and Actions, then applies returned MatchPayloads to UI state.
+* `RoomPresenceState`: stores connection status, peer status, room code, and reconnect state for UI only.
+* `ReplayExportClient`: downloads replay JSON from the hosted room while it is alive.
+
+Medium-term planned pieces:
 
 * `ProtocolCodec`: validates and serializes versioned online messages.
-* `RelayClient`: owns WebSocket connection, reconnect, and message delivery.
-* `OnlineMatchController`: turns local legal choices into Action envelopes and applies remote Action envelopes.
 * `CompatibilityChecker`: compares protocol, app, rule, database, registry, and deck fingerprints.
+* `ActionEnvelope` support.
+
+Long-term browser-local pieces:
+
+* `RelayClient`: owns WebSocket relay connection.
 * `CanonicalStateHasher`: produces deterministic MatchState hashes.
 * `DivergenceRecorder`: exports local debugging bundles when synchronization fails.
-* `NetworkPresenceState`: stores connection status, peer status, room code, and reconnect state for UI only.
 
-These pieces should sit outside the Rule Engine. The Rule Engine should not know whether an Action came from local UI, CLI, replay, AI, or network.
+These pieces should sit outside the Rule Engine. The Rule Engine should not know whether an Action came from local UI, hosted online, local relay, CLI, replay, AI, or network.
 
 ## 3E. Controller Boundary
 
@@ -185,7 +206,14 @@ Local single-machine mode:
 * `HumanController` receives choices from local UI.
 * The local app submits selected Actions to the local Action resolver.
 
-Online mode:
+Short-term hosted online mode:
+
+* the local player's UI chooses from LegalActionGenerator output returned by the hosted service
+* `HostedMatchController` submits the selected Action to the hosted service
+* the hosted service validates and applies the Action
+* both clients receive the updated MatchPayload
+
+Long-term local-engine online mode:
 
 * the local player's `HumanController` still chooses from LegalActionGenerator output
 * `OnlineMatchController` wraps the selected Action in an Action envelope
@@ -201,10 +229,12 @@ This plan does not reject a future authoritative server.
 
 The project should treat online play as two tracks:
 
-* near-term low-cost synchronized local-engine play
-* long-term server-authoritative online play
+* near-term hosted FastAPI play for fast feedback
+* medium-term standardized protocol and replay/compatibility boundaries
+* long-term synchronized local-engine play
+* possible future server-authoritative competitive play
 
-The near-term track is for rules testing, manual validation, and feedback collection. It has lower anti-cheat guarantees but much lower cost and faster delivery.
+The near-term track is for rules testing, manual validation, and feedback collection. It has lower product scope and persistence guarantees, but much faster delivery than a browser-engine rewrite.
 
 The long-term track remains the correct direction for competitive play, public matchmaking, rankings, tournaments, and stronger abuse prevention.
 
