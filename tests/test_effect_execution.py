@@ -25,6 +25,13 @@ SAMPLE_CARDS = (
 NORMALIZATION = PROJECT_ROOT / "data_sources" / "card-entity-normalization.json"
 SAMPLE_DECK = PROJECT_ROOT / "tests" / "fixtures" / "legal-deck.json"
 REGISTRY = PROJECT_ROOT / "data_sources" / "effect-registry.v0.json"
+FULL_CARD_DATABASE = PROJECT_ROOT / "data" / "loveca.sqlite3"
+
+
+def _require_full_card_database() -> Path:
+    if not FULL_CARD_DATABASE.exists():
+        pytest.skip("full local card database is not available in this test environment")
+    return FULL_CARD_DATABASE
 
 
 def test_registry_rejects_duplicate_effect_ids():
@@ -138,9 +145,10 @@ def test_registry_contains_expanded_exact_text_reorder_effects():
 
 
 def test_effect_candidate_discovery_is_review_only_after_registry_update():
-    remaining = discover_effect_candidates(PROJECT_ROOT / "data" / "loveca.sqlite3")
+    database = _require_full_card_database()
+    remaining = discover_effect_candidates(database)
     all_candidates = discover_effect_candidates(
-        PROJECT_ROOT / "data" / "loveca.sqlite3",
+        database,
         include_registered=True,
     )
 
@@ -170,7 +178,7 @@ def test_effect_registry_timing_prompt_coverage_exceeds_target():
 
     import sqlite3
 
-    connection = sqlite3.connect(PROJECT_ROOT / "data" / "loveca.sqlite3")
+    connection = sqlite3.connect(_require_full_card_database())
     try:
         cards_with_text = connection.execute(
             """
