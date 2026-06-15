@@ -18,6 +18,13 @@ from loveca.simulation.models import (
     GameEvent,
     MatchState,
 )
+from loveca.simulation.online import (
+    ONLINE_PROTOCOL_VERSION,
+    card_database_fingerprint,
+    match_state_hash,
+)
+
+MAX_RETAINED_MATCHES = 25
 
 RUNTIME_SCHEMA_SQL = f"""
 PRAGMA foreign_keys = ON;
@@ -128,8 +135,11 @@ def initialize_runtime_database(path: Path) -> None:
 
 
 class MatchRepository:
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, *, max_retained_matches: int = MAX_RETAINED_MATCHES) -> None:
+        if max_retained_matches < 1:
+            raise ValueError("max_retained_matches must be at least 1")
         self.path = path
+        self.max_retained_matches = max_retained_matches
         initialize_runtime_database(path)
 
     def create_match(
@@ -184,6 +194,7 @@ class MatchRepository:
                     """,
                     (state.match_id, state.revision, state_json, now),
                 )
+                _prune_old_matches(connection, self.max_retained_matches)
                 connection.commit()
             except Exception:
                 connection.rollback()
@@ -204,6 +215,20 @@ class MatchRepository:
                 """
             ).fetchall()
         return [dict(row) for row in rows]
+
+    def prune_old_matches(self, max_matches: int | None = None) -> int:
+        limit = self.max_retained_matches if max_matches is None else max_matches
+        if limit < 1:
+            raise ValueError("max_matches must be at least 1")
+        with closing(_connect(self.path)) as connection:
+            try:
+                connection.execute("BEGIN IMMEDIATE")
+                deleted = _prune_old_matches(connection, limit)
+                connection.commit()
+                return deleted
+            except Exception:
+                connection.rollback()
+                raise
 
     def get_state(self, match_id: str) -> MatchState:
         with closing(_connect(self.path)) as connection:
@@ -342,7 +367,7 @@ class MatchRepository:
         with closing(_connect(self.path)) as connection:
             match = connection.execute(
                 """
-                SELECT initial_state_json, current_state_json
+                SELECT initial_state_json, current_state_json, card_database_path
                 FROM matches
                 WHERE match_id = ?
                 """,
@@ -391,7 +416,20 @@ class MatchRepository:
         expected = MatchState.model_validate_json(match["current_state_json"])
         if replay_state != expected:
             raise MatchRuntimeError("replayed state does not match persisted state")
+        card_database_path = Path(str(match["card_database_path"]))
+        try:
+            card_fingerprint = card_database_fingerprint(card_database_path)
+        except Exception:
+            card_fingerprint = None
         return {
+            "metadata": {
+                "protocol_version": ONLINE_PROTOCOL_VERSION,
+                "rule_version": replay_state.rule_version,
+                "card_database_fingerprint": card_fingerprint,
+                "effect_registry_version": replay_state.effect_registry_version,
+                "initial_state_hash": match_state_hash(initial),
+                "final_state_hash": match_state_hash(replay_state),
+            },
             "initial_state": initial.model_dump(),
             "actions": actions,
             "events": [
@@ -407,6 +445,22 @@ def _connect(path: Path) -> sqlite3.Connection:
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
     return connection
+
+
+def _prune_old_matches(connection: sqlite3.Connection, max_matches: int) -> int:
+    rows = connection.execute(
+        """
+        SELECT match_id
+        FROM matches
+        ORDER BY updated_at DESC, created_at DESC, match_id DESC
+        LIMIT -1 OFFSET ?
+        """,
+        (max_matches,),
+    ).fetchall()
+    stale_match_ids = [str(row["match_id"]) for row in rows]
+    for match_id in stale_match_ids:
+        connection.execute("DELETE FROM matches WHERE match_id = ?", (match_id,))
+    return len(stale_match_ids)
 
 
 def _json(value: Any) -> str:

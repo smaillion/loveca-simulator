@@ -103,7 +103,7 @@ def test_wrong_deck_section_is_reported(tmp_path):
     assert any(issue.code == "wrong_deck_section" for issue in analysis.issues)
 
 
-def test_preferred_printing_must_match_card_code(tmp_path):
+def test_preferred_printing_mismatch_is_display_warning_not_legality(tmp_path):
     database_path = _import_sample_database(tmp_path)
     deck = _sample_deck_payload()
     deck["main_deck"][0]["preferred_printing_id"] = "PL!N-bp1-001-R"
@@ -111,10 +111,13 @@ def test_preferred_printing_must_match_card_code(tmp_path):
 
     analysis = analyze_deck_file(database_path, deck_path)
 
-    assert analysis.is_legal is False
-    assert any(
-        issue.code == "preferred_printing_mismatch" for issue in analysis.issues
+    assert analysis.is_legal is True
+    mismatch = next(
+        issue
+        for issue in analysis.issues
+        if issue.code == "preferred_printing_mismatch"
     )
+    assert mismatch.severity == "warning"
 
 
 def test_plus_card_identifiers_are_normalized_to_ascii():

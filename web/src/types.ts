@@ -342,7 +342,8 @@ export interface PendingChoice {
     | "live_requirements"
     | "success_live"
     | "manual_card_selection"
-    | "effect_inspection_selection";
+    | "effect_inspection_selection"
+    | "multi_player_effect_selection";
   player_id: string;
   message_ja: string;
   message_zh: string;
@@ -360,6 +361,8 @@ export interface MatchState {
   turn_number: number;
   next_first_player_id: string | null;
   success_live_moved_player_ids: string[];
+  success_live_moved_instance_ids: Record<string, string[]>;
+  live_success_effects_queued: boolean;
   active_player_id: string | null;
   players: Record<string, PlayerState>;
   cards: Record<string, CardInstance>;

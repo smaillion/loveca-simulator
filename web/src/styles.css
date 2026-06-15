@@ -648,6 +648,43 @@ button {
   border: 2px solid #1c8580;
 }
 
+.heart-dot {
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--line);
+  display: inline-block;
+}
+
+.heart-dot.heart01 {
+  background: #ed5e9d;
+  border-color: #b62c6b;
+}
+
+.heart-dot.heart02 {
+  background: #d9414e;
+  border-color: #9b202b;
+}
+
+.heart-dot.heart03 {
+  background: #f2c94c;
+  border-color: #9b7911;
+}
+
+.heart-dot.heart04 {
+  background: #62b36f;
+  border-color: #2e7a3c;
+}
+
+.heart-dot.heart05 {
+  background: #4a91d9;
+  border-color: #2d5f96;
+}
+
+.heart-dot.heart06 {
+  background: #8446b7;
+  border-color: #59277d;
+}
+
 .yell-reveals,
 .special-results {
   display: grid;
@@ -863,6 +900,38 @@ button {
   flex-wrap: wrap;
 }
 
+.skip-effect-action {
+  border: 1px solid #f0b7bd;
+  background: #fff1f2;
+  color: #7f1d1d;
+  border-radius: 8px;
+  padding: 8px;
+  display: grid;
+  gap: 7px;
+  max-width: 360px;
+}
+
+.skip-effect-action span {
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.skip-effect-button {
+  border: 1px solid #c2414b;
+  background: #be123c;
+  color: white;
+  border-radius: 7px;
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.skip-effect-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .effect-option {
   border: 1px solid var(--line);
   background: white;
@@ -901,6 +970,24 @@ button {
 .effect-candidates button.selected {
   border-color: var(--teal);
   background: #e6f5f3;
+}
+
+.effect-color-choices button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 700;
+}
+
+.effect-count-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.effect-count-choice input {
+  width: 72px;
 }
 
 .inspection-card-grid {

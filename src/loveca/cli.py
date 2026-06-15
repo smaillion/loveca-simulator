@@ -32,10 +32,16 @@ from loveca.decks.analyzer import (
 from loveca.decks.library import (
     DeckLibraryError,
     delete_saved_deck,
+    import_deck_directory,
     list_saved_decks,
     load_saved_deck,
     rename_saved_deck,
     save_deck_file,
+)
+from loveca.simulation.effect_candidates import (
+    DEFAULT_EFFECT_REGISTRY,
+    discover_effect_candidates,
+    render_candidates_json,
 )
 
 
@@ -204,6 +210,22 @@ def build_parser() -> argparse.ArgumentParser:
     decks_save_parser.add_argument("--name")
     decks_save_parser.add_argument("--overwrite", action="store_true")
 
+    decks_import_directory_parser = decks_subparsers.add_parser(
+        "import-directory",
+        help="Import every decklist.v0 JSON file from a directory into the local deck library.",
+    )
+    decks_import_directory_parser.add_argument("--source", type=Path, required=True)
+    decks_import_directory_parser.add_argument(
+        "--library-root",
+        type=Path,
+        default=Path("data/decks"),
+    )
+    decks_import_directory_parser.add_argument(
+        "--prefix",
+        help="Optional prefix added to each imported deck name.",
+    )
+    decks_import_directory_parser.add_argument("--overwrite", action="store_true")
+
     decks_list_parser = decks_subparsers.add_parser(
         "list",
         help="List saved decks in the local deck library.",
@@ -251,6 +273,24 @@ def build_parser() -> argparse.ArgumentParser:
     sim_parser = subparsers.add_parser("sim", help="Simulation commands.")
     sim_subparsers = sim_parser.add_subparsers(dest="sim_command")
     sim_subparsers.add_parser("draw", help="Run draw and opening hand simulations.")
+
+    effects_parser = subparsers.add_parser("effects", help="Effect registry helpers.")
+    effects_subparsers = effects_parser.add_subparsers(dest="effects_command")
+    effects_candidates_parser = effects_subparsers.add_parser(
+        "candidates",
+        help="Discover exact-text effect registry candidates.",
+    )
+    effects_candidates_parser.add_argument("--database", type=Path, required=True)
+    effects_candidates_parser.add_argument(
+        "--registry",
+        type=Path,
+        default=DEFAULT_EFFECT_REGISTRY,
+    )
+    effects_candidates_parser.add_argument(
+        "--include-registered",
+        action="store_true",
+    )
+    effects_candidates_parser.add_argument("--output", type=Path)
 
     web_parser = subparsers.add_parser("web", help="Visual rules debugger.")
     web_subparsers = web_parser.add_subparsers(dest="web_command")
@@ -423,6 +463,26 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         return 0 if summary["failed"] == 0 else 1
 
+    if args.command == "effects" and args.effects_command == "candidates":
+        try:
+            candidates = discover_effect_candidates(
+                args.database,
+                registry_path=args.registry,
+                include_registered=args.include_registered,
+            )
+            payload = render_candidates_json(candidates)
+            if args.output:
+                args.output.parent.mkdir(parents=True, exist_ok=True)
+                args.output.write_text(payload + "\n", encoding="utf-8")
+        except OSError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        if args.output:
+            print(f"Wrote {len(candidates)} effect candidate(s) to {args.output}.")
+        else:
+            print(payload)
+        return 0
+
     if args.command == "decks" and args.decks_command == "analyze":
         try:
             analysis = analyze_deck_file(args.database, args.deck)
@@ -447,6 +507,22 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"error: {exc}", file=sys.stderr)
             return 1
         print(f"Saved deck to {destination}.")
+        return 0
+
+    if args.command == "decks" and args.decks_command == "import-directory":
+        try:
+            imported = import_deck_directory(
+                args.source,
+                args.library_root,
+                name_prefix=args.prefix,
+                overwrite=args.overwrite,
+            )
+        except (DeckAnalyzerError, DeckLibraryError, OSError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        for item in imported:
+            print(f"{item.source} -> {item.destination}")
+        print(f"Imported {len(imported)} deck(s).")
         return 0
 
     if args.command == "decks" and args.decks_command == "list":

@@ -19,6 +19,7 @@ from loveca.simulation.models import (
     ManualModifier,
     MatchState,
     PendingChoice,
+    PlayerState,
 )
 
 
@@ -46,6 +47,7 @@ def apply_action(state: MatchState, action: ActionRequest) -> ActionResult:
         "resolve_effect",
         "resolve_effect_choice",
         "manual_adjustment",
+        "skip_effect",
         "resolve_manual_inspection",
     }:
         raise IllegalActionError("a pending card effect must be resolved first")
@@ -65,6 +67,7 @@ def apply_action(state: MatchState, action: ActionRequest) -> ActionResult:
         "activate_effect": _activate_effect,
         "resolve_effect": _resolve_effect,
         "resolve_effect_choice": _resolve_effect_choice,
+        "skip_effect": _skip_effect,
         "resolve_manual_inspection": _resolve_manual_inspection,
     }
     handlers[action.action_type](next_state, action, events)
@@ -83,11 +86,16 @@ def generate_legal_actions(state: MatchState) -> list[LegalAction]:
     if (
         state.pending_choice is not None
         and state.pending_choice.choice_type
-        in {"manual_card_selection", "effect_inspection_selection"}
+        in {
+            "manual_card_selection",
+            "effect_inspection_selection",
+            "multi_player_effect_selection",
+        }
     ):
         action_type = (
             "resolve_effect_choice"
-            if state.pending_choice.choice_type == "effect_inspection_selection"
+            if state.pending_choice.choice_type
+            in {"effect_inspection_selection", "multi_player_effect_selection"}
             else "resolve_manual_inspection"
         )
         label_zh = (
@@ -100,7 +108,7 @@ def generate_legal_actions(state: MatchState) -> list[LegalAction]:
             if action_type == "resolve_effect_choice"
             else "確認したカードの処理を確定"
         )
-        return [
+        actions = [
             LegalAction(
                 action_type=action_type,
                 player_id=state.pending_choice.player_id,
@@ -109,6 +117,9 @@ def generate_legal_actions(state: MatchState) -> list[LegalAction]:
                 options=state.pending_choice.options,
             )
         ]
+        if action_type == "resolve_effect_choice":
+            actions.append(_skip_effect_legal_action(state, state.pending_choice.player_id))
+        return actions
     if state.pending_effects:
         return _pending_effect_legal_actions(state)
     if state.phase == "turn_complete":
@@ -161,7 +172,8 @@ def generate_legal_actions(state: MatchState) -> list[LegalAction]:
         else:
             action_type = (
                 "resolve_effect_choice"
-                if state.pending_choice.choice_type == "effect_inspection_selection"
+                if state.pending_choice.choice_type
+                in {"effect_inspection_selection", "multi_player_effect_selection"}
                 else "resolve_manual_inspection"
             )
             label_zh = (
@@ -183,6 +195,8 @@ def generate_legal_actions(state: MatchState) -> list[LegalAction]:
                     options=state.pending_choice.options,
                 )
             )
+            if action_type == "resolve_effect_choice":
+                actions.append(_skip_effect_legal_action(state, state.pending_choice.player_id))
     elif state.phase.endswith(("_active", "_energy", "_draw")):
         actions.append(
             LegalAction(
@@ -632,7 +646,13 @@ def _play_member(
         "member_played",
         events,
         source_instance_ids=[instance_id],
-        trigger_data={"card_instance_id": instance_id, "slot": slot},
+        trigger_data={
+            "card_instance_id": instance_id,
+            "slot": slot,
+            "source_zone": "hand",
+            "replacement_card_instance_id": replaced_instance_id,
+            "used_baton_touch": use_baton_touch,
+        },
     )
     _resolve_automatic_effects(state, events)
 
@@ -739,7 +759,7 @@ def _resolve_live_requirements(
         player = state.players[pending.player_id]
         player.live_area.remove(selected)
         player.success_live_area.append(selected)
-        _record_success_live_move(state, player.player_id)
+        _record_success_live_move(state, player.player_id, selected)
         events.append(
             GameEvent(
                 event_type="success_live_selected",
@@ -976,6 +996,9 @@ def _pending_effect_legal_actions(state: MatchState) -> list[LegalAction]:
                 "is_optional": effect.is_optional,
                 "simulation_support": effect.simulation_support,
                 "review_status": effect.review_status,
+                "cost_choice": (
+                    effect.cost_choice.model_dump() if effect.cost_choice else None
+                ),
                 "choice": effect.choice.model_dump() if effect.choice else None,
                 **options,
             }
@@ -1016,7 +1039,35 @@ def _pending_effect_legal_actions(state: MatchState) -> list[LegalAction]:
                 },
             )
         )
+    actions.append(_skip_effect_legal_action(state, owner_id))
     return actions
+
+
+def _skip_effect_legal_action(state: MatchState, player_id: str | None) -> LegalAction:
+    invocations = [
+        {
+            "invocation_id": invocation.invocation_id,
+            "effect_id": invocation.effect_id,
+            "source_card_instance_id": invocation.source_card_instance_id,
+            "player_id": invocation.player_id,
+            "label_ja": state.effect_definitions.get(invocation.effect_id).label_ja
+            if invocation.effect_id in state.effect_definitions
+            else "",
+        }
+        for invocation in state.pending_effects
+    ]
+    return LegalAction(
+        action_type="skip_effect",
+        player_id=player_id,
+        label_zh="跳过技能并记录错误",
+        label_ja="能力をスキップしてエラーを記録",
+        options={
+            "invocations": invocations,
+            "pending_choice": (
+                state.pending_choice.model_dump() if state.pending_choice else None
+            ),
+        },
+    )
 
 
 def _legal_effect_activations(
@@ -1089,13 +1140,16 @@ def _activate_effect(
         events,
         selected_ids=[],
     )
-    for operation in effect.actions:
-        if operation.action_type in {"discard_from_hand"}:
-            continue
+    pre_choice_operations = [
+        operation
+        for operation in effect.actions
+        if not _operation_requires_selected_choice(operation)
+    ]
+    if pre_choice_operations:
         _execute_operations(
             state,
             invocation,
-            [operation],
+            pre_choice_operations,
             events,
             selected_ids=[],
         )
@@ -1166,8 +1220,38 @@ def _resolve_effect(
         not isinstance(item, str) for item in selected_ids
     ):
         raise IllegalActionError("effect card selections must be a list of IDs")
+    selected_branch = action.payload.get("selected_branch")
     candidates = _effect_choice_candidates(state, invocation)
-    if effect.choice is not None and not _effect_uses_inspection_choice(effect):
+    if _effect_uses_cost_card_choice(effect) and invocation.resolution_stage == "initial":
+        cost_candidates = _effect_cost_choice_candidates(state, invocation)
+        if (
+            effect.cost_choice is None
+            or len(selected_ids) < effect.cost_choice.minimum
+            or len(selected_ids) > effect.cost_choice.maximum
+            or len(selected_ids) != len(set(selected_ids))
+            or any(item not in cost_candidates for item in selected_ids)
+        ):
+            raise IllegalActionError("effect cost card selection is not legal")
+    elif _effect_uses_branch_choice(effect):
+        selected_branch = _validate_branch_choice(
+            effect,
+            invocation,
+            selected_branch,
+            selected_ids,
+            candidates,
+        )
+    elif (
+        (
+            _effect_uses_post_action_card_choice(effect)
+            or _effect_uses_post_cost_card_choice(effect)
+        )
+        and invocation.resolution_stage == "initial"
+    ):
+        if selected_ids:
+            raise IllegalActionError(
+                "this effect accepts card selections after its first step"
+            )
+    elif _effect_uses_card_choice(effect):
         if (
             len(selected_ids) < effect.choice.minimum
             or len(selected_ids) > effect.choice.maximum
@@ -1182,6 +1266,27 @@ def _resolve_effect(
             )
     elif selected_ids:
         raise IllegalActionError("this effect does not accept card selections")
+    selected_color_slot = action.payload.get("selected_color_slot")
+    selected_count = action.payload.get("selected_count")
+    if _effect_uses_color_choice(effect):
+        allowed_colors = set(effect.choice.color_slots if effect.choice else [])
+        if not isinstance(selected_color_slot, str) or (
+            allowed_colors and selected_color_slot not in allowed_colors
+        ):
+            raise IllegalActionError("effect color selection is not legal")
+    elif selected_color_slot is not None:
+        raise IllegalActionError("this effect does not accept a color selection")
+    if _effect_uses_count_choice(effect):
+        if (
+            not isinstance(selected_count, int)
+            or isinstance(selected_count, bool)
+            or effect.choice is None
+            or selected_count < effect.choice.minimum
+            or selected_count > effect.choice.maximum
+        ):
+            raise IllegalActionError("effect count selection is not legal")
+    elif selected_count is not None:
+        raise IllegalActionError("this effect does not accept a count selection")
 
     if invocation.resolution_stage == "initial":
         unavailable_reason = _effect_unavailable_reason(state, invocation)
@@ -1196,6 +1301,8 @@ def _resolve_effect(
             events,
             selected_ids=selected_ids,
             energy_ids=action.payload.get("energy_instance_ids", []),
+            selected_color_slot=selected_color_slot,
+            selected_count=selected_count,
         )
         if effect.cost:
             events.append(
@@ -1218,19 +1325,77 @@ def _resolve_effect(
         if _effect_uses_inspection_choice(effect):
             _begin_effect_inspection_choice(state, invocation, events)
             return
-        operations = effect.actions
+        if _effect_uses_multi_player_choice(effect):
+            _begin_multi_player_effect_choice(state, invocation, events)
+            return
+        if _effect_uses_post_cost_card_choice(effect):
+            return
+        if _effect_uses_post_action_card_choice(effect):
+            _execute_operations(
+                state,
+                invocation,
+                [
+                    operation
+                    for operation in effect.actions
+                    if not _operation_requires_selected_choice(operation)
+                ],
+                events,
+                selected_ids=[],
+                selected_color_slot=selected_color_slot,
+                selected_count=selected_count,
+            )
+            return
+        if _effect_uses_branch_choice(effect):
+            invocation.trigger_data["selected_branch"] = selected_branch
+            branch_operations = [
+                operation
+                for operation in effect.actions
+                if operation.branch == selected_branch
+            ]
+            _execute_operations(
+                state,
+                invocation,
+                [
+                    operation
+                    for operation in branch_operations
+                    if not _operation_requires_selected_choice(operation)
+                ],
+                events,
+                selected_ids=[],
+                selected_color_slot=selected_color_slot,
+                selected_count=selected_count,
+            )
+            if any(
+                _operation_requires_selected_choice(operation)
+                for operation in branch_operations
+            ):
+                return
+            operations = []
+        else:
+            operations = effect.actions
     else:
-        operations = [
-            operation
-            for operation in effect.actions
-            if operation.action_type == "discard_from_hand"
-        ]
+        if _effect_uses_branch_choice(effect):
+            branch = invocation.trigger_data.get("selected_branch")
+            operations = [
+                operation
+                for operation in effect.actions
+                if operation.branch == branch
+                and _operation_requires_selected_choice(operation)
+            ]
+        else:
+            operations = [
+                operation
+                for operation in effect.actions
+                if _operation_requires_selected_choice(operation)
+            ]
     _execute_operations(
         state,
         invocation,
         operations,
         events,
         selected_ids=selected_ids,
+        selected_color_slot=selected_color_slot,
+        selected_count=selected_count,
     )
     state.pending_effects.remove(invocation)
     _record_effect_usage(state, invocation)
@@ -1243,6 +1408,9 @@ def _resolve_effect(
                 "effect_id": invocation.effect_id,
                 "source_card_instance_id": invocation.source_card_instance_id,
                 "selected_card_instance_ids": selected_ids,
+                "selected_branch": selected_branch,
+                "selected_color_slot": selected_color_slot,
+                "selected_count": selected_count,
                 "trigger": effect.trigger,
                 "timing": effect.timing,
             },
@@ -1266,6 +1434,11 @@ def _begin_effect_inspection_choice(
         raise IllegalActionError("another choice is already pending")
     player = state.players[invocation.player_id]
     amount = choice.amount or 0
+    if choice.amount_source == "own_stage_member_count_plus_2":
+        amount = (
+            sum(1 for item in player.member_area.values() if item is not None)
+            + 2
+        )
     inspected: list[str] = []
     for _ in range(max(0, amount)):
         instance_id = _take_main_deck_card(state, invocation.player_id, events)
@@ -1318,12 +1491,66 @@ def _begin_effect_inspection_choice(
     )
 
 
+def _begin_multi_player_effect_choice(
+    state: MatchState,
+    invocation: EffectInvocation,
+    events: list[GameEvent],
+) -> None:
+    effect = state.effect_definitions[invocation.effect_id]
+    choice = effect.choice
+    if choice is None or not _effect_uses_multi_player_choice(effect):
+        raise IllegalActionError("effect does not define a multi-player choice")
+    if state.pending_choice is not None:
+        raise IllegalActionError("another choice is already pending")
+    player_order = [
+        invocation.player_id,
+        "player_2" if invocation.player_id == "player_1" else "player_1",
+    ]
+    options = {
+        "invocation_id": invocation.invocation_id,
+        "effect_id": invocation.effect_id,
+        "source_card_instance_id": invocation.source_card_instance_id,
+        "multi_player_choice_type": choice.choice_type,
+        "player_order": player_order,
+        "current_index": 0,
+        "selections": {},
+        "draw_amount": choice.amount or 0,
+        "target_hand_size": choice.target_hand_size,
+        "maximum_cost": choice.maximum_cost,
+        "card_type": choice.card_type,
+    }
+    _refresh_multi_player_choice_options(state, options)
+    state.pending_choice = PendingChoice(
+        choice_type="multi_player_effect_selection",
+        player_id=player_order[0],
+        message_ja="能力の処理を選んでください。",
+        message_zh="请选择技能处理内容。",
+        options=options,
+    )
+    events.append(
+        GameEvent(
+            event_type="effect_multi_player_choice_started",
+            player_id=invocation.player_id,
+            data={
+                "invocation_id": invocation.invocation_id,
+                "effect_id": invocation.effect_id,
+                "choice_type": choice.choice_type,
+                "player_order": player_order,
+            },
+            source="player",
+        )
+    )
+
+
 def _resolve_effect_choice(
     state: MatchState,
     action: ActionRequest,
     events: list[GameEvent],
 ) -> None:
     pending = state.pending_choice
+    if pending is not None and pending.choice_type == "multi_player_effect_selection":
+        _resolve_multi_player_effect_choice(state, action, events)
+        return
     if pending is None or pending.choice_type != "effect_inspection_selection":
         raise IllegalActionError("no effect inspection choice is pending")
     if action.player_id != pending.player_id:
@@ -1436,6 +1663,326 @@ def _resolve_effect_choice(
     _continue_after_effect_queue(state, events)
 
 
+def _skip_effect(
+    state: MatchState,
+    action: ActionRequest,
+    events: list[GameEvent],
+) -> None:
+    if not state.pending_effects:
+        raise IllegalActionError("there is no pending effect to skip")
+    invocation_id = action.payload.get("invocation_id")
+    if invocation_id is None and state.pending_choice is not None:
+        invocation_id = state.pending_choice.options.get("invocation_id")
+    if not isinstance(invocation_id, str):
+        raise IllegalActionError("skip_effect requires an invocation_id")
+    invocation = _find_pending_invocation(state, invocation_id)
+    pending_player_id = state.pending_choice.player_id if state.pending_choice else None
+    if action.player_id not in {invocation.player_id, pending_player_id}:
+        raise IllegalActionError("only the effect owner or pending chooser may skip it")
+    if invocation.player_id != state.pending_effects[0].player_id:
+        raise IllegalActionError("another player's effects must resolve first")
+
+    pending_choice_type = state.pending_choice.choice_type if state.pending_choice else None
+    cleaned_resolution_ids: list[str] = []
+    if (
+        state.pending_choice is not None
+        and state.pending_choice.options.get("invocation_id") == invocation.invocation_id
+    ):
+        inspected = state.pending_choice.options.get("inspected_card_instance_ids", [])
+        if isinstance(inspected, list):
+            player = state.players[invocation.player_id]
+            for instance_id in inspected:
+                if isinstance(instance_id, str) and instance_id in player.resolution_area:
+                    player.resolution_area.remove(instance_id)
+                    player.waiting_room.append(instance_id)
+                    state.cards[instance_id].face_up = True
+                    cleaned_resolution_ids.append(instance_id)
+        state.pending_choice = None
+
+    effect = state.effect_definitions.get(invocation.effect_id)
+    state.pending_effects.remove(invocation)
+    _record_effect_usage(state, invocation)
+    events.append(
+        GameEvent(
+            event_type="effect_skipped_due_to_error",
+            player_id=invocation.player_id,
+            data={
+                "invocation_id": invocation.invocation_id,
+                "effect_id": invocation.effect_id,
+                "source_card_instance_id": invocation.source_card_instance_id,
+                "trigger": effect.trigger if effect else None,
+                "timing": effect.timing if effect else None,
+                "label_ja": effect.label_ja if effect else None,
+                "pending_choice_type": pending_choice_type,
+                "cleaned_resolution_area_instance_ids": cleaned_resolution_ids,
+                "skipped_by_player_id": action.player_id,
+                "reason": action.payload.get("reason"),
+                "error_message": action.payload.get("error_message"),
+            },
+            source="manual",
+        )
+    )
+    _resolve_automatic_effects(state, events)
+    _continue_after_effect_queue(state, events)
+
+
+def _resolve_multi_player_effect_choice(
+    state: MatchState,
+    action: ActionRequest,
+    events: list[GameEvent],
+) -> None:
+    pending = state.pending_choice
+    if pending is None or pending.choice_type != "multi_player_effect_selection":
+        raise IllegalActionError("no multi-player effect choice is pending")
+    if action.player_id != pending.player_id:
+        raise IllegalActionError("only the pending player may resolve this choice")
+    invocation = _find_pending_invocation(state, pending.options.get("invocation_id"))
+    if invocation.player_id != state.pending_effects[0].player_id:
+        raise IllegalActionError("another player's effects must resolve first")
+    choice_type = pending.options.get("multi_player_choice_type")
+    if choice_type == "multi_player_deploy_waiting_member":
+        _resolve_multi_player_deploy_choice(state, action, pending, events)
+    elif choice_type == "multi_player_discard_to_hand_size_then_draw":
+        _resolve_multi_player_discard_choice(state, action, pending, events)
+    else:
+        raise IllegalActionError("unsupported multi-player effect choice")
+    _advance_multi_player_effect_choice(state, events)
+
+
+def _resolve_multi_player_deploy_choice(
+    state: MatchState,
+    action: ActionRequest,
+    pending: PendingChoice,
+    events: list[GameEvent],
+) -> None:
+    player_id = pending.player_id
+    player = state.players[player_id]
+    candidates = list(pending.options.get("candidate_card_instance_ids", []))
+    slots = list(pending.options.get("available_slots", []))
+    minimum = int(pending.options.get("minimum", 0))
+    selected = action.payload.get("selected_card_instance_id")
+    slot = action.payload.get("slot")
+    if minimum == 0 and selected is None and slot is None:
+        _record_multi_player_selection(pending, player_id, {"skipped": True})
+        return
+    if not isinstance(selected, str) or selected not in candidates:
+        raise IllegalActionError("selected Member is not legal for this effect")
+    if not isinstance(slot, str) or slot not in slots:
+        raise IllegalActionError("selected Member Area slot is not legal")
+    if player.member_area.get(slot) is not None:
+        raise IllegalActionError("selected Member Area slot is no longer empty")
+    if selected not in player.waiting_room:
+        raise IllegalActionError("selected Member must remain in Waiting Room")
+    player.waiting_room.remove(selected)
+    player.member_area[slot] = selected
+    if slot not in player.member_areas_entered_this_turn:
+        player.member_areas_entered_this_turn.append(slot)
+    state.cards[selected].face_up = True
+    state.cards[selected].orientation = "wait"
+    _record_multi_player_selection(
+        pending,
+        player_id,
+        {"selected_card_instance_id": selected, "slot": slot},
+    )
+    events.append(
+        GameEvent(
+            event_type="effect_member_deployed_from_waiting_room",
+            player_id=player_id,
+            data={
+                "invocation_id": pending.options.get("invocation_id"),
+                "effect_id": pending.options.get("effect_id"),
+                "card_instance_id": selected,
+                "slot": slot,
+                "orientation": "wait",
+            },
+            source="player",
+        )
+    )
+
+
+def _resolve_multi_player_discard_choice(
+    state: MatchState,
+    action: ActionRequest,
+    pending: PendingChoice,
+    events: list[GameEvent],
+) -> None:
+    player_id = pending.player_id
+    player = state.players[player_id]
+    candidates = list(pending.options.get("candidate_card_instance_ids", []))
+    required = int(pending.options.get("minimum", 0))
+    selected_ids = action.payload.get("selected_card_instance_ids", [])
+    if not isinstance(selected_ids, list) or any(
+        not isinstance(item, str) for item in selected_ids
+    ):
+        raise IllegalActionError("discard selections must be a list of IDs")
+    if (
+        len(selected_ids) != required
+        or len(selected_ids) != len(set(selected_ids))
+        or any(item not in candidates for item in selected_ids)
+    ):
+        raise IllegalActionError("discard selection is not legal")
+    for instance_id in selected_ids:
+        if instance_id not in player.hand:
+            raise IllegalActionError("discard target must remain in hand")
+        player.hand.remove(instance_id)
+        player.waiting_room.append(instance_id)
+        state.cards[instance_id].face_up = True
+    _record_multi_player_selection(
+        pending,
+        player_id,
+        {"selected_card_instance_ids": list(selected_ids)},
+    )
+    events.append(
+        GameEvent(
+            event_type="effect_hand_adjustment_discarded",
+            player_id=player_id,
+            data={
+                "invocation_id": pending.options.get("invocation_id"),
+                "effect_id": pending.options.get("effect_id"),
+                "discarded_card_instance_ids": list(selected_ids),
+            },
+            source="player",
+        )
+    )
+
+
+def _advance_multi_player_effect_choice(
+    state: MatchState,
+    events: list[GameEvent],
+) -> None:
+    pending = state.pending_choice
+    if pending is None or pending.choice_type != "multi_player_effect_selection":
+        return
+    player_order = list(pending.options.get("player_order", []))
+    current_index = int(pending.options.get("current_index", 0)) + 1
+    pending.options["current_index"] = current_index
+    while current_index < len(player_order):
+        pending.player_id = player_order[current_index]
+        _refresh_multi_player_choice_options(state, pending.options)
+        if int(pending.options.get("minimum", 0)) > 0:
+            return
+        _record_multi_player_selection(
+            pending,
+            pending.player_id,
+            {"skipped": True},
+        )
+        events.append(
+            GameEvent(
+                event_type="effect_multi_player_choice_skipped",
+                player_id=pending.player_id,
+                data={
+                    "invocation_id": pending.options.get("invocation_id"),
+                    "effect_id": pending.options.get("effect_id"),
+                    "choice_type": pending.options.get("multi_player_choice_type"),
+                },
+                source="system",
+            )
+        )
+        current_index += 1
+        pending.options["current_index"] = current_index
+    _complete_multi_player_effect_choice(state, pending, events)
+
+
+def _refresh_multi_player_choice_options(
+    state: MatchState,
+    options: dict[str, Any],
+) -> None:
+    player_order = list(options.get("player_order", []))
+    current_index = int(options.get("current_index", 0))
+    player_id = player_order[current_index] if current_index < len(player_order) else None
+    options["candidate_card_instance_ids"] = []
+    options["available_slots"] = []
+    options["minimum"] = 0
+    options["maximum"] = 0
+    if player_id is None:
+        return
+    player = state.players[player_id]
+    choice_type = options.get("multi_player_choice_type")
+    if choice_type == "multi_player_deploy_waiting_member":
+        maximum_cost = options.get("maximum_cost")
+        candidates = [
+            item
+            for item in player.waiting_room
+            if state.cards[item].card.card_type == options.get("card_type")
+            and (
+                not isinstance(maximum_cost, int)
+                or (state.cards[item].card.cost or 0) <= maximum_cost
+            )
+        ]
+        slots = [
+            slot
+            for slot in ("left", "center", "right")
+            if player.member_area.get(slot) is None
+        ]
+        options["candidate_card_instance_ids"] = candidates
+        options["available_slots"] = slots
+        options["minimum"] = 1 if candidates and slots else 0
+        options["maximum"] = 1 if candidates and slots else 0
+    elif choice_type == "multi_player_discard_to_hand_size_then_draw":
+        target = options.get("target_hand_size")
+        required = 0
+        if isinstance(target, int):
+            required = max(0, len(player.hand) - target)
+        options["candidate_card_instance_ids"] = list(player.hand)
+        options["minimum"] = required
+        options["maximum"] = required
+
+
+def _record_multi_player_selection(
+    pending: PendingChoice,
+    player_id: str,
+    selection: dict[str, Any],
+) -> None:
+    selections = pending.options.setdefault("selections", {})
+    if not isinstance(selections, dict):
+        raise IllegalActionError("multi-player choice selections are invalid")
+    selections[player_id] = selection
+
+
+def _complete_multi_player_effect_choice(
+    state: MatchState,
+    pending: PendingChoice,
+    events: list[GameEvent],
+) -> None:
+    invocation = _find_pending_invocation(state, pending.options.get("invocation_id"))
+    effect = state.effect_definitions[invocation.effect_id]
+    state.pending_choice = None
+    if pending.options.get("multi_player_choice_type") == (
+        "multi_player_discard_to_hand_size_then_draw"
+    ):
+        amount = int(pending.options.get("draw_amount", 0))
+        for player_id in pending.options.get("player_order", []):
+            _draw(
+                state,
+                player_id,
+                amount,
+                events,
+                reason=f"effect:{invocation.effect_id}",
+            )
+    state.pending_effects.remove(invocation)
+    _record_effect_usage(state, invocation)
+    events.append(
+        GameEvent(
+            event_type="effect_resolved",
+            player_id=invocation.player_id,
+            data={
+                "invocation_id": invocation.invocation_id,
+                "effect_id": invocation.effect_id,
+                "source_card_instance_id": invocation.source_card_instance_id,
+                "multi_player_choice_type": pending.options.get(
+                    "multi_player_choice_type"
+                ),
+                "selections": pending.options.get("selections", {}),
+                "trigger": effect.trigger,
+                "timing": effect.timing,
+            },
+            source="player",
+        )
+    )
+    _resolve_automatic_effects(state, events)
+    _continue_after_effect_queue(state, events)
+
+
 def _queue_triggered_effects(
     state: MatchState,
     trigger: str,
@@ -1519,6 +2066,253 @@ def _effect_unavailable_reason(
         )
         if active < minimum_energy:
             return "insufficient_active_energy"
+    opponent = state.players["player_2" if invocation.player_id == "player_1" else "player_1"]
+    live_score_relation = effect.condition.get("live_score_relation")
+    if live_score_relation == "greater_than_opponent":
+        if player.live_result.total_score <= opponent.live_result.total_score:
+            return "live_score_not_higher"
+    elif live_score_relation == "equal_to_opponent":
+        if player.live_result.total_score != opponent.live_result.total_score:
+            return "live_score_not_equal"
+    if effect.condition.get("own_energy_less_than_opponent"):
+        if len(player.energy_area) >= len(opponent.energy_area):
+            return "energy_count_not_lower"
+    if effect.condition.get("own_energy_more_than_opponent"):
+        if len(player.energy_area) <= len(opponent.energy_area):
+            return "energy_count_not_higher"
+    exact_energy_count = effect.condition.get("own_energy_count_exact")
+    if isinstance(exact_energy_count, int):
+        if len(player.energy_area) != exact_energy_count:
+            return "energy_count_not_exact"
+    if effect.condition.get("own_hand_more_than_opponent"):
+        if len(player.hand) <= len(opponent.hand):
+            return "hand_count_not_higher"
+    forbidden_hand_type = effect.condition.get("own_hand_has_no_card_type")
+    if isinstance(forbidden_hand_type, str):
+        if any(
+            state.cards[item].card.card_type == forbidden_hand_type
+            for item in player.hand
+        ):
+            return "hand_contains_forbidden_card_type"
+    success_score = effect.condition.get("success_live_score_at_least")
+    if isinstance(success_score, int):
+        total = sum(
+            state.cards[item].card.score or 0 for item in player.success_live_area
+        )
+        if total < success_score:
+            return "success_live_score_too_low"
+    maximum_success_score = effect.condition.get("success_live_score_at_most")
+    if isinstance(maximum_success_score, int):
+        total = sum(
+            state.cards[item].card.score or 0 for item in player.success_live_area
+        )
+        if total > maximum_success_score:
+            return "success_live_score_too_high"
+    success_count = effect.condition.get("success_live_count_at_least")
+    if isinstance(success_count, int):
+        if len(player.success_live_area) < success_count:
+            return "success_live_count_too_low"
+    maximum_success_count = effect.condition.get("success_live_count_at_most")
+    if isinstance(maximum_success_count, int):
+        if len(player.success_live_area) > maximum_success_count:
+            return "success_live_count_too_high"
+    total_success_count = effect.condition.get("total_success_live_count_at_least")
+    if isinstance(total_success_count, int):
+        if (
+            len(player.success_live_area)
+            + len(opponent.success_live_area)
+            < total_success_count
+        ):
+            return "total_success_live_count_too_low"
+    success_work = effect.condition.get("success_live_work_count_at_least")
+    if isinstance(success_work, dict):
+        work_key = success_work.get("work_key")
+        count = success_work.get("count")
+        if isinstance(work_key, str) and isinstance(count, int):
+            actual = sum(
+                work_key in state.cards[item].card.work_keys
+                for item in player.success_live_area
+            )
+            if actual < count:
+                return "success_live_work_count_too_low"
+    success_unit = effect.condition.get("success_live_unit_count_at_least")
+    if isinstance(success_unit, dict):
+        unit_key = success_unit.get("unit_key")
+        count = success_unit.get("count")
+        if isinstance(unit_key, str) and isinstance(count, int):
+            actual = sum(
+                unit_key in state.cards[item].card.unit_keys
+                for item in player.success_live_area
+            )
+            if actual < count:
+                return "success_live_unit_count_too_low"
+    live_area_count = effect.condition.get("live_area_count_at_least")
+    if isinstance(live_area_count, int):
+        if len(player.live_area) < live_area_count:
+            return "live_area_count_too_low"
+    live_area_work = effect.condition.get("live_area_work_count_at_least")
+    if isinstance(live_area_work, dict):
+        work_key = live_area_work.get("work_key")
+        count = live_area_work.get("count")
+        if isinstance(work_key, str) and isinstance(count, int):
+            actual = sum(
+                work_key in state.cards[item].card.work_keys
+                for item in player.live_area
+            )
+            if actual < count:
+                return "live_area_work_count_too_low"
+    live_area_unit = effect.condition.get("live_area_unit_count_at_least")
+    if isinstance(live_area_unit, dict):
+        unit_key = live_area_unit.get("unit_key")
+        count = live_area_unit.get("count")
+        if isinstance(unit_key, str) and isinstance(count, int):
+            actual = sum(
+                unit_key in state.cards[item].card.unit_keys
+                for item in player.live_area
+            )
+            if actual < count:
+                return "live_area_unit_count_too_low"
+    waiting_room_count = effect.condition.get("waiting_room_count_at_least")
+    if isinstance(waiting_room_count, int):
+        if len(player.waiting_room) < waiting_room_count:
+            return "waiting_room_count_too_low"
+    own_energy_count = effect.condition.get("own_energy_count_at_least")
+    if isinstance(own_energy_count, int):
+        if len(player.energy_area) < own_energy_count:
+            return "energy_count_too_low"
+    total_energy_count = effect.condition.get("total_energy_count_at_least")
+    if isinstance(total_energy_count, int):
+        if len(player.energy_area) + len(opponent.energy_area) < total_energy_count:
+            return "total_energy_count_too_low"
+    opponent_success_score = effect.condition.get("opponent_success_live_score_at_least")
+    if isinstance(opponent_success_score, int):
+        total = sum(
+            state.cards[item].card.score or 0 for item in opponent.success_live_area
+        )
+        if total < opponent_success_score:
+            return "opponent_success_live_score_too_low"
+    opponent_success_count = effect.condition.get("opponent_success_live_count_at_least")
+    if isinstance(opponent_success_count, int):
+        if len(opponent.success_live_area) < opponent_success_count:
+            return "opponent_success_live_count_too_low"
+    played_from_zone_not = effect.condition.get("played_from_zone_not")
+    if isinstance(played_from_zone_not, str):
+        if played_from_zone_not == invocation.trigger_data.get("source_zone"):
+            return "played_from_zone_mismatch"
+    source_orientation = effect.condition.get("source_orientation")
+    if isinstance(source_orientation, str):
+        if state.cards[invocation.source_card_instance_id].orientation != source_orientation:
+            return "source_orientation_mismatch"
+    own_stage_cost = effect.condition.get("own_stage_member_cost_at_least")
+    if isinstance(own_stage_cost, int):
+        if not any(
+            (state.cards[item].card.cost or 0) >= own_stage_cost
+            for item in player.member_area.values()
+            if item is not None
+        ):
+            return "stage_member_cost_too_low"
+    if effect.condition.get("own_stage_member_cost_greater_than_source"):
+        source_cost = state.cards[invocation.source_card_instance_id].card.cost or 0
+        if not any(
+            (state.cards[item].card.cost or 0) > source_cost
+            for item in player.member_area.values()
+            if item is not None
+        ):
+            return "stage_member_cost_not_higher_than_source"
+    own_stage_count = effect.condition.get("own_stage_member_count_at_least")
+    if isinstance(own_stage_count, int):
+        if (
+            sum(1 for item in player.member_area.values() if item is not None)
+            < own_stage_count
+        ):
+            return "stage_member_count_too_low"
+    own_stage_count_exact = effect.condition.get("own_stage_member_count_exact")
+    if isinstance(own_stage_count_exact, int):
+        if (
+            sum(1 for item in player.member_area.values() if item is not None)
+            != own_stage_count_exact
+        ):
+            return "stage_member_count_not_exact"
+    total_stage_count = effect.condition.get("total_stage_member_count_at_least")
+    if isinstance(total_stage_count, int):
+        total = sum(
+            1
+            for target_player in state.players.values()
+            for item in target_player.member_area.values()
+            if item is not None
+        )
+        if total < total_stage_count:
+            return "total_stage_member_count_too_low"
+    source_slot = effect.condition.get("source_slot")
+    if isinstance(source_slot, str):
+        if _top_member_slot(player, invocation.source_card_instance_id) != source_slot:
+            return "source_slot_mismatch"
+    if effect.condition.get("any_stage_member_cost_at_least"):
+        minimum_cost = effect.condition["any_stage_member_cost_at_least"]
+        if isinstance(minimum_cost, int) and not any(
+            (state.cards[item].card.cost or 0) >= minimum_cost
+            for target_player in state.players.values()
+            for item in target_player.member_area.values()
+            if item is not None
+        ):
+            return "stage_member_cost_too_low"
+    own_stage_work = effect.condition.get("own_stage_member_work_count_at_least")
+    if isinstance(own_stage_work, dict):
+        work_key = own_stage_work.get("work_key")
+        count = own_stage_work.get("count")
+        minimum_cost = own_stage_work.get("minimum_cost")
+        if isinstance(work_key, str) and isinstance(count, int):
+            actual = 0
+            for item in player.member_area.values():
+                if item is None:
+                    continue
+                card = state.cards[item].card
+                if work_key not in card.work_keys:
+                    continue
+                if isinstance(minimum_cost, int) and (card.cost or 0) < minimum_cost:
+                    continue
+                actual += 1
+            if actual < count:
+                return "stage_member_work_count_too_low"
+    own_stage_unit = effect.condition.get("own_stage_member_unit_count_at_least")
+    if isinstance(own_stage_unit, dict):
+        unit_key = own_stage_unit.get("unit_key")
+        count = own_stage_unit.get("count")
+        if isinstance(unit_key, str) and isinstance(count, int):
+            actual = sum(
+                item is not None and unit_key in state.cards[item].card.unit_keys
+                for item in player.member_area.values()
+            )
+            if actual < count:
+                return "stage_member_unit_count_too_low"
+    name_any = effect.condition.get("own_stage_member_name_any")
+    if isinstance(name_any, list) and all(isinstance(item, str) for item in name_any):
+        if not any(
+            item is not None and state.cards[item].card.name_ja in name_any
+            for item in player.member_area.values()
+        ):
+            return "stage_member_name_missing"
+    opponent_wait_count = effect.condition.get("opponent_stage_wait_member_count_at_least")
+    if isinstance(opponent_wait_count, int):
+        actual = sum(
+            item is not None and state.cards[item].orientation == "wait"
+            for item in opponent.member_area.values()
+        )
+        if actual < opponent_wait_count:
+            return "opponent_wait_member_count_too_low"
+    if effect.condition.get("own_stage_cost_sum_less_than_opponent"):
+        own_total = sum(
+            state.cards[item].card.cost or 0
+            for item in player.member_area.values()
+            if item is not None
+        )
+        opponent_total = sum(
+            state.cards[item].card.cost or 0
+            for item in opponent.member_area.values()
+            if item is not None
+        )
+        if own_total >= opponent_total:
+            return "stage_cost_sum_not_lower"
     replacement_id = invocation.trigger_data.get("replacement_card_instance_id")
     minimum_cost = effect.condition.get("replacement_member_minimum_cost")
     if isinstance(minimum_cost, int):
@@ -1526,6 +2320,15 @@ def _effect_unavailable_reason(
             return "replacement_member_unavailable"
         if (state.cards[replacement_id].card.cost or 0) < minimum_cost:
             return "replacement_member_cost_too_low"
+    if effect.condition.get("replacement_member_cost_less_than_source"):
+        if not isinstance(replacement_id, str):
+            return "replacement_member_unavailable"
+        source_cost = state.cards[invocation.source_card_instance_id].card.cost or 0
+        if (state.cards[replacement_id].card.cost or 0) >= source_cost:
+            return "replacement_member_cost_too_high"
+    if effect.condition.get("requires_baton_touch"):
+        if not invocation.trigger_data.get("used_baton_touch"):
+            return "baton_touch_required"
     work_key = effect.condition.get("replacement_member_work_key")
     if isinstance(work_key, str):
         if not isinstance(replacement_id, str):
@@ -1534,11 +2337,38 @@ def _effect_unavailable_reason(
             return "replacement_member_work_mismatch"
     if _effect_uses_inspection_choice(effect):
         return None
-    if effect.choice is not None and effect.choice.minimum > 0:
+    if (
+        _effect_uses_cost_card_choice(effect)
+        and invocation.resolution_stage == "initial"
+    ):
+        if effect.cost_choice.minimum > 0 and (
+            len(_effect_cost_choice_candidates(state, invocation))
+            < effect.cost_choice.minimum
+        ):
+            return "cost_choice_candidates_unavailable"
+        return None
+    if (
+        _effect_uses_card_choice(effect)
+        and not (
+            (
+                _effect_uses_post_action_card_choice(effect)
+                or _effect_uses_post_cost_card_choice(effect)
+            )
+            and invocation.resolution_stage == "initial"
+        )
+        and effect.choice.minimum > 0
+    ):
         if len(_effect_choice_candidates(state, invocation)) < effect.choice.minimum:
             return "choice_candidates_unavailable"
     if (
-        effect.choice is not None
+        _effect_uses_card_choice(effect)
+        and not (
+            (
+                _effect_uses_post_action_card_choice(effect)
+                or _effect_uses_post_cost_card_choice(effect)
+            )
+            and invocation.resolution_stage == "initial"
+        )
         and effect.choice.maximum > 0
         and effect.choice.zone == "stage"
         and not _effect_choice_candidates(state, invocation)
@@ -1553,13 +2383,47 @@ def _effect_resolution_options(
 ) -> dict[str, Any]:
     effect = state.effect_definitions[invocation.effect_id]
     candidate_ids: list[str] = []
-    if not _effect_uses_inspection_choice(effect):
+    if _effect_uses_cost_card_choice(effect) and invocation.resolution_stage == "initial":
+        candidate_ids = _effect_cost_choice_candidates(state, invocation)
+    elif not _effect_uses_inspection_choice(effect) and not (
+        (
+            _effect_uses_post_action_card_choice(effect)
+            or _effect_uses_post_cost_card_choice(effect)
+        )
+        and invocation.resolution_stage == "initial"
+    ):
         candidate_ids = _effect_choice_candidates(state, invocation)
     options: dict[str, Any] = {"candidate_card_instance_ids": candidate_ids}
-    if effect.choice is not None and not _effect_uses_inspection_choice(effect):
+    if effect.cost_choice is not None and invocation.resolution_stage == "initial":
+        options["choice_type"] = effect.cost_choice.choice_type
+        options["choice_zone"] = effect.cost_choice.zone
+        options["card_selection_minimum"] = effect.cost_choice.minimum
+        options["card_selection_maximum"] = effect.cost_choice.maximum
+        options["cost_choice"] = effect.cost_choice.model_dump()
+    elif effect.choice is not None and not _effect_uses_inspection_choice(effect):
+        options["choice_type"] = effect.choice.choice_type
         options["card_selection_minimum"] = effect.choice.minimum
         options["card_selection_maximum"] = effect.choice.maximum
-        options["choice_zone"] = effect.choice.zone
+        if _effect_uses_branch_choice(effect):
+            options["branch_ids"] = list(effect.choice.branch_ids)
+            branch = invocation.trigger_data.get("selected_branch")
+            if isinstance(branch, str):
+                options["selected_branch"] = branch
+                options["card_selection_minimum"] = (
+                    effect.choice.branch_selection_minimum.get(branch, 0)
+                )
+                options["card_selection_maximum"] = (
+                    effect.choice.branch_selection_maximum.get(branch, 0)
+                )
+        choice_zone = effect.choice.zone
+        if choice_zone is None and effect.choice.choice_type == "energy_from_area":
+            choice_zone = "energy_area"
+        elif choice_zone is None and effect.choice.choice_type == "member_from_stage":
+            choice_zone = "stage"
+        options["choice_zone"] = choice_zone
+        options["choice_orientation"] = effect.choice.orientation
+        options["color_slots"] = list(effect.choice.color_slots)
+        options["target_player"] = effect.choice.target_player
     pay_amount = sum(
         operation.amount or 0
         for operation in effect.cost
@@ -1583,36 +2447,249 @@ def _effect_choice_candidates(
     effect = state.effect_definitions[invocation.effect_id]
     if effect.choice is None or _effect_uses_inspection_choice(effect):
         return []
+    if (
+        _effect_uses_branch_choice(effect)
+        and invocation.resolution_stage == "initial"
+    ):
+        return []
+    return _effect_candidates_for_choice(state, invocation, effect.choice)
+
+
+def _effect_cost_choice_candidates(
+    state: MatchState,
+    invocation: EffectInvocation,
+) -> list[str]:
+    effect = state.effect_definitions[invocation.effect_id]
+    if effect.cost_choice is None:
+        return []
+    return _effect_candidates_for_choice(state, invocation, effect.cost_choice)
+
+
+def _effect_candidates_for_choice(
+    state: MatchState,
+    invocation: EffectInvocation,
+    choice: Any,
+) -> list[str]:
     player = state.players[invocation.player_id]
-    if effect.choice.zone == "waiting_room":
+    zone = choice.zone
+    if zone is None and choice.choice_type == "energy_from_area":
+        zone = "energy_area"
+    elif zone is None and choice.choice_type == "member_from_stage":
+        zone = "stage"
+    if zone == "waiting_room":
         candidates = list(player.waiting_room)
-    elif effect.choice.zone == "hand":
-        candidates = list(player.hand)
-    elif effect.choice.zone == "stage":
+    elif zone == "hand":
+        target_player = player
+        if choice.target_player == "opponent":
+            target_player = state.players[
+                "player_2" if invocation.player_id == "player_1" else "player_1"
+            ]
+        candidates = list(target_player.hand)
+    elif zone == "stage":
+        target_player = player
+        if choice.target_player == "opponent":
+            target_player = state.players[
+                "player_2" if invocation.player_id == "player_1" else "player_1"
+            ]
         candidates = [
-            item for item in player.member_area.values() if item is not None
+            item for item in target_player.member_area.values() if item is not None
         ]
-    elif effect.choice.zone == "energy_area":
+    elif zone == "energy_area":
         candidates = list(player.energy_area)
+    elif zone == "resolution_area":
+        candidates = list(player.resolution_area)
     else:
         return []
-    if effect.choice.card_type:
+    if choice.card_type:
         candidates = [
             item
             for item in candidates
-            if state.cards[item].card.card_type == effect.choice.card_type
+            if state.cards[item].card.card_type == choice.card_type
         ]
-    if effect.choice.orientation:
+    if choice.work_key:
         candidates = [
             item
             for item in candidates
-            if state.cards[item].orientation == effect.choice.orientation
+            if choice.work_key in state.cards[item].card.work_keys
+        ]
+    if choice.unit_key:
+        candidates = [
+            item
+            for item in candidates
+            if choice.unit_key in state.cards[item].card.unit_keys
+        ]
+    if choice.name_ja_any:
+        allowed_names = set(choice.name_ja_any)
+        candidates = [
+            item
+            for item in candidates
+            if state.cards[item].card.name_ja in allowed_names
+        ]
+    if choice.orientation:
+        candidates = [
+            item
+            for item in candidates
+            if state.cards[item].orientation == choice.orientation
+        ]
+    if choice.exclude_source:
+        candidates = [
+            item for item in candidates if item != invocation.source_card_instance_id
+        ]
+    if choice.minimum_cost is not None:
+        candidates = [
+            item
+            for item in candidates
+            if (state.cards[item].card.cost or 0) >= choice.minimum_cost
+        ]
+    if choice.maximum_cost is not None:
+        candidates = [
+            item
+            for item in candidates
+            if (state.cards[item].card.cost or 0) <= choice.maximum_cost
+        ]
+    if choice.maximum_blade is not None:
+        candidates = [
+            item
+            for item in candidates
+            if (state.cards[item].card.blade or 0) <= choice.maximum_blade
+        ]
+    if choice.minimum_score is not None:
+        candidates = [
+            item
+            for item in candidates
+            if (state.cards[item].card.score or 0) >= choice.minimum_score
+        ]
+    if choice.maximum_score is not None:
+        candidates = [
+            item
+            for item in candidates
+            if (state.cards[item].card.score or 0) <= choice.maximum_score
         ]
     return candidates
 
 
+def _operation_requires_selected_choice(operation: Any) -> bool:
+    return operation.action_type in {
+        "apply_wait_energy",
+        "discard_from_hand",
+        "move_selected_to_deck_bottom",
+        "move_selected_to_deck_top",
+        "ready_energy",
+        "ready_member",
+        "return_from_waiting_room",
+    }
+
+
 def _effect_uses_inspection_choice(effect: Any) -> bool:
     return bool(effect.choice and effect.choice.choice_type == "inspect_top_select")
+
+
+def _effect_uses_multi_player_choice(effect: Any) -> bool:
+    return bool(
+        effect.choice
+        and effect.choice.choice_type
+        in {
+            "multi_player_deploy_waiting_member",
+            "multi_player_discard_to_hand_size_then_draw",
+        }
+    )
+
+
+def _effect_uses_card_choice(effect: Any) -> bool:
+    if not effect.choice or _effect_uses_inspection_choice(effect):
+        return False
+    if _effect_uses_multi_player_choice(effect):
+        return False
+    if _effect_uses_branch_choice(effect):
+        return False
+    if effect.choice.choice_type in {
+        "card_from_zone",
+        "energy_from_area",
+        "member_from_stage",
+        "post_action_card_from_zone",
+    }:
+        return True
+    return effect.choice.zone in {"waiting_room", "hand", "stage", "energy_area"}
+
+
+def _effect_uses_post_action_card_choice(effect: Any) -> bool:
+    return bool(effect.choice and effect.choice.choice_type == "post_action_card_from_zone")
+
+
+def _effect_uses_cost_card_choice(effect: Any) -> bool:
+    return bool(effect.cost_choice and effect.cost_choice.zone in {"hand"})
+
+
+def _effect_uses_post_cost_card_choice(effect: Any) -> bool:
+    return bool(
+        effect.choice
+        and (
+            any(
+                operation.action_type == "source_to_waiting_room"
+                for operation in effect.cost
+            )
+            or (
+                effect.cost_choice is not None
+                and not _effect_uses_inspection_choice(effect)
+                and _effect_uses_card_choice(effect)
+            )
+        )
+    )
+
+
+def _effect_uses_branch_choice(effect: Any) -> bool:
+    return bool(effect.choice and effect.choice.choice_type == "choose_effect_branch")
+
+
+def _validate_branch_choice(
+    effect: Any,
+    invocation: EffectInvocation,
+    selected_branch: Any,
+    selected_ids: list[str],
+    candidates: list[str],
+) -> str:
+    if effect.choice is None:
+        raise IllegalActionError("branch effect is missing choice metadata")
+    if invocation.resolution_stage == "initial":
+        if not isinstance(selected_branch, str):
+            raise IllegalActionError("effect branch selection is required")
+        if selected_branch not in effect.choice.branch_ids:
+            raise IllegalActionError("effect branch selection is not legal")
+        if selected_ids:
+            raise IllegalActionError(
+                "this effect accepts card selections after branch setup"
+            )
+        return selected_branch
+    branch = invocation.trigger_data.get("selected_branch")
+    if not isinstance(branch, str) or branch not in effect.choice.branch_ids:
+        raise IllegalActionError("pending effect branch metadata is invalid")
+    if selected_branch is not None and selected_branch != branch:
+        raise IllegalActionError("effect branch cannot be changed after setup")
+    minimum = effect.choice.branch_selection_minimum.get(branch, 0)
+    maximum = effect.choice.branch_selection_maximum.get(branch, 0)
+    if (
+        len(selected_ids) < minimum
+        or len(selected_ids) > maximum
+        or len(selected_ids) != len(set(selected_ids))
+        or any(item not in candidates for item in selected_ids)
+    ):
+        raise IllegalActionError("effect branch card selection is not legal")
+    return branch
+
+
+def _is_stage_member_instance(state: MatchState, instance_id: str) -> bool:
+    for player in state.players.values():
+        if instance_id in player.member_area.values():
+            return state.cards[instance_id].card.card_type == "member"
+    return False
+
+
+def _effect_uses_color_choice(effect: Any) -> bool:
+    return bool(effect.choice and effect.choice.choice_type == "choose_color")
+
+
+def _effect_uses_count_choice(effect: Any) -> bool:
+    return bool(effect.choice and effect.choice.choice_type == "choose_count")
 
 
 def _inspection_choice_candidates(
@@ -1637,6 +2714,31 @@ def _inspection_choice_candidates(
             for item in candidates
             if choice.work_key in state.cards[item].card.work_keys
         ]
+    if choice.unit_key:
+        candidates = [
+            item
+            for item in candidates
+            if choice.unit_key in state.cards[item].card.unit_keys
+        ]
+    if choice.name_ja_any:
+        allowed_names = set(choice.name_ja_any)
+        candidates = [
+            item
+            for item in candidates
+            if state.cards[item].card.name_ja in allowed_names
+        ]
+    if choice.minimum_cost is not None:
+        candidates = [
+            item
+            for item in candidates
+            if (state.cards[item].card.cost or 0) >= choice.minimum_cost
+        ]
+    if choice.maximum_cost is not None:
+        candidates = [
+            item
+            for item in candidates
+            if (state.cards[item].card.cost or 0) <= choice.maximum_cost
+        ]
     if choice.ability_bucket:
         allowed = set(choice.ability_bucket)
         candidates = [
@@ -1655,20 +2757,117 @@ def _execute_operations(
     *,
     selected_ids: list[str],
     energy_ids: Any = None,
+    selected_color_slot: Any = None,
+    selected_count: Any = None,
 ) -> None:
     player = state.players[invocation.player_id]
+    effect = state.effect_definitions[invocation.effect_id]
+    operation_context: dict[str, Any] = {}
     for operation in operations:
         operation_type = operation.action_type
         if operation_type == "apply_wait":
             state.cards[invocation.source_card_instance_id].orientation = "wait"
+        elif operation_type == "source_to_waiting_room":
+            slot = _top_member_slot(player, invocation.source_card_instance_id)
+            if slot is None:
+                raise IllegalActionError("effect source must be on Stage")
+            _move_top_member_off_stage(
+                state,
+                invocation.player_id,
+                slot,
+                "waiting_room",
+                events,
+                reason=f"effect:{invocation.effect_id}",
+            )
+        elif operation_type == "apply_wait_member":
+            if operation.target == "opponent_stage_cost2_all":
+                opponent_id = (
+                    "player_2" if invocation.player_id == "player_1" else "player_1"
+                )
+                opponent = state.players[opponent_id]
+                for instance_id in opponent.member_area.values():
+                    if (
+                        instance_id is not None
+                        and state.cards[instance_id].card.card_type == "member"
+                        and (state.cards[instance_id].card.cost or 0) <= 2
+                    ):
+                        state.cards[instance_id].orientation = "wait"
+            elif selected_ids:
+                for instance_id in selected_ids:
+                    if not _is_stage_member_instance(state, instance_id):
+                        raise IllegalActionError("selected Member must be on Stage")
+                    state.cards[instance_id].orientation = "wait"
+            else:
+                state.cards[invocation.source_card_instance_id].orientation = "wait"
         elif operation_type == "draw_card":
             _draw(
                 state,
                 invocation.player_id,
-                operation.amount or 0,
+                _operation_amount(operation, selected_count, player),
                 events,
                 reason=f"effect:{invocation.effect_id}",
             )
+        elif operation_type == "draw_card_per_stage_member":
+            amount = sum(
+                1 for instance_id in player.member_area.values() if instance_id is not None
+            )
+            _draw(
+                state,
+                invocation.player_id,
+                amount,
+                events,
+                reason=f"effect:{invocation.effect_id}",
+            )
+        elif operation_type == "draw_until_hand_size":
+            target_hand_size = operation.target_hand_size
+            if not isinstance(target_hand_size, int):
+                raise IllegalActionError("draw_until_hand_size requires target_hand_size")
+            _draw(
+                state,
+                invocation.player_id,
+                max(0, target_hand_size - len(player.hand)),
+                events,
+                reason=f"effect:{invocation.effect_id}",
+            )
+        elif operation_type == "reveal_selected_cards":
+            for instance_id in selected_ids:
+                state.cards[instance_id].face_up = True
+            events.append(
+                GameEvent(
+                    event_type="effect_cards_revealed",
+                    player_id=invocation.player_id,
+                    data={
+                        "invocation_id": invocation.invocation_id,
+                        "effect_id": invocation.effect_id,
+                        "revealed_card_instance_ids": list(selected_ids),
+                    },
+                    source="system",
+                )
+            )
+        elif operation_type == "draw_if_selected_none_card_type":
+            if not any(
+                state.cards[item].card.card_type == operation.card_type
+                for item in selected_ids
+            ):
+                _draw(
+                    state,
+                    invocation.player_id,
+                    operation.amount or 0,
+                    events,
+                    reason=f"effect:{invocation.effect_id}",
+                )
+        elif operation_type == "draw_if_selected_card_type":
+            if any(
+                state.cards[item].card.card_type == operation.card_type
+                for item in selected_ids
+            ):
+                _draw(
+                    state,
+                    invocation.player_id,
+                    operation.amount or 0,
+                    events,
+                    reason=f"effect:{invocation.effect_id}",
+                )
         elif operation_type == "discard_from_hand":
             for instance_id in selected_ids:
                 if instance_id not in player.hand:
@@ -1682,9 +2881,59 @@ def _execute_operations(
                 player.waiting_room.remove(instance_id)
                 player.hand.append(instance_id)
                 state.cards[instance_id].face_up = True
-        elif operation_type == "ready_member":
+        elif operation_type == "move_selected_to_hand":
             for instance_id in selected_ids:
-                state.cards[instance_id].orientation = "active"
+                if instance_id in player.resolution_area:
+                    player.resolution_area.remove(instance_id)
+                elif instance_id in player.waiting_room:
+                    player.waiting_room.remove(instance_id)
+                else:
+                    raise IllegalActionError(
+                        "effect hand target must be in a selectable public zone"
+                    )
+                player.hand.append(instance_id)
+                state.cards[instance_id].face_up = True
+        elif operation_type == "move_selected_to_deck_bottom":
+            for instance_id in selected_ids:
+                if instance_id not in player.hand:
+                    raise IllegalActionError("effect deck-bottom target must be in hand")
+                player.hand.remove(instance_id)
+                player.main_deck.append(instance_id)
+                state.cards[instance_id].face_up = False
+        elif operation_type == "move_selected_to_deck_top":
+            for instance_id in reversed(selected_ids):
+                if instance_id not in player.waiting_room:
+                    raise IllegalActionError("effect deck-top target must be in Waiting Room")
+                player.waiting_room.remove(instance_id)
+                player.main_deck.insert(0, instance_id)
+                state.cards[instance_id].face_up = False
+        elif operation_type == "ready_member":
+            if operation.target == "self_stage_all":
+                for instance_id in player.member_area.values():
+                    if instance_id is not None:
+                        state.cards[instance_id].orientation = "active"
+            else:
+                for instance_id in selected_ids:
+                    if not _is_stage_member_instance(state, instance_id):
+                        raise IllegalActionError("selected Member must be on Stage")
+                    state.cards[instance_id].orientation = "active"
+        elif operation_type == "apply_wait_energy":
+            required = _operation_amount(operation, selected_count)
+            if required and len(selected_ids) != required:
+                raise IllegalActionError(
+                    f"effect requires exactly {required} selected Energy"
+                )
+            if len(selected_ids) != len(set(selected_ids)):
+                raise IllegalActionError("selected Energy must be unique")
+            for instance_id in selected_ids:
+                if (
+                    instance_id not in player.energy_area
+                    or state.cards[instance_id].card.card_type != "energy"
+                ):
+                    raise IllegalActionError(
+                        "selected Energy must be in the Energy Area"
+                    )
+                state.cards[instance_id].orientation = "wait"
         elif operation_type == "pay_energy":
             required = operation.amount or 0
             if (
@@ -1725,24 +2974,50 @@ def _execute_operations(
                 ManualModifier(
                     modifier_id=f"effect:{invocation.invocation_id}:blade",
                     modifier_type="blade",
-                    duration="live",
+                    duration=_effect_modifier_duration(effect.duration),
                     created_turn=state.turn_number,
                     amount=operation.amount or 0,
                     target_card_instance_id=invocation.source_card_instance_id,
                 )
             )
+        elif operation_type == "gain_heart":
+            color_slot = operation.color_slot or selected_color_slot
+            if not isinstance(color_slot, str):
+                raise IllegalActionError("effect requires a selected Heart color")
+            player.manual_modifiers.append(
+                ManualModifier(
+                    modifier_id=f"effect:{invocation.invocation_id}:heart:{color_slot}",
+                    modifier_type="heart",
+                    duration=_effect_modifier_duration(effect.duration),
+                    created_turn=state.turn_number,
+                    amount=_operation_amount(operation, selected_count, player),
+                    color_slot=color_slot,
+                )
+            )
+        elif operation_type == "modify_score":
+            player.manual_modifiers.append(
+                ManualModifier(
+                    modifier_id=f"effect:{invocation.invocation_id}:score",
+                    modifier_type="score",
+                    duration=_effect_modifier_duration(effect.duration),
+                    created_turn=state.turn_number,
+                    amount=_operation_amount(operation, selected_count, player),
+                )
+            )
         elif operation_type == "ready_energy":
             if selected_ids:
-                required = operation.amount or 0
-                if (
-                    len(selected_ids) < required
-                    or len(selected_ids) != len(set(selected_ids))
-                ):
+                required = _operation_amount(operation, selected_count)
+                if required and len(selected_ids) != required:
                     raise IllegalActionError(
-                        f"effect requires at least {required} selected Energy"
+                        f"effect requires exactly {required} selected Energy"
                     )
+                if len(selected_ids) != len(set(selected_ids)):
+                    raise IllegalActionError("selected Energy must be unique")
                 for instance_id in selected_ids:
-                    if instance_id not in player.energy_area:
+                    if (
+                        instance_id not in player.energy_area
+                        or state.cards[instance_id].card.card_type != "energy"
+                    ):
                         raise IllegalActionError(
                             "selected Energy must be in the Energy Area"
                         )
@@ -1753,12 +3028,155 @@ def _execute_operations(
                     for item in player.energy_area
                     if state.cards[item].orientation == "wait"
                 ]
-                for instance_id in waiting[: operation.amount or 0]:
+                amount = _operation_amount(operation, selected_count)
+                for instance_id in waiting[:amount]:
                     state.cards[instance_id].orientation = "active"
+        elif operation_type == "set_flag":
+            if not operation.flag:
+                raise IllegalActionError("effect set_flag requires a flag name")
+            player.manual_modifiers.append(
+                ManualModifier(
+                    modifier_id=f"effect:{invocation.invocation_id}:flag:{operation.flag}",
+                    modifier_type="flag",
+                    duration=_effect_modifier_duration(effect.duration),
+                    created_turn=state.turn_number,
+                    flag=operation.flag,
+                    value=operation.value if operation.value is not None else True,
+                )
+            )
+        elif operation_type == "mill_top_cards":
+            milled: list[str] = []
+            for _ in range(operation.amount or 0):
+                instance_id = _take_main_deck_card(
+                    state,
+                    invocation.player_id,
+                    events,
+                )
+                if instance_id is None:
+                    break
+                player.waiting_room.append(instance_id)
+                state.cards[instance_id].face_up = True
+                milled.append(instance_id)
+            operation_context["milled_card_instance_ids"] = milled
+            events.append(
+                GameEvent(
+                    event_type="effect_cards_milled",
+                    player_id=invocation.player_id,
+                    data={
+                        "invocation_id": invocation.invocation_id,
+                        "effect_id": invocation.effect_id,
+                        "milled_card_instance_ids": milled,
+                    },
+                    source="system",
+                )
+            )
+        elif operation_type == "draw_if_milled_all_card_type":
+            milled = operation_context.get("milled_card_instance_ids", [])
+            if milled and all(
+                state.cards[item].card.card_type == operation.card_type
+                for item in milled
+            ):
+                _draw(
+                    state,
+                    invocation.player_id,
+                    operation.amount or 0,
+                    events,
+                    reason=f"effect:{invocation.effect_id}",
+                )
+        elif operation_type == "draw_if_milled_any_card_type":
+            milled = operation_context.get("milled_card_instance_ids", [])
+            if any(
+                state.cards[item].card.card_type == operation.card_type
+                for item in milled
+            ):
+                _draw(
+                    state,
+                    invocation.player_id,
+                    operation.amount or 0,
+                    events,
+                    reason=f"effect:{invocation.effect_id}",
+                )
+        elif operation_type == "gain_heart_if_milled_all_have_heart":
+            milled = operation_context.get("milled_card_instance_ids", [])
+            color_slot = operation.color_slot
+            if color_slot and milled and all(
+                state.cards[item].card.basic_hearts.get(color_slot, 0) > 0
+                for item in milled
+            ):
+                player.manual_modifiers.append(
+                    ManualModifier(
+                        modifier_id=(
+                            f"effect:{invocation.invocation_id}:heart:{color_slot}"
+                        ),
+                        modifier_type="heart",
+                        duration=_effect_modifier_duration(effect.duration),
+                        created_turn=state.turn_number,
+                        amount=operation.amount or 0,
+                        color_slot=color_slot,
+                    )
+                )
+        elif operation_type == "gain_blade_if_milled_any_card_type":
+            milled = operation_context.get("milled_card_instance_ids", [])
+            if any(
+                state.cards[item].card.card_type == operation.card_type
+                for item in milled
+            ):
+                player.manual_modifiers.append(
+                    ManualModifier(
+                        modifier_id=f"effect:{invocation.invocation_id}:blade",
+                        modifier_type="blade",
+                        duration=_effect_modifier_duration(effect.duration),
+                        created_turn=state.turn_number,
+                        amount=operation.amount or 0,
+                        target_card_instance_id=invocation.source_card_instance_id,
+                    )
+                )
+        elif operation_type == "gain_blade_if_milled_all_card_type":
+            milled = operation_context.get("milled_card_instance_ids", [])
+            if milled and all(
+                state.cards[item].card.card_type == operation.card_type
+                for item in milled
+            ):
+                player.manual_modifiers.append(
+                    ManualModifier(
+                        modifier_id=f"effect:{invocation.invocation_id}:blade",
+                        modifier_type="blade",
+                        duration=_effect_modifier_duration(effect.duration),
+                        created_turn=state.turn_number,
+                        amount=operation.amount or 0,
+                        target_card_instance_id=invocation.source_card_instance_id,
+                    )
+                )
         elif operation_type == "manual_resolution":
             raise IllegalActionError("manual effect operations cannot auto-resolve")
         else:
             raise IllegalActionError(f"unsupported effect operation: {operation_type}")
+
+
+def _operation_amount(
+    operation: Any,
+    selected_count: Any = None,
+    player: PlayerState | None = None,
+) -> int:
+    if isinstance(operation.amount, int):
+        return operation.amount
+    if operation.amount_source == "success_live_count" and player is not None:
+        return len(player.success_live_area)
+    if operation.amount_source == "live_area_count" and player is not None:
+        return len(player.live_area)
+    if operation.amount_source == "selected_count":
+        if isinstance(selected_count, int) and not isinstance(selected_count, bool):
+            return selected_count
+        return 0
+    if isinstance(selected_count, int) and not isinstance(selected_count, bool):
+        return selected_count
+    return 0
+
+
+def _effect_modifier_duration(duration: Any) -> str:
+    if duration in {"live", "turn", "game"}:
+        return duration
+    return "live"
 
 
 def _resolve_automatic_effects(
@@ -1809,6 +3227,9 @@ def _continue_after_effect_queue(
         state.phase = "yell_first"
     elif state.phase == "performance_second":
         state.phase = "yell_second"
+    elif state.phase == "live_judgment" and state.live_success_effects_queued:
+        _complete_live_judgment(state, events)
+        return
     else:
         return
     events.append(
@@ -1934,9 +3355,13 @@ def _run_current_yell(
             continue
         member = state.cards[instance_id]
         member_hearts.update(member.card.basic_hearts)
+        member_hearts.update(_static_heart_bonus(state, player_id, instance_id))
         if member.orientation == "active":
             blade_count += member.card.blade or 0
             blade_count += _target_modifier_total(player, "blade", instance_id)
+            blade_count += _static_numeric_bonus(
+                state, player_id, instance_id, "gain_blade"
+            )
 
     revealed: list[str] = []
     yell_hearts: Counter[str] = Counter()
@@ -2100,6 +3525,7 @@ def _apply_live_requirements(
             state.cards[instance_id].card.score or 0 for instance_id in player.live_area
         )
         player.live_result.score_bonus += _modifier_total(player, "score")
+        player.live_result.score_bonus += _static_score_bonus(state, player_id)
         player.live_result.total_score = (
             player.live_result.base_score + player.live_result.score_bonus
         )
@@ -2154,6 +3580,8 @@ def _begin_live_judgment(
     events: list[GameEvent],
 ) -> None:
     state.success_live_moved_player_ids = []
+    state.success_live_moved_instance_ids = {}
+    state.live_success_effects_queued = False
     first_id = state.first_player_id or ""
     second_id = state.second_player_id or ""
     first = state.players[first_id]
@@ -2239,6 +3667,8 @@ def _start_next_turn(
     state.second_player_id = next_second
     state.next_first_player_id = None
     state.success_live_moved_player_ids = []
+    state.success_live_moved_instance_ids = {}
+    state.live_success_effects_queued = False
     state.live_winner_ids = []
     state.live_judgment_summary = None
     state.pending_choice = None
@@ -2275,7 +3705,7 @@ def _finish_judgment_choices(
         if len(player.live_area) == 1:
             selected = player.live_area.pop()
             player.success_live_area.append(selected)
-            _record_success_live_move(state, player_id)
+            _record_success_live_move(state, player_id, selected)
             events.append(
                 GameEvent(
                     event_type="success_live_selected",
@@ -2297,6 +3727,10 @@ def _finish_judgment_choices(
             )
             state.active_player_id = player_id
             return
+    _queue_live_success_effects(state, events)
+    _resolve_automatic_effects(state, events)
+    if state.pending_effects:
+        return
     _complete_live_judgment(state, events)
 
 
@@ -3238,6 +4672,76 @@ def _modifier_duration(adjustment: dict[str, Any]) -> str:
     return duration
 
 
+def _static_heart_bonus(
+    state: MatchState,
+    player_id: str,
+    source_instance_id: str,
+) -> Counter[str]:
+    hearts: Counter[str] = Counter()
+    for effect in _active_static_effects(state, player_id, source_instance_id):
+        for operation in effect.actions:
+            if operation.action_type != "gain_heart":
+                continue
+            color_slot = operation.color_slot
+            if color_slot:
+                hearts[color_slot] += _operation_amount(
+                    operation, player=state.players[player_id]
+                )
+    return hearts
+
+
+def _static_numeric_bonus(
+    state: MatchState,
+    player_id: str,
+    source_instance_id: str,
+    action_type: str,
+) -> int:
+    total = 0
+    for effect in _active_static_effects(state, player_id, source_instance_id):
+        for operation in effect.actions:
+            if operation.action_type == action_type:
+                total += _operation_amount(operation, player=state.players[player_id])
+    return total
+
+
+def _static_score_bonus(state: MatchState, player_id: str) -> int:
+    total = 0
+    for source_instance_id in state.players[player_id].member_area.values():
+        if source_instance_id is None:
+            continue
+        total += _static_numeric_bonus(
+            state, player_id, source_instance_id, "modify_score"
+        )
+    return total
+
+
+def _active_static_effects(
+    state: MatchState,
+    player_id: str,
+    source_instance_id: str,
+) -> list[Any]:
+    definitions = state.cards[source_instance_id].card
+    effects = []
+    for effect_id in definitions.effect_ids:
+        effect = state.effect_definitions.get(effect_id)
+        if (
+            effect is None
+            or effect.timing != "static_always"
+            or effect.simulation_support != "test_validated_executable"
+        ):
+            continue
+        invocation = EffectInvocation(
+            invocation_id=f"static:{source_instance_id}:{effect.effect_id}",
+            effect_id=effect.effect_id,
+            source_card_instance_id=source_instance_id,
+            player_id=player_id,
+            trigger_event="static_always",
+        )
+        if _effect_condition_met(state, invocation):
+            effects.append(effect)
+    return effects
+
+
 def _modifier_total(player: Any, modifier_type: str) -> int:
     return sum(
         modifier.amount or 0
@@ -3297,6 +4801,38 @@ def _expire_modifiers(
     )
 
 
-def _record_success_live_move(state: MatchState, player_id: str) -> None:
+def _queue_live_success_effects(
+    state: MatchState,
+    events: list[GameEvent],
+) -> None:
+    if state.live_success_effects_queued:
+        return
+    state.live_success_effects_queued = True
+    for player_id, live_ids in state.success_live_moved_instance_ids.items():
+        if not live_ids:
+            continue
+        stage_sources = [
+            instance_id
+            for instance_id in state.players[player_id].member_area.values()
+            if instance_id is not None
+        ]
+        _queue_triggered_effects(
+            state,
+            "live_succeeded",
+            events,
+            source_instance_ids=[*stage_sources, *live_ids],
+            trigger_data={
+                "turn_number": state.turn_number,
+                "successful_live_instance_ids": list(live_ids),
+            },
+        )
+
+
+def _record_success_live_move(
+    state: MatchState,
+    player_id: str,
+    instance_id: str,
+) -> None:
     if player_id not in state.success_live_moved_player_ids:
         state.success_live_moved_player_ids.append(player_id)
+    state.success_live_moved_instance_ids.setdefault(player_id, []).append(instance_id)

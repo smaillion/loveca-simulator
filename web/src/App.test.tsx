@@ -214,6 +214,8 @@ const MATCH_PAYLOAD = {
     turn_number: 1,
     next_first_player_id: null,
     success_live_moved_player_ids: [],
+    success_live_moved_instance_ids: {},
+    live_success_effects_queued: false,
     active_player_id: null,
     players: {
       player_1: createPlayerState("player_1", "Player 1"),
@@ -1244,5 +1246,147 @@ describe("App", () => {
       energy_instance_ids: [],
     });
     expect(onManual).not.toHaveBeenCalled();
+  });
+
+  it("requires and submits a branch for choose-one effects", () => {
+    const onAction = vi.fn();
+    const onManual = vi.fn();
+    const state = {
+      ...INSPECTION_MATCH_PAYLOAD.state,
+      pending_choice: null,
+      pending_effects: [
+        {
+          invocation_id: "branch-effect-001",
+          effect_id: "PL!TEST-BRANCH:1",
+          source_card_instance_id: "player_1-M001",
+          player_id: "player_1",
+          trigger_event: "member_played",
+          trigger_data: {},
+          resolution_stage: "initial" as const,
+        },
+      ],
+    };
+    const action = {
+      action_type: "resolve_effect",
+      player_id: "player_1",
+      label_zh: "处理待结算技能",
+      label_ja: "待機中の能力を解決",
+      options: {
+        invocations: [
+          {
+            invocation_id: "branch-effect-001",
+            effect_id: "PL!TEST-BRANCH:1",
+            source_card_instance_id: "player_1-M001",
+            label_ja:
+              "【登場】以下から1つを選ぶ。 ・カードを1枚引き、手札を1枚控え室に置く。 ・相手のステージにいるすべてのコスト2以下のメンバーをウェイトにする。",
+            trigger: "member_played",
+            timing: "on_play",
+            execution_mode: "prompt_then_resolve",
+            is_optional: false,
+            simulation_support: "test_validated_executable",
+            candidate_card_instance_ids: [],
+            choice_type: "choose_effect_branch",
+            card_selection_minimum: 0,
+            card_selection_maximum: 0,
+            choice_zone: "hand",
+            branch_ids: ["draw_discard", "wait_opponent_cost2"],
+          },
+        ],
+        waiting_player_ids: [],
+      },
+    };
+
+    render(
+      <EffectResolutionAction
+        action={action as never}
+        state={state as never}
+        loading={false}
+        onAction={onAction}
+        onManual={onManual}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "抽 1 张后弃 1 张手牌" }));
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "branch-effect-001",
+      accepted: true,
+      selected_card_instance_ids: [],
+      energy_instance_ids: [],
+      selected_branch: "draw_discard",
+    });
+  });
+
+  it("submits branch follow-up card choices with the selected branch", () => {
+    const onAction = vi.fn();
+    const onManual = vi.fn();
+    const state = {
+      ...INSPECTION_MATCH_PAYLOAD.state,
+      pending_choice: null,
+      pending_effects: [
+        {
+          invocation_id: "branch-effect-001",
+          effect_id: "PL!TEST-BRANCH:1",
+          source_card_instance_id: "player_1-M001",
+          player_id: "player_1",
+          trigger_event: "member_played",
+          trigger_data: { selected_branch: "draw_discard" },
+          resolution_stage: "after_cost" as const,
+        },
+      ],
+    };
+    const action = {
+      action_type: "resolve_effect",
+      player_id: "player_1",
+      label_zh: "处理待结算技能",
+      label_ja: "待機中の能力を解決",
+      options: {
+        invocations: [
+          {
+            invocation_id: "branch-effect-001",
+            effect_id: "PL!TEST-BRANCH:1",
+            source_card_instance_id: "player_1-M001",
+            label_ja:
+              "【登場】以下から1つを選ぶ。 ・カードを1枚引き、手札を1枚控え室に置く。 ・相手のステージにいるすべてのコスト2以下のメンバーをウェイトにする。",
+            trigger: "member_played",
+            timing: "on_play",
+            execution_mode: "prompt_then_resolve",
+            is_optional: false,
+            simulation_support: "test_validated_executable",
+            candidate_card_instance_ids: ["player_1-M002"],
+            choice_type: "choose_effect_branch",
+            card_selection_minimum: 1,
+            card_selection_maximum: 1,
+            choice_zone: "hand",
+            branch_ids: ["draw_discard", "wait_opponent_cost2"],
+            selected_branch: "draw_discard",
+          },
+        ],
+        waiting_player_ids: [],
+      },
+    };
+
+    render(
+      <EffectResolutionAction
+        action={action as never}
+        state={state as never}
+        loading={false}
+        onAction={onAction}
+        onManual={onManual}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "候補カード" }));
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "branch-effect-001",
+      accepted: true,
+      selected_card_instance_ids: ["player_1-M002"],
+      energy_instance_ids: [],
+      selected_branch: "draw_discard",
+    });
   });
 });

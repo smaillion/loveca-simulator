@@ -1,4 +1,4 @@
-# Effect Semantics Audit
+﻿# Effect Semantics Audit
 
 ## Purpose
 
@@ -23,11 +23,17 @@ Local card data observed during this review:
 * about 1,609 Gameplay Cards
 * about 795 Card Text Revisions
 * about 787 Gameplay Cards with at least one text revision
-* current executable registry coverage is intentionally narrow:
-  * 4 Gameplay Cards
-  * 6 effect definitions
+* current registry coverage has split into two separate layers:
+  * 430 effect definitions
+  * 87 `test_validated_executable` definitions
+  * 343 timing-only `manual_resolution` definitions
+  * about 419 registered Gameplay Cards with effect text, or about 53% timing-prompt coverage against the current local card pool with text
+  * the current AI sandbox block run records 1 mandatory manual-resolution blocker across 20 generated matches; the remaining blocked runs are mostly max-action exploration limits or complex unresolved effect families
+  * the latest testing loop added a multi-player pending choice boundary for two-player effect resolution
 
-Therefore, the current repository is still in a semantics-audit phase rather than a broad executable-effects phase.
+Therefore, the current repository has broad timing-prompt coverage but is still in a pattern-expansion phase rather than a broad full-card executable-effects phase. The new manual fallback entries are not proof of automated semantic support.
+
+The broad fallback set currently focuses on `登場` and `起動` effects. `ライブ開始時` and `ライブ成功時` remain limited to explicitly modeled or tested entries, because broad unresolved Live timing prompts can block the core Live flow until the manual-resolution UX is improved.
 
 ## Audit Model
 
@@ -385,3 +391,5 @@ This audit requires the following documentation stance:
 * top-deck inspection, reveal, and keep-to-hand must be modeled separately from draw
 * Energy payment must remain distinct from Energy state-change selection
 * current repository status must not be described as already having broad or complete skill prompting coverage
+
+

@@ -8,7 +8,7 @@
 
 ## 現在の状態
 
-`v0.4.0-alpha.3` の収録内容:
+`v0.4.2-alpha.1` の収録内容:
 
 - 公式 `card_list` からの正式カード importer
 - `＋` / `+` 混在を避けるカード番号正規化
@@ -17,6 +17,18 @@
 - `decklist.v0` ベースの Deck Analyzer
 - FastAPI + React SPA の可視化ルール検証 UI
 - Replay 可能な Action-only GameState
+- 925 件の effect registry entry
+  - 392 件は `test_validated_executable`
+  - 533 件は timing prompt / 未対応処理用の `manual_resolution`
+- 将来の低コスト online 同期に向けた state hash / compatibility metadata の基礎
+
+現在の開発主線:
+
+- Roadmap 上は Phase 5 Effect DSL / 構造化効果実行に集中しています。
+- Phase 1 / 2 / 3 は基本実装済みで、維持と改善の段階です。
+- Phase 4 の Human-vs-Human 検証器と Phase 7 の UI は先行実装済みです。
+- Phase 9 / 10 の低コスト online 検証は、Phase 5 と並行して早めに進めます。
+- Simple AI、AI-vs-AI、Monte Carlo、勝率エンジンは最低優先度に下げています。
 
 現在のルール検証 UI で確認できる範囲:
 
@@ -25,8 +37,11 @@
 - Live Set、同数補充、Live 公開、エール
 - Heart 割り当て、特殊 Blade Heart の一部自動処理
 - 成功 Live の移動、次ターン先攻判定、3 枚成功による勝敗
-- 一部のカード効果は限定的な構造化 prompt に対応
-- 広範なカード効果提示・選択体系はまだ再設計中で、未自動化部分は `ManualAdjustmentAction` で補完
+- 一部のカード効果は、手札 / Energy / Stage Member / Heart 色 / 山札上確認を含む限定的な構造化 prompt に対応
+- 双方が選択する一部の効果は multi-player pending choice で順番に処理可能
+- `test_validated_executable` coverage は、現在のローカルカードプールの粗い全効果数に対して 20.07% まで拡張済み
+- 自動実行できない効果は `ManualAdjustmentAction` で補完
+- 処理不能な効果は、デバッグ用に `effect_skipped_due_to_error` として明示記録しながらスキップ可能
 
 Deck Builder の現在の到達点:
 
@@ -46,9 +61,10 @@ Deck Builder の現在の到達点:
 
 ## 既知の制限
 
-- 全カード効果の prompt / 自動実行 coverage はまだありません。
+- 全カード効果の自動実行 coverage はまだありません。
+- 現在の broad prompt coverage は timing-only manual fallback を多く含みます。
 - FAQ / 個別裁定に依存する効果はまだ仕様化していません。
-- 既存のローカル DB に全角 `＋` のカード番号が残っている場合は、正式 importer で再導入して更新してください。
+- importer、parser、カード番号正規化、SQLite schema、または effect registry の互換性に関わる更新後は、既存の `data/loveca.sqlite3` を再利用せず、公式 importer でカード DB を再構築または再導入してください。保存済みデッキは `decklist.v0` のユーザーデータなので、カード DB とは分けて保持できます。
 - Web/API テストには `httpx2` が必要です。環境に未導入の場合、`tests/test_catalog_api.py` と `tests/test_webapp.py` は収集段階で停止します。
 
 ## 画面イメージ
@@ -87,6 +103,8 @@ cd ..
 ```powershell
 loveca cards init --database data/loveca.sqlite3
 ```
+
+バージョン更新後に importer / parser / schema が変わった場合は、古い `data/loveca.sqlite3` をバックアップまたは削除してから、この手順でカード DB を作り直してください。古い DB を使い続けると、カード番号、画像、effect registry、online compatibility fingerprint が一致しないことがあります。
 
 2. 公式カードを取得して正規化成果物を作ります。
 
@@ -138,6 +156,14 @@ loveca web serve `
 
 `8765` が使用中なら `--port 8766` のように変更してください。
 
+## カード DB と asset 配布方針
+
+将来的には、構築済みの SQLite カード DB、effect registry、manifest、checksum を含む versioned asset package を配布し、ユーザーが公式サイトから毎回全量取得しなくても起動できる形にできます。
+
+ただし、公式カード画像、公式効果テキスト、公式 PDF 由来の大量データは再配布可否の確認が必要です。権利面が未確認の間は、公開配布する asset にはアプリ本体、schema、importer、manifest、checksum、プロジェクト独自 metadata を含め、カード DB と画像 cache はユーザーのローカル importer で公式ソースから構築する方針を優先します。
+
+private tester 向けに事前構築 DB を渡す場合も、release version、schema version、parser version、card database fingerprint、effect registry hash を明示し、互換性が崩れる更新後は再導入が必要です。
+
 ## よく使うコマンド
 
 Deck Analyzer:
@@ -176,6 +202,23 @@ Python テスト:
 python -m pytest
 ```
 
+AI sandbox の 20 deck x 20 match ブラックボックス smoke も pytest に含まれています。
+ローカル正式カード DB がない環境では skip されます。個別に監査レポートを生成する場合:
+
+```powershell
+$env:PYTHONPATH="src;."
+python -m tools.ai_sandbox.blackbox_playtest `
+  --database data/loveca.sqlite3 `
+  --output logs/ai_sandbox/manual-run `
+  --decks 20 `
+  --matches 20 `
+  --manual-policy block
+```
+
+`--manual-policy skip` を指定すると、未対応の強制能力を
+`effect_skipped_due_to_error` として記録しながら次の処理へ進めます。
+これはルール確認用のデバッグ機能であり、正式な能力解決ではありません。
+
 フロントエンドテスト:
 
 ```powershell
@@ -190,9 +233,15 @@ npm run build
 
 ## リポジトリの見どころ
 
+- `TODO.md`: 低優先度の既知タスク
 - `src/loveca/cards/`: importer、catalog、画像キャッシュ
 - `src/loveca/decks/`: deck format、analyzer、saved deck library
 - `src/loveca/simulation/`: GameState、Action、runtime、effects
 - `src/loveca/webapp.py`: FastAPI と SPA 配信
 - `web/`: React ベースのルール検証 UI
 - `docs/`, `specs/`: 設計文書と仕様
+- `docs/14-database-migration-and-update-guide.md`: SQLite の再構築、増分更新、runtime lifecycle 指針
+- `docs/15-project-guidance.md`: changelog 言語などの保守指針
+- `docs/16-low-cost-online-battle-plan.md`: 低コストなネットワーク対戦検証モードの計画
+
+

@@ -15,20 +15,40 @@ DEFAULT_EFFECT_REGISTRY = (
 
 SUPPORTED_EFFECT_ACTIONS = {
     "apply_wait",
+    "apply_wait_energy",
+    "apply_wait_member",
     "discard_from_hand",
     "draw_card",
+    "draw_card_per_stage_member",
+    "draw_until_hand_size",
     "gain_blade",
+    "gain_blade_if_milled_all_card_type",
+    "gain_heart",
     "inspect_top_cards",
     "manual_resolution",
+    "modify_score",
     "move_remaining_cards",
+    "move_selected_to_deck_bottom",
+    "move_selected_to_deck_top",
+    "move_selected_to_hand",
     "pay_energy",
     "place_energy_from_deck",
     "ready_energy",
     "ready_member",
     "reorder_deck_top",
+    "draw_if_selected_card_type",
+    "draw_if_selected_none_card_type",
     "reveal_cards",
+    "reveal_selected_cards",
     "return_from_waiting_room",
     "select_to_hand_from_inspected",
+    "set_flag",
+    "source_to_waiting_room",
+    "mill_top_cards",
+    "draw_if_milled_all_card_type",
+    "draw_if_milled_any_card_type",
+    "gain_heart_if_milled_all_have_heart",
+    "gain_blade_if_milled_any_card_type",
 }
 
 
@@ -40,7 +60,18 @@ class EffectOperation(BaseModel):
     action_type: str
     target: str | None = None
     amount: int | None = None
+    amount_source: Literal[
+        "success_live_count",
+        "live_area_count",
+        "selected_count",
+    ] | None = None
+    branch: str | None = None
     orientation: Literal["active", "wait"] | None = None
+    color_slot: str | None = None
+    card_type: str | None = None
+    flag: str | None = None
+    value: object | None = None
+    target_hand_size: int | None = None
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
@@ -55,6 +86,35 @@ class EffectOperation(BaseModel):
             raise ValueError(
                 f"orientation is not supported for effect operation {self.action_type}"
             )
+        if self.color_slot is not None and self.action_type not in {
+            "gain_heart",
+            "gain_heart_if_milled_all_have_heart",
+        }:
+            raise ValueError(
+                f"color_slot is not supported for effect operation {self.action_type}"
+            )
+        if self.card_type is not None and self.action_type not in {
+            "draw_if_milled_all_card_type",
+            "draw_if_milled_any_card_type",
+            "draw_if_selected_card_type",
+            "draw_if_selected_none_card_type",
+            "gain_blade_if_milled_all_card_type",
+            "gain_blade_if_milled_any_card_type",
+        }:
+            raise ValueError(
+                f"card_type is not supported for effect operation {self.action_type}"
+            )
+        if self.flag is not None and self.action_type != "set_flag":
+            raise ValueError(
+                f"flag is not supported for effect operation {self.action_type}"
+            )
+        if self.target_hand_size is not None:
+            if self.action_type != "draw_until_hand_size":
+                raise ValueError(
+                    f"target_hand_size is not supported for effect operation {self.action_type}"
+                )
+            if self.target_hand_size < 0:
+                raise ValueError("draw_until_hand_size requires a non-negative target")
         return self
 
 
@@ -63,15 +123,30 @@ class EffectChoice(BaseModel):
     zone: str | None = None
     card_type: str | None = None
     orientation: str | None = None
+    color_slots: list[str] = Field(default_factory=list)
     minimum: int = 0
     maximum: int = 1
     amount: int | None = None
+    amount_source: Literal["own_stage_member_count_plus_2"] | None = None
+    target_hand_size: int | None = None
     requires_order: bool = False
     selected_destination: str | None = None
     unselected_destination: str | None = None
     reveal_selected_to_opponent: bool = False
     work_key: str | None = None
+    unit_key: str | None = None
     ability_bucket: list[str] = Field(default_factory=list)
+    exclude_source: bool = False
+    target_player: Literal["self", "opponent"] = "self"
+    name_ja_any: list[str] = Field(default_factory=list)
+    minimum_cost: int | None = None
+    maximum_cost: int | None = None
+    maximum_blade: int | None = None
+    minimum_score: int | None = None
+    maximum_score: int | None = None
+    branch_ids: list[str] = Field(default_factory=list)
+    branch_selection_minimum: dict[str, int] = Field(default_factory=dict)
+    branch_selection_maximum: dict[str, int] = Field(default_factory=dict)
 
 
 class EffectDefinition(BaseModel):
@@ -89,6 +164,7 @@ class EffectDefinition(BaseModel):
     is_optional: bool
     condition: dict[str, object] = Field(default_factory=dict)
     cost: list[EffectOperation] = Field(default_factory=list)
+    cost_choice: EffectChoice | None = None
     choice: EffectChoice | None = None
     actions: list[EffectOperation]
     duration: str | None = None
@@ -118,7 +194,12 @@ class EffectDefinition(BaseModel):
                     "manual_resolution execution_mode requires manual_resolution support"
                 )
         elif self.execution_mode == "auto_resolve":
-            if self.is_optional or self.choice is not None or self.cost:
+            if (
+                self.is_optional
+                or self.choice is not None
+                or self.cost_choice is not None
+                or self.cost
+            ):
                 raise ValueError(
                     "auto_resolve execution_mode requires no option, choice, or cost"
                 )

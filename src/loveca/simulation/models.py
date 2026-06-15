@@ -61,6 +61,7 @@ class CardDefinition(BaseModel):
     text_revision_id: int | None = None
     raw_text_hash: str | None = None
     work_keys: list[str] = Field(default_factory=list)
+    unit_keys: list[str] = Field(default_factory=list)
     ability_bucket: Literal["none", "static_only", "other"] = "none"
     effect_ids: list[str] = Field(default_factory=list)
     effect_registry_status: Literal[
@@ -153,6 +154,7 @@ class PendingChoice(BaseModel):
         "success_live",
         "manual_card_selection",
         "effect_inspection_selection",
+        "multi_player_effect_selection",
     ]
     player_id: str
     message_ja: str
@@ -178,6 +180,8 @@ class MatchState(BaseModel):
     turn_number: int = 1
     next_first_player_id: str | None = None
     success_live_moved_player_ids: list[str] = Field(default_factory=list)
+    success_live_moved_instance_ids: dict[str, list[str]] = Field(default_factory=dict)
+    live_success_effects_queued: bool = False
     active_player_id: str | None = None
     players: dict[str, PlayerState]
     cards: dict[str, CardInstance]
@@ -207,6 +211,7 @@ class ActionRequest(BaseModel):
         "activate_effect",
         "resolve_effect",
         "resolve_effect_choice",
+        "skip_effect",
         "resolve_manual_inspection",
     ]
     expected_revision: int
