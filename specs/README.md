@@ -25,6 +25,7 @@ Current specs are requirement and architecture specifications only. They do not 
 * [018 Card Data Storage](018-card-data-storage.spec.md)
 * [019 Effect Execution MVP](019-effect-execution-mvp.spec.md)
 * [020 Stage Attachments and Movement](020-stage-attachments-and-movement.spec.md)
+* [021 Browser Engine and Local-Rule Online](021-browser-engine-and-local-online.spec.md)
 
 ## Dependency Graph
 
@@ -129,6 +130,18 @@ Current specs are requirement and architecture specifications only. They do not 
   -> 005 Action System
   -> 008 Randomness and Replay
   -> 012 Controller and Legal Actions
+
+021 Browser Engine and Local-Rule Online
+  -> 001 Deck Analyzer
+  -> 002 Rule Engine
+  -> 003 GameState and Actions
+  -> 005 Action System
+  -> 008 Randomness and Replay
+  -> 011 Simulator MVP
+  -> 012 Controller and Legal Actions
+  -> 017 Public Release and Export Policy
+  -> 019 Effect Execution MVP
+  -> 020 Stage Attachments and Movement
 ```
 
 ## Effect Modeling Rule

@@ -31,6 +31,8 @@ This keeps operating cost low and allows online testing before the rule engine i
 
 The online prototype does not need to wait for all local phases to be complete. It may start while card import, Deck Builder, effect execution, and rule coverage are still improving, as long as compatibility checks and replay-safe Action logs protect users from silent divergence.
 
+The browser-side rule runtime is specified separately in [021 Browser Engine and Local-Rule Online](../specs/021-browser-engine-and-local-online.spec.md). That spec is the required bridge between the current Python reference engine and the future low-cost relay model.
+
 ## 3. Architecture Summary
 
 The target architecture has three participants:
@@ -253,6 +255,8 @@ Every network message should use a common envelope:
 ```
 
 The protocol should be documented before implementation in a dedicated specification, likely `specs/021-online-battle-protocol.spec.md`.
+
+Because `021` is now assigned to the browser engine and local-rule online foundation, the dedicated relay protocol specification should use the next available spec number when it is created.
 
 The protocol should be transport-light. WebSocket is the preferred transport, but the message model should not depend on browser-specific behavior.
 
