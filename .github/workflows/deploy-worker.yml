@@ -1,0 +1,43 @@
+name: Deploy Cloudflare Worker Gateway
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - develop
+      - preview
+    paths:
+      - "infra/cloudflare-worker/**"
+      - ".github/workflows/deploy-worker.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/cloudflare-worker
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: infra/cloudflare-worker
+          command: deploy
+          secrets: |
+            ORIGIN_BASE_URL
+            ALLOWED_ORIGINS
+        env:
+          ORIGIN_BASE_URL: ${{ secrets.ORIGIN_BASE_URL }}
+          ALLOWED_ORIGINS: ${{ vars.LOVECA_ALLOWED_ORIGINS }}
+
+      - name: Verify gateway health
+        run: |
+          test -n "${{ vars.VITE_PUBLIC_API_BASE_URL }}"
+          curl --fail --show-error --silent "${{ vars.VITE_PUBLIC_API_BASE_URL }}/api/health"

@@ -4,7 +4,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     LOVECA_CARD_DB=/app/data/loveca.sqlite3 \
-    LOVECA_MATCH_DB=/app/data/matches.sqlite3 \
+    LOVECA_MATCH_DB=/app/runtime/matches.sqlite3 \
     LOVECA_IMAGE_CACHE=/app/data/card_images \
     LOVECA_WEB_DIST=/app/web/dist
 
@@ -16,11 +16,13 @@ COPY pyproject.toml README.md ./
 COPY src ./src
 COPY tools ./tools
 COPY data_sources ./data_sources
+COPY data/loveca.sqlite3 ./data/loveca.sqlite3
+COPY data/loveca-db-manifest.json ./data/loveca-db-manifest.json
 
 RUN python -m pip install --upgrade pip \
     && python -m pip install -e .
 
-RUN mkdir -p /app/data /app/logs \
+RUN mkdir -p /app/data /app/runtime /app/logs \
     && chown -R loveca:loveca /app
 
 USER loveca

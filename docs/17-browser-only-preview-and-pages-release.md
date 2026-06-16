@@ -9,10 +9,11 @@ The preview goal is to let more players try the simulator without installing a
 server or running FastAPI locally. The `preview` branch remains an independent
 public preview branch until hosted online testing is stable.
 
-Hosted Online is a separate track. During online testing, the VPS may temporarily
-serve both frontend and backend. After hosted play is stable, the official static
-frontend should move to a stable `develop` or `main` build configured with
-`VITE_HOSTED_API_BASE_URL`, and the VPS should keep only backend API duties.
+Hosted Online is a separate track. The current release target is GitHub Pages
+for the frontend, a Cloudflare Worker gateway for the public API URL, Caddy TLS
+on the VPS origin, and FastAPI bound to localhost on the VPS. Runtime API
+selection is written to `runtime-config.json`; repository variable
+`VITE_PUBLIC_API_BASE_URL` should contain the Worker URL.
 
 ## 2. Product Boundary
 
@@ -121,10 +122,10 @@ official image assets. Card faces in the browser preview should load from the
 official `image_url` values stored in the parsed card data. If those URLs fail or
 are blocked, the UI should use the existing text fallback card face.
 
-The workflow therefore defaults to a placeholder data package. Bundling parsed
-official card/effect data requires explicit workflow inputs and should only be
-used after public release review. Bundling full official text remains a separate
-explicit decision.
+The workflow exports the static preview data from the repository-owned locked
+SQLite database at `data/loveca.sqlite3`. Maintainers update that DB and
+`data/loveca-db-manifest.json` after official source review; CI does not run an
+official importer to produce a divergent card DB for Pages.
 
 ## 6. GitHub Pages Workflow
 
@@ -147,26 +148,13 @@ Default behavior:
 2. run Python tests
 3. run frontend tests
 4. build the React app with GitHub Pages base path
-5. write a placeholder `preview-data/manifest.json`
-6. deploy `web/dist` to GitHub Pages
-
-Manual data build behavior:
-
-1. run the official importer in GitHub Actions
-2. import normalized card data into a temporary SQLite database
-3. export parsed card/effect JSON with `scripts/export-preview-data.py`
-4. deploy the static data package together with the SPA
+5. verify `data/loveca-db-manifest.json`
+6. export `preview-data/*` from `data/loveca.sqlite3`
+7. write `runtime-config.json`
+8. deploy `web/dist` to GitHub Pages
 
 The data export keeps official image URLs as references but does not download,
 copy, or publish official card image files.
-
-Full official text bundling requires:
-
-* `include_official_text=true`
-* `public_data_acknowledgement=REVIEWED_PUBLIC_DATA_POLICY`
-
-This does not grant redistribution rights. It only prevents accidental public
-publishing without a deliberate project-level review.
 
 ## 7. Local User Data
 
@@ -220,11 +208,10 @@ authoritative match service so testers can start playing sooner. That hosted
 backend should keep room data temporary and should not store cloud decks or user
 accounts.
 
-After online testing is stable, the old `preview` branch should be retired as the
-main product entry. The official frontend distribution should come from a stable
-`develop` or `main` build, connect to the hosted API through
-`VITE_HOSTED_API_BASE_URL`, and allow the VPS to stop serving frontend static
-files.
+After online testing is stable, the old `preview` branch should be retired as
+the main product entry. The official frontend distribution should come from a
+stable `develop` or `main` build, connect to the hosted API through
+`runtime-config.json`, and allow the VPS to keep only backend API duties.
 
 The longer-term low-cost direction remains a thinner relay/protocol layer. It
 should not require cloud card libraries, cloud decks, or permanent user data.

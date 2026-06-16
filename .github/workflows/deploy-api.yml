@@ -10,6 +10,8 @@ permissions:
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}-api
   IMAGE_TAG: sha-${{ github.sha }}
+  ORIGIN_API_BASE_URL: ${{ secrets.ORIGIN_API_BASE_URL }}
+  GATEWAY_API_BASE_URL: ${{ vars.VITE_PUBLIC_API_BASE_URL || '' }}
 
 jobs:
   deploy:
@@ -47,7 +49,7 @@ jobs:
 
       - name: Write remote compose file
         run: |
-          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" 'mkdir -p "${{ secrets.DEPLOY_PATH }}/data" "${{ secrets.DEPLOY_PATH }}/logs"'
+          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" 'mkdir -p "${{ secrets.DEPLOY_PATH }}/runtime" "${{ secrets.DEPLOY_PATH }}/logs"'
           cat > compose.api.remote.yml <<'YAML'
           services:
             loveca-api:
@@ -57,17 +59,17 @@ jobs:
                 - "127.0.0.1:8765:8765"
               environment:
                 LOVECA_CARD_DB: /app/data/loveca.sqlite3
-                LOVECA_MATCH_DB: /app/data/matches.sqlite3
+                LOVECA_MATCH_DB: /app/runtime/matches.sqlite3
                 LOVECA_IMAGE_CACHE: /app/data/card_images
                 LOVECA_WEB_DIST: /app/web/dist
                 LOVECA_ALLOWED_ORIGINS: "ORIGINS_PLACEHOLDER"
                 LOVECA_ROOM_TTL_HOURS: "24"
               volumes:
-                - ./data:/app/data
+                - ./runtime:/app/runtime
                 - ./logs:/app/logs
           YAML
           sed -i "s#IMAGE_PLACEHOLDER#${IMAGE_NAME}:${IMAGE_TAG}#g" compose.api.remote.yml
-          sed -i "s#ORIGINS_PLACEHOLDER#${{ secrets.LOVECA_ALLOWED_ORIGINS }}#g" compose.api.remote.yml
+          sed -i "s#ORIGINS_PLACEHOLDER#${{ vars.LOVECA_ALLOWED_ORIGINS }}#g" compose.api.remote.yml
           scp -i ~/.ssh/deploy_key compose.api.remote.yml "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}/compose.api.yml"
 
       - name: Restart API service
@@ -79,6 +81,11 @@ jobs:
             docker compose -f compose.api.yml ps
           '
 
-      - name: Health check through public API URL
+      - name: Health check through Caddy origin URL
         run: |
-          curl --fail --show-error --silent "${{ secrets.API_BASE_URL }}/api/health"
+          curl --fail --show-error --silent "${ORIGIN_API_BASE_URL}/api/health"
+
+      - name: Health check through Worker gateway URL
+        run: |
+          test -n "${GATEWAY_API_BASE_URL}"
+          curl --fail --show-error --silent "${GATEWAY_API_BASE_URL}/api/health"

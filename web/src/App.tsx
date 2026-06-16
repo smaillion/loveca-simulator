@@ -19,13 +19,16 @@ import { createContext, type ReactNode, useContext, useEffect, useMemo, useState
 import {
   createMatch,
   createRoom,
+  cardImageUrl,
+  getRuntimeConfigSnapshot,
   getMatch,
   getRoom,
   getSavedDeck,
-  hostedOnlineAvailable,
   joinRoom,
   listMatches,
   listSavedDecks,
+  loadRuntimeConfig,
+  matchReplayUrl,
   roomReplayUrl,
   submitAction,
   submitRoomAction,
@@ -83,11 +86,6 @@ const UiLanguageContext = createContext<{
   setLocale: (locale: UiLocale) => void;
 }>({ locale: "zh", setLocale: () => undefined });
 
-const viteEnv = (import.meta as unknown as {
-  env?: Record<string, string | boolean | undefined>;
-}).env;
-const browserPreview = viteEnv?.VITE_BROWSER_PREVIEW === "true";
-const hostedOnline = hostedOnlineAvailable();
 type OnlineSession = {
   roomCode: string;
   playerId: "player_1" | "player_2";
@@ -123,10 +121,13 @@ const judgmentBasisLabels: Record<string, [string, string]> = {
 };
 
 export default function App() {
+  const [runtimeConfig, setRuntimeConfig] = useState(getRuntimeConfigSnapshot);
+  const browserPreview = runtimeConfig.browserPreview;
+  const hostedOnline = runtimeConfig.apiBaseUrl.length > 0;
   const [locale, setLocale] = useState<UiLocale>(() => {
     const stored = localStorage.getItem("loveca-ui-locale");
     if (stored === "ja" || stored === "zh") return stored;
-    return browserPreview ? "ja" : "zh";
+    return getRuntimeConfigSnapshot().browserPreview ? "ja" : "zh";
   });
   const [screen, setScreen] = useState<"home" | "match" | "catalog" | "decks">("home");
   const [match, setMatch] = useState<MatchPayload | null>(null);
@@ -144,8 +145,23 @@ export default function App() {
   const [onlineStatus, setOnlineStatus] = useState<string | null>(null);
 
   useEffect(() => {
-    listMatches().then(setMatches).catch(() => setMatches([]));
-    listSavedDecks().then(setSavedDecks).catch(() => setSavedDecks([]));
+    let disposed = false;
+    loadRuntimeConfig()
+      .then((config) => {
+        if (disposed) return;
+        setRuntimeConfig(config);
+        setShowPreviewNotice(config.browserPreview);
+        listMatches().then(setMatches).catch(() => setMatches([]));
+        listSavedDecks().then(setSavedDecks).catch(() => setSavedDecks([]));
+      })
+      .catch(() => {
+        if (disposed) return;
+        listMatches().then(setMatches).catch(() => setMatches([]));
+        listSavedDecks().then(setSavedDecks).catch(() => setSavedDecks([]));
+      });
+    return () => {
+      disposed = true;
+    };
   }, []);
   useEffect(() => {
     localStorage.setItem("loveca-ui-locale", locale);
@@ -311,6 +327,8 @@ export default function App() {
           deckSources={deckSources}
           loading={loading}
           error={error}
+          browserPreview={browserPreview}
+          hostedOnline={hostedOnline}
           matchCreationDisabled={browserPreview}
           matchCreationDisabledMessage={locale === "zh"
             ? "浏览器 Preview 版暂不包含本地规则引擎。请使用本地版启动对战，或连接 Hosted FastAPI 创建在线测试房间。"
@@ -476,7 +494,7 @@ export default function App() {
           ) : (
             <a
               className="icon-button"
-              href={`/api/matches/${match.state.match_id}/replay`}
+              href={matchReplayUrl(match.state.match_id)}
               title={locale === "zh" ? "导出 Replay JSON" : "リプレイ JSON を出力"}
             >
               <Download size={18} />
@@ -671,6 +689,8 @@ function StartScreen({
   deckSources,
   loading,
   error,
+  browserPreview,
+  hostedOnline,
   matchCreationDisabled,
   matchCreationDisabledMessage,
   onBrowse,
@@ -687,6 +707,8 @@ function StartScreen({
   deckSources: StartDeckSource[];
   loading: boolean;
   error: string | null;
+  browserPreview: boolean;
+  hostedOnline: boolean;
   matchCreationDisabled: boolean;
   matchCreationDisabledMessage: string;
   onBrowse: () => void;
@@ -3212,7 +3234,7 @@ function LocalCardArt({
   if (sourceMode !== "fallback") {
     const src =
       sourceMode === "local"
-        ? `/api/card-images/${encodeURIComponent(card.card_id)}`
+        ? cardImageUrl(card.card_id)
         : (card.image_url ?? "");
     return (
       <img

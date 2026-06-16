@@ -10,6 +10,8 @@ on:
       - "pyproject.toml"
       - "src/**"
       - "tools/**"
+      - "data/loveca.sqlite3"
+      - "data/loveca-db-manifest.json"
       - "data_sources/**"
       - ".github/workflows/api-image.yml"
   push:
@@ -23,6 +25,8 @@ on:
       - "pyproject.toml"
       - "src/**"
       - "tools/**"
+      - "data/loveca.sqlite3"
+      - "data/loveca-db-manifest.json"
       - "data_sources/**"
       - ".github/workflows/api-image.yml"
 

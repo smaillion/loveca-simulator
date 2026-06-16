@@ -7,9 +7,19 @@ __pycache__/
 .venv/
 venv/
 
-data/
+data/*
+!data/.gitkeep
+!data/loveca.sqlite3
+!data/loveca-db-manifest.json
+data/card_images/
+data/decks/
+data/imports/
+data/matches*.sqlite3
+data/*.backup.sqlite3
 *.sqlite
+!data/loveca.sqlite3
 *.sqlite3
+!data/loveca.sqlite3
 
 dist/
 build/
