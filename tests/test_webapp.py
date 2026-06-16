@@ -122,6 +122,33 @@ def test_hosted_room_api_create_join_act_and_replay(tmp_path):
     assert acted.status_code == 200
     assert acted.json()["state"]["revision"] == 1
 
+    opponent_action = client.post(
+        f"/api/rooms/{room_code}/actions",
+        json={
+            "player_token": guest_token,
+            "action": {
+                "action_type": "submit_mulligan",
+                "expected_revision": 1,
+                "player_id": "player_1",
+                "payload": {"card_instance_ids": []},
+            },
+        },
+    )
+    assert opponent_action.status_code == 403
+
+    missing_player_id = client.post(
+        f"/api/rooms/{room_code}/actions",
+        json={
+            "player_token": guest_token,
+            "action": {
+                "action_type": "submit_mulligan",
+                "expected_revision": 1,
+                "payload": {"card_instance_ids": []},
+            },
+        },
+    )
+    assert missing_player_id.status_code == 403
+
     polled = client.get(f"/api/rooms/{room_code}?player_token={guest_token}")
     assert polled.status_code == 200
     assert polled.json()["match"]["state"]["revision"] == 1

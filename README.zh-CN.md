@@ -84,6 +84,40 @@ Deck Builder 当前状态:
 - Web/API 测试依赖 `httpx2`。环境缺少该依赖时，`tests/test_catalog_api.py` 和 `tests/test_webapp.py` 会在收集阶段停止。
 - Hosted Online MVP 只用于低成本测试反馈。规则判定由 FastAPI 侧 Python engine 执行，但不包含账号、长期保存或严格防作弊。
 
+## UI 功能与使用方式
+
+### 首页 / 开始对局
+
+- 右上角语言切换可在简体中文 UI 和日文 UI 之间切换，选择会保存到 browser localStorage。
+- 可以选择已保存牌组，或从 Deck Builder 带回当前编辑中的牌组，创建本地规则验证对局。
+- 配置了 Hosted API 的环境可以创建 room code，让 host / guest 分别选择牌组后加入同一个 online room。Online match 中己方盘面始终显示在画面下方，Action Dock 只显示当前 room token 可以提交的操作。
+- Browser preview 支持查看已打包卡库、使用初始 sample deck、本地保存牌组、decklist.v0 导入 / 导出和 MVP 牌组分析。对战只有在 runtime config 设置了 `apiBaseUrl` 时才会连接 Hosted API。
+
+### 卡牌目录
+
+- 卡牌目录是只读视图。可以用搜索框、卡牌种类、作品和组合 filter 缩小列表。
+- 选中卡牌后可以查看卡图、Cost / Blade / Score、Heart、作品 / 组合、官方效果文本、review candidate 和 source observation。
+- 图片优先使用本地 cache 的 `/api/card-images/*`，没有本地图片时 fallback 到官方 `image_url`。
+
+### Deck Builder
+
+- 可以创建、读取、覆盖保存、重命名和删除本地保存牌组。
+- 支持 decklist.v0 JSON 导入 / 导出，方便在 browser preview 和本地环境之间迁移牌组。
+- 已组牌组按 `Member` / `Live` / `Energy` 分区显示，编辑时会检查 `Member 48` / `Live 12` / `Energy 12` 和同名卡上限。
+- 卡牌搜索支持按卡名 / 卡号、卡牌种类、作品、组合、Member 基本 Heart / Cost / Blade / Blade Heart、Live 所需 Heart / Score / Blade Heart 筛选。搜索结果可以按卡号、卡名、卡牌种类、Member cost、Blade、Live 所需 Heart、Live score 和当前投入枚数排序。
+- 搜索结果中的卡牌可以打开详情 dialog 查看图片和主要 stat，也可以直接用添加按钮投入牌组。
+- 右侧分析 dashboard 会自动刷新，展示构筑合法性、枚数问题、Member cost curve、基本 Heart、Live 所需 Heart、Score、特殊 Blade Heart、技能 timing / execution summary。
+- 在 Deck Builder 里选择的牌组可以通过“用于对战”回到首页，并作为本地对局或 online room 的 deck source。
+
+### 规则验证器
+
+- Match 画面同屏展示双方舞台、手牌 / 牌库 / 控室等 zone count、Live / Energy / Heart 状态、当前 phase 和 turn number。
+- Action Dock 会列出当前可执行 action，可从 UI 发送 Member 登场、Baton Touch、Live Set、调度、Heart 分配和 pending effect 结算等操作。
+- 部分技能以结构化 prompt 显示，可在 UI 中处理目标卡选择、choice branch、inspection / reveal 的排序和移动目标。
+- 暂不能自动执行的技能可用 `ManualAdjustmentAction` drawer 手动输入卡牌移动、Heart 修正、Live success 修正和备注，继续推进验证。
+- Action/Event Log、Live judgment detail、effect activation summary 和卡牌详情 dialog 可用于确认 rule engine 实际处理了什么。
+- 本地 match 和 online room match 支持导出 Replay JSON。Browser preview 单独运行时不支持 Replay export。
+
 ## 界面预览
 
 启动页：可直接选择已保存牌组并创建对局。
@@ -98,7 +132,40 @@ Deck Builder：右侧筛选选卡，中央查看构筑与分析结果。
 
 ![规则验证器](docs/images/match-actions-desktop.png)
 
-## 环境要求
+## 卡牌 DB 与 asset 分发方针
+
+长期来看，可以提供包含预构建 SQLite 卡牌数据库、effect registry、manifest 和 checksum 的版本化 asset package，让用户无需每次从官网全量抓取即可直接启动。
+
+但官方效果文本全文、官方 PDF 派生的大量数据和下载后的卡图文件涉及再分发边界。GitHub Pages preview 的公开 asset 应限制为解析后的卡牌数据、解析后的技能数据、manifest、checksum 和项目自有 metadata；卡图文件不随包发布，牌面显示直接使用官方 `image_url`。
+
+公开 preview 从专用 `preview` 分支发布。这个分支会直接提交已审核的 `data/loveca.sqlite3`，GitHub Pages workflow 从这个 SQLite 导出静态 JSON。`develop` 可以继续高频开发，不会触发 Pages 重建；只有准备更新公开 preview 时才同步到 `preview` 分支。
+
+browser preview 的 deck 保存在 localStorage。Deck 主要只保存卡号和数量，20 个初始 sample deck 加上普通用户自己的牌组通常只会占用很小空间。需要迁移或分享时，请使用 Deck Builder 的 JSON 导入 / 导出。
+
+如果向 private tester 提供预构建 DB，也应明确 release version、schema version、parser version、card database fingerprint 和 effect registry hash。任何破坏兼容性的版本更新后，都需要重新导入。
+
+## 变更记录
+
+每个版本的详细变更见 [CHANGELOG.md](./CHANGELOG.md)。
+
+## 目录概览
+
+- `TODO.md`: 低优先级待办
+- `src/loveca/cards/`: importer、catalog、图片缓存
+- `src/loveca/decks/`: 牌组格式、分析器、本地牌组库
+- `src/loveca/simulation/`: GameState、Action、runtime、effects
+- `src/loveca/webapp.py`: FastAPI 与 SPA 分发
+- `web/`: React 规则验证 UI
+- `docs/`, `specs/`: 架构文档与规格
+- `docs/14-database-migration-and-update-guide.md`: SQLite 重建、增量更新和 runtime 生命周期指引
+- `docs/15-project-guidance.md`: changelog 语言等维护指引
+- `docs/16-low-cost-online-battle-plan.md`: 低成本网络双人规则验证模式规划
+- `docs/17-browser-only-preview-and-pages-release.md`: GitHub Pages browser preview 与静态数据包计划
+- `docs/18-hosted-online-smoke-checklist.md`: Hosted Online MVP 合并 / 部署前 smoke checklist
+
+## 本地搭建与开发命令
+
+### 环境要求
 
 - Python `3.11+`
 - Node.js `20` / `22` / `24+`
@@ -113,7 +180,7 @@ npm install
 cd ..
 ```
 
-## 本地启动
+### 本地启动
 
 1. 初始化卡牌数据库。
 
@@ -173,7 +240,7 @@ loveca web serve `
 
 如果 `8765` 已被占用，可以改成 `--port 8766`。
 
-## Docker API 服务器
+### Docker API 服务器
 
 如果要用 Cloudflare Worker gateway、Caddy 和小型 VM 试运行 Hosted Online MVP，可以只把 FastAPI backend 打成 Docker 镜像运行。
 
@@ -222,19 +289,7 @@ GitHub Actions：
 
 如果 GitHub Pages 要连接 Hosted API，请在 repository variable `VITE_PUBLIC_API_BASE_URL` 中设置 Cloudflare Worker URL。
 
-## 卡牌 DB 与 asset 分发方针
-
-长期来看，可以提供包含预构建 SQLite 卡牌数据库、effect registry、manifest 和 checksum 的版本化 asset package，让用户无需每次从官网全量抓取即可直接启动。
-
-但官方效果文本全文、官方 PDF 派生的大量数据和下载后的卡图文件涉及再分发边界。GitHub Pages preview 的公开 asset 应限制为解析后的卡牌数据、解析后的技能数据、manifest、checksum 和项目自有 metadata；卡图文件不随包发布，牌面显示直接使用官方 `image_url`。
-
-公开 preview 从专用 `preview` 分支发布。这个分支会直接提交已审核的 `data/loveca.sqlite3`，GitHub Pages workflow 从这个 SQLite 导出静态 JSON。`develop` 可以继续高频开发，不会触发 Pages 重建；只有准备更新公开 preview 时才同步到 `preview` 分支。
-
-browser preview 的 deck 保存在 localStorage。Deck 主要只保存卡号和数量，20 个初始 sample deck 加上普通用户自己的牌组通常只会占用很小空间。需要迁移或分享时，请使用 Deck Builder 的 JSON 导入 / 导出。
-
-如果向 private tester 提供预构建 DB，也应明确 release version、schema version、parser version、card database fingerprint 和 effect registry hash。任何破坏兼容性的版本更新后，都需要重新导入。
-
-## 常用命令
+### 常用命令
 
 牌组分析:
 
@@ -264,7 +319,7 @@ loveca cards import `
   --report logs/import-bp06.md
 ```
 
-## 测试
+### 测试
 
 Python:
 
@@ -322,22 +377,3 @@ cd web
 npm run test -- --run
 npm run build
 ```
-
-## 变更记录
-
-每个版本的详细变更见 [CHANGELOG.md](./CHANGELOG.md)。
-
-## 目录概览
-
-- `TODO.md`: 低优先级待办
-- `src/loveca/cards/`: importer、catalog、图片缓存
-- `src/loveca/decks/`: 牌组格式、分析器、本地牌组库
-- `src/loveca/simulation/`: GameState、Action、runtime、effects
-- `src/loveca/webapp.py`: FastAPI 与 SPA 分发
-- `web/`: React 规则验证 UI
-- `docs/`, `specs/`: 架构文档与规格
-- `docs/14-database-migration-and-update-guide.md`: SQLite 重建、增量更新和 runtime 生命周期指引
-- `docs/15-project-guidance.md`: changelog 语言等维护指引
-- `docs/16-low-cost-online-battle-plan.md`: 低成本网络双人规则验证模式规划
-- `docs/17-browser-only-preview-and-pages-release.md`: GitHub Pages browser preview 与静态数据包计划
-- `docs/18-hosted-online-smoke-checklist.md`: Hosted Online MVP 合并 / 部署前 smoke checklist

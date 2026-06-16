@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from loveca.decks.analyzer import DeckList, parse_deck
+from loveca.simulation.engine import generate_legal_actions
 from loveca.simulation.models import ActionRequest, ActionResult
 from loveca.simulation.service import MatchService
 
@@ -309,6 +310,18 @@ class RoomService:
             raise RoomStateError("room does not have an active match")
         if action.player_id is not None and action.player_id != player_id:
             raise RoomTokenError("action player_id does not match the room token")
+        state = self.match_service.repository.get_state(record.match_id)
+        matching_actions = [
+            legal_action
+            for legal_action in generate_legal_actions(state)
+            if legal_action.action_type == action.action_type
+        ]
+        if matching_actions:
+            allowed_player_ids = {legal_action.player_id for legal_action in matching_actions}
+            if None not in allowed_player_ids and player_id not in allowed_player_ids:
+                raise RoomTokenError("room token cannot submit this player's action")
+            if action.player_id is None and None not in allowed_player_ids:
+                raise RoomTokenError("action player_id is required for this room action")
         result = self.match_service.apply(record.match_id, action)
         self.repository.touch_room(record.room_code)
         return result
