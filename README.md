@@ -32,7 +32,7 @@
 - GitHub Pages browser preview 用の静的 SPA release workflow
   - preview data package は解析済みカード / skill data のみを含む
   - カード画像は同梱せず、公式 `image_url` を参照する
-  - 初回起動時に 20 個の preview sample deck を browser localStorage に作成
+  - 初回起動時に 5 個の合法な `decklist.v0` preview sample deck を browser localStorage に作成
   - decklist.v0 JSON の import / export に対応
 
 現在の開発主線:
@@ -91,7 +91,7 @@ Deck Builder の現在の到達点:
 - 画面右上の言語切り替えで、簡体中文 UI と日本語 UI を切り替えられます。選択は browser localStorage に保存されます。
 - 保存済みデッキ、または Deck Builder から戻した編集中デッキを選び、ローカル検証用の対戦を作成できます。
 - Hosted API が設定されている環境では、room code を発行して host / guest がそれぞれデッキを持ち寄る online room を作成・参加できます。Online match では自分の盤面が常に画面下側に表示され、Action Dock は現在の room token で送信できる action だけを表示します。
-- Browser preview では、同梱済みカードデータ、初期 sample deck、localStorage 保存、decklist.v0 import / export、MVP deck 分析を利用できます。対戦は runtime config の `apiBaseUrl` が設定されている場合だけ Hosted API に接続します。
+- Browser preview では、同梱済みカードデータ、5 個の合法な初期 `decklist.v0` sample deck、localStorage 保存、decklist.v0 import / export、MVP deck 分析を利用できます。対戦は runtime config の `apiBaseUrl` が設定されている場合だけ Hosted API に接続します。
 
 ### カードカタログ
 
@@ -140,7 +140,7 @@ Deck Builder: 右側でカード検索と絞り込み、中央で構築内容と
 
 公開 preview は専用の `preview` ブランチから配信します。このブランチでは review 済みの `data/loveca.sqlite3` を直接コミットし、GitHub Pages workflow はその SQLite から静的 JSON を生成します。`develop` の頻繁な更新では Pages を再構築せず、preview を更新したいタイミングだけ `preview` ブランチへ反映します。
 
-browser preview の deck は localStorage に保存されます。Deck はカード番号と枚数中心の小さな JSON なので、20 個の初期 sample deck と通常のユーザー deck では容量は小さく収まります。移行や共有が必要な場合は、Deck Builder の JSON import / export を使用してください。
+browser preview の deck は localStorage に保存されます。Deck はカード番号と枚数中心の小さな JSON なので、5 個の合法な初期 `decklist.v0` sample deck と通常のユーザー deck では容量は小さく収まります。移行や共有が必要な場合は、Deck Builder の JSON import / export を使用してください。
 
 private tester 向けに事前構築 DB を渡す場合も、release version、schema version、parser version、card database fingerprint、effect registry hash を明示し、互換性が崩れる更新後は再導入が必要です。
 
@@ -275,8 +275,11 @@ GitHub Actions:
 
 - `.github/workflows/api-image.yml` は Docker image を build します。
 - Pull Request では build 検証のみ行います。
-- `develop` / `preview` への push または手動実行では GHCR に `ghcr.io/smaillion/loveca-simulator-api` として push します。
-- `.github/workflows/deploy-api.yml` は手動実行で GHCR image を build / push し、SSH で VPS 上の compose service を更新します。
+- `api-image.yml` は `develop` / `preview` への push または手動実行で GHCR に `ghcr.io/smaillion/loveca-simulator-api` として push します。
+- `.github/workflows/deploy-api.yml` は `develop` への push または手動実行で GHCR image を build / push し、SSH で VPS 上の compose service を更新します。
+- `.github/workflows/deploy-worker.yml` は `develop` / `preview` の Worker 変更、または手動実行で Cloudflare Worker gateway を更新します。
+- `.github/workflows/pages-preview.yml` は `preview` への push または手動実行で GitHub Pages preview を公開します。
+- `main` への push は現段階では自動 publish / deploy を行いません。production 相当の release promotion は maintainer の明示的な手動実行または専用 release 手順で行います。
 
 Deploy に必要な GitHub Secrets:
 

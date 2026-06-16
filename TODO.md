@@ -32,6 +32,12 @@
 - After online is stable, replace the public frontend distribution with a stable `develop` or `main` build connected to hosted API.
 - Archive or treat `preview` as a historical snapshot after the official frontend transition.
 
+### Main Branch Publishing Revisit
+
+- Keep `main` push-triggered publish / deploy disabled while release promotion remains manual-only.
+- Revisit whether `main` should regain automated publishing after the official release branch policy is finalized.
+- If automated `main` publishing returns, document the required release gate, smoke checks, rollback path, and maintainer approval rule before changing CI triggers.
+
 ### Phase 5 Sandbox Follow-Up
 
 - Continue tuning `tools/ai_sandbox/blackbox_playtest.py` action caps and strategies.

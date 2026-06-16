@@ -17,6 +17,7 @@ on:
         default: ""
   push:
     branches:
+      # main is intentionally omitted; public preview deploys come only from preview.
       - preview
     paths:
       - ".github/workflows/pages-preview.yml"

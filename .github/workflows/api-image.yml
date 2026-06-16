@@ -16,6 +16,7 @@ on:
       - ".github/workflows/api-image.yml"
   push:
     branches:
+      # main is intentionally omitted while stable snapshot promotion remains manual-only.
       - develop
       - preview
     paths:
