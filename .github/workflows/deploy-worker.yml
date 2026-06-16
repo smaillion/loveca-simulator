@@ -60,6 +60,17 @@ jobs:
         run: |
           base_url="$(printf '%s' "$VITE_PUBLIC_API_BASE_URL" | sed 's#/*$##')"
           test -n "$base_url"
-          curl --fail --show-error --silent "$base_url/api/health"
+          for attempt in 1 2 3 4 5 6; do
+            body_file="$(mktemp)"
+            status="$(curl --show-error --silent --max-time 20 --output "$body_file" --write-out "%{http_code}" "$base_url/api/health" || true)"
+            echo "Gateway health attempt ${attempt}: HTTP ${status}"
+            cat "$body_file"
+            echo
+            if [ "$status" = "200" ]; then
+              exit 0
+            fi
+            sleep 5
+          done
+          exit 1
         env:
           VITE_PUBLIC_API_BASE_URL: ${{ vars.VITE_PUBLIC_API_BASE_URL }}

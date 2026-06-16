@@ -113,10 +113,10 @@ jobs:
         run: |
           origin_base_url="$(printf '%s' "$ORIGIN_BASE_URL" | sed 's#/*$##')"
           test -n "$origin_base_url"
-          curl --fail --show-error --silent "$origin_base_url/api/health"
+          curl --fail --show-error --silent --max-time 20 "$origin_base_url/api/health"
 
       - name: Health check through Worker gateway URL
         run: |
           gateway_base_url="$(printf '%s' "$GATEWAY_API_BASE_URL" | sed 's#/*$##')"
           test -n "$gateway_base_url"
-          curl --fail --show-error --silent "$gateway_base_url/api/health"
+          curl --fail --show-error --silent --max-time 20 "$gateway_base_url/api/health"
