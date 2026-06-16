@@ -1,4 +1,4 @@
-﻿# Effect Semantics Audit
+# Effect Semantics Audit
 
 ## Purpose
 
@@ -23,17 +23,97 @@ Local card data observed during this review:
 * about 1,609 Gameplay Cards
 * about 795 Card Text Revisions
 * about 787 Gameplay Cards with at least one text revision
-* current registry coverage has split into two separate layers:
-  * 430 effect definitions
-  * 87 `test_validated_executable` definitions
-  * 343 timing-only `manual_resolution` definitions
-  * about 419 registered Gameplay Cards with effect text, or about 53% timing-prompt coverage against the current local card pool with text
-  * the current AI sandbox block run records 1 mandatory manual-resolution blocker across 20 generated matches; the remaining blocked runs are mostly max-action exploration limits or complex unresolved effect families
-  * the latest testing loop added a multi-player pending choice boundary for two-player effect resolution
+  * current registry coverage has split into two separate layers:
+  * 925 effect definitions
+  * 462 `test_validated_executable` definitions
+  * 463 timing-only `manual_resolution` definitions
+  * registry-entry executable coverage is currently about 49.95%
+  * the latest Phase 5 sandbox block run still records high-frequency mandatory manual-resolution blockers across 50 generated matches
+  * `skip` mode currently avoids illegal actions in the latest 50-match run, but long sandbox games still frequently reach the action cap before a formal result
+  * the latest testing loop added Live-specific temporary score / required-Heart modifiers, reveal-top scoring, Live Area condition checks, grouped Stage Member choice, and additional exact-text Live timing patterns
 
 Therefore, the current repository has broad timing-prompt coverage but is still in a pattern-expansion phase rather than a broad full-card executable-effects phase. The new manual fallback entries are not proof of automated semantic support.
 
-The broad fallback set currently focuses on `登場` and `起動` effects. `ライブ開始時` and `ライブ成功時` remain limited to explicitly modeled or tested entries, because broad unresolved Live timing prompts can block the core Live flow until the manual-resolution UX is improved.
+The broad fallback set originally focused on `登場` and `起動` effects. `ライブ開始時` and `ライブ成功時` now have a larger tested subset, but they still contain the highest-risk unresolved families because many effects combine conditional scoring, required-Heart replacement, temporary base-stat rewrites, answer-based choices, and FAQ-sensitive state.
+
+## Latest Sandbox Baseline
+
+The current Phase 5 live-effect loop used the `preview` branch card database as the local full-card baseline.
+
+Observed runs:
+
+* `30 decks x 50 matches --manual-policy block --max-actions 260`
+  * latest blocker distribution: 49 `mandatory_manual_resolution`, 1 `max_actions`
+  * no `illegal_action` after fixing structured cost choice propagation
+* `30 decks x 50 matches --manual-policy skip --max-actions 260`
+  * latest blocker distribution before strategy tuning: 47 `max_actions`, 3 completed
+  * `illegal_action = 0`
+* `30 decks x 20 matches --manual-policy skip --max-actions 260`
+  * after sandbox strategy tuning: 20 `max_actions`
+  * matches reached turn 16, indicating long-game strategy limits rather than immediate rule-engine crashes
+* semantic user-agent sandbox loop
+  * added as a second Phase 5 test lane after deterministic black-box sandbox
+  * ordinary actions still use deterministic sandbox policy
+  * mandatory `manual_resolution` effects can be handed to a configured semantic provider to test whether current structured manual tools are expressive enough for human-like play
+  * `mock` provider remains the default for CI and smoke runs; real OpenAI-compatible providers are manual local runs
+  * semantic success is a manual playability signal, not registry executable coverage
+* follow-up sandbox controller probes
+  * added work-key grouped deck generation and Heart-fit Member selection for generated decks
+  * added Live-set selection that ranks 1-3 Live combinations by estimated Heart reachability and total score
+  * added per-match final success Live counts to sandbox reports, alongside skipped effect IDs
+  * a 10-match Heart-fit skip sample completed 2/10 games and still showed 8 `max_actions`, so this is diagnostic progress rather than a solved sandbox strategy
+  * after structuring `PL!SP-sd2-023:1`, a 10-match skip sample completed 1/10 games, recorded 9 `max_actions`, and showed total success Live counts `{0: 5, 1: 2, 2: 2, 4: 1}`
+  * `PL!SP-sd2-023:1` no longer appears in skipped-effect reports; the remaining top skipped effects are now centered on movement-history, named-member temporary Heart/Blade, base Blade rewrite, Energy-threshold compound effects, and multi-step both-player draw/discard effects
+  * after structuring `PL!SP-bp1-007:1`, a 10-match skip sample completed 1/10 games, recorded 9 `max_actions`, and showed total success Live counts `{0: 5, 1: 1, 2: 3, 4: 1}`
+  * `PL!SP-bp1-007:1` no longer appears in skipped-effect reports; the highest remaining repeated skipped effects are now movement-history / named-member modifier / base-Blade rewrite families
+  * after structuring `PL!SP-bp4-024:1`, a 10-match skip sample completed 1/10 games, recorded 9 `max_actions`, and showed total success Live counts `{0: 5, 2: 4, 4: 1}`
+  * `PL!SP-bp4-024:1` no longer appears in skipped-effect reports; the highest remaining repeated skipped effects are still movement-history, multi-target named modifiers, base-stat rewrites, and compound multi-step Live effects
+  * after structuring five additional safe Live-start patterns, a 10-match skip sample completed 2/10 games, recorded 8 `max_actions`, and showed total success Live counts `{0: 4, 1: 3, 2: 1, 3: 1, 4: 1}`
+  * the added safe patterns include Hasunosora distinct-name score scaling, Dream Believers waiting-room checks, Liella! total Heart checks, Nijigasaki required-Heart checks, and Heart02 required-Heart replacement
+  * after structuring `PL!S-sd1-022:1`, a 10-match skip sample completed 1/10 games and no longer listed that Aqours all-stage Blade effect in skipped-effect reports
+  * after structuring `PL!N-bp4-028:1`, `PL!SP-bp4-024:2`, and `PL!HS-pb1-026:1`, a 10-match skip sample recorded 10 `max_actions`, success Live counts `{0: 4, 1: 3, 2: 2, 4: 1}`, and removed those effects from the skipped-effect table
+  * after structuring `PL!HS-bp6-030:1`, `PL!SP-sd2-025:1`, `PL!-bp4-021:1`, `PL!SP-pb1-025:1`, and `PL!SP-pb1-023:1`, successive 10-match skip samples kept `illegal_action = 0` and removed those exact effects from the skipped-effect table
+  * after structuring `PL!N-bp4-027:1` and `PL!SP-bp1-026:1`, a 10-match skip sample completed 1/10 games, recorded 9 `max_actions`, kept `illegal_action = 0`, and removed those effects from the skipped-effect table
+  * that 10-match sample surfaced `PL!SP-pb1-001:1` as a skipped effect; the exact-text branch is now structured as “pay 2 Active Energy or discard 2 hand cards” and no longer uses manual fallback
+  * the follow-up block-mode run surfaced `PL!N-bp3-026:1`; the exact-text score-values bonus is now structured as an auto-resolved Live score modifier
+  * the next block-mode sample surfaced `PL!-bp3-024:1`; the exact-text “choose Heart color and μ's stage member” pattern is now structured with combined card and color selection
+  * the following block-mode sample surfaced `PL!S-bp2-023:1`; the exact-text “Live Area contains another Aqours Live” condition is now structured and grants temporary Blade to all own Stage members
+  * the same blocker sweep surfaced `PL!HS-bp5-019:1`; the exact-text “other Hasunosora Live cards in Live Area” pattern is now structured as a live-duration required-Heart modifier
+  * the next pass surfaced `PL!-pb1-010:1`; the exact-text optional discard cost now grants temporary Blade to all other own Stage members through structured hand selection
+  * the next blocker pass surfaced `PL!-bp5-023:1`; the exact-text “Stage members with Heart colors other than heart01/heart06” count now drives a structured required-Heart modifier
+  * the next blocker pass surfaced `PL!HS-bp6-029:1`; the exact-text Hasunosora stage-cost inspection pattern now supports keeping one inspected card, returning the rest to deck top, and applying the cost-30 required-Heart bonus
+  * the next blocker pass surfaced `PL!HS-pb1-025:2`; the exact-text Live-success pattern now prompts for a Waiting Room Member when the player's hand has six or fewer cards
+  * the next blocker pass surfaced `PL!-bp5-020:1`; the exact-text center μ's Heart-pair pattern now reduces required any-color Heart by the center Member's `heart03` pairs, capped at three
+  * the next blocker pass surfaced `PL!HS-bp2-024:1`; the exact-text named-stage cost relation now reduces required any-color Heart when `村野さやか` has higher cost than `徒町小鈴`
+  * the next blocker pass surfaced `PL!HS-bp5-021:1`; the exact-text base-Heart replacement pattern now lets one Hasunosora Stage Member replace its original Heart colors with `heart01` until Live end
+  * a 20-match block smoke after the base-Heart replacement support recorded 12 `mandatory_manual_resolution`, 5 `max_actions`, and 3 completed games; `PL!HS-bp5-021:1` no longer appears in the blocker list
+  * the next blocker pass surfaced `PL!SP-bp1-024:1`; the exact-text named-member modifier pattern now gives `澁谷かのん` temporary `heart05` + Blade and `唐 可可` temporary `heart01` + Blade until Live end
+  * a 20-match block smoke after named-member modifier support recorded 12 `mandatory_manual_resolution`, 6 `max_actions`, and 2 completed games; `PL!SP-bp1-024:1` no longer appears in the manual blocker list
+  * the next blocker pass surfaced `PL!N-pb1-037:1`; effect-caused ready-history tracking now records Nijigasaki Energy / Member readiness and applies the Live-start score bonus as +1 or +2
+  * a 20-match block smoke after ready-history support recorded 13 `mandatory_manual_resolution`, 5 `max_actions`, and 2 completed games; `PL!N-pb1-037:1` no longer appears in the manual blocker list
+  * after structuring Blade Heart color rewriting and the grouped Stage Member choice for `PL!SP-bp4-023:1`, a 20-match block smoke recorded 2 completed games, 11 `mandatory_manual_resolution`, 7 `max_actions`, and `illegal_action = 0`; `PL!SP-bp4-023:1` no longer appears in the manual blocker list
+  * the current repeated manual blocker in that smoke is `PL!N-bp4-031:1`; other remaining blockers are one-off Live-start / Live-success manual families and long-game `max_actions`
+  * after structuring `PL!N-bp4-031:1` as draw 3 plus a post-action hand choice returning 3 cards to deck top, a 20-match block smoke recorded 2 completed games, 9 `mandatory_manual_resolution`, and 9 `max_actions`; `PL!N-bp4-031:1` no longer appears in the manual blocker list
+  * after adding Baton-specific turn history and structuring `PL!HS-bp2-023:1` / `PL!HS-bp2-025:1`, the next 20-match block smoke still recorded 2 completed games, 9 `mandatory_manual_resolution`, and 9 `max_actions`, but those Hasunosora required-Heart effects no longer appear in the manual blocker list
+  * a semantic mock smoke (`30 decks x 5 matches --manual-fallback skip --max-actions 120`) produced 5 `max_actions` and 4 mock `schema_gap` attempts, confirming report plumbing without claiming real semantic resolution
+* `30 decks x 50 matches --manual-policy block --max-actions 260` after the safe-pattern expansion
+  * earlier blocker distribution: 44 `mandatory_manual_resolution`, 2 `max_actions`, 4 completed
+  * this still misses the target of `mandatory_manual_resolution <= 15/50`
+* `30 decks x 50 matches --manual-policy block --max-actions 260` after the latest Live pattern expansion
+  * latest blocker distribution: 35 `mandatory_manual_resolution`, 9 `max_actions`, 6 completed
+  * this improves the mandatory manual count, but still misses the target of `mandatory_manual_resolution <= 15/50`
+* `30 decks x 50 matches --manual-policy skip --max-actions 260` after the safe-pattern expansion
+  * earlier blocker distribution: 31 `max_actions`, 19 completed
+  * `illegal_action = 0`
+  * total success Live counts were `{0: 7, 1: 9, 2: 9, 3: 19, 4: 5, 5: 1}`
+  * this improved completion but still missed the target of `max_actions <= 20/50`
+* `30 decks x 50 matches --manual-policy skip --max-actions 260` after the latest Live pattern expansion
+  * latest blocker distribution: 40 `max_actions`, 10 completed
+  * `illegal_action = 0`
+  * total success Live counts were `{0: 7, 1: 11, 2: 13, 3: 15, 4: 3, 5: 1}`
+  * the run confirms the new structured effects are not introducing illegal actions, but sandbox strategy and remaining complex Live-start / Live-success effects still keep many games from reaching formal completion
+
+The original target `mandatory_manual_resolution <= 15/50` was not met. Remaining high-frequency blockers are primarily complex Live-start and Live-success families, including base Heart rewrites, optional multi-branch effects, answer-based effects, movement-history effects, and effects that disable or grant other effects.
 
 ## Audit Model
 
@@ -391,5 +471,3 @@ This audit requires the following documentation stance:
 * top-deck inspection, reveal, and keep-to-hand must be modeled separately from draw
 * Energy payment must remain distinct from Energy state-change selection
 * current repository status must not be described as already having broad or complete skill prompting coverage
-
-

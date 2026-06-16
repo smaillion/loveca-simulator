@@ -438,6 +438,12 @@ export default function App() {
       );
   }
 
+  const bottomPlayerId = onlineSession?.playerId ?? "player_1";
+  const topPlayerId = bottomPlayerId === "player_1" ? "player_2" : "player_1";
+  const visibleActions = onlineSession
+    ? match.legal_actions.filter((action) => canSubmitOnlineAction(action, onlineSession.playerId))
+    : match.legal_actions;
+
   return renderShell(
     <div className="app-shell">
       <header className="topbar">
@@ -520,35 +526,27 @@ export default function App() {
       <main className="workspace">
         <section className="board-column">
           <PlayerBoard
-            player={match.state.players.player_2}
+            player={match.state.players[topPlayerId]}
             state={match.state}
-            role={
-              match.state.second_player_id === "player_2"
-                ? locale === "zh" ? "后攻" : "後攻"
-                : locale === "zh" ? "先攻" : "先攻"
-            }
+            role={playerRoleLabel(match.state, topPlayerId, locale)}
             compact
             onCard={setDetails}
           />
           <LiveCenter state={match.state} onCard={setDetails} />
           <PlayerBoard
-            player={match.state.players.player_1}
+            player={match.state.players[bottomPlayerId]}
             state={match.state}
-            role={
-              match.state.first_player_id === "player_1"
-                ? "先攻"
-                : locale === "zh" ? "后攻" : "後攻"
-            }
+            role={playerRoleLabel(match.state, bottomPlayerId, locale)}
             onCard={setDetails}
           />
         </section>
         <EventLog events={match.events} state={match.state} />
       </main>
 
-      {match.legal_actions.length > 0 && (
+      {visibleActions.length > 0 && (
         <ActionDock
           state={match.state}
-          actions={match.legal_actions}
+          actions={visibleActions}
           loading={loading}
           onAction={handleAction}
           onManual={(source) => {
@@ -556,6 +554,14 @@ export default function App() {
             setManualOpen(true);
           }}
         />
+      )}
+      {onlineSession && match.legal_actions.length > 0 && visibleActions.length === 0 && (
+        <footer className="action-dock">
+          <div className="action-context">
+            <strong>Legal Actions</strong>
+            <span>{locale === "zh" ? "等待对手操作" : "相手の操作待ち"}</span>
+          </div>
+        </footer>
       )}
 
       {details && (
@@ -590,6 +596,16 @@ function useUiLanguage() {
     ...context,
     tr: (zh: string, ja: string) => (context.locale === "zh" ? zh : ja),
   };
+}
+
+function canSubmitOnlineAction(action: LegalAction, localPlayerId: string): boolean {
+  return action.player_id === null || action.player_id === localPlayerId;
+}
+
+function playerRoleLabel(state: MatchState, playerId: string, locale: UiLocale): string {
+  if (state.first_player_id === playerId) return "先攻";
+  if (state.second_player_id === playerId) return locale === "zh" ? "后攻" : "後攻";
+  return locale === "zh" ? "未定" : "未定";
 }
 
 function mergeEvents(existing: GameEvent[], incoming: GameEvent[]): GameEvent[] {
@@ -2033,6 +2049,14 @@ export function EffectResolutionAction({
     energy_required?: number;
     branch_ids?: string[];
     selected_branch?: string;
+    choice_groups?: Array<{
+      group_id: string;
+      label_ja?: string | null;
+      candidate_card_instance_ids: string[];
+      exclude_group_ids?: string[];
+      minimum?: number;
+      maximum?: number;
+    }>;
   }>;
   const waitingPlayerIds = (action.options.waiting_player_ids ?? []) as string[];
   const [invocationId, setInvocationId] = useState(invocations[0]?.invocation_id ?? "");
@@ -2043,6 +2067,7 @@ export function EffectResolutionAction({
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedCount, setSelectedCount] = useState<number | null>(null);
   const [selectedBranch, setSelectedBranch] = useState("");
+  const [selectedGroups, setSelectedGroups] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     setSelectedCards([]);
@@ -2050,6 +2075,7 @@ export function EffectResolutionAction({
     setSelectedColor("");
     setSelectedCount(null);
     setSelectedBranch("");
+    setSelectedGroups({});
   }, [current?.invocation_id]);
 
   if (!current) return null;
@@ -2073,11 +2099,28 @@ export function EffectResolutionAction({
   const requiresCount = choiceType === "choose_count";
   const branchIds = current.branch_ids ?? [];
   const isBranchChoice = choiceType === "choose_effect_branch";
+  const isGroupedStageChoice = choiceType === "member_group_from_stage";
+  const choiceGroups = current.choice_groups ?? [];
   const resolvedBranch = current.selected_branch || selectedBranch;
   const requiresBranch = isBranchChoice && !current.selected_branch;
   const minimumCount = current.card_selection_minimum ?? 0;
   const maximumCount = current.card_selection_maximum ?? 0;
   const resolvedSelectedCount = selectedCount ?? minimumCount;
+  const selectedGroupIdSet = new Set(
+    Object.values(selectedGroups).flatMap((items) => items),
+  );
+  const groupSelectionsValid = !isGroupedStageChoice || choiceGroups.every((group) => {
+    const selected = selectedGroups[group.group_id] ?? [];
+    const minimum = group.minimum ?? 0;
+    const maximum = group.maximum ?? Math.max(minimum, group.candidate_card_instance_ids.length);
+    const candidates = new Set(group.candidate_card_instance_ids);
+    return (
+      selected.length >= minimum &&
+      selected.length <= maximum &&
+      selected.length === new Set(selected).size &&
+      selected.every((instanceId) => candidates.has(instanceId))
+    );
+  });
   return (
     <div className="effect-resolution">
       <div className="effect-resolution-header">
@@ -2160,6 +2203,63 @@ export function EffectResolutionAction({
           </span>
         </div>
       )}
+      {isGroupedStageChoice && choiceGroups.length > 0 && (
+        <div className="effect-grouped-choice">
+          {choiceGroups.map((group) => {
+            const selected = selectedGroups[group.group_id] ?? [];
+            const maximum = group.maximum ?? 1;
+            const excludedIds = new Set(
+              (group.exclude_group_ids ?? []).flatMap(
+                (groupId) => selectedGroups[groupId] ?? [],
+              ),
+            );
+            return (
+              <div className="effect-choice-group" key={group.group_id}>
+                <strong>{group.label_ja ?? group.group_id}</strong>
+                <div className="effect-candidates">
+                  {group.candidate_card_instance_ids.map((instanceId) => {
+                    const isSelected = selected.includes(instanceId);
+                    const disabled =
+                      excludedIds.has(instanceId) ||
+                      (!isSelected && selectedGroupIdSet.has(instanceId));
+                    const card = state.cards[instanceId];
+                    return (
+                      <button
+                        className={isSelected ? "selected" : ""}
+                        disabled={disabled}
+                        key={instanceId}
+                        type="button"
+                        onClick={() =>
+                          setSelectedGroups((currentGroups) => {
+                            const currentSelected = currentGroups[group.group_id] ?? [];
+                            const nextSelected = currentSelected.includes(instanceId)
+                              ? currentSelected.filter((item) => item !== instanceId)
+                              : maximum <= 1
+                                ? [instanceId]
+                                : currentSelected.length < maximum
+                                  ? [...currentSelected, instanceId]
+                                  : currentSelected;
+                            return {
+                              ...currentGroups,
+                              [group.group_id]: nextSelected,
+                            };
+                          })
+                        }
+                      >
+                        {card?.card.name_ja ?? instanceId}
+                      </button>
+                    );
+                  })}
+                  <span>
+                    {selected.length} / {maximum}
+                    {(group.minimum ?? 0) > 0 ? ` · min ${group.minimum}` : ""}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
       {requiresColor && (
         <div className="effect-candidates effect-color-choices">
           {colorSlots.map((colorSlot) => (
@@ -2234,7 +2334,8 @@ export function EffectResolutionAction({
                   && resolvedSelectedCount <= maximumCount,
                 requiresBranch,
                 Boolean(resolvedBranch),
-              )
+              ) ||
+              !groupSelectionsValid
             }
             onClick={() => {
               const payload: Record<string, unknown> = {
@@ -2243,6 +2344,9 @@ export function EffectResolutionAction({
                 selected_card_instance_ids: selectedCards,
                 energy_instance_ids: selectedEnergy,
               };
+              if (isGroupedStageChoice) {
+                payload.selected_card_instance_ids_by_group = selectedGroups;
+              }
               if (requiresColor) {
                 payload.selected_color_slot = selectedColor;
               }
