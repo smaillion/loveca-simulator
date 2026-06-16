@@ -33,6 +33,7 @@ import {
   getMatch,
   getRoom,
   getSavedDeck,
+  leaveRoom,
   joinRoom,
   listMatches,
   listSavedDecks,
@@ -237,6 +238,15 @@ export default function App() {
       window.clearInterval(id);
     };
   }, [onlineSession]);
+  useEffect(() => {
+    if (!onlineSession) return;
+    const session = onlineSession;
+    const leaveOnUnload = () => {
+      void leaveRoom(session.roomCode, session.playerToken, { keepalive: true }).catch(() => undefined);
+    };
+    window.addEventListener("beforeunload", leaveOnUnload);
+    return () => window.removeEventListener("beforeunload", leaveOnUnload);
+  }, [onlineSession]);
 
   const previewNotice = browserPreview && showPreviewNotice ? (
     <PreviewNotice
@@ -250,6 +260,23 @@ export default function App() {
   const usageGuide = showUsageGuide && !showPreviewNotice ? (
     <UsageGuideDialog locale={usageGuideLocale} onClose={() => setShowUsageGuide(false)} />
   ) : null;
+
+  async function returnToMatchList() {
+    const session = onlineSession;
+    try {
+      if (session) {
+        await leaveRoom(session.roomCode, session.playerToken);
+      }
+    } catch (reason) {
+      setOnlineStatus(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setMatch(null);
+      setOnlineSession(null);
+      setOnlineRoom(null);
+      setOnlineStatus(null);
+    }
+  }
+
   const renderShell = (content: ReactNode) => (
     <UiLanguageContext.Provider value={{ locale, setLocale }}>
       {content}
@@ -576,13 +603,14 @@ export default function App() {
           )}
           <button
             className="icon-button"
-            title={locale === "zh" ? "返回对局列表" : "対戦一覧へ戻る"}
-            onClick={() => {
-              setMatch(null);
-              setOnlineSession(null);
-              setOnlineRoom(null);
-              setOnlineStatus(null);
-            }}
+            title={onlineSession
+              ? locale === "zh"
+                ? "退出在线房间"
+                : "オンラインルームから退出"
+              : locale === "zh"
+                ? "返回对局列表"
+                : "対戦一覧へ戻る"}
+            onClick={() => void returnToMatchList()}
           >
             <X size={18} />
           </button>

@@ -452,5 +452,9 @@ export interface RoomPayload {
   created_at: string;
   updated_at: string;
   expires_at: string;
+  host_last_seen_at: string | null;
+  guest_last_seen_at: string | null;
+  closed_at: string | null;
+  close_reason: string | null;
   match: MatchPayload | null;
 }

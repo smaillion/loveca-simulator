@@ -260,6 +260,136 @@ def test_match_history_caps_results_at_100(tmp_path):
     assert overflow.json()["items"] == []
 
 
+def test_hosted_room_leave_expires_room_and_blocks_actions(tmp_path):
+    client = _client(tmp_path)
+    deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
+    created = client.post(
+        "/api/rooms",
+        json={"player_name": "Host", "deck": deck, "seed": 106},
+    ).json()
+    room_code = created["room_code"]
+    host_token = created["player_token"]
+
+    joined = client.post(
+        f"/api/rooms/{room_code}/join",
+        json={"player_name": "Guest", "deck": deck},
+    )
+    assert joined.status_code == 200
+
+    wrong_token = client.post(
+        f"/api/rooms/{room_code}/leave",
+        json={"player_token": "wrong"},
+    )
+    assert wrong_token.status_code == 403
+    assert _room_row(tmp_path, room_code)["status"] == "active"
+
+    left = client.post(
+        f"/api/rooms/{room_code}/leave",
+        json={"player_token": host_token},
+    )
+    assert left.status_code == 200
+    left_payload = left.json()
+    assert left_payload["status"] == "expired"
+    assert left_payload["close_reason"] == "player_left"
+    assert left_payload["closed_at"]
+
+    blocked = client.post(
+        f"/api/rooms/{room_code}/actions",
+        json={
+            "player_token": host_token,
+            "action": {
+                "action_type": "choose_first_player",
+                "expected_revision": 0,
+                "payload": {"first_player_id": "player_1"},
+            },
+        },
+    )
+    assert blocked.status_code == 409
+
+
+def test_hosted_room_polling_updates_presence_for_token_only(tmp_path):
+    client = _client(tmp_path)
+    deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
+    created = client.post(
+        "/api/rooms",
+        json={"player_name": "Host", "deck": deck, "seed": 106},
+    ).json()
+    room_code = created["room_code"]
+    host_token = created["player_token"]
+    client.post(
+        f"/api/rooms/{room_code}/join",
+        json={"player_name": "Guest", "deck": deck},
+    )
+    old_seen = "2000-01-01T00:00:00+00:00"
+    with sqlite3.connect(tmp_path / "matches.sqlite3") as connection:
+        connection.execute(
+            """
+            UPDATE hosted_rooms
+            SET host_last_seen_at = ?, updated_at = ?, expires_at = ?
+            WHERE room_code = ?
+            """,
+            (old_seen, old_seen, "2099-01-01T00:00:00+00:00", room_code),
+        )
+
+    hidden = client.get(f"/api/rooms/{room_code}")
+    assert hidden.status_code == 200
+    assert _room_row(tmp_path, room_code)["host_last_seen_at"] == old_seen
+
+    polled = client.get(f"/api/rooms/{room_code}?player_token={host_token}")
+    assert polled.status_code == 200
+    row = _room_row(tmp_path, room_code)
+    assert row["host_last_seen_at"] != old_seen
+    assert row["updated_at"] != old_seen
+
+
+def test_hosted_room_cleanup_expires_then_deletes_after_grace(tmp_path):
+    client = _client(tmp_path)
+    deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
+    created = client.post(
+        "/api/rooms",
+        json={"player_name": "Host", "deck": deck, "seed": 106},
+    ).json()
+    room_code = created["room_code"]
+    old_time = "2000-01-01T00:00:00+00:00"
+    with sqlite3.connect(tmp_path / "matches.sqlite3") as connection:
+        connection.execute(
+            """
+            UPDATE hosted_rooms
+            SET expires_at = ?
+            WHERE room_code = ?
+            """,
+            (old_time, room_code),
+        )
+
+    expired = client.post("/api/rooms/cleanup")
+    assert expired.status_code == 200
+    assert expired.json()["expired_count"] == 1
+    assert expired.json()["deleted_count"] == 0
+    assert _room_row(tmp_path, room_code)["status"] == "expired"
+
+    with sqlite3.connect(tmp_path / "matches.sqlite3") as connection:
+        connection.execute(
+            """
+            UPDATE hosted_rooms
+            SET closed_at = ?
+            WHERE room_code = ?
+            """,
+            (old_time, room_code),
+        )
+
+    deleted = client.post("/api/rooms/cleanup")
+    assert deleted.status_code == 200
+    assert deleted.json()["deleted_count"] == 1
+    with sqlite3.connect(tmp_path / "matches.sqlite3") as connection:
+        assert (
+            connection.execute(
+                "SELECT 1 FROM hosted_rooms WHERE room_code = ?",
+                (room_code,),
+            ).fetchone()
+            is None
+        )
+
+
 def test_api_rejects_stale_revision_without_mutation(tmp_path):
     client = _client(tmp_path)
     deck_path = str(SAMPLE_DECK.relative_to(PROJECT_ROOT))
@@ -444,3 +574,17 @@ def _insert_match_rows(runtime_path: Path, count: int) -> None:
                 """,
                 (f"match-{index:03d}", index, timestamp, timestamp),
             )
+
+
+def _room_row(tmp_path: Path, room_code: str) -> sqlite3.Row:
+    connection = sqlite3.connect(tmp_path / "matches.sqlite3")
+    connection.row_factory = sqlite3.Row
+    try:
+        row = connection.execute(
+            "SELECT * FROM hosted_rooms WHERE room_code = ?",
+            (room_code,),
+        ).fetchone()
+        assert row is not None
+        return row
+    finally:
+        connection.close()

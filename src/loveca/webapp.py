@@ -96,6 +96,10 @@ class RoomActionRequest(BaseModel):
     action: ActionRequest
 
 
+class LeaveRoomRequest(BaseModel):
+    player_token: str
+
+
 class ApiSettings(BaseModel):
     card_database_path: Path
     runtime_database_path: Path
@@ -106,6 +110,7 @@ class ApiSettings(BaseModel):
     effect_registry_path: Path = Field(default=DEFAULT_EFFECT_REGISTRY)
     allowed_origins: list[str] = Field(default_factory=list)
     room_ttl_hours: int = 24
+    room_delete_grace_hours: int = 1
 
 
 def default_settings() -> ApiSettings:
@@ -124,6 +129,9 @@ def default_settings() -> ApiSettings:
         ),
         allowed_origins=_parse_allowed_origins(os.environ.get("LOVECA_ALLOWED_ORIGINS", "")),
         room_ttl_hours=int(os.environ.get("LOVECA_ROOM_TTL_HOURS", "24")),
+        room_delete_grace_hours=int(
+            os.environ.get("LOVECA_ROOM_DELETE_GRACE_HOURS", "1")
+        ),
     )
 
 
@@ -152,6 +160,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         service,
         resolved.runtime_database_path,
         ttl_hours=resolved.room_ttl_hours,
+        delete_grace_hours=resolved.room_delete_grace_hours,
     )
 
     @app.get("/api/health")
@@ -252,6 +261,21 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         except (DeckFileError, MatchSetupError, RoomStateError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    @app.post("/api/rooms/{room_code}/leave")
+    def leave_room(room_code: str, request: LeaveRoomRequest) -> dict[str, Any]:
+        try:
+            room = app.state.room_service.leave_room(
+                room_code=room_code,
+                token=request.player_token,
+            )
+            return _room_payload(service, room, player_id=None)
+        except RoomNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except RoomTokenError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        except RoomError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     @app.post("/api/rooms/{room_code}/actions")
     def submit_room_action(room_code: str, request: RoomActionRequest) -> dict[str, Any]:
         try:
@@ -296,7 +320,11 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
 
     @app.post("/api/rooms/cleanup")
     def cleanup_rooms() -> dict[str, Any]:
-        return {"expired_count": app.state.room_service.cleanup_expired()}
+        summary = app.state.room_service.cleanup_expired()
+        return {
+            "expired_count": summary.expired_count,
+            "deleted_count": summary.deleted_count,
+        }
 
     @app.post("/api/matches/cleanup")
     def cleanup_matches(
@@ -654,6 +682,10 @@ def _room_payload(
         "created_at": room.created_at,
         "updated_at": room.updated_at,
         "expires_at": room.expires_at,
+        "host_last_seen_at": room.host_last_seen_at,
+        "guest_last_seen_at": room.guest_last_seen_at,
+        "closed_at": room.closed_at,
+        "close_reason": room.close_reason,
         "match": None,
     }
     if player_token is not None:

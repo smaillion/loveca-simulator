@@ -59,8 +59,8 @@ export function getRuntimeConfigSnapshot(): RuntimeConfig {
   return runtimeConfig;
 }
 
-export function resetRuntimeConfigForTests(): void {
-  runtimeConfig = fallbackRuntimeConfig;
+export function resetRuntimeConfigForTests(config: RuntimeConfig = fallbackRuntimeConfig): void {
+  runtimeConfig = config;
   runtimeConfigPromise = null;
 }
 
@@ -265,6 +265,21 @@ export function getRoom(roomCode: string, playerToken: string): Promise<RoomPayl
   }
   const params = new URLSearchParams({ player_token: playerToken });
   return request(`/api/rooms/${encodeURIComponent(roomCode)}?${params.toString()}`);
+}
+
+export function leaveRoom(
+  roomCode: string,
+  playerToken: string,
+  init?: Pick<RequestInit, "keepalive">,
+): Promise<RoomPayload> {
+  if (!runtimeConfig.apiBaseUrl) {
+    return Promise.reject(new Error("Hosted API base URL is not configured."));
+  }
+  return request(`/api/rooms/${encodeURIComponent(roomCode)}/leave`, {
+    method: "POST",
+    keepalive: init?.keepalive,
+    body: JSON.stringify({ player_token: playerToken }),
+  });
 }
 
 export function submitRoomAction(

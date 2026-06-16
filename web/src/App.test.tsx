@@ -240,6 +240,26 @@ const MATCH_PAYLOAD = {
   legal_actions: [],
 };
 
+function roomPayload(status: "waiting_for_guest" | "active" | "expired") {
+  return {
+    room_code: "ABC123",
+    status,
+    player_id: "player_1",
+    player_token: "host-token",
+    match_id: status === "active" ? "match-1" : null,
+    host_name: "Host",
+    guest_name: status === "active" ? "Guest" : null,
+    created_at: "2026-06-17T00:00:00+00:00",
+    updated_at: "2026-06-17T00:00:00+00:00",
+    expires_at: "2026-06-18T00:00:00+00:00",
+    host_last_seen_at: "2026-06-17T00:00:00+00:00",
+    guest_last_seen_at: status === "active" ? "2026-06-17T00:00:00+00:00" : null,
+    closed_at: status === "expired" ? "2026-06-17T00:01:00+00:00" : null,
+    close_reason: status === "expired" ? "player_left" : null,
+    match: status === "active" ? MATCH_PAYLOAD : null,
+  };
+}
+
 const INSPECTION_CARDS = {
   "player_1-M001": {
     instance_id: "player_1-M001",
@@ -456,6 +476,10 @@ function createFetchMock(overrides: {
   matches?: unknown;
   savedDecks?: unknown;
   matchCreate?: unknown;
+  runtimeConfig?: unknown;
+  roomCreate?: unknown;
+  roomPoll?: unknown;
+  roomLeave?: unknown;
   catalogCards?: unknown;
   catalogDetail?: unknown;
   catalogFacets?: unknown;
@@ -463,11 +487,11 @@ function createFetchMock(overrides: {
   deckAnalysis?: unknown;
   savedDeckGet?: unknown;
   deckSaveResponse?: unknown;
-  runtimeConfig?: unknown;
 }) {
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = input.toString();
     const parsedUrl = new URL(url, "http://localhost");
+    const path = `${parsedUrl.pathname}${parsedUrl.search}`;
     const method = init?.method ?? "GET";
     if (url === "runtime-config.json" && method === "GET") {
       return jsonResponse(
@@ -479,13 +503,22 @@ function createFetchMock(overrides: {
         },
       );
     }
-    if (parsedUrl.pathname === "/api/matches" && method === "GET") {
+    if (path === "/api/matches" && method === "GET") {
       return jsonResponse(overrides.matches ?? []);
     }
-    if (parsedUrl.pathname === "/api/matches" && method === "POST") {
+    if (path === "/api/matches" && method === "POST") {
       return jsonResponse(overrides.matchCreate ?? MATCH_PAYLOAD);
     }
-    if (url === "/api/decks" && method === "GET") {
+    if (path === "/api/rooms" && method === "POST") {
+      return jsonResponse(overrides.roomCreate ?? roomPayload("waiting_for_guest"));
+    }
+    if (path.startsWith("/api/rooms/") && path.includes("/leave") && method === "POST") {
+      return jsonResponse(overrides.roomLeave ?? roomPayload("expired"));
+    }
+    if (path.startsWith("/api/rooms/") && method === "GET") {
+      return jsonResponse(overrides.roomPoll ?? roomPayload("active"));
+    }
+    if (path === "/api/decks" && method === "GET") {
       return jsonResponse(
         overrides.savedDecks ?? [
           {
@@ -498,10 +531,10 @@ function createFetchMock(overrides: {
         ],
       );
     }
-    if (url === "/api/decks/analyze" && method === "POST") {
+    if (path === "/api/decks/analyze" && method === "POST") {
       return jsonResponse(overrides.deckAnalysis ?? ANALYSIS_RESPONSE);
     }
-    if (url === "/api/decks" && method === "POST") {
+    if (path === "/api/decks" && method === "POST") {
       return jsonResponse(
         overrides.deckSaveResponse ?? {
           path: "data/decks/test.json",
@@ -520,7 +553,7 @@ function createFetchMock(overrides: {
         },
       );
     }
-    if (url.startsWith("/api/decks/")) {
+    if (path.startsWith("/api/decks/")) {
       if (method === "GET") {
         return jsonResponse(overrides.savedDeckGet ?? SAMPLE_DECK);
       }
@@ -528,7 +561,7 @@ function createFetchMock(overrides: {
         return jsonResponse({ status: "ok", path: "data/decks/test.json", deck: SAMPLE_DECK });
       }
     }
-    if (url.startsWith("/api/catalog/facets")) {
+    if (path.startsWith("/api/catalog/facets")) {
       return jsonResponse(
         overrides.catalogFacets ?? {
           works: [{ work_key: "love_live", canonical_name_ja: "ラブライブ！" }],
@@ -536,10 +569,10 @@ function createFetchMock(overrides: {
         },
       );
     }
-    if (url.startsWith("/api/catalog/cards/")) {
+    if (path.startsWith("/api/catalog/cards/")) {
       return jsonResponse(overrides.catalogDetail ?? CATALOG_DETAIL);
     }
-    if (url.startsWith("/api/catalog/cards?")) {
+    if (path.startsWith("/api/catalog/cards?")) {
       return jsonResponse(
         overrides.catalogCards ?? {
           items: [CATALOG_SUMMARY],
@@ -549,7 +582,7 @@ function createFetchMock(overrides: {
         },
       );
     }
-    if (url.startsWith("/api/catalog/review-candidates")) {
+    if (path.startsWith("/api/catalog/review-candidates")) {
       return jsonResponse(
         overrides.reviewCandidates ?? { items: [], total: 0, limit: 100, offset: 0 },
       );
@@ -744,6 +777,72 @@ describe("App", () => {
     await waitFor(() => expect(screen.getAllByText("自分の手札").length).toBeGreaterThan(0));
     expect(screen.queryByText("相手の秘密手札")).not.toBeInTheDocument();
     expect(screen.getByLabelText("隐藏的对手手牌")).toBeInTheDocument();
+  });
+
+  it("leaves the hosted room before returning from an online match", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const fetchMock = createFetchMock({
+      runtimeConfig: {
+        mode: "release",
+        browserPreview: false,
+        apiBaseUrl: "https://api.test",
+        cardDatabaseFingerprint: "test",
+      },
+      roomCreate: roomPayload("active"),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByText("在线房间 Preview")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "房间创建" }));
+
+    await waitFor(() => expect(screen.getByText("LoveCA 规则验证器")).toBeInTheDocument());
+    fireEvent.click(screen.getByTitle("退出在线房间"));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://api.test/api/rooms/ABC123/leave",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ player_token: "host-token" }),
+        }),
+      ),
+    );
+  });
+
+  it("sends a keepalive hosted-room leave request on page unload", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const fetchMock = createFetchMock({
+      runtimeConfig: {
+        mode: "release",
+        browserPreview: false,
+        apiBaseUrl: "https://api.test",
+        cardDatabaseFingerprint: "test",
+      },
+      roomCreate: roomPayload("active"),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const addEventListenerSpy = vi.spyOn(window, "addEventListener");
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByText("在线房间 Preview")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "房间创建" }));
+    await waitFor(() => expect(screen.getByText("LoveCA 规则验证器")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(addEventListenerSpy).toHaveBeenCalledWith("beforeunload", expect.any(Function)),
+    );
+
+    window.dispatchEvent(new Event("beforeunload"));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://api.test/api/rooms/ABC123/leave",
+        expect.objectContaining({
+          method: "POST",
+          keepalive: true,
+        }),
+      ),
+    );
   });
 
   it("switches the operational UI to Japanese and persists the choice", async () => {
