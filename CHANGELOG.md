@@ -8,6 +8,11 @@
 - `scripts/export-preview-data.py` を追加し、ローカル SQLite カード DB から browser preview 用の静的 JSON data package を生成できるようにした。preview package は解析済みカード / skill data と公式画像 URL 参照のみを含み、カード画像ファイルは同梱しない。
 - `VITE_BROWSER_PREVIEW=true` で catalog / facets / card detail を `preview-data/*.json` から読む browser catalog adapter を追加し、GitHub Pages 上でカードカタログを閲覧できるようにした。
 - `VITE_BROWSER_PREVIEW=true` で deck 保存 / 読み込み / 更新 / リネーム / 削除を browser localStorage に保存し、MVP deck 分析を TypeScript adapter で実行できるようにした。
+- Pages preview workflow に公式カード DB / import artifact の GitHub Actions cache を追加し、通常の publish で毎回公式サイトから全量再取得しないようにした。
+- 専用 `preview` ブランチで `data/loveca.sqlite3` をコミットし、GitHub Pages はその SQLite から静的 preview data を生成する運用に変更。
+- Browser preview の初回起動時に、できること / できないことを説明する案内ダイアログを追加。
+- Browser preview の初回起動時に 20 個の generated sample deck を localStorage に作成するようにした。
+- Deck Builder に decklist.v0 JSON の import / export を追加。
 - Browser-only preview の設計文書を追加し、IndexedDB / localStorage、deck import/export、play history export、public data policy の境界を整理。
 - effect registry を 925 件に拡張し、同文の top-deck reorder、Live-success reorder、起動 self-Wait / ready-other Member pattern を追加。
 - `test_validated_executable` effect を 466 件まで拡張し、registry entry ベースの coverage が 50.38% に到達。
@@ -55,6 +60,12 @@
 - `ライブ成功時` の効果 trigger 境界を追加し、成功 Live 移動後に replay-safe な pending / auto resolve を行えるようにした。
 - 効果による Heart 獲得、score 変更、Energy の Active / Wait 変更を構造化 operation として追加。
 - 処理できない pending effect をデバッグ用に `skip_effect` で飛ばし、replay-safe な `effect_skipped_due_to_error` event として記録できるようにした。
+- Hosted Online MVP の準備として FastAPI backend 用 `Dockerfile`、`compose.api.yml`、`.dockerignore` を追加。
+- API Docker image を GHCR に build / push する GitHub Actions workflow を追加。
+- Hosted Online MVP の room API を追加し、room code による host / guest 参加、HTTP polling、remote Action submit、room replay、TTL cleanup に対応。
+- GitHub Pages preview が `VITE_HOSTED_API_BASE_URL` を受け取り、Hosted FastAPI に接続できるようにした。
+- VPS / Cloudflare Tunnel 運用向けに、GHCR image を build / push して SSH で compose service を更新する手動 deploy workflow を追加。
+- Hosted Online MVP の merge / deploy 前チェックとして、API、Docker、二ブラウザ、VPS / Cloudflare Tunnel の smoke checklist を追加。
 
 中文:
 
@@ -62,6 +73,11 @@
 - 新增 `scripts/export-preview-data.py`，可从本地 SQLite 卡牌库导出 browser preview 用静态 JSON 数据包。preview package 只包含解析后的卡牌 / 技能数据和官方图片 URL 引用，不打包卡图文件。
 - 新增 `VITE_BROWSER_PREVIEW=true` 下的 browser catalog adapter，从 `preview-data/*.json` 读取 catalog / facets / card detail，使 GitHub Pages 上可以浏览卡库。
 - 新增 `VITE_BROWSER_PREVIEW=true` 下的 browser deck library，将牌组保存 / 读取 / 更新 / 重命名 / 删除写入 localStorage，并用 TypeScript adapter 执行 MVP deck 分析。
+- 为 Pages preview workflow 增加官方卡牌 DB / import artifact 的 GitHub Actions cache，避免普通发布每次都从官网全量重抓。
+- 改为使用专用 `preview` 分支提交 `data/loveca.sqlite3`，GitHub Pages 从该 SQLite 生成静态 preview data。
+- Browser preview 首次打开时新增说明弹窗，展示当前能做和不能做的功能边界。
+- Browser preview 首次启动时会在 localStorage 中生成 20 个 generated sample deck。
+- Deck Builder 增加 decklist.v0 JSON 导入 / 导出。
 - 新增 Browser-only preview 设计文档，整理 IndexedDB / localStorage、牌组导入导出、游玩履历导出和 public data policy 边界。
 - 将 effect registry 扩展到 925 条，新增同文 top-deck reorder、Live 成功 reorder、起动 self-Wait / ready-other Member 模式。
 - 将 `test_validated_executable` 技能扩展到 466 条，按 registry entry 计算达到 50.38% 覆盖率。
@@ -109,6 +125,12 @@
 - 新增 `ライブ成功時` 技能触发边界，成功 Live 移动后可进行可回放的 pending / 自动结算。
 - 将技能产生的 Heart 获得、score 修改、Energy Active / Wait 改变建模为结构化 operation。
 - 新增调试用 `skip_effect`，无法处理的 pending effect 可被跳过并生成 replay-safe 的 `effect_skipped_due_to_error` event。
+- 为 Hosted Online MVP 准备新增 FastAPI backend 用 `Dockerfile`、`compose.api.yml` 和 `.dockerignore`。
+- 新增 GitHub Actions workflow，用于构建 API Docker image 并推送到 GHCR。
+- 新增 Hosted Online MVP 的 room API，支持 room code 创建 / 加入、HTTP polling、远程提交 Action、room replay 和 TTL cleanup。
+- GitHub Pages preview 现在可以读取 `VITE_HOSTED_API_BASE_URL`，连接 Hosted FastAPI。
+- 面向 VPS / Cloudflare Tunnel 运行方式，新增手动 deploy workflow，可构建 / 推送 GHCR image 并通过 SSH 更新 compose service。
+- 新增 Hosted Online MVP 合并 / 部署前 smoke checklist，覆盖 API、Docker、双浏览器、VPS / Cloudflare Tunnel 检查。
 
 ### 変更 / 变更
 
@@ -116,6 +138,7 @@
 - 効果 execution MVP spec を現在の Phase 5 実装状態に合わせて更新。
 - Phase 8 AI の優先度を下げ、Phase 9 / 10 の低コスト online 検証を早期並行 track として roadmap に反映。
 - 分岐選択効果の UI を二段式に更新し、初回は `selected_branch` を、後続処理では分岐ごとの選択カードを送信するようにした。
+- FastAPI に `LOVECA_ALLOWED_ORIGINS` ベースの CORS 設定を追加し、GitHub Pages SPA から Hosted API へ接続しやすくした。
 
 中文:
 
@@ -123,6 +146,7 @@
 - 更新 Effect Execution MVP spec，使其符合当前 Phase 5 实装状态。
 - 下调 Phase 8 AI 优先级，并将 Phase 9 / 10 低成本 online 验证写成提前并行路线。
 - 将分支选择技能 UI 改为两段式，第一次提交 `selected_branch`，后续再提交该分支需要的选卡。
+- FastAPI 增加基于 `LOVECA_ALLOWED_ORIGINS` 的 CORS 配置，方便 GitHub Pages SPA 连接 Hosted API。
 
 ### 修正 / 修复
 

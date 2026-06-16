@@ -15,14 +15,23 @@ import {
   Swords,
   X,
 } from "lucide-react";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import {
   createMatch,
+  createRoom,
+  cardImageUrl,
+  getRuntimeConfigSnapshot,
   getMatch,
+  getRoom,
   getSavedDeck,
+  joinRoom,
   listMatches,
   listSavedDecks,
+  loadRuntimeConfig,
+  matchReplayUrl,
+  roomReplayUrl,
   submitAction,
+  submitRoomAction,
 } from "./api";
 import { CatalogBrowser } from "./catalog-browser";
 import { DeckBuilder } from "./deck-builder";
@@ -37,6 +46,7 @@ import type {
   SavedDeckSummary,
   PlayerState,
   EffectInvocation,
+  RoomPayload,
 } from "./types";
 
 const phaseLabels: Record<string, [string, string]> = {
@@ -76,6 +86,12 @@ const UiLanguageContext = createContext<{
   setLocale: (locale: UiLocale) => void;
 }>({ locale: "zh", setLocale: () => undefined });
 
+type OnlineSession = {
+  roomCode: string;
+  playerId: "player_1" | "player_2";
+  playerToken: string;
+};
+
 const heartLabels: Record<UiLocale, Record<string, string>> = {
   zh: {
     heart0: "任意色",
@@ -105,9 +121,13 @@ const judgmentBasisLabels: Record<string, [string, string]> = {
 };
 
 export default function App() {
+  const [runtimeConfig, setRuntimeConfig] = useState(getRuntimeConfigSnapshot);
+  const browserPreview = runtimeConfig.browserPreview;
+  const hostedOnline = runtimeConfig.apiBaseUrl.length > 0;
   const [locale, setLocale] = useState<UiLocale>(() => {
     const stored = localStorage.getItem("loveca-ui-locale");
-    return stored === "ja" ? "ja" : "zh";
+    if (stored === "ja" || stored === "zh") return stored;
+    return getRuntimeConfigSnapshot().browserPreview ? "ja" : "zh";
   });
   const [screen, setScreen] = useState<"home" | "match" | "catalog" | "decks">("home");
   const [match, setMatch] = useState<MatchPayload | null>(null);
@@ -119,15 +139,81 @@ export default function App() {
   const [details, setDetails] = useState<CardInstance | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualSource, setManualSource] = useState<EffectInvocation | null>(null);
+  const [showPreviewNotice, setShowPreviewNotice] = useState(browserPreview);
+  const [onlineSession, setOnlineSession] = useState<OnlineSession | null>(null);
+  const [onlineRoom, setOnlineRoom] = useState<RoomPayload | null>(null);
+  const [onlineStatus, setOnlineStatus] = useState<string | null>(null);
 
   useEffect(() => {
-    listMatches().then(setMatches).catch(() => setMatches([]));
-    listSavedDecks().then(setSavedDecks).catch(() => setSavedDecks([]));
+    let disposed = false;
+    loadRuntimeConfig()
+      .then((config) => {
+        if (disposed) return;
+        setRuntimeConfig(config);
+        setShowPreviewNotice(config.browserPreview);
+        listMatches().then(setMatches).catch(() => setMatches([]));
+        listSavedDecks().then(setSavedDecks).catch(() => setSavedDecks([]));
+      })
+      .catch(() => {
+        if (disposed) return;
+        listMatches().then(setMatches).catch(() => setMatches([]));
+        listSavedDecks().then(setSavedDecks).catch(() => setSavedDecks([]));
+      });
+    return () => {
+      disposed = true;
+    };
   }, []);
   useEffect(() => {
     localStorage.setItem("loveca-ui-locale", locale);
     document.documentElement.lang = locale === "ja" ? "ja" : "zh-CN";
   }, [locale]);
+  useEffect(() => {
+    if (!onlineSession) return;
+    let disposed = false;
+    const poll = async () => {
+      try {
+        const room = await getRoom(onlineSession.roomCode, onlineSession.playerToken);
+        if (disposed) return;
+        setOnlineRoom(room);
+        setOnlineStatus(null);
+        if (room.match) {
+          setMatch((current) => ({
+            ...room.match!,
+            events: current?.state.match_id === room.match!.state.match_id
+              ? mergeEvents(current.events, room.match!.events)
+              : room.match!.events,
+          }));
+          setScreen("match");
+        }
+      } catch (reason) {
+        if (!disposed) {
+          setOnlineStatus(reason instanceof Error ? reason.message : String(reason));
+        }
+      }
+    };
+    void poll();
+    const id = window.setInterval(() => void poll(), 2000);
+    return () => {
+      disposed = true;
+      window.clearInterval(id);
+    };
+  }, [onlineSession]);
+
+  const previewNotice = browserPreview && showPreviewNotice ? (
+    <PreviewNotice
+      locale={locale}
+      hostedOnline={hostedOnline}
+      onClose={() => {
+        setShowPreviewNotice(false);
+      }}
+    />
+  ) : null;
+  const renderShell = (content: ReactNode) => (
+    <UiLanguageContext.Provider value={{ locale, setLocale }}>
+      {content}
+      {previewNotice}
+    </UiLanguageContext.Provider>
+  );
 
   const deckSources = useMemo<StartDeckSource[]>(() => {
     const sources: StartDeckSource[] = [];
@@ -174,12 +260,19 @@ export default function App() {
     if (!match) return;
     await run(
       () =>
-        submitAction(match.state.match_id, {
-          action_type: actionType,
-          expected_revision: match.state.revision,
-          player_id: playerId,
-          payload,
-        }),
+        onlineSession
+          ? submitRoomAction(onlineSession.roomCode, onlineSession.playerToken, {
+            action_type: actionType,
+            expected_revision: match.state.revision,
+            player_id: playerId,
+            payload,
+          })
+          : submitAction(match.state.match_id, {
+            action_type: actionType,
+            expected_revision: match.state.revision,
+            player_id: playerId,
+            payload,
+          }),
       (next) =>
         setMatch({
           ...next,
@@ -203,19 +296,16 @@ export default function App() {
 
   if (!match) {
     if (screen === "catalog") {
-      return (
-        <UiLanguageContext.Provider value={{ locale, setLocale }}>
+      return renderShell(
           <CatalogBrowser
             locale={locale}
             setLocale={setLocale}
             onBack={() => setScreen("home")}
-          />
-        </UiLanguageContext.Provider>
+          />,
       );
     }
     if (screen === "decks") {
-      return (
-        <UiLanguageContext.Provider value={{ locale, setLocale }}>
+      return renderShell(
           <DeckBuilder
             locale={locale}
             setLocale={setLocale}
@@ -228,19 +318,76 @@ export default function App() {
               setMatch(null);
               setScreen("home");
             }}
-          />
-        </UiLanguageContext.Provider>
+          />,
       );
     }
-    return (
-      <UiLanguageContext.Provider value={{ locale, setLocale }}>
+    return renderShell(
         <StartScreen
           matches={matches}
           deckSources={deckSources}
           loading={loading}
           error={error}
+          browserPreview={browserPreview}
+          hostedOnline={hostedOnline}
+          matchCreationDisabled={browserPreview}
+          matchCreationDisabledMessage={locale === "zh"
+            ? "浏览器 Preview 版暂不包含本地规则引擎。请使用本地版启动对战，或连接 Hosted FastAPI 创建在线测试房间。"
+            : "ブラウザ Preview 版にはローカルルールエンジンが含まれていません。ローカル版で対戦を開始するか、Hosted FastAPI に接続してオンライン検証ルームを作成してください。"}
           onBrowse={() => setScreen("catalog")}
           onDeckBuilder={() => setScreen("decks")}
+          onlineAvailable={hostedOnline}
+          onlineRoom={onlineRoom}
+          onlineStatus={onlineStatus}
+          onCreateOnlineRoom={async (input) => {
+            await run(
+              async () =>
+                createRoom({
+                  playerName: input.playerName,
+                  deck: await resolveDeckSource(input.deckSourceId),
+                  seed: input.seed,
+                }),
+              (room) => {
+                if (!room.player_token || room.player_id !== "player_1") {
+                  throw new Error("online room response did not include a host token");
+                }
+                setOnlineSession({
+                  roomCode: room.room_code,
+                  playerId: room.player_id,
+                  playerToken: room.player_token,
+                });
+                setOnlineRoom(room);
+                if (room.match) {
+                  setMatch(room.match);
+                  setScreen("match");
+                }
+              },
+            );
+          }}
+          onJoinOnlineRoom={async (input) => {
+            await run(
+              async () =>
+                joinRoom({
+                  roomCode: input.roomCode,
+                  playerName: input.playerName,
+                  deck: await resolveDeckSource(input.deckSourceId),
+                }),
+              (room) => {
+                if (!room.player_token || room.player_id !== "player_2") {
+                  throw new Error("online room response did not include a guest token");
+                }
+                setOnlineSession({
+                  roomCode: room.room_code,
+                  playerId: room.player_id,
+                  playerToken: room.player_token,
+                });
+                setOnlineRoom(room);
+                if (room.match) {
+                  setMatch(room.match);
+                  setScreen("match");
+                }
+              },
+            );
+          }}
           onCreate={async (input) => {
             await run(
               async () =>
@@ -263,25 +410,21 @@ export default function App() {
               setScreen("match");
             })
           }
-        />
-      </UiLanguageContext.Provider>
+        />,
     );
   }
 
   if (screen === "catalog") {
-    return (
-      <UiLanguageContext.Provider value={{ locale, setLocale }}>
+    return renderShell(
         <CatalogBrowser
           locale={locale}
           setLocale={setLocale}
           onBack={() => setScreen("match")}
-        />
-      </UiLanguageContext.Provider>
+        />,
     );
   }
   if (screen === "decks") {
-    return (
-        <UiLanguageContext.Provider value={{ locale, setLocale }}>
+    return renderShell(
           <DeckBuilder
             locale={locale}
             setLocale={setLocale}
@@ -291,13 +434,11 @@ export default function App() {
               setMatch(null);
               setScreen("home");
             }}
-          />
-        </UiLanguageContext.Provider>
+          />,
       );
   }
 
-  return (
-    <UiLanguageContext.Provider value={{ locale, setLocale }}>
+  return renderShell(
     <div className="app-shell">
       <header className="topbar">
         <div className="brand-lockup">
@@ -308,6 +449,7 @@ export default function App() {
           </div>
         </div>
         <div className="phase-status">
+          {onlineSession && <span className="turn-number">Room {onlineSession.roomCode}</span>}
           <span className="turn-number">
             {locale === "zh" ? `第 ${match.state.turn_number} 回合` : `ターン ${match.state.turn_number}`}
           </span>
@@ -333,17 +475,40 @@ export default function App() {
           >
             <ClipboardList size={18} />
           </button>
-          <a
-            className="icon-button"
-            href={`/api/matches/${match.state.match_id}/replay`}
-            title={locale === "zh" ? "导出 Replay JSON" : "リプレイ JSON を出力"}
-          >
-            <Download size={18} />
-          </a>
+          {onlineSession ? (
+            <a
+              className="icon-button"
+              href={roomReplayUrl(onlineSession.roomCode, onlineSession.playerToken)}
+              title={locale === "zh" ? "导出在线 Replay JSON" : "オンラインリプレイ JSON を出力"}
+            >
+              <Download size={18} />
+            </a>
+          ) : browserPreview ? (
+            <button
+              className="icon-button"
+              disabled
+              title={locale === "zh" ? "Preview demo 不支持 Replay 导出" : "Preview デモではリプレイ出力は未対応"}
+            >
+              <Download size={18} />
+            </button>
+          ) : (
+            <a
+              className="icon-button"
+              href={matchReplayUrl(match.state.match_id)}
+              title={locale === "zh" ? "导出 Replay JSON" : "リプレイ JSON を出力"}
+            >
+              <Download size={18} />
+            </a>
+          )}
           <button
             className="icon-button"
             title={locale === "zh" ? "返回对局列表" : "対戦一覧へ戻る"}
-            onClick={() => setMatch(null)}
+            onClick={() => {
+              setMatch(null);
+              setOnlineSession(null);
+              setOnlineRoom(null);
+              setOnlineStatus(null);
+            }}
           >
             <X size={18} />
           </button>
@@ -415,8 +580,7 @@ export default function App() {
           }}
         />
       )}
-    </div>
-    </UiLanguageContext.Provider>
+    </div>,
   );
 }
 
@@ -426,6 +590,84 @@ function useUiLanguage() {
     ...context,
     tr: (zh: string, ja: string) => (context.locale === "zh" ? zh : ja),
   };
+}
+
+function mergeEvents(existing: GameEvent[], incoming: GameEvent[]): GameEvent[] {
+  if (incoming.length <= existing.length) return existing;
+  return [...existing, ...incoming.slice(existing.length)];
+}
+
+function PreviewNotice({
+  locale,
+  hostedOnline,
+  onClose,
+}: {
+  locale: UiLocale;
+  hostedOnline: boolean;
+  onClose: () => void;
+}) {
+  return (
+    <div className="preview-notice-backdrop" role="dialog" aria-modal="true">
+      <section className="preview-notice">
+        <div className="preview-notice-header">
+          <strong>{locale === "zh" ? "浏览器 Preview 版" : "ブラウザ Preview 版"}</strong>
+          <button
+            className="mini-icon"
+            onClick={onClose}
+            aria-label={locale === "zh" ? "关闭" : "閉じる"}
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="preview-notice-grid">
+          <section>
+            <h3>{locale === "zh" ? "当前可以做" : "現在できること"}</h3>
+            <ul>
+              <li>{locale === "zh" ? "浏览已打包的卡库数据" : "同梱済みカードデータの閲覧"}</li>
+              <li>{locale === "zh" ? "查看卡牌详情和官方图片链接" : "カード詳細と公式画像 URL の確認"}</li>
+              <li>{locale === "zh" ? "在浏览器本地保存牌组" : "ブラウザローカルでデッキ保存"}</li>
+              <li>{locale === "zh" ? "查看 20 个初始测试牌组" : "20個の初期テストデッキの確認"}</li>
+              <li>{locale === "zh" ? "导入 / 导出 decklist.v0 JSON" : "decklist.v0 JSON の読み込み / 書き出し"}</li>
+              <li>{locale === "zh" ? "进行 MVP 牌组合法性和属性分析" : "MVP デッキ合法性 / 属性分析"}</li>
+            </ul>
+          </section>
+          <section>
+            <h3>{locale === "zh" ? "当前还不能做" : "まだできないこと"}</h3>
+            <ul>
+              <li>
+                {hostedOnline
+                  ? locale === "zh"
+                    ? "浏览器内纯本地对战引擎"
+                    : "ブラウザ内だけで動くローカル対戦エンジン"
+                  : locale === "zh"
+                    ? "浏览器内完整对战验证"
+                    : "ブラウザ内の完全な対戦検証"}
+              </li>
+              <li>
+                {hostedOnline
+                  ? locale === "zh"
+                    ? "WebSocket、房间列表、账号和长期保存"
+                    : "WebSocket、ルーム一覧、アカウント、長期保存"
+                  : locale === "zh"
+                    ? "在线双人对战"
+                    : "オンライン二人対戦"}
+              </li>
+              <li>{locale === "zh" ? "完整技能自动化" : "全スキル自動化"}</li>
+              <li>{locale === "zh" ? "云端账号、同步或防作弊" : "クラウドアカウント、同期、不正対策"}</li>
+            </ul>
+          </section>
+        </div>
+        <p>
+          {locale === "zh"
+            ? "数据保存在当前浏览器中。这个 preview 分支用于稳定公开体验，开发中的规则引擎仍会在 develop 上继续快速迭代。"
+            : "データはこのブラウザ内に保存されます。この preview ブランチは公開体験を安定させるためのもので、開発中のルールエンジンは develop で継続して更新されます。"}
+        </p>
+        <button className="primary-button" onClick={onClose}>
+          {locale === "zh" ? "开始使用" : "始める"}
+        </button>
+      </section>
+    </div>
+  );
 }
 
 function LanguageToggle() {
@@ -447,8 +689,17 @@ function StartScreen({
   deckSources,
   loading,
   error,
+  browserPreview,
+  hostedOnline,
+  matchCreationDisabled,
+  matchCreationDisabledMessage,
   onBrowse,
   onDeckBuilder,
+  onlineAvailable,
+  onlineRoom,
+  onlineStatus,
+  onCreateOnlineRoom,
+  onJoinOnlineRoom,
   onCreate,
   onResume,
 }: {
@@ -456,8 +707,25 @@ function StartScreen({
   deckSources: StartDeckSource[];
   loading: boolean;
   error: string | null;
+  browserPreview: boolean;
+  hostedOnline: boolean;
+  matchCreationDisabled: boolean;
+  matchCreationDisabledMessage: string;
   onBrowse: () => void;
   onDeckBuilder: () => void;
+  onlineAvailable: boolean;
+  onlineRoom: RoomPayload | null;
+  onlineStatus: string | null;
+  onCreateOnlineRoom: (input: {
+    playerName: string;
+    deckSourceId: string;
+    seed?: number;
+  }) => void | Promise<void>;
+  onJoinOnlineRoom: (input: {
+    roomCode: string;
+    playerName: string;
+    deckSourceId: string;
+  }) => void | Promise<void>;
   onCreate: (input: {
     player1Name: string;
     player1SourceId: string;
@@ -470,9 +738,12 @@ function StartScreen({
   const { tr } = useUiLanguage();
   const [player1Name, setPlayer1Name] = useState("Player 1");
   const [player2Name, setPlayer2Name] = useState("Player 2");
+  const [onlinePlayerName, setOnlinePlayerName] = useState("Online Player");
   const [seed, setSeed] = useState("");
+  const [roomCode, setRoomCode] = useState("");
   const [player1SourceId, setPlayer1SourceId] = useState("");
   const [player2SourceId, setPlayer2SourceId] = useState("");
+  const [onlineSourceId, setOnlineSourceId] = useState("");
 
   useEffect(() => {
     if (deckSources.length === 0) {
@@ -484,6 +755,9 @@ function StartScreen({
       deckSources.some((item) => item.id === current) ? current : deckSources[0].id,
     );
     setPlayer2SourceId((current) =>
+      deckSources.some((item) => item.id === current) ? current : deckSources[0].id,
+    );
+    setOnlineSourceId((current) =>
       deckSources.some((item) => item.id === current) ? current : deckSources[0].id,
     );
   }, [deckSources]);
@@ -503,7 +777,9 @@ function StartScreen({
         </div>
         <div className="start-actions">
           <LanguageToggle />
-          <span className="local-badge">127.0.0.1 · Local</span>
+          <span className="local-badge">
+            {browserPreview ? "GitHub Pages · Preview" : "127.0.0.1 · Local"}
+          </span>
         </div>
       </header>
       <main className="start-grid">
@@ -512,10 +788,22 @@ function StartScreen({
             <CirclePlay size={20} />
             <div>
               <h1>{tr("创建规则验证对局", "ルール検証対戦を作成")}</h1>
-              <p>{tr(
-                "选择双方牌组来源，运行完整对局并保留 Replay。",
-                "両プレイヤーのデッキを選択して対戦を開始し、リプレイを保存します。",
-              )}</p>
+              <p>
+                {browserPreview
+                  ? hostedOnline
+                    ? tr(
+                      "Preview 版可编辑牌组，并可连接 Hosted FastAPI 创建在线测试房间。",
+                      "Preview 版ではデッキ編集に加え、Hosted FastAPI に接続してオンライン検証ルームを作成できます。",
+                    )
+                    : tr(
+                      "Preview 版可编辑和分析牌组；对战需要本地规则引擎。",
+                      "Preview 版ではデッキ編集と分析が利用できます。対戦にはローカルルールエンジンが必要です。",
+                    )
+                  : tr(
+                    "选择双方牌组来源，运行完整对局并保留 Replay。",
+                    "両プレイヤーのデッキを選択して対戦を開始し、リプレイを保存します。",
+                  )}
+              </p>
             </div>
           </div>
           <div className="form-grid">
@@ -582,9 +870,12 @@ function StartScreen({
             </div>
           </div>
           {error && <div className="error-banner">{error}</div>}
+          {matchCreationDisabled && (
+            <div className="info-banner">{matchCreationDisabledMessage}</div>
+          )}
           <button
             className="primary-button"
-            disabled={loading || !player1SourceId || !player2SourceId}
+            disabled={matchCreationDisabled || loading || !player1SourceId || !player2SourceId}
             onClick={() =>
               onCreate({
                 player1Name,
@@ -596,8 +887,103 @@ function StartScreen({
             }
           >
             {loading ? <RefreshCw className="spin" size={18} /> : <CirclePlay size={18} />}
-            {tr("创建对局", "対戦を作成")}
+            {matchCreationDisabled ? tr("本地版可用", "ローカル版のみ") : tr("创建对局", "対戦を作成")}
           </button>
+          {onlineAvailable && (
+            <section className="online-room-panel">
+              <div className="section-heading compact-heading">
+                <Swords size={18} />
+                <div>
+                  <h2>{tr("在线房间 Preview", "オンラインルーム Preview")}</h2>
+                  <p>
+                    {tr(
+                      "HTTP 轮询连接远程 FastAPI；不含账号、房间列表或防作弊。",
+                      "HTTP ポーリングで FastAPI に接続します。アカウント、ルーム一覧、不正対策はありません。",
+                    )}
+                  </p>
+                </div>
+              </div>
+              <div className="online-room-fields">
+                <label>
+                  {tr("在线玩家名", "オンライン表示名")}
+                  <input
+                    value={onlinePlayerName}
+                    onChange={(event) => setOnlinePlayerName(event.target.value)}
+                  />
+                </label>
+                <label>
+                  {tr("在线用牌组", "オンライン用デッキ")}
+                  <select
+                    value={onlineSourceId}
+                    onChange={(event) => setOnlineSourceId(event.target.value)}
+                  >
+                    {deckSources.map((source) => (
+                      <option key={source.id} value={source.id}>
+                        {source.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              {onlineRoom && (
+                <div className="online-room-status">
+                  <strong>{onlineRoom.room_code}</strong>
+                  <span>
+                    {onlineRoom.status === "waiting_for_guest"
+                      ? tr("等待对手加入", "相手の参加待ち")
+                      : onlineRoom.status === "active"
+                        ? tr("对局已创建", "対戦作成済み")
+                        : tr("房间已过期", "ルーム期限切れ")}
+                  </span>
+                </div>
+              )}
+              {onlineStatus && <div className="info-banner">{onlineStatus}</div>}
+              <div className="online-room-actions">
+                <button
+                  className="secondary-button online-button"
+                  disabled={loading || !onlineSourceId || !onlinePlayerName.trim()}
+                  onClick={() =>
+                    onCreateOnlineRoom({
+                      playerName: onlinePlayerName.trim(),
+                      deckSourceId: onlineSourceId,
+                      seed: seed ? Number(seed) : undefined,
+                    })
+                  }
+                >
+                  {tr("房间创建", "ルーム作成")}
+                </button>
+                <label>
+                  {tr("房间码", "ルームコード")}
+                  <input
+                    value={roomCode}
+                    onChange={(event) => setRoomCode(event.target.value.toUpperCase())}
+                    placeholder="ABC123"
+                    maxLength={6}
+                    autoCapitalize="characters"
+                    spellCheck={false}
+                  />
+                </label>
+                <button
+                  className="secondary-button online-button"
+                  disabled={
+                    loading
+                    || !onlineSourceId
+                    || !onlinePlayerName.trim()
+                    || roomCode.trim().length === 0
+                  }
+                  onClick={() =>
+                    onJoinOnlineRoom({
+                      roomCode: roomCode.trim(),
+                      playerName: onlinePlayerName.trim(),
+                      deckSourceId: onlineSourceId,
+                    })
+                  }
+                >
+                  {tr("房间参加", "ルーム参加")}
+                </button>
+              </div>
+            </section>
+          )}
           <button className="secondary-button" disabled={loading} onClick={onBrowse}>
             <BookOpen size={18} />
             {tr("浏览卡牌库", "カードを閲覧")}
@@ -613,7 +999,11 @@ function StartScreen({
             <History size={20} />
             <div>
               <h2>{tr("最近对局", "最近の対戦")}</h2>
-              <p>{tr("从独立 runtime SQLite 恢复。", "専用 runtime SQLite から再開します。")}</p>
+              <p>
+                {browserPreview
+                  ? tr("Preview 版暂不保存对局。", "Preview 版では対戦履歴は保存されません。")
+                  : tr("从独立 runtime SQLite 恢复。", "専用 runtime SQLite から再開します。")}
+              </p>
             </div>
           </div>
           <div className="match-list">
@@ -2932,7 +3322,7 @@ function LocalCardArt({
   if (sourceMode !== "fallback") {
     const src =
       sourceMode === "local"
-        ? `/api/card-images/${encodeURIComponent(card.card_id)}`
+        ? cardImageUrl(card.card_id)
         : (card.image_url ?? "");
     return (
       <img

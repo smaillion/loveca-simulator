@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   BookOpen,
   ClipboardList,
+  Download,
   Expand,
   LoaderCircle,
   Minus,
@@ -10,9 +11,10 @@ import {
   Save,
   Search,
   Trash2,
+  Upload,
   WandSparkles,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   analyzeDeck,
   createSavedDeck,
@@ -157,6 +159,7 @@ export function DeckBuilder({
   const [analysis, setAnalysis] = useState<DeckAnalysisResponse | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const visibleCards = useMemo(
     () =>
@@ -651,6 +654,47 @@ export function DeckBuilder({
     setSelectedDeckId(null);
   }
 
+  function exportCurrentDeck() {
+    const payload = {
+      ...deck,
+      name: deckName || deck.name,
+    };
+    const filename = `${slugifyDeckFilename(payload.name ?? "loveca-deck")}.decklist.v0.json`;
+    const blob = new Blob([JSON.stringify(payload, null, 2) + "\n"], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function importDeckFile(file: File) {
+    setSaving(true);
+    setMessage(null);
+    try {
+      const parsed = JSON.parse(await file.text()) as DeckList;
+      if (parsed.version !== "decklist.v0" || !Array.isArray(parsed.main_deck) || !Array.isArray(parsed.energy_deck)) {
+        throw new Error(tr(locale, "不是有效的 decklist.v0 文件。", "有効な decklist.v0 ファイルではありません。"));
+      }
+      replaceDeck({
+        version: "decklist.v0",
+        name: parsed.name ?? file.name.replace(/\.json$/i, ""),
+        main_deck: normalizeImportedEntries(parsed.main_deck),
+        energy_deck: normalizeImportedEntries(parsed.energy_deck),
+      });
+      setMessage(tr(locale, "牌组 JSON 已导入。请检查后保存。", "デッキ JSON を読み込みました。確認して保存してください。"));
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const analyzedEnergyCount = analysis?.card_type_counts.energy_deck?.energy ?? energyCount;
   function selectCatalogCard(card: CatalogCardSummary) {
     setSelectedCardCode(card.card_code);
@@ -726,6 +770,25 @@ export function DeckBuilder({
             <button className="secondary-button" onClick={() => replaceDeck(EMPTY_DECK)}>
               <WandSparkles size={16} />
               {tr(locale, "新建空牌组", "空デッキを作成")}
+            </button>
+            <button className="secondary-button" onClick={() => importInputRef.current?.click()}>
+              <Upload size={16} />
+              {tr(locale, "导入 JSON", "JSONを読み込み")}
+            </button>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="visually-hidden"
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                event.currentTarget.value = "";
+                if (file) void importDeckFile(file);
+              }}
+            />
+            <button className="secondary-button" onClick={exportCurrentDeck}>
+              <Download size={16} />
+              {tr(locale, "导出当前", "デッキを書き出し")}
             </button>
             <button
               className="secondary-button"
@@ -1906,6 +1969,43 @@ function mergeEntry(
         }
       : entry,
   );
+}
+
+function normalizeImportedEntries(entries: unknown): DeckEntry[] {
+  if (!Array.isArray(entries)) {
+    return [];
+  }
+  return entries.flatMap((entry): DeckEntry[] => {
+    if (!entry || typeof entry !== "object") {
+      return [];
+    }
+    const record = entry as Record<string, unknown>;
+    if (typeof record.card_code !== "string") {
+      return [];
+    }
+    const quantity = Number(record.quantity);
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      return [];
+    }
+    return [
+      {
+        card_code: record.card_code,
+        quantity,
+        preferred_printing_id:
+          typeof record.preferred_printing_id === "string"
+            ? record.preferred_printing_id
+            : null,
+      },
+    ];
+  });
+}
+
+function slugifyDeckFilename(value: string): string {
+  return value
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}._-]+/gu, "-")
+    .replace(/^[-._]+|[-._]+$/g, "") || "loveca-deck";
 }
 
 function sumDeck(entries: DeckEntry[]): number {

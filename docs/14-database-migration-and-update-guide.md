@@ -1,6 +1,13 @@
 # Database Migration and Update Guide
 
-This guide describes how local environments should handle SQLite database setup, rebuilds, and future data updates.
+This guide describes how local environments should handle SQLite database setup,
+rebuilds, and future data updates.
+
+Hosted release builds use a locked repository-owned card database:
+`data/loveca.sqlite3`. Maintainers regenerate and commit this file together with
+`data/loveca-db-manifest.json` after official source review. CI, Docker images,
+and GitHub Pages data export use that committed DB directly; ordinary users
+should not import their own divergent card DB for hosted compatibility.
 
 ## Database Types
 
@@ -18,8 +25,8 @@ Purpose:
 
 - Stores imported official card data.
 - Uses Schema v2.
-- Can be rebuilt from official normalized artifacts.
-- Should be treated as a local cache of official Japanese source data.
+- Is the authoritative locked card DB when committed in the repository.
+- Can be rebuilt by maintainers from official normalized artifacts.
 
 ### Runtime Match Database
 
@@ -36,13 +43,18 @@ Purpose:
 - Is disposable local development data.
 - Automatically keeps only the most recent 25 matches.
 
+Hosted Docker deployments store this runtime database under
+`runtime/matches.sqlite3` so the mounted runtime volume never hides the locked
+card database copied into the image.
+
 ## General Rules
 
 - Do not manually edit SQLite rows unless performing a documented maintenance operation.
 - Do not mix card catalog data and runtime match data in the same database.
 - Prefer reproducible rebuilds over ad hoc mutation for the card catalog.
 - Treat official Japanese card data as canonical.
-- Keep local generated databases out of Git.
+- Commit only the reviewed locked card DB and manifest.
+- Keep runtime/user databases out of Git.
 
 ## Fresh Environment Setup
 
@@ -55,13 +67,20 @@ npm install
 cd ..
 ```
 
-2. Initialize the card catalog database.
+2. Use the committed card catalog database for normal development.
+
+The repository already contains `data/loveca.sqlite3`. Only run the importer
+flow below when you are intentionally refreshing the authoritative DB.
+
+## Maintainer Card DB Refresh
+
+1. Initialize or replace the card catalog database.
 
 ```powershell
 loveca cards init --database data/loveca.sqlite3
 ```
 
-3. Fetch official card data into a local normalized artifact.
+2. Fetch official card data into a local normalized artifact.
 
 ```powershell
 loveca cards import-official `
@@ -69,7 +88,7 @@ loveca cards import-official `
   --delay 1
 ```
 
-4. Import the normalized artifact into SQLite.
+3. Import the normalized artifact into SQLite.
 
 ```powershell
 loveca cards import `
@@ -79,7 +98,18 @@ loveca cards import `
   --report logs/import-full.md
 ```
 
-5. Build and serve the web UI.
+4. Regenerate and verify the locked manifest.
+
+```powershell
+python scripts/card-db-manifest.py generate
+python scripts/card-db-manifest.py verify
+```
+
+5. Commit both `data/loveca.sqlite3` and `data/loveca-db-manifest.json`.
+
+## Local Web UI
+
+Build and serve the web UI:
 
 ```powershell
 cd web
@@ -190,4 +220,3 @@ When a future schema version is introduced:
 - Reject unsupported old schemas with a clear error.
 - Provide either a documented rebuild path or a tested migration path.
 - Update README setup instructions if commands change.
-

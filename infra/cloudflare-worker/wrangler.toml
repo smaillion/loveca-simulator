@@ -1,0 +1,3 @@
+name = "loveca-api"
+main = "src/index.ts"
+compatibility_date = "2026-06-16"
