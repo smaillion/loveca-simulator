@@ -18,8 +18,8 @@
 - FastAPI + React SPA の可視化ルール検証 UI
 - Replay 可能な Action-only GameState
 - 925 件の effect registry entry
-  - 392 件は `test_validated_executable`
-  - 533 件は timing prompt / 未対応処理用の `manual_resolution`
+  - 466 件は `test_validated_executable`
+  - 459 件は timing prompt / 未対応処理用の `manual_resolution`
 - 将来の低コスト online 同期に向けた state hash / compatibility metadata の基礎
 - Hosted Online MVP の room API
   - room code による host / guest 参加
@@ -50,7 +50,8 @@
 - 成功 Live の移動、次ターン先攻判定、3 枚成功による勝敗
 - 一部のカード効果は、手札 / Energy / Stage Member / Heart 色 / 山札上確認を含む限定的な構造化 prompt に対応
 - 双方が選択する一部の効果は multi-player pending choice で順番に処理可能
-- `test_validated_executable` coverage は、現在のローカルカードプールの粗い全効果数に対して 20.07% まで拡張済み
+- 複数 group に分けて Stage Member を選び、それぞれに同じ一時 modifier を適用する効果に対応
+- registry entry ベースの `test_validated_executable` coverage は 50.38% まで拡張済み
 - 自動実行できない効果は `ManualAdjustmentAction` で補完
 - 処理不能な効果は、デバッグ用に `effect_skipped_due_to_error` として明示記録しながらスキップ可能
 
@@ -75,6 +76,7 @@ Deck Builder の現在の到達点:
 
 - 全カード効果の自動実行 coverage はまだありません。
 - 現在の broad prompt coverage は timing-only manual fallback を多く含みます。
+- 最新の Phase 5 sandbox では `skip` mode の `illegal_action` は 0 です。直近の `30 decks x 50 matches` 回帰は `block` mode で 35 `mandatory_manual_resolution` / 9 `max_actions` / 6 完走、`skip` mode で 10 完走 / 40 `max_actions` でした。grouped Stage Member choice 対応後の `30 decks x 20 matches --manual-policy block` smoke は 2 完走 / 11 `mandatory_manual_resolution` / 7 `max_actions` / `illegal_action = 0` で、`PL!SP-bp4-023:1` は blocker から消えました。さらに `PL!N-bp4-031:1` と Baton Touch 登場した蓮ノ空 Member 2 人条件の required Heart 減少を構造化した後の 20-match block smoke は 2 完走 / 9 `mandatory_manual_resolution` / 9 `max_actions` でした。長局化と複雑な Live 系 manual effect が主な残課題です。
 - FAQ / 個別裁定に依存する効果はまだ仕様化していません。
 - `data/loveca.sqlite3` は repository 内の locked authoritative card DB です。公式カード追加や parser / schema / effect registry の互換性変更後は、maintainer が DB と `data/loveca-db-manifest.json` を再生成して commit します。ユーザーや CI が online 用に別 DB を import してはいけません。保存済みデッキは `decklist.v0` のユーザーデータなので、カード DB とは分けて保持できます。
 - Web/API テストには `httpx2` が必要です。環境に未導入の場合、`tests/test_catalog_api.py` と `tests/test_webapp.py` は収集段階で停止します。
@@ -281,6 +283,32 @@ python -m tools.ai_sandbox.blackbox_playtest `
 `--manual-policy skip` を指定すると、未対応の強制能力を
 `effect_skipped_due_to_error` として記録しながら次の処理へ進めます。
 これはルール確認用のデバッグ機能であり、正式な能力解決ではありません。
+
+Phase 5 の手動効果検証には semantic user-agent sandbox も使えます。これは通常行動は
+deterministic sandbox policy で進め、`manual_resolution` 効果だけを semantic provider に
+渡して、現在の `ManualAdjustmentAction` で人間相当の処理が可能かを測る補助ツールです。
+registry coverage には加算しません。未設定時は `mock` provider になり、実効果は解決せず
+report と schema gap の出力だけを確認します。
+
+```powershell
+$env:PYTHONPATH="src;."
+python -m tools.ai_sandbox.semantic_playtest `
+  --database data/loveca.sqlite3 `
+  --output logs/semantic_sandbox/manual-run `
+  --decks 30 `
+  --matches 20 `
+  --max-actions 260 `
+  --manual-fallback skip
+```
+
+OpenAI-compatible provider を使う場合は以下を設定します。
+
+```powershell
+$env:LOVECA_SEMANTIC_AGENT_PROVIDER="openai_compatible"
+$env:LOVECA_SEMANTIC_AGENT_MODEL="..."
+$env:LOVECA_SEMANTIC_AGENT_API_BASE="..."
+$env:LOVECA_SEMANTIC_AGENT_API_KEY="..."
+```
 
 フロントエンドテスト:
 

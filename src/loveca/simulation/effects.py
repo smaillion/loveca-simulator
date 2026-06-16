@@ -22,11 +22,14 @@ SUPPORTED_EFFECT_ACTIONS = {
     "draw_card_per_stage_member",
     "draw_until_hand_size",
     "gain_blade",
+    "gain_blade_to_stage_members",
     "gain_blade_if_milled_all_card_type",
     "gain_heart",
+    "gain_heart_to_stage_members",
     "inspect_top_cards",
     "manual_resolution",
     "modify_score",
+    "modify_required_heart",
     "move_remaining_cards",
     "move_selected_to_deck_bottom",
     "move_selected_to_deck_top",
@@ -36,13 +39,17 @@ SUPPORTED_EFFECT_ACTIONS = {
     "ready_energy",
     "ready_member",
     "reorder_deck_top",
+    "replace_yell_blade_hearts",
     "draw_if_selected_card_type",
     "draw_if_selected_none_card_type",
     "reveal_cards",
+    "reveal_top_cards",
     "reveal_selected_cards",
     "return_from_waiting_room",
     "select_to_hand_from_inspected",
     "set_flag",
+    "replace_member_base_hearts",
+    "replace_required_hearts",
     "source_to_waiting_room",
     "mill_top_cards",
     "draw_if_milled_all_card_type",
@@ -61,11 +68,29 @@ class EffectOperation(BaseModel):
     target: str | None = None
     amount: int | None = None
     amount_source: Literal[
+        "all_energy_active_bonus",
         "success_live_count",
+        "success_live_name_count",
+        "success_live_score",
+        "success_live_score_threshold_bonus",
+        "success_live_score_values_bonus",
         "live_area_count",
+        "other_live_area_work_count",
+        "moved_stage_member_count",
+        "stage_slot_member_heart_pair_count",
+        "stage_member_with_heart_excluding_colors_count",
+        "stage_member_work_cost_sum_threshold_bonus",
+        "effect_ready_history_score_bonus",
         "selected_count",
+        "own_stage_member_count",
+        "total_stage_member_count",
+        "stage_member_heart_color_variety_count",
+        "revealed_live_count",
+        "own_stage_member_work_distinct_name_count",
+        "waiting_room_live_work_distinct_name_threshold_bonus",
     ] | None = None
     branch: str | None = None
+    multiplier: int | None = None
     orientation: Literal["active", "wait"] | None = None
     color_slot: str | None = None
     card_type: str | None = None
@@ -76,8 +101,10 @@ class EffectOperation(BaseModel):
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
         if self.action_type == "place_energy_from_deck":
-            if self.target not in {None, "self"}:
-                raise ValueError("place_energy_from_deck only supports target=self")
+            if self.target not in {None, "self", "both"}:
+                raise ValueError(
+                    "place_energy_from_deck only supports target=self or both"
+                )
             if self.amount is None or self.amount < 1:
                 raise ValueError("place_energy_from_deck requires a positive amount")
             if self.orientation is None:
@@ -88,11 +115,17 @@ class EffectOperation(BaseModel):
             )
         if self.color_slot is not None and self.action_type not in {
             "gain_heart",
+            "gain_heart_to_stage_members",
             "gain_heart_if_milled_all_have_heart",
+            "modify_required_heart",
+            "replace_member_base_hearts",
+            "replace_yell_blade_hearts",
         }:
             raise ValueError(
                 f"color_slot is not supported for effect operation {self.action_type}"
             )
+        if self.action_type == "replace_yell_blade_hearts" and not self.color_slot:
+            raise ValueError("replace_yell_blade_hearts requires color_slot")
         if self.card_type is not None and self.action_type not in {
             "draw_if_milled_all_card_type",
             "draw_if_milled_any_card_type",
@@ -118,6 +151,19 @@ class EffectOperation(BaseModel):
         return self
 
 
+class EffectSelectionGroup(BaseModel):
+    group_id: str
+    label_ja: str | None = None
+    zone: str | None = None
+    card_type: str | None = None
+    work_key: str | None = None
+    unit_key: str | None = None
+    name_ja_any: list[str] = Field(default_factory=list)
+    minimum: int = 1
+    maximum: int = 1
+    exclude_group_ids: list[str] = Field(default_factory=list)
+
+
 class EffectChoice(BaseModel):
     choice_type: str
     zone: str | None = None
@@ -135,6 +181,7 @@ class EffectChoice(BaseModel):
     reveal_selected_to_opponent: bool = False
     work_key: str | None = None
     unit_key: str | None = None
+    unit_keys_any: list[str] = Field(default_factory=list)
     ability_bucket: list[str] = Field(default_factory=list)
     exclude_source: bool = False
     target_player: Literal["self", "opponent"] = "self"
@@ -147,6 +194,8 @@ class EffectChoice(BaseModel):
     branch_ids: list[str] = Field(default_factory=list)
     branch_selection_minimum: dict[str, int] = Field(default_factory=dict)
     branch_selection_maximum: dict[str, int] = Field(default_factory=dict)
+    branch_energy_required: dict[str, int] = Field(default_factory=dict)
+    selection_groups: list[EffectSelectionGroup] = Field(default_factory=list)
 
 
 class EffectDefinition(BaseModel):
