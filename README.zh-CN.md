@@ -32,6 +32,8 @@
 - GitHub Pages browser preview 用静态 SPA 发布 workflow
   - preview data package 只包含解析后的卡牌 / 技能数据
   - 不打包卡图文件，牌面图片走官方 `image_url`
+  - 首次启动时在 browser localStorage 中生成 20 个 preview sample deck
+  - 支持 decklist.v0 JSON 导入 / 导出
 
 当前开发主线:
 
@@ -225,6 +227,10 @@ GitHub Actions：
 长期来看，可以提供包含预构建 SQLite 卡牌数据库、effect registry、manifest 和 checksum 的版本化 asset package，让用户无需每次从官网全量抓取即可直接启动。
 
 但官方效果文本全文、官方 PDF 派生的大量数据和下载后的卡图文件涉及再分发边界。GitHub Pages preview 的公开 asset 应限制为解析后的卡牌数据、解析后的技能数据、manifest、checksum 和项目自有 metadata；卡图文件不随包发布，牌面显示直接使用官方 `image_url`。
+
+公开 preview 从专用 `preview` 分支发布。这个分支会直接提交已审核的 `data/loveca.sqlite3`，GitHub Pages workflow 从这个 SQLite 导出静态 JSON。`develop` 可以继续高频开发，不会触发 Pages 重建；只有准备更新公开 preview 时才同步到 `preview` 分支。
+
+browser preview 的 deck 保存在 localStorage。Deck 主要只保存卡号和数量，20 个初始 sample deck 加上普通用户自己的牌组通常只会占用很小空间。需要迁移或分享时，请使用 Deck Builder 的 JSON 导入 / 导出。
 
 如果向 private tester 提供预构建 DB，也应明确 release version、schema version、parser version、card database fingerprint 和 effect registry hash。任何破坏兼容性的版本更新后，都需要重新导入。
 

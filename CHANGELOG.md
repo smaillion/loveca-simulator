@@ -8,6 +8,11 @@
 - `scripts/export-preview-data.py` を追加し、ローカル SQLite カード DB から browser preview 用の静的 JSON data package を生成できるようにした。preview package は解析済みカード / skill data と公式画像 URL 参照のみを含み、カード画像ファイルは同梱しない。
 - `VITE_BROWSER_PREVIEW=true` で catalog / facets / card detail を `preview-data/*.json` から読む browser catalog adapter を追加し、GitHub Pages 上でカードカタログを閲覧できるようにした。
 - `VITE_BROWSER_PREVIEW=true` で deck 保存 / 読み込み / 更新 / リネーム / 削除を browser localStorage に保存し、MVP deck 分析を TypeScript adapter で実行できるようにした。
+- Pages preview workflow に公式カード DB / import artifact の GitHub Actions cache を追加し、通常の publish で毎回公式サイトから全量再取得しないようにした。
+- 専用 `preview` ブランチで `data/loveca.sqlite3` をコミットし、GitHub Pages はその SQLite から静的 preview data を生成する運用に変更。
+- Browser preview の初回起動時に、できること / できないことを説明する案内ダイアログを追加。
+- Browser preview の初回起動時に 20 個の generated sample deck を localStorage に作成するようにした。
+- Deck Builder に decklist.v0 JSON の import / export を追加。
 - Browser-only preview の設計文書を追加し、IndexedDB / localStorage、deck import/export、play history export、public data policy の境界を整理。
 - effect registry を 925 件に拡張し、同文の top-deck reorder、Live-success reorder、起動 self-Wait / ready-other Member pattern を追加。
 - `test_validated_executable` effect を 466 件まで拡張し、registry entry ベースの coverage が 50.38% に到達。
@@ -68,6 +73,11 @@
 - 新增 `scripts/export-preview-data.py`，可从本地 SQLite 卡牌库导出 browser preview 用静态 JSON 数据包。preview package 只包含解析后的卡牌 / 技能数据和官方图片 URL 引用，不打包卡图文件。
 - 新增 `VITE_BROWSER_PREVIEW=true` 下的 browser catalog adapter，从 `preview-data/*.json` 读取 catalog / facets / card detail，使 GitHub Pages 上可以浏览卡库。
 - 新增 `VITE_BROWSER_PREVIEW=true` 下的 browser deck library，将牌组保存 / 读取 / 更新 / 重命名 / 删除写入 localStorage，并用 TypeScript adapter 执行 MVP deck 分析。
+- 为 Pages preview workflow 增加官方卡牌 DB / import artifact 的 GitHub Actions cache，避免普通发布每次都从官网全量重抓。
+- 改为使用专用 `preview` 分支提交 `data/loveca.sqlite3`，GitHub Pages 从该 SQLite 生成静态 preview data。
+- Browser preview 首次打开时新增说明弹窗，展示当前能做和不能做的功能边界。
+- Browser preview 首次启动时会在 localStorage 中生成 20 个 generated sample deck。
+- Deck Builder 增加 decklist.v0 JSON 导入 / 导出。
 - 新增 Browser-only preview 设计文档，整理 IndexedDB / localStorage、牌组导入导出、游玩履历导出和 public data policy 边界。
 - 将 effect registry 扩展到 925 条，新增同文 top-deck reorder、Live 成功 reorder、起动 self-Wait / ready-other Member 模式。
 - 将 `test_validated_executable` 技能扩展到 466 条，按 registry entry 计算达到 50.38% 覆盖率。
