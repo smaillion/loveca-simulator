@@ -35,12 +35,23 @@ CREATE TABLE IF NOT EXISTS hosted_rooms (
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL,
     expires_at TEXT NOT NULL,
+    host_last_seen_at TEXT,
+    guest_last_seen_at TEXT,
+    closed_at TEXT,
+    close_reason TEXT,
     CHECK (status IN ('waiting_for_guest', 'active', 'expired'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_hosted_rooms_expires
     ON hosted_rooms(expires_at);
 """
+
+ROOM_OPTIONAL_COLUMNS = {
+    "host_last_seen_at": "TEXT",
+    "guest_last_seen_at": "TEXT",
+    "closed_at": "TEXT",
+    "close_reason": "TEXT",
+}
 
 
 class RoomError(RuntimeError):
@@ -74,6 +85,10 @@ class RoomRecord:
     created_at: str
     updated_at: str
     expires_at: str
+    host_last_seen_at: str | None
+    guest_last_seen_at: str | None
+    closed_at: str | None
+    close_reason: str | None
 
     @property
     def host_deck(self) -> DeckList:
@@ -92,6 +107,8 @@ class RoomRepository:
         path.parent.mkdir(parents=True, exist_ok=True)
         with closing(self._connect()) as connection:
             connection.executescript(ROOM_SCHEMA_SQL)
+            _ensure_optional_room_columns(connection)
+            connection.commit()
 
     def create_room(
         self,
@@ -114,9 +131,9 @@ class RoomRepository:
                         """
                         INSERT INTO hosted_rooms (
                             room_code, status, host_token, host_name, host_deck_json,
-                            seed, created_at, updated_at, expires_at
+                            seed, created_at, updated_at, expires_at, host_last_seen_at
                         )
-                        VALUES (?, 'waiting_for_guest', ?, ?, ?, ?, ?, ?, ?)
+                        VALUES (?, 'waiting_for_guest', ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
                             room_code,
@@ -127,6 +144,7 @@ class RoomRepository:
                             now,
                             now,
                             expires_at,
+                            now,
                         ),
                     )
                     connection.commit()
@@ -148,16 +166,19 @@ class RoomRepository:
             return self.expire_room(record.room_code)
         return record
 
-    def expire_room(self, room_code: str) -> RoomRecord:
+    def expire_room(self, room_code: str, *, close_reason: str = "expired") -> RoomRecord:
         now = _utc_now()
         with closing(self._connect()) as connection:
             connection.execute(
                 """
                 UPDATE hosted_rooms
-                SET status = 'expired', updated_at = ?
+                SET status = 'expired',
+                    updated_at = ?,
+                    closed_at = COALESCE(closed_at, ?),
+                    close_reason = COALESCE(close_reason, ?)
                 WHERE room_code = ?
                 """,
-                (now, room_code.upper()),
+                (now, now, close_reason, room_code.upper()),
             )
             connection.commit()
         return self.get_room(room_code)
@@ -169,6 +190,7 @@ class RoomRepository:
         guest_name: str,
         guest_deck: dict[str, Any],
         match_id: str,
+        ttl_hours: int,
     ) -> RoomRecord:
         parse_deck(guest_deck)
         record = self.get_room(room_code)
@@ -187,7 +209,9 @@ class RoomRepository:
                     guest_name = ?,
                     guest_deck_json = ?,
                     match_id = ?,
-                    updated_at = ?
+                    updated_at = ?,
+                    guest_last_seen_at = ?,
+                    expires_at = ?
                 WHERE room_code = ? AND status = 'waiting_for_guest'
                 """,
                 (
@@ -196,34 +220,81 @@ class RoomRepository:
                     _json(guest_deck),
                     match_id,
                     now,
+                    now,
+                    _utc_after_hours(ttl_hours),
                     record.room_code,
                 ),
             )
             connection.commit()
         return self.get_room(room_code)
 
-    def touch_room(self, room_code: str) -> None:
+    def touch_room(
+        self,
+        room_code: str,
+        *,
+        player_id: str | None = None,
+        ttl_hours: int | None = None,
+    ) -> None:
         now = _utc_now()
+        expires_at = _utc_after_hours(ttl_hours) if ttl_hours is not None else None
+        updates = ["updated_at = ?"]
+        values: list[Any] = [now]
+        if expires_at is not None:
+            updates.append("expires_at = ?")
+            values.append(expires_at)
+        if player_id == "player_1":
+            updates.append("host_last_seen_at = ?")
+            values.append(now)
+        elif player_id == "player_2":
+            updates.append("guest_last_seen_at = ?")
+            values.append(now)
+        values.append(room_code.upper())
         with closing(self._connect()) as connection:
             connection.execute(
-                "UPDATE hosted_rooms SET updated_at = ? WHERE room_code = ?",
-                (now, room_code.upper()),
+                f"""
+                UPDATE hosted_rooms
+                SET {", ".join(updates)}
+                WHERE room_code = ? AND status != 'expired'
+                """,
+                tuple(values),
             )
             connection.commit()
 
-    def cleanup_expired(self) -> int:
+    def cleanup_expired(self, *, delete_grace_hours: int) -> CleanupResult:
         now = _utc_now()
+        delete_before = _utc_before_hours(delete_grace_hours)
         with closing(self._connect()) as connection:
-            cursor = connection.execute(
+            expired_cursor = connection.execute(
                 """
                 UPDATE hosted_rooms
-                SET status = 'expired', updated_at = ?
+                SET status = 'expired',
+                    updated_at = ?,
+                    closed_at = COALESCE(closed_at, ?),
+                    close_reason = COALESCE(close_reason, 'ttl_expired')
                 WHERE status != 'expired' AND expires_at <= ?
                 """,
-                (now, now),
+                (now, now, now),
+            )
+            connection.execute(
+                """
+                UPDATE hosted_rooms
+                SET closed_at = COALESCE(closed_at, updated_at, expires_at),
+                    close_reason = COALESCE(close_reason, 'legacy_expired')
+                WHERE status = 'expired'
+                """
+            )
+            deleted_cursor = connection.execute(
+                """
+                DELETE FROM hosted_rooms
+                WHERE status = 'expired' AND closed_at <= ?
+                """,
+                (delete_before,),
             )
             connection.commit()
-            return int(cursor.rowcount)
+            return CleanupResult(
+                expired_count=int(expired_cursor.rowcount),
+                deleted_count=int(deleted_cursor.rowcount),
+            )
 
     def validate_token(self, record: RoomRecord, token: str) -> str:
         if secrets.compare_digest(token, record.host_token):
@@ -246,12 +317,16 @@ class RoomService:
         runtime_database_path: Path,
         *,
         ttl_hours: int = 24,
+        delete_grace_hours: int = 1,
     ) -> None:
         if ttl_hours < 1:
             raise ValueError("ttl_hours must be at least 1")
+        if delete_grace_hours < 1:
+            raise ValueError("delete_grace_hours must be at least 1")
         self.match_service = match_service
         self.repository = RoomRepository(runtime_database_path)
         self.ttl_hours = ttl_hours
+        self.delete_grace_hours = delete_grace_hours
 
     def create_room(
         self,
@@ -260,6 +335,7 @@ class RoomService:
         host_deck: dict[str, Any],
         seed: int | None,
     ) -> RoomRecord:
+        self.cleanup_expired()
         return self.repository.create_room(
             host_name=host_name,
             host_deck=host_deck,
@@ -287,15 +363,25 @@ class RoomService:
             guest_name=guest_name,
             guest_deck=guest_deck,
             match_id=result.state.match_id,
+            ttl_hours=self.ttl_hours,
         )
-        self.repository.touch_room(joined.room_code)
+        self.repository.touch_room(joined.room_code, player_id="player_2", ttl_hours=self.ttl_hours)
         return joined
 
     def get_room_for_player(self, room_code: str, token: str | None) -> tuple[RoomRecord, str | None]:
         record = self.repository.get_room(room_code)
         if token is None:
             return record, None
-        return record, self.repository.validate_token(record, token)
+        player_id = self.repository.validate_token(record, token)
+        if record.status != "expired":
+            self.repository.touch_room(record.room_code, player_id=player_id, ttl_hours=self.ttl_hours)
+            record = self.repository.get_room(record.room_code)
+        return record, player_id
+
+    def leave_room(self, *, room_code: str, token: str) -> RoomRecord:
+        record = self.repository.get_room(room_code)
+        self.repository.validate_token(record, token)
+        return self.repository.expire_room(record.room_code, close_reason="player_left")
 
     def apply_action(
         self,
@@ -323,11 +409,17 @@ class RoomService:
             if action.player_id is None and None not in allowed_player_ids:
                 raise RoomTokenError("action player_id is required for this room action")
         result = self.match_service.apply(record.match_id, action)
-        self.repository.touch_room(record.room_code)
+        self.repository.touch_room(record.room_code, player_id=player_id, ttl_hours=self.ttl_hours)
         return result
 
-    def cleanup_expired(self) -> int:
-        return self.repository.cleanup_expired()
+    def cleanup_expired(self) -> CleanupResult:
+        return self.repository.cleanup_expired(delete_grace_hours=self.delete_grace_hours)
+
+
+@dataclass(frozen=True)
+class CleanupResult:
+    expired_count: int
+    deleted_count: int
 
 
 def _record_from_row(row: sqlite3.Row) -> RoomRecord:
@@ -345,6 +437,10 @@ def _record_from_row(row: sqlite3.Row) -> RoomRecord:
         created_at=str(row["created_at"]),
         updated_at=str(row["updated_at"]),
         expires_at=str(row["expires_at"]),
+        host_last_seen_at=row["host_last_seen_at"],
+        guest_last_seen_at=row["guest_last_seen_at"],
+        closed_at=row["closed_at"],
+        close_reason=row["close_reason"],
     )
 
 
@@ -364,5 +460,21 @@ def _utc_after_hours(hours: int) -> str:
     return (datetime.now(UTC) + timedelta(hours=hours)).isoformat(timespec="seconds")
 
 
+def _utc_before_hours(hours: int) -> str:
+    return (datetime.now(UTC) - timedelta(hours=hours)).isoformat(timespec="seconds")
+
+
 def _is_expired(value: str) -> bool:
     return datetime.fromisoformat(value) <= datetime.now(UTC)
+
+
+def _ensure_optional_room_columns(connection: sqlite3.Connection) -> None:
+    columns = {
+        str(row["name"])
+        for row in connection.execute("PRAGMA table_info(hosted_rooms)").fetchall()
+    }
+    for name, declaration in ROOM_OPTIONAL_COLUMNS.items():
+        if name not in columns:
+            connection.execute(
+                f"ALTER TABLE hosted_rooms ADD COLUMN {name} {declaration}"
+            )
