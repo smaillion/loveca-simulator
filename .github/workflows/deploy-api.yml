@@ -23,7 +23,7 @@ permissions:
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}-api
   IMAGE_TAG: sha-${{ github.sha }}
-  ORIGIN_API_BASE_URL: ${{ secrets.ORIGIN_API_BASE_URL }}
+  ORIGIN_BASE_URL: ${{ secrets.ORIGIN_BASE_URL || secrets.ORIGIN_API_BASE_URL }}
   GATEWAY_API_BASE_URL: ${{ vars.VITE_PUBLIC_API_BASE_URL || '' }}
   SSH_OPTS: -i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes
 
@@ -96,16 +96,27 @@ jobs:
         run: |
           ssh ${SSH_OPTS} "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" '
             cd "${{ secrets.DEPLOY_PATH }}" &&
-            docker compose -f compose.api.yml pull &&
-            docker compose -f compose.api.yml up -d &&
-            docker compose -f compose.api.yml ps
+            if docker compose version >/dev/null 2>&1; then
+              compose="docker compose"
+            elif command -v docker-compose >/dev/null 2>&1; then
+              compose="docker-compose"
+            else
+              echo "Docker Compose is not installed. Install docker-compose-plugin or docker-compose on the VPS." >&2
+              exit 1
+            fi &&
+            $compose -f compose.api.yml pull &&
+            $compose -f compose.api.yml up -d &&
+            $compose -f compose.api.yml ps
           '
 
       - name: Health check through Caddy origin URL
         run: |
-          curl --fail --show-error --silent "${ORIGIN_API_BASE_URL}/api/health"
+          origin_base_url="$(printf '%s' "$ORIGIN_BASE_URL" | sed 's#/*$##')"
+          test -n "$origin_base_url"
+          curl --fail --show-error --silent "$origin_base_url/api/health"
 
       - name: Health check through Worker gateway URL
         run: |
-          test -n "${GATEWAY_API_BASE_URL}"
-          curl --fail --show-error --silent "${GATEWAY_API_BASE_URL}/api/health"
+          gateway_base_url="$(printf '%s' "$GATEWAY_API_BASE_URL" | sed 's#/*$##')"
+          test -n "$gateway_base_url"
+          curl --fail --show-error --silent "$gateway_base_url/api/health"
