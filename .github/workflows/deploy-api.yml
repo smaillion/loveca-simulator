@@ -25,6 +25,7 @@ env:
   IMAGE_TAG: sha-${{ github.sha }}
   ORIGIN_API_BASE_URL: ${{ secrets.ORIGIN_API_BASE_URL }}
   GATEWAY_API_BASE_URL: ${{ vars.VITE_PUBLIC_API_BASE_URL || '' }}
+  SSH_OPTS: -i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes
 
 jobs:
   deploy:
@@ -58,11 +59,17 @@ jobs:
           mkdir -p ~/.ssh
           install -m 600 /dev/null ~/.ssh/deploy_key
           printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          sed -i 's/\r$//' ~/.ssh/deploy_key
+          ssh-keygen -y -f ~/.ssh/deploy_key > ~/.ssh/deploy_key.pub
+          ssh-keygen -lf ~/.ssh/deploy_key.pub
           ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Test SSH login
+        run: ssh ${SSH_OPTS} "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" 'true'
 
       - name: Write remote compose file
         run: |
-          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" 'mkdir -p "${{ secrets.DEPLOY_PATH }}/runtime" "${{ secrets.DEPLOY_PATH }}/logs"'
+          ssh ${SSH_OPTS} "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" 'mkdir -p "${{ secrets.DEPLOY_PATH }}/runtime" "${{ secrets.DEPLOY_PATH }}/logs"'
           cat > compose.api.remote.yml <<'YAML'
           services:
             loveca-api:
@@ -83,11 +90,11 @@ jobs:
           YAML
           sed -i "s#IMAGE_PLACEHOLDER#${IMAGE_NAME}:${IMAGE_TAG}#g" compose.api.remote.yml
           sed -i "s#ORIGINS_PLACEHOLDER#${{ vars.LOVECA_ALLOWED_ORIGINS }}#g" compose.api.remote.yml
-          scp -i ~/.ssh/deploy_key compose.api.remote.yml "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}/compose.api.yml"
+          scp ${SSH_OPTS} compose.api.remote.yml "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}/compose.api.yml"
 
       - name: Restart API service
         run: |
-          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" '
+          ssh ${SSH_OPTS} "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" '
             cd "${{ secrets.DEPLOY_PATH }}" &&
             docker compose -f compose.api.yml pull &&
             docker compose -f compose.api.yml up -d &&
