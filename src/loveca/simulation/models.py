@@ -35,7 +35,15 @@ Phase = Literal[
 ]
 
 ModifierDuration = Literal["live", "turn", "game"]
-ModifierType = Literal["score", "blade", "heart", "flag"]
+ModifierType = Literal[
+    "score",
+    "blade",
+    "heart",
+    "required_heart",
+    "base_heart_replacement",
+    "yell_blade_heart_replacement",
+    "flag",
+]
 
 
 class SpecialBladeHeart(BaseModel):
@@ -137,12 +145,14 @@ class PlayerState(BaseModel):
         default_factory=lambda: {"left": [], "center": [], "right": []}
     )
     member_areas_entered_this_turn: list[str] = Field(default_factory=list)
+    member_areas_baton_entered_this_turn: list[str] = Field(default_factory=list)
     energy_area: list[str] = Field(default_factory=list)
     live_area: list[str] = Field(default_factory=list)
     waiting_room: list[str] = Field(default_factory=list)
     resolution_area: list[str] = Field(default_factory=list)
     success_live_area: list[str] = Field(default_factory=list)
     manual_modifiers: list[ManualModifier] = Field(default_factory=list)
+    effect_ready_flags_this_turn: list[str] = Field(default_factory=list)
     refresh_count: int = 0
     live_result: LivePerformanceResult = Field(default_factory=LivePerformanceResult)
 

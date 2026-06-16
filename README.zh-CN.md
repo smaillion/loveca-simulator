@@ -18,8 +18,8 @@
 - FastAPI + React SPA 可视化规则验证器
 - 可回放的 Action-only GameState
 - 925 条 effect registry entry
-  - 392 条为 `test_validated_executable`
-  - 533 条为 timing prompt / 未支持处理用 `manual_resolution`
+  - 466 条为 `test_validated_executable`
+  - 459 条为 timing prompt / 未支持处理用 `manual_resolution`
 - 面向未来低成本 online 同步的 state hash / compatibility metadata 基础
 - GitHub Pages browser preview 用静态 SPA 发布 workflow
   - preview data package 只包含解析后的卡牌 / 技能数据
@@ -42,7 +42,8 @@
 - 成功 Live 移动、下一回合先攻判定、3 张成功 Live 胜负
 - 少量技能支持包含手牌 / Energy / Stage Member / Heart 颜色 / 牌堆顶检查的限定结构化 prompt
 - 部分双方都需要选择的效果已可通过 multi-player pending choice 顺序处理
-- `test_validated_executable` 覆盖率按当前本地卡池粗略全技能数量计算已达到 20.07%
+- 支持把 Stage Member 目标拆成多个选择组，并对各组选中目标应用相同的临时 modifier
+- 按 registry entry 计算的 `test_validated_executable` 覆盖率已达到 50.38%
 - 暂不能自动执行的技能通过 `ManualAdjustmentAction` 补充
 - 无法处理的技能可以用调试用 `effect_skipped_due_to_error` 显式记录后跳过
 
@@ -67,6 +68,7 @@ Deck Builder 当前状态:
 
 - 还没有覆盖全卡技能自动执行。
 - 当前 broad prompt coverage 大量包含 timing-only manual fallback。
+- 最新 Phase 5 sandbox 中 `skip` mode 的 `illegal_action` 为 0。最近一次 `30 decks x 50 matches` 回归在 `block` mode 下为 35 局 `mandatory_manual_resolution` / 9 局 `max_actions` / 6 局完走，在 `skip` mode 下为 10 局完走 / 40 局 `max_actions`。grouped Stage Member choice 支持后的 `30 decks x 20 matches --manual-policy block` smoke 为 2 局完走 / 11 局 `mandatory_manual_resolution` / 7 局 `max_actions` / `illegal_action = 0`，`PL!SP-bp4-023:1` 已从 blocker 中消失。继续将 `PL!N-bp4-031:1` 和 Baton Touch 登场的莲之空 Member 2 人条件减少 required Heart 结构化后，20-match block smoke 为 2 局完走 / 9 局 `mandatory_manual_resolution` / 9 局 `max_actions`。主要剩余问题是长局推进和复杂 Live 系 manual effect。
 - 依赖 FAQ 或个别裁定的效果尚未规格化。
 - 当 importer、parser、卡号正规化、SQLite schema 或 effect registry 兼容性相关内容发生更新后，不建议继续复用旧的 `data/loveca.sqlite3`，应通过官方 importer 重建或重新导入卡牌数据库。保存牌组是 `decklist.v0` 用户数据，可以和卡牌数据库分开保留。
 - Web/API 测试依赖 `httpx2`。环境缺少该依赖时，`tests/test_catalog_api.py` 和 `tests/test_webapp.py` 会在收集阶段停止。
@@ -222,6 +224,32 @@ python -m tools.ai_sandbox.blackbox_playtest `
 使用 `--manual-policy skip` 时，未支持的强制技能会记录为
 `effect_skipped_due_to_error` 后继续推进。这个能力只用于规则调试，
 不是正式技能结算。
+
+Phase 5 的手动技能验证也可以使用 semantic user-agent sandbox。它用 deterministic
+sandbox policy 处理普通行动，只在遇到 `manual_resolution` 技能时调用 semantic
+provider，检查当前 `ManualAdjustmentAction` 是否足以让类似人工玩家继续游戏。这个结果
+只作为可玩性和 schema gap 信号，不计入 registry coverage。未配置真实 provider 时默认
+使用 `mock`，只验证报告流程，不会真正解技能。
+
+```powershell
+$env:PYTHONPATH="src;."
+python -m tools.ai_sandbox.semantic_playtest `
+  --database data/loveca.sqlite3 `
+  --output logs/semantic_sandbox/manual-run `
+  --decks 30 `
+  --matches 20 `
+  --max-actions 260 `
+  --manual-fallback skip
+```
+
+使用 OpenAI-compatible provider 时设置:
+
+```powershell
+$env:LOVECA_SEMANTIC_AGENT_PROVIDER="openai_compatible"
+$env:LOVECA_SEMANTIC_AGENT_MODEL="..."
+$env:LOVECA_SEMANTIC_AGENT_API_BASE="..."
+$env:LOVECA_SEMANTIC_AGENT_API_KEY="..."
+```
 
 前端:
 

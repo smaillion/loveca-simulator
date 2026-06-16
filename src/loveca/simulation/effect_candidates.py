@@ -492,6 +492,50 @@ def _live_success_draw_then_discard(row: sqlite3.Row) -> EffectCandidate | None:
     )
 
 
+def _live_start_draw_then_discard(row: sqlite3.Row) -> EffectCandidate | None:
+    patterns = {
+        "【ライブ開始時】カードを1枚引き、手札を1枚控え室に置く。": (1, 1),
+    }
+    matched = next(
+        (
+            (label, values)
+            for label, values in patterns.items()
+            if _matching_segment(row, label, startswith=True) is not None
+        ),
+        None,
+    )
+    if matched is None:
+        return None
+    label, (draw_amount, discard_amount) = matched
+    effect_index = _matching_segment(row, label, startswith=True)[0]
+    return EffectCandidate(
+        **_base(
+            row,
+            pattern_id=f"live_start_draw{draw_amount}_discard{discard_amount}",
+            effect_index=effect_index,
+        ),
+        label_ja=label,
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice={
+            "choice_type": "post_action_card_from_zone",
+            "zone": "hand",
+            "minimum": discard_amount,
+            "maximum": discard_amount,
+        },
+        actions=[
+            {"action_type": "draw_card", "amount": draw_amount},
+            {"action_type": "discard_from_hand"},
+        ],
+        duration=None,
+    )
+
+
 def _activated_wait_ready_other(row: sqlite3.Row) -> EffectCandidate | None:
     text = str(row["raw_effect_text_ja"]).strip()
     if text != (
@@ -1134,6 +1178,37 @@ def _onplay_success_count_return_live(row: sqlite3.Row) -> EffectCandidate | Non
         frequency_limit="none",
         is_optional=False,
         condition={"success_live_count_at_least": 2},
+        cost=[],
+        choice={
+            "choice_type": "card_from_zone",
+            "zone": "waiting_room",
+            "card_type": "live",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[{"action_type": "return_from_waiting_room"}],
+        duration=None,
+    )
+
+
+def _onplay_energy11_return_live(row: sqlite3.Row) -> EffectCandidate | None:
+    text = str(row["raw_effect_text_ja"]).strip()
+    expected = "【登場】自分のエネルギーが11枚以上ある場合、自分の控え室からライブカードを1枚手札に加える。"
+    if text != expected:
+        return None
+    return EffectCandidate(
+        **_base(
+            row,
+            pattern_id="onplay_energy11_return_live",
+            effect_index=1,
+        ),
+        label_ja=expected,
+        effect_type="triggered",
+        timing="on_play",
+        trigger="member_played",
+        frequency_limit="none",
+        is_optional=False,
+        condition={"own_energy_count_at_least": 11},
         cost=[],
         choice={
             "choice_type": "card_from_zone",
@@ -3814,6 +3889,7 @@ def _live_start_simple_modifiers(row: sqlite3.Row) -> EffectCandidate | None:
             ],
             "duration": "live",
             "is_optional": True,
+            "execution_mode": "prompt_then_resolve",
         },
         (
             "【ライブ開始時】手札を1枚控え室に置いてもよい："
@@ -4345,6 +4421,20 @@ def _live_success_simple_effects(row: sqlite3.Row) -> EffectCandidate | None:
             "duration": "live",
             "execution_mode": "auto_resolve",
         },
+        "【ライブ成功時】エールにより公開されている自分のライブカードの枚数が、エールにより公開されている相手のライブカードの枚数より多い場合、このカードのスコアを＋１する。": {
+            "suffix": "more_revealed_live_than_opponent_score1",
+            "condition": {"yell_revealed_card_type_more_than_opponent": "live"},
+            "actions": [{"action_type": "modify_score", "amount": 1}],
+            "duration": "live",
+            "execution_mode": "auto_resolve",
+        },
+        "【ライブ成功時】エールにより公開された自分のカードの中にライブカードがある場合、このカードのスコアを＋１する。": {
+            "suffix": "revealed_live_score1",
+            "condition": {"yell_revealed_card_type_count_at_least": {"card_type": "live", "count": 1}},
+            "actions": [{"action_type": "modify_score", "amount": 1}],
+            "duration": "live",
+            "execution_mode": "auto_resolve",
+        },
         "【ライブ成功時】ライブの合計スコアが相手より高い場合、自分のエネルギーデッキから、エネルギーカードを1枚ウェイト状態で置く。 (エールで出た【スコア】1つにつき、成功したライブのスコアの合計に1を加算する。)": {
             "suffix": "higher_score_place_wait_energy",
             "condition": {
@@ -4355,6 +4445,18 @@ def _live_success_simple_effects(row: sqlite3.Row) -> EffectCandidate | None:
                 {
                     "action_type": "place_energy_from_deck",
                     "target": "self",
+                    "amount": 1,
+                    "orientation": "wait",
+                }
+            ],
+            "execution_mode": "auto_resolve",
+        },
+        "【ライブ成功時】自分と相手はそれぞれ、自身のエネルギーデッキから、エネルギーカードを1枚ウェイト状態で置く。": {
+            "suffix": "both_place_wait_energy",
+            "actions": [
+                {
+                    "action_type": "place_energy_from_deck",
+                    "target": "both",
                     "amount": 1,
                     "orientation": "wait",
                 }
@@ -4394,6 +4496,18 @@ def _live_success_simple_effects(row: sqlite3.Row) -> EffectCandidate | None:
                 {"action_type": "discard_from_hand"},
             ],
         },
+        "【ライブ成功時】自分の手札が6枚以下の場合、自分の控え室からメンバーカードを1枚手札に加える。": {
+            "suffix": "hand6_or_less_return_waiting_member",
+            "condition": {"own_hand_count_at_most": 6},
+            "choice": {
+                "choice_type": "card_from_zone",
+                "zone": "waiting_room",
+                "card_type": "member",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [{"action_type": "return_from_waiting_room"}],
+        },
     }
     for label, values in patterns.items():
         matched = _matching_segment(row, label)
@@ -4416,6 +4530,972 @@ def _live_success_simple_effects(row: sqlite3.Row) -> EffectCandidate | None:
             is_optional=False,
             condition=values.get("condition", {}),
             cost=[],
+            choice=values.get("choice"),
+            actions=values["actions"],
+            duration=values.get("duration"),
+        )
+    return None
+
+
+def _live_start_deep_modifiers(row: sqlite3.Row) -> EffectCandidate | None:
+    patterns: dict[str, dict[str, Any]] = {
+        "【ライブ開始時】自分の控え室に『スリーズブーケ』のライブカードが3枚以上ある場合、このカードのスコアを＋１する。": {
+            "suffix": "waiting_cerise_live3_score1",
+            "condition": {
+                "waiting_room_live_unit_count_at_least": {
+                    "unit_key": "cerise_bouquet",
+                    "count": 3,
+                }
+            },
+            "actions": [{"action_type": "modify_score", "amount": 1}],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のステージに名前とコストが両方ともそれぞれ異なるメンバーが3人以上いる場合、このカードのスコアを＋１する。": {
+            "suffix": "stage_distinct_name_cost3_score1",
+            "condition": {
+                "own_stage_distinct_name_and_cost_member_count_at_least": 3
+            },
+            "actions": [{"action_type": "modify_score", "amount": 1}],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のステージのエリアすべてに『虹ヶ咲』のメンバーがいて、かつそれらのコストの合計が20以上の場合、カードを3枚引き、自分の手札を3枚好きな順番でデッキの上に置く。": {
+            "suffix": "nijigasaki_stage_all_cost20_draw3_hand3_top",
+            "condition": {
+                "own_stage_member_work_count_at_least": {
+                    "work_key": "nijigasaki",
+                    "count": 3,
+                },
+                "own_stage_member_work_cost_sum_at_least": {
+                    "work_key": "nijigasaki",
+                    "count": 20,
+                },
+            },
+            "choice": {
+                "choice_type": "post_action_card_from_zone",
+                "zone": "hand",
+                "minimum": 3,
+                "maximum": 3,
+            },
+            "actions": [
+                {"action_type": "draw_card", "amount": 3},
+                {"action_type": "move_selected_to_deck_top"},
+            ],
+            "duration": None,
+        },
+        "【ライブ開始時】自分のデッキの上から、自分と相手のステージにいるメンバー1人につき、1枚公開する。それらの中にあるライブカード1枚につき、このカードのスコアを＋１する。その後、これにより公開したカードを控え室に置く。": {
+            "suffix": "reveal_top_per_total_stage_live_score",
+            "actions": [
+                {
+                    "action_type": "reveal_top_cards",
+                    "amount_source": "total_stage_member_count",
+                },
+                {
+                    "action_type": "modify_score",
+                    "amount_source": "revealed_live_count",
+                },
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】ライブ終了時まで、自分のステージにいる、このターン中にエリアを移動したすべての『Liella!』のメンバーは、【ブレード】を得る。": {
+            "suffix": "moved_liella_stage_blade1",
+            "actions": [
+                {
+                    "action_type": "gain_blade_to_stage_members",
+                    "amount": 1,
+                    "value": {
+                        "work_key": "love_live_superstar",
+                        "moved_this_turn": True,
+                    },
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分の成功ライブカード置き場にあるカードのスコアの合計が６以上の場合、このカードを成功させるための必要ハートを【heart0】減らす。スコアの合計が９以上の場合、さらにこのカードのスコアを＋１する。": {
+            "suffix": "success_score6_required_any_minus1_score9_plus1",
+            "condition": {"success_live_score_at_least": 6},
+            "actions": [
+                {
+                    "action_type": "modify_required_heart",
+                    "amount": -1,
+                    "color_slot": "heart0",
+                },
+                {
+                    "action_type": "modify_score",
+                    "amount_source": "success_live_score_threshold_bonus",
+                    "value": {"thresholds": {"9": 1}},
+                },
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分の成功ライブカード置き場にスコアが１か５のカードがある場合、このカードのスコアを＋１する。それらが両方ある場合、代わりにスコアを＋２する。": {
+            "suffix": "success_score_values_1_or_5_bonus",
+            "actions": [
+                {
+                    "action_type": "modify_score",
+                    "amount_source": "success_live_score_values_bonus",
+                    "value": {"scores": [1, 5]},
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分の成功ライブカード置き場にあるカード名が「EMOTION」のカード1枚につき、このカードのスコアを＋２し、成功させるための必要ハートを【heart0】【heart0】【heart0】増やす。": {
+            "suffix": "success_emotion_each_score2_required_any_plus3",
+            "condition": {
+                "success_live_name_count_at_least": {
+                    "name_ja": "EMOTION",
+                    "count": 1,
+                }
+            },
+            "actions": [
+                {
+                    "action_type": "modify_score",
+                    "amount_source": "success_live_name_count",
+                    "multiplier": 2,
+                    "value": {"name_ja": "EMOTION"},
+                },
+                {
+                    "action_type": "modify_required_heart",
+                    "amount_source": "success_live_name_count",
+                    "multiplier": 3,
+                    "color_slot": "heart0",
+                    "value": {"name_ja": "EMOTION"},
+                },
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分の、ステージと控え室に名前の異なる『Liella!』のメンバーが5人以上いる場合、このカードを使用するためのコストは【heart02】【heart02】【heart03】【heart03】【heart06】【heart06】になる。 (必要ハートを確認する時、エールで出た【ALLブレード】は任意の色のハートとして扱う。)": {
+            "suffix": "liella_stage_waiting_distinct5_replace_required_heart02_03_06",
+            "condition": {
+                "own_stage_waiting_member_work_distinct_name_count_at_least": {
+                    "work_key": "love_live_superstar",
+                    "count": 5,
+                }
+            },
+            "actions": [
+                {
+                    "action_type": "replace_required_hearts",
+                    "value": {
+                        "heart02": 2,
+                        "heart03": 2,
+                        "heart06": 2,
+                    },
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のステージにいる、このターン中に登場、またはエリアを移動した『5yncri5e!』のメンバー1人につき、このカードを成功させるための必要ハートを【heart0】減らす。": {
+            "suffix": "moved_5yncri5e_required_any_minus_each",
+            "actions": [
+                {
+                    "action_type": "modify_required_heart",
+                    "amount_source": "moved_stage_member_count",
+                    "multiplier": -1,
+                    "color_slot": "heart0",
+                    "value": {"unit_key": "5yncri5e"},
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のステージにいる【heart01】と【heart06】以外の色のハートを持つメンバー1人につき、このカードの必要ハートを【heart0】減らす。": {
+            "suffix": "stage_member_non_heart01_06_required_any_minus_each",
+            "actions": [
+                {
+                    "action_type": "modify_required_heart",
+                    "amount_source": "stage_member_with_heart_excluding_colors_count",
+                    "multiplier": -1,
+                    "color_slot": "heart0",
+                    "value": {"exclude_color_slots": ["heart01", "heart06"]},
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のセンターエリアに『μ's』のメンバーがいる場合、そのメンバーが持つ【heart03】2つにつき、このカードの必要ハートを【heart0】減らす。この能力では【heart0】は3つまでしか減らない。": {
+            "suffix": "center_muse_heart03_pairs_required_any_minus_max3",
+            "condition": {
+                "own_stage_slot_member_work": {
+                    "slot": "center",
+                    "work_key": "love_live",
+                }
+            },
+            "actions": [
+                {
+                    "action_type": "modify_required_heart",
+                    "amount_source": "stage_slot_member_heart_pair_count",
+                    "multiplier": -1,
+                    "color_slot": "heart0",
+                    "value": {
+                        "slot": "center",
+                        "work_key": "love_live",
+                        "color_slot": "heart03",
+                        "divisor": 2,
+                        "cap": 3,
+                    },
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のステージに「徒町小鈴」が登場しており、かつ「徒町小鈴」よりコストの大きい「村野さやか」が登場している場合、このカードを成功させるための必要ハートを【heart0】【heart0】【heart0】減らす。": {
+            "suffix": "kosuzu_sayaka_cost_relation_required_any_minus3",
+            "condition": {
+                "own_stage_named_member_cost_greater_than_named": {
+                    "lower_name_ja": "徒町小鈴",
+                    "higher_name_ja": "村野さやか",
+                }
+            },
+            "actions": [
+                {
+                    "action_type": "modify_required_heart",
+                    "amount": -3,
+                    "color_slot": "heart0",
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のステージに名前の異なる『CatChu!』のメンバーが2人以上いる場合、エネルギーを6枚までアクティブにする。その後、自分のエネルギーがすべてアクティブ状態の場合、このカードのスコアを＋１する。": {
+            "suffix": "catchu_distinct2_ready_energy6_all_active_score1",
+            "condition": {
+                "own_stage_member_unit_distinct_name_count_at_least": {
+                    "unit_key": "catchu",
+                    "count": 2,
+                }
+            },
+            "choice": {
+                "choice_type": "energy_from_area",
+                "zone": "energy_area",
+                "orientation": "wait",
+                "minimum": 0,
+                "maximum": 6,
+            },
+            "actions": [
+                {"action_type": "ready_energy"},
+                {
+                    "action_type": "modify_score",
+                    "amount_source": "all_energy_active_bonus",
+                },
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のステージにいる『Aqours』のメンバーが持つハートに、【heart04】が合計10個以上ある場合、このカードのスコアを＋２する。": {
+            "suffix": "aqours_stage_heart04_10_score2",
+            "condition": {
+                "own_stage_heart_at_least": {
+                    "unit_key": "aqours",
+                    "color_slot": "heart04",
+                    "count": 10,
+                }
+            },
+            "actions": [{"action_type": "modify_score", "amount": 2}],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のステージに名前の異なる『KALEIDOSCORE』のメンバーが2人以上いる場合、このカードのスコアを＋１する。": {
+            "suffix": "kaleidoscore_stage_distinct2_score1",
+            "condition": {
+                "own_stage_member_unit_distinct_name_count_at_least": {
+                    "unit_key": "kaleidoscore",
+                    "count": 2,
+                }
+            },
+            "actions": [{"action_type": "modify_score", "amount": 1}],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のステージにいる名前の異なる『蓮ノ空』のメンバー1人につき、このカードのスコアを＋２する。": {
+            "suffix": "hasunosora_stage_distinct_score2_each",
+            "condition": {
+                "own_stage_member_work_count_at_least": {
+                    "work_key": "hasunosora",
+                    "count": 1,
+                }
+            },
+            "actions": [
+                {
+                    "action_type": "modify_score",
+                    "amount_source": "own_stage_member_work_distinct_name_count",
+                    "multiplier": 2,
+                    "value": {"work_key": "hasunosora"},
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】ライブ終了時まで、自分のステージにいる『蓮ノ空』のメンバー1人が元々持つハートをすべて【heart01】にする。": {
+            "suffix": "hasunosora_member_replace_base_hearts_heart01",
+            "choice": {
+                "choice_type": "member_from_stage",
+                "zone": "stage",
+                "card_type": "member",
+                "work_key": "hasunosora",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [
+                {
+                    "action_type": "replace_member_base_hearts",
+                    "color_slot": "heart01",
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のステージに、このターン中にバトンタッチして登場した『蓮ノ空』のメンバーが2人以上いる場合、このカードを成功させるための必要ハートを【heart05】減らす。": {
+            "suffix": "hasunosora_baton_entered2_required_heart05_minus1",
+            "condition": {
+                "own_baton_entered_stage_member_work_count_at_least": {
+                    "work_key": "hasunosora",
+                    "count": 2,
+                }
+            },
+            "actions": [
+                {
+                    "action_type": "modify_required_heart",
+                    "amount": -1,
+                    "color_slot": "heart05",
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のステージに、このターン中にバトンタッチして登場した『蓮ノ空』のメンバーが2人以上いる場合、このカードを成功させるための必要ハートを【heart01】減らす。": {
+            "suffix": "hasunosora_baton_entered2_required_heart01_minus1",
+            "condition": {
+                "own_baton_entered_stage_member_work_count_at_least": {
+                    "work_key": "hasunosora",
+                    "count": 2,
+                }
+            },
+            "actions": [
+                {
+                    "action_type": "modify_required_heart",
+                    "amount": -1,
+                    "color_slot": "heart01",
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分の成功ライブカード置き場にあるカード1枚につき、このカードのスコアを＋２し、必要ハートを【heart01】【heart03】【heart06】【heart0】増やす。": {
+            "suffix": "success_count_score2_required_heart_plus",
+            "actions": [
+                {
+                    "action_type": "modify_score",
+                    "amount_source": "success_live_count",
+                    "multiplier": 2,
+                },
+                {
+                    "action_type": "modify_required_heart",
+                    "amount_source": "success_live_count",
+                    "color_slot": "heart01",
+                },
+                {
+                    "action_type": "modify_required_heart",
+                    "amount_source": "success_live_count",
+                    "color_slot": "heart03",
+                },
+                {
+                    "action_type": "modify_required_heart",
+                    "amount_source": "success_live_count",
+                    "color_slot": "heart06",
+                },
+                {
+                    "action_type": "modify_required_heart",
+                    "amount_source": "success_live_count",
+                    "color_slot": "heart0",
+                },
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のライブ中のカードにスコア２以下のライブカードがある場合、このメンバーをアクティブにする。": {
+            "suffix": "live_area_score2_ready_source",
+            "condition": {"live_area_score_at_most": 2},
+            "actions": [{"action_type": "ready_member", "target": "source"}],
+        },
+        "【ライブ開始時】自分のステージに同じ名前の『虹ヶ咲』のメンバーが2人以上いる場合、このカードを成功させるための必要ハートを【heart0】【heart0】【heart0】減らす。": {
+            "suffix": "nijigasaki_same_name2_required_any_minus3",
+            "condition": {
+                "own_stage_same_name_member_count_at_least": {
+                    "work_key": "nijigasaki",
+                    "count": 2,
+                }
+            },
+            "actions": [
+                {
+                    "action_type": "modify_required_heart",
+                    "amount": -3,
+                    "color_slot": "heart0",
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】このゲームの1ターン目のライブフェイズの場合、このカードのスコアを＋１し、ライブ終了時まで、自分のステージにいる『虹ヶ咲』のメンバー1人は、【ブレード】を得る。": {
+            "suffix": "turn1_score1_choose_nijigasaki_blade1",
+            "condition": {"turn_number_exact": 1},
+            "choice": {
+                "choice_type": "member_from_stage",
+                "zone": "stage",
+                "card_type": "member",
+                "work_key": "nijigasaki",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [
+                {"action_type": "modify_score", "amount": 1},
+                {"action_type": "gain_blade", "amount": 1},
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のセンターエリアに【ブレード】を9つ以上持つ『μ's』のメンバーがいる場合、このカードのスコアを＋２する。": {
+            "suffix": "center_muse_blade9_score2",
+            "condition": {
+                "center_member_blade_at_least": {
+                    "work_key": "love_live",
+                    "count": 9,
+                }
+            },
+            "actions": [{"action_type": "modify_score", "amount": 2}],
+            "duration": "live",
+        },
+        "【ライブ開始時】ライブ終了時まで、自分のステージにいる『μ's』のメンバー1人は、【ブレード】を得る。": {
+            "suffix": "choose_muse_member_blade1",
+            "choice": {
+                "choice_type": "member_from_stage",
+                "zone": "stage",
+                "card_type": "member",
+                "work_key": "love_live",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [{"action_type": "gain_blade", "amount": 1}],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分の成功ライブカード置き場にカードがある場合、【heart01】か【heart03】か【heart06】のうち、1つを選ぶ。ライブ終了時まで、自分のステージにいる『μ's』のメンバー1人は、選んだハートを1つ得る。": {
+            "suffix": "success_exists_choose_muse_member_heart1",
+            "condition": {"success_live_count_at_least": 1},
+            "choice": {
+                "choice_type": "member_from_stage",
+                "zone": "stage",
+                "card_type": "member",
+                "work_key": "love_live",
+                "color_slots": ["heart01", "heart03", "heart06"],
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [{"action_type": "gain_heart", "amount": 1}],
+            "duration": "live",
+        },
+        "【ライブ開始時】ライブ終了時まで、自分のステージにいる『Aqours』のメンバーは【ブレード】を得る。": {
+            "suffix": "all_aqours_stage_blade1",
+            "condition": {
+                "own_stage_member_unit_count_at_least": {
+                    "unit_key": "aqours",
+                    "count": 1,
+                }
+            },
+            "actions": [
+                {
+                    "action_type": "gain_blade_to_stage_members",
+                    "amount": 1,
+                    "value": {"unit_key": "aqours"},
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のライブカード置き場に「MY舞☆TONIGHT」以外の『Aqours』のライブカードがある場合、ライブ終了時まで、自分のステージのメンバーは【ブレード】を得る。": {
+            "suffix": "live_area_other_aqours_live_stage_blade1",
+            "condition": {
+                "live_area_card_exists": {
+                    "card_type": "live",
+                    "work_key": "love_live_sunshine",
+                    "exclude_name_ja": "MY舞☆TONIGHT",
+                }
+            },
+            "actions": [
+                {
+                    "action_type": "gain_blade_to_stage_members",
+                    "amount": 1,
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のライブカード置き場にあるこのカード以外の『蓮ノ空』のカード1枚につき、このカードの必要ハートを【heart04】【heart04】減らす。": {
+            "suffix": "other_hasu_live_area_required_heart04_minus2_each",
+            "actions": [
+                {
+                    "action_type": "modify_required_heart",
+                    "amount_source": "other_live_area_work_count",
+                    "multiplier": -2,
+                    "color_slot": "heart04",
+                    "value": {
+                        "card_type": "live",
+                        "work_key": "hasunosora",
+                    },
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】手札を2枚控え室に置いてもよい：ライブ終了時まで、自分のステージにいるメンバー1人は、【ブレード】【ブレード】【ブレード】を得る。": {
+            "suffix": "discard2_choose_member_blade3",
+            "cost_choice": {
+                "choice_type": "card_from_zone",
+                "zone": "hand",
+                "minimum": 2,
+                "maximum": 2,
+            },
+            "cost": [{"action_type": "discard_from_hand"}],
+            "choice": {
+                "choice_type": "member_from_stage",
+                "zone": "stage",
+                "card_type": "member",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [{"action_type": "gain_blade", "amount": 3}],
+            "duration": "live",
+            "is_optional": True,
+        },
+        "【ライブ開始時】手札を1枚控え室に置いてもよい：ライブ終了時まで、自分のステージにいるほかのメンバーは【ブレード】を得る。": {
+            "suffix": "discard1_other_stage_members_blade1",
+            "cost_choice": {
+                "choice_type": "card_from_zone",
+                "zone": "hand",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "cost": [{"action_type": "discard_from_hand"}],
+            "actions": [
+                {
+                    "action_type": "gain_blade_to_stage_members",
+                    "amount": 1,
+                    "value": {"exclude_source": True},
+                }
+            ],
+            "duration": "live",
+            "is_optional": True,
+            "execution_mode": "prompt_then_resolve",
+        },
+        "【ライブ開始時】相手のステージにウェイト状態のメンバーがいる場合、このカードを成功させるための必要ハートを【heart0】【heart0】減らす。": {
+            "suffix": "opponent_wait_member_required_any_minus2",
+            "condition": {"opponent_stage_wait_member_count_at_least": 1},
+            "actions": [
+                {
+                    "action_type": "modify_required_heart",
+                    "amount": -2,
+                    "color_slot": "heart0",
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分の成功ライブカード置き場にあるカード1枚につき、このカードを成功させるための必要ハートは【heart0】【heart0】少なくなる。": {
+            "suffix": "success_count_required_any_minus2",
+            "actions": [
+                {
+                    "action_type": "modify_required_heart",
+                    "amount_source": "success_live_count",
+                    "multiplier": -2,
+                    "color_slot": "heart0",
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のステージの右サイドエリアに「大沢瑠璃乃」が、左サイドエリアに「安養寺姫芽」が、センターエリアに「藤島 慈」がそれぞれ登場している場合、このカードのスコアを＋２する。": {
+            "suffix": "hasu_named_slots_score2",
+            "condition": {
+                "own_stage_slot_names": {
+                    "right": "大沢瑠璃乃",
+                    "left": "安養寺姫芽",
+                    "center": "藤島 慈",
+                }
+            },
+            "actions": [{"action_type": "modify_score", "amount": 2}],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分の控え室に『蓮ノ空』のメンバーカードが10枚以上ある場合、ライブ終了時まで、自分のステージにいる『蓮ノ空』のメンバー1人は、【heart04】を得る。": {
+            "suffix": "waiting_hasu_member10_choose_hasu_heart04",
+            "condition": {
+                "waiting_room_member_work_count_at_least": {
+                    "work_key": "hasunosora",
+                    "count": 10,
+                }
+            },
+            "choice": {
+                "choice_type": "member_from_stage",
+                "zone": "stage",
+                "card_type": "member",
+                "work_key": "hasunosora",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [
+                {"action_type": "gain_heart", "amount": 1, "color_slot": "heart04"}
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のステージにいる『蓮ノ空』のメンバーのコストが合計20以上の場合、デッキの上のカードを2枚見る。その中から1枚を手札に加え、残りをデッキの上に戻す。30以上の場合、さらにこのカードの必要ハートを【heart0】【heart0】減らす。": {
+            "suffix": "hasunosora_stage_cost20_inspect2_keep1_top_cost30_required_any_minus2",
+            "condition": {
+                "own_stage_member_work_cost_sum_at_least": {
+                    "work_key": "hasunosora",
+                    "count": 20,
+                }
+            },
+            "choice": {
+                "choice_type": "inspect_top_select",
+                "amount": 2,
+                "minimum": 1,
+                "maximum": 1,
+                "requires_order": False,
+                "selected_destination": "hand",
+                "unselected_destination": "main_deck_top_ordered",
+                "reveal_selected_to_opponent": False,
+            },
+            "actions": [
+                {"action_type": "inspect_top_cards", "amount": 2},
+                {"action_type": "select_to_hand_from_inspected"},
+                {"action_type": "move_remaining_cards"},
+                {
+                    "action_type": "modify_required_heart",
+                    "amount_source": "stage_member_work_cost_sum_threshold_bonus",
+                    "color_slot": "heart0",
+                    "value": {
+                        "work_key": "hasunosora",
+                        "thresholds": {"30": -2},
+                    },
+                },
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のステージに『蓮ノ空』のメンバーが3人以上いて、かつ自分の控え室にカード名に「Dream Believers」を含むライブカードがある場合、このカードのスコアを＋１する。": {
+            "suffix": "hasunosora_stage3_waiting_dream_believers_score1",
+            "condition": {
+                "own_stage_member_work_count_at_least": {
+                    "work_key": "hasunosora",
+                    "count": 3,
+                },
+                "waiting_room_live_name_contains": "Dream Believers",
+            },
+            "actions": [{"action_type": "modify_score", "amount": 1}],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分の、ステージと控え室に名前の異なる『蓮ノ空』のメンバーが6人以上いる場合、このカードの必要ハートは【heart0】【heart0】減る。": {
+            "suffix": "hasunosora_stage_waiting_distinct6_required_any_minus2",
+            "condition": {
+                "own_stage_waiting_member_work_distinct_name_count_at_least": {
+                    "work_key": "hasunosora",
+                    "count": 6,
+                }
+            },
+            "actions": [
+                {
+                    "action_type": "modify_required_heart",
+                    "amount": -2,
+                    "color_slot": "heart0",
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分の成功ライブカード置き場にカードが2枚以上ある場合、ライブ終了時まで、自分のステージにいるメンバー1人は、【ブレード】【ブレード】を得る。": {
+            "suffix": "success_count2_choose_member_blade2",
+            "condition": {"success_live_count_at_least": 2},
+            "choice": {
+                "choice_type": "member_from_stage",
+                "zone": "stage",
+                "card_type": "member",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [{"action_type": "gain_blade", "amount": 2}],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分の成功ライブカード置き場にカードが2枚以上ある場合、このカードのスコアを＋５し、必要ハートは【heart02】【heart02】【heart02】【heart03】【heart03】【heart03】【heart06】【heart06】【heart06】【heart0】【heart0】【heart0】になる。": {
+            "suffix": "success_count2_score5_replace_required_superstar",
+            "condition": {"success_live_count_at_least": 2},
+            "actions": [
+                {"action_type": "modify_score", "amount": 5},
+                {
+                    "action_type": "replace_required_hearts",
+                    "value": {
+                        "heart02": 3,
+                        "heart03": 3,
+                        "heart06": 3,
+                        "heart0": 3,
+                    },
+                },
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のセンターエリアにいる『Liella!』のメンバーのコストが、相手のセンターエリアにいるメンバーより高い場合、このカードのスコアを＋１する。": {
+            "suffix": "center_liella_cost_higher_than_opponent_score1",
+            "condition": {
+                "center_member_work_cost_greater_than_opponent": {
+                    "work_key": "love_live_superstar",
+                }
+            },
+            "actions": [{"action_type": "modify_score", "amount": 1}],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のステージの左サイドエリアにいる『Liella!』のメンバーが【heart02】を3つ以上持つ場合、そのメンバーは、ライブ終了時まで、【ブレード】【ブレード】を得る。": {
+            "suffix": "left_liella_heart02_3_blade2",
+            "condition": {
+                "own_stage_slot_member_heart_at_least": {
+                    "slot": "left",
+                    "work_key": "love_live_superstar",
+                    "color_slot": "heart02",
+                    "count": 3,
+                }
+            },
+            "actions": [
+                {
+                    "action_type": "gain_blade_to_stage_members",
+                    "amount": 2,
+                    "value": {
+                        "slot": "left",
+                        "work_key": "love_live_superstar",
+                    },
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のステージに『Aqours』のメンバーと『Saint Snow』のメンバーがいて、かつそれらのメンバーのコストが合計20以上の場合、自分の控え室にある『Aqours』と『Saint Snow』のライブカードを4枚まで好きな順番でデッキの上に置いてもよい。": {
+            "suffix": "aqours_saint_snow_cost20_waiting_live_top4",
+            "condition": {
+                "own_stage_member_unit_keys_present": ["aqours", "saint_snow"],
+                "own_stage_member_cost_sum_at_least": 20,
+            },
+            "choice": {
+                "choice_type": "card_from_zone",
+                "zone": "waiting_room",
+                "card_type": "live",
+                "unit_keys_any": ["aqours", "saint_snow"],
+                "minimum": 0,
+                "maximum": 4,
+            },
+            "actions": [{"action_type": "move_selected_to_deck_top"}],
+            "is_optional": True,
+        },
+        "【ライブ開始時】自分のステージにいるメンバーが持つ【ブレード】の合計が10以上の場合、このカードのスコアを＋１する。 (エールをすべて行った後、エールで出た【ドロー】1つにつき、カードを1枚引く。)": {
+            "suffix": "stage_blade10_score1",
+            "condition": {"own_stage_blade_total_at_least": 10},
+            "actions": [{"action_type": "modify_score", "amount": 1}],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のステージにいる『Liella!』のメンバーが持つハートの総数が11以上の場合、このカードのスコアを＋１する。": {
+            "suffix": "liella_stage_total_heart11_score1",
+            "condition": {
+                "own_stage_total_heart_at_least": {
+                    "work_key": "love_live_superstar",
+                    "count": 11,
+                }
+            },
+            "actions": [{"action_type": "modify_score", "amount": 1}],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のステージにいるメンバーが持つハートの中に【heart01】、【heart02】、【heart03】、【heart04】、【heart05】、【heart06】がすべてある場合、このカードのスコアを＋１する。": {
+            "suffix": "stage_all_six_heart_colors_score1",
+            "condition": {"own_stage_heart_color_variety_at_least": 6},
+            "actions": [{"action_type": "modify_score", "amount": 1}],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のステージにいる『虹ヶ咲』のメンバーが持つ【heart01】、【heart04】、【heart05】、【heart02】、【heart03】、【heart06】のうち1色につき、このカードのスコアを＋１する。 (エールをすべて行った後、エールで出た【ドロー】1つにつき、カードを1枚引く。)": {
+            "suffix": "nijigasaki_stage_heart_color_variety_score_each",
+            "actions": [
+                {
+                    "action_type": "modify_score",
+                    "amount_source": "stage_member_heart_color_variety_count",
+                    "value": {
+                        "work_key": "nijigasaki",
+                        "color_slots": [
+                            "heart01",
+                            "heart04",
+                            "heart05",
+                            "heart02",
+                            "heart03",
+                            "heart06",
+                        ],
+                    },
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】【heart01】か【heart02】か【heart06】のうち、1つを選ぶ。ライブ終了時まで、自分のステージにいる、このターン中にエリアを移動しているすべてのメンバーは、選んだハートを1つ得る。": {
+            "suffix": "choose_heart01_02_06_moved_stage_members_heart1",
+            "choice": {
+                "choice_type": "choose_color",
+                "color_slots": ["heart01", "heart02", "heart06"],
+                "minimum": 0,
+                "maximum": 0,
+            },
+            "actions": [
+                {
+                    "action_type": "gain_heart_to_stage_members",
+                    "amount": 1,
+                    "value": {"moved_this_turn": True},
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分か相手の成功ライブカード置き場にカードが2枚以上あり、かつ自分のステージに名前の異なるメンバーが3人以上いる場合、このカードのスコアを＋１する。": {
+            "suffix": "any_success2_distinct_stage3_score1",
+            "condition": {
+                "any_success_live_count_at_least": 2,
+                "own_stage_distinct_name_and_cost_member_count_at_least": 3,
+            },
+            "actions": [{"action_type": "modify_score", "amount": 1}],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のライブ中のライブカードの必要ハートに含まれる【heart02】の合計が4以上の場合、ライブ終了時まで、【heart02】を得る。": {
+            "suffix": "live_required_heart02_4_gain_heart02",
+            "condition": {
+                "live_area_required_heart_at_least": {
+                    "color_slot": "heart02",
+                    "count": 4,
+                }
+            },
+            "actions": [
+                {"action_type": "gain_heart", "amount": 1, "color_slot": "heart02"}
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分の成功ライブカード置き場かライブ中のライブカードの中に、必要ハートに含まれる【heart01】が4の『虹ヶ咲』のライブカードがある場合、このカードのスコアを＋１する。": {
+            "suffix": "nijigasaki_live_or_success_required_heart01_4_score1",
+            "condition": {
+                "live_or_success_required_heart_at_least": {
+                    "work_key": "nijigasaki",
+                    "color_slot": "heart01",
+                    "count": 4,
+                }
+            },
+            "actions": [{"action_type": "modify_score", "amount": 1}],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分の控え室にカード名の異なる『虹ヶ咲』のライブカードが4枚以上ある場合、このカードのスコアを＋１する。6枚以上ある場合、代わりにスコアを＋２する。": {
+            "suffix": "nijigasaki_waiting_distinct_live4_score1_6_score2",
+            "condition": {
+                "waiting_room_live_work_distinct_name_count_at_least": {
+                    "work_key": "nijigasaki",
+                    "count": 4,
+                }
+            },
+            "actions": [
+                {
+                    "action_type": "modify_score",
+                    "amount_source": "waiting_room_live_work_distinct_name_threshold_bonus",
+                    "value": {
+                        "work_key": "nijigasaki",
+                        "thresholds": {"4": 1, "6": 2},
+                    },
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のライブカード置き場にあるカードの必要ハートに含まれる【heart05】の合計が4以上の場合、ライブ終了時まで、【heart05】を得る。": {
+            "suffix": "live_required_heart05_4_gain_heart05",
+            "condition": {
+                "live_area_required_heart_at_least": {
+                    "color_slot": "heart05",
+                    "count": 4,
+                }
+            },
+            "actions": [
+                {"action_type": "gain_heart", "amount": 1, "color_slot": "heart05"}
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のライブカード置き場にあるカードの必要ハートに含まれる【heart04】の合計が4以上の場合、ライブ終了時まで、【heart04】を得る。": {
+            "suffix": "live_required_heart04_4_gain_heart04",
+            "condition": {
+                "live_area_required_heart_at_least": {
+                    "color_slot": "heart04",
+                    "count": 4,
+                }
+            },
+            "actions": [
+                {"action_type": "gain_heart", "amount": 1, "color_slot": "heart04"}
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分の成功ライブカード置き場のカードが0枚で、かつ自分のステージにいるメンバーが『lily white』のみの場合、このカードのスコアを＋１する。": {
+            "suffix": "success0_only_lily_white_score1",
+            "condition": {
+                "success_live_count_at_most": 0,
+                "own_stage_members_only_unit_key": "lily_white",
+            },
+            "actions": [{"action_type": "modify_score", "amount": 1}],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のステージにいるメンバーが持つ【ブレード】の合計が10以上の場合、このカードを成功させるための必要ハートは【heart0】【heart0】少なくなる。": {
+            "suffix": "stage_blade10_required_any_minus2",
+            "condition": {"own_stage_blade_total_at_least": 10},
+            "actions": [
+                {
+                    "action_type": "modify_required_heart",
+                    "amount": -2,
+                    "color_slot": "heart0",
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のライブ中のカードが3枚以上ある場合、このカードのスコアを＋２する。 (エールをすべて行った後、エールで出た【ドロー】1つにつき、カードを1枚引く。)": {
+            "suffix": "live_area3_score2",
+            "condition": {"live_area_count_at_least": 3},
+            "actions": [{"action_type": "modify_score", "amount": 2}],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のステージに【heart02】を4つ以上持つメンバーがいる場合、このカードのスコアを＋２し、必要ハートは【heart02】【heart02】【heart02】【heart02】【heart02】になる。": {
+            "suffix": "stage_member_heart02_4_score2_replace_heart02_5",
+            "condition": {
+                "own_stage_member_heart_at_least": {
+                    "color_slot": "heart02",
+                    "count": 4,
+                }
+            },
+            "actions": [
+                {"action_type": "modify_score", "amount": 2},
+                {
+                    "action_type": "replace_required_hearts",
+                    "value": {"heart02": 5},
+                },
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】ライブ終了時まで、自分のステージにいるコスト10以上の『蓮ノ空』のメンバー1人は、【ブレード】【ブレード】を得る。": {
+            "suffix": "choose_hasu_cost10_blade2",
+            "choice": {
+                "choice_type": "member_from_stage",
+                "zone": "stage",
+                "card_type": "member",
+                "work_key": "hasunosora",
+                "minimum_cost": 10,
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [{"action_type": "gain_blade", "amount": 2}],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分の成功ライブカード置き場のカード枚数が相手より少ない場合、このカードのスコアを＋１する。": {
+            "suffix": "success_count_less_than_opponent_score1",
+            "condition": {"own_success_live_count_less_than_opponent": True},
+            "actions": [{"action_type": "modify_score", "amount": 1}],
+            "duration": "live",
+        },
+    }
+    for label, values in patterns.items():
+        matched = _matching_segment(row, label)
+        if matched is None:
+            continue
+        effect_index, exact_label = matched
+        execution_mode = values.get("execution_mode", "auto_resolve")
+        if values.get("choice") is not None:
+            execution_mode = values.get("execution_mode", "prompt_then_resolve")
+        return EffectCandidate(
+            **_base_with_execution_mode(
+                row,
+                pattern_id=f"live_start_deep_{values['suffix']}",
+                effect_index=effect_index,
+                execution_mode=execution_mode,
+            ),
+            label_ja=exact_label,
+            effect_type="triggered",
+            timing="live_start",
+            trigger="live_started",
+            frequency_limit="once_per_live",
+            is_optional=bool(values.get("is_optional", False)),
+            condition=values.get("condition", {}),
+            cost=values.get("cost", []),
+            cost_choice=values.get("cost_choice"),
             choice=values.get("choice"),
             actions=values["actions"],
             duration=values.get("duration"),
@@ -4972,6 +6052,303 @@ def _static_modifier_effects(row: sqlite3.Row) -> EffectCandidate | None:
     )
 
 
+def _live_start_left_liella_heart02_blade(row: sqlite3.Row) -> EffectCandidate | None:
+    label = (
+        "【ライブ開始時】自分のステージの左サイドエリアにいる『Liella!』のメンバーが"
+        "【heart02】を3つ以上持つ場合、そのメンバーは、ライブ終了時まで、"
+        "【ブレード】【ブレード】を得る。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base_with_execution_mode(
+            row,
+            pattern_id="live_start_deep_left_liella_heart02_3_blade2",
+            effect_index=effect_index,
+            execution_mode="auto_resolve",
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={
+            "own_stage_slot_member_heart_at_least": {
+                "slot": "left",
+                "work_key": "love_live_superstar",
+                "color_slot": "heart02",
+                "count": 3,
+            }
+        },
+        cost=[],
+        choice=None,
+        actions=[
+            {
+                "action_type": "gain_blade_to_stage_members",
+                "amount": 2,
+                "value": {
+                    "slot": "left",
+                    "work_key": "love_live_superstar",
+                },
+            }
+        ],
+        duration="live",
+    )
+
+
+def _live_start_named_superstar_members_gain_heart_and_blade(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    label = (
+        "【ライブ開始時】ライブ終了時まで、自分のステージにいる「澁谷かのん」1人は"
+        "【heart05】【ブレード】を、「唐 可可」1人は【heart01】【ブレード】を得る。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base_with_execution_mode(
+            row,
+            pattern_id="live_start_deep_named_superstar_members_gain_heart_blade",
+            effect_index=effect_index,
+            execution_mode="auto_resolve",
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice=None,
+        actions=[
+            {
+                "action_type": "gain_heart_to_stage_members",
+                "amount": 1,
+                "color_slot": "heart05",
+                "value": {"name_ja": "澁谷かのん", "maximum": 1},
+            },
+            {
+                "action_type": "gain_blade_to_stage_members",
+                "amount": 1,
+                "value": {"name_ja": "澁谷かのん", "maximum": 1},
+            },
+            {
+                "action_type": "gain_heart_to_stage_members",
+                "amount": 1,
+                "color_slot": "heart01",
+                "value": {"name_ja": "唐 可可", "maximum": 1},
+            },
+            {
+                "action_type": "gain_blade_to_stage_members",
+                "amount": 1,
+                "value": {"name_ja": "唐 可可", "maximum": 1},
+            },
+        ],
+        duration="live",
+    )
+
+
+def _live_start_grouped_superstar_members_gain_blade(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    label = (
+        "【ライブ開始時】ライブ終了時まで、自分のステージにいる、"
+        "「澁谷かのん」「ウィーン・マルガレーテ」「鬼塚冬毬」のうちのメンバー1人と、"
+        "これにより選んだメンバー以外の『Liella!』のメンバー1人は、【ブレード】を得る。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base(
+            row,
+            pattern_id="live_start_grouped_superstar_named_and_other_liella_blade",
+            effect_index=effect_index,
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice={
+            "choice_type": "member_group_from_stage",
+            "selection_groups": [
+                {
+                    "group_id": "named_member",
+                    "label_ja": "指定名のメンバー",
+                    "zone": "stage",
+                    "card_type": "member",
+                    "name_ja_any": [
+                        "澁谷かのん",
+                        "ウィーン・マルガレーテ",
+                        "鬼塚冬毬",
+                    ],
+                    "minimum": 1,
+                    "maximum": 1,
+                },
+                {
+                    "group_id": "other_liella",
+                    "label_ja": "選んだメンバー以外の『Liella!』のメンバー",
+                    "zone": "stage",
+                    "card_type": "member",
+                    "work_key": "love_live_superstar",
+                    "exclude_group_ids": ["named_member"],
+                    "minimum": 1,
+                    "maximum": 1,
+                },
+            ],
+        },
+        actions=[{"action_type": "gain_blade", "amount": 1}],
+        duration="live",
+    )
+
+
+def _live_start_nijigasaki_ready_history_score(row: sqlite3.Row) -> EffectCandidate | None:
+    label = (
+        "【ライブ開始時】このターン、自分の『虹ヶ咲』のカードの効果によって"
+        "ウェイト状態の自分のエネルギーをアクティブにしていた場合、"
+        "このカードのスコアを＋１する。さらに、自分の『虹ヶ咲』のカードの効果によって"
+        "自分のステージにいるウェイト状態のメンバーもアクティブにしていた場合、"
+        "代わりにスコアを＋２する。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base_with_execution_mode(
+            row,
+            pattern_id="live_start_deep_nijigasaki_effect_ready_history_score",
+            effect_index=effect_index,
+            execution_mode="auto_resolve",
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={
+            "effect_ready_history": {
+                "work_key": "nijigasaki",
+                "ready_type": "energy",
+            }
+        },
+        cost=[],
+        choice=None,
+        actions=[
+            {
+                "action_type": "modify_score",
+                "amount_source": "effect_ready_history_score_bonus",
+                "value": {
+                    "work_key": "nijigasaki",
+                    "energy_bonus": 1,
+                    "member_bonus": 2,
+                },
+            }
+        ],
+          duration="live",
+      )
+
+
+def _live_start_yell_blade_heart_replacement(row: sqlite3.Row) -> EffectCandidate | None:
+    patterns = {
+        (
+            "【ライブ開始時】ライブ終了時まで、エールによって公開される自分のカードが持つ"
+            "[桃ブレード]、[赤ブレード]、[黄ブレード]、[緑ブレード]、"
+            "[紫ブレード]、【ALLブレード】は、すべて[青ブレード]になる。"
+        ): {
+            "suffix": "replace_yell_blade_hearts_heart05",
+            "color_slot": "heart05",
+        },
+        (
+            "【ライブ開始時】ライブ終了時まで、エールによって公開される自分のカードが持つ"
+            "[桃ブレード]、[赤ブレード]、[黄ブレード]、[緑ブレード]、"
+            "[青ブレード]、【ALLブレード】は、すべて[紫ブレード]になる。"
+        ): {
+            "suffix": "replace_yell_blade_hearts_heart06",
+            "color_slot": "heart06",
+        },
+    }
+    for label, values in patterns.items():
+        matched = _matching_segment(row, label)
+        if matched is None:
+            continue
+        effect_index, exact_label = matched
+        return EffectCandidate(
+            **_base_with_execution_mode(
+                row,
+                pattern_id=f"live_start_deep_{values['suffix']}",
+                effect_index=effect_index,
+                execution_mode="auto_resolve",
+            ),
+            label_ja=exact_label,
+            effect_type="triggered",
+            timing="live_start",
+            trigger="live_started",
+            frequency_limit="once_per_live",
+            is_optional=False,
+            condition={},
+            cost=[],
+            choice=None,
+            actions=[
+                {
+                    "action_type": "replace_yell_blade_hearts",
+                    "color_slot": values["color_slot"],
+                    "value": {"include_all_color": True},
+                }
+            ],
+            duration="live",
+        )
+    return None
+
+
+def _live_start_pay2_or_discard2(row: sqlite3.Row) -> EffectCandidate | None:
+    label = "【ライブ開始時】【E】【E】支払わないかぎり、自分の手札を2枚控え室に置く。"
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base(
+            row,
+            pattern_id="live_start_pay2_or_discard2",
+            effect_index=effect_index,
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice={
+            "choice_type": "choose_effect_branch",
+            "zone": "hand",
+            "branch_ids": ["pay_energy", "discard_hand"],
+            "branch_selection_minimum": {"discard_hand": 2},
+            "branch_selection_maximum": {"discard_hand": 2},
+            "branch_energy_required": {"pay_energy": 2},
+        },
+        actions=[
+            {"action_type": "pay_energy", "amount": 2, "branch": "pay_energy"},
+            {"action_type": "discard_from_hand", "branch": "discard_hand"},
+        ],
+        duration=None,
+    )
+
+
 _PATTERNS = (
     _onplay_wait_inspect2_reorder,
     _onplay_inspect2_reorder,
@@ -4980,6 +6357,7 @@ _PATTERNS = (
     _live_start_pay_energy_gain_blade,
     _live_start_choose_color_gain_heart_per_success_live,
     _live_success_draw_then_discard,
+    _live_start_draw_then_discard,
     _activated_wait_ready_other,
     _onplay_ready_all_self_stage,
     _onplay_success_score_ready_energy,
@@ -4999,6 +6377,7 @@ _PATTERNS = (
     _onplay_stage_cost13_draw,
     _onplay_success_score_return_muse_live,
     _onplay_success_count_return_live,
+    _onplay_energy11_return_live,
     _onplay_opponent_active_member_wait,
     _onplay_wait_opponent_member_blade1,
     _onplay_baton_lower_cost_gain_blade2,
@@ -5054,6 +6433,13 @@ _PATTERNS = (
     _live_success_yell_to_hand,
     _live_start_simple_modifiers,
     _live_success_simple_effects,
+    _live_start_nijigasaki_ready_history_score,
+    _live_start_named_superstar_members_gain_heart_and_blade,
+    _live_start_grouped_superstar_members_gain_blade,
+    _live_start_yell_blade_heart_replacement,
+    _live_start_left_liella_heart02_blade,
+    _live_start_pay2_or_discard2,
+    _live_start_deep_modifiers,
     _onplay_variable_discard_draw,
     _activated_more_simple_effects,
     _static_modifier_effects,
