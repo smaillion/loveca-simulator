@@ -450,7 +450,12 @@ def test_cors_allowed_origins_are_applied(tmp_path):
     assert response.headers["access-control-allow-origin"] == "https://smaillion.github.io"
 
 
-def test_health_includes_locked_database_fingerprint(tmp_path):
+def test_health_includes_locked_database_fingerprint(tmp_path, monkeypatch):
+    monkeypatch.setenv("LOVECA_DEPLOY_GIT_SHA", "abc123")
+    monkeypatch.setenv("LOVECA_DEPLOY_GIT_REF", "develop")
+    monkeypatch.setenv("LOVECA_DEPLOY_GITHUB_RUN_ID", "987")
+    monkeypatch.setenv("LOVECA_DEPLOY_IMAGE", "ghcr.io/example/loveca-api")
+    monkeypatch.setenv("LOVECA_DEPLOY_IMAGE_TAG", "sha-abc123")
     client = _client(tmp_path)
 
     response = client.get("/api/health")
@@ -460,6 +465,13 @@ def test_health_includes_locked_database_fingerprint(tmp_path):
     assert payload["status"] == "ok"
     assert payload["card_database_fingerprint"]
     assert payload["effect_registry_hash"]
+    assert payload["deployment"] == {
+        "git_sha": "abc123",
+        "git_ref": "develop",
+        "github_run_id": "987",
+        "image": "ghcr.io/example/loveca-api",
+        "image_tag": "sha-abc123",
+    }
 
 
 def test_deck_library_api_round_trip(tmp_path):
