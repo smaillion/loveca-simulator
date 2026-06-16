@@ -771,25 +771,6 @@ export function DeckBuilder({
               <WandSparkles size={16} />
               {tr(locale, "新建空牌组", "空デッキを作成")}
             </button>
-            <button className="secondary-button" onClick={() => importInputRef.current?.click()}>
-              <Upload size={16} />
-              {tr(locale, "导入 JSON", "JSONを読み込み")}
-            </button>
-            <input
-              ref={importInputRef}
-              type="file"
-              accept="application/json,.json"
-              className="visually-hidden"
-              onChange={(event) => {
-                const file = event.currentTarget.files?.[0];
-                event.currentTarget.value = "";
-                if (file) void importDeckFile(file);
-              }}
-            />
-            <button className="secondary-button" onClick={exportCurrentDeck}>
-              <Download size={16} />
-              {tr(locale, "导出当前", "デッキを書き出し")}
-            </button>
             <button
               className="secondary-button"
               disabled={!selectedDeckId}
@@ -847,6 +828,25 @@ export function DeckBuilder({
               />
             </label>
             <div className="deck-save-actions">
+              <button className="secondary-button" onClick={() => importInputRef.current?.click()}>
+                <Upload size={18} />
+                {tr(locale, "导入 JSON", "JSONを読み込む")}
+              </button>
+              <input
+                ref={importInputRef}
+                type="file"
+                accept="application/json,.json"
+                className="visually-hidden"
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0];
+                  event.currentTarget.value = "";
+                  if (file) void importDeckFile(file);
+                }}
+              />
+              <button className="secondary-button" onClick={exportCurrentDeck}>
+                <Download size={18} />
+                {tr(locale, "导出 JSON", "JSONを書き出す")}
+              </button>
               <button
                 className="secondary-button"
                 disabled={totalCount === 0}

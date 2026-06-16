@@ -825,6 +825,19 @@ describe("App", () => {
     await waitFor(() => expect(screen.getByText("牌组已保存。")).toBeInTheDocument());
   });
 
+  it("shows deck JSON import and export controls in the current deck toolbar", async () => {
+    vi.stubGlobal("fetch", createFetchMock({}));
+
+    const { container } = render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "牌组编辑器" }));
+
+    await waitFor(() => expect(screen.getByText("牌组编辑与保存")).toBeInTheDocument());
+    const toolbar = container.querySelector(".deck-toolbar");
+    expect(toolbar).toBeTruthy();
+    expect(toolbar?.textContent).toContain("导入 JSON");
+    expect(toolbar?.textContent).toContain("导出 JSON");
+  });
+
   it("splits the built deck into Member, Live, and compact Energy sections without thumbnails", async () => {
     vi.stubGlobal(
       "fetch",
