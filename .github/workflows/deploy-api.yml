@@ -2,6 +2,19 @@ name: Deploy API to VPS
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      # TODO temporary: allow hosted release gateway branch to validate VPS deploy before merge.
+      - codex/hosted-release-gateway-db
+    paths:
+      - ".github/workflows/deploy-api.yml"
+      - "Dockerfile"
+      - ".dockerignore"
+      - "compose.api.yml"
+      - "src/**"
+      - "data/loveca.sqlite3"
+      - "data/loveca-db-manifest.json"
+      - "pyproject.toml"
 
 permissions:
   contents: read

@@ -6,6 +6,8 @@ on:
     branches:
       - develop
       - preview
+      # TODO temporary: allow hosted release gateway branch to validate Worker deploy before merge.
+      - codex/hosted-release-gateway-db
     paths:
       - "infra/cloudflare-worker/**"
       - ".github/workflows/deploy-worker.yml"
