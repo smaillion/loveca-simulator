@@ -47,9 +47,9 @@ def write_manifest(path: Path, manifest: dict[str, Any]) -> None:
 
 def display_path(path: Path) -> str:
     try:
-        return str(path.resolve().relative_to(PROJECT_ROOT))
+        return path.resolve().relative_to(PROJECT_ROOT).as_posix()
     except ValueError:
-        return str(path)
+        return path.as_posix()
 
 
 def load_manifest(path: Path) -> dict[str, Any]:
