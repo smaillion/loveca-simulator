@@ -1,0 +1,7 @@
+{$LOVECA_ORIGIN_HOSTNAME} {
+  handle /api/* {
+    reverse_proxy 127.0.0.1:8765
+  }
+
+  respond 404
+}

@@ -34,6 +34,7 @@ from loveca.decks.library import (
 from loveca.simulation.effects import DEFAULT_EFFECT_REGISTRY
 from loveca.simulation.engine import RuleEngineError, generate_legal_actions
 from loveca.simulation.models import ActionRequest
+from loveca.simulation.online import card_database_fingerprint, effect_registry_hash
 from loveca.simulation.runtime import MatchNotFoundError, MatchRuntimeError
 from loveca.simulation.rooms import (
     RoomError,
@@ -148,6 +149,10 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
             "status": "ok",
             "rule_version": "1.06",
             "card_database": str(resolved.card_database_path),
+            "card_database_fingerprint": card_database_fingerprint(
+                resolved.card_database_path
+            ),
+            "effect_registry_hash": effect_registry_hash(resolved.effect_registry_path),
         }
 
     @app.get("/api/matches")

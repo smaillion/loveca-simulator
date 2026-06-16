@@ -11,9 +11,9 @@ This file records maintenance rules that should stay stable across releases.
 - `preview` や preview 専用ブランチから通常の feature branch を切らない。
 - 公開 preview を更新する場合のみ、安定した時点の成果を `preview` に同期する。
 - 誤って preview 系ブランチから作業を始めた場合は、`develop` ベースの replacement branch を作成するか、必要に応じて history を rewrite して修正する。
-- Hosted Online 機能が安定するまでは、VPS が一時的に frontend と backend の両方を提供してよい。
-- Hosted Online 機能が安定した後は、正式 frontend 配布を `develop` または `main` の安定 build に切り替え、`VITE_HOSTED_API_BASE_URL` で hosted API に接続する。
-- その後、VPS の frontend 静的配信は停止し、backend API のみを担当させる。
+- Hosted Online は GitHub Pages frontend、Cloudflare Worker API gateway、Caddy HTTPS origin、localhost FastAPI を基本構成とする。
+- 正式 frontend 配布は `develop` または `main` の安定 build に切り替え、`runtime-config.json` の `apiBaseUrl` で Worker URL に接続する。
+- VPS は frontend 静的配信を担当せず、backend API origin のみを担当させる。
 
 ### 简体中文
 
@@ -22,9 +22,9 @@ This file records maintenance rules that should stay stable across releases.
 - 不从 `preview` 或 preview 专用分支继续创建常规 feature branch。
 - 只有准备更新公开 preview 时，才把稳定点同步到 `preview`。
 - 如果误从 preview 系分支开始开发，应创建 develop-based replacement branch，必要时 rewrite 历史修正。
-- Hosted Online 功能稳定前，VPS 可以临时同时提供 frontend 和 backend。
-- Hosted Online 功能稳定后，正式 frontend 分发应切换为 `develop` 或 `main` 的稳定构建，并通过 `VITE_HOSTED_API_BASE_URL` 连接 hosted API。
-- 此后 VPS 应停止托管前端静态文件，只保留 backend API 职责。
+- Hosted Online 采用 GitHub Pages frontend、Cloudflare Worker API gateway、Caddy HTTPS origin、localhost FastAPI 作为基本结构。
+- 正式 frontend 分发应切换为 `develop` 或 `main` 的稳定构建，并通过 `runtime-config.json` 的 `apiBaseUrl` 连接 Worker URL。
+- VPS 不托管前端静态文件，只保留 backend API origin 职责。
 
 ## Changelog Language
 

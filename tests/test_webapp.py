@@ -191,6 +191,18 @@ def test_cors_allowed_origins_are_applied(tmp_path):
     assert response.headers["access-control-allow-origin"] == "https://smaillion.github.io"
 
 
+def test_health_includes_locked_database_fingerprint(tmp_path):
+    client = _client(tmp_path)
+
+    response = client.get("/api/health")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["status"] == "ok"
+    assert payload["card_database_fingerprint"]
+    assert payload["effect_registry_hash"]
+
+
 def test_deck_library_api_round_trip(tmp_path):
     client = _client(tmp_path)
     deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))

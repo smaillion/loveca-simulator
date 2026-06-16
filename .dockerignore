@@ -9,7 +9,9 @@
 .venv
 venv
 
-data
+data/*
+!data/loveca.sqlite3
+!data/loveca-db-manifest.json
 data_samples
 logs
 raw_doc
@@ -26,3 +28,4 @@ build
 
 *.sqlite
 *.sqlite3
+!data/loveca.sqlite3

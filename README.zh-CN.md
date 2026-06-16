@@ -26,6 +26,9 @@
   - 使用 HTTP polling 同步状态
   - 服务端复用 Python Rule Engine
   - 临时 room 默认 24 小时过期
+- 锁版本权威卡牌 SQLite
+  - CI、Docker 和 Pages data export 使用仓库内 `data/loveca.sqlite3`
+  - `data/loveca-db-manifest.json` 记录 DB / effect registry 指纹
 - GitHub Pages browser preview 用静态 SPA 发布 workflow
   - preview data package 只包含解析后的卡牌 / 技能数据
   - 不打包卡图文件，牌面图片走官方 `image_url`
@@ -66,14 +69,14 @@ Deck Builder 当前状态:
 - 面向全量卡池的完整技能提示覆盖
 - AI、Monte Carlo、胜率引擎
 - 正式在线运营、账户、用户同步和严格防作弊
-- GitHub Pages preview 在打包解析后 data package 时，已经可以不依赖 FastAPI 浏览卡库、使用浏览器本地 deck 保存，并执行 MVP deck 分析。对战需要设置 `VITE_HOSTED_API_BASE_URL` 后连接 Hosted FastAPI。
+- GitHub Pages preview 在打包解析后 data package 时，已经可以不依赖 FastAPI 浏览卡库、使用浏览器本地 deck 保存，并执行 MVP deck 分析。对战通过 `runtime-config.json` 的 `apiBaseUrl` 连接 Cloudflare Worker gateway。
 
 ## 已知限制
 
 - 还没有覆盖全卡技能自动执行。
 - 当前 broad prompt coverage 大量包含 timing-only manual fallback。
 - 依赖 FAQ 或个别裁定的效果尚未规格化。
-- 当 importer、parser、卡号正规化、SQLite schema 或 effect registry 兼容性相关内容发生更新后，不建议继续复用旧的 `data/loveca.sqlite3`，应通过官方 importer 重建或重新导入卡牌数据库。保存牌组是 `decklist.v0` 用户数据，可以和卡牌数据库分开保留。
+- `data/loveca.sqlite3` 是仓库内锁版本权威卡牌 DB。官方补充包或 parser/schema/effect registry 变化后，由维护者重建并提交新的 DB 与 `data/loveca-db-manifest.json`；普通用户和 CI 不应自行 import 产生不同线上 DB。保存牌组是 `decklist.v0` 用户数据，可以和卡牌数据库分开保留。
 - Web/API 测试依赖 `httpx2`。环境缺少该依赖时，`tests/test_catalog_api.py` 和 `tests/test_webapp.py` 会在收集阶段停止。
 - Hosted Online MVP 只用于低成本测试反馈。规则判定由 FastAPI 侧 Python engine 执行，但不包含账号、长期保存或严格防作弊。
 
@@ -168,12 +171,12 @@ loveca web serve `
 
 ## Docker API 服务器
 
-如果要用 Cloudflare Tunnel 或小型 VM 试运行 Hosted Online MVP，可以先只把 FastAPI backend 打成 Docker 镜像运行。
+如果要用 Cloudflare Worker gateway、Caddy 和小型 VM 试运行 Hosted Online MVP，可以只把 FastAPI backend 打成 Docker 镜像运行。
 
 前提：
 
-- 已经构建好 `data/loveca.sqlite3`
-- `data/` 和 `logs/` 保留在宿主机
+- 仓库内已经提交锁版本 `data/loveca.sqlite3`
+- VPS 只保留 `runtime/` 和 `logs/` 为宿主机持久目录
 - 如果 GitHub Pages 要连接这个 API，需要把 Pages 地址写入 `LOVECA_ALLOWED_ORIGINS`
 
 本地 build：
@@ -195,7 +198,7 @@ health check：
 curl http://127.0.0.1:8765/api/health
 ```
 
-如果使用 Cloudflare Tunnel，把 Tunnel 的公开 URL 转发到这个 `8765` 端口即可。后端不负责公开再分发卡图，通常使用官方 `image_url` 或本地缓存 fallback。
+正式低成本部署推荐使用 Cloudflare Worker `workers.dev` 作为稳定 API gateway，VPS 上用 Caddy 暴露由 secret 管理的 origin hostname 的 `/api/*`，并反代到 `127.0.0.1:8765`。
 
 GitHub Actions：
 
@@ -213,7 +216,7 @@ GitHub Actions：
 - `API_BASE_URL`
 - `LOVECA_ALLOWED_ORIGINS`
 
-如果 GitHub Pages 要连接 Hosted API，请在 repository variable `VITE_HOSTED_API_BASE_URL` 中设置 Cloudflare Tunnel 公网 URL。
+如果 GitHub Pages 要连接 Hosted API，请在 repository variable `VITE_PUBLIC_API_BASE_URL` 中设置 Cloudflare Worker URL。
 
 ## 卡牌 DB 与 asset 分发方针
 

@@ -26,6 +26,9 @@
   - HTTP polling による状態同期
   - Python Rule Engine をサーバー側で再利用
   - 24 時間 TTL の一時 room
+- locked authoritative card SQLite
+  - CI、Docker、Pages data export は repository 内の `data/loveca.sqlite3` を使用
+  - `data/loveca-db-manifest.json` が DB / effect registry fingerprint を記録
 - GitHub Pages browser preview 用の静的 SPA release workflow
   - preview data package は解析済みカード / skill data のみを含む
   - カード画像は同梱せず、公式 `image_url` を参照する
@@ -66,14 +69,14 @@ Deck Builder の現在の到達点:
 - 全量カードプールに対する完全な効果 prompt coverage
 - AI、Monte Carlo、勝率エンジン
 - 本格的な online 運用、アカウント、ユーザー同期、防作弊
-- GitHub Pages preview は解析済み data package を同梱した場合、FastAPI なしでカードカタログ閲覧、browser local deck 保存、MVP deck 分析まで動作します。対戦は `VITE_HOSTED_API_BASE_URL` を設定した場合のみ Hosted FastAPI に接続できます。
+- GitHub Pages preview は解析済み data package を同梱した場合、FastAPI なしでカードカタログ閲覧、browser local deck 保存、MVP deck 分析まで動作します。対戦は runtime config の `apiBaseUrl` を設定した場合のみ Hosted FastAPI に接続できます。
 
 ## 既知の制限
 
 - 全カード効果の自動実行 coverage はまだありません。
 - 現在の broad prompt coverage は timing-only manual fallback を多く含みます。
 - FAQ / 個別裁定に依存する効果はまだ仕様化していません。
-- importer、parser、カード番号正規化、SQLite schema、または effect registry の互換性に関わる更新後は、既存の `data/loveca.sqlite3` を再利用せず、公式 importer でカード DB を再構築または再導入してください。保存済みデッキは `decklist.v0` のユーザーデータなので、カード DB とは分けて保持できます。
+- `data/loveca.sqlite3` は repository 内の locked authoritative card DB です。公式カード追加や parser / schema / effect registry の互換性変更後は、maintainer が DB と `data/loveca-db-manifest.json` を再生成して commit します。ユーザーや CI が online 用に別 DB を import してはいけません。保存済みデッキは `decklist.v0` のユーザーデータなので、カード DB とは分けて保持できます。
 - Web/API テストには `httpx2` が必要です。環境に未導入の場合、`tests/test_catalog_api.py` と `tests/test_webapp.py` は収集段階で停止します。
 - Hosted Online MVP は低コスト検証用です。ルール判定は FastAPI 側の Python engine が行いますが、アカウント、恒久保存、厳密な不正対策はありません。
 
@@ -168,12 +171,12 @@ loveca web serve `
 
 ## Docker API サーバー
 
-Cloudflare Tunnel や小型 VM で Hosted Online MVP を試す場合は、まず FastAPI backend だけを Docker で起動できます。
+Cloudflare Worker gateway、Caddy、小型 VM で Hosted Online MVP を試す場合は、FastAPI backend だけを Docker で起動できます。
 
 前提:
 
-- `data/loveca.sqlite3` が構築済みであること
-- `data/` と `logs/` はホスト側に保持すること
+- locked `data/loveca.sqlite3` が repository に commit されていること
+- `runtime/` と `logs/` はホスト側に保持すること
 - GitHub Pages から接続する場合は `LOVECA_ALLOWED_ORIGINS` に Pages URL を設定すること
 
 ローカル build:
@@ -195,7 +198,7 @@ health check:
 curl http://127.0.0.1:8765/api/health
 ```
 
-Cloudflare Tunnel を使う場合は、Tunnel の公開 URL からこの `8765` ポートへ転送してください。カード画像は backend から再配布せず、基本的には公式 `image_url` またはローカル cache fallback を使います。
+推奨する低コスト構成では、Cloudflare Worker の `workers.dev` URL を安定 API gateway として使います。VPS 側は Caddy で secret 管理された origin hostname の `/api/*` を公開し、`127.0.0.1:8765` に reverse proxy します。
 
 GitHub Actions:
 
@@ -210,10 +213,11 @@ Deploy に必要な GitHub Secrets:
 - `DEPLOY_USER`
 - `DEPLOY_SSH_KEY`
 - `DEPLOY_PATH`
-- `API_BASE_URL`
+- `ORIGIN_API_BASE_URL`
 - `LOVECA_ALLOWED_ORIGINS`
+- `CLOUDFLARE_API_TOKEN`
 
-GitHub Pages から Hosted API に接続する場合は、repository variable `VITE_HOSTED_API_BASE_URL` に Cloudflare Tunnel の公開 URL を設定してください。
+GitHub Pages から Hosted API に接続する場合は、repository variable `VITE_PUBLIC_API_BASE_URL` に Cloudflare Worker URL を設定してください。
 
 ## カード DB と asset 配布方針
 

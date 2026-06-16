@@ -23,7 +23,7 @@ As of `v0.4.2-alpha.1` development, the first hosted slice exists:
 * remote Action submission through `POST /api/rooms/{room_code}/actions`
 * room Replay export
 * expired-room cleanup
-* GitHub Pages build-time `VITE_HOSTED_API_BASE_URL`
+* GitHub Pages runtime `runtime-config.json` with a Worker `apiBaseUrl`
 * manual GitHub Actions deploy workflow for a Dockerized FastAPI backend
 
 Still not implemented:
@@ -40,28 +40,21 @@ The current hosted slice is intentionally disposable and suitable for low-cost p
 
 ## 1B. Hosting Transition Stages
 
-The online rollout uses three hosting stages so early testing can start before the
-final distribution model is ready.
+The online rollout now uses GitHub Pages for the frontend and a Cloudflare
+Worker gateway for the stable public API URL.
 
-### Stage A: VPS Frontend + Backend Test Mode
+### Stage A: GitHub Pages Preview + Browser Runtime
 
-During early hosted testing, the VPS may serve both the built React frontend and
-the FastAPI backend.
+During early preview testing, GitHub Pages may run in browser preview mode. It
+loads static card data exported from the locked repository SQLite DB and keeps
+deck/replay data in browser storage.
 
-This mode is intentionally temporary. It is useful for verifying room creation,
-guest join, polling, action submission, replay export, CORS, Cloudflare Tunnel
-health checks, and operational logs without also debugging GitHub Pages release
-timing.
+### Stage B: GitHub Pages + Worker Gateway + VPS Backend
 
-### Stage B: Static Frontend + VPS Backend
-
-After room flow is stable, the frontend should move back to static hosting such
-as GitHub Pages while the VPS keeps serving only the FastAPI API.
-
-The static frontend must be built with `VITE_HOSTED_API_BASE_URL` pointing at the
-hosted API URL. This stage validates the real cross-origin deployment model:
-static app, remote API, local user deck data, and runtime match state on the
-temporary hosted backend.
+For hosted online testing, GitHub Pages writes `runtime-config.json` with
+`browserPreview=false` and `apiBaseUrl` pointing at the Cloudflare Worker URL.
+The Worker accepts `/api/*`, applies CORS for the Pages origin, and forwards to
+Caddy on the VPS origin. FastAPI stays bound to `127.0.0.1:8765`.
 
 ### Stage C: Official Frontend Distribution + Backend-Only VPS
 
@@ -69,10 +62,9 @@ Once online testing is stable, the old `preview` branch should no longer be used
 as the main product entry. A stable build from `develop` or `main` should become
 the official frontend distribution.
 
-At that point, the VPS should stop serving frontend static files and retain only
-backend API duties. The backend remains intentionally low-cost and temporary:
-room records expire, user accounts are not introduced, and user deck data is not
-stored permanently by the service.
+The VPS remains backend-only. The backend remains intentionally low-cost and
+temporary: room records expire, user accounts are not introduced, and user deck
+data is not stored permanently by the service.
 
 ## 2. Core Decision
 

@@ -26,7 +26,7 @@ If validating the browser preview build with hosted API wiring:
 
 ```powershell
 $env:VITE_BROWSER_PREVIEW='true'
-$env:VITE_HOSTED_API_BASE_URL='https://example.invalid'
+$env:VITE_PUBLIC_API_BASE_URL='https://example.invalid'
 npm run build
 ```
 
@@ -70,6 +70,7 @@ POST /api/rooms/cleanup
 Minimum expected behavior:
 
 * health returns `status=ok`
+* health includes the locked card database path and fingerprint
 * host receives `room_code`, `player_id=player_1`, and a player token
 * guest can join by room code and receives `player_id=player_2`
 * polling without a token hides match payload
@@ -123,19 +124,21 @@ Blocker categories:
 * effect execution
 * data / deck
 
-## 5. VPS And Cloudflare Tunnel Checks
+## 5. VPS, Caddy, And Worker Gateway Checks
 
 Before asking external testers to join:
 
-* API health is reachable through the public tunnel URL.
+* Origin health is reachable at `${ORIGIN_API_BASE_URL}/api/health`.
+* Gateway health is reachable at the Worker URL, for example `https://loveca-api.<account>.workers.dev/api/health`.
 * `LOVECA_ALLOWED_ORIGINS` includes the frontend origin.
-* frontend build uses the same public API URL in `VITE_HOSTED_API_BASE_URL`.
+* GitHub Pages `runtime-config.json` uses the same public API URL in `apiBaseUrl`.
+* repository variable `VITE_PUBLIC_API_BASE_URL` points at the Worker URL.
 * runtime room data is disposable and TTL cleanup is enabled.
 * logs do not include downloaded official card images or unrelated local files.
 * restart procedure is documented for the current VPS.
 
-Stage A may serve frontend and backend from the VPS. After hosted online is
-stable, move the frontend to static hosting and keep the VPS backend-only.
+The VPS should expose Caddy on ports 80/443 only. FastAPI stays bound to
+`127.0.0.1:8765`, and Caddy only proxies `/api/*`.
 
 ## 6. Triage Rule
 

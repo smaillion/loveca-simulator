@@ -3,14 +3,6 @@ name: Browser Preview Pages
 on:
   workflow_dispatch:
     inputs:
-      include_official_card_data:
-        description: "Fetch official card data and bundle parsed static preview data, without card image files"
-        required: true
-        default: "true"
-        type: choice
-        options:
-          - "true"
-          - "false"
       include_official_text:
         description: "Include full official Japanese effect text in the static data package"
         required: true
@@ -31,6 +23,9 @@ on:
       - "web/**"
       - "src/**"
       - "scripts/export-preview-data.py"
+      - "scripts/card-db-manifest.py"
+      - "data/loveca.sqlite3"
+      - "data/loveca-db-manifest.json"
       - "data_sources/effect-registry.v0.json"
       - "pyproject.toml"
 
@@ -73,6 +68,9 @@ jobs:
       - name: Run Python tests
         run: python -m pytest
 
+      - name: Verify locked card database manifest
+        run: python scripts/card-db-manifest.py verify
+
       - name: Run web tests
         working-directory: web
         run: npm run test -- --run
@@ -81,25 +79,9 @@ jobs:
         working-directory: web
         env:
           VITE_BASE_PATH: /loveca-simulator/
-          VITE_BROWSER_PREVIEW: "true"
-          VITE_HOSTED_API_BASE_URL: ${{ vars.VITE_HOSTED_API_BASE_URL || '' }}
+          VITE_BROWSER_PREVIEW: ${{ vars.VITE_RUNTIME_BROWSER_PREVIEW || 'true' }}
+          VITE_PUBLIC_API_BASE_URL: ${{ vars.VITE_PUBLIC_API_BASE_URL || '' }}
         run: npm run build
-
-      - name: Create static preview data placeholder
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.include_official_card_data != 'true' }}
-        run: |
-          mkdir -p web/dist/preview-data
-          cat > web/dist/preview-data/manifest.json <<'JSON'
-          {
-            "data_version": "browser-preview-data.placeholder",
-            "include_official_text": false,
-            "image_strategy": "official_url_only",
-            "bundles_card_images": false,
-            "card_count": 0,
-            "effect_count": 0,
-            "public_release_note": "This build does not bundle parsed official card data. Reviewed preview packages may include parsed data and official image URLs, but not downloaded card image files."
-          }
-          JSON
 
       - name: Guard official text bundling
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.include_official_text == 'true' && inputs.public_data_acknowledgement != 'REVIEWED_PUBLIC_DATA_POLICY' }}
@@ -108,22 +90,10 @@ jobs:
           echo "Re-run with public_data_acknowledgement=REVIEWED_PUBLIC_DATA_POLICY after review."
           exit 1
 
-      - name: Build local card database from official source
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.include_official_card_data == 'true' }}
-        run: |
-          loveca cards init --database data/loveca.sqlite3
-          loveca cards import-official --output-root data/imports/official --delay 1
-          loveca cards import \
-            --database data/loveca.sqlite3 \
-            --input data/imports/official/normalized/cards-official.json \
-            --normalization data_sources/card-entity-normalization.json \
-            --report logs/pages-preview-import.md
-
       - name: Export static preview data
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.include_official_card_data == 'true' }}
         run: |
-          # Export parsed card/effect data only. Card images are not bundled into
-          # the Pages artifact; the browser preview uses official image URLs.
+          # Export from the locked repository database only. CI must not fetch
+          # official sources or create a divergent card DB.
           args=(
             --database data/loveca.sqlite3
             --output-dir web/dist/preview-data
@@ -133,6 +103,31 @@ jobs:
             args+=(--include-official-text)
           fi
           python scripts/export-preview-data.py "${args[@]}"
+
+      - name: Write runtime config
+        env:
+          RUNTIME_MODE: ${{ vars.VITE_RUNTIME_MODE || 'preview' }}
+          RUNTIME_BROWSER_PREVIEW: ${{ vars.VITE_RUNTIME_BROWSER_PREVIEW || 'true' }}
+          RUNTIME_API_BASE_URL: ${{ vars.VITE_PUBLIC_API_BASE_URL || '' }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          manifest = json.loads(Path("data/loveca-db-manifest.json").read_text(encoding="utf-8"))
+          browser_preview = os.environ["RUNTIME_BROWSER_PREVIEW"].lower() == "true"
+          payload = {
+              "mode": os.environ["RUNTIME_MODE"],
+              "browserPreview": browser_preview,
+              "apiBaseUrl": os.environ["RUNTIME_API_BASE_URL"],
+              "cardDatabaseFingerprint": manifest["card_database_fingerprint"],
+          }
+          Path("web/dist/runtime-config.json").write_text(
+              json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
