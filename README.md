@@ -32,6 +32,8 @@
 - GitHub Pages browser preview 用の静的 SPA release workflow
   - preview data package は解析済みカード / skill data のみを含む
   - カード画像は同梱せず、公式 `image_url` を参照する
+  - 初回起動時に 20 個の preview sample deck を browser localStorage に作成
+  - decklist.v0 JSON の import / export に対応
 
 現在の開発主線:
 
@@ -224,6 +226,10 @@ GitHub Pages から Hosted API に接続する場合は、repository variable `V
 将来的には、構築済みの SQLite カード DB、effect registry、manifest、checksum を含む versioned asset package を配布し、ユーザーが公式サイトから毎回全量取得しなくても起動できる形にできます。
 
 ただし、公式効果テキスト全文、公式 PDF 由来の大量データ、ダウンロード済みカード画像ファイルは再配布可否の確認が必要です。GitHub Pages preview で公開する asset は、解析済みカード data、解析済み skill data、manifest、checksum、プロジェクト独自 metadata に限定し、カード画像は同梱せず公式 `image_url` を参照する方針です。
+
+公開 preview は専用の `preview` ブランチから配信します。このブランチでは review 済みの `data/loveca.sqlite3` を直接コミットし、GitHub Pages workflow はその SQLite から静的 JSON を生成します。`develop` の頻繁な更新では Pages を再構築せず、preview を更新したいタイミングだけ `preview` ブランチへ反映します。
+
+browser preview の deck は localStorage に保存されます。Deck はカード番号と枚数中心の小さな JSON なので、20 個の初期 sample deck と通常のユーザー deck では容量は小さく収まります。移行や共有が必要な場合は、Deck Builder の JSON import / export を使用してください。
 
 private tester 向けに事前構築 DB を渡す場合も、release version、schema version、parser version、card database fingerprint、effect registry hash を明示し、互換性が崩れる更新後は再導入が必要です。
 

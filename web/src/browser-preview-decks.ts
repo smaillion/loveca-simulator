@@ -1,6 +1,7 @@
-import { getPreviewCatalogCard } from "./browser-preview-api";
+import { getPreviewCatalogCard, listPreviewCatalogCards } from "./browser-preview-api";
 import type {
   CatalogCardDetail,
+  CatalogCardSummary,
   DeckAnalysisResponse,
   DeckEntry,
   DeckList,
@@ -9,6 +10,7 @@ import type {
 } from "./types";
 
 const STORAGE_KEY = "loveca-browser-deck-library.v0";
+const SAMPLE_DECK_COUNT = 20;
 
 interface StoredDeckRecord {
   path: string;
@@ -19,21 +21,22 @@ interface StoredDeckRecord {
 interface StoredDeckLibrary {
   version: "loveca-browser-deck-library.v0";
   decks: StoredDeckRecord[];
+  seeded_preview_decks?: boolean;
 }
 
-export function listPreviewSavedDecks(): Promise<SavedDeckSummary[]> {
-  const library = readDeckLibrary();
-  return Promise.resolve(
+export async function listPreviewSavedDecks(): Promise<SavedDeckSummary[]> {
+  const library = await readDeckLibraryWithSeeds();
+  return (
     library.decks
       .slice()
       .sort((left, right) => left.path.localeCompare(right.path))
-      .map((record) => toSavedDeckSummary(record.path, record.deck)),
+      .map((record) => toSavedDeckSummary(record.path, record.deck))
   );
 }
 
-export function getPreviewSavedDeck(deckId: string): Promise<DeckList> {
-  const record = findStoredDeck(deckId);
-  return Promise.resolve(cloneDeck(record.deck));
+export async function getPreviewSavedDeck(deckId: string): Promise<DeckList> {
+  const record = await findStoredDeck(deckId);
+  return cloneDeck(record.deck);
 }
 
 export function createPreviewSavedDeck(input: {
@@ -210,12 +213,94 @@ function readDeckLibrary(): StoredDeckLibrary {
   }
 }
 
+async function readDeckLibraryWithSeeds(): Promise<StoredDeckLibrary> {
+  const library = readDeckLibrary();
+  if (library.seeded_preview_decks) {
+    return library;
+  }
+  if (library.decks.length > 0) {
+    const marked = { ...library, seeded_preview_decks: true };
+    writeDeckLibrary(marked);
+    return marked;
+  }
+  const seeded = {
+    ...library,
+    decks: await createInitialPreviewDecks(),
+    seeded_preview_decks: true,
+  };
+  writeDeckLibrary(seeded);
+  return seeded;
+}
+
+async function createInitialPreviewDecks(): Promise<StoredDeckRecord[]> {
+  const response = await listPreviewCatalogCards({ limit: 100_000, offset: 0 });
+  const members = response.items
+    .filter((card) => card.card_type === "member")
+    .sort(sampleSort);
+  const lives = response.items
+    .filter((card) => card.card_type === "live")
+    .sort(sampleSort);
+  const energies = response.items
+    .filter((card) => card.card_type === "energy")
+    .sort(sampleSort);
+  if (members.length < 12 || lives.length < 3 || energies.length < 1) {
+    return [];
+  }
+  return Array.from({ length: SAMPLE_DECK_COUNT }, (_, index) => {
+    const deck = buildSampleDeck(index, members, lives, energies);
+    return {
+      path: `preview-sample-${String(index + 1).padStart(2, "0")}.json`,
+      deck,
+      updated_at: nowIso(),
+    };
+  });
+}
+
+function buildSampleDeck(
+  index: number,
+  members: CatalogCardSummary[],
+  lives: CatalogCardSummary[],
+  energies: CatalogCardSummary[],
+): DeckList {
+  const memberStart = (index * 7) % members.length;
+  const liveStart = (index * 5) % lives.length;
+  const energy = energies[index % energies.length];
+  return {
+    version: "decklist.v0",
+    name: `Preview Sample Deck ${String(index + 1).padStart(2, "0")}`,
+    main_deck: [
+      ...takeCircular(members, memberStart, 12).map((card) => entryFromSummary(card, 4)),
+      ...takeCircular(lives, liveStart, 3).map((card) => entryFromSummary(card, 4)),
+    ],
+    energy_deck: [entryFromSummary(energy, 12)],
+  };
+}
+
+function takeCircular<T>(items: T[], start: number, amount: number): T[] {
+  return Array.from({ length: amount }, (_, offset) => items[(start + offset) % items.length]);
+}
+
+function entryFromSummary(card: CatalogCardSummary, quantity: number): DeckEntry {
+  return {
+    card_code: card.card_code,
+    quantity,
+    preferred_printing_id: card.card_id,
+  };
+}
+
+function sampleSort(left: CatalogCardSummary, right: CatalogCardSummary): number {
+  return (
+    (left.card_set_code ?? "").localeCompare(right.card_set_code ?? "") ||
+    left.card_code.localeCompare(right.card_code)
+  );
+}
+
 function writeDeckLibrary(library: StoredDeckLibrary): void {
   globalThis.localStorage?.setItem(STORAGE_KEY, JSON.stringify(library));
 }
 
-function findStoredDeck(deckId: string): StoredDeckRecord {
-  const record = readDeckLibrary().decks.find((item) => item.path === deckId);
+async function findStoredDeck(deckId: string): Promise<StoredDeckRecord> {
+  const record = (await readDeckLibraryWithSeeds()).decks.find((item) => item.path === deckId);
   if (!record) throw new Error(`saved deck not found: ${deckId}`);
   return record;
 }
