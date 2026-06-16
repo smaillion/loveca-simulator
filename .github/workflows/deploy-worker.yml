@@ -33,10 +33,15 @@ jobs:
           wranglerVersion: "4"
           workingDirectory: infra/cloudflare-worker
           command: deploy
-          secrets: |
-            ORIGIN_BASE_URL
-            ALLOWED_ORIGINS
+
+      - name: Upload Worker secrets
+        run: |
+          test -n "$ORIGIN_BASE_URL"
+          test -n "$ALLOWED_ORIGINS"
+          node -e "process.stdout.write(JSON.stringify({ ORIGIN_BASE_URL: process.env.ORIGIN_BASE_URL, ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS }))" | npx wrangler secret bulk
         env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           ORIGIN_BASE_URL: ${{ secrets.ORIGIN_BASE_URL }}
           ALLOWED_ORIGINS: ${{ vars.LOVECA_ALLOWED_ORIGINS }}
 
