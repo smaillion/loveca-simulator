@@ -8,13 +8,74 @@ The product goal is to collect more human playtest feedback as early as possible
 
 User data should remain local. The online layer should not introduce accounts, cloud deck storage, cloud card libraries, ranked identity, or authoritative rule judgment.
 
-This is a planning document only. It does not define implementation code, database migrations, deployment scripts, or final API schemas.
+This document is both the long-term planning reference and the status note for the first Hosted Online MVP slice. It does not replace the API implementation or tests, and it should avoid becoming a full protocol spec.
+
+## 1A. Current Implementation Status
+
+As of `v0.4.2-alpha.1` development, the first hosted slice exists:
+
+* room creation by host deck payload
+* guest join by room code and deck payload
+* temporary room records in runtime SQLite
+* lightweight host / guest player tokens
+* match creation after the guest joins
+* HTTP polling through `GET /api/rooms/{room_code}`
+* remote Action submission through `POST /api/rooms/{room_code}/actions`
+* room Replay export
+* expired-room cleanup
+* GitHub Pages runtime `runtime-config.json` with a Worker `apiBaseUrl`
+* manual GitHub Actions deploy workflow for a Dockerized FastAPI backend
+
+Still not implemented:
+
+* WebSocket transport
+* account or identity system
+* room list / matchmaking
+* cloud deck persistence
+* strict anti-cheat
+* browser-local TypeScript Rule Engine
+* local-engine peer synchronization
+
+The current hosted slice is intentionally disposable and suitable for low-cost playtest feedback, not competitive service operation.
+
+## 1B. Hosting Transition Stages
+
+The online rollout now uses GitHub Pages for the frontend and a Cloudflare
+Worker gateway for the stable public API URL.
+
+### Stage A: GitHub Pages Preview + Browser Runtime
+
+During early preview testing, GitHub Pages may run in browser preview mode. It
+loads static card data exported from the locked repository SQLite DB and keeps
+deck/replay data in browser storage.
+
+### Stage B: GitHub Pages + Worker Gateway + VPS Backend
+
+For hosted online testing, GitHub Pages writes `runtime-config.json` with
+`browserPreview=false` and `apiBaseUrl` pointing at the Cloudflare Worker URL.
+The Worker accepts `/api/*`, applies CORS for the Pages origin, and forwards to
+Caddy on the VPS origin. FastAPI stays bound to `127.0.0.1:8765`.
+
+### Stage C: Official Frontend Distribution + Backend-Only VPS
+
+Once online testing is stable, the old `preview` branch should no longer be used
+as the main product entry. A stable build from `develop` or `main` should become
+the official frontend distribution.
+
+The VPS remains backend-only. The backend remains intentionally low-cost and
+temporary: room records expire, user accounts are not introduced, and user deck
+data is not stored permanently by the service.
 
 ## 2. Core Decision
 
-The first online mode should not be a full authoritative game server.
+The long-term online mode should not be a full authoritative game server.
 
-Instead, the first online mode should use:
+The short-term Hosted Online MVP is an exception made for speed: it reuses the
+existing Python Rule Engine on the FastAPI backend so testers can play online
+before a browser-local or peer-synchronized engine exists. This is a practical
+bridge, not the final architecture.
+
+The long-term low-cost mode should use:
 
 * local rule engines on both players' machines
 * deterministic GameState serialization

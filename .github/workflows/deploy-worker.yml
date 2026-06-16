@@ -1,0 +1,74 @@
+name: Deploy Cloudflare Worker Gateway
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - develop
+      - preview
+    paths:
+      - "infra/cloudflare-worker/**"
+      - ".github/workflows/deploy-worker.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/cloudflare-worker
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Normalize Cloudflare account id
+        shell: bash
+        run: |
+          account_id="$(printf '%s' "$RAW_CLOUDFLARE_ACCOUNT_ID" | tr -d '[:space:]')"
+          if ! [[ "$account_id" =~ ^[0-9a-fA-F]{32}$ ]]; then
+            echo "CLOUDFLARE_ACCOUNT_ID must be a 32 character hexadecimal Cloudflare account id." >&2
+            exit 1
+          fi
+          echo "::add-mask::$account_id"
+          echo "CLOUDFLARE_ACCOUNT_ID=$account_id" >> "$GITHUB_ENV"
+        env:
+          RAW_CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Install Wrangler
+        run: npm install --no-save wrangler@4
+
+      - name: Deploy Worker
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Upload Worker secrets
+        run: |
+          test -n "$ORIGIN_BASE_URL"
+          test -n "$ALLOWED_ORIGINS"
+          node -e "process.stdout.write(JSON.stringify({ ORIGIN_BASE_URL: process.env.ORIGIN_BASE_URL, ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS }))" | npx wrangler secret bulk
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ORIGIN_BASE_URL: ${{ secrets.ORIGIN_BASE_URL }}
+          ALLOWED_ORIGINS: ${{ vars.LOVECA_ALLOWED_ORIGINS }}
+
+      - name: Verify gateway health
+        run: |
+          base_url="$(printf '%s' "$VITE_PUBLIC_API_BASE_URL" | sed 's#/*$##')"
+          test -n "$base_url"
+          for attempt in 1 2 3 4 5 6; do
+            body_file="$(mktemp)"
+            status="$(curl --show-error --silent --max-time 20 --output "$body_file" --write-out "%{http_code}" "$base_url/api/health" || true)"
+            echo "Gateway health attempt ${attempt}: HTTP ${status}"
+            cat "$body_file"
+            echo
+            if [ "$status" = "200" ]; then
+              exit 0
+            fi
+            sleep 5
+          done
+          exit 1
+        env:
+          VITE_PUBLIC_API_BASE_URL: ${{ vars.VITE_PUBLIC_API_BASE_URL }}

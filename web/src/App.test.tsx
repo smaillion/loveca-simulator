@@ -10,6 +10,7 @@ import App, {
   formatHeartSummary,
   resolveMemberPlaySelection,
 } from "./App";
+import type { DeckList } from "./types";
 
 const placements = [
   {
@@ -541,6 +542,19 @@ function createFetchMock(overrides: {
   });
 }
 
+function seedSavedDecks(decks: Array<{ path: string; deck: DeckList }>): void {
+  localStorage.setItem(
+    "loveca-browser-deck-library.v0",
+    JSON.stringify({
+      version: "loveca-browser-deck-library.v0",
+      decks: decks.map((item) => ({
+        ...item,
+        updated_at: "2026-06-16T00:00:00.000Z",
+      })),
+    }),
+  );
+}
+
 describe("App", () => {
   beforeEach(() => {
     cleanup();
@@ -549,6 +563,8 @@ describe("App", () => {
   });
 
   it("renders the local match creation workflow", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+
     render(<App />);
 
     expect(screen.getByText("创建规则验证对局")).toBeInTheDocument();
@@ -559,6 +575,7 @@ describe("App", () => {
   });
 
   it("creates a match with inline deck payloads instead of a hardcoded deck path", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const fetchMock = createFetchMock({});
     vi.stubGlobal("fetch", fetchMock);
 
@@ -980,19 +997,9 @@ describe("App", () => {
     };
     vi.stubGlobal(
       "fetch",
-      createFetchMock({
-        savedDecks: [
-          {
-            name: "Full Members",
-            path: "data/decks/full-members.json",
-            version: "decklist.v0",
-            main_card_count: 48,
-            energy_card_count: 0,
-          },
-        ],
-        savedDeckGet: fullMemberDeck,
-      }),
+      createFetchMock({}),
     );
+    seedSavedDecks([{ path: "full-members.json", deck: fullMemberDeck }]);
 
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "牌组编辑器" }));

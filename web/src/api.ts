@@ -9,10 +9,79 @@ import type {
   SavedDeckSummary,
   MatchPayload,
   MatchSummary,
+  RoomPayload,
 } from "./types";
+import {
+  getPreviewCatalogCard,
+  listPreviewCatalogCards,
+  listPreviewCatalogFacets,
+  listPreviewCatalogReviewCandidates,
+} from "./browser-preview-api";
+import {
+  analyzePreviewDeck,
+  createPreviewSavedDeck,
+  deletePreviewSavedDeck,
+  getPreviewSavedDeck,
+  listPreviewSavedDecks,
+  renamePreviewSavedDeck,
+  updatePreviewSavedDeck,
+} from "./browser-preview-decks";
+
+const viteEnv = (import.meta as unknown as {
+  env?: Record<string, string | boolean | undefined>;
+}).env;
+
+export interface RuntimeConfig {
+  mode: "preview" | "release";
+  browserPreview: boolean;
+  apiBaseUrl: string;
+  cardDatabaseFingerprint: string;
+}
+
+const fallbackRuntimeConfig: RuntimeConfig = {
+  mode: viteEnv?.VITE_BROWSER_PREVIEW === "true" ? "preview" : "release",
+  browserPreview: viteEnv?.VITE_BROWSER_PREVIEW === "true",
+  apiBaseUrl: normalizeBaseUrl(
+    typeof viteEnv?.VITE_PUBLIC_API_BASE_URL === "string"
+      ? viteEnv.VITE_PUBLIC_API_BASE_URL
+      : typeof viteEnv?.VITE_HOSTED_API_BASE_URL === "string"
+        ? viteEnv.VITE_HOSTED_API_BASE_URL
+        : "",
+  ),
+  cardDatabaseFingerprint: "",
+};
+
+let runtimeConfig = fallbackRuntimeConfig;
+let runtimeConfigPromise: Promise<RuntimeConfig> | null = null;
+
+export function getRuntimeConfigSnapshot(): RuntimeConfig {
+  return runtimeConfig;
+}
+
+export function browserPreviewEnabled(): boolean {
+  return runtimeConfig.browserPreview;
+}
+
+export function loadRuntimeConfig(): Promise<RuntimeConfig> {
+  runtimeConfigPromise ??= fetch("runtime-config.json", {
+    cache: "no-store",
+    headers: { Accept: "application/json" },
+  })
+    .then(async (response) => {
+      if (!response.ok) return fallbackRuntimeConfig;
+      const payload = await response.json();
+      return normalizeRuntimeConfig(payload);
+    })
+    .catch(() => fallbackRuntimeConfig)
+    .then((config) => {
+      runtimeConfig = config;
+      return config;
+    });
+  return runtimeConfigPromise;
+}
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
+  const response = await fetch(apiResourceUrl(url), {
     headers: { "Content-Type": "application/json", ...init?.headers },
     ...init,
   });
@@ -21,6 +90,42 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     throw new Error(body.detail ?? response.statusText);
   }
   return response.json() as Promise<T>;
+}
+
+function normalizeBaseUrl(value: string): string {
+  return value.trim().replace(/\/+$/, "");
+}
+
+function normalizeRuntimeConfig(payload: unknown): RuntimeConfig {
+  const value = (payload ?? {}) as Record<string, unknown>;
+  const mode = value.mode === "release" ? "release" : "preview";
+  return {
+    mode,
+    browserPreview:
+      typeof value.browserPreview === "boolean"
+        ? value.browserPreview
+        : fallbackRuntimeConfig.browserPreview,
+    apiBaseUrl: normalizeBaseUrl(
+      typeof value.apiBaseUrl === "string"
+        ? value.apiBaseUrl
+        : fallbackRuntimeConfig.apiBaseUrl,
+    ),
+    cardDatabaseFingerprint:
+      typeof value.cardDatabaseFingerprint === "string"
+        ? value.cardDatabaseFingerprint
+        : "",
+  };
+}
+
+export function apiResourceUrl(path: string): string {
+  if (/^https?:\/\//.test(path)) return path;
+  if (!path.startsWith("/api/")) return path;
+  if (!runtimeConfig.apiBaseUrl) return path;
+  return `${runtimeConfig.apiBaseUrl}${path}`;
+}
+
+export function hostedOnlineAvailable(): boolean {
+  return runtimeConfig.apiBaseUrl.length > 0;
 }
 
 export function listMatches(): Promise<MatchSummary[]> {
@@ -69,6 +174,84 @@ export function submitAction(
   });
 }
 
+export function createRoom(input: {
+  playerName: string;
+  deck: DeckList;
+  seed?: number;
+}): Promise<RoomPayload> {
+  if (!runtimeConfig.apiBaseUrl) {
+    return Promise.reject(new Error("Hosted API base URL is not configured."));
+  }
+  return request("/api/rooms", {
+    method: "POST",
+    body: JSON.stringify({
+      player_name: input.playerName,
+      deck: input.deck,
+      seed: input.seed,
+    }),
+  });
+}
+
+export function joinRoom(input: {
+  roomCode: string;
+  playerName: string;
+  deck: DeckList;
+}): Promise<RoomPayload> {
+  if (!runtimeConfig.apiBaseUrl) {
+    return Promise.reject(new Error("Hosted API base URL is not configured."));
+  }
+  return request(`/api/rooms/${encodeURIComponent(input.roomCode)}/join`, {
+    method: "POST",
+    body: JSON.stringify({
+      player_name: input.playerName,
+      deck: input.deck,
+    }),
+  });
+}
+
+export function getRoom(roomCode: string, playerToken: string): Promise<RoomPayload> {
+  if (!runtimeConfig.apiBaseUrl) {
+    return Promise.reject(new Error("Hosted API base URL is not configured."));
+  }
+  const params = new URLSearchParams({ player_token: playerToken });
+  return request(`/api/rooms/${encodeURIComponent(roomCode)}?${params.toString()}`);
+}
+
+export function submitRoomAction(
+  roomCode: string,
+  playerToken: string,
+  input: {
+    action_type: string;
+    expected_revision: number;
+    player_id?: string | null;
+    payload?: Record<string, unknown>;
+  },
+): Promise<MatchPayload> {
+  if (!runtimeConfig.apiBaseUrl) {
+    return Promise.reject(new Error("Hosted API base URL is not configured."));
+  }
+  return request(`/api/rooms/${encodeURIComponent(roomCode)}/actions`, {
+    method: "POST",
+    body: JSON.stringify({
+      player_token: playerToken,
+      action: input,
+    }),
+  });
+}
+
+export function roomReplayUrl(roomCode: string, playerToken: string): string {
+  const params = new URLSearchParams({ player_token: playerToken });
+  return apiResourceUrl(`/api/rooms/${encodeURIComponent(roomCode)}/replay?${params.toString()}`);
+}
+
+export function matchReplayUrl(matchId: string): string {
+  return apiResourceUrl(`/api/matches/${matchId}/replay`);
+}
+
+export function cardImageUrl(cardId: string): string {
+  return apiResourceUrl(`/api/card-images/${encodeURIComponent(cardId)}`);
+}
+
 export function listCatalogCards(input: {
   q?: string;
   cardType?: string;
@@ -92,6 +275,9 @@ export function listCatalogCards(input: {
   limit?: number;
   offset?: number;
 } = {}): Promise<CatalogListResponse> {
+  if (runtimeConfig.browserPreview) {
+    return listPreviewCatalogCards(input);
+  }
   const params = new URLSearchParams();
   if (input.q) params.set("q", input.q);
   if (input.cardType) params.set("card_type", input.cardType);
@@ -119,10 +305,16 @@ export function listCatalogCards(input: {
 }
 
 export function listCatalogFacets(): Promise<CatalogFacetsResponse> {
+  if (runtimeConfig.browserPreview) {
+    return listPreviewCatalogFacets();
+  }
   return request("/api/catalog/facets");
 }
 
 export function getCatalogCard(cardCode: string): Promise<CatalogCardDetail> {
+  if (runtimeConfig.browserPreview) {
+    return getPreviewCatalogCard(cardCode);
+  }
   return request(`/api/catalog/cards/${encodeURIComponent(cardCode)}`);
 }
 
@@ -130,6 +322,9 @@ export function listCatalogReviewCandidates(input: {
   limit?: number;
   offset?: number;
 } = {}): Promise<CatalogReviewCandidateList> {
+  if (runtimeConfig.browserPreview) {
+    return listPreviewCatalogReviewCandidates(input);
+  }
   const params = new URLSearchParams();
   if (input.limit !== undefined) params.set("limit", String(input.limit));
   if (input.offset !== undefined) params.set("offset", String(input.offset));
@@ -138,11 +333,11 @@ export function listCatalogReviewCandidates(input: {
 }
 
 export function listSavedDecks(): Promise<SavedDeckSummary[]> {
-  return request("/api/decks");
+  return listPreviewSavedDecks();
 }
 
 export function getSavedDeck(deckId: string): Promise<DeckList> {
-  return request(`/api/decks/${encodeURIComponent(deckId)}`);
+  return getPreviewSavedDeck(deckId);
 }
 
 export function createSavedDeck(input: {
@@ -150,10 +345,7 @@ export function createSavedDeck(input: {
   name?: string | null;
   overwrite?: boolean;
 }): Promise<SavedDeckResponse> {
-  return request("/api/decks", {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
+  return createPreviewSavedDeck(input);
 }
 
 export function updateSavedDeck(
@@ -164,31 +356,26 @@ export function updateSavedDeck(
     overwrite?: boolean;
   },
 ): Promise<SavedDeckResponse> {
-  return request(`/api/decks/${encodeURIComponent(deckId)}`, {
-    method: "PUT",
-    body: JSON.stringify(input),
-  });
+  return updatePreviewSavedDeck(deckId, input);
 }
 
 export function renameSavedDeck(
   deckId: string,
   input: { name: string },
 ): Promise<SavedDeckResponse> {
-  return request(`/api/decks/${encodeURIComponent(deckId)}/rename`, {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
+  return renamePreviewSavedDeck(deckId, input);
 }
 
 export function deleteSavedDeck(deckId: string): Promise<{ status: string }> {
-  return request(`/api/decks/${encodeURIComponent(deckId)}`, {
-    method: "DELETE",
-  });
+  return deletePreviewSavedDeck(deckId);
 }
 
 export function analyzeDeck(
   deck: DeckList,
 ): Promise<DeckAnalysisResponse> {
+  if (runtimeConfig.browserPreview) {
+    return analyzePreviewDeck(deck);
+  }
   return request("/api/decks/analyze", {
     method: "POST",
     body: JSON.stringify({ deck }),

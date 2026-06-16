@@ -21,6 +21,19 @@
   - 392 条为 `test_validated_executable`
   - 533 条为 timing prompt / 未支持处理用 `manual_resolution`
 - 面向未来低成本 online 同步的 state hash / compatibility metadata 基础
+- Hosted Online MVP 房间 API
+  - 通过 room code 创建 / 加入房间
+  - 使用 HTTP polling 同步状态
+  - 服务端复用 Python Rule Engine
+  - 临时 room 默认 24 小时过期
+- 锁版本权威卡牌 SQLite
+  - CI、Docker 和 Pages data export 使用仓库内 `data/loveca.sqlite3`
+  - `data/loveca-db-manifest.json` 记录 DB / effect registry 指纹
+- GitHub Pages browser preview 用静态 SPA 发布 workflow
+  - preview data package 只包含解析后的卡牌 / 技能数据
+  - 不打包卡图文件，牌面图片走官方 `image_url`
+  - 首次启动时在 browser localStorage 中生成 20 个 preview sample deck
+  - 支持 decklist.v0 JSON 导入 / 导出
 
 当前开发主线:
 
@@ -57,15 +70,17 @@ Deck Builder 当前状态:
 - 全卡技能自动执行
 - 面向全量卡池的完整技能提示覆盖
 - AI、Monte Carlo、胜率引擎
-- 在线对战、账户和同步
+- 正式在线运营、账户、用户同步和严格防作弊
+- GitHub Pages preview 在打包解析后 data package 时，已经可以不依赖 FastAPI 浏览卡库、使用浏览器本地 deck 保存，并执行 MVP deck 分析。对战通过 `runtime-config.json` 的 `apiBaseUrl` 连接 Cloudflare Worker gateway。
 
 ## 已知限制
 
 - 还没有覆盖全卡技能自动执行。
 - 当前 broad prompt coverage 大量包含 timing-only manual fallback。
 - 依赖 FAQ 或个别裁定的效果尚未规格化。
-- 当 importer、parser、卡号正规化、SQLite schema 或 effect registry 兼容性相关内容发生更新后，不建议继续复用旧的 `data/loveca.sqlite3`，应通过官方 importer 重建或重新导入卡牌数据库。保存牌组是 `decklist.v0` 用户数据，可以和卡牌数据库分开保留。
+- `data/loveca.sqlite3` 是仓库内锁版本权威卡牌 DB。官方补充包或 parser/schema/effect registry 变化后，由维护者重建并提交新的 DB 与 `data/loveca-db-manifest.json`；普通用户和 CI 不应自行 import 产生不同线上 DB。保存牌组是 `decklist.v0` 用户数据，可以和卡牌数据库分开保留。
 - Web/API 测试依赖 `httpx2`。环境缺少该依赖时，`tests/test_catalog_api.py` 和 `tests/test_webapp.py` 会在收集阶段停止。
+- Hosted Online MVP 只用于低成本测试反馈。规则判定由 FastAPI 侧 Python engine 执行，但不包含账号、长期保存或严格防作弊。
 
 ## 界面预览
 
@@ -156,11 +171,64 @@ loveca web serve `
 
 如果 `8765` 已被占用，可以改成 `--port 8766`。
 
+## Docker API 服务器
+
+如果要用 Cloudflare Worker gateway、Caddy 和小型 VM 试运行 Hosted Online MVP，可以只把 FastAPI backend 打成 Docker 镜像运行。
+
+前提：
+
+- 仓库内已经提交锁版本 `data/loveca.sqlite3`
+- VPS 只保留 `runtime/` 和 `logs/` 为宿主机持久目录
+- 如果 GitHub Pages 要连接这个 API，需要把 Pages 地址写入 `LOVECA_ALLOWED_ORIGINS`
+
+本地 build：
+
+```powershell
+docker build -t loveca-simulator-api:local .
+```
+
+compose 启动：
+
+```powershell
+$env:LOVECA_ALLOWED_ORIGINS="https://smaillion.github.io,http://127.0.0.1:8765,http://localhost:8765"
+docker compose -f compose.api.yml up -d --build
+```
+
+health check：
+
+```powershell
+curl http://127.0.0.1:8765/api/health
+```
+
+正式低成本部署推荐使用 Cloudflare Worker `workers.dev` 作为稳定 API gateway，VPS 上用 Caddy 暴露由 secret 管理的 origin hostname 的 `/api/*`，并反代到 `127.0.0.1:8765`。
+
+GitHub Actions：
+
+- `.github/workflows/api-image.yml` 会构建 Docker image。
+- Pull Request 只做 build 验证。
+- push 到 `develop` / `preview` 或手动执行时，会推送 GHCR 镜像 `ghcr.io/smaillion/loveca-simulator-api`。
+- `.github/workflows/deploy-api.yml` 可手动执行，构建 / 推送 GHCR image，并通过 SSH 更新 VPS 上的 compose service。
+
+部署需要的 GitHub Secrets：
+
+- `DEPLOY_HOST`
+- `DEPLOY_USER`
+- `DEPLOY_SSH_KEY`
+- `DEPLOY_PATH`
+- `API_BASE_URL`
+- `LOVECA_ALLOWED_ORIGINS`
+
+如果 GitHub Pages 要连接 Hosted API，请在 repository variable `VITE_PUBLIC_API_BASE_URL` 中设置 Cloudflare Worker URL。
+
 ## 卡牌 DB 与 asset 分发方针
 
 长期来看，可以提供包含预构建 SQLite 卡牌数据库、effect registry、manifest 和 checksum 的版本化 asset package，让用户无需每次从官网全量抓取即可直接启动。
 
-但官方卡图、官方效果文本和官方 PDF 派生的大量数据涉及再分发边界。在权利确认前，公开 asset 更适合只包含应用本体、schema、importer、manifest、checksum 和项目自有 metadata；卡牌 DB 与图片 cache 优先由用户本地 importer 从官方来源构建。
+但官方效果文本全文、官方 PDF 派生的大量数据和下载后的卡图文件涉及再分发边界。GitHub Pages preview 的公开 asset 应限制为解析后的卡牌数据、解析后的技能数据、manifest、checksum 和项目自有 metadata；卡图文件不随包发布，牌面显示直接使用官方 `image_url`。
+
+公开 preview 从专用 `preview` 分支发布。这个分支会直接提交已审核的 `data/loveca.sqlite3`，GitHub Pages workflow 从这个 SQLite 导出静态 JSON。`develop` 可以继续高频开发，不会触发 Pages 重建；只有准备更新公开 preview 时才同步到 `preview` 分支。
+
+browser preview 的 deck 保存在 localStorage。Deck 主要只保存卡号和数量，20 个初始 sample deck 加上普通用户自己的牌组通常只会占用很小空间。需要迁移或分享时，请使用 Deck Builder 的 JSON 导入 / 导出。
 
 如果向 private tester 提供预构建 DB，也应明确 release version、schema version、parser version、card database fingerprint 和 effect registry hash。任何破坏兼容性的版本更新后，都需要重新导入。
 
@@ -243,5 +311,5 @@ npm run build
 - `docs/14-database-migration-and-update-guide.md`: SQLite 重建、增量更新和 runtime 生命周期指引
 - `docs/15-project-guidance.md`: changelog 语言等维护指引
 - `docs/16-low-cost-online-battle-plan.md`: 低成本网络双人规则验证模式规划
-
-
+- `docs/17-browser-only-preview-and-pages-release.md`: GitHub Pages browser preview 与静态数据包计划
+- `docs/18-hosted-online-smoke-checklist.md`: Hosted Online MVP 合并 / 部署前 smoke checklist

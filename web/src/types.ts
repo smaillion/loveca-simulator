@@ -431,3 +431,17 @@ export interface MatchSummary {
   created_at: string;
   updated_at: string;
 }
+
+export interface RoomPayload {
+  room_code: string;
+  status: "waiting_for_guest" | "active" | "expired";
+  player_id: "player_1" | "player_2" | null;
+  player_token?: string;
+  match_id: string | null;
+  host_name: string;
+  guest_name: string | null;
+  created_at: string;
+  updated_at: string;
+  expires_at: string;
+  match: MatchPayload | null;
+}

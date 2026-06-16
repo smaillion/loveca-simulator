@@ -1,0 +1,121 @@
+name: Deploy API to VPS
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - develop
+    paths:
+      - ".github/workflows/deploy-api.yml"
+      - "Dockerfile"
+      - ".dockerignore"
+      - "compose.api.yml"
+      - "src/**"
+      - "data/loveca.sqlite3"
+      - "data/loveca-db-manifest.json"
+      - "pyproject.toml"
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}-api
+  IMAGE_TAG: sha-${{ github.sha }}
+  ORIGIN_BASE_URL: ${{ secrets.ORIGIN_BASE_URL || secrets.ORIGIN_API_BASE_URL }}
+  GATEWAY_API_BASE_URL: ${{ vars.VITE_PUBLIC_API_BASE_URL || '' }}
+  SSH_OPTS: -i ~/.ssh/deploy_key -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          install -m 600 /dev/null ~/.ssh/deploy_key
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          sed -i 's/\r$//' ~/.ssh/deploy_key
+          ssh-keygen -y -f ~/.ssh/deploy_key > ~/.ssh/deploy_key.pub
+          ssh-keygen -lf ~/.ssh/deploy_key.pub
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Test SSH login
+        run: ssh ${SSH_OPTS} "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" 'true'
+
+      - name: Write remote compose file
+        run: |
+          ssh ${SSH_OPTS} "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" 'mkdir -p "${{ secrets.DEPLOY_PATH }}/runtime" "${{ secrets.DEPLOY_PATH }}/logs"'
+          cat > compose.api.remote.yml <<'YAML'
+          services:
+            loveca-api:
+              image: IMAGE_PLACEHOLDER
+              restart: unless-stopped
+              ports:
+                - "127.0.0.1:8765:8765"
+              environment:
+                LOVECA_CARD_DB: /app/data/loveca.sqlite3
+                LOVECA_MATCH_DB: /app/runtime/matches.sqlite3
+                LOVECA_IMAGE_CACHE: /app/data/card_images
+                LOVECA_WEB_DIST: /app/web/dist
+                LOVECA_ALLOWED_ORIGINS: "ORIGINS_PLACEHOLDER"
+                LOVECA_ROOM_TTL_HOURS: "24"
+              volumes:
+                - ./runtime:/app/runtime
+                - ./logs:/app/logs
+          YAML
+          sed -i "s#IMAGE_PLACEHOLDER#${IMAGE_NAME}:${IMAGE_TAG}#g" compose.api.remote.yml
+          sed -i "s#ORIGINS_PLACEHOLDER#${{ vars.LOVECA_ALLOWED_ORIGINS }}#g" compose.api.remote.yml
+          scp ${SSH_OPTS} compose.api.remote.yml "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}/compose.api.yml"
+
+      - name: Restart API service
+        run: |
+          ssh ${SSH_OPTS} "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" '
+            cd "${{ secrets.DEPLOY_PATH }}" &&
+            if docker compose version >/dev/null 2>&1; then
+              compose="docker compose"
+            elif command -v docker-compose >/dev/null 2>&1; then
+              compose="docker-compose"
+            else
+              echo "Docker Compose is not installed. Install docker-compose-plugin or docker-compose on the VPS." >&2
+              exit 1
+            fi &&
+            $compose -f compose.api.yml pull &&
+            $compose -f compose.api.yml up -d &&
+            $compose -f compose.api.yml ps
+          '
+
+      - name: Health check through Caddy origin URL
+        run: |
+          origin_base_url="$(printf '%s' "$ORIGIN_BASE_URL" | sed 's#/*$##')"
+          test -n "$origin_base_url"
+          curl --fail --show-error --silent --max-time 20 "$origin_base_url/api/health"
+
+      - name: Health check through Worker gateway URL
+        run: |
+          gateway_base_url="$(printf '%s' "$GATEWAY_API_BASE_URL" | sed 's#/*$##')"
+          test -n "$gateway_base_url"
+          curl --fail --show-error --silent --max-time 20 "$gateway_base_url/api/health"

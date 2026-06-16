@@ -24,6 +24,19 @@ https://smaillion.github.io/loveca-simulator/
   - 392 件は `test_validated_executable`
   - 533 件は timing prompt / 未対応処理用の `manual_resolution`
 - 将来の低コスト online 同期に向けた state hash / compatibility metadata の基礎
+- Hosted Online MVP の room API
+  - room code による host / guest 参加
+  - HTTP polling による状態同期
+  - Python Rule Engine をサーバー側で再利用
+  - 24 時間 TTL の一時 room
+- locked authoritative card SQLite
+  - CI、Docker、Pages data export は repository 内の `data/loveca.sqlite3` を使用
+  - `data/loveca-db-manifest.json` が DB / effect registry fingerprint を記録
+- GitHub Pages browser preview 用の静的 SPA release workflow
+  - preview data package は解析済みカード / skill data のみを含む
+  - カード画像は同梱せず、公式 `image_url` を参照する
+  - 初回起動時に 20 個の preview sample deck を browser localStorage に作成
+  - decklist.v0 JSON の import / export に対応
 
 現在の開発主線:
 
@@ -60,15 +73,17 @@ Deck Builder の現在の到達点:
 - 全カード効果の自動化
 - 全量カードプールに対する完全な効果 prompt coverage
 - AI、Monte Carlo、勝率エンジン
-- オンライン対戦、アカウント、同期機能
+- 本格的な online 運用、アカウント、ユーザー同期、防作弊
+- GitHub Pages preview は解析済み data package を同梱した場合、FastAPI なしでカードカタログ閲覧、browser local deck 保存、MVP deck 分析まで動作します。対戦は runtime config の `apiBaseUrl` を設定した場合のみ Hosted FastAPI に接続できます。
 
 ## 既知の制限
 
 - 全カード効果の自動実行 coverage はまだありません。
 - 現在の broad prompt coverage は timing-only manual fallback を多く含みます。
 - FAQ / 個別裁定に依存する効果はまだ仕様化していません。
-- importer、parser、カード番号正規化、SQLite schema、または effect registry の互換性に関わる更新後は、既存の `data/loveca.sqlite3` を再利用せず、公式 importer でカード DB を再構築または再導入してください。保存済みデッキは `decklist.v0` のユーザーデータなので、カード DB とは分けて保持できます。
+- `data/loveca.sqlite3` は repository 内の locked authoritative card DB です。公式カード追加や parser / schema / effect registry の互換性変更後は、maintainer が DB と `data/loveca-db-manifest.json` を再生成して commit します。ユーザーや CI が online 用に別 DB を import してはいけません。保存済みデッキは `decklist.v0` のユーザーデータなので、カード DB とは分けて保持できます。
 - Web/API テストには `httpx2` が必要です。環境に未導入の場合、`tests/test_catalog_api.py` と `tests/test_webapp.py` は収集段階で停止します。
+- Hosted Online MVP は低コスト検証用です。ルール判定は FastAPI 側の Python engine が行いますが、アカウント、恒久保存、厳密な不正対策はありません。
 
 ## 画面イメージ
 
@@ -159,11 +174,65 @@ loveca web serve `
 
 `8765` が使用中なら `--port 8766` のように変更してください。
 
+## Docker API サーバー
+
+Cloudflare Worker gateway、Caddy、小型 VM で Hosted Online MVP を試す場合は、FastAPI backend だけを Docker で起動できます。
+
+前提:
+
+- locked `data/loveca.sqlite3` が repository に commit されていること
+- `runtime/` と `logs/` はホスト側に保持すること
+- GitHub Pages から接続する場合は `LOVECA_ALLOWED_ORIGINS` に Pages URL を設定すること
+
+ローカル build:
+
+```powershell
+docker build -t loveca-simulator-api:local .
+```
+
+compose 起動:
+
+```powershell
+$env:LOVECA_ALLOWED_ORIGINS="https://smaillion.github.io,http://127.0.0.1:8765,http://localhost:8765"
+docker compose -f compose.api.yml up -d --build
+```
+
+health check:
+
+```powershell
+curl http://127.0.0.1:8765/api/health
+```
+
+推奨する低コスト構成では、Cloudflare Worker の `workers.dev` URL を安定 API gateway として使います。VPS 側は Caddy で secret 管理された origin hostname の `/api/*` を公開し、`127.0.0.1:8765` に reverse proxy します。
+
+GitHub Actions:
+
+- `.github/workflows/api-image.yml` は Docker image を build します。
+- Pull Request では build 検証のみ行います。
+- `develop` / `preview` への push または手動実行では GHCR に `ghcr.io/smaillion/loveca-simulator-api` として push します。
+- `.github/workflows/deploy-api.yml` は手動実行で GHCR image を build / push し、SSH で VPS 上の compose service を更新します。
+
+Deploy に必要な GitHub Secrets:
+
+- `DEPLOY_HOST`
+- `DEPLOY_USER`
+- `DEPLOY_SSH_KEY`
+- `DEPLOY_PATH`
+- `ORIGIN_API_BASE_URL`
+- `LOVECA_ALLOWED_ORIGINS`
+- `CLOUDFLARE_API_TOKEN`
+
+GitHub Pages から Hosted API に接続する場合は、repository variable `VITE_PUBLIC_API_BASE_URL` に Cloudflare Worker URL を設定してください。
+
 ## カード DB と asset 配布方針
 
 将来的には、構築済みの SQLite カード DB、effect registry、manifest、checksum を含む versioned asset package を配布し、ユーザーが公式サイトから毎回全量取得しなくても起動できる形にできます。
 
-ただし、公式カード画像、公式効果テキスト、公式 PDF 由来の大量データは再配布可否の確認が必要です。権利面が未確認の間は、公開配布する asset にはアプリ本体、schema、importer、manifest、checksum、プロジェクト独自 metadata を含め、カード DB と画像 cache はユーザーのローカル importer で公式ソースから構築する方針を優先します。
+ただし、公式効果テキスト全文、公式 PDF 由来の大量データ、ダウンロード済みカード画像ファイルは再配布可否の確認が必要です。GitHub Pages preview で公開する asset は、解析済みカード data、解析済み skill data、manifest、checksum、プロジェクト独自 metadata に限定し、カード画像は同梱せず公式 `image_url` を参照する方針です。
+
+公開 preview は専用の `preview` ブランチから配信します。このブランチでは review 済みの `data/loveca.sqlite3` を直接コミットし、GitHub Pages workflow はその SQLite から静的 JSON を生成します。`develop` の頻繁な更新では Pages を再構築せず、preview を更新したいタイミングだけ `preview` ブランチへ反映します。
+
+browser preview の deck は localStorage に保存されます。Deck はカード番号と枚数中心の小さな JSON なので、20 個の初期 sample deck と通常のユーザー deck では容量は小さく収まります。移行や共有が必要な場合は、Deck Builder の JSON import / export を使用してください。
 
 private tester 向けに事前構築 DB を渡す場合も、release version、schema version、parser version、card database fingerprint、effect registry hash を明示し、互換性が崩れる更新後は再導入が必要です。
 
@@ -246,5 +315,5 @@ npm run build
 - `docs/14-database-migration-and-update-guide.md`: SQLite の再構築、増分更新、runtime lifecycle 指針
 - `docs/15-project-guidance.md`: changelog 言語などの保守指針
 - `docs/16-low-cost-online-battle-plan.md`: 低コストなネットワーク対戦検証モードの計画
-
-
+- `docs/17-browser-only-preview-and-pages-release.md`: GitHub Pages browser preview と静的 data package の計画
+- `docs/18-hosted-online-smoke-checklist.md`: Hosted Online MVP の merge / deploy 前 smoke checklist
