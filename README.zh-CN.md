@@ -32,7 +32,7 @@
 - GitHub Pages browser preview 用静态 SPA 发布 workflow
   - preview data package 只包含解析后的卡牌 / 技能数据
   - 不打包卡图文件，牌面图片走官方 `image_url`
-  - 首次启动时在 browser localStorage 中生成 20 个 preview sample deck
+  - 首次启动时在 browser localStorage 中生成 5 个合法的 `decklist.v0` preview sample deck
   - 支持 decklist.v0 JSON 导入 / 导出
 
 当前开发主线:
@@ -91,7 +91,7 @@ Deck Builder 当前状态:
 - 右上角语言切换可在简体中文 UI 和日文 UI 之间切换，选择会保存到 browser localStorage。
 - 可以选择已保存牌组，或从 Deck Builder 带回当前编辑中的牌组，创建本地规则验证对局。
 - 配置了 Hosted API 的环境可以创建 room code，让 host / guest 分别选择牌组后加入同一个 online room。Online match 中己方盘面始终显示在画面下方，Action Dock 只显示当前 room token 可以提交的操作。
-- Browser preview 支持查看已打包卡库、使用初始 sample deck、本地保存牌组、decklist.v0 导入 / 导出和 MVP 牌组分析。对战只有在 runtime config 设置了 `apiBaseUrl` 时才会连接 Hosted API。
+- Browser preview 支持查看已打包卡库、使用 5 个合法的初始 `decklist.v0` sample deck、本地保存牌组、decklist.v0 导入 / 导出和 MVP 牌组分析。对战只有在 runtime config 设置了 `apiBaseUrl` 时才会连接 Hosted API。
 
 ### 卡牌目录
 
@@ -140,7 +140,7 @@ Deck Builder：右侧筛选选卡，中央查看构筑与分析结果。
 
 公开 preview 从专用 `preview` 分支发布。这个分支会直接提交已审核的 `data/loveca.sqlite3`，GitHub Pages workflow 从这个 SQLite 导出静态 JSON。`develop` 可以继续高频开发，不会触发 Pages 重建；只有准备更新公开 preview 时才同步到 `preview` 分支。
 
-browser preview 的 deck 保存在 localStorage。Deck 主要只保存卡号和数量，20 个初始 sample deck 加上普通用户自己的牌组通常只会占用很小空间。需要迁移或分享时，请使用 Deck Builder 的 JSON 导入 / 导出。
+browser preview 的 deck 保存在 localStorage。Deck 主要只保存卡号和数量，5 个合法的初始 `decklist.v0` sample deck 加上普通用户自己的牌组通常只会占用很小空间。需要迁移或分享时，请使用 Deck Builder 的 JSON 导入 / 导出。
 
 如果向 private tester 提供预构建 DB，也应明确 release version、schema version、parser version、card database fingerprint 和 effect registry hash。任何破坏兼容性的版本更新后，都需要重新导入。
 
@@ -275,8 +275,11 @@ GitHub Actions：
 
 - `.github/workflows/api-image.yml` 会构建 Docker image。
 - Pull Request 只做 build 验证。
-- push 到 `develop` / `preview` 或手动执行时，会推送 GHCR 镜像 `ghcr.io/smaillion/loveca-simulator-api`。
-- `.github/workflows/deploy-api.yml` 可手动执行，构建 / 推送 GHCR image，并通过 SSH 更新 VPS 上的 compose service。
+- `api-image.yml` 在 push 到 `develop` / `preview` 或手动执行时，会推送 GHCR 镜像 `ghcr.io/smaillion/loveca-simulator-api`。
+- `.github/workflows/deploy-api.yml` 在 push 到 `develop` 或手动执行时，会构建 / 推送 GHCR image，并通过 SSH 更新 VPS 上的 compose service。
+- `.github/workflows/deploy-worker.yml` 在 `develop` / `preview` 的 Worker 相关文件变更或手动执行时，会更新 Cloudflare Worker gateway。
+- `.github/workflows/pages-preview.yml` 在 push 到 `preview` 或手动执行时发布 GitHub Pages preview。
+- 当前阶段 push 到 `main` 不触发自动 publish / deploy。接近生产的 release promotion 必须由 maintainer 明确手动执行 workflow，或走专门 release 流程。
 
 部署需要的 GitHub Secrets：
 

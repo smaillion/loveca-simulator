@@ -10,7 +10,9 @@ import type {
 } from "./types";
 
 const STORAGE_KEY = "loveca-browser-deck-library.v0";
-const SAMPLE_DECK_COUNT = 20;
+const SAMPLE_DECK_COUNT = 5;
+const SAMPLE_DECK_VERSION = 2;
+const SAMPLE_DECK_PATH_PATTERN = /^preview-sample-\d+\.json$/;
 
 interface StoredDeckRecord {
   path: string;
@@ -22,6 +24,7 @@ interface StoredDeckLibrary {
   version: "loveca-browser-deck-library.v0";
   decks: StoredDeckRecord[];
   seeded_preview_decks?: boolean;
+  seeded_preview_decks_version?: number;
 }
 
 export async function listPreviewSavedDecks(): Promise<SavedDeckSummary[]> {
@@ -215,18 +218,15 @@ function readDeckLibrary(): StoredDeckLibrary {
 
 async function readDeckLibraryWithSeeds(): Promise<StoredDeckLibrary> {
   const library = readDeckLibrary();
-  if (library.seeded_preview_decks) {
+  if (library.seeded_preview_decks_version === SAMPLE_DECK_VERSION) {
     return library;
   }
-  if (library.decks.length > 0) {
-    const marked = { ...library, seeded_preview_decks: true };
-    writeDeckLibrary(marked);
-    return marked;
-  }
+  const preservedDecks = library.decks.filter((record) => !isPreviewSamplePath(record.path));
   const seeded = {
     ...library,
-    decks: await createInitialPreviewDecks(),
+    decks: [...preservedDecks, ...(await createInitialPreviewDecks())],
     seeded_preview_decks: true,
+    seeded_preview_decks_version: SAMPLE_DECK_VERSION,
   };
   writeDeckLibrary(seeded);
   return seeded;
@@ -234,26 +234,25 @@ async function readDeckLibraryWithSeeds(): Promise<StoredDeckLibrary> {
 
 async function createInitialPreviewDecks(): Promise<StoredDeckRecord[]> {
   const response = await listPreviewCatalogCards({ limit: 100_000, offset: 0 });
-  const members = response.items
-    .filter((card) => card.card_type === "member")
-    .sort(sampleSort);
-  const lives = response.items
-    .filter((card) => card.card_type === "live")
-    .sort(sampleSort);
-  const energies = response.items
-    .filter((card) => card.card_type === "energy")
-    .sort(sampleSort);
+  const members = dedupePreviewCardsByCode(response.items.filter((card) => card.card_type === "member"));
+  const lives = dedupePreviewCardsByCode(response.items.filter((card) => card.card_type === "live"));
+  const energies = dedupePreviewCardsByCode(response.items.filter((card) => card.card_type === "energy"));
   if (members.length < 12 || lives.length < 3 || energies.length < 1) {
     return [];
   }
-  return Array.from({ length: SAMPLE_DECK_COUNT }, (_, index) => {
-    const deck = buildSampleDeck(index, members, lives, energies);
-    return {
-      path: `preview-sample-${String(index + 1).padStart(2, "0")}.json`,
-      deck,
+  const decks: StoredDeckRecord[] = [];
+  for (let attempt = 0; decks.length < SAMPLE_DECK_COUNT && attempt < SAMPLE_DECK_COUNT * 6; attempt += 1) {
+    const deck = buildSampleDeck(attempt, members, lives, energies);
+    const analysis = await analyzePreviewDeck(deck);
+    if (!analysis.is_legal) continue;
+    const sampleNumber = decks.length + 1;
+    decks.push({
+      path: `preview-sample-${String(sampleNumber).padStart(2, "0")}.json`,
+      deck: { ...deck, name: `Preview Sample Deck ${String(sampleNumber).padStart(2, "0")}` },
       updated_at: nowIso(),
-    };
-  });
+    });
+  }
+  return decks;
 }
 
 function buildSampleDeck(
@@ -288,11 +287,25 @@ function entryFromSummary(card: CatalogCardSummary, quantity: number): DeckEntry
   };
 }
 
+function dedupePreviewCardsByCode(cards: CatalogCardSummary[]): CatalogCardSummary[] {
+  const byCode = new Map<string, CatalogCardSummary>();
+  for (const card of cards.slice().sort(sampleSort)) {
+    if (!byCode.has(card.card_code)) {
+      byCode.set(card.card_code, card);
+    }
+  }
+  return [...byCode.values()];
+}
+
 function sampleSort(left: CatalogCardSummary, right: CatalogCardSummary): number {
   return (
     (left.card_set_code ?? "").localeCompare(right.card_set_code ?? "") ||
     left.card_code.localeCompare(right.card_code)
   );
+}
+
+function isPreviewSamplePath(path: string): boolean {
+  return SAMPLE_DECK_PATH_PATTERN.test(path);
 }
 
 function writeDeckLibrary(library: StoredDeckLibrary): void {
