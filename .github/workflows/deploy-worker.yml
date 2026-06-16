@@ -58,5 +58,8 @@ jobs:
 
       - name: Verify gateway health
         run: |
-          test -n "${{ vars.VITE_PUBLIC_API_BASE_URL }}"
-          curl --fail --show-error --silent "${{ vars.VITE_PUBLIC_API_BASE_URL }}/api/health"
+          base_url="$(printf '%s' "$VITE_PUBLIC_API_BASE_URL" | sed 's#/*$##')"
+          test -n "$base_url"
+          curl --fail --show-error --silent "$base_url/api/health"
+        env:
+          VITE_PUBLIC_API_BASE_URL: ${{ vars.VITE_PUBLIC_API_BASE_URL }}
