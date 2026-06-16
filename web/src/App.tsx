@@ -438,6 +438,12 @@ export default function App() {
       );
   }
 
+  const bottomPlayerId = onlineSession?.playerId ?? "player_1";
+  const topPlayerId = bottomPlayerId === "player_1" ? "player_2" : "player_1";
+  const visibleActions = onlineSession
+    ? match.legal_actions.filter((action) => canSubmitOnlineAction(action, onlineSession.playerId))
+    : match.legal_actions;
+
   return renderShell(
     <div className="app-shell">
       <header className="topbar">
@@ -520,35 +526,27 @@ export default function App() {
       <main className="workspace">
         <section className="board-column">
           <PlayerBoard
-            player={match.state.players.player_2}
+            player={match.state.players[topPlayerId]}
             state={match.state}
-            role={
-              match.state.second_player_id === "player_2"
-                ? locale === "zh" ? "后攻" : "後攻"
-                : locale === "zh" ? "先攻" : "先攻"
-            }
+            role={playerRoleLabel(match.state, topPlayerId, locale)}
             compact
             onCard={setDetails}
           />
           <LiveCenter state={match.state} onCard={setDetails} />
           <PlayerBoard
-            player={match.state.players.player_1}
+            player={match.state.players[bottomPlayerId]}
             state={match.state}
-            role={
-              match.state.first_player_id === "player_1"
-                ? "先攻"
-                : locale === "zh" ? "后攻" : "後攻"
-            }
+            role={playerRoleLabel(match.state, bottomPlayerId, locale)}
             onCard={setDetails}
           />
         </section>
         <EventLog events={match.events} state={match.state} />
       </main>
 
-      {match.legal_actions.length > 0 && (
+      {visibleActions.length > 0 && (
         <ActionDock
           state={match.state}
-          actions={match.legal_actions}
+          actions={visibleActions}
           loading={loading}
           onAction={handleAction}
           onManual={(source) => {
@@ -556,6 +554,14 @@ export default function App() {
             setManualOpen(true);
           }}
         />
+      )}
+      {onlineSession && match.legal_actions.length > 0 && visibleActions.length === 0 && (
+        <footer className="action-dock">
+          <div className="action-context">
+            <strong>Legal Actions</strong>
+            <span>{locale === "zh" ? "等待对手操作" : "相手の操作待ち"}</span>
+          </div>
+        </footer>
       )}
 
       {details && (
@@ -590,6 +596,16 @@ function useUiLanguage() {
     ...context,
     tr: (zh: string, ja: string) => (context.locale === "zh" ? zh : ja),
   };
+}
+
+function canSubmitOnlineAction(action: LegalAction, localPlayerId: string): boolean {
+  return action.player_id === null || action.player_id === localPlayerId;
+}
+
+function playerRoleLabel(state: MatchState, playerId: string, locale: UiLocale): string {
+  if (state.first_player_id === playerId) return "先攻";
+  if (state.second_player_id === playerId) return locale === "zh" ? "后攻" : "後攻";
+  return locale === "zh" ? "未定" : "未定";
 }
 
 function mergeEvents(existing: GameEvent[], incoming: GameEvent[]): GameEvent[] {

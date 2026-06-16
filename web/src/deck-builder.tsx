@@ -38,6 +38,17 @@ import type {
 } from "./types";
 
 type UiLocale = "zh" | "ja";
+type DeckSearchSortKey =
+  | "default"
+  | "card_code"
+  | "name"
+  | "type"
+  | "cost"
+  | "blade"
+  | "required_heart"
+  | "score"
+  | "deck_quantity";
+type SortDirection = "asc" | "desc";
 const MAIN_DECK_LIMIT = 60;
 const MAIN_DECK_MEMBER_TARGET = 48;
 const MAIN_DECK_LIVE_TARGET = 12;
@@ -138,6 +149,8 @@ export function DeckBuilder({
   const [liveScoreMax, setLiveScoreMax] = useState("");
   const [hasLiveBladeHeart, setHasLiveBladeHeart] = useState<"" | "true" | "false">("");
   const [liveBladeHeartColor, setLiveBladeHeartColor] = useState("");
+  const [sortKey, setSortKey] = useState<DeckSearchSortKey>("default");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [facets, setFacets] = useState<CatalogFacetsResponse>({ works: [], units: [] });
   const [cards, setCards] = useState<CatalogCardSummary[]>([]);
   const [catalogTotal, setCatalogTotal] = useState(0);
@@ -162,8 +175,8 @@ export function DeckBuilder({
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const visibleCards = useMemo(
-    () =>
-      aggregateDeckCatalogCards(cards.filter((card) =>
+    () => {
+      const filtered = aggregateDeckCatalogCards(cards.filter((card) =>
         matchesCatalogCardFilters(card, {
           cardType,
           basicHeartColor,
@@ -181,11 +194,14 @@ export function DeckBuilder({
             hasLiveBladeHeart === "" ? undefined : hasLiveBladeHeart === "true",
           liveBladeHeartColor,
         }),
-      )),
+      ));
+      return sortDeckCatalogCards(filtered, sortKey, sortDirection, deck);
+    },
     [
       basicHeartColor,
       cardType,
       cards,
+      deck,
       hasLiveBladeHeart,
       liveBladeHeartColor,
       liveScoreMax,
@@ -198,6 +214,8 @@ export function DeckBuilder({
       requiredHeartColor,
       requiredHeartMax,
       requiredHeartMin,
+      sortDirection,
+      sortKey,
     ],
   );
   const selectedSummary = useMemo(
@@ -1126,6 +1144,34 @@ export function DeckBuilder({
                   ))}
                 </select>
               </label>
+              <label className="catalog-select-filter">
+                <span>{tr(locale, "排序", "並び順")}</span>
+                <select
+                  value={sortKey}
+                  onChange={(event) => setSortKey(event.target.value as DeckSearchSortKey)}
+                >
+                  <option value="default">{tr(locale, "默认", "デフォルト")}</option>
+                  <option value="card_code">{tr(locale, "卡号", "カード番号")}</option>
+                  <option value="name">{tr(locale, "卡名", "カード名")}</option>
+                  <option value="type">{tr(locale, "卡牌种类", "カード種別")}</option>
+                  <option value="cost">Member Cost</option>
+                  <option value="blade">Blade</option>
+                  <option value="required_heart">{tr(locale, "Live 所需 Heart", "ライブ必要ハート")}</option>
+                  <option value="score">Live Score</option>
+                  <option value="deck_quantity">{tr(locale, "当前投入枚数", "現在の投入枚数")}</option>
+                </select>
+              </label>
+              <label className="catalog-select-filter">
+                <span>{tr(locale, "方向", "方向")}</span>
+                <select
+                  value={sortDirection}
+                  onChange={(event) => setSortDirection(event.target.value as SortDirection)}
+                  disabled={sortKey === "default"}
+                >
+                  <option value="asc">{tr(locale, "升序", "昇順")}</option>
+                  <option value="desc">{tr(locale, "降序", "降順")}</option>
+                </select>
+              </label>
             </div>
             {(cardType === "" || cardType === "member") && (
               <div className="catalog-filter-grid extended">
@@ -1937,6 +1983,90 @@ function aggregateDeckCatalogCards(cards: CatalogCardSummary[]): CatalogCardSumm
     rows.push(card);
   }
   return rows;
+}
+
+function sortDeckCatalogCards(
+  cards: CatalogCardSummary[],
+  sortKey: DeckSearchSortKey,
+  sortDirection: SortDirection,
+  deck: DeckList,
+): CatalogCardSummary[] {
+  if (sortKey === "default") {
+    return cards;
+  }
+  const direction = sortDirection === "asc" ? 1 : -1;
+  const indexed = cards.map((card, index) => ({ card, index }));
+  indexed.sort((left, right) => {
+    const value = compareDeckCatalogCards(left.card, right.card, sortKey, direction, deck);
+    if (value !== 0) return value;
+    return left.index - right.index;
+  });
+  return indexed.map((item) => item.card);
+}
+
+function compareDeckCatalogCards(
+  left: CatalogCardSummary,
+  right: CatalogCardSummary,
+  sortKey: DeckSearchSortKey,
+  direction: number,
+  deck: DeckList,
+): number {
+  if (sortKey === "card_code") {
+    return direction * compareText(left.card_code, right.card_code);
+  }
+  if (sortKey === "name") {
+    return direction * compareText(left.name_ja, right.name_ja);
+  }
+  if (sortKey === "type") {
+    const typeOrder: Record<string, number> = { member: 0, live: 1, energy: 2 };
+    return direction * compareNumbers(typeOrder[left.card_type] ?? 99, typeOrder[right.card_type] ?? 99);
+  }
+  if (sortKey === "cost") {
+    return compareOptionalNumbers(left.cost, right.cost, direction);
+  }
+  if (sortKey === "blade") {
+    return compareOptionalNumbers(left.blade, right.blade, direction);
+  }
+  if (sortKey === "required_heart") {
+    return compareOptionalNumbers(
+      left.card_type === "live" ? left.required_heart_total : null,
+      right.card_type === "live" ? right.required_heart_total : null,
+      direction,
+    );
+  }
+  if (sortKey === "score") {
+    return compareOptionalNumbers(left.score, right.score, direction);
+  }
+  if (sortKey === "deck_quantity") {
+    return direction * compareNumbers(deckQuantity(left, deck), deckQuantity(right, deck));
+  }
+  return 0;
+}
+
+function deckQuantity(card: CatalogCardSummary, deck: DeckList): number {
+  return currentEntryQuantity(
+    card.card_type === "energy" ? deck.energy_deck : deck.main_deck,
+    card.card_code,
+  );
+}
+
+function compareText(left: string, right: string): number {
+  return left.localeCompare(right, "ja");
+}
+
+function compareNumbers(left: number, right: number): number {
+  return left === right ? 0 : left < right ? -1 : 1;
+}
+
+function compareOptionalNumbers(
+  left: number | null,
+  right: number | null,
+  direction: number,
+): number {
+  if (left === null && right === null) return 0;
+  if (left === null) return 1;
+  if (right === null) return -1;
+  return direction * compareNumbers(left, right);
 }
 
 function filterDeckEntriesByType(
