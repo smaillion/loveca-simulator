@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from loveca import __version__
 from loveca.cards.catalog import (
     CardCatalogError,
     get_catalog_card,
@@ -35,7 +36,6 @@ from loveca.simulation.effects import DEFAULT_EFFECT_REGISTRY
 from loveca.simulation.engine import RuleEngineError, generate_legal_actions
 from loveca.simulation.models import ActionRequest
 from loveca.simulation.online import card_database_fingerprint, effect_registry_hash
-from loveca.simulation.runtime import MatchNotFoundError, MatchRuntimeError
 from loveca.simulation.rooms import (
     RoomError,
     RoomNotFoundError,
@@ -44,6 +44,7 @@ from loveca.simulation.rooms import (
     RoomStateError,
     RoomTokenError,
 )
+from loveca.simulation.runtime import MatchNotFoundError, MatchRuntimeError
 from loveca.simulation.service import MatchService, MatchSetupError
 
 PROJECT_ROOT = Path(__file__).parents[2]
@@ -116,6 +117,17 @@ def default_settings() -> ApiSettings:
     )
 
 
+def _deployment_metadata() -> dict[str, str]:
+    keys = {
+        "git_sha": "LOVECA_DEPLOY_GIT_SHA",
+        "git_ref": "LOVECA_DEPLOY_GIT_REF",
+        "github_run_id": "LOVECA_DEPLOY_GITHUB_RUN_ID",
+        "image": "LOVECA_DEPLOY_IMAGE",
+        "image_tag": "LOVECA_DEPLOY_IMAGE_TAG",
+    }
+    return {name: os.environ.get(env_name, "unknown") for name, env_name in keys.items()}
+
+
 def create_app(settings: ApiSettings | None = None) -> FastAPI:
     resolved = settings or default_settings()
     service = MatchService(
@@ -125,7 +137,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
     )
     app = FastAPI(
         title="LoveCA Visual Rules Debugger",
-        version="0.4.2a1",
+        version=__version__,
     )
     if resolved.allowed_origins:
         app.add_middleware(
@@ -153,6 +165,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
                 resolved.card_database_path
             ),
             "effect_registry_hash": effect_registry_hash(resolved.effect_registry_path),
+            "deployment": _deployment_metadata(),
         }
 
     @app.get("/api/matches")

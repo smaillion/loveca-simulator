@@ -2,6 +2,12 @@ name: Deploy API to VPS
 
 on:
   workflow_dispatch:
+    inputs:
+      allow_non_fast_forward_deploy:
+        description: "Allow deploying a commit that is not a descendant of the current deployed API sha."
+        required: false
+        default: false
+        type: boolean
   push:
     branches:
       - develop
@@ -32,6 +38,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Rollback guard
+        env:
+          ALLOW_NON_FAST_FORWARD_DEPLOY: ${{ github.event_name == 'workflow_dispatch' && inputs.allow_non_fast_forward_deploy || false }}
+        run: |
+          origin_base_url="$(printf '%s' "$ORIGIN_BASE_URL" | sed 's#/*$##')"
+          extra_args=()
+          if [ "$ALLOW_NON_FAST_FORWARD_DEPLOY" = "true" ]; then
+            extra_args+=(--allow-non-fast-forward)
+          fi
+          PYTHONPATH=src python -m loveca.deploy.rollback_guard \
+            --origin-base-url "$origin_base_url" \
+            --target-sha "$GITHUB_SHA" \
+            --repository "$GITHUB_WORKSPACE" \
+            "${extra_args[@]}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -50,6 +73,12 @@ jobs:
           file: Dockerfile
           push: true
           tags: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          build-args: |
+            LOVECA_DEPLOY_GIT_SHA=${{ github.sha }}
+            LOVECA_DEPLOY_GIT_REF=${{ github.ref_name }}
+            LOVECA_DEPLOY_GITHUB_RUN_ID=${{ github.run_id }}
+            LOVECA_DEPLOY_IMAGE=${{ env.IMAGE_NAME }}
+            LOVECA_DEPLOY_IMAGE_TAG=${{ env.IMAGE_TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
