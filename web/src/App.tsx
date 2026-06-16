@@ -1643,6 +1643,14 @@ export function EffectResolutionAction({
     energy_required?: number;
     branch_ids?: string[];
     selected_branch?: string;
+    choice_groups?: Array<{
+      group_id: string;
+      label_ja?: string | null;
+      candidate_card_instance_ids: string[];
+      exclude_group_ids?: string[];
+      minimum?: number;
+      maximum?: number;
+    }>;
   }>;
   const waitingPlayerIds = (action.options.waiting_player_ids ?? []) as string[];
   const [invocationId, setInvocationId] = useState(invocations[0]?.invocation_id ?? "");
@@ -1653,6 +1661,7 @@ export function EffectResolutionAction({
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedCount, setSelectedCount] = useState<number | null>(null);
   const [selectedBranch, setSelectedBranch] = useState("");
+  const [selectedGroups, setSelectedGroups] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     setSelectedCards([]);
@@ -1660,6 +1669,7 @@ export function EffectResolutionAction({
     setSelectedColor("");
     setSelectedCount(null);
     setSelectedBranch("");
+    setSelectedGroups({});
   }, [current?.invocation_id]);
 
   if (!current) return null;
@@ -1683,11 +1693,28 @@ export function EffectResolutionAction({
   const requiresCount = choiceType === "choose_count";
   const branchIds = current.branch_ids ?? [];
   const isBranchChoice = choiceType === "choose_effect_branch";
+  const isGroupedStageChoice = choiceType === "member_group_from_stage";
+  const choiceGroups = current.choice_groups ?? [];
   const resolvedBranch = current.selected_branch || selectedBranch;
   const requiresBranch = isBranchChoice && !current.selected_branch;
   const minimumCount = current.card_selection_minimum ?? 0;
   const maximumCount = current.card_selection_maximum ?? 0;
   const resolvedSelectedCount = selectedCount ?? minimumCount;
+  const selectedGroupIdSet = new Set(
+    Object.values(selectedGroups).flatMap((items) => items),
+  );
+  const groupSelectionsValid = !isGroupedStageChoice || choiceGroups.every((group) => {
+    const selected = selectedGroups[group.group_id] ?? [];
+    const minimum = group.minimum ?? 0;
+    const maximum = group.maximum ?? Math.max(minimum, group.candidate_card_instance_ids.length);
+    const candidates = new Set(group.candidate_card_instance_ids);
+    return (
+      selected.length >= minimum &&
+      selected.length <= maximum &&
+      selected.length === new Set(selected).size &&
+      selected.every((instanceId) => candidates.has(instanceId))
+    );
+  });
   return (
     <div className="effect-resolution">
       <div className="effect-resolution-header">
@@ -1770,6 +1797,63 @@ export function EffectResolutionAction({
           </span>
         </div>
       )}
+      {isGroupedStageChoice && choiceGroups.length > 0 && (
+        <div className="effect-grouped-choice">
+          {choiceGroups.map((group) => {
+            const selected = selectedGroups[group.group_id] ?? [];
+            const maximum = group.maximum ?? 1;
+            const excludedIds = new Set(
+              (group.exclude_group_ids ?? []).flatMap(
+                (groupId) => selectedGroups[groupId] ?? [],
+              ),
+            );
+            return (
+              <div className="effect-choice-group" key={group.group_id}>
+                <strong>{group.label_ja ?? group.group_id}</strong>
+                <div className="effect-candidates">
+                  {group.candidate_card_instance_ids.map((instanceId) => {
+                    const isSelected = selected.includes(instanceId);
+                    const disabled =
+                      excludedIds.has(instanceId) ||
+                      (!isSelected && selectedGroupIdSet.has(instanceId));
+                    const card = state.cards[instanceId];
+                    return (
+                      <button
+                        className={isSelected ? "selected" : ""}
+                        disabled={disabled}
+                        key={instanceId}
+                        type="button"
+                        onClick={() =>
+                          setSelectedGroups((currentGroups) => {
+                            const currentSelected = currentGroups[group.group_id] ?? [];
+                            const nextSelected = currentSelected.includes(instanceId)
+                              ? currentSelected.filter((item) => item !== instanceId)
+                              : maximum <= 1
+                                ? [instanceId]
+                                : currentSelected.length < maximum
+                                  ? [...currentSelected, instanceId]
+                                  : currentSelected;
+                            return {
+                              ...currentGroups,
+                              [group.group_id]: nextSelected,
+                            };
+                          })
+                        }
+                      >
+                        {card?.card.name_ja ?? instanceId}
+                      </button>
+                    );
+                  })}
+                  <span>
+                    {selected.length} / {maximum}
+                    {(group.minimum ?? 0) > 0 ? ` · min ${group.minimum}` : ""}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
       {requiresColor && (
         <div className="effect-candidates effect-color-choices">
           {colorSlots.map((colorSlot) => (
@@ -1844,7 +1928,8 @@ export function EffectResolutionAction({
                   && resolvedSelectedCount <= maximumCount,
                 requiresBranch,
                 Boolean(resolvedBranch),
-              )
+              ) ||
+              !groupSelectionsValid
             }
             onClick={() => {
               const payload: Record<string, unknown> = {
@@ -1853,6 +1938,9 @@ export function EffectResolutionAction({
                 selected_card_instance_ids: selectedCards,
                 energy_instance_ids: selectedEnergy,
               };
+              if (isGroupedStageChoice) {
+                payload.selected_card_instance_ids_by_group = selectedGroups;
+              }
               if (requiresColor) {
                 payload.selected_color_slot = selectedColor;
               }

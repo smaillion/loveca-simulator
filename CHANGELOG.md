@@ -10,7 +10,36 @@
 - `VITE_BROWSER_PREVIEW=true` で deck 保存 / 読み込み / 更新 / リネーム / 削除を browser localStorage に保存し、MVP deck 分析を TypeScript adapter で実行できるようにした。
 - Browser-only preview の設計文書を追加し、IndexedDB / localStorage、deck import/export、play history export、public data policy の境界を整理。
 - effect registry を 925 件に拡張し、同文の top-deck reorder、Live-success reorder、起動 self-Wait / ready-other Member pattern を追加。
-- `test_validated_executable` effect を 392 件まで拡張し、現在のローカルカードプールの粗い全効果数に対して 20.07% coverage に到達。
+- `test_validated_executable` effect を 466 件まで拡張し、registry entry ベースの coverage が 50.38% に到達。
+- grouped Stage Member choice を追加し、`PL!SP-bp4-023:1` のように「指定名 Member 1 人」と「それ以外の Liella! Member 1 人」を別 group で選び、両方に Live 期間 Blade modifier を適用できるようにした。
+- Live-specific temporary modifier として、Live score、必要 Heart 増減、必要 Heart 置換の基礎を追加。
+- `ライブ開始時` / `ライブ成功時` の exact-text pattern を追加し、公開した山札上カードによる score 加算、成功 Live 枚数による必要 Heart 変更、Stage Heart / Blade 条件などを構造化。
+- 成功 Live 2 枚以上を条件に Live score と必要 Heart を同時に置換する `ライブ開始時` pattern を構造化。
+- Liella! の center Member cost が相手 center Member より高い場合に Live score を +1 する `ライブ開始時` pattern を構造化。
+- Hasunosora / Liella! / Nijigasaki の Live-start 条件を追加し、Stage Heart 合計、控室 Live 名称、必要 Heart 条件、名前違い Member 数による score / required Heart 変更を構造化。
+- Aqours の Stage Member 全体が Live 終了時まで Blade を得る `ライブ開始時` pattern を構造化。
+- Nijigasaki の控室不同名 Live 数による score bonus、Liella! 左サイド Member の Heart 条件 Blade 付与、Hasunosora の Stage / 控室不同名 Member 条件による必要 Heart 減少を構造化。
+- `ライブ開始時` の draw-then-discard、移動済み Liella! / 5yncri5e! Member 参照、成功 Live score threshold、CatChu! Energy ready + all-active score bonus を構造化。
+- 成功 Live 名称参照による score / 必要 Heart 加算と、Liella! Stage+控室不同名条件による必要 Heart 置換を構造化。
+- 手札 6 枚以下を条件に控え室の Member を回収する `ライブ成功時` pattern を構造化。
+- center area の μ's Member が持つ `heart03` 2 個ごとに必要 Heart を減らす `ライブ開始時` pattern を構造化。
+- Stage 上の指定 Member 2 人の cost 関係を参照して必要 Heart を減らす `ライブ開始時` pattern を構造化。
+- 蓮ノ空 Member 1 人の元々持つ Heart を Live 終了時まで `heart01` に置換する `ライブ開始時` pattern を構造化。
+- Stage 上の指定名 Member に Live 終了時まで Heart / Blade を付与する `ライブ開始時` pattern を構造化。
+- Nijigasaki の効果で本ターン中に Wait Energy / Wait Member を Active にした履歴を追跡し、その履歴に応じて Live score を +1 / +2 する `ライブ開始時` pattern を構造化。
+- ready-history support 後の 20-match block smoke で 13 `mandatory_manual_resolution` / 5 `max_actions` / 2 完走を確認し、`PL!N-pb1-037:1` が blocker から消え、次の高頻度 blocker が Yell 中の Blade Heart 色変換であることを記録。
+- 指定名 Member modifier 後の 20-match block smoke で 12 `mandatory_manual_resolution` / 6 `max_actions` / 2 完走を確認し、その時点の高頻度 blocker が Nijigasaki ready-history score modifier であることを記録。
+- base Heart 置換後の 20-match block smoke で 12 `mandatory_manual_resolution` / 5 `max_actions` / 3 完走を確認し、`PL!HS-bp5-021:1` が blocker から消えたことを記録。
+- Phase 5 sandbox `30 decks x 50 matches` を再実行し、`block` mode は 35 `mandatory_manual_resolution` / 9 `max_actions` / 6 完走、`skip` mode は `illegal_action = 0` / 40 `max_actions` / 10 完走であることを記録。
+- grouped Stage Member choice 後の 20-match block smoke で 2 完走 / 11 `mandatory_manual_resolution` / 7 `max_actions` / `illegal_action = 0` を確認し、`PL!SP-bp4-023:1` が blocker から消えたことを記録。
+- Semantic user-agent sandbox を追加し、deterministic black-box sandbox とは別に、未構造化 `manual_resolution` 効果を現在の `ManualAdjustmentAction` で人間相当のテスターが処理できるかを測れるようにした。`mock` provider は CI / smoke 用で、実 provider は OpenAI-compatible Chat Completions 設定を使う。
+- `PL!N-bp4-031:1` を draw 3 後に hand から 3 枚を選んで deck top に戻す post-action choice として構造化し、`move_selected_to_deck_top` が hand 由来の選択にも対応するようにした。対応後の 20-match block smoke は 2 完走 / 9 `mandatory_manual_resolution` / 9 `max_actions`。
+- Baton Touch でこのターン登場した蓮ノ空 Member 2 人以上を条件に required Heart を減らす `PL!HS-bp2-023:1` / `PL!HS-bp2-025:1` を構造化し、Baton-specific turn history を GameState に追加。
+- 以前の Phase 5 sandbox `30 decks x 50 matches --manual-policy skip --max-actions 260` 回帰では 12 局完走、38 `max_actions`、`illegal_action = 0` を確認。
+- Energy 11 枚以上を条件に控室から Live カードを回収する `登場` pattern を構造化。
+- AI sandbox report に skipped effect ID 集計を追加し、`skip` mode の blocker 分析をしやすくした。
+- AI sandbox の deck 生成を work-key grouped / Heart-fit 寄りに調整し、Live 判定に近い blocker を見つけやすくした。
+- AI sandbox report に各 match の成功 Live 枚数を追加し、長局化が deck construction 由来か未解決 effect 由来かを切り分けやすくした。
 - on-play ready / wait、Waiting Room recovery、draw-then-discard、conditional mill、Energy placement、temporary Blade / Heart / score modifier pattern を追加。
 - 分岐選択の `登場`、単純 mill 5、ステージ Member 数参照の draw-then-discard を exact-text pattern として構造化。
 - opponent hand reveal + conditional draw の `登場` pattern を構造化。
@@ -35,7 +64,36 @@
 - 新增 `VITE_BROWSER_PREVIEW=true` 下的 browser deck library，将牌组保存 / 读取 / 更新 / 重命名 / 删除写入 localStorage，并用 TypeScript adapter 执行 MVP deck 分析。
 - 新增 Browser-only preview 设计文档，整理 IndexedDB / localStorage、牌组导入导出、游玩履历导出和 public data policy 边界。
 - 将 effect registry 扩展到 925 条，新增同文 top-deck reorder、Live 成功 reorder、起动 self-Wait / ready-other Member 模式。
-- 将 `test_validated_executable` 技能扩展到 392 条，按当前本地卡池粗略全技能数量计算达到 20.07% 覆盖率。
+- 将 `test_validated_executable` 技能扩展到 466 条，按 registry entry 计算达到 50.38% 覆盖率。
+- 新增 grouped Stage Member choice，支持像 `PL!SP-bp4-023:1` 这样把“指定名 Member 1 人”和“除此以外的 Liella! Member 1 人”分组选择，并对两个目标应用 Live 期间 Blade modifier。
+- 新增 Live 专用临时 modifier 基础，覆盖 Live score、所需 Heart 增减和所需 Heart 替换。
+- 新增 `ライブ開始時` / `ライブ成功時` exact-text pattern，结构化支持公开牌堆顶后的 score 加算、按成功 Live 数改变所需 Heart、Stage Heart / Blade 条件等。
+- 结构化支持以成功 Live 2 张以上为条件，同时修改 Live score 并替换所需 Heart 的 `ライブ開始時` pattern。
+- 结构化支持 Liella! center 成员 cost 高于对手 center 成员时 Live score +1 的 `ライブ開始時` pattern。
+- 新增 Hasunosora / Liella! / Nijigasaki 的 Live-start 条件，结构化支持 Stage Heart 合计、控室 Live 名称、所需 Heart 条件和不同名成员数量导致的 score / required Heart 变化。
+- 结构化支持 Aqours Stage Member 全体到 Live 结束前获得 Blade 的 `ライブ開始時` pattern。
+- 结构化支持 Nijigasaki 控室不同名 Live 数加分、Liella! 左侧 Member Heart 条件获得 Blade、Hasunosora Stage / 控室不同名 Member 条件减少所需 Heart。
+- 结构化支持 `ライブ開始時` 抽牌后弃牌、移动过的 Liella! / 5yncri5e! 成员参照、成功 Live score 阈值，以及 CatChu! Energy ready + 全部 Active 后加分。
+- 结构化支持成功 Live 名称参照带来的 score / 所需 Heart 增加，以及 Liella! Stage+控室不同名条件下的所需 Heart 替换。
+- 结构化支持以手牌 6 张以下为条件，从控室回收 Member 的 `ライブ成功時` pattern。
+- 结构化支持中心 μ's Member 每 2 个 `heart03` 减少 1 个任意色所需 Heart 的 `ライブ開始時` pattern。
+- 结构化支持参照 Stage 上两名指定 Member cost 关系来减少所需 Heart 的 `ライブ開始時` pattern。
+- 结构化支持将 1 名莲之空 Member 原本持有的 Heart 到 Live 结束前替换为 `heart01` 的 `ライブ開始時` pattern。
+- 结构化支持 Stage 上指定姓名 Member 到 Live 结束前获得 Heart / Blade 的 `ライブ開始時` pattern。
+- 结构化支持追踪本回合内由 Nijigasaki 技能将 Wait Energy / Wait Member 变为 Active 的历史，并据此让 Live score +1 / +2 的 `ライブ開始時` pattern。
+- ready-history support 后的 20-match block smoke 结果为 13 局 `mandatory_manual_resolution` / 5 局 `max_actions` / 2 局完走，确认 `PL!N-pb1-037:1` 已从 blocker 消失，下一类高频 blocker 是 Yell 中的 Blade Heart 颜色转换。
+- 指定姓名 Member modifier 后的 20-match block smoke 结果为 12 局 `mandatory_manual_resolution` / 6 局 `max_actions` / 2 局完走，并记录当时的高频 blocker 为 Nijigasaki ready-history score modifier。
+- base Heart 替换后 20-match block smoke 结果为 12 局 `mandatory_manual_resolution` / 5 局 `max_actions` / 3 局完走，并确认 `PL!HS-bp5-021:1` 已从 blocker 中消失。
+- 重新执行 Phase 5 sandbox `30 decks x 50 matches`，记录 `block` mode 为 35 局 `mandatory_manual_resolution` / 9 局 `max_actions` / 6 局完走，`skip` mode 为 `illegal_action = 0` / 40 局 `max_actions` / 10 局完走。
+- grouped Stage Member choice 后的 20-match block smoke 结果为 2 局完走 / 11 局 `mandatory_manual_resolution` / 7 局 `max_actions` / `illegal_action = 0`，并确认 `PL!SP-bp4-023:1` 已从 blocker 中消失。
+- 新增 semantic user-agent sandbox，可以在 deterministic 黑盒 sandbox 之外，单独衡量未结构化 `manual_resolution` 技能是否能被类似人工测试者通过当前 `ManualAdjustmentAction` 表达。`mock` provider 用于 CI / smoke，真实 provider 使用 OpenAI-compatible Chat Completions 配置。
+- 将 `PL!N-bp4-031:1` 结构化为抽 3 张后，从手牌选择 3 张按顺序放回牌堆顶的 post-action choice，并让 `move_selected_to_deck_top` 支持从手牌选择。对应后的 20-match block smoke 为 2 局完走 / 9 局 `mandatory_manual_resolution` / 9 局 `max_actions`。
+- 结构化支持 `PL!HS-bp2-023:1` / `PL!HS-bp2-025:1`：本回合通过 Baton Touch 登场的莲之空 Member 达到 2 人以上时减少 required Heart，并在 GameState 中新增 Baton-specific turn history。
+- 之前的 Phase 5 sandbox `30 decks x 50 matches --manual-policy skip --max-actions 260` 回归结果为 12 局完走、38 局 `max_actions`、`illegal_action = 0`。
+- 结构化支持以 Energy 11 张以上为条件，从控室回收 Live 卡的 `登場` pattern。
+- AI sandbox report 新增 skipped effect ID 集计，方便分析 `skip` mode 的剩余 blocker。
+- AI sandbox 的 deck 生成调整为更偏向同作品 / Heart 匹配，便于发现更接近 Live 判定的 blocker。
+- AI sandbox report 新增每局成功 Live 数，便于区分长局问题是 deck 构筑导致还是未解决 effect 导致。
 - 新增登场 ready / wait、控室回收、抽牌后弃牌、条件 mill、Energy 放置，以及临时 Blade / Heart / score 修正模式。
 - 将二选一 `登場`、单纯 mill 5、按场上 Member 数抽牌后弃牌升级为 exact-text 结构化模式。
 - 将 opponent hand reveal + 条件抽牌的 `登場` 模式升级为结构化处理。

@@ -960,7 +960,7 @@ describe("App", () => {
       target: { value: "LL-TEST-001-SR" },
     });
 
-    expect(screen.getByText("LL-TEST-001-SR")).toBeInTheDocument();
+    expect(screen.getByLabelText("选择卡面")).toHaveValue("LL-TEST-001-SR");
     expect(screen.getByAltText("テストカード")).toHaveAttribute(
       "src",
       "/api/card-images/LL-TEST-001-SR",
@@ -1244,6 +1244,99 @@ describe("App", () => {
       accepted: true,
       selected_card_instance_ids: ["player_1-M002"],
       energy_instance_ids: [],
+    });
+    expect(onManual).not.toHaveBeenCalled();
+  });
+
+  it("submits grouped Stage Member choices and excludes prior group selections", () => {
+    const onAction = vi.fn();
+    const onManual = vi.fn();
+    const state = {
+      ...INSPECTION_MATCH_PAYLOAD.state,
+      pending_choice: null,
+      pending_effects: [
+        {
+          invocation_id: "grouped-effect-001",
+          effect_id: "PL!SP-bp4-023:1",
+          source_card_instance_id: "player_1-M001",
+          player_id: "player_1",
+          trigger_event: "live_started",
+          trigger_data: {},
+          resolution_stage: "initial" as const,
+        },
+      ],
+    };
+    const action = {
+      action_type: "resolve_effect",
+      player_id: "player_1",
+      label_zh: "处理待结算技能",
+      label_ja: "待機中の能力を解決",
+      options: {
+        invocations: [
+          {
+            invocation_id: "grouped-effect-001",
+            effect_id: "PL!SP-bp4-023:1",
+            source_card_instance_id: "player_1-M001",
+            label_ja:
+              "【ライブ開始時】ライブ終了時まで、自分のステージにいる、「澁谷かのん」「ウィーン・マルガレーテ」「鬼塚冬毬」のうちのメンバー1人と、これにより選んだメンバー以外の『Liella!』のメンバー1人は、【ブレード】を得る。",
+            trigger: "live_started",
+            timing: "live_start",
+            execution_mode: "prompt_then_resolve",
+            is_optional: false,
+            simulation_support: "test_validated_executable",
+            candidate_card_instance_ids: [],
+            choice_type: "member_group_from_stage",
+            card_selection_minimum: 0,
+            card_selection_maximum: 0,
+            choice_groups: [
+              {
+                group_id: "named_member",
+                label_ja: "指定名のメンバー",
+                candidate_card_instance_ids: ["player_1-M001"],
+                exclude_group_ids: [],
+                minimum: 1,
+                maximum: 1,
+              },
+              {
+                group_id: "other_liella",
+                label_ja: "選んだメンバー以外の『Liella!』のメンバー",
+                candidate_card_instance_ids: ["player_1-M001", "player_1-M002"],
+                exclude_group_ids: ["named_member"],
+                minimum: 1,
+                maximum: 1,
+              },
+            ],
+          },
+        ],
+        waiting_player_ids: [],
+      },
+    };
+
+    render(
+      <EffectResolutionAction
+        action={action as never}
+        state={state as never}
+        loading={false}
+        onAction={onAction}
+        onManual={onManual}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+    fireEvent.click(screen.getAllByRole("button", { name: "確認メンバー" })[0]);
+    expect(screen.getAllByRole("button", { name: "確認メンバー" })[1]).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "候補カード" }));
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "grouped-effect-001",
+      accepted: true,
+      selected_card_instance_ids: [],
+      energy_instance_ids: [],
+      selected_card_instance_ids_by_group: {
+        named_member: ["player_1-M001"],
+        other_liella: ["player_1-M002"],
+      },
     });
     expect(onManual).not.toHaveBeenCalled();
   });
