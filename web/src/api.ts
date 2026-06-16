@@ -333,17 +333,11 @@ export function listCatalogReviewCandidates(input: {
 }
 
 export function listSavedDecks(): Promise<SavedDeckSummary[]> {
-  if (runtimeConfig.browserPreview) {
-    return listPreviewSavedDecks();
-  }
-  return request("/api/decks");
+  return listPreviewSavedDecks();
 }
 
 export function getSavedDeck(deckId: string): Promise<DeckList> {
-  if (runtimeConfig.browserPreview) {
-    return getPreviewSavedDeck(deckId);
-  }
-  return request(`/api/decks/${encodeURIComponent(deckId)}`);
+  return getPreviewSavedDeck(deckId);
 }
 
 export function createSavedDeck(input: {
@@ -351,13 +345,7 @@ export function createSavedDeck(input: {
   name?: string | null;
   overwrite?: boolean;
 }): Promise<SavedDeckResponse> {
-  if (runtimeConfig.browserPreview) {
-    return createPreviewSavedDeck(input);
-  }
-  return request("/api/decks", {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
+  return createPreviewSavedDeck(input);
 }
 
 export function updateSavedDeck(
@@ -368,35 +356,18 @@ export function updateSavedDeck(
     overwrite?: boolean;
   },
 ): Promise<SavedDeckResponse> {
-  if (runtimeConfig.browserPreview) {
-    return updatePreviewSavedDeck(deckId, input);
-  }
-  return request(`/api/decks/${encodeURIComponent(deckId)}`, {
-    method: "PUT",
-    body: JSON.stringify(input),
-  });
+  return updatePreviewSavedDeck(deckId, input);
 }
 
 export function renameSavedDeck(
   deckId: string,
   input: { name: string },
 ): Promise<SavedDeckResponse> {
-  if (runtimeConfig.browserPreview) {
-    return renamePreviewSavedDeck(deckId, input);
-  }
-  return request(`/api/decks/${encodeURIComponent(deckId)}/rename`, {
-    method: "POST",
-    body: JSON.stringify(input),
-  });
+  return renamePreviewSavedDeck(deckId, input);
 }
 
 export function deleteSavedDeck(deckId: string): Promise<{ status: string }> {
-  if (runtimeConfig.browserPreview) {
-    return deletePreviewSavedDeck(deckId);
-  }
-  return request(`/api/decks/${encodeURIComponent(deckId)}`, {
-    method: "DELETE",
-  });
+  return deletePreviewSavedDeck(deckId);
 }
 
 export function analyzeDeck(

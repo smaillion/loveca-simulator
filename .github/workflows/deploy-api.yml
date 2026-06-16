@@ -4,8 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      # TODO temporary: allow hosted release gateway branch to validate VPS deploy before merge.
-      - codex/hosted-release-gateway-db
+      - develop
     paths:
       - ".github/workflows/deploy-api.yml"
       - "Dockerfile"
