@@ -1355,6 +1355,27 @@ button {
   padding: 6px 8px;
 }
 
+.choice-card-label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+}
+
+.choice-card-label strong,
+.choice-card-label small {
+  max-width: min(320px, 72vw);
+  overflow-wrap: anywhere;
+}
+
+.choice-card-label small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 .effect-candidates button.selected {
   border-color: var(--teal);
   background: #e6f5f3;
