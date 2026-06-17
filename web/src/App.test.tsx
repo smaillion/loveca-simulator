@@ -10,6 +10,7 @@ import App, {
   formatHeartSummary,
   resolveMemberPlaySelection,
 } from "./App";
+import { resetRuntimeConfigForTests } from "./api";
 import type { DeckList } from "./types";
 
 const placements = [
@@ -459,11 +460,15 @@ function createFetchMock(overrides: {
   deckAnalysis?: unknown;
   savedDeckGet?: unknown;
   deckSaveResponse?: unknown;
+  runtimeConfig?: unknown;
 }) {
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = input.toString();
     const parsedUrl = new URL(url, "http://localhost");
     const method = init?.method ?? "GET";
+    if (url === "runtime-config.json" && method === "GET") {
+      return jsonResponse(overrides.runtimeConfig ?? []);
+    }
     if (parsedUrl.pathname === "/api/matches" && method === "GET") {
       return jsonResponse(overrides.matches ?? []);
     }
@@ -559,6 +564,7 @@ function seedSavedDecks(decks: Array<{ path: string; deck: DeckList }>): void {
 describe("App", () => {
   beforeEach(() => {
     cleanup();
+    resetRuntimeConfigForTests();
     localStorage.clear();
     localStorage.setItem("loveca-ui-locale", "zh");
     vi.stubGlobal("fetch", createFetchMock({}));
@@ -595,6 +601,31 @@ describe("App", () => {
         expect.anything(),
       ),
     );
+  });
+
+  it("does not request match history in browser preview without a hosted API", async () => {
+    const fetchMock = createFetchMock({
+      runtimeConfig: {
+        mode: "preview",
+        browserPreview: true,
+        apiBaseUrl: "",
+        cardDatabaseFingerprint: "",
+      },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith("runtime-config.json", expect.anything()),
+    );
+    expect(
+      fetchMock.mock.calls.some(
+        ([input, init]) =>
+          new URL(input.toString(), "http://localhost").pathname === "/api/matches"
+          && (init?.method ?? "GET") === "GET",
+      ),
+    ).toBe(false);
   });
 
   it("creates a match with inline deck payloads instead of a hardcoded deck path", async () => {
@@ -783,8 +814,9 @@ describe("App", () => {
     ];
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = input.toString();
+      const parsedUrl = new URL(url, "http://localhost");
       const method = init?.method ?? "GET";
-      if (url === "/api/matches" && method === "GET") {
+      if (parsedUrl.pathname === "/api/matches" && method === "GET") {
         return jsonResponse([]);
       }
       if (url === "/api/decks" && method === "GET") {

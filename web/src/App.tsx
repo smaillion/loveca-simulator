@@ -83,6 +83,10 @@ const emptyMatchHistory: MatchListResponse = {
   max_total: 100,
 };
 
+function matchHistoryAvailable(config: { browserPreview: boolean; apiBaseUrl: string }): boolean {
+  return !config.browserPreview || config.apiBaseUrl.length > 0;
+}
+
 type UiLocale = "zh" | "ja";
 type StartDeckSource = {
   id: string;
@@ -164,16 +168,25 @@ export default function App() {
         if (disposed) return;
         setRuntimeConfig(config);
         setShowPreviewNotice(config.browserPreview);
-        listMatches({ page: 1, perPage: MATCH_HISTORY_PAGE_SIZE })
-          .then(setMatchHistory)
-          .catch(() => setMatchHistory(emptyMatchHistory));
+        if (matchHistoryAvailable(config)) {
+          listMatches({ page: 1, perPage: MATCH_HISTORY_PAGE_SIZE })
+            .then(setMatchHistory)
+            .catch(() => setMatchHistory(emptyMatchHistory));
+        } else {
+          setMatchHistory(emptyMatchHistory);
+        }
         listSavedDecks().then(setSavedDecks).catch(() => setSavedDecks([]));
       })
       .catch(() => {
         if (disposed) return;
-        listMatches({ page: 1, perPage: MATCH_HISTORY_PAGE_SIZE })
-          .then(setMatchHistory)
-          .catch(() => setMatchHistory(emptyMatchHistory));
+        const config = getRuntimeConfigSnapshot();
+        if (matchHistoryAvailable(config)) {
+          listMatches({ page: 1, perPage: MATCH_HISTORY_PAGE_SIZE })
+            .then(setMatchHistory)
+            .catch(() => setMatchHistory(emptyMatchHistory));
+        } else {
+          setMatchHistory(emptyMatchHistory);
+        }
         listSavedDecks().then(setSavedDecks).catch(() => setSavedDecks([]));
       });
     return () => {
@@ -437,9 +450,11 @@ export default function App() {
             })
           }
           onHistoryPage={(page) =>
-            listMatches({ page, perPage: MATCH_HISTORY_PAGE_SIZE })
-              .then(setMatchHistory)
-              .catch(() => setMatchHistory(emptyMatchHistory))
+            matchHistoryAvailable(runtimeConfig)
+              ? listMatches({ page, perPage: MATCH_HISTORY_PAGE_SIZE })
+                .then(setMatchHistory)
+                .catch(() => setMatchHistory(emptyMatchHistory))
+              : setMatchHistory(emptyMatchHistory)
           }
         />,
       );

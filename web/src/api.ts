@@ -59,6 +59,11 @@ export function getRuntimeConfigSnapshot(): RuntimeConfig {
   return runtimeConfig;
 }
 
+export function resetRuntimeConfigForTests(): void {
+  runtimeConfig = fallbackRuntimeConfig;
+  runtimeConfigPromise = null;
+}
+
 export function browserPreviewEnabled(): boolean {
   return runtimeConfig.browserPreview;
 }
@@ -82,7 +87,8 @@ export function loadRuntimeConfig(): Promise<RuntimeConfig> {
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(apiResourceUrl(url), {
+  const resolvedUrl = apiResourceUrl(url);
+  const response = await fetch(resolvedUrl, {
     headers: { "Content-Type": "application/json", ...init?.headers },
     ...init,
   });
@@ -90,7 +96,9 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     const body = await response.json().catch(() => ({ detail: response.statusText }));
     throw new Error(body.detail ?? response.statusText);
   }
-  return response.json() as Promise<T>;
+  return response.json().catch(() => {
+    throw new Error(`Expected JSON from ${resolvedUrl}, but received a non-JSON response.`);
+  }) as Promise<T>;
 }
 
 function normalizeBaseUrl(value: string): string {
