@@ -130,7 +130,7 @@ const CATALOG_DETAIL = {
     effects: [
       {
         effect_id: "LL-TEST-001:1",
-        label_ja: "【登場】テスト。",
+        label_ja: "【登場】【heart05】テスト。",
         effect_type: "triggered",
         timing: "on_play",
         trigger: "member_played",
@@ -175,7 +175,7 @@ const CATALOG_DETAIL = {
     {
       revision_id: 1,
       revision_number: 1,
-      raw_effect_text_ja: "【登場】テスト。",
+      raw_effect_text_ja: "【登場】【heart01】を得る。",
       raw_text_hash: "hash",
       revision_status: "current",
       first_observed_at: "2026-06-14T00:00:00+00:00",
@@ -713,6 +713,9 @@ describe("App", () => {
     expect(formatEffectText("heart01を2つ、heart05を1つ得る。", "ja")).toBe(
       "ピンクを2つ、青を1つ得る。",
     );
+    expect(formatEffectText("【heart01】と【heart06】を得る。", "zh")).toBe(
+      "【粉色】と【紫色】を得る。",
+    );
   });
 
   it("falls back when the previously selected Member card or area is no longer legal", () => {
@@ -834,7 +837,8 @@ describe("App", () => {
 
     await waitFor(() => expect(screen.getByText("全卡浏览与人工审核")).toBeInTheDocument());
     await waitFor(() => expect(screen.getByText("テストカード")).toBeInTheDocument());
-    await waitFor(() => expect(screen.getByText("【登場】テスト。")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("【登場】【粉色】を得る。")).toBeInTheDocument());
+    expect(screen.queryByText(/heart01/)).not.toBeInTheDocument();
   });
 
   it("shows separate rows for distinct card ids in the catalog browser", async () => {
@@ -1059,6 +1063,9 @@ describe("App", () => {
     expect(
       screen.getByText("登場 · 提示后处理 · test_validated_executable · test_validated"),
     ).toBeInTheDocument();
+    expect(screen.getByText("【登場】【粉色】を得る。")).toBeInTheDocument();
+    expect(screen.getByText("【登場】【蓝色】テスト。")).toBeInTheDocument();
+    expect(screen.queryByText(/heart0[1-6]/)).not.toBeInTheDocument();
     expect(screen.getAllByText("テストカード").length).toBeGreaterThan(0);
   });
 
