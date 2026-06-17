@@ -462,11 +462,12 @@ function createFetchMock(overrides: {
 }) {
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = input.toString();
+    const parsedUrl = new URL(url, "http://localhost");
     const method = init?.method ?? "GET";
-    if (url === "/api/matches" && method === "GET") {
+    if (parsedUrl.pathname === "/api/matches" && method === "GET") {
       return jsonResponse(overrides.matches ?? []);
     }
-    if (url === "/api/matches" && method === "POST") {
+    if (parsedUrl.pathname === "/api/matches" && method === "POST") {
       return jsonResponse(overrides.matchCreate ?? MATCH_PAYLOAD);
     }
     if (url === "/api/decks" && method === "GET") {
@@ -588,7 +589,12 @@ describe("App", () => {
     await waitFor(() => expect(screen.getByLabelText("玩家 1 牌组")).toBeInTheDocument());
     expect(screen.getAllByText("Test Deck").length).toBeGreaterThan(0);
     expect(screen.getByPlaceholderText("自动生成")).toHaveValue("");
-    await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/matches", expect.anything()));
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/matches?page=1&per_page=10",
+        expect.anything(),
+      ),
+    );
   });
 
   it("creates a match with inline deck payloads instead of a hardcoded deck path", async () => {

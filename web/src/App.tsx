@@ -41,6 +41,7 @@ import type {
   DeckList,
   GameEvent,
   LegalAction,
+  MatchListResponse,
   MatchPayload,
   MatchState,
   MatchSummary,
@@ -71,6 +72,15 @@ const phaseLabels: Record<string, [string, string]> = {
   live_judgment: ["Live 胜负判定", "ライブ勝敗判定"],
   turn_complete: ["本回合判定完成", "ターン完了"],
   complete: ["对局结束", "対戦終了"],
+};
+
+const MATCH_HISTORY_PAGE_SIZE = 10;
+const emptyMatchHistory: MatchListResponse = {
+  items: [],
+  page: 1,
+  per_page: MATCH_HISTORY_PAGE_SIZE,
+  total: 0,
+  max_total: 100,
 };
 
 type UiLocale = "zh" | "ja";
@@ -132,7 +142,7 @@ export default function App() {
   });
   const [screen, setScreen] = useState<"home" | "match" | "catalog" | "decks">("home");
   const [match, setMatch] = useState<MatchPayload | null>(null);
-  const [matches, setMatches] = useState<MatchSummary[]>([]);
+  const [matchHistory, setMatchHistory] = useState<MatchListResponse>(emptyMatchHistory);
   const [savedDecks, setSavedDecks] = useState<SavedDeckSummary[]>([]);
   const [draftDeck, setDraftDeck] = useState<DeckList | null>(null);
   const [loading, setLoading] = useState(false);
@@ -154,12 +164,16 @@ export default function App() {
         if (disposed) return;
         setRuntimeConfig(config);
         setShowPreviewNotice(config.browserPreview);
-        listMatches().then(setMatches).catch(() => setMatches([]));
+        listMatches({ page: 1, perPage: MATCH_HISTORY_PAGE_SIZE })
+          .then(setMatchHistory)
+          .catch(() => setMatchHistory(emptyMatchHistory));
         listSavedDecks().then(setSavedDecks).catch(() => setSavedDecks([]));
       })
       .catch(() => {
         if (disposed) return;
-        listMatches().then(setMatches).catch(() => setMatches([]));
+        listMatches({ page: 1, perPage: MATCH_HISTORY_PAGE_SIZE })
+          .then(setMatchHistory)
+          .catch(() => setMatchHistory(emptyMatchHistory));
         listSavedDecks().then(setSavedDecks).catch(() => setSavedDecks([]));
       });
     return () => {
@@ -330,7 +344,8 @@ export default function App() {
     }
     return renderShell(
         <StartScreen
-          matches={matches}
+          matches={matchHistory.items}
+          history={matchHistory}
           deckSources={deckSources}
           loading={loading}
           error={error}
@@ -421,8 +436,13 @@ export default function App() {
               setScreen("match");
             })
           }
+          onHistoryPage={(page) =>
+            listMatches({ page, perPage: MATCH_HISTORY_PAGE_SIZE })
+              .then(setMatchHistory)
+              .catch(() => setMatchHistory(emptyMatchHistory))
+          }
         />,
-    );
+      );
   }
 
   if (screen === "catalog") {
@@ -755,8 +775,72 @@ function UsageGuideDialog({
       ],
     },
     {
+      icon: <BookOpen size={28} />,
+      label: isZh ? "02 / 首页" : "02 / ホーム",
+      title: isZh ? "首页先选你要做的事" : "ホームで目的を選びます",
+      caption: isZh
+        ? "这里不是只有开对局。你可以先整理牌组、查卡牌，也可以从以前的记录继续。"
+        : "対戦を始めるだけではありません。デッキを整える、カードを調べる、前の記録から再開することもできます。",
+      visual: (
+        <div className="usage-adjust-grid">
+          <div>
+            <CirclePlay size={20} />
+            <span>{isZh ? "开新对局" : "新規対戦"}</span>
+          </div>
+          <div>
+            <ClipboardList size={20} />
+            <span>{isZh ? "编辑牌组" : "デッキ編集"}</span>
+          </div>
+          <div>
+            <BookOpen size={20} />
+            <span>{isZh ? "查卡牌" : "カード確認"}</span>
+          </div>
+          <div>
+            <History size={20} />
+            <span>{isZh ? "继续旧局" : "履歴から再開"}</span>
+          </div>
+        </div>
+      ),
+      items: [
+        isZh ? "想测试规则，先选双方牌组再创建对局。" : "ルールを試すときは、両方のデッキを選んで対戦を作ります。",
+        isZh ? "牌组不确定时，先进牌组编辑器保存一副可用牌组。" : "デッキが決まっていないときは、デッキ編集で保存します。",
+        isZh ? "只想看卡图、效果或收录信息，就进卡牌库。" : "カード画像、能力、収録情報だけ見たいときはカード一覧を使います。",
+      ],
+    },
+    {
+      icon: <History size={28} />,
+      label: isZh ? "03 / 履历" : "03 / 履歴",
+      title: isZh ? "履历是回到旧测试的入口" : "履歴から前の検証に戻れます",
+      caption: isZh
+        ? "刷新页面后，最近对局会从服务器或本地数据库读回来。它适合接着打、复盘问题，或者确认当时停在第几步。"
+        : "ページを更新しても、最近の対戦はサーバーまたはローカルDBから読み直されます。続きを打つ、問題を見直す、何手目で止まったか確認するための場所です。",
+      visual: (
+        <div className="usage-flow-strip">
+          <div className="usage-flow-card">
+            <RefreshCw size={22} />
+            <strong>{isZh ? "刷新" : "更新"}</strong>
+          </div>
+          <span className="usage-flow-arrow">→</span>
+          <div className="usage-flow-card accent">
+            <History size={22} />
+            <strong>{isZh ? "最近 100 局" : "最近100件"}</strong>
+          </div>
+          <span className="usage-flow-arrow">→</span>
+          <div className="usage-flow-card">
+            <Play size={22} />
+            <strong>{isZh ? "继续" : "再開"}</strong>
+          </div>
+        </div>
+      ),
+      items: [
+        isZh ? "每页显示 10 局，太旧的记录用翻页找。" : "1ページに10件ずつ表示します。古い記録はページを送って探します。",
+        isZh ? "“操作步数”就是这局已经提交过多少步操作。" : "「操作数」は、その対戦で送信済みの操作回数です。",
+        isZh ? "这不是排行榜，只是规则测试和复盘用的入口。" : "ランキングではなく、検証と見直しのための入口です。",
+      ],
+    },
+    {
       icon: <Settings2 size={28} />,
-      label: isZh ? "02 / 卡住" : "02 / 停止時",
+      label: isZh ? "04 / 卡住" : "04 / 停止時",
       title: isZh ? "卡住时不是出错" : "止まってもエラーではありません",
       caption: isZh
         ? "有些技能还没完全自动处理。系统会停下来，让你像线下打牌一样把结果补进去。"
@@ -782,7 +866,7 @@ function UsageGuideDialog({
     },
     {
       icon: <ArrowDownToLine size={28} />,
-      label: isZh ? "03 / 怎么补" : "03 / 補正方法",
+      label: isZh ? "05 / 怎么补" : "05 / 補正方法",
       title: isZh ? "按牌局结果补一下" : "対戦結果に合わせて入れます",
       caption: isZh
         ? "比如这个技能应该抽 1 张、把一张卡从控室拿回手牌，或者给角色加爱心，就在这里选对应动作。"
@@ -815,7 +899,7 @@ function UsageGuideDialog({
     },
     {
       icon: <History size={28} />,
-      label: isZh ? "04 / 提交后" : "04 / 送信後",
+      label: isZh ? "06 / 提交后" : "06 / 送信後",
       title: isZh ? "提交后继续打" : "送信したら続きます",
       caption: isZh
         ? "提交后系统会把这次人工处理记到右侧记录里，然后对局继续。漏了一步也可以再补。"
@@ -933,6 +1017,7 @@ function LanguageToggle() {
 
 function StartScreen({
   matches,
+  history,
   deckSources,
   loading,
   error,
@@ -950,8 +1035,10 @@ function StartScreen({
   onJoinOnlineRoom,
   onCreate,
   onResume,
+  onHistoryPage,
 }: {
   matches: MatchSummary[];
+  history: MatchListResponse;
   deckSources: StartDeckSource[];
   loading: boolean;
   error: string | null;
@@ -983,6 +1070,7 @@ function StartScreen({
     seed?: number;
   }) => void | Promise<void>;
   onResume: (id: string) => void;
+  onHistoryPage: (page: number) => void;
 }) {
   const { locale, tr } = useUiLanguage();
   const [player1Name, setPlayer1Name] = useState(locale === "zh" ? "玩家 1" : "プレイヤー 1");
@@ -1013,6 +1101,8 @@ function StartScreen({
 
   const player1Source = deckSources.find((item) => item.id === player1SourceId) ?? null;
   const player2Source = deckSources.find((item) => item.id === player2SourceId) ?? null;
+  const cappedTotal = Math.min(history.total, history.max_total);
+  const totalPages = Math.max(1, Math.ceil(cappedTotal / history.per_page));
 
   return (
     <div className="start-page">
@@ -1258,7 +1348,10 @@ function StartScreen({
               <p>
                 {browserPreview
                   ? tr("预览版暂不保存对局。", "プレビュー版では対戦履歴は保存されません。")
-                  : tr("从本地数据库恢复。", "ローカルデータベースから再開します。")}
+                  : tr(
+                    "保存最近 100 局的入口。可以回到中断的测试，也可以确认之前打到第几步。",
+                    "最近100件まで表示します。中断した検証の再開や、どこまで進んだかの確認に使います。",
+                  )}
               </p>
             </div>
           </div>
@@ -1284,6 +1377,30 @@ function StartScreen({
               </button>
             ))}
           </div>
+          {!browserPreview && cappedTotal > 0 && (
+            <div className="history-pagination">
+              <button
+                className="secondary-button"
+                disabled={history.page <= 1}
+                onClick={() => onHistoryPage(history.page - 1)}
+              >
+                {tr("上一页", "前へ")}
+              </button>
+              <span>
+                {tr("第", "")}
+                {history.page}
+                {tr("页", "ページ")} / {totalPages}
+                <small>{tr("共", "合計")} {cappedTotal}</small>
+              </span>
+              <button
+                className="secondary-button"
+                disabled={history.page >= totalPages}
+                onClick={() => onHistoryPage(history.page + 1)}
+              >
+                {tr("下一页", "次へ")}
+              </button>
+            </div>
+          )}
         </section>
       </main>
     </div>

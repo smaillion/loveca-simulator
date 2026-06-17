@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -156,6 +157,69 @@ def test_hosted_room_api_create_join_act_and_replay(tmp_path):
     replay = client.get(f"/api/rooms/{room_code}/replay?player_token={host_token}")
     assert replay.status_code == 200
     assert replay.json()["final_state"]["revision"] == 1
+
+
+def test_match_history_paginates_without_purging_active_room_match(tmp_path):
+    client = _client(tmp_path)
+    deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
+
+    created = client.post(
+        "/api/rooms",
+        json={"player_name": "Host", "deck": deck, "seed": 106},
+    )
+    assert created.status_code == 200
+    room_code = created.json()["room_code"]
+    host_token = created.json()["player_token"]
+
+    joined = client.post(
+        f"/api/rooms/{room_code}/join",
+        json={"player_name": "Guest", "deck": deck},
+    )
+    assert joined.status_code == 200
+    room_match_id = joined.json()["match_id"]
+
+    for index in range(30):
+        response = client.post(
+            "/api/matches",
+            json={
+                "player_1": {"name": f"A{index}", "deck": deck},
+                "player_2": {"name": f"B{index}", "deck": deck},
+                "seed": index,
+            },
+        )
+        assert response.status_code == 200
+
+    polled = client.get(f"/api/rooms/{room_code}?player_token={host_token}")
+    assert polled.status_code == 200
+    assert polled.json()["match_id"] == room_match_id
+    assert polled.json()["match"]["state"]["match_id"] == room_match_id
+
+    first_page = client.get("/api/matches?page=1&per_page=10")
+    assert first_page.status_code == 200
+    payload = first_page.json()
+    assert len(payload["items"]) == 10
+    assert payload["page"] == 1
+    assert payload["per_page"] == 10
+    assert payload["total"] == 31
+
+
+def test_match_history_caps_results_at_100(tmp_path):
+    runtime_path = tmp_path / "matches.sqlite3"
+    client = _client(tmp_path)
+    _insert_match_rows(runtime_path, 105)
+
+    first_page = client.get("/api/matches?page=1&per_page=10")
+    assert first_page.status_code == 200
+    assert first_page.json()["total"] == 100
+    assert len(first_page.json()["items"]) == 10
+
+    last_page = client.get("/api/matches?page=10&per_page=10")
+    assert last_page.status_code == 200
+    assert len(last_page.json()["items"]) == 10
+
+    overflow = client.get("/api/matches?page=11&per_page=10")
+    assert overflow.status_code == 200
+    assert overflow.json()["items"] == []
 
 
 def test_api_rejects_stale_revision_without_mutation(tmp_path):
@@ -318,3 +382,27 @@ def _client(tmp_path: Path) -> TestClient:
         )
     )
     return TestClient(app)
+
+
+def _insert_match_rows(runtime_path: Path, count: int) -> None:
+    with sqlite3.connect(runtime_path) as connection:
+        for index in range(count):
+            timestamp = f"2026-06-15T{index // 60:02d}:{index % 60:02d}:00+00:00"
+            connection.execute(
+                """
+                INSERT INTO matches (
+                    match_id,
+                    card_database_path,
+                    rule_version,
+                    seed,
+                    status,
+                    revision,
+                    initial_state_json,
+                    current_state_json,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, 'cards.sqlite3', 'test', ?, 'complete', 0, '{}', '{}', ?, ?)
+                """,
+                (f"match-{index:03d}", index, timestamp, timestamp),
+            )
