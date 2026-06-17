@@ -44,6 +44,11 @@ import {
 } from "./api";
 import { CatalogBrowser } from "./catalog-browser";
 import { DeckBuilder } from "./deck-builder";
+import {
+  HEART_LABELS,
+  formatEffectText as formatLocalizedEffectText,
+  formatHeartSummary as formatLocalizedHeartSummary,
+} from "./text-format";
 import type {
   CardInstance,
   DeckList,
@@ -115,26 +120,7 @@ type OnlineSession = {
   playerToken: string;
 };
 
-const heartLabels: Record<UiLocale, Record<string, string>> = {
-  zh: {
-    heart0: "任意色",
-    heart01: "粉色",
-    heart02: "红色",
-    heart03: "黄色",
-    heart04: "绿色",
-    heart05: "蓝色",
-    heart06: "紫色",
-  },
-  ja: {
-    heart0: "任意色",
-    heart01: "ピンク",
-    heart02: "赤",
-    heart03: "黄",
-    heart04: "緑",
-    heart05: "青",
-    heart06: "紫",
-  },
-};
+const heartLabels = HEART_LABELS;
 
 const judgmentBasisLabels: Record<string, [string, string]> = {
   no_successful_live: ["双方均无满足所需爱心的演出，不产生胜者", "双方とも必要ハートを満たすライブがなく、勝者なし"],
@@ -2232,21 +2218,14 @@ export function formatHeartSummary(
   hearts: Record<string, number>,
   locale: UiLocale = "zh",
 ): string {
-  return Object.entries(hearts)
-    .filter(([, amount]) => amount > 0)
-    .map(([color, amount]) => `${heartLabels[locale][color] ?? color} ${amount}`)
-    .join(" / ");
+  return formatLocalizedHeartSummary(hearts, locale);
 }
 
 export function formatEffectText(
   rawText: string | null,
   locale: UiLocale = "zh",
 ): string {
-  if (!rawText) return "効果テキストなし";
-  return rawText.replace(
-    /heart0[1-6]|heart0/gi,
-    (token) => heartLabels[locale][token.toLowerCase()] ?? token,
-  );
+  return formatLocalizedEffectText(rawText, locale);
 }
 
 function effectTriggerLabel(trigger: string, locale: UiLocale): string {

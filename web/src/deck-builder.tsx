@@ -27,6 +27,7 @@ import {
   renameSavedDeck,
   updateSavedDeck,
 } from "./api";
+import { formatEffectText } from "./text-format";
 import type {
   CatalogCardDetail,
   DeckAnalysisResponse,
@@ -1623,7 +1624,7 @@ function CatalogPreviewDialog({
     ?? detail.printings.find((printing) => printing.card_id === summary?.card_id)
     ?? detail.printings[0]
     ?? null;
-  const text = detail.text_revisions[0]?.raw_effect_text_ja ?? tr(locale, "无文本", "テキストなし");
+  const text = formatEffectText(detail.text_revisions[0]?.raw_effect_text_ja ?? null, locale);
   return (
     <div className="dialog-backdrop" onMouseDown={onClose}>
       <article className="card-dialog catalog-preview-dialog" onMouseDown={(event) => event.stopPropagation()}>
@@ -1687,7 +1688,7 @@ function CatalogPreviewDialog({
                   {effectExecutionModeLabel(locale, effect.execution_mode)} ·{" "}
                   {effect.simulation_support} · {effect.review_status}
                 </span>
-                <small>{effect.label_ja}</small>
+                <small>{formatEffectText(effect.label_ja, locale)}</small>
               </div>
             ))}
             {detail.card.effect_registry_errors.map((error) => (
