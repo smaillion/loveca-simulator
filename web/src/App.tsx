@@ -3155,7 +3155,7 @@ function SelectionAction({
   );
 }
 
-function ManualDrawer({
+export function ManualDrawer({
   state,
   source,
   onClose,
@@ -3203,6 +3203,7 @@ function ManualDrawer({
     .map((slot) => player.member_area[slot])
     .filter((id): id is string => id !== null)
     .map((id) => state.cards[id]);
+  const handCards = player.hand.map((id) => state.cards[id]);
   const selectableCards =
     type === "attach_card_under_member"
       ? attachableCards
@@ -3210,6 +3211,8 @@ function ManualDrawer({
         ? attachedCards
         : type === "move_member"
           ? stageCards
+          : type === "discard_card"
+            ? handCards
           : ["ready_energy", "pay_energy"].includes(type)
             ? player.energy_area.map((id) => state.cards[id])
           : genericCards;
@@ -3266,6 +3269,8 @@ function ManualDrawer({
             ? formationIds.length === stageMemberIds.length
               && new Set(formationIds).size === stageMemberIds.length
               && stageMemberIds.every((id) => formationIds.includes(id))
+            : type === "discard_card"
+              ? Boolean(cardId)
             : ["ready_energy", "pay_energy"].includes(type)
               ? cardIds.length > 0
             : true;
