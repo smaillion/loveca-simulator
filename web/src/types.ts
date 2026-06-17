@@ -287,6 +287,7 @@ export interface PlayerState {
   member_area: Record<"left" | "center" | "right", string | null>;
   member_area_attachments: Record<"left" | "center" | "right", string[]>;
   member_areas_entered_this_turn: string[];
+  member_areas_moved_this_turn: string[];
   energy_area: string[];
   live_area: string[];
   waiting_room: string[];

@@ -2266,6 +2266,11 @@ def _queue_member_moved_effects(
     )
 
 
+def _record_member_area_moved(player: Any, slot: str) -> None:
+    if slot not in player.member_areas_moved_this_turn:
+        player.member_areas_moved_this_turn.append(slot)
+
+
 def _source_trigger_disabled(
     state: MatchState,
     player_id: str,
@@ -2886,7 +2891,7 @@ def _effect_unavailable_reason(
         source_slot = _top_member_slot(player, invocation.source_card_instance_id)
         if source_slot is None:
             return "source_slot_mismatch"
-        if source_slot in player.member_areas_entered_this_turn:
+        if source_slot in player.member_areas_moved_this_turn:
             return "source_moved_this_turn"
     moved_slot_member = effect.condition.get("own_stage_slot_member_moved_this_turn")
     if isinstance(moved_slot_member, dict):
@@ -2894,7 +2899,7 @@ def _effect_unavailable_reason(
         work_key = moved_slot_member.get("work_key")
         if not isinstance(slot, str) or slot not in player.member_area:
             return "stage_slot_invalid"
-        if slot not in player.member_areas_entered_this_turn:
+        if slot not in player.member_areas_moved_this_turn:
             return "stage_slot_member_not_moved_this_turn"
         instance_id = player.member_area.get(slot)
         if instance_id is None:
@@ -3927,7 +3932,7 @@ def _effect_operation_condition_met(
         return False
     if condition.get("source_moved_this_turn"):
         source_slot = _top_member_slot(player, invocation.source_card_instance_id)
-        if source_slot is None or source_slot not in player.member_areas_entered_this_turn:
+        if source_slot is None or source_slot not in player.member_areas_moved_this_turn:
             return False
     played_from_zone = condition.get("played_from_zone")
     if isinstance(played_from_zone, str):
@@ -3935,7 +3940,7 @@ def _effect_operation_condition_met(
             return False
     if condition.get("own_stage_other_member_moved_this_turn"):
         source_slot = _top_member_slot(player, invocation.source_card_instance_id)
-        moved_slots = set(player.member_areas_entered_this_turn)
+        moved_slots = set(player.member_areas_moved_this_turn)
         if source_slot is not None:
             moved_slots.discard(source_slot)
         if not any(player.member_area.get(slot) is not None for slot in moved_slots):
@@ -4678,7 +4683,7 @@ def _stage_member_targets_for_operation(
             continue
         if exclude_source and target_id == invocation.source_card_instance_id:
             continue
-        if moved_this_turn and target_slot not in player.member_areas_entered_this_turn:
+        if moved_this_turn and target_slot not in player.member_areas_moved_this_turn:
             continue
         card = state.cards[target_id].card
         if isinstance(work_key, str) and work_key not in card.work_keys:
@@ -5642,9 +5647,6 @@ def _execute_operations(
                 {"from_slot": from_slot, "to_slot": to_slot},
                 events,
             )
-            for moved_slot in {from_slot, to_slot}:
-                if moved_slot not in player.member_areas_entered_this_turn:
-                    player.member_areas_entered_this_turn.append(moved_slot)
         elif operation_type == "modify_score":
             player.manual_modifiers.append(
                 ManualModifier(
@@ -6074,7 +6076,7 @@ def _operation_amount(
             work_key = operation.value.get("work_key")
             unit_key = operation.value.get("unit_key")
         count = 0
-        for slot in player.member_areas_entered_this_turn:
+        for slot in player.member_areas_moved_this_turn:
             instance_id = player.member_area.get(slot)
             if instance_id is None:
                 continue
@@ -7027,6 +7029,7 @@ def _start_next_turn(
         _expire_modifiers(state, player_id, "turn", events)
         state.players[player_id].live_result = LivePerformanceResult()
         state.players[player_id].member_areas_entered_this_turn = []
+        state.players[player_id].member_areas_moved_this_turn = []
         state.players[player_id].member_entered_count_this_turn = 0
         state.players[player_id].member_areas_baton_entered_this_turn = []
         state.players[player_id].effect_ready_flags_this_turn = []
@@ -7440,6 +7443,15 @@ def _manual_move_card(
                     source="manual",
                 )
             )
+            _record_member_area_moved(player, slot)
+            _queue_member_moved_effects(
+                state,
+                player_id,
+                [instance_id],
+                events,
+                from_slot=stage_slot,
+                to_slot=slot,
+            )
         if not was_on_stage:
             player.member_entered_count_this_turn += 1
             if slot not in player.member_areas_entered_this_turn:
@@ -7618,8 +7630,8 @@ def _position_change(
         player.member_area_attachments[from_slot],
         player.member_area_attachments[to_slot],
     ) = (
-        player.member_area_attachments[to_slot],
-        player.member_area_attachments[from_slot],
+        target_attachments,
+        moving_attachments,
     )
     event_type = (
         "stage_member_group_moved"
@@ -7641,17 +7653,19 @@ def _position_change(
             source="manual",
         )
     )
-    moved_ids = [moving_id]
+    moved_entries = [(moving_id, str(from_slot), str(to_slot))]
     if target_id is not None:
-        moved_ids.append(target_id)
-    _queue_member_moved_effects(
-        state,
-        player_id,
-        moved_ids,
-        events,
-        from_slot=str(from_slot),
-        to_slot=str(to_slot),
-    )
+        moved_entries.append((target_id, str(to_slot), str(from_slot)))
+    for member_id, source_slot, destination_slot in moved_entries:
+        _record_member_area_moved(player, destination_slot)
+        _queue_member_moved_effects(
+            state,
+            player_id,
+            [member_id],
+            events,
+            from_slot=source_slot,
+            to_slot=destination_slot,
+        )
 
 
 def _formation_change(
@@ -7679,6 +7693,11 @@ def _formation_change(
         )
     attachment_by_member = {
         member_id: list(player.member_area_attachments[slot])
+        for slot, member_id in player.member_area.items()
+        if member_id is not None
+    }
+    before_slot_by_member = {
+        member_id: slot
         for slot, member_id in player.member_area.items()
         if member_id is not None
     }
@@ -7711,6 +7730,21 @@ def _formation_change(
             source="manual",
         )
     )
+    for to_slot, member_id in player.member_area.items():
+        if member_id is None:
+            continue
+        from_slot = before_slot_by_member[member_id]
+        if from_slot == to_slot:
+            continue
+        _record_member_area_moved(player, to_slot)
+        _queue_member_moved_effects(
+            state,
+            player_id,
+            [member_id],
+            events,
+            from_slot=from_slot,
+            to_slot=to_slot,
+        )
 
 
 def _move_top_member_off_stage(
