@@ -559,7 +559,24 @@ describe("App", () => {
   beforeEach(() => {
     cleanup();
     localStorage.clear();
+    localStorage.setItem("loveca-ui-locale", "zh");
     vi.stubGlobal("fetch", createFetchMock({}));
+  });
+
+  it("defaults to Japanese and opens the usage guide when no language is stored", async () => {
+    localStorage.removeItem("loveca-ui-locale");
+
+    render(<App />);
+
+    expect(screen.getByText("LoveCA ルール検証ツール")).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: "まず下のボタンを見ます" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "カードを閲覧" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "使い方を閉じる" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "まず下のボタンを見ます" })).not.toBeInTheDocument(),
+    );
   });
 
   it("renders the local match creation workflow", async () => {
@@ -568,7 +585,7 @@ describe("App", () => {
     render(<App />);
 
     expect(screen.getByText("创建规则验证对局")).toBeInTheDocument();
-    await waitFor(() => expect(screen.getByLabelText("Player 1 牌组")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByLabelText("玩家 1 牌组")).toBeInTheDocument());
     expect(screen.getAllByText("Test Deck").length).toBeGreaterThan(0);
     expect(screen.getByPlaceholderText("自动生成")).toHaveValue("");
     await waitFor(() => expect(fetch).toHaveBeenCalledWith("/api/matches", expect.anything()));
@@ -580,7 +597,7 @@ describe("App", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<App />);
-    await waitFor(() => expect(screen.getByLabelText("Player 1 牌组")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByLabelText("玩家 1 牌组")).toBeInTheDocument());
     const createButton = screen.getByRole("button", { name: "创建对局" });
     await waitFor(() => expect(createButton).not.toBeDisabled());
     fireEvent.click(createButton);
@@ -724,7 +741,7 @@ describe("App", () => {
     );
 
     expect(screen.getByText("下方 2")).toBeInTheDocument();
-    expect(screen.getByText("Member 1 · Energy 1")).toBeInTheDocument();
+    expect(screen.getByText("角色 1 · 能量 1")).toBeInTheDocument();
     screen.getByText("下のメンバー").click();
     expect(onCard).toHaveBeenCalledWith(state.cards["attached-member"]);
   });
