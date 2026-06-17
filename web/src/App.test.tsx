@@ -10,6 +10,7 @@ import App, {
   formatHeartSummary,
   resolveMemberPlaySelection,
 } from "./App";
+import { resetRuntimeConfigForTests } from "./api";
 import type { DeckList } from "./types";
 
 const placements = [
@@ -459,11 +460,22 @@ function createFetchMock(overrides: {
   deckAnalysis?: unknown;
   savedDeckGet?: unknown;
   deckSaveResponse?: unknown;
+  runtimeConfig?: unknown;
 }) {
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = input.toString();
     const parsedUrl = new URL(url, "http://localhost");
     const method = init?.method ?? "GET";
+    if (url === "runtime-config.json" && method === "GET") {
+      return jsonResponse(
+        overrides.runtimeConfig ?? {
+          mode: "release",
+          browserPreview: false,
+          apiBaseUrl: "",
+          cardDatabaseFingerprint: "",
+        },
+      );
+    }
     if (parsedUrl.pathname === "/api/matches" && method === "GET") {
       return jsonResponse(overrides.matches ?? []);
     }
@@ -559,6 +571,7 @@ function seedSavedDecks(decks: Array<{ path: string; deck: DeckList }>): void {
 describe("App", () => {
   beforeEach(() => {
     cleanup();
+    resetRuntimeConfigForTests();
     localStorage.clear();
     localStorage.setItem("loveca-ui-locale", "zh");
     vi.stubGlobal("fetch", createFetchMock({}));
@@ -589,12 +602,68 @@ describe("App", () => {
     await waitFor(() => expect(screen.getByLabelText("玩家 1 牌组")).toBeInTheDocument());
     expect(screen.getAllByText("Test Deck").length).toBeGreaterThan(0);
     expect(screen.getByPlaceholderText("自动生成")).toHaveValue("");
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith("runtime-config.json", expect.anything()));
+    expect(
+      vi.mocked(fetch).mock.calls.some(
+        ([input]) => input.toString().startsWith("/api/matches"),
+      ),
+    ).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: "读取" }));
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith(
         "/api/matches?page=1&per_page=10",
         expect.anything(),
       ),
     );
+  });
+
+  it("does not request match history in browser preview without a hosted API", async () => {
+    const fetchMock = createFetchMock({
+      runtimeConfig: {
+        mode: "preview",
+        browserPreview: true,
+        apiBaseUrl: "",
+        cardDatabaseFingerprint: "",
+      },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith("runtime-config.json", expect.anything()),
+    );
+    expect(
+      fetchMock.mock.calls.some(
+        ([input, init]) =>
+          new URL(input.toString(), "http://localhost").pathname === "/api/matches"
+          && (init?.method ?? "GET") === "GET",
+      ),
+    ).toBe(false);
+  });
+
+  it("loads saved deck sources on the browser preview start screen", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const fetchMock = createFetchMock({
+      runtimeConfig: {
+        mode: "preview",
+        browserPreview: true,
+        apiBaseUrl: "",
+        cardDatabaseFingerprint: "",
+      },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByLabelText("玩家 1 牌组")).toBeInTheDocument());
+    expect(screen.getAllByText("Test Deck").length).toBeGreaterThan(0);
+    expect(
+      fetchMock.mock.calls.some(
+        ([input]) => input.toString().startsWith("/api/matches"),
+      ),
+    ).toBe(false);
   });
 
   it("creates a match with inline deck payloads instead of a hardcoded deck path", async () => {
@@ -783,8 +852,17 @@ describe("App", () => {
     ];
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = input.toString();
+      const parsedUrl = new URL(url, "http://localhost");
       const method = init?.method ?? "GET";
-      if (url === "/api/matches" && method === "GET") {
+      if (url === "runtime-config.json" && method === "GET") {
+        return jsonResponse({
+          mode: "release",
+          browserPreview: false,
+          apiBaseUrl: "",
+          cardDatabaseFingerprint: "",
+        });
+      }
+      if (parsedUrl.pathname === "/api/matches" && method === "GET") {
         return jsonResponse([]);
       }
       if (url === "/api/decks" && method === "GET") {
@@ -1013,10 +1091,14 @@ describe("App", () => {
       target: { value: "LL-TEST-001-SR" },
     });
 
-    expect(screen.getByLabelText("选择卡面")).toHaveValue("LL-TEST-001-SR");
-    expect(screen.getByAltText("テストカード")).toHaveAttribute(
-      "src",
-      "/api/card-images/LL-TEST-001-SR",
+    await waitFor(() =>
+      expect(screen.getByLabelText("选择卡面")).toHaveValue("LL-TEST-001-SR"),
+    );
+    await waitFor(() =>
+      expect(screen.getByAltText("テストカード")).toHaveAttribute(
+        "src",
+        "/api/card-images/LL-TEST-001-SR",
+      ),
     );
   });
 
