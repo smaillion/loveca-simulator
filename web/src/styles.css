@@ -1082,6 +1082,15 @@ button {
   border-bottom: 1px solid var(--line);
 }
 
+.special-results {
+  margin-top: 6px;
+  border: 1px solid #ead59b;
+  border-radius: 6px;
+  background: #fff9e9;
+  padding: 8px;
+  animation: specialYellGlow 1.7s ease-out 1;
+}
+
 .yell-reveals button,
 .allocation-row > button {
   border: 1px solid var(--line);
@@ -1096,6 +1105,46 @@ button {
   background: #fff9e9;
   padding: 3px 5px;
   font-size: 9px;
+}
+
+@keyframes eventPulse {
+  0% {
+    transform: translateX(0);
+    box-shadow: 0 0 0 0 rgba(21, 128, 122, 0.24);
+  }
+  35% {
+    transform: translateX(-2px);
+    box-shadow: 0 0 0 4px rgba(21, 128, 122, 0.11);
+  }
+  100% {
+    transform: translateX(0);
+    box-shadow: 0 0 0 1px rgba(21, 128, 122, 0.18), 0 8px 18px rgba(21, 128, 122, 0.08);
+  }
+}
+
+@keyframes specialYellGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(212, 146, 32, 0.35);
+  }
+  45% {
+    box-shadow: 0 0 0 5px rgba(212, 146, 32, 0.14);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+@keyframes waitingDot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.28;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 0.95;
+    transform: translateY(-4px);
+  }
 }
 
 .allocation-list {
@@ -1181,6 +1230,23 @@ button {
   border-left-color: var(--warning);
 }
 
+.event-row.event-highlight {
+  position: relative;
+  box-shadow: 0 0 0 1px rgba(21, 128, 122, 0.18), 0 8px 18px rgba(21, 128, 122, 0.08);
+}
+
+.event-row.effect-highlight {
+  border-left-color: var(--accent);
+  background: linear-gradient(90deg, #eefcf9 0%, #ffffff 54%);
+  animation: eventPulse 1.5s ease-out 1;
+}
+
+.event-row.special-yell-highlight {
+  border-left-color: #d49220;
+  background: linear-gradient(90deg, #fff6dc 0%, #ffffff 58%);
+  animation: eventPulse 1.5s ease-out 1;
+}
+
 .event-row > span {
   color: var(--muted);
   text-transform: uppercase;
@@ -1189,6 +1255,14 @@ button {
 
 .event-row small {
   color: var(--muted);
+}
+
+.event-summary {
+  grid-column: 1 / -1;
+  color: var(--ink);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
 }
 
 .event-row code {
@@ -1222,6 +1296,40 @@ button {
 .action-context span {
   color: var(--muted);
   font-size: 12px;
+}
+
+.waiting-dock {
+  min-height: 84px;
+}
+
+.opponent-waiting-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--muted);
+}
+
+.opponent-waiting-indicator span {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--accent);
+  opacity: 0.35;
+  animation: waitingDot 1.25s ease-in-out infinite;
+}
+
+.opponent-waiting-indicator span:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.opponent-waiting-indicator span:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+.opponent-waiting-indicator strong {
+  color: var(--ink);
+  font-size: 13px;
 }
 
 .action-controls {

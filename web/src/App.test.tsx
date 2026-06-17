@@ -10,6 +10,7 @@ import App, {
   canResolveEffect,
   formatEffectText,
   formatHeartSummary,
+  localPerspectivePlayerId,
   resolveMemberPlaySelection,
 } from "./App";
 import { resetRuntimeConfigForTests } from "./api";
@@ -777,6 +778,151 @@ describe("App", () => {
     await waitFor(() => expect(screen.getAllByText("自分の手札").length).toBeGreaterThan(0));
     expect(screen.queryByText("相手の秘密手札")).not.toBeInTheDocument();
     expect(screen.getByLabelText("隐藏的对手手牌")).toBeInTheDocument();
+  });
+
+  it("switches the local visible hand to the current local operator", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const player1HandId = "player_1-H001";
+    const player2HandId = "player_2-H001";
+    const matchCreate = {
+      ...MATCH_PAYLOAD,
+      state: {
+        ...MATCH_PAYLOAD.state,
+        active_player_id: "player_2",
+        players: {
+          player_1: {
+            ...createPlayerState("player_1", "Player 1"),
+            hand: [player1HandId],
+          },
+          player_2: {
+            ...createPlayerState("player_2", "Player 2"),
+            hand: [player2HandId],
+          },
+        },
+        cards: {
+          [player1HandId]: {
+            instance_id: player1HandId,
+            owner_id: "player_1",
+            orientation: "active",
+            face_up: true,
+            card: { ...CATALOG_DETAIL.card, name_ja: "Player 1 hidden hand" },
+          },
+          [player2HandId]: {
+            instance_id: player2HandId,
+            owner_id: "player_2",
+            orientation: "active",
+            face_up: true,
+            card: { ...CATALOG_DETAIL.card, name_ja: "Player 2 visible hand" },
+          },
+        },
+      },
+    };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByLabelText("玩家 1 牌组")).toBeInTheDocument());
+    const createButton = screen.getByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+
+    await waitFor(() => expect(screen.getAllByText("Player 2 visible hand").length).toBeGreaterThan(0));
+    expect(screen.queryByText("Player 1 hidden hand")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("隐藏的对手手牌")).toBeInTheDocument();
+  });
+
+  it("uses the single local legal-action owner as the local perspective when phase active player is absent", () => {
+    expect(
+      localPerspectivePlayerId(
+        {
+          ...MATCH_PAYLOAD.state,
+          active_player_id: null,
+          first_player_id: "player_1",
+        },
+        [
+          {
+            action_type: "submit_mulligan",
+            player_id: "player_2",
+            label_zh: "调度",
+            label_ja: "引き直し",
+            options: {},
+          },
+        ],
+      ),
+    ).toBe("player_2");
+  });
+
+  it("prefers the single local legal-action owner over the phase active player for local perspective", () => {
+    expect(
+      localPerspectivePlayerId(
+        {
+          ...MATCH_PAYLOAD.state,
+          active_player_id: "player_1",
+          first_player_id: "player_1",
+        },
+        [
+          {
+            action_type: "submit_mulligan",
+            player_id: "player_2",
+            label_zh: "调度",
+            label_ja: "引き直し",
+            options: {},
+          },
+        ],
+      ),
+    ).toBe("player_2");
+  });
+
+  it("shows readable prompts for automatic effects and special yell results in the event log", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const sourceId = "player_1-M001";
+    const matchCreate = {
+      ...MATCH_PAYLOAD,
+      state: {
+        ...MATCH_PAYLOAD.state,
+        cards: {
+          [sourceId]: {
+            instance_id: sourceId,
+            owner_id: "player_1",
+            orientation: "active",
+            face_up: true,
+            card: { ...CATALOG_DETAIL.card, name_ja: "自動能力カード" },
+          },
+        },
+      },
+      events: [
+        {
+          event_type: "effect_auto_resolved",
+          player_id: "player_1",
+          source: "system",
+          data: {
+            effect_id: "LL-TEST-001:1",
+            source_card_instance_id: sourceId,
+          },
+        },
+        {
+          event_type: "yell_completed",
+          player_id: "player_1",
+          source: "system",
+          data: {
+            special_blade_heart_results: [
+              { card_instance_id: "yell-1", source_alt: "ドロー1", effect_type: "draw", value: 1 },
+            ],
+          },
+        },
+      ],
+    };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByLabelText("玩家 1 牌组")).toBeInTheDocument());
+    const createButton = screen.getByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+
+    await waitFor(() => expect(screen.getByText("技能自动发动")).toBeInTheDocument());
+    expect(screen.getByText("自动处理 · 自動能力カード · LL-TEST-001:1")).toBeInTheDocument();
+    expect(screen.getByText("应援结算完成")).toBeInTheDocument();
+    expect(screen.getByText("特殊应援: ドロー1 draw+1")).toBeInTheDocument();
   });
 
   it("leaves the hosted room before returning from an online match", async () => {

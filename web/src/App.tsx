@@ -517,7 +517,7 @@ export default function App() {
       );
   }
 
-  const bottomPlayerId = onlineSession?.playerId ?? "player_1";
+  const bottomPlayerId = onlineSession?.playerId ?? localPerspectivePlayerId(match.state, match.legal_actions);
   const topPlayerId = bottomPlayerId === "player_1" ? "player_2" : "player_1";
   const visibleActions = onlineSession
     ? match.legal_actions.filter((action) => canSubmitOnlineAction(action, onlineSession.playerId))
@@ -653,10 +653,16 @@ export default function App() {
         />
       )}
       {onlineSession && match.legal_actions.length > 0 && visibleActions.length === 0 && (
-        <footer className="action-dock">
+        <footer className="action-dock waiting-dock">
           <div className="action-context">
             <strong>{locale === "zh" ? "下一步操作" : "次にできる操作"}</strong>
             <span>{locale === "zh" ? "等待对手操作" : "相手の操作待ち"}</span>
+          </div>
+          <div className="opponent-waiting-indicator" aria-label={locale === "zh" ? "等待对手操作中" : "相手の操作待ち"}>
+            <span />
+            <span />
+            <span />
+            <strong>{locale === "zh" ? "正在等待对手选择操作" : "相手の操作を待っています"}</strong>
           </div>
         </footer>
       )}
@@ -697,6 +703,29 @@ function useUiLanguage() {
 
 function canSubmitOnlineAction(action: LegalAction, localPlayerId: string): boolean {
   return action.player_id === null || action.player_id === localPlayerId;
+}
+
+export function localPerspectivePlayerId(
+  state: MatchState,
+  actions: LegalAction[],
+): "player_1" | "player_2" {
+  const actionPlayerIds = new Set(
+    actions
+      .map((action) => action.player_id)
+      .filter((playerId): playerId is "player_1" | "player_2" =>
+        playerId === "player_1" || playerId === "player_2",
+      ),
+  );
+  if (actionPlayerIds.size === 1) {
+    return Array.from(actionPlayerIds)[0];
+  }
+  if (state.active_player_id === "player_1" || state.active_player_id === "player_2") {
+    return state.active_player_id;
+  }
+  if (state.first_player_id === "player_1" || state.first_player_id === "player_2") {
+    return state.first_player_id;
+  }
+  return "player_1";
 }
 
 function playerRoleLabel(state: MatchState, playerId: string, locale: UiLocale): string {
@@ -1909,7 +1938,7 @@ export function StageAttachments({
 }
 
 function EventLog({ events, state }: { events: GameEvent[]; state: MatchState }) {
-  const { tr } = useUiLanguage();
+  const { locale, tr } = useUiLanguage();
   return (
     <aside className="event-panel">
       <div className="event-heading">
@@ -1922,17 +1951,79 @@ function EventLog({ events, state }: { events: GameEvent[]; state: MatchState })
           <div className="empty-state">{tr("等待第一步操作", "最初の操作待ち")}</div>
         )}
         {[...events].reverse().map((event, index) => (
-          <div className={`event-row ${event.source}`} key={`${event.event_type}-${index}`}>
+          <div
+            className={`event-row ${event.source} ${eventVisualClass(event)}`}
+            key={`${event.event_type}-${index}`}
+          >
             <span>{event.source}</span>
-            <strong>{event.event_type}</strong>
+            <strong>{eventTitle(event, locale)}</strong>
             <small>
               {event.player_id ? state.players[event.player_id]?.name : tr("系统", "システム")}
             </small>
+            {eventSummary(event, state, locale) && (
+              <em className="event-summary">{eventSummary(event, state, locale)}</em>
+            )}
             <code>{JSON.stringify(event.data)}</code>
           </div>
         ))}
       </div>
     </aside>
+  );
+}
+
+function eventVisualClass(event: GameEvent): string {
+  if (event.event_type === "effect_auto_resolved") return "event-highlight effect-highlight";
+  if (event.event_type === "yell_completed" && specialYellResults(event).length > 0) {
+    return "event-highlight special-yell-highlight";
+  }
+  return "";
+}
+
+function eventTitle(event: GameEvent, locale: UiLocale): string {
+  const labels: Record<string, [string, string]> = {
+    effect_auto_resolved: ["技能自动发动", "能力の自動解決"],
+    effect_resolved: ["技能结算", "能力解決"],
+    effect_triggered: ["技能触发", "能力誘発"],
+    yell_completed: ["应援结算完成", "エール解決完了"],
+  };
+  return labels[event.event_type]?.[locale === "zh" ? 0 : 1] ?? event.event_type;
+}
+
+function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): string | null {
+  if (event.event_type === "effect_auto_resolved") {
+    const effectId = typeof event.data.effect_id === "string" ? event.data.effect_id : "";
+    const sourceId = typeof event.data.source_card_instance_id === "string"
+      ? event.data.source_card_instance_id
+      : "";
+    const sourceName = sourceId ? state.cards[sourceId]?.card.name_ja : "";
+    const prefix = locale === "zh" ? "自动处理" : "自動処理";
+    return [prefix, sourceName, effectId].filter(Boolean).join(" · ");
+  }
+  if (event.event_type === "yell_completed") {
+    const specials = specialYellResults(event);
+    if (specials.length === 0) return null;
+    const label = locale === "zh" ? "特殊应援" : "特殊エール";
+    return `${label}: ${specials
+      .map((item) => `${item.source_alt} ${item.effect_type}+${item.value}`)
+      .join(" / ")}`;
+  }
+  return null;
+}
+
+function specialYellResults(event: GameEvent): Array<{
+  source_alt: string;
+  effect_type: string;
+  value: number;
+}> {
+  const value = event.data.special_blade_heart_results;
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (item): item is { source_alt: string; effect_type: string; value: number } =>
+      typeof item === "object"
+      && item !== null
+      && typeof (item as Record<string, unknown>).source_alt === "string"
+      && typeof (item as Record<string, unknown>).effect_type === "string"
+      && typeof (item as Record<string, unknown>).value === "number",
   );
 }
 
