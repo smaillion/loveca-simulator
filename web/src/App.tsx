@@ -3203,6 +3203,7 @@ export function ManualDrawer({
     .map((slot) => player.member_area[slot])
     .filter((id): id is string => id !== null)
     .map((id) => state.cards[id]);
+  const handCards = player.hand.map((id) => state.cards[id]);
   const selectableCards =
     type === "attach_card_under_member"
       ? attachableCards
@@ -3210,6 +3211,8 @@ export function ManualDrawer({
         ? attachedCards
         : type === "move_member"
           ? stageCards
+          : type === "discard_card"
+            ? handCards
           : type === "return_from_waiting_room"
             ? player.waiting_room.map((id) => state.cards[id])
           : ["ready_energy", "pay_energy"].includes(type)
@@ -3268,6 +3271,8 @@ export function ManualDrawer({
             ? formationIds.length === stageMemberIds.length
               && new Set(formationIds).size === stageMemberIds.length
               && stageMemberIds.every((id) => formationIds.includes(id))
+            : type === "discard_card"
+              ? Boolean(cardId)
             : type === "return_from_waiting_room"
               ? Boolean(cardId)
             : ["ready_energy", "pay_energy"].includes(type)

@@ -531,6 +531,7 @@ def test_manual_return_from_waiting_room_moves_card_to_hand(tmp_path):
 
     deck_card = state.players["player_1"].main_deck[0]
     with pytest.raises(IllegalActionError, match="waiting room"):
+
         _apply(
             service,
             match_id,
@@ -544,6 +545,33 @@ def test_manual_return_from_waiting_room_moves_card_to_hand(tmp_path):
                 "adjustments": [
                     {
                         "adjustment_type": "return_from_waiting_room",
+                        "target_player_id": "player_1",
+                        "target_card_instance_id": deck_card,
+                    }
+                ],
+            },
+        )
+
+
+def test_manual_discard_card_rejects_non_hand_target(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=715)
+    state = _reach_first_main(service, match_id)
+    deck_card = state.players["player_1"].main_deck[0]
+
+    with pytest.raises(IllegalActionError, match="target must be in hand"):
+        _apply(
+            service,
+            match_id,
+            state,
+            "manual_adjustment",
+            player_id="player_1",
+            payload={
+                "reason": "manual discard should only target hand",
+                "requires_confirmation": True,
+                "confirmed_by": "tester",
+                "adjustments": [
+                    {
+                        "adjustment_type": "discard_card",
                         "target_player_id": "player_1",
                         "target_card_instance_id": deck_card,
                     }
