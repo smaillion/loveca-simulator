@@ -1107,7 +1107,7 @@ def _legal_effect_activations(
                 continue
             if effect.timing != "activated_main":
                 continue
-            if _effect_used_this_turn(state, effect_id, instance_id):
+            if _effect_usage_limit_reached(state, effect, instance_id):
                 continue
             if effect.condition.get("source_orientation") == "active":
                 if instance.orientation != "active":
@@ -1125,6 +1125,58 @@ def _legal_effect_activations(
                 }
             )
     return activations
+
+
+def _activation_energy_ids(
+    state: MatchState,
+    player_id: str,
+    effect: Any,
+    requested_energy_ids: Any,
+) -> list[str]:
+    if requested_energy_ids is not None:
+        return requested_energy_ids
+    required = sum(
+        operation.amount or 0
+        for operation in effect.cost
+        if operation.action_type == "pay_energy"
+    )
+    if required <= 0:
+        return []
+    player = state.players[player_id]
+    return [
+        instance_id
+        for instance_id in player.energy_area
+        if state.cards[instance_id].orientation == "active"
+    ][:required]
+
+
+def _activated_effect_needs_pending_resolution(
+    state: MatchState,
+    invocation: EffectInvocation,
+) -> bool:
+    effect = state.effect_definitions[invocation.effect_id]
+    if effect.simulation_support == "manual_resolution":
+        return True
+    if (
+        _effect_uses_inspection_choice(effect)
+        or _effect_uses_multi_player_choice(effect)
+        or _effect_uses_post_cost_card_choice(effect)
+        or _effect_uses_branch_choice(effect)
+        or _effect_accepts_color_choice(effect)
+        or _effect_uses_count_choice(effect)
+        or _effect_uses_position_change_choice(effect)
+        or _effect_uses_deploy_to_empty_stage_choice(effect, invocation)
+        or _effect_uses_follow_up_card_choice(effect, invocation)
+        or _effect_uses_grouped_stage_member_choice(effect)
+    ):
+        return True
+    if _effect_uses_post_action_card_choice(effect):
+        return _post_action_choice_should_continue(state, invocation)
+    if _effect_uses_card_choice(effect):
+        return True
+    return any(
+        _operation_requires_selected_choice(operation) for operation in effect.actions
+    )
 
 
 def _activate_effect(
@@ -1154,6 +1206,27 @@ def _activate_effect(
         trigger_event="player_activation",
         resolution_stage="after_cost",
     )
+    has_cost_selection_payload = "selected_card_instance_ids" in action.payload
+    if effect.cost_choice is not None and not has_cost_selection_payload:
+        invocation.resolution_stage = "initial"
+        events.append(
+            GameEvent(
+                event_type="effect_activated",
+                player_id=player_id,
+                data={
+                    "invocation_id": invocation.invocation_id,
+                    "effect_id": effect.effect_id,
+                    "source_card_instance_id": source_id,
+                    "trigger": effect.trigger,
+                    "timing": effect.timing,
+                    "execution_mode": effect.execution_mode,
+                    "energy_instance_ids": [],
+                },
+                source="player",
+            )
+        )
+        state.pending_effects.append(invocation)
+        return
     selected_ids = action.payload.get("selected_card_instance_ids", [])
     if effect.cost_choice is not None:
         if not isinstance(selected_ids, list) or any(
@@ -1170,13 +1243,19 @@ def _activate_effect(
             raise IllegalActionError("effect cost card selection is not legal")
     elif selected_ids:
         raise IllegalActionError("this activated effect does not accept cost cards")
+    energy_ids = _activation_energy_ids(
+        state,
+        player_id,
+        effect,
+        action.payload.get("energy_instance_ids"),
+    )
     _execute_operations(
         state,
         invocation,
         effect.cost,
         events,
         selected_ids=selected_ids,
-        energy_ids=action.payload.get("energy_instance_ids", []),
+        energy_ids=energy_ids,
     )
     pre_choice_operations = [
         operation
@@ -1191,7 +1270,6 @@ def _activate_effect(
             events,
             selected_ids=[],
         )
-    state.pending_effects.append(invocation)
     events.append(
         GameEvent(
             event_type="effect_activated",
@@ -1203,10 +1281,37 @@ def _activate_effect(
                 "trigger": effect.trigger,
                 "timing": effect.timing,
                 "execution_mode": effect.execution_mode,
+                "energy_instance_ids": energy_ids,
             },
             source="player",
         )
     )
+    if _activated_effect_needs_pending_resolution(state, invocation):
+        state.pending_effects.append(invocation)
+        return
+    _record_effect_usage(state, invocation)
+    events.append(
+        GameEvent(
+            event_type="effect_resolved",
+            player_id=invocation.player_id,
+            data={
+                "invocation_id": invocation.invocation_id,
+                "effect_id": invocation.effect_id,
+                "source_card_instance_id": invocation.source_card_instance_id,
+                "selected_card_instance_ids": [],
+                "selected_card_instance_ids_by_group": {},
+                "selected_branch": None,
+                "selected_color_slot": None,
+                "selected_count": None,
+                "selected_position_slot": None,
+                "trigger": effect.trigger,
+                "timing": effect.timing,
+            },
+            source="player",
+        )
+    )
+    _resolve_automatic_effects(state, events)
+    _continue_after_effect_queue(state, events)
 
 
 def _resolve_effect(
