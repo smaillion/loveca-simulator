@@ -482,7 +482,7 @@ export default function App() {
         <div className="top-actions">
           <LanguageToggle />
           <span className="revision">
-            {locale === "zh" ? "版本" : "更新"} {match.state.revision}
+            {locale === "zh" ? "操作步数" : "操作数"} {match.state.revision}
           </span>
           <button
             className="icon-button"
@@ -1280,7 +1280,7 @@ function StartScreen({
                   </strong>
                   <small>{item.match_id.slice(0, 8)} · {tr("种子", "シード")} {item.seed}</small>
                 </span>
-                <span>{tr("版本", "更新")} {item.revision}</span>
+                <span>{tr("操作步数", "操作数")} {item.revision}</span>
               </button>
             ))}
           </div>
