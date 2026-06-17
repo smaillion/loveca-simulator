@@ -781,22 +781,26 @@ describe("App", () => {
 
   it("leaves the hosted room before returning from an online match", async () => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const runtimeConfig = {
+      mode: "release" as const,
+      browserPreview: false,
+      apiBaseUrl: "https://api.test",
+      cardDatabaseFingerprint: "test",
+    };
     const fetchMock = createFetchMock({
-      runtimeConfig: {
-        mode: "release",
-        browserPreview: false,
-        apiBaseUrl: "https://api.test",
-        cardDatabaseFingerprint: "test",
-      },
+      runtimeConfig,
       roomCreate: roomPayload("active"),
     });
     vi.stubGlobal("fetch", fetchMock);
+    resetRuntimeConfigForTests(runtimeConfig);
 
     render(<App />);
-    await waitFor(() => expect(screen.getByText("在线房间 Preview")).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "房间创建" }));
+    await waitFor(() => expect(screen.getByText("在线测试房间")).toBeInTheDocument());
+    const createRoomButton = screen.getByRole("button", { name: "房间创建" });
+    await waitFor(() => expect(createRoomButton).not.toBeDisabled());
+    fireEvent.click(createRoomButton);
 
-    await waitFor(() => expect(screen.getByText("LoveCA 规则验证器")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByTitle("退出在线房间")).toBeInTheDocument());
     fireEvent.click(screen.getByTitle("退出在线房间"));
 
     await waitFor(() =>
@@ -812,22 +816,26 @@ describe("App", () => {
 
   it("sends a keepalive hosted-room leave request on page unload", async () => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const runtimeConfig = {
+      mode: "release" as const,
+      browserPreview: false,
+      apiBaseUrl: "https://api.test",
+      cardDatabaseFingerprint: "test",
+    };
     const fetchMock = createFetchMock({
-      runtimeConfig: {
-        mode: "release",
-        browserPreview: false,
-        apiBaseUrl: "https://api.test",
-        cardDatabaseFingerprint: "test",
-      },
+      runtimeConfig,
       roomCreate: roomPayload("active"),
     });
     vi.stubGlobal("fetch", fetchMock);
+    resetRuntimeConfigForTests(runtimeConfig);
     const addEventListenerSpy = vi.spyOn(window, "addEventListener");
 
     render(<App />);
-    await waitFor(() => expect(screen.getByText("在线房间 Preview")).toBeInTheDocument());
-    fireEvent.click(screen.getByRole("button", { name: "房间创建" }));
-    await waitFor(() => expect(screen.getByText("LoveCA 规则验证器")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("在线测试房间")).toBeInTheDocument());
+    const createRoomButton = screen.getByRole("button", { name: "房间创建" });
+    await waitFor(() => expect(createRoomButton).not.toBeDisabled());
+    fireEvent.click(createRoomButton);
+    await waitFor(() => expect(screen.getByTitle("退出在线房间")).toBeInTheDocument());
     await waitFor(() =>
       expect(addEventListenerSpy).toHaveBeenCalledWith("beforeunload", expect.any(Function)),
     );
