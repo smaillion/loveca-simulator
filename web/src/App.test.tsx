@@ -4,6 +4,7 @@ import App, {
   EffectResolutionAction,
   InspectionChoiceAction,
   ManualDrawer,
+  MemberPlayAction,
   StageAttachments,
   availableValue,
   canResolveEffect,
@@ -820,6 +821,106 @@ describe("App", () => {
     expect(selection.selectedMemberId).toBe("member-b");
     expect(selection.selectedSlot).toBe("right");
     expect(selection.selectedMode).toBe("normal");
+  });
+
+  it("keeps the chosen Member play area when switching to another legal hand card", () => {
+    const onAction = vi.fn();
+    const state = {
+      ...MATCH_PAYLOAD.state,
+      active_player_id: "player_1",
+      phase: "first_main",
+      cards: INSPECTION_CARDS,
+      players: {
+        ...MATCH_PAYLOAD.state.players,
+        player_1: {
+          ...createPlayerState("player_1", "Player 1"),
+          hand: ["player_1-M002", "player_1-M003"],
+          member_area: { left: null, center: "player_1-M001", right: null },
+        },
+      },
+    };
+    const action = {
+      action_type: "play_member",
+      player_id: "player_1",
+      label_zh: "登场 Member",
+      label_ja: "メンバーをプレイ",
+      options: {
+        active_energy_instance_ids: [],
+        placements: [
+          {
+            card_instance_id: "player_1-M002",
+            slot: "left",
+            payment_cost: 0,
+            use_baton_touch: false,
+            replaced_card_instance_id: null,
+            replaced_member_cost: 0,
+          },
+          {
+            card_instance_id: "player_1-M002",
+            slot: "right",
+            payment_cost: 0,
+            use_baton_touch: false,
+            replaced_card_instance_id: null,
+            replaced_member_cost: 0,
+          },
+          {
+            card_instance_id: "player_1-M003",
+            slot: "left",
+            payment_cost: 0,
+            use_baton_touch: false,
+            replaced_card_instance_id: null,
+            replaced_member_cost: 0,
+          },
+          {
+            card_instance_id: "player_1-M003",
+            slot: "right",
+            payment_cost: 0,
+            use_baton_touch: false,
+            replaced_card_instance_id: null,
+            replaced_member_cost: 0,
+          },
+        ],
+      },
+    };
+
+    const { container } = render(
+      <MemberPlayAction
+        action={action as never}
+        state={state as never}
+        loading={false}
+        onAction={onAction}
+      />,
+    );
+
+    const rightSlot = container.querySelector<HTMLButtonElement>(
+      '.member-slot-choice[data-slot="right"]',
+    );
+    const nextMember = container.querySelector<HTMLButtonElement>(
+      '[data-instance-id="player_1-M003"] .card-tile',
+    );
+    const submitButton = container.querySelector<HTMLButtonElement>(
+      ".member-payment-summary .primary-button",
+    );
+
+    expect(rightSlot).not.toBeNull();
+    expect(nextMember).not.toBeNull();
+    expect(submitButton).not.toBeNull();
+
+    fireEvent.click(rightSlot!);
+    fireEvent.click(nextMember!);
+
+    expect(
+      container.querySelector('.member-slot-choice[data-slot="right"]'),
+    ).toHaveClass("selected");
+
+    fireEvent.click(submitButton!);
+
+    expect(onAction).toHaveBeenCalledWith("play_member", "player_1", {
+      card_instance_id: "player_1-M003",
+      slot: "right",
+      use_baton_touch: false,
+      energy_instance_ids: [],
+    });
   });
 
   it("requires effect card and Energy selections before resolution", () => {

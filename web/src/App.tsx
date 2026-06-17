@@ -2982,7 +2982,7 @@ export function InspectionChoiceAction({
   );
 }
 
-function MemberPlayAction({
+export function MemberPlayAction({
   action,
   state,
   loading,
@@ -3034,8 +3034,6 @@ function MemberPlayAction({
                 selected={instanceId === selection.selectedMemberId}
                 onClick={() => {
                   setSelectedMemberId(instanceId);
-                  setSelectedSlot("");
-                  setSelectedPlayMode("");
                 }}
               />
               <span>{tr("费用", "コスト")} {state.cards[instanceId].card.cost ?? 0}</span>
