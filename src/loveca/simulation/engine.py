@@ -306,6 +306,7 @@ def generate_legal_actions(state: MatchState) -> list[LegalAction]:
                     "draw_card",
                     "inspect_top_cards",
                     "discard_card",
+                    "return_from_waiting_room",
                     "ready_energy",
                     "pay_energy",
                     "modify_score",
@@ -7256,6 +7257,14 @@ def _apply_manual_entry(
             raise IllegalActionError("manual discard target must be in hand")
         player.hand.remove(instance_id)
         player.waiting_room.append(instance_id)
+    elif adjustment_type == "return_from_waiting_room":
+        instance_id = adjustment.get("target_card_instance_id")
+        if instance_id not in player.waiting_room:
+            raise IllegalActionError(
+                "manual return target must be in waiting room"
+            )
+        player.waiting_room.remove(instance_id)
+        player.hand.append(instance_id)
     elif adjustment_type == "move_card":
         instance_id = adjustment.get("target_card_instance_id")
         to_zone = adjustment.get("to_zone")

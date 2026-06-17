@@ -3155,7 +3155,7 @@ function SelectionAction({
   );
 }
 
-function ManualDrawer({
+export function ManualDrawer({
   state,
   source,
   onClose,
@@ -3210,6 +3210,8 @@ function ManualDrawer({
         ? attachedCards
         : type === "move_member"
           ? stageCards
+          : type === "return_from_waiting_room"
+            ? player.waiting_room.map((id) => state.cards[id])
           : ["ready_energy", "pay_energy"].includes(type)
             ? player.energy_area.map((id) => state.cards[id])
           : genericCards;
@@ -3266,6 +3268,8 @@ function ManualDrawer({
             ? formationIds.length === stageMemberIds.length
               && new Set(formationIds).size === stageMemberIds.length
               && stageMemberIds.every((id) => formationIds.includes(id))
+            : type === "return_from_waiting_room"
+              ? Boolean(cardId)
             : ["ready_energy", "pay_energy"].includes(type)
               ? cardIds.length > 0
             : true;
@@ -3316,6 +3320,7 @@ function ManualDrawer({
               "draw_card",
               "inspect_top_cards",
               "discard_card",
+              "return_from_waiting_room",
               "ready_energy",
               "pay_energy",
               "modify_score",
@@ -3336,6 +3341,7 @@ function ManualDrawer({
           "attach_card_under_member",
           "move_attached_card",
           "discard_card",
+          "return_from_waiting_room",
         ].includes(type) && (
           <label>
             {tr("目标卡牌", "対象カード")}
@@ -3915,6 +3921,7 @@ function adjustmentTypeLabel(type: string, locale: UiLocale): string {
     draw_card: ["抽牌", "カードを引く"],
     inspect_top_cards: ["检查牌库顶", "デッキ上を確認"],
     discard_card: ["手牌送入控室", "手札を控え室に置く"],
+    return_from_waiting_room: ["控室加入手牌", "控え室から手札に加える"],
     ready_energy: ["能量竖置", "エネルギーをアクティブにする"],
     pay_energy: ["能量横置", "エネルギーをウェイトにする"],
     modify_score: ["调整分数", "スコアを調整"],
