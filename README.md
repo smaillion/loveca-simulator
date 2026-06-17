@@ -1,4 +1,4 @@
-# Love Live! Series Official Card Game Analysis & Simulation Platform
+﻿# Love Live! Series Official Card Game Analysis & Simulation Platform
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
@@ -18,8 +18,8 @@
 - FastAPI + React SPA の可視化ルール検証 UI
 - Replay 可能な Action-only GameState
 - 925 件の effect registry entry
-  - 466 件は `test_validated_executable`
-  - 459 件は timing prompt / 未対応処理用の `manual_resolution`
+  - 628 件は `test_validated_executable`
+  - 297 件は timing prompt / 未対応処理用の `manual_resolution`
 - 将来の低コスト online 同期に向けた state hash / compatibility metadata の基礎
 - Hosted Online MVP の room API
   - room code による host / guest 参加
@@ -53,7 +53,8 @@
 - 一部のカード効果は、手札 / Energy / Stage Member / Heart 色 / 山札上確認を含む限定的な構造化 prompt に対応
 - 双方が選択する一部の効果は multi-player pending choice で順番に処理可能
 - 複数 group に分けて Stage Member を選び、それぞれに同じ一時 modifier を適用する効果に対応
-- registry entry ベースの `test_validated_executable` coverage は 50.38% まで拡張済み
+- 分岐ごとに異なる Stage Member 候補を持つ効果選択に対応
+- registry entry ベースの `test_validated_executable` coverage は 67.89% まで拡張済み
 - 自動実行できない効果は `ManualAdjustmentAction` で補完
 - 処理不能な効果は、デバッグ用に `effect_skipped_due_to_error` として明示記録しながらスキップ可能
 
@@ -78,7 +79,7 @@ Deck Builder の現在の到達点:
 
 - 全カード効果の自動実行 coverage はまだありません。
 - 現在の broad prompt coverage は timing-only manual fallback を多く含みます。
-- 最新の Phase 5 sandbox では `skip` mode の `illegal_action` は 0 です。直近の `30 decks x 50 matches` 回帰は `block` mode で 35 `mandatory_manual_resolution` / 9 `max_actions` / 6 完走、`skip` mode で 10 完走 / 40 `max_actions` でした。grouped Stage Member choice 対応後の `30 decks x 20 matches --manual-policy block` smoke は 2 完走 / 11 `mandatory_manual_resolution` / 7 `max_actions` / `illegal_action = 0` で、`PL!SP-bp4-023:1` は blocker から消えました。さらに `PL!N-bp4-031:1` と Baton Touch 登場した蓮ノ空 Member 2 人条件の required Heart 減少を構造化した後の 20-match block smoke は 2 完走 / 9 `mandatory_manual_resolution` / 9 `max_actions` でした。長局化と複雑な Live 系 manual effect が主な残課題です。
+- 最新の Phase 5 sandbox では `skip` mode の `illegal_action` は 0 です。直近の `30 decks x 50 matches` 回帰は `block` mode で 35 `mandatory_manual_resolution` / 9 `max_actions` / 6 完走、`skip` mode で 10 完走 / 40 `max_actions` でした。grouped Stage Member choice 対応後の `30 decks x 20 matches --manual-policy block` smoke は 2 完走 / 11 `mandatory_manual_resolution` / 7 `max_actions` / `illegal_action = 0` で、`PL!SP-bp4-023:1` は blocker から消えました。さらに `PL!N-bp4-031:1`、Baton Touch 登場した蓮ノ空 Member 2 人条件の required Heart 減少、みらくらぱーく！ extra Heart 条件、Nijigasaki named Baton draw/discard、source Member base Heart 色選択置換、required Heart / Heart count filtered choice、Nijigasaki 条件付き Energy ready、余剰 Heart 条件の Live-success inspect reorder、center Liella! base Blade replacement、source Member position change、Liella! Baton replacement 回収、Yell 公開 Liella! Member 不同名 5 枚条件、余剰 Heart なし条件、Aqours Member Blade 6 条件、分岐ごとに異なる Stage Member 候補を使う Aqours center cost 9 条件、控室 Live の不同名 / 不同 group 分岐回収、双方の控室 Member 一括 deck bottom 移動と 20 枚条件の Live 回収 / Blade 付与、μ's Live-start 双方 draw/discard follow-up、Aqours Live-start 三分岐、Aqours 全員条件の draw 後 top/bottom 戻し、余剰 Heart 3 以上消費 score、Yell 公開 Member 回収、Aqours heart02 条件による source Live-success 無効化、side cost 同値による相手 original Blade 3 以下一括 wait、Yell Blade Heart / 余剰 Heart 条件の score 4 replacement、deck refresh 履歴条件 score +2 を構造化しました。さらに hand count Blade、成功 Live 置き場 μ's 追加 draw、Yell 公開蓮ノ空 Member 10 枚条件、Hasunosora named-stage Energy ready + Live 回収、Edel Note grouped Blade/Heart、Hasunosora 高スコア条件 Energy placement、Stage 2 条件の score 3 Live 回収、member_moved の draw / Energy / opponent wait、Yell 公開 special Blade Heart 条件、Stage name 条件の Live-success score / draw、static success / Stage count / opponent excess Heart modifier、Live-start member-entered count、Yell 公開 Nijigasaki Member Heart 6 色条件、Yell 公開 μ's non-Blade-Heart Member draw/discard、Yell 公開カードの deck top / bottom 戻し、Liella! Yell 公開条件の Energy / 回収、moved source 追加 draw、Live-success の複合 score 条件、top reveal 入手、余剰 Heart 正負 score、source 下 Energy 数参照、optional mill / Energy placement、手札からの Member 登場、source wait center μ's Blade 付与、source wait opponent original-Blade wait / unit-exclusion opponent wait を構造化しました。最新小規模 block smoke は 10 decks / 5 matches で 0 完走 / 2 `mandatory_manual_resolution` / 3 `max_actions`、skipped effects 0 です。20-match block smoke は 300 秒内に完走せず、速度面の追跡が必要です。
 - FAQ / 個別裁定に依存する効果はまだ仕様化していません。
 - `data/loveca.sqlite3` は repository 内の locked authoritative card DB です。公式カード追加や parser / schema / effect registry の互換性変更後は、maintainer が DB と `data/loveca-db-manifest.json` を再生成して commit します。ユーザーや CI が online 用に別 DB を import してはいけません。保存済みデッキは `decklist.v0` のユーザーデータなので、カード DB とは分けて保持できます。
 - Web/API テストには `httpx2` が必要です。環境に未導入の場合、`tests/test_catalog_api.py` と `tests/test_webapp.py` は収集段階で停止します。

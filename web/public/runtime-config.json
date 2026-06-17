@@ -1,6 +1,6 @@
 {
-  "mode": "preview",
-  "browserPreview": true,
+  "mode": "release",
+  "browserPreview": false,
   "apiBaseUrl": "",
   "cardDatabaseFingerprint": ""
 }

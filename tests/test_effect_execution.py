@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -8,14 +9,21 @@ from pydantic import ValidationError
 
 from loveca.cards.importer import import_normalized_cards
 from loveca.decks.analyzer import load_deck
+from loveca.simulation.effect_candidates import (
+    _effect_text_rows,
+    _timing_segments,
+    discover_effect_candidates,
+)
 from loveca.simulation.effects import (
     EffectDefinition,
     EffectRegistry,
     validate_registry_for_cards,
 )
-from loveca.simulation.effect_candidates import discover_effect_candidates
 from loveca.simulation.engine import (
+    _queue_live_success_effects,
     _run_current_yell,
+    _static_heart_bonus,
+    _static_numeric_bonus,
     apply_action,
     generate_legal_actions,
 )
@@ -28,8 +36,8 @@ from loveca.simulation.models import (
     ManualModifier,
     MatchState,
     PendingChoice,
-    SpecialBladeHeart,
     PlayerState,
+    SpecialBladeHeart,
 )
 from loveca.simulation.service import MatchService
 
@@ -75,6 +83,7 @@ def test_registry_contains_all_matching_wait_energy_effects():
         "PL!SP-sd1-014": 705,
         "PL!SP-sd1-016": 706,
     }
+    direct_expected = {"PL!SP-pb1-005": 608, "PL!SP-bp4-001": 376}
     matching = {
         effect.card_code: effect
         for effect in registry.effects
@@ -86,7 +95,7 @@ def test_registry_contains_all_matching_wait_energy_effects():
         and effect.trigger == "member_played"
     }
 
-    assert set(matching) == set(expected)
+    assert set(matching) == set(expected) | set(direct_expected)
     for card_code, revision_id in expected.items():
         effect = matching[card_code]
         assert effect.text_revision_id == revision_id
@@ -98,6 +107,20 @@ def test_registry_contains_all_matching_wait_energy_effects():
         assert effect.choice.zone == "hand"
         assert effect.choice.minimum == effect.choice.maximum == 1
         assert effect.actions[0].orientation == "wait"
+    direct_effect = matching["PL!SP-pb1-005"]
+    assert direct_effect.text_revision_id == direct_expected["PL!SP-pb1-005"]
+    assert direct_effect.choice is None
+    assert direct_effect.condition == {"minimum_energy_deck_cards": 1}
+    assert direct_effect.actions[0].orientation == "wait"
+    liella_energy_effect = matching["PL!SP-bp4-001"]
+    assert liella_energy_effect.text_revision_id == direct_expected["PL!SP-bp4-001"]
+    assert liella_energy_effect.choice is None
+    assert liella_energy_effect.condition == {
+        "minimum_energy_deck_cards": 1,
+        "own_energy_count_at_least": 7,
+        "own_stage_members_only_work_key": "love_live_superstar",
+    }
+    assert liella_energy_effect.actions[0].orientation == "wait"
     live_start = {
         effect.card_code: effect
         for effect in registry.effects
@@ -179,11 +202,76 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
         "live_success_inspect3_reorder_rest_wr",
         "activated_wait_ready_other_member",
         "onplay_choose_draw_discard_or_wait_opponent_cost2",
+        "onplay_choose_mill3_or_wait_opponent_cost2",
+        "onplay_pay1_choose_wait_opponent_cost4_or_draw1",
         "onplay_mill5",
+        "static_blade_per_opponent_wait_member",
+        "static_heart06_per_opponent_wait_member",
+        "static_stage_name_fujishima_megumi_blade2",
+        "static_center_heart03_3",
+        "static_right_heart05_3",
+        "live_success_optional_pay3_draw1",
+        "live_success_revealed_live1_place_wait_energy",
+        "live_success_opponent_place_wait_energy",
         "onplay_reveal3_opponent_hand_draw_if_no_live",
         "onplay_both_deploy_cost2_waiting_member",
+        "activated_pay2_deploy_waiting_member_cost2",
+        "activated_pay4_deploy_waiting_hasu_member_cost4",
+        "activated_pay2_discard1_aqours_live",
+        "activated_discard2_aqours_score_live",
         "onplay_baton_lower_both_discard_to3_draw3",
+        "onplay_right_side_ready_energy",
+        "onplay_optional_pay2_left_side_draw2",
+        "onplay_optional_pay2_return_liella_member",
+        "onplay_place_wait_energy",
+        "onplay_gain_live_score1",
+        "onplay_center_gain_blade2",
+        "onplay_other_5yncri5e_draw1",
+        "onplay_left_side_draw2_discard1",
+        "onplay_optional_waiting_card_to_deck_top",
+        "onplay_optional_pay2_deploy_hand_uehara_ayumu_member_cost4",
+        "onplay_optional_pay2_deploy_hand_osaka_shizuku_member_cost4",
+        "onplay_optional_pay2_deploy_hand_miyashita_ai_member_cost4",
+        "onplay_optional_pay2_deploy_hand_mia_taylor_member_cost4",
+        "live_start_pay1_choose_any_heart1",
+        "live_start_discard1_gain_blade1",
+        "live_start_wait_source_center_muse_blade2",
+        "live_start_wait_source_center_muse_blade1",
+        "onplay_wait_source_wait_opponent_cost9_member",
+        "onplay_wait_source_ready_energy_per_printemps_member",
+        "onplay_wait_source_bibi_only_wait_opponent_original_blade3",
+        "live_start_wait_source_bibi_only_wait_opponent_original_blade3",
+        "onplay_wait_source_wait_opponent_original_blade4",
+        "live_start_wait_source_wait_opponent_original_blade4",
+        "activated_wait_source_or_discard1_ready_energy1",
+        "activated_wait_source_miracra_park_member_gain_blade1",
+        "onplay_optional_discard1_live_draw3",
+        "onplay_draw_per_energy6",
+        "onplay_from_waiting_draw2_discard1",
+        "onplay_other_heart06_member_gain_heart06",
+        "onplay_liella_only_energy7_place_wait_energy",
+        "onplay_draw2_from_waiting_gain_blade3",
+        "onplay_other_stage_member_moved_this_turn_draw1",
+        "live_start_center_live_area_muse_stage_muse_blade1",
+        "live_start_mill4_all_hasunosora_gain_blade1",
+        "live_start_inspect1_optional_send_to_waiting",
+        "live_start_discard1_gain_blade2_per_success_live",
+        "live_start_stage_attached_energy_member_gain_heart01",
+        "live_start_stage_all_heart_colors_gain_blade2",
+        "live_start_own_member_higher_than_all_opponent_cost_gain_blade2",
+        "live_start_moved_stage_members_blade1",
+        "live_start_left_source_moved_this_turn_blade2",
+        "live_start_right_source_moved_this_turn_blade2",
+        "live_start_center_ready_all_liella_members_and_energy",
+        "live_start_discard1_miracra_park_member_gain_heart01",
+        "live_start_discard1_hasunosora_member_gain_heart05",
+        "live_start_pay1_other_hasunosora_member_gain_heart01_blade1",
+        "live_start_pay1_other_nijigasaki_members_gain_blade1",
+        "live_start_energy7_source_and_other_liella_member_gain_blade1",
         "onplay_energy11_return_live",
+        "onplay_choose_waiting_live_distinct_name_or_group",
+        "live_start_muse_stage_draw_discard_heart03_score",
+        "live_start_waiting_love_live_card25_score1",
         "live_start_deep_success_count2_score5_replace_required_superstar",
         "live_start_deep_center_liella_cost_higher_than_opponent_score1",
         "live_start_deep_hasunosora_stage_distinct_score2_each",
@@ -203,17 +291,111 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
         "live_start_deep_center_muse_heart03_pairs_required_any_minus_max3",
         "live_start_deep_kosuzu_sayaka_cost_relation_required_any_minus3",
         "live_start_deep_hasunosora_member_replace_base_hearts_heart01",
+        "live_start_deep_hasunosora_baton_entered2_required_heart04_minus1",
+        "live_start_deep_miracra_park_extra_heart_count_draw_required_any_minus2",
         "live_start_deep_hasunosora_stage_cost20_inspect2_keep1_top_cost30_required_any_minus2",
         "live_start_deep_success_exists_choose_muse_member_heart1",
+        "live_start_choose_aqours_center9_blade2_or_wait_opponent_cost4",
         "live_start_deep_nijigasaki_waiting_distinct_live4_score1_6_score2",
+        "live_start_deep_success_count_equal_opponent_heart02_2",
         "live_start_deep_left_liella_heart02_3_blade2",
         "live_start_deep_hasunosora_stage_waiting_distinct6_required_any_minus2",
         "live_start_deep_moved_liella_stage_blade1",
+        "live_start_deep_member_entered2_score1",
         "live_start_deep_moved_5yncri5e_required_any_minus_each",
         "live_start_deep_catchu_distinct2_ready_energy6_all_active_score1",
         "live_start_deep_replace_yell_blade_hearts_heart05",
         "live_start_deep_replace_yell_blade_hearts_heart06",
+        "live_start_choose_heart01_02_06_replace_source_base_hearts",
+        "onplay_optional_source_position_change",
+        "live_start_optional_source_position_change",
+        "activated_pay2_source_position_change",
+        "auto_moved_source_gain_blade1",
+        "auto_moved_source_gain_blade1_opponent_effect",
+        "auto_moved_source_gain_heart02",
+        "auto_moved_source_gain_heart03",
+        "auto_moved_source_gain_heart06",
+        "auto_moved_source_draw1",
+        "auto_moved_source_place_wait_energy",
+        "auto_moved_source_ready_energy2",
+        "auto_moved_source_wait_opponent_original_blade2",
+        "auto_stage_to_waiting_ready_member_up_to1",
+        "auto_stage_to_waiting_inspect5_member_keep1",
+        "auto_stage_to_waiting_inspect5_live_keep1",
+        "auto_stage_to_waiting_draw2_discard1",
+        "auto_stage_to_waiting_draw2_discard2",
+        "auto_stage_to_waiting_optional_discard1_return_aqours_live",
+        "auto_stage_to_waiting_optional_discard1_stage_member_heart05_blade1",
+        "static_success_score_higher_than_opponent_blade2",
+        "static_blade_per_opponent_success_lead",
+        "static_blade_per_other_miracra_park_member",
+        "static_blade2_per_cost4_non_cerise_bouquet_member",
+        "static_other_edel_note_member_blade2",
+        "static_own_stage2_opponent_stage3_heart06",
+        "static_opponent_excess_heart2_score1",
+        "static_center_side_original_blade2_score1",
+        "static_source_most_stage_hearts_score1",
+        "static_center_highest_cost_heart03",
+        "static_liella_live_required_heart8_heart03",
+        "static_opposing_member_higher_cost_heart01",
+        "static_source_not_moved_this_turn_blade2",
+        "static_attached_energy2_score1",
+        "live_success_revealed_all_blade_score1",
+        "live_success_center_revealed_aqours_score_live_score1",
+        "live_success_any_success2_revealed_score_live_score2",
+        "live_success_stage_kanon_keke_draw1",
+        "onplay_baton_return_replaced_liella_member",
+        "live_success_revealed_distinct_liella_member5_score1",
+        "live_success_revealed_nijigasaki_member_all_heart_colors_score1",
+        "live_success_revealed_muse_member_without_blade_heart_draw1_discard1",
+        "live_success_optional_yell_revealed_card_to_deck_top",
+        "live_success_yell_revealed_live_up_to1_to_deck_bottom",
+        "live_success_revealed_liella_card7_place_wait_energy",
+        "live_success_stage_kanon_margarete_tomari_distinct2_yell_card_to_hand",
+        "live_success_revealed_distinct_liella_member3_liella_live_to_hand",
+        "live_success_center_liella_moved_this_turn_score1",
+        "live_success_draw1_source_moved_extra_draw1",
+        "live_success_revealed_live2_or_stage_heart_variety5_or_member_moved_score1",
+        "live_success_reveal_top_to_hand_non_blade_member_score1",
+        "live_success_no_excess_score1_excess2_score_minus1",
+        "live_success_source_attached_energy_plus1_place_wait_energy",
+        "live_success_cerise_stage_optional_mill4",
+        "live_success_optional_place_wait_energy_opponent_draw1",
+        "live_success_no_excess_heart_score1",
+        "live_success_fewer_yell_revealed_cards_than_opponent_draw1",
+        "live_success_discard1_yell_revealed_cost2_member_or_score2_live_to_hand",
+        "live_success_higher_score_hasu_stage_place_wait_energy",
+        "live_success_equal_score_yell_revealed_member_cost9_to_hand",
+        "live_success_higher_score_yell_revealed_nijigasaki_to_hand",
+        "live_success_excess_heart1_draw2_discard1",
+        "live_success_source_score3_return_nijigasaki_card",
+        "live_success_other_stage_member_wait_source",
+        "live_success_bibi_distinct2_return_bibi_member",
+        "live_success_stage_total_heart_more_than_opponent_score1",
+        "live_success_stage2_return_score3_live",
+        "live_start_deep_source_blade8_draw2_discard1",
+        "live_start_wait_opponent_cost9_member",
+        "onplay_wait_opponent_cost9_member",
+        "onplay_wait_opponent_cost2_member",
+        "onplay_stage_cost10_wait_opponent_cost4_member",
+        "live_start_stage_cost10_wait_opponent_cost4_member",
+        "onplay_wait_opponent_original_blade3_non_dollchestra_member",
+        "live_start_wait_opponent_original_blade3_non_dollchestra_member",
+        "live_start_draw1_wait_opponent_cost9_member_up_to1",
+        "live_start_stage_total_heart5_wait_opponent_cost2_member",
+        "live_start_deep_choose_aqours_member_blade6_score1",
+        "onplay_named_baton_nakasu_kasumi_draw2_discard1",
+        "activated_discard2_return_live_required_heart03_3",
+        "onplay_optional_discard1_inspect4_keep1_heart04_2_member_or_live",
+        "onplay_other_nijigasaki_ready_energy",
+        "onplay_named_stage_ready_energy_return_hasu_live",
+        "onplay_optional_discard1_mill2_return_member",
+        "onplay_optional_pay1_discard1_mill3_return_cerise_bouquet_live",
+        "live_success_inspect4_member_heart04_2_keep1",
+        "live_success_excess_heart_inspect2_reorder_rest_wr",
+        "live_start_deep_center_liella_base_blade3",
         "live_start_grouped_superstar_named_and_other_liella_blade",
+        "live_start_grouped_edel_note_blade2_and_other_name_heart06_2",
         "live_start_pay2_or_discard2",
         "live_start_draw1_discard1",
         "manual_timing_fallback",
@@ -234,6 +416,593 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
     }
     assert energy_return_candidate.actions == [
         {"action_type": "return_from_waiting_room"}
+    ]
+    wait_opponent_cost9_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!HS-bp6-004:2"
+    )
+    assert wait_opponent_cost9_candidate.simulation_support == (
+        "test_validated_executable"
+    )
+    assert wait_opponent_cost9_candidate.choice == {
+        "choice_type": "member_from_stage",
+        "zone": "stage",
+        "target_player": "opponent",
+        "card_type": "member",
+        "maximum_cost": 9,
+        "minimum": 1,
+        "maximum": 1,
+    }
+    assert wait_opponent_cost9_candidate.actions == [
+        {"action_type": "apply_wait_member", "target": "selected"}
+    ]
+    onplay_wait_cost2_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!S-bp6-015:1"
+    )
+    assert onplay_wait_cost2_candidate.choice["maximum_cost"] == 2
+    assert onplay_wait_cost2_candidate.timing == "on_play"
+    stage_cost_wait_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!HS-pb1-010:2"
+    )
+    assert stage_cost_wait_candidate.condition == {"own_stage_member_cost_at_least": 10}
+    assert stage_cost_wait_candidate.choice["maximum_cost"] == 4
+    draw_wait_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!N-bp4-004:1"
+    )
+    assert draw_wait_candidate.choice["minimum"] == 0
+    assert draw_wait_candidate.actions == [
+        {"action_type": "draw_card", "amount": 1},
+        {"action_type": "apply_wait_member", "target": "selected"},
+    ]
+    stage_heart_wait_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-PR-021:1"
+    )
+    assert stage_heart_wait_candidate.condition == {
+        "own_stage_total_heart_at_least": {"count": 5}
+    }
+    assert stage_heart_wait_candidate.choice["maximum_cost"] == 2
+    activated_position_change_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-sd2-002:1"
+    )
+    assert activated_position_change_candidate.effect_type == "activated"
+    assert activated_position_change_candidate.timing == "activated_main"
+    assert activated_position_change_candidate.condition == {
+        "source_zone": "stage",
+        "minimum_active_energy": 2,
+    }
+    assert activated_position_change_candidate.cost == [
+        {"action_type": "pay_energy", "amount": 2}
+    ]
+    assert activated_position_change_candidate.choice == {
+        "choice_type": "position_change_source",
+        "minimum": 1,
+        "maximum": 1,
+    }
+    assert activated_position_change_candidate.actions == [
+        {"action_type": "position_change_source"}
+    ]
+    moved_heart_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-sd2-002:2"
+    )
+    assert moved_heart_candidate.effect_type == "triggered"
+    assert moved_heart_candidate.timing == "auto_triggered_event"
+    assert moved_heart_candidate.trigger == "member_moved"
+    assert moved_heart_candidate.execution_mode == "auto_resolve"
+    assert moved_heart_candidate.frequency_limit == "once_per_turn"
+    assert moved_heart_candidate.condition == {"source_zone": "stage"}
+    assert moved_heart_candidate.actions == [
+        {"action_type": "gain_heart", "amount": 1, "color_slot": "heart06"}
+    ]
+    deploy_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!HS-bp5-002:2"
+    )
+    assert deploy_candidate.effect_type == "activated"
+    assert deploy_candidate.timing == "activated_main"
+    assert deploy_candidate.condition == {
+        "source_zone": "stage",
+        "minimum_active_energy": 2,
+    }
+    assert deploy_candidate.cost == [{"action_type": "pay_energy", "amount": 2}]
+    assert deploy_candidate.choice == {
+        "choice_type": "deploy_member_from_waiting_room",
+        "zone": "waiting_room",
+        "card_type": "member",
+        "maximum_cost": 2,
+        "minimum": 1,
+        "maximum": 1,
+    }
+    assert deploy_candidate.actions == [
+        {"action_type": "deploy_selected_to_empty_stage"}
+    ]
+    hasu_deploy_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!HS-bp6-016:1"
+    )
+    assert hasu_deploy_candidate.choice["work_key"] == "hasunosora"
+    assert hasu_deploy_candidate.choice["maximum_cost"] == 4
+    assert hasu_deploy_candidate.cost == [
+        {"action_type": "pay_energy", "amount": 4}
+    ]
+    aqours_return_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!S-sd1-005:1"
+    )
+    assert aqours_return_candidate.condition == {
+        "source_zone": "stage",
+        "minimum_active_energy": 2,
+    }
+    assert aqours_return_candidate.cost == [
+        {"action_type": "pay_energy", "amount": 2},
+        {"action_type": "discard_from_hand"},
+    ]
+    assert aqours_return_candidate.cost_choice == {
+        "choice_type": "card_from_zone",
+        "zone": "hand",
+        "minimum": 1,
+        "maximum": 1,
+    }
+    assert aqours_return_candidate.choice == {
+        "choice_type": "card_from_zone",
+        "zone": "waiting_room",
+        "card_type": "live",
+        "minimum": 1,
+        "maximum": 1,
+        "work_key": "love_live_sunshine",
+    }
+    score_live_return_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!S-sd1-007:1"
+    )
+    assert score_live_return_candidate.choice["work_key"] == "love_live_sunshine"
+    assert score_live_return_candidate.choice["minimum_score"] == 1
+    right_ready_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-bp4-008:2"
+    )
+    assert right_ready_candidate.condition == {"source_slot": "right"}
+    assert right_ready_candidate.actions == [
+        {"action_type": "ready_energy", "amount": 2}
+    ]
+    left_draw_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-bp1-002:1"
+    )
+    assert left_draw_candidate.condition == {
+        "minimum_active_energy": 2,
+        "source_slot": "left",
+    }
+    assert left_draw_candidate.cost == [{"action_type": "pay_energy", "amount": 2}]
+    assert left_draw_candidate.actions == [{"action_type": "draw_card", "amount": 2}]
+    liella_member_return_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-sd1-007:1"
+    )
+    assert liella_member_return_candidate.condition == {"minimum_active_energy": 2}
+    assert liella_member_return_candidate.choice == {
+        "choice_type": "card_from_zone",
+        "zone": "waiting_room",
+        "minimum": 1,
+        "maximum": 1,
+        "card_type": "member",
+        "work_key": "love_live_superstar",
+    }
+    assert liella_member_return_candidate.actions == [
+        {"action_type": "return_from_waiting_room"}
+    ]
+    left_draw_discard_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-bp4-008:1"
+    )
+    assert left_draw_discard_candidate.condition == {"source_slot": "left"}
+    assert left_draw_discard_candidate.choice == {
+        "choice_type": "post_action_card_from_zone",
+        "zone": "hand",
+        "minimum": 1,
+        "maximum": 1,
+    }
+    assert left_draw_discard_candidate.actions == [
+        {"action_type": "draw_card", "amount": 2},
+        {"action_type": "discard_from_hand"},
+    ]
+    branch_ready_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-bp5-001:3"
+    )
+    assert branch_ready_candidate.choice["branch_ids"] == [
+        "wait_source",
+        "discard_hand",
+    ]
+    assert branch_ready_candidate.choice["branch_conditions"] == {
+        "wait_source": {"source_orientation": "active"}
+    }
+    assert branch_ready_candidate.actions == [
+        {"action_type": "apply_wait", "target": "source", "branch": "wait_source"},
+        {
+            "action_type": "ready_energy",
+            "target": "auto",
+            "amount": 1,
+            "branch": "wait_source",
+        },
+        {
+            "action_type": "ready_energy",
+            "target": "auto",
+            "amount": 1,
+            "branch": "discard_hand",
+        },
+        {"action_type": "discard_from_hand", "branch": "discard_hand"},
+    ]
+    color_heart_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!N-bp1-003:2"
+    )
+    assert color_heart_candidate.condition == {"minimum_active_energy": 1}
+    assert color_heart_candidate.choice["choice_type"] == "choose_color"
+    assert color_heart_candidate.actions == [
+        {"action_type": "gain_heart", "amount": 1}
+    ]
+    place_energy_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-pb1-005:1"
+    )
+    assert place_energy_candidate.execution_mode == "auto_resolve"
+    assert place_energy_candidate.actions == [
+        {
+            "action_type": "place_energy_from_deck",
+            "target": "self",
+            "amount": 1,
+            "orientation": "wait",
+        }
+    ]
+    onplay_branch_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!HS-cl1-004:1"
+    )
+    assert onplay_branch_candidate.choice["branch_ids"] == [
+        "mill3",
+        "wait_opponent_cost2",
+    ]
+    assert onplay_branch_candidate.choice["branch_choice_filters"][
+        "wait_opponent_cost2"
+    ]["maximum_cost"] == 2
+    assert onplay_branch_candidate.actions == [
+        {"action_type": "mill_top_cards", "amount": 3, "branch": "mill3"},
+        {
+            "action_type": "apply_wait_member",
+            "target": "selected",
+            "branch": "wait_opponent_cost2",
+        },
+    ]
+    pay1_branch_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-bp5-001:1"
+    )
+    assert pay1_branch_candidate.is_optional is True
+    assert pay1_branch_candidate.condition == {"minimum_active_energy": 1}
+    assert pay1_branch_candidate.cost == [{"action_type": "pay_energy", "amount": 1}]
+    assert pay1_branch_candidate.choice["branch_ids"] == [
+        "wait_opponent_cost4",
+        "draw1",
+    ]
+    assert pay1_branch_candidate.choice["branch_choice_filters"][
+        "wait_opponent_cost4"
+    ]["maximum_cost"] == 4
+    assert pay1_branch_candidate.actions == [
+        {
+            "action_type": "apply_wait_member",
+            "target": "selected",
+            "branch": "wait_opponent_cost4",
+        },
+        {"action_type": "draw_card", "amount": 1, "branch": "draw1"},
+    ]
+    heart05_mill_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!HS-sd1-013:1"
+    )
+    assert heart05_mill_candidate.actions == [
+        {"action_type": "mill_top_cards", "amount": 3},
+        {
+            "action_type": "gain_heart_if_milled_all_have_heart",
+            "color_slot": "heart05",
+            "amount": 1,
+        },
+    ]
+    moved_blade_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-sd2-011:1"
+    )
+    assert moved_blade_candidate.trigger == "member_moved"
+    assert moved_blade_candidate.actions == [
+        {"action_type": "gain_blade", "amount": 1}
+    ]
+    moved_heart02_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-sd2-012:1"
+    )
+    assert moved_heart02_candidate.actions == [
+        {"action_type": "gain_heart", "amount": 1, "color_slot": "heart02"}
+    ]
+    moved_draw_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-pb1-020:1"
+    )
+    assert moved_draw_candidate.trigger == "member_moved"
+    assert moved_draw_candidate.frequency_limit == "none"
+    assert moved_draw_candidate.actions == [{"action_type": "draw_card", "amount": 1}]
+    moved_energy_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-bp2-003:1"
+    )
+    assert moved_energy_candidate.condition == {
+        "source_zone": "stage",
+        "minimum_energy_deck_cards": 1,
+    }
+    assert moved_energy_candidate.actions == [
+        {
+            "action_type": "place_energy_from_deck",
+            "target": "self",
+            "amount": 1,
+            "orientation": "wait",
+        }
+    ]
+    moved_wait_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!S-bp5-111:2"
+    )
+    assert moved_wait_candidate.choice["target_player"] == "opponent"
+    assert moved_wait_candidate.choice["maximum_blade"] == 2
+    assert moved_wait_candidate.actions == [
+        {"action_type": "apply_wait_member", "target": "selected"}
+    ]
+    success_equal_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!N-bp5-007:1"
+    )
+    assert success_equal_candidate.condition == {
+        "own_success_live_count_equals_opponent": True
+    }
+    assert success_equal_candidate.actions == [
+        {"action_type": "gain_heart", "amount": 2, "color_slot": "heart02"}
+    ]
+    opponent_wait_blade_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!-bp3-002:2"
+    )
+    assert opponent_wait_blade_candidate.actions == [
+        {
+            "action_type": "gain_blade",
+            "amount_source": "opponent_stage_wait_member_count",
+        }
+    ]
+    opponent_wait_heart_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!-pb1-002:3"
+    )
+    assert opponent_wait_heart_candidate.actions == [
+        {
+            "action_type": "gain_heart",
+            "amount_source": "opponent_stage_wait_member_count",
+            "color_slot": "heart06",
+        }
+    ]
+    success_score_lead_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!-bp4-018:1"
+    )
+    assert success_score_lead_candidate.condition == {
+        "success_live_score_more_than_opponent": True
+    }
+    assert success_score_lead_candidate.actions == [
+        {"action_type": "gain_blade", "amount": 2}
+    ]
+    opponent_success_lead_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!S-bp6-009:1"
+    )
+    assert opponent_success_lead_candidate.condition == {
+        "own_success_live_count_less_than_opponent": True
+    }
+    assert opponent_success_lead_candidate.actions == [
+        {
+            "action_type": "gain_blade",
+            "amount_source": "opponent_success_live_count_difference",
+        }
+    ]
+    miracra_blade_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!HS-bp2-006:2"
+    )
+    assert miracra_blade_candidate.actions == [
+        {
+            "action_type": "gain_blade",
+            "amount_source": "own_stage_member_unit_count",
+            "value": {"unit_key": "miracra_park", "exclude_source": True},
+        }
+    ]
+    non_cerise_blade_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!HS-bp5-004:1"
+    )
+    assert non_cerise_blade_candidate.actions == [
+        {
+            "action_type": "gain_blade",
+            "amount_source": "own_stage_member_filter_count",
+            "multiplier": 2,
+            "value": {"minimum_cost": 4, "exclude_unit_key": "cerise_bouquet"},
+        }
+    ]
+    edel_note_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!HS-bp5-007:2"
+    )
+    assert edel_note_candidate.condition == {
+        "own_stage_other_member_unit_count_at_least": {
+            "unit_key": "edel_note",
+            "count": 1,
+        }
+    }
+    stage_count_heart_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!HS-pb1-007:2"
+    )
+    assert stage_count_heart_candidate.condition == {
+        "own_stage_member_count_exact": 2,
+        "opponent_stage_member_count_at_least": 3,
+    }
+    opponent_excess_score_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!S-bp5-008:1"
+    )
+    assert opponent_excess_score_candidate.condition == {
+        "opponent_excess_heart_count_at_least": 2
+    }
+    assert opponent_excess_score_candidate.actions == [
+        {"action_type": "modify_score", "amount": 1}
+    ]
+    center_heart_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-bp5-011:2"
+    )
+    assert center_heart_candidate.condition == {"source_slot": "center"}
+    assert center_heart_candidate.actions == [
+        {"action_type": "gain_heart", "amount": 3, "color_slot": "heart03"}
+    ]
+    pay3_draw_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-pb1-004:2"
+    )
+    assert pay3_draw_candidate.is_optional is True
+    assert pay3_draw_candidate.condition == {"minimum_active_energy": 3}
+    assert pay3_draw_candidate.cost == [{"action_type": "pay_energy", "amount": 3}]
+    assert pay3_draw_candidate.actions == [{"action_type": "draw_card", "amount": 1}]
+    revealed_live_energy_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!S-pb1-007:1"
+    )
+    assert revealed_live_energy_candidate.condition == {
+        "yell_revealed_card_type_count_at_least": {"card_type": "live", "count": 1},
+        "minimum_energy_deck_cards": 1,
+    }
+    assert revealed_live_energy_candidate.actions == [
+        {
+            "action_type": "place_energy_from_deck",
+            "target": "self",
+            "amount": 1,
+            "orientation": "wait",
+        }
+    ]
+    all_blade_score_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!N-bp3-030:1"
+    )
+    assert all_blade_score_candidate.condition == {
+        "own_yell_revealed_special_blade_heart_count_at_least": {
+            "effect_type": "all_color",
+            "count": 1,
+        }
+    }
+    assert all_blade_score_candidate.actions == [
+        {"action_type": "modify_score", "amount": 1}
+    ]
+    aqours_score_live_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!S-bp6-009:2"
+    )
+    assert aqours_score_live_candidate.condition == {
+        "source_slot": "center",
+        "own_yell_revealed_special_blade_heart_count_at_least": {
+            "effect_type": "score",
+            "card_type": "live",
+            "work_key": "love_live_sunshine",
+            "count": 1,
+        },
+    }
+    success_score_live_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-bp5-023:1"
+    )
+    assert success_score_live_candidate.condition == {
+        "any_success_live_count_at_least": 2,
+        "own_yell_revealed_special_blade_heart_count_at_least": {
+            "effect_type": "score",
+            "card_type": "live",
+            "count": 1,
+        },
+    }
+    assert success_score_live_candidate.actions == [
+        {"action_type": "modify_score", "amount": 2}
+    ]
+    kanon_keke_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-bp1-024:2"
+    )
+    assert kanon_keke_candidate.condition == {
+        "own_stage_member_names_present": ["澁谷かのん", "唐 可可"]
+    }
+    assert kanon_keke_candidate.actions == [
+        {"action_type": "draw_card", "amount": 1}
+    ]
+    opponent_energy_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!S-pb1-019:2"
+    )
+    assert opponent_energy_candidate.actions == [
+        {
+            "action_type": "place_energy_from_deck",
+            "target": "opponent",
+            "amount": 1,
+            "orientation": "wait",
+        }
     ]
     replace_candidate = next(
         candidate
@@ -378,6 +1147,30 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
     assert grouped_blade_candidate.actions == [
         {"action_type": "gain_blade", "amount": 1}
     ]
+    edel_grouped_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!HS-pb1-030:1"
+    )
+    assert edel_grouped_candidate.choice["selection_groups"][0]["unit_key"] == (
+        "edel_note"
+    )
+    assert edel_grouped_candidate.choice["selection_groups"][1]["exclude_group_names"] == [
+        "blade_member"
+    ]
+    assert edel_grouped_candidate.actions == [
+        {
+            "action_type": "gain_blade",
+            "amount": 2,
+            "value": {"target_group_id": "blade_member"},
+        },
+        {
+            "action_type": "gain_heart",
+            "amount": 2,
+            "color_slot": "heart06",
+            "value": {"target_group_id": "heart_member"},
+        },
+    ]
     nijigasaki_draw_top_candidate = next(
         candidate
         for candidate in all_candidates
@@ -403,6 +1196,24 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
         {"action_type": "draw_card", "amount": 3},
         {"action_type": "move_selected_to_deck_top"},
     ]
+    hasunosora_heart04_baton_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!HS-bp2-021:1"
+    )
+    assert hasunosora_heart04_baton_candidate.condition == {
+        "own_baton_entered_stage_member_work_count_at_least": {
+            "work_key": "hasunosora",
+            "count": 2,
+        }
+    }
+    assert hasunosora_heart04_baton_candidate.actions == [
+        {
+            "action_type": "modify_required_heart",
+            "amount": -1,
+            "color_slot": "heart04",
+        }
+    ]
     hasunosora_baton_candidate = next(
         candidate
         for candidate in all_candidates
@@ -420,6 +1231,29 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
             "amount": -1,
             "color_slot": "heart05",
         }
+    ]
+    miracra_extra_heart_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!HS-pb1-029:1"
+    )
+    assert miracra_extra_heart_candidate.condition == {
+        "own_stage_member_more_than_original_heart_count_at_least": {
+            "unit_key": "miracra_park",
+            "count": 1,
+        }
+    }
+    assert miracra_extra_heart_candidate.actions == [
+        {"action_type": "draw_card", "amount": 1},
+        {
+            "action_type": "modify_required_heart",
+            "amount_source": "stage_member_more_than_original_heart_count",
+            "color_slot": "heart0",
+            "value": {
+                "unit_key": "miracra_park",
+                "thresholds": {"2": -2},
+            },
+        },
     ]
     non_heart01_06_candidate = next(
         candidate
@@ -677,6 +1511,165 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
             "value": {"moved_this_turn": True},
         }
     ]
+    base_heart_choice_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!N-pb1-036:1"
+    )
+    assert base_heart_choice_candidate.choice == {
+        "choice_type": "choose_color",
+        "color_slots": ["heart01", "heart02", "heart06"],
+        "minimum": 1,
+        "maximum": 1,
+    }
+    assert base_heart_choice_candidate.actions == [
+        {"action_type": "replace_member_base_hearts"}
+    ]
+    named_baton_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!N-pb1-014:1"
+    )
+    assert named_baton_candidate.condition == {
+        "requires_baton_touch": True,
+        "replacement_member_name_ja": "中須かすみ",
+    }
+    assert named_baton_candidate.choice == {
+        "choice_type": "post_action_card_from_zone",
+        "zone": "hand",
+        "minimum": 1,
+        "maximum": 1,
+    }
+    assert named_baton_candidate.actions == [
+        {"action_type": "draw_card", "amount": 2},
+        {"action_type": "discard_from_hand"},
+    ]
+    required_heart_return_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!-PR-003:1"
+    )
+    assert required_heart_return_candidate.cost_choice == {
+        "choice_type": "card_from_zone",
+        "zone": "hand",
+        "minimum": 2,
+        "maximum": 2,
+    }
+    assert required_heart_return_candidate.choice == {
+        "choice_type": "card_from_zone",
+        "zone": "waiting_room",
+        "card_type": "live",
+        "minimum": 1,
+        "maximum": 1,
+        "required_heart_color_slot": "heart03",
+        "minimum_required_heart": 3,
+    }
+    assert required_heart_return_candidate.actions == [
+        {"action_type": "return_from_waiting_room"}
+    ]
+    heart_inspect_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!S-pb1-013:1"
+    )
+    assert heart_inspect_candidate.choice == {
+        "choice_type": "inspect_top_select",
+        "amount": 4,
+        "minimum": 0,
+        "maximum": 1,
+        "requires_order": False,
+        "selected_destination": "hand",
+        "unselected_destination": "waiting_room",
+        "reveal_selected_to_opponent": True,
+        "heart_color_slot": "heart04",
+        "minimum_heart_count": 2,
+    }
+    assert heart_inspect_candidate.actions == [
+        {"action_type": "inspect_top_cards", "amount": 4},
+        {"action_type": "select_to_hand_from_inspected"},
+        {"action_type": "move_remaining_cards"},
+    ]
+    nijigasaki_ready_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!N-bp1-004:1"
+    )
+    assert nijigasaki_ready_candidate.condition == {
+        "own_stage_member_work_count_at_least": {
+            "work_key": "nijigasaki",
+            "count": 2,
+        }
+    }
+    assert nijigasaki_ready_candidate.actions == [
+        {"action_type": "ready_energy", "amount": 1}
+    ]
+    hasu_ready_return_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!HS-sd1-006:1"
+    )
+    assert hasu_ready_return_candidate.condition == {
+        "own_stage_member_name_any": ["大沢瑠璃乃", "百生吟子", "徒町小鈴"]
+    }
+    assert hasu_ready_return_candidate.choice == {
+        "choice_type": "post_action_card_from_zone",
+        "zone": "waiting_room",
+        "card_type": "live",
+        "work_key": "hasunosora",
+        "minimum": 0,
+        "maximum": 1,
+    }
+    assert hasu_ready_return_candidate.actions == [
+        {"action_type": "ready_energy", "target": "auto", "amount": 1},
+        {"action_type": "return_from_waiting_room"},
+    ]
+    live_success_heart_inspect_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!S-bp5-007:1"
+    )
+    assert live_success_heart_inspect_candidate.is_optional is True
+    assert live_success_heart_inspect_candidate.choice == {
+        "choice_type": "inspect_top_select",
+        "amount": 4,
+        "minimum": 0,
+        "maximum": 1,
+        "requires_order": False,
+        "card_type": "member",
+        "heart_color_slot": "heart04",
+        "minimum_heart_count": 2,
+        "selected_destination": "hand",
+        "unselected_destination": "waiting_room",
+        "reveal_selected_to_opponent": True,
+    }
+    assert live_success_heart_inspect_candidate.actions == [
+        {"action_type": "inspect_top_cards", "amount": 4},
+        {"action_type": "select_to_hand_from_inspected"},
+        {"action_type": "move_remaining_cards"},
+    ]
+    excess_heart_inspect_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!HS-bp6-028:1"
+    )
+    assert excess_heart_inspect_candidate.condition == {
+        "own_excess_heart_count_at_least": 1
+    }
+    assert excess_heart_inspect_candidate.choice == {
+        "choice_type": "inspect_top_select",
+        "amount": 2,
+        "minimum": 0,
+        "maximum": 2,
+        "requires_order": True,
+        "selected_destination": "main_deck_top_ordered",
+        "unselected_destination": "waiting_room",
+        "reveal_selected_to_opponent": False,
+    }
+    assert excess_heart_inspect_candidate.actions == [
+        {"action_type": "inspect_top_cards", "amount": 2},
+        {"action_type": "reorder_deck_top"},
+        {"action_type": "move_remaining_cards"},
+    ]
     nijigasaki_variety_candidate = next(
         candidate
         for candidate in all_candidates
@@ -719,6 +1712,38 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
         {"action_type": "draw_card", "amount": 1},
         {"action_type": "discard_from_hand"},
     ]
+    waiting_love_live_score_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!-sd1-009:1"
+    )
+    assert waiting_love_live_score_candidate.condition == {
+        "waiting_room_work_count_at_least": {
+            "work_key": "love_live",
+            "count": 25,
+        }
+    }
+    assert waiting_love_live_score_candidate.actions == [
+        {"action_type": "modify_score", "amount": 1}
+    ]
+    source_blade_draw_discard_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!HS-pb1-009:2"
+    )
+    assert source_blade_draw_discard_candidate.condition == {
+        "source_blade_at_least": 8
+    }
+    assert source_blade_draw_discard_candidate.choice == {
+        "choice_type": "post_action_card_from_zone",
+        "zone": "hand",
+        "minimum": 1,
+        "maximum": 1,
+    }
+    assert source_blade_draw_discard_candidate.actions == [
+        {"action_type": "draw_card", "amount": 2},
+        {"action_type": "discard_from_hand"},
+    ]
     live_success_return_member_candidate = next(
         candidate
         for candidate in all_candidates
@@ -752,6 +1777,498 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
                 "moved_this_turn": True,
             },
         }
+    ]
+    center_liella_blade_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-bp4-025:1"
+    )
+    assert center_liella_blade_candidate.actions == [
+        {
+            "action_type": "replace_member_base_blade",
+            "amount": 3,
+            "value": {
+                "slot": "center",
+                "work_key": "love_live_superstar",
+            },
+        }
+    ]
+    onplay_position_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-bp4-013:1"
+    )
+    assert onplay_position_candidate.choice == {
+        "choice_type": "position_change_source",
+        "minimum": 1,
+        "maximum": 1,
+    }
+    assert onplay_position_candidate.actions == [
+        {"action_type": "position_change_source"}
+    ]
+    live_start_position_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-bp4-008:3"
+    )
+    assert live_start_position_candidate.timing == "live_start"
+    assert live_start_position_candidate.actions == [
+        {"action_type": "position_change_source"}
+    ]
+    forced_non_center_position_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!-bp4-005:3"
+    )
+    assert forced_non_center_position_candidate.is_optional is False
+    assert forced_non_center_position_candidate.condition == {
+        "own_stage_member_work_blade_count_at_most": {
+            "work_key": "love_live",
+            "minimum_blade": 5,
+            "count": 0,
+        }
+    }
+    assert forced_non_center_position_candidate.choice == {
+        "choice_type": "position_change_source",
+        "minimum": 1,
+        "maximum": 1,
+        "excluded_position_slots": ["center"],
+    }
+    baton_return_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-bp2-006:1"
+    )
+    assert baton_return_candidate.condition == {
+        "requires_baton_touch": True,
+        "replacement_member_work_key": "love_live_superstar",
+    }
+    assert baton_return_candidate.actions == [
+        {"action_type": "return_baton_replaced_member_to_hand"}
+    ]
+    distinct_liella_yell_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-bp4-026:1"
+    )
+    assert distinct_liella_yell_candidate.condition == {
+        "own_yell_revealed_member_distinct_name_count_at_least": {
+            "work_key": "love_live_superstar",
+            "count": 5,
+        }
+    }
+    assert distinct_liella_yell_candidate.actions == [
+        {"action_type": "modify_score", "amount": 1}
+    ]
+    hasu_yell_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!HS-bp1-022:1"
+    )
+    assert hasu_yell_candidate.condition == {
+        "own_yell_revealed_member_work_count_at_least": {
+            "work_key": "hasunosora",
+            "count": 10,
+        }
+    }
+    assert hasu_yell_candidate.actions == [{"action_type": "modify_score", "amount": 1}]
+    hand_blade_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-bp2-009:1"
+    )
+    assert hand_blade_candidate.actions == [
+        {
+            "action_type": "gain_blade",
+            "amount_source": "own_hand_count_divided_by",
+            "value": {"divisor": 2},
+        }
+    ]
+    love_live_extra_draw_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!-bp6-023:1"
+    )
+    assert love_live_extra_draw_candidate.actions == [
+        {"action_type": "draw_card", "amount": 1},
+        {
+            "action_type": "draw_card",
+            "amount": 1,
+            "value": {
+                "condition": {
+                    "success_live_work_count_at_least": {
+                        "work_key": "love_live",
+                        "count": 1,
+                    }
+                }
+            },
+        },
+    ]
+    higher_score_hasu_energy_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!HS-bp1-023:1"
+    )
+    assert higher_score_hasu_energy_candidate.condition == {
+        "live_score_relation": "greater_than_opponent",
+        "own_stage_member_work_count_at_least": {
+            "work_key": "hasunosora",
+            "count": 1,
+        },
+        "minimum_energy_deck_cards": 1,
+    }
+    assert higher_score_hasu_energy_candidate.actions == [
+        {
+            "action_type": "place_energy_from_deck",
+            "target": "self",
+            "amount": 1,
+            "orientation": "wait",
+        }
+    ]
+    excess_heart04_energy_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!N-bp3-027:1"
+    )
+    assert excess_heart04_energy_candidate.condition == {
+        "own_excess_heart_color_count_at_least": {
+            "color_slot": "heart04",
+            "count": 1,
+        },
+        "own_stage_member_work_count_at_least": {
+            "work_key": "nijigasaki",
+            "count": 1,
+        },
+        "minimum_energy_deck_cards": 1,
+    }
+    assert excess_heart04_energy_candidate.actions == [
+        {
+            "action_type": "place_energy_from_deck",
+            "target": "self",
+            "amount": 1,
+            "orientation": "wait",
+        }
+    ]
+    score3_return_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!HS-bp6-025:2"
+    )
+    assert score3_return_candidate.condition == {"own_stage_member_count_at_least": 2}
+    assert score3_return_candidate.choice == {
+        "choice_type": "card_from_zone",
+        "zone": "waiting_room",
+        "card_type": "live",
+        "maximum_score": 3,
+        "minimum": 1,
+        "maximum": 1,
+    }
+    assert score3_return_candidate.actions == [
+        {"action_type": "return_from_waiting_room"}
+    ]
+    no_excess_score_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!-bp3-025:1"
+    )
+    assert no_excess_score_candidate.condition == {"own_excess_heart_count_at_most": 0}
+    assert no_excess_score_candidate.actions == [
+        {"action_type": "modify_score", "amount": 1}
+    ]
+    wait_stage_score_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!N-bp3-031:1"
+    )
+    assert wait_stage_score_candidate.actions == [
+        {
+            "action_type": "modify_score",
+            "amount_source": "own_wait_stage_member_count",
+        }
+    ]
+    extra_heart_draw_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!HS-PR-028:1"
+    )
+    assert extra_heart_draw_candidate.condition == {
+        "own_stage_member_more_than_original_heart_count_at_least": {"count": 1}
+    }
+    assert extra_heart_draw_candidate.actions == [
+        {"action_type": "draw_card", "amount": 1}
+    ]
+    excess_heart01_draw_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!-bp4-023:1"
+    )
+    assert excess_heart01_draw_candidate.condition == {
+        "own_excess_heart_color_count_at_least": {
+            "color_slot": "heart01",
+            "count": 1,
+        }
+    }
+    assert excess_heart01_draw_candidate.actions == [
+        {"action_type": "draw_card", "amount": 1}
+    ]
+    stage_heart_more_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!-bp3-026:2"
+    )
+    assert stage_heart_more_candidate.condition == {
+        "own_stage_total_heart_more_than_opponent": True
+    }
+    assert stage_heart_more_candidate.actions == [
+        {"action_type": "modify_score", "amount": 1}
+    ]
+    excess_draw_discard_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!N-bp5-007:2"
+    )
+    assert excess_draw_discard_candidate.condition == {
+        "own_excess_heart_count_at_least": 1
+    }
+    assert excess_draw_discard_candidate.choice == {
+        "choice_type": "post_action_card_from_zone",
+        "zone": "hand",
+        "minimum": 1,
+        "maximum": 1,
+    }
+    assert excess_draw_discard_candidate.actions == [
+        {"action_type": "draw_card", "amount": 2},
+        {"action_type": "discard_from_hand"},
+    ]
+    source_score_return_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!N-bp5-026:2"
+    )
+    assert source_score_return_candidate.condition == {"source_score_exact": 3}
+    assert source_score_return_candidate.choice == {
+        "choice_type": "card_from_zone",
+        "zone": "waiting_room",
+        "work_key": "nijigasaki",
+        "minimum": 1,
+        "maximum": 1,
+    }
+    source_wait_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!N-bp5-006:2"
+    )
+    assert source_wait_candidate.condition == {
+        "source_orientation": "active",
+        "own_stage_member_count_at_least": 2,
+    }
+    assert source_wait_candidate.actions == [{"action_type": "apply_wait"}]
+    bibi_return_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!-pb1-030:2"
+    )
+    assert bibi_return_candidate.condition == {
+        "own_stage_member_unit_distinct_name_count_at_least": {
+            "unit_key": "bibi",
+            "count": 2,
+        }
+    }
+    assert bibi_return_candidate.choice == {
+        "choice_type": "card_from_zone",
+        "zone": "waiting_room",
+        "card_type": "member",
+        "unit_key": "bibi",
+        "minimum": 1,
+        "maximum": 1,
+    }
+    fewer_revealed_draw_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!S-bp3-005:1"
+    )
+    assert fewer_revealed_draw_candidate.condition == {
+        "yell_revealed_card_count_less_than_opponent": True
+    }
+    assert fewer_revealed_draw_candidate.actions == [
+        {"action_type": "draw_card", "amount": 1}
+    ]
+    replace_score_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!S-bp3-019:1"
+    )
+    assert replace_score_candidate.condition == {
+        "own_yell_no_blade_heartless_or_excess_heart_count_at_least": 2
+    }
+    assert replace_score_candidate.actions == [
+        {"action_type": "replace_score", "amount": 4}
+    ]
+    assert replace_score_candidate.duration == "game"
+    refreshed_score_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!S-bp2-022:1"
+    )
+    assert refreshed_score_candidate.condition == {
+        "own_deck_refreshed_this_turn": True
+    }
+    assert refreshed_score_candidate.actions == [
+        {"action_type": "modify_score", "amount": 2}
+    ]
+    success2_revealed_member_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!S-bp5-019:1"
+    )
+    assert success2_revealed_member_candidate.condition == {
+        "any_success_live_count_at_least": 2
+    }
+    assert success2_revealed_member_candidate.choice == {
+        "choice_type": "card_from_zone",
+        "zone": "resolution_area",
+        "card_type": "member",
+        "minimum": 0,
+        "maximum": 2,
+    }
+    assert success2_revealed_member_candidate.actions == [
+        {"action_type": "move_selected_to_hand"}
+    ]
+    discard_revealed_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!HS-PR-027:1"
+    )
+    assert discard_revealed_candidate.simulation_support == (
+        "test_validated_executable"
+    )
+    assert discard_revealed_candidate.is_optional
+    assert discard_revealed_candidate.cost_choice == {
+        "choice_type": "card_from_zone",
+        "zone": "hand",
+        "minimum": 1,
+        "maximum": 1,
+    }
+    assert discard_revealed_candidate.choice == {
+        "choice_type": "card_from_zone",
+        "zone": "resolution_area",
+        "minimum": 1,
+        "maximum": 1,
+        "value": {
+            "card_type_stat_filters": [
+                {"card_type": "member", "maximum_cost": 2},
+                {"card_type": "live", "maximum_score": 2},
+            ]
+        },
+    }
+    assert discard_revealed_candidate.actions == [
+        {"action_type": "move_selected_to_hand"}
+    ]
+    equal_score_cost9_member_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!HS-cl1-012:1"
+    )
+    assert equal_score_cost9_member_candidate.condition == {
+        "live_score_relation": "equal_to_opponent"
+    }
+    assert equal_score_cost9_member_candidate.choice == {
+        "choice_type": "card_from_zone",
+        "zone": "resolution_area",
+        "card_type": "member",
+        "minimum_cost": 9,
+        "minimum": 1,
+        "maximum": 1,
+    }
+    higher_score_nijigasaki_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!N-bp1-026:1"
+    )
+    assert higher_score_nijigasaki_candidate.condition == {
+        "live_score_relation": "greater_than_opponent"
+    }
+    assert higher_score_nijigasaki_candidate.choice == {
+        "choice_type": "card_from_zone",
+        "zone": "resolution_area",
+        "work_key": "nijigasaki",
+        "minimum": 1,
+        "maximum": 1,
+    }
+    disable_success_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!S-pb1-019:1"
+    )
+    assert disable_success_candidate.condition == {
+        "own_stage_heart_at_least": {
+            "unit_key": "aqours",
+            "color_slot": "heart02",
+            "count": 6,
+        }
+    }
+    assert disable_success_candidate.actions == [
+        {"action_type": "disable_source_live_success_effects"}
+    ]
+    side_cost_wait_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!S-bp5-002:1"
+    )
+    assert side_cost_wait_candidate.condition == {
+        "source_slot": "center",
+        "own_side_stage_member_costs_equal": True,
+    }
+    assert side_cost_wait_candidate.actions == [
+        {
+            "action_type": "apply_wait_member",
+            "target": "opponent_stage_original_blade_at_most",
+            "amount": 3,
+        }
+    ]
+    clear_excess_score_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!S-bp5-020:1"
+    )
+    assert clear_excess_score_candidate.condition == {
+        "own_excess_heart_count_at_least": 3
+    }
+    assert clear_excess_score_candidate.actions == [
+        {"action_type": "clear_excess_hearts"},
+        {"action_type": "modify_score", "amount": 1},
+    ]
+    opponent_clear_excess_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!S-bp6-024:1"
+    )
+    assert opponent_clear_excess_candidate.actions == [
+        {"action_type": "clear_excess_hearts", "target": "opponent"},
+        {
+            "action_type": "modify_score",
+            "amount": 1,
+            "value": {
+                "condition": {"last_cleared_excess_heart_count_at_least": 2}
+            },
+        },
+    ]
+    aqours_blade_choice_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!S-bp3-025:1"
+    )
+    assert aqours_blade_choice_candidate.choice == {
+        "choice_type": "member_from_stage",
+        "zone": "stage",
+        "card_type": "member",
+        "work_key": "love_live_sunshine",
+        "minimum_blade": 6,
+        "minimum": 1,
+        "maximum": 1,
+    }
+    assert aqours_blade_choice_candidate.actions == [
+        {"action_type": "modify_score", "amount": 1}
     ]
     success_score_candidate = next(
         candidate
@@ -882,29 +2399,154 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
         {"action_type": "pay_energy", "amount": 2, "branch": "pay_energy"},
         {"action_type": "discard_from_hand", "branch": "discard_hand"},
     ]
+    bulk_waiting_bottom_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!HS-pb1-012:1"
+    )
+    assert bulk_waiting_bottom_candidate.choice == {
+        "choice_type": "post_action_card_from_zone",
+        "zone": "waiting_room",
+        "card_type": "live",
+        "minimum": 1,
+        "maximum": 1,
+        "post_action_condition_key": "bulk_moved_waiting_room_member_count",
+        "post_action_condition_minimum": 20,
+    }
+    assert bulk_waiting_bottom_candidate.actions == [
+        {
+            "action_type": "move_waiting_room_members_to_deck_bottom",
+            "target": "both",
+        },
+        {"action_type": "return_from_waiting_room"},
+        {"action_type": "gain_blade", "amount": 2},
+    ]
+    muse_draw_discard_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!-bp5-021:1"
+    )
+    assert muse_draw_discard_candidate.choice == {
+        "choice_type": "multi_player_draw_then_discard",
+        "zone": "hand",
+        "amount": 1,
+        "discard_amount": 1,
+    }
+    assert muse_draw_discard_candidate.follow_up_choice == {
+        "choice_type": "member_from_stage",
+        "zone": "stage",
+        "card_type": "member",
+        "work_key": "love_live",
+        "minimum": 1,
+        "maximum": 1,
+        "condition": {"own_stage_member_count_at_least": 2},
+    }
+    assert muse_draw_discard_candidate.actions == [
+        {
+            "action_type": "gain_heart",
+            "target": "selected",
+            "amount": 1,
+            "color_slot": "heart03",
+            "value": {"condition": {"own_stage_member_count_at_least": 2}},
+        },
+        {
+            "action_type": "modify_score",
+            "amount": 1,
+            "value": {
+                "condition": {"own_stage_member_distinct_name_count_at_least": 3}
+            },
+        },
+    ]
+    all_aqours_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!S-bp6-019:1"
+    )
+    assert all_aqours_candidate.condition == {
+        "own_stage_members_only_work_key": "love_live_sunshine"
+    }
+    assert all_aqours_candidate.choice == {
+        "choice_type": "post_action_card_from_zone",
+        "zone": "hand",
+        "minimum": 1,
+        "maximum": 1,
+        "destination_options": ["main_deck_top", "main_deck_bottom"],
+    }
+    assert all_aqours_candidate.actions == [
+        {"action_type": "modify_score", "amount": 1},
+        {"action_type": "draw_card", "amount": 1},
+        {"action_type": "move_selected_to_deck_top_or_bottom"},
+    ]
+    aqours_branch_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!S-bp6-020:1"
+    )
+    assert aqours_branch_candidate.choice == {
+        "choice_type": "choose_effect_branch",
+        "branch_ids": [
+            "grant_success_draw",
+            "baton_aqours_heart",
+            "success2_score",
+        ],
+        "branch_selection_minimum": {"baton_aqours_heart": 1},
+        "branch_selection_maximum": {"baton_aqours_heart": 1},
+        "branch_conditions": {
+            "success2_score": {"success_live_count_at_least": 2}
+        },
+        "branch_choice_filters": {
+            "baton_aqours_heart": {
+                "choice_type": "member_from_stage",
+                "zone": "stage",
+                "card_type": "member",
+                "work_key": "love_live_sunshine",
+                "target_player": "self",
+                "baton_entered_this_turn": True,
+            }
+        },
+    }
+    assert aqours_branch_candidate.actions == [
+        {
+            "action_type": "grant_live_success_draw",
+            "amount": 1,
+            "branch": "grant_success_draw",
+        },
+        {
+            "action_type": "gain_heart",
+            "target": "selected",
+            "amount": 1,
+            "color_slot": "heart02",
+            "branch": "baton_aqours_heart",
+        },
+        {
+            "action_type": "modify_score",
+            "amount": 1,
+            "branch": "success2_score",
+        },
+    ]
 
 
 def test_effect_registry_timing_prompt_coverage_exceeds_target():
     registry = EffectRegistry.model_validate_json(REGISTRY.read_text(encoding="utf-8"))
-    registered_card_codes = {effect.card_code for effect in registry.effects}
-
-    import sqlite3
+    registered_segments = {
+        (effect.card_code, effect.raw_text_hash, effect.effect_index)
+        for effect in registry.effects
+    }
 
     connection = sqlite3.connect(_require_full_card_database())
+    connection.row_factory = sqlite3.Row
     try:
-        cards_with_text = connection.execute(
-            """
-            SELECT COUNT(DISTINCT gameplay_card_id)
-            FROM card_text_revisions
-            WHERE raw_effect_text_ja IS NOT NULL
-              AND TRIM(raw_effect_text_ja) <> ''
-            """
-        ).fetchone()[0]
+        segments = [
+            (row["card_code"], row["raw_text_hash"], effect_index)
+            for row in _effect_text_rows(connection)
+            for effect_index, _label in _timing_segments(row)
+        ]
     finally:
         connection.close()
 
-    assert cards_with_text
-    assert len(registered_card_codes) / cards_with_text >= 0.30
+    assert segments
+    covered = sum(segment in registered_segments for segment in segments)
+    assert covered / len(segments) >= 0.75
 
 
 def test_place_energy_from_deck_requires_orientation():
@@ -980,7 +2622,7 @@ def test_baton_entered_hasunosora_condition_controls_required_heart_modifier():
         effect_type="triggered",
         timing="live_start",
         trigger="live_started",
-        execution_mode="auto_resolve",
+        execution_mode="prompt_then_resolve",
         frequency_limit="once_per_live",
         is_optional=False,
         condition={
@@ -1050,6 +2692,535 @@ def test_baton_entered_hasunosora_condition_controls_required_heart_modifier():
     assert [(item.modifier_type, item.color_slot, item.amount) for item in modifiers] == [
         ("required_heart", "heart05", -1)
     ]
+
+
+def test_named_baton_condition_controls_draw_then_discard_prompt():
+    effect = EffectDefinition(
+        effect_id="test-named-baton-draw:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="d" * 64,
+        effect_index=1,
+        label_ja="named baton draw discard test",
+        effect_type="triggered",
+        timing="on_play",
+        trigger="member_played",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="none",
+        is_optional=False,
+        condition={
+            "requires_baton_touch": True,
+            "replacement_member_name_ja": "中須かすみ",
+        },
+        actions=[
+            {"action_type": "draw_card", "amount": 2},
+            {"action_type": "discard_from_hand"},
+        ],
+        choice={
+            "choice_type": "post_action_card_from_zone",
+            "zone": "hand",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    state.pending_effects[0].trigger_data = {
+        "used_baton_touch": True,
+        "replacement_card_instance_id": "replacement-member",
+    }
+    state.cards["replacement-member"] = CardInstance(
+        instance_id="replacement-member",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="TEST-REPLACED",
+            card_id="TEST-REPLACED",
+            name_ja="優木せつ菜",
+            card_type="member",
+        ),
+    )
+
+    with pytest.raises(Exception, match="replacement_member_name_mismatch"):
+        apply_action(
+            state.model_copy(deep=True),
+            ActionRequest(
+                action_type="resolve_effect",
+                expected_revision=state.revision,
+                player_id="player_1",
+                payload={"invocation_id": "inv-1"},
+            ),
+        )
+
+    state.cards["replacement-member"].card.name_ja = "中須かすみ"
+    result = apply_action(
+        state,
+        ActionRequest(
+            action_type="resolve_effect",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        ),
+    )
+
+    assert result.state.pending_choice is None
+    assert result.state.pending_effects[0].resolution_stage == "after_cost"
+    assert len(result.state.players["player_1"].hand) == 2
+    selected = result.state.players["player_1"].hand[:1]
+    resolved = apply_action(
+        result.state,
+        ActionRequest(
+            action_type="resolve_effect",
+            expected_revision=result.state.revision,
+            player_id="player_1",
+            payload={
+                "invocation_id": "inv-1",
+                "selected_card_instance_ids": selected,
+            },
+        ),
+    )
+
+    assert resolved.state.pending_effects == []
+    assert selected[0] in resolved.state.players["player_1"].waiting_room
+    assert len(resolved.state.players["player_1"].hand) == 1
+
+
+def test_waiting_room_live_choice_filters_by_required_heart():
+    effect = EffectDefinition(
+        effect_id="test-required-heart-return:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="f" * 64,
+        effect_index=1,
+        label_ja="required Heart return test",
+        effect_type="activated",
+        timing="activated_main",
+        trigger="player_activation",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_turn",
+        is_optional=False,
+        condition={},
+        actions=[{"action_type": "return_from_waiting_room"}],
+        choice={
+            "choice_type": "card_from_zone",
+            "zone": "waiting_room",
+            "card_type": "live",
+            "minimum": 1,
+            "maximum": 1,
+            "required_heart_color_slot": "heart03",
+            "minimum_required_heart": 3,
+        },
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    low_live = CardDefinition(
+        card_code="TEST-LOW-LIVE",
+        card_id="TEST-LOW-LIVE",
+        name_ja="低必要ハートライブ",
+        card_type="live",
+        required_hearts={"heart03": 2},
+    )
+    high_live = low_live.model_copy(
+        update={
+            "card_code": "TEST-HIGH-LIVE",
+            "card_id": "TEST-HIGH-LIVE",
+            "required_hearts": {"heart03": 3},
+        }
+    )
+    state.cards["low-live"] = CardInstance(
+        instance_id="low-live",
+        owner_id="player_1",
+        card=low_live,
+    )
+    state.cards["high-live"] = CardInstance(
+        instance_id="high-live",
+        owner_id="player_1",
+        card=high_live,
+    )
+    state.players["player_1"].waiting_room = ["low-live", "high-live"]
+
+    with pytest.raises(Exception, match="effect card selection is not legal"):
+        apply_action(
+            state.model_copy(deep=True),
+            ActionRequest(
+                action_type="resolve_effect",
+                expected_revision=state.revision,
+                player_id="player_1",
+                payload={
+                    "invocation_id": "inv-1",
+                    "selected_card_instance_ids": ["low-live"],
+                },
+            ),
+        )
+
+    result = apply_action(
+        state,
+        ActionRequest(
+            action_type="resolve_effect",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={
+                "invocation_id": "inv-1",
+                "selected_card_instance_ids": ["high-live"],
+            },
+        ),
+    )
+
+    assert "high-live" in result.state.players["player_1"].hand
+    assert "high-live" not in result.state.players["player_1"].waiting_room
+    assert "low-live" in result.state.players["player_1"].waiting_room
+
+
+def test_inspection_choice_filters_by_member_or_live_heart_count():
+    effect = EffectDefinition(
+        effect_id="test-heart-filter-inspect:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="g" * 64,
+        effect_index=1,
+        label_ja="Heart filtered inspection test",
+        effect_type="triggered",
+        timing="on_play",
+        trigger="member_played",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="none",
+        is_optional=True,
+        condition={},
+        actions=[
+            {"action_type": "inspect_top_cards", "amount": 4},
+            {"action_type": "select_to_hand_from_inspected"},
+            {"action_type": "move_remaining_cards"},
+        ],
+        choice={
+            "choice_type": "inspect_top_select",
+            "amount": 4,
+            "minimum": 0,
+            "maximum": 1,
+            "requires_order": False,
+            "selected_destination": "hand",
+            "unselected_destination": "waiting_room",
+            "reveal_selected_to_opponent": True,
+            "heart_color_slot": "heart04",
+            "minimum_heart_count": 2,
+        },
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    high_member = CardDefinition(
+        card_code="TEST-HIGH-MEMBER",
+        card_id="TEST-HIGH-MEMBER",
+        name_ja="高ハートメンバー",
+        card_type="member",
+        basic_hearts={"heart04": 2},
+    )
+    low_member = high_member.model_copy(
+        update={
+            "card_code": "TEST-LOW-MEMBER",
+            "card_id": "TEST-LOW-MEMBER",
+            "basic_hearts": {"heart04": 1},
+        }
+    )
+    high_live = CardDefinition(
+        card_code="TEST-HIGH-LIVE",
+        card_id="TEST-HIGH-LIVE",
+        name_ja="高必要ハートライブ",
+        card_type="live",
+        required_hearts={"heart04": 2},
+    )
+    low_live = high_live.model_copy(
+        update={
+            "card_code": "TEST-LOW-LIVE",
+            "card_id": "TEST-LOW-LIVE",
+            "required_hearts": {"heart04": 1},
+        }
+    )
+    state.cards.update(
+        {
+            "low-member": CardInstance(
+                instance_id="low-member",
+                owner_id="player_1",
+                card=low_member,
+                face_up=False,
+            ),
+            "high-live": CardInstance(
+                instance_id="high-live",
+                owner_id="player_1",
+                card=high_live,
+                face_up=False,
+            ),
+            "low-live": CardInstance(
+                instance_id="low-live",
+                owner_id="player_1",
+                card=low_live,
+                face_up=False,
+            ),
+            "high-member": CardInstance(
+                instance_id="high-member",
+                owner_id="player_1",
+                card=high_member,
+                face_up=False,
+            ),
+        }
+    )
+    state.players["player_1"].main_deck = [
+        "low-member",
+        "high-live",
+        "low-live",
+        "high-member",
+    ]
+
+    inspected = apply_action(
+        state,
+        ActionRequest(
+            action_type="resolve_effect",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        ),
+    ).state
+
+    assert inspected.pending_choice is not None
+    assert inspected.pending_choice.options["candidate_card_instance_ids"] == [
+        "high-live",
+        "high-member",
+    ]
+
+    with pytest.raises(Exception, match="effect inspection selection is not legal"):
+        apply_action(
+            inspected.model_copy(deep=True),
+            ActionRequest(
+                action_type="resolve_effect_choice",
+                expected_revision=inspected.revision,
+                player_id="player_1",
+                payload={"selected_card_instance_ids": ["low-live"]},
+            ),
+        )
+
+    result = apply_action(
+        inspected,
+        ActionRequest(
+            action_type="resolve_effect_choice",
+            expected_revision=inspected.revision,
+            player_id="player_1",
+            payload={"selected_card_instance_ids": ["high-member"]},
+        ),
+    )
+
+    assert "high-member" in result.state.players["player_1"].hand
+    assert "low-member" in result.state.players["player_1"].waiting_room
+    assert "low-live" in result.state.players["player_1"].waiting_room
+    assert "high-live" in result.state.players["player_1"].waiting_room
+
+
+def test_excess_heart_condition_controls_live_success_inspection():
+    effect = EffectDefinition(
+        effect_id="test-excess-heart-inspect:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="m" * 64,
+        effect_index=1,
+        label_ja="excess Heart inspect test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={"own_excess_heart_count_at_least": 1},
+        cost=[],
+        actions=[
+            {"action_type": "inspect_top_cards", "amount": 2},
+            {"action_type": "reorder_deck_top"},
+            {"action_type": "move_remaining_cards"},
+        ],
+        choice={
+            "choice_type": "inspect_top_select",
+            "amount": 2,
+            "minimum": 0,
+            "maximum": 2,
+            "requires_order": True,
+            "selected_destination": "main_deck_top_ordered",
+            "unselected_destination": "waiting_room",
+            "reveal_selected_to_opponent": False,
+        },
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    state.players["player_1"].live_result.live_allocations = [
+        {"remaining_hearts": {}, "remaining_all_color_hearts": 0}
+    ]
+
+    with pytest.raises(Exception, match="excess_heart_count_too_low"):
+        apply_action(
+            state.model_copy(deep=True),
+            ActionRequest(
+                action_type="resolve_effect",
+                expected_revision=state.revision,
+                player_id="player_1",
+                payload={"invocation_id": "inv-1"},
+            ),
+        )
+
+    state.players["player_1"].live_result.live_allocations = [
+        {"remaining_hearts": {"heart04": 1}, "remaining_all_color_hearts": 0}
+    ]
+    inspected = apply_action(
+        state,
+        ActionRequest(
+            action_type="resolve_effect",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        ),
+    ).state
+
+    assert inspected.pending_choice is not None
+    assert inspected.pending_choice.options["inspected_card_instance_ids"] == [
+        "deck-live-1",
+        "deck-member-1",
+    ]
+
+
+def test_extra_heart_member_count_draws_and_modifies_required_heart():
+    effect = EffectDefinition(
+        effect_id="test-extra-heart-count:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="e" * 64,
+        effect_index=1,
+        label_ja="extra Heart count test",
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={
+            "own_stage_member_more_than_original_heart_count_at_least": {
+                "unit_key": "miracra_park",
+                "count": 1,
+            }
+        },
+        actions=[
+            {"action_type": "draw_card", "amount": 1},
+            {
+                "action_type": "modify_required_heart",
+                "amount_source": "stage_member_more_than_original_heart_count",
+                "color_slot": "heart0",
+                "value": {
+                    "unit_key": "miracra_park",
+                    "thresholds": {"2": -2},
+                },
+            },
+        ],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    miracra_member = CardDefinition(
+        card_code="TEST-MIRACRA",
+        card_id="TEST-MIRACRA",
+        name_ja="みらくらぱーく！テスト",
+        card_type="member",
+        basic_hearts={"heart01": 1},
+        unit_keys=["miracra_park"],
+    )
+
+    state = _minimal_effect_state(effect)
+    for instance_id in ["left-member", "center-member"]:
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=miracra_member,
+        )
+    state.players["player_1"].member_area = {
+        "left": "left-member",
+        "center": "center-member",
+        "right": None,
+    }
+
+    with pytest.raises(
+        Exception,
+        match="stage_member_more_than_original_heart_count_too_low",
+    ):
+        apply_action(
+            state.model_copy(deep=True),
+            ActionRequest(
+                action_type="resolve_effect",
+                expected_revision=state.revision,
+                player_id="player_1",
+                payload={"invocation_id": "inv-1", "accepted": True},
+            ),
+        )
+
+    one_extra = state.model_copy(deep=True)
+    one_extra.players["player_1"].manual_modifiers.append(
+        ManualModifier(
+            modifier_id="test:heart:left",
+            modifier_type="heart",
+            duration="live",
+            created_turn=one_extra.turn_number,
+            amount=1,
+            color_slot="heart02",
+            target_card_instance_id="left-member",
+        )
+    )
+    before_hand = len(one_extra.players["player_1"].hand)
+    one_result = apply_action(
+        one_extra,
+        ActionRequest(
+            action_type="resolve_effect",
+            expected_revision=one_extra.revision,
+            player_id="player_1",
+            payload={"invocation_id": "inv-1", "accepted": True},
+        ),
+    )
+    assert len(one_result.state.players["player_1"].hand) == before_hand + 1
+    assert not any(
+        item.modifier_type == "required_heart" and item.amount == -2
+        for item in one_result.state.players["player_1"].manual_modifiers
+    )
+
+    two_extra = state.model_copy(deep=True)
+    for target_id in ["left-member", "center-member"]:
+        two_extra.players["player_1"].manual_modifiers.append(
+            ManualModifier(
+                modifier_id=f"test:heart:{target_id}",
+                modifier_type="heart",
+                duration="live",
+                created_turn=two_extra.turn_number,
+                amount=1,
+                color_slot="heart02",
+                target_card_instance_id=target_id,
+            )
+        )
+    two_result = apply_action(
+        two_extra,
+        ActionRequest(
+            action_type="resolve_effect",
+            expected_revision=two_extra.revision,
+            player_id="player_1",
+            payload={"invocation_id": "inv-1", "accepted": True},
+        ),
+    )
+    assert any(
+        item.modifier_type == "required_heart"
+        and item.color_slot == "heart0"
+        and item.amount == -2
+        for item in two_result.state.players["player_1"].manual_modifiers
+    )
 
 
 def test_reveal_top_cards_score_modifier_counts_revealed_lives():
@@ -1962,6 +4133,7 @@ def test_grouped_stage_member_choice_applies_blade_to_each_group_target():
             "label_ja": "指定名のメンバー",
             "candidate_card_instance_ids": ["kanon-member"],
             "exclude_group_ids": [],
+            "exclude_group_names": [],
             "minimum": 1,
             "maximum": 1,
         },
@@ -1970,6 +4142,7 @@ def test_grouped_stage_member_choice_applies_blade_to_each_group_target():
             "label_ja": "選んだメンバー以外の『Liella!』のメンバー",
             "candidate_card_instance_ids": ["kanon-member", "chisato-member"],
             "exclude_group_ids": ["named_member"],
+            "exclude_group_names": [],
             "minimum": 1,
             "maximum": 1,
         },
@@ -2005,6 +4178,139 @@ def test_grouped_stage_member_choice_applies_blade_to_each_group_target():
         "named_member": ["kanon-member"],
         "other_liella": ["chisato-member"],
     }
+
+
+def test_grouped_stage_member_choice_can_apply_different_modifiers_by_group():
+    effect = EffectDefinition(
+        effect_id="test-grouped-edel-note:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="e" * 64,
+        effect_index=1,
+        label_ja="Edel Note grouped modifier test",
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice={
+            "choice_type": "member_group_from_stage",
+            "selection_groups": [
+                {
+                    "group_id": "blade_member",
+                    "label_ja": "Blade target",
+                    "zone": "stage",
+                    "card_type": "member",
+                    "unit_key": "edel_note",
+                    "minimum": 1,
+                    "maximum": 1,
+                },
+                {
+                    "group_id": "heart_member",
+                    "label_ja": "Heart target",
+                    "zone": "stage",
+                    "card_type": "member",
+                    "unit_key": "edel_note",
+                    "exclude_group_ids": ["blade_member"],
+                    "exclude_group_names": ["blade_member"],
+                    "minimum": 1,
+                    "maximum": 1,
+                },
+            ],
+        },
+        actions=[
+            {
+                "action_type": "gain_blade",
+                "amount": 2,
+                "value": {"target_group_id": "blade_member"},
+            },
+            {
+                "action_type": "gain_heart",
+                "amount": 2,
+                "color_slot": "heart06",
+                "value": {"target_group_id": "heart_member"},
+            },
+        ],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test fixture",
+    )
+    state = _minimal_effect_state(effect)
+    member = CardDefinition(
+        card_code="TEST-EDEL-A",
+        card_id="TEST-EDEL-A",
+        name_ja="Edel A",
+        card_type="member",
+        unit_keys=["edel_note"],
+    )
+    state.cards["edel-a-1"] = CardInstance(
+        instance_id="edel-a-1",
+        owner_id="player_1",
+        card=member,
+    )
+    state.cards["edel-a-2"] = CardInstance(
+        instance_id="edel-a-2",
+        owner_id="player_1",
+        card=member.model_copy(
+            update={"card_code": "TEST-EDEL-A2", "card_id": "TEST-EDEL-A2"}
+        ),
+    )
+    state.cards["edel-b"] = CardInstance(
+        instance_id="edel-b",
+        owner_id="player_1",
+        card=member.model_copy(
+            update={
+                "card_code": "TEST-EDEL-B",
+                "card_id": "TEST-EDEL-B",
+                "name_ja": "Edel B",
+            }
+        ),
+    )
+    state.players["player_1"].member_area = {
+        "left": "edel-a-1",
+        "center": "edel-a-2",
+        "right": "edel-b",
+    }
+
+    with pytest.raises(Exception, match="grouped effect selection is not legal"):
+        _apply_direct(
+            state.model_copy(deep=True),
+            "resolve_effect",
+            player_id="player_1",
+            payload={
+                "invocation_id": "inv-1",
+                "selected_card_instance_ids_by_group": {
+                    "blade_member": ["edel-a-1"],
+                    "heart_member": ["edel-a-2"],
+                },
+            },
+        )
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids_by_group": {
+                "blade_member": ["edel-a-1"],
+                "heart_member": ["edel-b"],
+            },
+        },
+    )
+
+    assert [
+        (modifier.modifier_type, modifier.amount, modifier.target_card_instance_id)
+        for modifier in resolved.players["player_1"].manual_modifiers
+    ] == [
+        ("blade", 2, "edel-a-1"),
+        ("heart", 2, "edel-b"),
+    ]
+    assert resolved.players["player_1"].manual_modifiers[1].color_slot == "heart06"
 
 
 def test_grouped_stage_member_choice_rejects_duplicate_or_non_candidate_targets():
@@ -2104,6 +4410,148 @@ def test_post_action_hand_selection_can_return_cards_to_deck_top():
         "deck-live-1",
     ]
     assert not state.pending_effects
+
+
+def test_onplay_bulk_waiting_members_to_deck_bottom_unlocks_return_live_and_blade():
+    state = _minimal_effect_state(_bulk_waiting_members_to_bottom_effect())
+    member = CardDefinition(
+        card_code="TEST-WAITING-MEMBER",
+        card_id="TEST-WAITING-MEMBER",
+        name_ja="控え室メンバー",
+        card_type="member",
+    )
+    live = CardDefinition(
+        card_code="TEST-WAITING-LIVE",
+        card_id="TEST-WAITING-LIVE",
+        name_ja="控え室ライブ",
+        card_type="live",
+        score=1,
+    )
+    state.cards["source-live"].card = member.model_copy(
+        update={"card_code": "TEST-SOURCE-MEMBER", "card_id": "TEST-SOURCE-MEMBER"}
+    )
+    own_members = [f"own-waiting-member-{index}" for index in range(11)]
+    opponent_members = [f"opponent-waiting-member-{index}" for index in range(9)]
+    for instance_id in own_members:
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=member,
+        )
+        state.players["player_1"].waiting_room.append(instance_id)
+    state.cards["own-waiting-live"] = CardInstance(
+        instance_id="own-waiting-live",
+        owner_id="player_1",
+        card=live,
+    )
+    state.players["player_1"].waiting_room.append("own-waiting-live")
+    for instance_id in opponent_members:
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_2",
+            card=member,
+        )
+        state.players["player_2"].waiting_room.append(instance_id)
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    invocation = state.pending_effects[0]
+    assert invocation.resolution_stage == "after_cost"
+    assert invocation.trigger_data["bulk_moved_waiting_room_member_count"] == 20
+    assert state.players["player_1"].waiting_room == ["own-waiting-live"]
+    assert state.players["player_2"].waiting_room == []
+    assert set(state.players["player_1"].main_deck[-len(own_members) :]) == set(
+        own_members
+    )
+    assert set(state.players["player_2"].main_deck) == set(opponent_members)
+    assert all(
+        not state.cards[instance_id].face_up
+        for instance_id in [*own_members, *opponent_members]
+    )
+    legal = generate_legal_actions(state)
+    resolve_action = next(action for action in legal if action.action_type == "resolve_effect")
+    options = resolve_action.options["invocations"][0]
+    assert options["candidate_card_instance_ids"] == ["own-waiting-live"]
+    assert options["card_selection_minimum"] == 1
+    assert options["card_selection_maximum"] == 1
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["own-waiting-live"],
+        },
+    )
+
+    assert "own-waiting-live" in state.players["player_1"].hand
+    assert state.players["player_1"].waiting_room == []
+    assert not state.pending_effects
+    modifier = state.players["player_1"].manual_modifiers[-1]
+    assert modifier.modifier_type == "blade"
+    assert modifier.amount == 2
+    assert modifier.target_card_instance_id == "source-live"
+
+
+def test_onplay_bulk_waiting_members_to_deck_bottom_finishes_under_threshold():
+    state = _minimal_effect_state(_bulk_waiting_members_to_bottom_effect())
+    member = CardDefinition(
+        card_code="TEST-WAITING-MEMBER",
+        card_id="TEST-WAITING-MEMBER",
+        name_ja="控え室メンバー",
+        card_type="member",
+    )
+    live = CardDefinition(
+        card_code="TEST-WAITING-LIVE",
+        card_id="TEST-WAITING-LIVE",
+        name_ja="控え室ライブ",
+        card_type="live",
+        score=1,
+    )
+    own_members = [f"own-waiting-member-{index}" for index in range(10)]
+    opponent_members = [f"opponent-waiting-member-{index}" for index in range(9)]
+    for instance_id in own_members:
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=member,
+        )
+        state.players["player_1"].waiting_room.append(instance_id)
+    state.cards["own-waiting-live"] = CardInstance(
+        instance_id="own-waiting-live",
+        owner_id="player_1",
+        card=live,
+    )
+    state.players["player_1"].waiting_room.append("own-waiting-live")
+    for instance_id in opponent_members:
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_2",
+            card=member,
+        )
+        state.players["player_2"].waiting_room.append(instance_id)
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    assert not state.pending_effects
+    assert state.players["player_1"].waiting_room == ["own-waiting-live"]
+    assert "own-waiting-live" not in state.players["player_1"].hand
+    assert state.players["player_1"].manual_modifiers == []
+    assert set(state.players["player_1"].main_deck[-len(own_members) :]) == set(
+        own_members
+    )
+    assert set(state.players["player_2"].main_deck) == set(opponent_members)
 
 
 def test_nijigasaki_effect_ready_history_scores_energy_or_member_bonus():
@@ -2337,6 +4785,3357 @@ def test_yell_blade_heart_replacement_converts_regular_and_all_blade_hearts():
     ]
 
 
+def test_replace_member_base_blade_changes_yell_blade_count():
+    effect = EffectDefinition(
+        effect_id="test-replace-base-blade:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="n" * 64,
+        effect_index=1,
+        label_ja="replace base Blade test",
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice=None,
+        actions=[
+            {
+                "action_type": "replace_member_base_blade",
+                "amount": 3,
+                "value": {
+                    "slot": "center",
+                    "work_key": "love_live_superstar",
+                },
+            }
+        ],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    center_member = CardDefinition(
+        card_code="TEST-LIELLA-CENTER",
+        card_id="TEST-LIELLA-CENTER",
+        name_ja="Liella center",
+        card_type="member",
+        blade=1,
+        work_keys=["love_live_superstar"],
+    )
+    state.cards["center-member"] = CardInstance(
+        instance_id="center-member",
+        owner_id="player_1",
+        card=center_member,
+    )
+    state.players["player_1"].member_area["center"] = "center-member"
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    assert any(
+        modifier.modifier_type == "base_blade_replacement"
+        and modifier.amount == 3
+        and modifier.target_card_instance_id == "center-member"
+        for modifier in resolved.players["player_1"].manual_modifiers
+    )
+
+    events: list[GameEvent] = []
+    _run_current_yell(resolved, events)
+
+    assert resolved.players["player_1"].live_result.blade_count == 3
+    assert resolved.players["player_1"].live_result.revealed_instance_ids == [
+        "deck-live-1",
+        "deck-member-1",
+        "deck-live-2",
+    ]
+
+
+def test_source_position_change_choice_swaps_member_slots():
+    effect = EffectDefinition(
+        effect_id="test-position-change:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="o" * 64,
+        effect_index=1,
+        label_ja="position change test",
+        effect_type="triggered",
+        timing="on_play",
+        trigger="member_played",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="none",
+        is_optional=True,
+        condition={},
+        cost=[],
+        choice={
+            "choice_type": "position_change_source",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[{"action_type": "position_change_source"}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    source_member = CardDefinition(
+        card_code="TEST-SOURCE-MEMBER",
+        card_id="TEST-SOURCE-MEMBER",
+        name_ja="source member",
+        card_type="member",
+        blade=1,
+        basic_hearts={"heart01": 1},
+    )
+    right_member = CardDefinition(
+        card_code="TEST-RIGHT-MEMBER",
+        card_id="TEST-RIGHT-MEMBER",
+        name_ja="right member",
+        card_type="member",
+        blade=1,
+        basic_hearts={"heart02": 1},
+    )
+    state.cards["source-live"].card = source_member
+    state.cards["right-member"] = CardInstance(
+        instance_id="right-member",
+        owner_id="player_1",
+        card=right_member,
+    )
+    state.players["player_1"].member_area["center"] = "source-live"
+    state.players["player_1"].member_area["right"] = "right-member"
+
+    legal = generate_legal_actions(state)
+    options = legal[0].options["invocations"][0]
+    assert options["choice_type"] == "position_change_source"
+    assert options["position_change_slots"] == ["left", "right"]
+
+    with pytest.raises(Exception, match="position change selection is not legal"):
+        _apply_direct(
+            state.model_copy(deep=True),
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1", "to_slot": "center"},
+        )
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1", "to_slot": "right"},
+    )
+
+    player = resolved.players["player_1"]
+    assert player.member_area["center"] == "right-member"
+    assert player.member_area["right"] == "source-live"
+
+
+def test_position_change_triggers_moved_source_heart_modifier():
+    position_effect = EffectDefinition(
+        effect_id="test-position-change:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="o" * 64,
+        effect_index=1,
+        label_ja="position change test",
+        effect_type="triggered",
+        timing="on_play",
+        trigger="member_played",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="none",
+        is_optional=True,
+        condition={},
+        cost=[],
+        choice={
+            "choice_type": "position_change_source",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[{"action_type": "position_change_source"}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    moved_effect = EffectDefinition(
+        effect_id="test-moved-heart:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="r" * 64,
+        effect_index=2,
+        label_ja="moved heart test",
+        effect_type="triggered",
+        timing="auto_triggered_event",
+        trigger="member_moved",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_turn",
+        is_optional=False,
+        condition={"source_zone": "stage"},
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "gain_heart", "amount": 1, "color_slot": "heart06"}],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(position_effect)
+    state.effect_definitions[moved_effect.effect_id] = moved_effect
+    source_member = CardDefinition(
+        card_code="TEST-SOURCE-MEMBER",
+        card_id="TEST-SOURCE-MEMBER",
+        name_ja="source member",
+        card_type="member",
+        blade=1,
+        basic_hearts={"heart01": 1},
+        effect_ids=[moved_effect.effect_id],
+    )
+    state.cards["source-live"].card = source_member
+    state.players["player_1"].member_area["center"] = "source-live"
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1", "to_slot": "right"},
+    )
+
+    assert state.players["player_1"].member_area["right"] == "source-live"
+    assert not state.pending_effects
+    assert any(
+        modifier.modifier_type == "heart"
+        and modifier.color_slot == "heart06"
+        and modifier.amount == 1
+        and modifier.target_card_instance_id == "source-live"
+        for modifier in state.players["player_1"].manual_modifiers
+    )
+
+
+def test_activated_pay_energy_source_position_change_swaps_member_slots():
+    effect = EffectDefinition(
+        effect_id="test-activated-position-change:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="q" * 64,
+        effect_index=1,
+        label_ja="activated position change test",
+        effect_type="activated",
+        timing="activated_main",
+        trigger="player_activation",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_turn",
+        is_optional=False,
+        condition={"source_zone": "stage", "minimum_active_energy": 2},
+        cost=[{"action_type": "pay_energy", "amount": 2}],
+        choice={
+            "choice_type": "position_change_source",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[{"action_type": "position_change_source"}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    state.phase = "first_main"
+    state.pending_effects = []
+    source_member = CardDefinition(
+        card_code="TEST-SOURCE-MEMBER",
+        card_id="TEST-SOURCE-MEMBER",
+        name_ja="source member",
+        card_type="member",
+        blade=1,
+        basic_hearts={"heart01": 1},
+        effect_ids=[effect.effect_id],
+    )
+    right_member = CardDefinition(
+        card_code="TEST-RIGHT-MEMBER",
+        card_id="TEST-RIGHT-MEMBER",
+        name_ja="right member",
+        card_type="member",
+        blade=1,
+        basic_hearts={"heart02": 1},
+    )
+    energy_card = CardDefinition(
+        card_code="TEST-ENERGY",
+        card_id="TEST-ENERGY",
+        name_ja="test energy",
+        card_type="energy",
+    )
+    state.cards["source-live"].card = source_member
+    state.cards["right-member"] = CardInstance(
+        instance_id="right-member",
+        owner_id="player_1",
+        card=right_member,
+    )
+    state.cards["energy-1"] = CardInstance(
+        instance_id="energy-1",
+        owner_id="player_1",
+        card=energy_card,
+    )
+    state.cards["energy-2"] = CardInstance(
+        instance_id="energy-2",
+        owner_id="player_1",
+        card=energy_card.model_copy(deep=True),
+    )
+    state.players["player_1"].member_area["center"] = "source-live"
+    state.players["player_1"].member_area["right"] = "right-member"
+    state.players["player_1"].energy_area = ["energy-1", "energy-2"]
+
+    legal = generate_legal_actions(state)
+    activation = next(
+        entry
+        for action in legal
+        if action.action_type == "activate_effect"
+        for entry in action.options["activations"]
+        if entry["effect_id"] == effect.effect_id
+    )
+    assert activation["source_card_instance_id"] == "source-live"
+
+    with pytest.raises(Exception, match="requires exactly 2 Active Energy"):
+        _apply_direct(
+            state.model_copy(deep=True),
+            "activate_effect",
+            player_id="player_1",
+            payload={
+                "effect_id": effect.effect_id,
+                "source_card_instance_id": "source-live",
+            },
+        )
+
+    state = _apply_direct(
+        state,
+        "activate_effect",
+        player_id="player_1",
+        payload={
+            "effect_id": effect.effect_id,
+            "source_card_instance_id": "source-live",
+            "energy_instance_ids": ["energy-1", "energy-2"],
+        },
+    )
+    assert state.cards["energy-1"].orientation == "wait"
+    assert state.cards["energy-2"].orientation == "wait"
+    invocation = state.pending_effects[0]
+    legal = generate_legal_actions(state)
+    options = legal[0].options["invocations"][0]
+    assert options["choice_type"] == "position_change_source"
+    assert options["position_change_slots"] == ["left", "right"]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": invocation.invocation_id, "to_slot": "right"},
+    )
+
+    player = state.players["player_1"]
+    assert player.member_area["center"] == "right-member"
+    assert player.member_area["right"] == "source-live"
+    assert not state.pending_effects
+
+
+def test_activated_pay_energy_deploys_waiting_member_to_empty_stage():
+    effect = EffectDefinition(
+        effect_id="test-activated-deploy:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="s" * 64,
+        effect_index=1,
+        label_ja="activated deploy test",
+        effect_type="activated",
+        timing="activated_main",
+        trigger="player_activation",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_turn",
+        is_optional=False,
+        condition={"source_zone": "stage", "minimum_active_energy": 2},
+        cost=[{"action_type": "pay_energy", "amount": 2}],
+        choice={
+            "choice_type": "deploy_member_from_waiting_room",
+            "zone": "waiting_room",
+            "card_type": "member",
+            "maximum_cost": 2,
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[{"action_type": "deploy_selected_to_empty_stage"}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    state.phase = "first_main"
+    state.pending_effects = []
+    source_member = CardDefinition(
+        card_code="TEST-SOURCE-MEMBER",
+        card_id="TEST-SOURCE-MEMBER",
+        name_ja="source member",
+        card_type="member",
+        blade=1,
+        basic_hearts={"heart01": 1},
+        effect_ids=[effect.effect_id],
+    )
+    waiting_member = CardDefinition(
+        card_code="TEST-WAITING-MEMBER",
+        card_id="TEST-WAITING-MEMBER",
+        name_ja="waiting member",
+        card_type="member",
+        cost=2,
+        blade=1,
+        basic_hearts={"heart02": 1},
+    )
+    high_cost_member = waiting_member.model_copy(
+        update={
+            "card_code": "TEST-HIGH-COST-MEMBER",
+            "card_id": "TEST-HIGH-COST-MEMBER",
+            "cost": 3,
+        }
+    )
+    energy_card = CardDefinition(
+        card_code="TEST-ENERGY",
+        card_id="TEST-ENERGY",
+        name_ja="test energy",
+        card_type="energy",
+    )
+    state.cards["source-live"].card = source_member
+    state.cards["waiting-member"] = CardInstance(
+        instance_id="waiting-member",
+        owner_id="player_1",
+        card=waiting_member,
+    )
+    state.cards["high-cost-member"] = CardInstance(
+        instance_id="high-cost-member",
+        owner_id="player_1",
+        card=high_cost_member,
+    )
+    state.cards["energy-1"] = CardInstance(
+        instance_id="energy-1",
+        owner_id="player_1",
+        card=energy_card,
+    )
+    state.cards["energy-2"] = CardInstance(
+        instance_id="energy-2",
+        owner_id="player_1",
+        card=energy_card.model_copy(deep=True),
+    )
+    player = state.players["player_1"]
+    player.member_area["center"] = "source-live"
+    player.waiting_room = ["waiting-member", "high-cost-member"]
+    player.energy_area = ["energy-1", "energy-2"]
+
+    state = _apply_direct(
+        state,
+        "activate_effect",
+        player_id="player_1",
+        payload={
+            "effect_id": effect.effect_id,
+            "source_card_instance_id": "source-live",
+            "energy_instance_ids": ["energy-1", "energy-2"],
+        },
+    )
+
+    assert state.cards["energy-1"].orientation == "wait"
+    assert state.cards["energy-2"].orientation == "wait"
+    invocation = state.pending_effects[0]
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["choice_type"] == "deploy_member_from_waiting_room"
+    assert options["candidate_card_instance_ids"] == ["waiting-member"]
+    assert options["available_slots"] == ["left", "right"]
+
+    with pytest.raises(Exception, match="deploy slot selection is not legal"):
+        _apply_direct(
+            state.model_copy(deep=True),
+            "resolve_effect",
+            player_id="player_1",
+            payload={
+                "invocation_id": invocation.invocation_id,
+                "selected_card_instance_ids": ["waiting-member"],
+                "slot": "center",
+            },
+        )
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": invocation.invocation_id,
+            "selected_card_instance_ids": ["waiting-member"],
+            "slot": "left",
+        },
+    )
+
+    player = state.players["player_1"]
+    assert player.member_area["left"] == "waiting-member"
+    assert "waiting-member" not in player.waiting_room
+    assert "left" in player.member_areas_entered_this_turn
+    assert state.cards["waiting-member"].orientation == "wait"
+    assert not state.pending_effects
+
+
+def test_activated_pay_energy_discard_cost_returns_waiting_room_live():
+    effect = EffectDefinition(
+        effect_id="test-activated-pay-discard-return:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="t" * 64,
+        effect_index=1,
+        label_ja="activated pay discard return test",
+        effect_type="activated",
+        timing="activated_main",
+        trigger="player_activation",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_turn",
+        is_optional=False,
+        condition={"source_zone": "stage", "minimum_active_energy": 2},
+        cost=[
+            {"action_type": "pay_energy", "amount": 2},
+            {"action_type": "discard_from_hand"},
+        ],
+        cost_choice={
+            "choice_type": "card_from_zone",
+            "zone": "hand",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        choice={
+            "choice_type": "card_from_zone",
+            "zone": "waiting_room",
+            "card_type": "live",
+            "work_key": "love_live_sunshine",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[{"action_type": "return_from_waiting_room"}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    state.phase = "first_main"
+    state.pending_effects = []
+    source_member = CardDefinition(
+        card_code="TEST-SOURCE-MEMBER",
+        card_id="TEST-SOURCE-MEMBER",
+        name_ja="source member",
+        card_type="member",
+        blade=1,
+        basic_hearts={"heart01": 1},
+        effect_ids=[effect.effect_id],
+    )
+    discard_card = CardDefinition(
+        card_code="TEST-DISCARD",
+        card_id="TEST-DISCARD",
+        name_ja="discard card",
+        card_type="member",
+    )
+    aqours_live = CardDefinition(
+        card_code="TEST-AQOURS-LIVE",
+        card_id="TEST-AQOURS-LIVE",
+        name_ja="aqours live",
+        card_type="live",
+        work_keys=["love_live_sunshine"],
+        score=1,
+    )
+    other_live = aqours_live.model_copy(
+        update={
+            "card_code": "TEST-OTHER-LIVE",
+            "card_id": "TEST-OTHER-LIVE",
+            "work_keys": ["nijigasaki"],
+        }
+    )
+    energy_card = CardDefinition(
+        card_code="TEST-ENERGY",
+        card_id="TEST-ENERGY",
+        name_ja="test energy",
+        card_type="energy",
+    )
+    state.cards["source-live"].card = source_member
+    state.cards["discard-card"] = CardInstance(
+        instance_id="discard-card",
+        owner_id="player_1",
+        card=discard_card,
+    )
+    state.cards["aqours-live"] = CardInstance(
+        instance_id="aqours-live",
+        owner_id="player_1",
+        card=aqours_live,
+    )
+    state.cards["other-live"] = CardInstance(
+        instance_id="other-live",
+        owner_id="player_1",
+        card=other_live,
+    )
+    state.cards["energy-1"] = CardInstance(
+        instance_id="energy-1",
+        owner_id="player_1",
+        card=energy_card,
+    )
+    state.cards["energy-2"] = CardInstance(
+        instance_id="energy-2",
+        owner_id="player_1",
+        card=energy_card.model_copy(deep=True),
+    )
+    player = state.players["player_1"]
+    player.member_area["center"] = "source-live"
+    player.hand = ["discard-card"]
+    player.waiting_room = ["aqours-live", "other-live"]
+    player.energy_area = ["energy-1", "energy-2"]
+
+    with pytest.raises(Exception, match="effect cost card selection is not legal"):
+        _apply_direct(
+            state.model_copy(deep=True),
+            "activate_effect",
+            player_id="player_1",
+            payload={
+                "effect_id": effect.effect_id,
+                "source_card_instance_id": "source-live",
+                "energy_instance_ids": ["energy-1", "energy-2"],
+            },
+        )
+
+    state = _apply_direct(
+        state,
+        "activate_effect",
+        player_id="player_1",
+        payload={
+            "effect_id": effect.effect_id,
+            "source_card_instance_id": "source-live",
+            "energy_instance_ids": ["energy-1", "energy-2"],
+            "selected_card_instance_ids": ["discard-card"],
+        },
+    )
+
+    assert state.cards["energy-1"].orientation == "wait"
+    assert state.cards["energy-2"].orientation == "wait"
+    player = state.players["player_1"]
+    assert "discard-card" not in player.hand
+    assert "discard-card" in player.waiting_room
+    invocation = state.pending_effects[0]
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["candidate_card_instance_ids"] == ["aqours-live"]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": invocation.invocation_id,
+            "selected_card_instance_ids": ["aqours-live"],
+        },
+    )
+
+    player = state.players["player_1"]
+    assert "aqours-live" in player.hand
+    assert "aqours-live" not in player.waiting_room
+    assert "other-live" in player.waiting_room
+    assert not state.pending_effects
+
+
+def test_onplay_pay_energy_draw_requires_left_source_slot():
+    effect = EffectDefinition(
+        effect_id="test-onplay-left-pay-draw:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="u" * 64,
+        effect_index=1,
+        label_ja="on-play left pay draw test",
+        effect_type="triggered",
+        timing="on_play",
+        trigger="member_played",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="none",
+        is_optional=True,
+        condition={"minimum_active_energy": 2, "source_slot": "left"},
+        cost=[{"action_type": "pay_energy", "amount": 2}],
+        choice=None,
+        actions=[{"action_type": "draw_card", "amount": 2}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    source_member = CardDefinition(
+        card_code="TEST-SOURCE-MEMBER",
+        card_id="TEST-SOURCE-MEMBER",
+        name_ja="source member",
+        card_type="member",
+        blade=1,
+        basic_hearts={"heart01": 1},
+    )
+    energy_card = CardDefinition(
+        card_code="TEST-ENERGY",
+        card_id="TEST-ENERGY",
+        name_ja="test energy",
+        card_type="energy",
+    )
+    state.cards["source-live"].card = source_member
+    state.cards["energy-1"] = CardInstance(
+        instance_id="energy-1",
+        owner_id="player_1",
+        card=energy_card,
+    )
+    state.cards["energy-2"] = CardInstance(
+        instance_id="energy-2",
+        owner_id="player_1",
+        card=energy_card.model_copy(deep=True),
+    )
+    player = state.players["player_1"]
+    player.energy_area = ["energy-1", "energy-2"]
+    player.member_area["center"] = "source-live"
+
+    with pytest.raises(Exception, match="source_slot_mismatch"):
+        _apply_direct(
+            state.model_copy(deep=True),
+            "resolve_effect",
+            player_id="player_1",
+            payload={
+                "invocation_id": "inv-1",
+                "accepted": True,
+                "energy_instance_ids": ["energy-1", "energy-2"],
+            },
+        )
+
+    player.member_area["center"] = None
+    player.member_area["left"] = "source-live"
+    result = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "accepted": True,
+            "energy_instance_ids": ["energy-1", "energy-2"],
+        },
+    )
+
+    player = result.players["player_1"]
+    assert result.cards["energy-1"].orientation == "wait"
+    assert result.cards["energy-2"].orientation == "wait"
+    assert len(player.hand) == 2
+    assert len(player.main_deck) == 1
+    assert not result.pending_effects
+
+
+def test_source_position_change_can_require_no_high_blade_muse_and_exclude_center():
+    effect = EffectDefinition(
+        effect_id="test-position-change-no-muse-blade5:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="p" * 64,
+        effect_index=1,
+        label_ja="non-center position change test",
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={
+            "own_stage_member_work_blade_count_at_most": {
+                "work_key": "love_live",
+                "minimum_blade": 5,
+                "count": 0,
+            }
+        },
+        cost=[],
+        choice={
+            "choice_type": "position_change_source",
+            "minimum": 1,
+            "maximum": 1,
+            "excluded_position_slots": ["center"],
+        },
+        actions=[{"action_type": "position_change_source"}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    source_member = CardDefinition(
+        card_code="TEST-SOURCE-MEMBER",
+        card_id="TEST-SOURCE-MEMBER",
+        name_ja="source member",
+        card_type="member",
+        work_keys=["love_live"],
+        blade=4,
+        basic_hearts={"heart01": 1},
+    )
+    right_member = CardDefinition(
+        card_code="TEST-RIGHT-MEMBER",
+        card_id="TEST-RIGHT-MEMBER",
+        name_ja="right member",
+        card_type="member",
+        blade=1,
+        basic_hearts={"heart02": 1},
+    )
+    state.cards["source-live"].card = source_member
+    state.cards["right-member"] = CardInstance(
+        instance_id="right-member",
+        owner_id="player_1",
+        card=right_member,
+    )
+    state.players["player_1"].member_area["left"] = "source-live"
+    state.players["player_1"].member_area["right"] = "right-member"
+
+    legal = generate_legal_actions(state)
+    options = legal[0].options["invocations"][0]
+    assert options["position_change_slots"] == ["right"]
+
+    with pytest.raises(Exception, match="position change selection is not legal"):
+        _apply_direct(
+            state.model_copy(deep=True),
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1", "to_slot": "center"},
+        )
+
+    blocked = state.model_copy(deep=True)
+    blocked.cards["right-member"].card = right_member.model_copy(
+        update={"work_keys": ["love_live"], "blade": 5}
+    )
+    with pytest.raises(Exception, match="stage_member_work_blade_count_too_high"):
+        _apply_direct(
+            blocked,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1", "to_slot": "right"},
+        )
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1", "to_slot": "right"},
+    )
+    player = resolved.players["player_1"]
+    assert player.member_area["left"] == "right-member"
+    assert player.member_area["right"] == "source-live"
+    assert set(player.member_areas_entered_this_turn) >= {"left", "right"}
+
+
+def test_baton_replaced_member_returns_to_hand_only_from_trigger_data():
+    effect = EffectDefinition(
+        effect_id="test-baton-return:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="p" * 64,
+        effect_index=1,
+        label_ja="baton return test",
+        effect_type="triggered",
+        timing="on_play",
+        trigger="member_played",
+        execution_mode="auto_resolve",
+        frequency_limit="none",
+        is_optional=False,
+        condition={
+            "requires_baton_touch": True,
+            "replacement_member_work_key": "love_live_superstar",
+        },
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "return_baton_replaced_member_to_hand"}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    replaced_member = CardDefinition(
+        card_code="TEST-REPLACED-LIELLA",
+        card_id="TEST-REPLACED-LIELLA",
+        name_ja="replaced Liella",
+        card_type="member",
+        blade=1,
+        work_keys=["love_live_superstar"],
+    )
+    state.cards["replaced-member"] = CardInstance(
+        instance_id="replaced-member",
+        owner_id="player_1",
+        card=replaced_member,
+    )
+    state.players["player_1"].waiting_room.append("replaced-member")
+    state.pending_effects[0].trigger_data = {
+        "used_baton_touch": True,
+        "replacement_card_instance_id": "replaced-member",
+    }
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    assert "replaced-member" in resolved.players["player_1"].hand
+    assert "replaced-member" not in resolved.players["player_1"].waiting_room
+
+    no_baton = _minimal_effect_state(effect)
+    no_baton.cards["replaced-member"] = CardInstance(
+        instance_id="replaced-member",
+        owner_id="player_1",
+        card=replaced_member,
+    )
+    no_baton.players["player_1"].waiting_room.append("replaced-member")
+    no_baton.pending_effects[0].trigger_data = {
+        "used_baton_touch": False,
+        "replacement_card_instance_id": "replaced-member",
+    }
+    with pytest.raises(Exception, match="baton_touch_required"):
+        _apply_direct(
+            no_baton,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+
+def test_yell_revealed_distinct_work_member_condition_modifies_score():
+    effect = EffectDefinition(
+        effect_id="test-yell-distinct-liella:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="q" * 64,
+        effect_index=1,
+        label_ja="distinct Yell member test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={
+            "own_yell_revealed_member_distinct_name_count_at_least": {
+                "work_key": "love_live_superstar",
+                "count": 5,
+            }
+        },
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "modify_score", "amount": 1}],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    revealed_ids: list[str] = []
+    for index, name in enumerate(["Kanon", "Keke", "Chisato", "Sumire", "Ren"]):
+        instance_id = f"revealed-liella-{index}"
+        revealed_ids.append(instance_id)
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code=f"TEST-LIELLA-{index}",
+                card_id=f"TEST-LIELLA-{index}",
+                name_ja=name,
+                card_type="member",
+                blade=1,
+                work_keys=["love_live_superstar"],
+            ),
+        )
+    state.players["player_1"].live_result.revealed_instance_ids = list(revealed_ids)
+    duplicate_name = state.model_copy(deep=True)
+    duplicate_name.cards[revealed_ids[-1]].card.name_ja = "Kanon"
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    assert any(
+        modifier.modifier_type == "score" and modifier.amount == 1
+        for modifier in resolved.players["player_1"].manual_modifiers
+    )
+
+    with pytest.raises(
+        Exception,
+        match="yell_revealed_member_distinct_name_count_too_low",
+    ):
+        _apply_direct(
+            duplicate_name,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+
+def test_yell_revealed_work_member_count_condition_modifies_score():
+    effect = EffectDefinition(
+        effect_id="test-yell-hasu-count:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="q" * 64,
+        effect_index=1,
+        label_ja="Yell Hasunosora member count test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={
+            "own_yell_revealed_member_work_count_at_least": {
+                "work_key": "hasunosora",
+                "count": 10,
+            }
+        },
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "modify_score", "amount": 1}],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    revealed_ids: list[str] = []
+    for index in range(10):
+        instance_id = f"revealed-hasu-{index}"
+        revealed_ids.append(instance_id)
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code=f"TEST-HASU-{index}",
+                card_id=f"TEST-HASU-{index}",
+                name_ja=f"Hasu {index}",
+                card_type="member",
+                work_keys=["hasunosora"],
+            ),
+        )
+    state.players["player_1"].live_result.revealed_instance_ids = list(revealed_ids)
+    blocked = state.model_copy(deep=True)
+    blocked.players["player_1"].live_result.revealed_instance_ids = revealed_ids[:-1]
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    assert any(
+        modifier.modifier_type == "score" and modifier.amount == 1
+        for modifier in resolved.players["player_1"].manual_modifiers
+    )
+
+    with pytest.raises(Exception, match="yell_revealed_member_work_count_too_low"):
+        _apply_direct(
+            blocked,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+
+def test_yell_revealed_member_heart_colors_condition_modifies_score():
+    effect = EffectDefinition(
+        effect_id="test-yell-nijigasaki-heart-colors:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="q" * 64,
+        effect_index=1,
+        label_ja="Nijigasaki revealed member Heart colors score",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={
+            "own_yell_revealed_member_heart_colors_present": {
+                "work_key": "nijigasaki",
+                "color_slots": [
+                    "heart01",
+                    "heart02",
+                    "heart03",
+                    "heart04",
+                    "heart05",
+                    "heart06",
+                ],
+            }
+        },
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "modify_score", "amount": 1}],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="unit test",
+    )
+    state = _minimal_effect_state(effect)
+    for index, color_slot in enumerate(
+        ["heart01", "heart02", "heart03", "heart04", "heart05", "heart06"],
+        start=1,
+    ):
+        instance_id = f"revealed-niji-{index}"
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code=f"TEST-NIJI-{index}",
+                card_id=f"TEST-NIJI-{index}",
+                name_ja=f"Niji {index}",
+                card_type="member",
+                work_keys=["nijigasaki"],
+                basic_hearts={color_slot: 1},
+            ),
+        )
+        state.players["player_1"].live_result.revealed_instance_ids.append(
+            instance_id
+        )
+
+    resolved = _apply_direct(
+        state.model_copy(deep=True),
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    assert [
+        (modifier.modifier_type, modifier.amount)
+        for modifier in resolved.players["player_1"].manual_modifiers
+    ] == [("score", 1)]
+
+    missing_color = state.model_copy(deep=True)
+    missing_color.cards["revealed-niji-6"].card.basic_hearts = {"heart05": 1}
+    with pytest.raises(Exception, match="yell_revealed_member_heart_colors_missing"):
+        _apply_direct(
+            missing_color,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+
+def test_yell_revealed_resolution_card_moves_to_deck_top_and_bottom():
+    top_effect = EffectDefinition(
+        effect_id="test-yell-card-top:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="h" * 64,
+        effect_index=1,
+        label_ja="test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice={
+            "choice_type": "card_from_zone",
+            "zone": "resolution_area",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[{"action_type": "move_selected_to_deck_top"}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="unit test",
+    )
+    state = _minimal_effect_state(top_effect)
+    state.players["player_1"].resolution_area.append("deck-member-1")
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["deck-member-1"],
+        },
+    )
+
+    assert resolved.players["player_1"].main_deck[0] == "deck-member-1"
+    assert "deck-member-1" not in resolved.players["player_1"].resolution_area
+    assert not resolved.cards["deck-member-1"].face_up
+
+    bottom_payload = top_effect.model_dump()
+    bottom_payload.update(
+        {
+            "effect_id": "test-yell-live-bottom:1",
+            "choice": {
+                "choice_type": "card_from_zone",
+                "zone": "resolution_area",
+                "card_type": "live",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [{"action_type": "move_selected_to_deck_bottom"}],
+        }
+    )
+    bottom_effect = EffectDefinition.model_validate(bottom_payload)
+    bottom_state = _minimal_effect_state(bottom_effect)
+    bottom_state.players["player_1"].resolution_area.append("deck-live-1")
+
+    bottom_resolved = _apply_direct(
+        bottom_state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["deck-live-1"],
+        },
+    )
+
+    assert bottom_resolved.players["player_1"].main_deck[-1] == "deck-live-1"
+    assert "deck-live-1" not in bottom_resolved.players["player_1"].resolution_area
+    assert not bottom_resolved.cards["deck-live-1"].face_up
+
+
+def test_yell_revealed_work_count_places_wait_energy():
+    effect = EffectDefinition(
+        effect_id="test-yell-liella-count-energy:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="h" * 64,
+        effect_index=1,
+        label_ja="test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={
+            "own_yell_revealed_work_count_at_least": {
+                "work_key": "love_live_superstar",
+                "count": 7,
+            },
+            "minimum_energy_deck_cards": 1,
+        },
+        cost=[],
+        choice=None,
+        actions=[
+            {
+                "action_type": "place_energy_from_deck",
+                "target": "self",
+                "amount": 1,
+                "orientation": "wait",
+            }
+        ],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="unit test",
+    )
+    state = _minimal_effect_state(effect)
+    liella_card = CardDefinition(
+        card_code="LIELLA-MEMBER",
+        card_id="LIELLA-MEMBER",
+        name_ja="Liella test",
+        card_type="member",
+        work_keys=["love_live_superstar"],
+    )
+    for index in range(7):
+        instance_id = f"revealed-liella-{index}"
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=liella_card,
+            face_up=True,
+        )
+        state.players["player_1"].resolution_area.append(instance_id)
+        state.players["player_1"].live_result.revealed_instance_ids.append(instance_id)
+    energy = CardDefinition(
+        card_code="ENERGY",
+        card_id="ENERGY",
+        name_ja="Energy",
+        card_type="energy",
+    )
+    state.cards["energy-1"] = CardInstance(
+        instance_id="energy-1",
+        owner_id="player_1",
+        card=energy,
+    )
+    state.players["player_1"].energy_deck.append("energy-1")
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    assert resolved.players["player_1"].energy_area == ["energy-1"]
+    assert resolved.cards["energy-1"].orientation == "wait"
+
+
+def test_named_stage_distinct_condition_recovers_yell_revealed_card():
+    effect = EffectDefinition(
+        effect_id="test-stage-names-yell-card:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="h" * 64,
+        effect_index=1,
+        label_ja="test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={
+            "own_stage_member_names_any_distinct_count_at_least": {
+                "name_ja_any": ["澁谷かのん", "ウィーン・マルガレーテ", "鬼塚冬毬"],
+                "count": 2,
+            }
+        },
+        cost=[],
+        choice={
+            "choice_type": "card_from_zone",
+            "zone": "resolution_area",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[{"action_type": "move_selected_to_hand"}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="unit test",
+    )
+    state = _minimal_effect_state(effect)
+    for slot, name in [("left", "澁谷かのん"), ("center", "鬼塚冬毬")]:
+        instance_id = f"stage-{slot}"
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code=f"MEMBER-{slot}",
+                card_id=f"MEMBER-{slot}",
+                name_ja=name,
+                card_type="member",
+            ),
+        )
+        state.players["player_1"].member_area[slot] = instance_id
+    state.players["player_1"].resolution_area.append("deck-member-1")
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["deck-member-1"],
+        },
+    )
+
+    assert "deck-member-1" in resolved.players["player_1"].hand
+    assert "deck-member-1" not in resolved.players["player_1"].resolution_area
+
+
+def test_source_moved_this_turn_operation_condition_draws_extra_card():
+    effect = EffectDefinition(
+        effect_id="test-source-moved-extra-draw:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="h" * 64,
+        effect_index=1,
+        label_ja="test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice=None,
+        actions=[
+            {"action_type": "draw_card", "amount": 1},
+            {
+                "action_type": "draw_card",
+                "amount": 1,
+                "value": {"condition": {"source_moved_this_turn": True}},
+            },
+        ],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="unit test",
+    )
+    state = _minimal_effect_state(effect)
+    state.cards["source-member"] = CardInstance(
+        instance_id="source-member",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="TEST-MEMBER",
+            card_id="TEST-MEMBER",
+            name_ja="source",
+            card_type="member",
+        ),
+    )
+    state.players["player_1"].member_area["center"] = "source-member"
+    state.pending_effects[0].source_card_instance_id = "source-member"
+    state.players["player_1"].member_areas_entered_this_turn = ["center"]
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    assert resolved.players["player_1"].hand == ["deck-live-1", "deck-member-1"]
+
+
+def test_live_success_or_condition_modifies_score():
+    effect = EffectDefinition(
+        effect_id="test-live-success-or-score:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="h" * 64,
+        effect_index=1,
+        label_ja="test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={
+            "live_success_any_revealed_live2_stage_heart_variety5_or_member_moved": True
+        },
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "modify_score", "amount": 1}],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="unit test",
+    )
+    state = _minimal_effect_state(effect)
+    state.players["player_1"].live_result.revealed_instance_ids = [
+        "deck-live-1",
+        "deck-live-2",
+    ]
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    assert [
+        (modifier.modifier_type, modifier.amount)
+        for modifier in resolved.players["player_1"].manual_modifiers
+    ] == [("score", 1)]
+
+    blocked = _minimal_effect_state(effect)
+    blocked.players["player_1"].live_result.revealed_instance_ids = ["deck-member-1"]
+    with pytest.raises(Exception, match="live_success_complex_score_condition_not_met"):
+        _apply_direct(
+            blocked,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+
+def test_reveal_top_to_hand_non_blade_member_modifies_score():
+    effect = EffectDefinition(
+        effect_id="test-reveal-top-hand-score:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="h" * 64,
+        effect_index=1,
+        label_ja="test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice=None,
+        actions=[
+            {"action_type": "reveal_top_to_hand", "amount": 1},
+            {
+                "action_type": "modify_score",
+                "amount": 1,
+                "value": {
+                    "condition": {
+                        "last_revealed_top_member_without_blade_heart": True
+                    }
+                },
+            },
+        ],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="unit test",
+    )
+    state = _minimal_effect_state(effect)
+    state.players["player_1"].main_deck = ["deck-member-1", "deck-live-1"]
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    assert resolved.players["player_1"].hand == ["deck-member-1"]
+    assert resolved.cards["deck-member-1"].face_up
+    assert [
+        (modifier.modifier_type, modifier.amount)
+        for modifier in resolved.players["player_1"].manual_modifiers
+    ] == [("score", 1)]
+
+
+def test_excess_heart_conditional_score_modifiers():
+    effect = EffectDefinition(
+        effect_id="test-excess-heart-plus-minus:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="h" * 64,
+        effect_index=1,
+        label_ja="test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice=None,
+        actions=[
+            {
+                "action_type": "modify_score",
+                "amount": 1,
+                "value": {"condition": {"own_excess_heart_count_at_most": 0}},
+            },
+            {
+                "action_type": "modify_score",
+                "amount": -1,
+                "value": {"condition": {"own_excess_heart_count_at_least": 2}},
+            },
+        ],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="unit test",
+    )
+    no_excess = _minimal_effect_state(effect)
+    no_excess.players["player_1"].live_result.live_allocations = [
+        {"remaining_hearts": {}, "remaining_all_color_hearts": 0}
+    ]
+
+    plus = _apply_direct(
+        no_excess,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    assert [(item.modifier_type, item.amount) for item in plus.players["player_1"].manual_modifiers] == [
+        ("score", 1)
+    ]
+
+    excess = _minimal_effect_state(effect)
+    excess.players["player_1"].live_result.live_allocations = [
+        {"remaining_hearts": {"heart01": 2}, "remaining_all_color_hearts": 0}
+    ]
+    minus = _apply_direct(
+        excess,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    assert [(item.modifier_type, item.amount) for item in minus.players["player_1"].manual_modifiers] == [
+        ("score", -1)
+    ]
+
+
+def test_source_attached_energy_count_places_wait_energy():
+    effect = EffectDefinition(
+        effect_id="test-source-attached-energy-place:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="h" * 64,
+        effect_index=1,
+        label_ja="test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={
+            "live_score_relation": "greater_than_opponent",
+            "minimum_energy_deck_cards": 1,
+        },
+        cost=[],
+        choice=None,
+        actions=[
+            {
+                "action_type": "place_energy_from_deck",
+                "amount_source": "source_attached_energy_count_plus",
+                "value": {"add": 1},
+                "target": "self",
+                "orientation": "wait",
+            }
+        ],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="unit test",
+    )
+    state = _minimal_effect_state(effect)
+    state.players["player_1"].live_result.total_score = 3
+    state.players["player_2"].live_result.total_score = 1
+    state.cards["source-member"] = CardInstance(
+        instance_id="source-member",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="TEST-MEMBER",
+            card_id="TEST-MEMBER",
+            name_ja="source",
+            card_type="member",
+        ),
+    )
+    state.players["player_1"].member_area["center"] = "source-member"
+    state.pending_effects[0].source_card_instance_id = "source-member"
+    energy = CardDefinition(
+        card_code="ENERGY",
+        card_id="ENERGY",
+        name_ja="Energy",
+        card_type="energy",
+    )
+    for instance_id in ["attached-energy", "energy-1", "energy-2"]:
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=energy,
+        )
+    state.players["player_1"].member_area_attachments["center"] = ["attached-energy"]
+    state.players["player_1"].energy_deck = ["energy-1", "energy-2"]
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    assert resolved.players["player_1"].energy_area == ["energy-1", "energy-2"]
+    assert all(resolved.cards[item].orientation == "wait" for item in ["energy-1", "energy-2"])
+
+
+def test_optional_place_wait_energy_draws_for_opponent():
+    effect = EffectDefinition(
+        effect_id="test-place-energy-opponent-draw:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="h" * 64,
+        effect_index=1,
+        label_ja="test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=True,
+        condition={"minimum_energy_deck_cards": 1},
+        cost=[],
+        choice=None,
+        actions=[
+            {
+                "action_type": "place_energy_from_deck",
+                "target": "self",
+                "amount": 1,
+                "orientation": "wait",
+            },
+            {"action_type": "draw_card", "target": "opponent", "amount": 1},
+        ],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="unit test",
+    )
+    state = _minimal_effect_state(effect)
+    energy = CardDefinition(
+        card_code="ENERGY",
+        card_id="ENERGY",
+        name_ja="Energy",
+        card_type="energy",
+    )
+    state.cards["energy-1"] = CardInstance(
+        instance_id="energy-1",
+        owner_id="player_1",
+        card=energy,
+    )
+    state.players["player_1"].energy_deck = ["energy-1"]
+    state.cards["opponent-draw"] = state.cards["deck-live-1"].model_copy(
+        deep=True,
+        update={"instance_id": "opponent-draw", "owner_id": "player_2"},
+    )
+    state.players["player_2"].main_deck = ["opponent-draw"]
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1", "accepted": True},
+    )
+
+    assert resolved.players["player_1"].energy_area == ["energy-1"]
+    assert resolved.cards["energy-1"].orientation == "wait"
+    assert resolved.players["player_2"].hand == ["opponent-draw"]
+
+
+def test_live_start_gain_blade_counts_two_cards_per_hand_pair():
+    effect = EffectDefinition(
+        effect_id="test-hand-pair-blade:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="b" * 64,
+        effect_index=1,
+        label_ja="hand count Blade test",
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice=None,
+        actions=[
+            {
+                "action_type": "gain_blade",
+                "amount_source": "own_hand_count_divided_by",
+                "value": {"divisor": 2},
+            }
+        ],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    hand_ids = [f"hand-card-{index}" for index in range(5)]
+    for instance_id in hand_ids:
+        state.cards[instance_id] = state.cards["deck-member-1"].model_copy(
+            deep=True,
+            update={"instance_id": instance_id},
+        )
+    state.players["player_1"].hand = hand_ids
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    assert [
+        (modifier.modifier_type, modifier.amount, modifier.target_card_instance_id)
+        for modifier in resolved.players["player_1"].manual_modifiers
+    ] == [("blade", 2, "source-live")]
+
+
+def test_operation_condition_can_gate_success_live_work_extra_draw():
+    effect = EffectDefinition(
+        effect_id="test-success-love-live-extra-draw:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="d" * 64,
+        effect_index=1,
+        label_ja="success live extra draw test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice=None,
+        actions=[
+            {"action_type": "draw_card", "amount": 1},
+            {
+                "action_type": "draw_card",
+                "amount": 1,
+                "value": {
+                    "condition": {
+                        "success_live_work_count_at_least": {
+                            "work_key": "love_live",
+                            "count": 1,
+                        }
+                    }
+                },
+            },
+        ],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    state.cards["source-live"].card.work_keys = ["love_live"]
+    with_success = state.model_copy(deep=True)
+    with_success.players["player_1"].success_live_area = ["source-live"]
+
+    without_success = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    with_success = _apply_direct(
+        with_success,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    assert without_success.players["player_1"].hand == ["deck-live-1"]
+    assert with_success.players["player_1"].hand == ["deck-live-1", "deck-member-1"]
+
+
+def test_no_excess_heart_condition_modifies_score_only_without_remaining_heart():
+    effect = EffectDefinition(
+        effect_id="test-no-excess-score:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="r" * 64,
+        effect_index=1,
+        label_ja="no excess Heart score test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={"own_excess_heart_count_at_most": 0},
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "modify_score", "amount": 1}],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    state.players["player_1"].live_result.live_allocations = [
+        {"remaining_hearts": {}, "remaining_all_color_hearts": 0}
+    ]
+    excess = state.model_copy(deep=True)
+    excess.players["player_1"].live_result.live_allocations = [
+        {"remaining_hearts": {"heart01": 1}, "remaining_all_color_hearts": 0}
+    ]
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    assert any(
+        modifier.modifier_type == "score" and modifier.amount == 1
+        for modifier in resolved.players["player_1"].manual_modifiers
+    )
+    with pytest.raises(Exception, match="excess_heart_count_too_high"):
+        _apply_direct(
+            excess,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+
+def test_excess_heart_color_condition_controls_draw():
+    effect = EffectDefinition(
+        effect_id="test-excess-heart01-draw:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="x" * 64,
+        effect_index=1,
+        label_ja="excess heart01 draw test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={
+            "own_excess_heart_color_count_at_least": {
+                "color_slot": "heart01",
+                "count": 1,
+            }
+        },
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "draw_card", "amount": 1}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    state.players["player_1"].live_result.live_allocations = [
+        {"remaining_hearts": {"heart01": 1}, "remaining_all_color_hearts": 0}
+    ]
+    wrong_color = state.model_copy(deep=True)
+    wrong_color.players["player_1"].live_result.live_allocations = [
+        {"remaining_hearts": {"heart04": 1}, "remaining_all_color_hearts": 0}
+    ]
+
+    with pytest.raises(Exception, match="excess_heart_color_count_too_low"):
+        _apply_direct(
+            wrong_color,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    assert resolved.players["player_1"].hand == ["deck-live-1"]
+
+
+def test_wait_stage_member_count_amount_source_modifies_score():
+    effect = EffectDefinition(
+        effect_id="test-wait-stage-member-count-score:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="z" * 64,
+        effect_index=1,
+        label_ja="wait stage member count score test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice=None,
+        actions=[
+            {
+                "action_type": "modify_score",
+                "amount_source": "own_wait_stage_member_count",
+            }
+        ],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    for index, slot in enumerate(["left", "right"], start=1):
+        instance_id = f"wait-member-{index}"
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code=f"TEST-WAIT-MEMBER-{index}",
+                card_id=f"TEST-WAIT-MEMBER-{index}",
+                name_ja=f"ウェイトメンバー{index}",
+                card_type="member",
+                blade=1,
+                basic_hearts={"heart01": 1},
+            ),
+            orientation="wait",
+        )
+        state.players["player_1"].member_area[slot] = instance_id
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    assert any(
+        modifier.modifier_type == "score" and modifier.amount == 2
+        for modifier in resolved.players["player_1"].manual_modifiers
+    )
+
+
+def test_extra_heart_stage_member_condition_controls_draw():
+    effect = EffectDefinition(
+        effect_id="test-extra-heart-stage-member-draw:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="0" * 64,
+        effect_index=1,
+        label_ja="extra heart stage member draw test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={
+            "own_stage_member_more_than_original_heart_count_at_least": {"count": 1}
+        },
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "draw_card", "amount": 1}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    state.cards["stage-member"] = CardInstance(
+        instance_id="stage-member",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="TEST-HEART-MEMBER",
+            card_id="TEST-HEART-MEMBER",
+            name_ja="ハートメンバー",
+            card_type="member",
+            blade=1,
+            basic_hearts={"heart01": 1},
+        ),
+    )
+    state.players["player_1"].member_area["center"] = "stage-member"
+    boosted = state.model_copy(deep=True)
+    boosted.players["player_1"].manual_modifiers.append(
+        ManualModifier(
+            modifier_id="test-heart-plus",
+            modifier_type="heart",
+            amount=1,
+            color_slot="heart02",
+            target_card_instance_id="stage-member",
+            duration="live",
+            created_turn=state.turn_number,
+        )
+    )
+
+    with pytest.raises(Exception, match="stage_member_more_than_original_heart_count_too_low"):
+        _apply_direct(
+            state,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+    resolved = _apply_direct(
+        boosted,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    assert resolved.players["player_1"].hand == ["deck-live-1"]
+
+
+def test_clear_excess_heart_operation_consumes_remaining_heart_then_scores():
+    effect = EffectDefinition(
+        effect_id="test-clear-excess-score:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="u" * 64,
+        effect_index=1,
+        label_ja="clear excess Heart score test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={"own_excess_heart_count_at_least": 3},
+        cost=[],
+        choice=None,
+        actions=[
+            {"action_type": "clear_excess_hearts"},
+            {"action_type": "modify_score", "amount": 1},
+        ],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    state.players["player_1"].live_result.live_allocations = [
+        {
+            "remaining_hearts": {"heart01": 2},
+            "remaining_all_color_hearts": 1,
+        }
+    ]
+    low_excess = state.model_copy(deep=True)
+    low_excess.players["player_1"].live_result.live_allocations = [
+        {
+            "remaining_hearts": {"heart01": 1},
+            "remaining_all_color_hearts": 1,
+        }
+    ]
+
+    with pytest.raises(Exception, match="excess_heart_count_too_low"):
+        _apply_direct(
+            low_excess,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    allocation = resolved.players["player_1"].live_result.live_allocations[-1]
+    assert allocation["remaining_hearts"] == {}
+    assert allocation["remaining_all_color_hearts"] == 0
+    assert any(
+        modifier.modifier_type == "score" and modifier.amount == 1
+        for modifier in resolved.players["player_1"].manual_modifiers
+    )
+
+
+def test_excess_heart_color_and_stage_work_condition_places_wait_energy():
+    effect = EffectDefinition(
+        effect_id="test-excess-heart04-nijigasaki-energy:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="y" * 64,
+        effect_index=1,
+        label_ja="excess heart04 nijigasaki wait energy test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={
+            "own_excess_heart_color_count_at_least": {
+                "color_slot": "heart04",
+                "count": 1,
+            },
+            "own_stage_member_work_count_at_least": {
+                "work_key": "nijigasaki",
+                "count": 1,
+            },
+            "minimum_energy_deck_cards": 1,
+        },
+        cost=[],
+        choice=None,
+        actions=[
+            {
+                "action_type": "place_energy_from_deck",
+                "target": "self",
+                "amount": 1,
+                "orientation": "wait",
+            }
+        ],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    state.cards["stage-member"] = CardInstance(
+        instance_id="stage-member",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="TEST-NIJIGASAKI-MEMBER",
+            card_id="TEST-NIJIGASAKI-MEMBER",
+            name_ja="虹ヶ咲メンバー",
+            card_type="member",
+            work_keys=["nijigasaki"],
+            blade=1,
+            basic_hearts={"heart01": 1},
+        ),
+    )
+    state.players["player_1"].member_area["center"] = "stage-member"
+    state.players["player_1"].live_result.live_allocations = [
+        {"remaining_hearts": {"heart04": 1}, "remaining_all_color_hearts": 0}
+    ]
+    state.cards["energy-1"] = CardInstance(
+        instance_id="energy-1",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="TEST-ENERGY",
+            card_id="TEST-ENERGY",
+            name_ja="テストエネルギー",
+            card_type="energy",
+        ),
+    )
+    state.players["player_1"].energy_deck = ["energy-1"]
+    no_stage = state.model_copy(deep=True)
+    no_stage.cards["stage-member"].card.work_keys = []
+
+    with pytest.raises(Exception, match="stage_member_work_count_too_low"):
+        _apply_direct(
+            no_stage,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    assert resolved.players["player_1"].energy_deck == []
+    assert resolved.players["player_1"].energy_area == ["energy-1"]
+    assert resolved.cards["energy-1"].orientation == "wait"
+
+
+def test_clear_opponent_excess_heart_count_can_gate_score_modifier():
+    effect = EffectDefinition(
+        effect_id="test-clear-opponent-excess-score:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="w" * 64,
+        effect_index=1,
+        label_ja="clear opponent excess Heart score test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice=None,
+        actions=[
+            {"action_type": "clear_excess_hearts", "target": "opponent"},
+            {
+                "action_type": "modify_score",
+                "amount": 1,
+                "value": {
+                    "condition": {"last_cleared_excess_heart_count_at_least": 2}
+                },
+            },
+        ],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    state.players["player_2"].live_result.live_allocations = [
+        {"remaining_hearts": {"heart01": 1}, "remaining_all_color_hearts": 1}
+    ]
+    low_excess = state.model_copy(deep=True)
+    low_excess.players["player_2"].live_result.live_allocations = [
+        {"remaining_hearts": {"heart01": 1}, "remaining_all_color_hearts": 0}
+    ]
+
+    low_resolved = _apply_direct(
+        low_excess,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    low_allocation = low_resolved.players["player_2"].live_result.live_allocations[-1]
+    allocation = resolved.players["player_2"].live_result.live_allocations[-1]
+    assert low_allocation["remaining_hearts"] == {}
+    assert low_allocation["remaining_all_color_hearts"] == 0
+    assert allocation["remaining_hearts"] == {}
+    assert allocation["remaining_all_color_hearts"] == 0
+    assert not any(
+        modifier.modifier_type == "score"
+        for modifier in low_resolved.players["player_1"].manual_modifiers
+    )
+    assert any(
+        modifier.modifier_type == "score" and modifier.amount == 1
+        for modifier in resolved.players["player_1"].manual_modifiers
+        )
+
+
+def test_yell_revealed_card_count_less_than_opponent_controls_draw():
+    effect = EffectDefinition(
+        effect_id="test-yell-revealed-count-less-draw:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="1" * 64,
+        effect_index=1,
+        label_ja="fewer yell revealed cards draw test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={"yell_revealed_card_count_less_than_opponent": True},
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "draw_card", "amount": 1}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    for instance_id, owner_id in [
+        ("own-revealed", "player_1"),
+        ("opp-revealed-1", "player_2"),
+        ("opp-revealed-2", "player_2"),
+    ]:
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id=owner_id,
+            card=state.cards["live-1"].card.model_copy(deep=True),
+        )
+    state.players["player_1"].live_result.revealed_instance_ids = ["own-revealed"]
+    state.players["player_2"].live_result.revealed_instance_ids = [
+        "opp-revealed-1",
+        "opp-revealed-2",
+    ]
+    blocked = state.model_copy(deep=True)
+    blocked.players["player_1"].live_result.revealed_instance_ids.append(
+        "deck-live-1"
+    )
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    assert resolved.players["player_1"].hand == ["deck-live-1"]
+    with pytest.raises(
+        Exception, match="yell_revealed_card_count_not_less_than_opponent"
+    ):
+        _apply_direct(
+            blocked,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+
+def test_live_success_revealed_card_choices_filter_by_score_cost_and_work():
+    equal_score_effect = EffectDefinition(
+        effect_id="test-equal-score-cost9-member:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="2" * 64,
+        effect_index=1,
+        label_ja="equal score cost9 member test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={"live_score_relation": "equal_to_opponent"},
+        cost=[],
+        choice={
+            "choice_type": "card_from_zone",
+            "zone": "resolution_area",
+            "card_type": "member",
+            "minimum_cost": 9,
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[{"action_type": "move_selected_to_hand"}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(equal_score_effect)
+    state.players["player_1"].live_result.total_score = 3
+    state.players["player_2"].live_result.total_score = 3
+    for instance_id, cost in [("low-member", 8), ("high-member", 9)]:
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code=f"TEST-{instance_id}",
+                card_id=f"TEST-{instance_id}",
+                name_ja=instance_id,
+                card_type="member",
+                cost=cost,
+                blade=1,
+                basic_hearts={"heart01": 1},
+            ),
+        )
+    state.players["player_1"].resolution_area = ["low-member", "high-member"]
+
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["candidate_card_instance_ids"] == ["high-member"]
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["high-member"],
+        },
+    )
+    assert "high-member" in resolved.players["player_1"].hand
+    assert "low-member" in resolved.players["player_1"].resolution_area
+
+    work_payload = equal_score_effect.model_dump(mode="python")
+    work_payload.update(
+        {
+            "effect_id": "test-higher-score-nijigasaki:1",
+            "condition": {"live_score_relation": "greater_than_opponent"},
+            "choice": {
+                "choice_type": "card_from_zone",
+                "zone": "resolution_area",
+                "work_key": "nijigasaki",
+                "minimum": 1,
+                "maximum": 1,
+            },
+        },
+    )
+    work_effect = EffectDefinition.model_validate(work_payload)
+    work_state = _minimal_effect_state(work_effect)
+    work_state.players["player_1"].live_result.total_score = 4
+    work_state.players["player_2"].live_result.total_score = 3
+    for instance_id, work_keys in [
+        ("other-card", ["love_live"]),
+        ("nijigasaki-card", ["nijigasaki"]),
+    ]:
+        work_state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code=f"TEST-{instance_id}",
+                card_id=f"TEST-{instance_id}",
+                name_ja=instance_id,
+                card_type="member",
+                work_keys=work_keys,
+                blade=1,
+                basic_hearts={"heart01": 1},
+            ),
+        )
+    work_state.players["player_1"].resolution_area = [
+        "other-card",
+        "nijigasaki-card",
+    ]
+    options = generate_legal_actions(work_state)[0].options["invocations"][0]
+    assert options["candidate_card_instance_ids"] == ["nijigasaki-card"]
+
+
+def test_live_success_discard_cost_recovers_cost2_member_or_score2_live():
+    effect = EffectDefinition(
+        effect_id="test-discard-revealed-cost2-or-score2:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="h" * 64,
+        effect_index=1,
+        label_ja="discard then recover revealed cost2 member or score2 live",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=True,
+        condition={},
+        cost=[{"action_type": "discard_from_hand"}],
+        cost_choice={
+            "choice_type": "card_from_zone",
+            "zone": "hand",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        choice={
+            "choice_type": "card_from_zone",
+            "zone": "resolution_area",
+            "minimum": 1,
+            "maximum": 1,
+            "value": {
+                "card_type_stat_filters": [
+                    {"card_type": "member", "maximum_cost": 2},
+                    {"card_type": "live", "maximum_score": 2},
+                ]
+            },
+        },
+        actions=[{"action_type": "move_selected_to_hand"}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    discard = "discard-card"
+    state.cards[discard] = CardInstance(
+        instance_id=discard,
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="TEST-DISCARD",
+            card_id="TEST-DISCARD",
+            name_ja="discard",
+            card_type="member",
+        ),
+    )
+    state.players["player_1"].hand.append(discard)
+    revealed_cards = {
+        "cost2-member": CardDefinition(
+            card_code="TEST-COST2",
+            card_id="TEST-COST2",
+            name_ja="cost2",
+            card_type="member",
+            cost=2,
+        ),
+        "cost3-member": CardDefinition(
+            card_code="TEST-COST3",
+            card_id="TEST-COST3",
+            name_ja="cost3",
+            card_type="member",
+            cost=3,
+        ),
+        "score2-live": CardDefinition(
+            card_code="TEST-SCORE2",
+            card_id="TEST-SCORE2",
+            name_ja="score2",
+            card_type="live",
+            score=2,
+        ),
+        "score3-live": CardDefinition(
+            card_code="TEST-SCORE3",
+            card_id="TEST-SCORE3",
+            name_ja="score3",
+            card_type="live",
+            score=3,
+        ),
+    }
+    for instance_id, card in revealed_cards.items():
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=card,
+            face_up=True,
+        )
+    state.players["player_1"].resolution_area = list(revealed_cards)
+
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["cost_choice"]["zone"] == "hand"
+    assert discard in options["candidate_card_instance_ids"]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "accepted": True,
+            "selected_card_instance_ids": [discard],
+        },
+    )
+    assert discard in state.players["player_1"].waiting_room
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["candidate_card_instance_ids"] == ["cost2-member", "score2-live"]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["score2-live"],
+        },
+    )
+    assert "score2-live" in state.players["player_1"].hand
+    assert "score2-live" not in state.players["player_1"].resolution_area
+    assert "cost3-member" in state.players["player_1"].resolution_area
+    assert "score3-live" in state.players["player_1"].resolution_area
+
+
+def test_excess_heart_draw2_discard1_uses_post_action_hand_choice():
+    effect = EffectDefinition(
+        effect_id="test-excess-heart-draw2-discard1:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="3" * 64,
+        effect_index=1,
+        label_ja="excess heart draw2 discard1 test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={"own_excess_heart_count_at_least": 1},
+        cost=[],
+        choice={
+            "choice_type": "post_action_card_from_zone",
+            "zone": "hand",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[
+            {"action_type": "draw_card", "amount": 2},
+            {"action_type": "discard_from_hand"},
+        ],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    state.players["player_1"].live_result.live_allocations = [
+        {"remaining_hearts": {"heart01": 1}, "remaining_all_color_hearts": 0}
+    ]
+    blocked = state.model_copy(deep=True)
+    blocked.players["player_1"].live_result.live_allocations = [
+        {"remaining_hearts": {}, "remaining_all_color_hearts": 0}
+    ]
+
+    with pytest.raises(Exception, match="excess_heart_count_too_low"):
+        _apply_direct(
+            blocked,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    assert state.pending_effects[0].resolution_stage == "after_cost"
+    assert state.players["player_1"].hand == ["deck-live-1", "deck-member-1"]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["deck-member-1"],
+        },
+    )
+    assert "deck-member-1" in state.players["player_1"].waiting_room
+    assert state.players["player_1"].hand == ["deck-live-1"]
+
+
+def test_yell_revealed_member_without_blade_heart_draws_then_discards():
+    effect = EffectDefinition(
+        effect_id="test-revealed-muse-without-blade-heart:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="3" * 64,
+        effect_index=1,
+        label_ja="revealed muse member without Blade Heart draw discard",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={
+            "own_yell_revealed_member_without_blade_heart_count_at_least": {
+                "work_key": "love_live",
+                "count": 1,
+            }
+        },
+        cost=[],
+        choice={
+            "choice_type": "post_action_card_from_zone",
+            "zone": "hand",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[
+            {"action_type": "draw_card", "amount": 1},
+            {"action_type": "discard_from_hand"},
+        ],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="unit test",
+    )
+    state = _minimal_effect_state(effect)
+    state.cards["revealed-muse"] = CardInstance(
+        instance_id="revealed-muse",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="TEST-MUSE",
+            card_id="TEST-MUSE",
+            name_ja="Muse Member",
+            card_type="member",
+            work_keys=["love_live"],
+        ),
+    )
+    state.players["player_1"].live_result.revealed_instance_ids = ["revealed-muse"]
+
+    blocked = state.model_copy(deep=True)
+    blocked.cards["revealed-muse"].card.blade_heart_color_slot = "heart01"
+    with pytest.raises(
+        Exception,
+        match="yell_revealed_member_without_blade_heart_count_too_low",
+    ):
+        _apply_direct(
+            blocked,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    assert state.pending_effects[0].resolution_stage == "after_cost"
+    assert state.players["player_1"].hand == ["deck-live-1"]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["deck-live-1"],
+        },
+    )
+    assert "deck-live-1" in state.players["player_1"].waiting_room
+    assert not state.players["player_1"].hand
+
+
+def test_source_score_exact_condition_returns_waiting_room_work_card():
+    effect = EffectDefinition(
+        effect_id="test-source-score3-return-work:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="4" * 64,
+        effect_index=1,
+        label_ja="source score return work test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={"source_score_exact": 3},
+        cost=[],
+        choice={
+            "choice_type": "card_from_zone",
+            "zone": "waiting_room",
+            "work_key": "nijigasaki",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[{"action_type": "return_from_waiting_room"}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    state.cards["source-live"].card.score = 3
+    state.cards["target-card"] = CardInstance(
+        instance_id="target-card",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="TEST-NIJIGASAKI",
+            card_id="TEST-NIJIGASAKI",
+            name_ja="虹ヶ咲カード",
+            card_type="member",
+            work_keys=["nijigasaki"],
+            blade=1,
+            basic_hearts={"heart01": 1},
+        ),
+    )
+    state.players["player_1"].waiting_room = ["target-card"]
+    blocked = state.model_copy(deep=True)
+    blocked.cards["source-live"].card.score = 2
+
+    with pytest.raises(Exception, match="source_score_mismatch"):
+        _apply_direct(
+            blocked,
+            "resolve_effect",
+            player_id="player_1",
+            payload={
+                "invocation_id": "inv-1",
+                "selected_card_instance_ids": ["target-card"],
+            },
+        )
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["target-card"],
+        },
+    )
+    assert "target-card" in resolved.players["player_1"].hand
+
+
+def test_other_stage_member_condition_waits_source_member():
+    effect = EffectDefinition(
+        effect_id="test-other-stage-member-wait-source:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="5" * 64,
+        effect_index=1,
+        label_ja="other stage member wait source test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={
+            "source_orientation": "active",
+            "own_stage_member_count_at_least": 2,
+        },
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "apply_wait"}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    member = CardDefinition(
+        card_code="TEST-SOURCE-MEMBER",
+        card_id="TEST-SOURCE-MEMBER",
+        name_ja="source member",
+        card_type="member",
+        blade=1,
+        basic_hearts={"heart01": 1},
+    )
+    state.cards["source-live"].card = member
+    state.players["player_1"].member_area["center"] = "source-live"
+    state.cards["other-member"] = CardInstance(
+        instance_id="other-member",
+        owner_id="player_1",
+        card=member.model_copy(update={"card_code": "TEST-OTHER"}),
+    )
+    state.players["player_1"].member_area["left"] = "other-member"
+    blocked = state.model_copy(deep=True)
+    blocked.players["player_1"].member_area["left"] = None
+
+    with pytest.raises(Exception, match="stage_member_count_too_low"):
+        _apply_direct(
+            blocked,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    assert resolved.cards["source-live"].orientation == "wait"
+
+
+def test_bibi_distinct_stage_condition_returns_bibi_member():
+    effect = EffectDefinition(
+        effect_id="test-bibi-distinct-return:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="6" * 64,
+        effect_index=1,
+        label_ja="bibi distinct return test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={
+            "own_stage_member_unit_distinct_name_count_at_least": {
+                "unit_key": "bibi",
+                "count": 2,
+            }
+        },
+        cost=[],
+        choice={
+            "choice_type": "card_from_zone",
+            "zone": "waiting_room",
+            "card_type": "member",
+            "unit_key": "bibi",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[{"action_type": "return_from_waiting_room"}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    for slot, name in [("left", "絢瀬絵里"), ("right", "西木野真姫")]:
+        instance_id = f"bibi-{slot}"
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code=f"TEST-BIBI-{slot}",
+                card_id=f"TEST-BIBI-{slot}",
+                name_ja=name,
+                card_type="member",
+                unit_keys=["bibi"],
+                blade=1,
+                basic_hearts={"heart01": 1},
+            ),
+        )
+        state.players["player_1"].member_area[slot] = instance_id
+    state.cards["waiting-bibi"] = CardInstance(
+        instance_id="waiting-bibi",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="TEST-WAITING-BIBI",
+            card_id="TEST-WAITING-BIBI",
+            name_ja="矢澤にこ",
+            card_type="member",
+            unit_keys=["bibi"],
+            blade=1,
+            basic_hearts={"heart01": 1},
+        ),
+    )
+    state.players["player_1"].waiting_room = ["waiting-bibi"]
+    blocked = state.model_copy(deep=True)
+    blocked.cards["bibi-right"].card.name_ja = "絢瀬絵里"
+
+    with pytest.raises(Exception, match="stage_unit_distinct_name_count_too_low"):
+        _apply_direct(
+            blocked,
+            "resolve_effect",
+            player_id="player_1",
+            payload={
+                "invocation_id": "inv-1",
+                "selected_card_instance_ids": ["waiting-bibi"],
+            },
+        )
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["waiting-bibi"],
+        },
+    )
+    assert "waiting-bibi" in resolved.players["player_1"].hand
+
+
+def test_source_blade_condition_draw2_discard1_uses_post_action_choice():
+    effect = EffectDefinition(
+        effect_id="test-source-blade8-draw2-discard1:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="7" * 64,
+        effect_index=1,
+        label_ja="source blade draw2 discard1 test",
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={"source_blade_at_least": 8},
+        cost=[],
+        choice={
+            "choice_type": "post_action_card_from_zone",
+            "zone": "hand",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[
+            {"action_type": "draw_card", "amount": 2},
+            {"action_type": "discard_from_hand"},
+        ],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    state.cards["source-live"].card = CardDefinition(
+        card_code="TEST-BLADE-MEMBER",
+        card_id="TEST-BLADE-MEMBER",
+        name_ja="blade member",
+        card_type="member",
+        blade=8,
+        basic_hearts={"heart01": 1},
+    )
+    blocked = state.model_copy(deep=True)
+    blocked.cards["source-live"].card.blade = 7
+
+    with pytest.raises(Exception, match="source_blade_too_low"):
+        _apply_direct(
+            blocked,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    assert state.pending_effects[0].resolution_stage == "after_cost"
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["deck-live-1"],
+        },
+    )
+    assert "deck-live-1" in state.players["player_1"].waiting_room
+
+
+def test_waiting_room_work_count_condition_modifies_score():
+    effect = EffectDefinition(
+        effect_id="test-waiting-work25-score:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="8" * 64,
+        effect_index=1,
+        label_ja="waiting work count score test",
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={
+            "waiting_room_work_count_at_least": {
+                "work_key": "love_live",
+                "count": 25,
+            }
+        },
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "modify_score", "amount": 1}],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    waiting_ids: list[str] = []
+    for index in range(25):
+        instance_id = f"waiting-muse-{index}"
+        waiting_ids.append(instance_id)
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code=f"TEST-MUSE-{index}",
+                card_id=f"TEST-MUSE-{index}",
+                name_ja=f"μ's {index}",
+                card_type="member",
+                work_keys=["love_live"],
+                blade=1,
+                basic_hearts={"heart01": 1},
+            ),
+        )
+    state.players["player_1"].waiting_room = waiting_ids
+    blocked = state.model_copy(deep=True)
+    blocked.players["player_1"].waiting_room = waiting_ids[:-1]
+
+    with pytest.raises(Exception, match="waiting_room_work_count_too_low"):
+        _apply_direct(
+            blocked,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    assert any(
+        modifier.modifier_type == "score" and modifier.amount == 1
+        for modifier in resolved.players["player_1"].manual_modifiers
+    )
+
+
+def test_stage_total_heart_more_than_opponent_condition_modifies_score():
+    effect = EffectDefinition(
+        effect_id="test-stage-heart-more-score:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="9" * 64,
+        effect_index=1,
+        label_ja="stage total heart more score test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={"own_stage_total_heart_more_than_opponent": True},
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "modify_score", "amount": 1}],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    for player_id, instance_id, hearts in [
+        ("player_1", "own-heart-member", {"heart01": 2}),
+        ("player_2", "opp-heart-member", {"heart01": 1}),
+    ]:
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id=player_id,
+            card=CardDefinition(
+                card_code=f"TEST-{instance_id}",
+                card_id=f"TEST-{instance_id}",
+                name_ja=instance_id,
+                card_type="member",
+                blade=1,
+                basic_hearts=hearts,
+            ),
+        )
+        state.players[player_id].member_area["center"] = instance_id
+    blocked = state.model_copy(deep=True)
+    blocked.cards["opp-heart-member"].card.basic_hearts = {"heart01": 2}
+
+    with pytest.raises(
+        Exception, match="stage_total_heart_count_not_higher_than_opponent"
+    ):
+        _apply_direct(
+            blocked,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    assert any(
+        modifier.modifier_type == "score" and modifier.amount == 1
+        for modifier in resolved.players["player_1"].manual_modifiers
+    )
+
+
+def test_live_success_can_take_yell_revealed_members_when_any_success_count2():
+    effect = EffectDefinition(
+        effect_id="test-yell-revealed-members-to-hand:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="v" * 64,
+        effect_index=1,
+        label_ja="yell revealed members to hand test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={"any_success_live_count_at_least": 2},
+        cost=[],
+        choice={
+            "choice_type": "card_from_zone",
+            "zone": "resolution_area",
+            "card_type": "member",
+            "minimum": 0,
+            "maximum": 2,
+        },
+        actions=[{"action_type": "move_selected_to_hand"}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    member = CardDefinition(
+        card_code="TEST-MEMBER-REVEALED",
+        card_id="TEST-MEMBER-REVEALED",
+        name_ja="公開メンバー",
+        card_type="member",
+    )
+    live = state.cards["live-1"].card
+    for instance_id in ("revealed-member-1", "revealed-member-2", "revealed-live"):
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=member if "member" in instance_id else live.model_copy(deep=True),
+        )
+        state.players["player_1"].resolution_area.append(instance_id)
+    state.players["player_1"].live_result.revealed_instance_ids = [
+        "revealed-member-1",
+        "revealed-member-2",
+        "revealed-live",
+    ]
+    low_success = state.model_copy(deep=True)
+    for instance_id in ("opp-success-1", "opp-success-2"):
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_2",
+            card=live.model_copy(deep=True),
+        )
+        state.players["player_2"].success_live_area.append(instance_id)
+
+    with pytest.raises(Exception, match="any_success_live_count_too_low"):
+        _apply_direct(
+            low_success,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["candidate_card_instance_ids"] == [
+        "revealed-member-1",
+        "revealed-member-2",
+    ]
+    assert "revealed-live" not in options["candidate_card_instance_ids"]
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": [
+                "revealed-member-1",
+                "revealed-member-2",
+            ],
+        },
+    )
+
+    player = resolved.players["player_1"]
+    assert player.hand[-2:] == ["revealed-member-1", "revealed-member-2"]
+    assert "revealed-member-1" not in player.resolution_area
+    assert "revealed-member-2" not in player.resolution_area
+    assert "revealed-live" in player.resolution_area
+
+
+def test_stage_member_choice_can_filter_by_effective_blade_count():
+    effect = EffectDefinition(
+        effect_id="test-minimum-blade-choice:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="s" * 64,
+        effect_index=1,
+        label_ja="minimum Blade choice test",
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice={
+            "choice_type": "member_from_stage",
+            "zone": "stage",
+            "card_type": "member",
+            "work_key": "love_live_sunshine",
+            "minimum_blade": 6,
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[{"action_type": "modify_score", "amount": 1}],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    high_member = CardDefinition(
+        card_code="TEST-HIGH-BLADE-AQOURS",
+        card_id="TEST-HIGH-BLADE-AQOURS",
+        name_ja="high Blade Aqours",
+        card_type="member",
+        blade=6,
+        work_keys=["love_live_sunshine"],
+    )
+    low_member = CardDefinition(
+        card_code="TEST-LOW-BLADE-AQOURS",
+        card_id="TEST-LOW-BLADE-AQOURS",
+        name_ja="low Blade Aqours",
+        card_type="member",
+        blade=5,
+        work_keys=["love_live_sunshine"],
+    )
+    state.cards["high-blade-member"] = CardInstance(
+        instance_id="high-blade-member",
+        owner_id="player_1",
+        card=high_member,
+    )
+    state.cards["low-blade-member"] = CardInstance(
+        instance_id="low-blade-member",
+        owner_id="player_1",
+        card=low_member,
+    )
+    state.players["player_1"].member_area["left"] = "low-blade-member"
+    state.players["player_1"].member_area["center"] = "high-blade-member"
+
+    legal = generate_legal_actions(state)
+    options = legal[0].options["invocations"][0]
+    assert options["candidate_card_instance_ids"] == ["high-blade-member"]
+
+    with pytest.raises(Exception, match="effect card selection is not legal"):
+        _apply_direct(
+            state.model_copy(deep=True),
+            "resolve_effect",
+            player_id="player_1",
+            payload={
+                "invocation_id": "inv-1",
+                "selected_card_instance_ids": ["low-blade-member"],
+            },
+        )
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["high-blade-member"],
+        },
+    )
+
+    assert any(
+        modifier.modifier_type == "score" and modifier.amount == 1
+        for modifier in resolved.players["player_1"].manual_modifiers
+    )
+
+
 def test_moved_stage_members_gain_selected_heart_until_live_end():
     state = _minimal_effect_state(
         EffectDefinition(
@@ -2410,6 +8209,53 @@ def test_moved_stage_members_gain_selected_heart_until_live_end():
     assert _member_heart_count(result.state, "player_1", "left-member", "heart02") == 1
     assert _member_heart_count(result.state, "player_1", "center-member", "heart02") == 0
     assert _member_heart_count(result.state, "player_1", "right-member", "heart02") == 1
+
+
+def test_live_start_member_entered_count_condition_modifies_score():
+    effect = EffectDefinition(
+        effect_id="test-member-entered-count-score:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="m" * 64,
+        effect_index=1,
+        label_ja="member entered twice score",
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={"own_member_entered_count_this_turn_at_least": 2},
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "modify_score", "amount": 1}],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="unit test",
+    )
+    state = _minimal_effect_state(effect)
+    state.players["player_1"].member_entered_count_this_turn = 1
+    with pytest.raises(Exception, match="member_entered_count_this_turn_too_low"):
+        _apply_direct(
+            state.model_copy(deep=True),
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+    state.players["player_1"].member_entered_count_this_turn = 2
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    assert [
+        (modifier.modifier_type, modifier.amount)
+        for modifier in resolved.players["player_1"].manual_modifiers
+    ] == [("score", 1)]
 
 
 def test_nijigasaki_stage_heart_color_variety_modifies_score():
@@ -3111,6 +8957,117 @@ def test_ready_energy_then_all_active_score_bonus():
     assert [(item.modifier_type, item.amount) for item in modifiers] == [
         ("score", 1)
     ]
+
+
+def test_onplay_named_stage_ready_energy_then_returns_hasu_live():
+    effect = EffectDefinition.model_validate(
+        {
+            "effect_id": "test-hasu-ready-return-live:1",
+            "card_code": "TEST-MEMBER",
+            "text_revision_id": 1,
+            "raw_text_hash": "h" * 64,
+            "effect_index": 1,
+            "label_ja": "named Hasunosora ready and return test",
+            "effect_type": "triggered",
+            "timing": "on_play",
+            "trigger": "member_played",
+            "execution_mode": "prompt_then_resolve",
+            "frequency_limit": "none",
+            "is_optional": False,
+            "condition": {
+                "own_stage_member_name_any": ["大沢瑠璃乃", "百生吟子", "徒町小鈴"]
+            },
+            "cost": [],
+            "choice": {
+                "choice_type": "post_action_card_from_zone",
+                "zone": "waiting_room",
+                "card_type": "live",
+                "work_key": "hasunosora",
+                "minimum": 0,
+                "maximum": 1,
+            },
+            "actions": [
+                {"action_type": "ready_energy", "target": "auto", "amount": 1},
+                {"action_type": "return_from_waiting_room"},
+            ],
+            "duration": None,
+            "simulation_support": "test_validated_executable",
+            "review_status": "test_validated",
+            "source_reference": "test fixture",
+        }
+    )
+    state = _minimal_effect_state(effect)
+    player = state.players["player_1"]
+    state.cards["source-live"].card = CardDefinition(
+        card_code="TEST-RURINO",
+        card_id="TEST-RURINO",
+        name_ja="大沢瑠璃乃",
+        card_type="member",
+        work_keys=["hasunosora"],
+    )
+    player.member_area["center"] = "source-live"
+    state.cards["wait-energy"] = CardInstance(
+        instance_id="wait-energy",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="TEST-ENERGY",
+            card_id="TEST-ENERGY",
+            name_ja="テストエネルギー",
+            card_type="energy",
+        ),
+        orientation="wait",
+    )
+    player.energy_area = ["wait-energy"]
+    state.cards["hasu-live"] = CardInstance(
+        instance_id="hasu-live",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="TEST-HASU-LIVE",
+            card_id="TEST-HASU-LIVE",
+            name_ja="蓮ノ空ライブ",
+            card_type="live",
+            work_keys=["hasunosora"],
+        ),
+    )
+    player.waiting_room = ["hasu-live"]
+
+    legal = generate_legal_actions(state)
+    initial_options = legal[0].options["invocations"][0]
+    assert initial_options["candidate_card_instance_ids"] == []
+    with pytest.raises(Exception, match="accepts card selections after its first step"):
+        _apply_direct(
+            state.model_copy(deep=True),
+            "resolve_effect",
+            player_id="player_1",
+            payload={
+                "invocation_id": "inv-1",
+                "selected_card_instance_ids": ["hasu-live"],
+            },
+        )
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    assert state.cards["wait-energy"].orientation == "active"
+    assert state.pending_effects[0].resolution_stage == "after_cost"
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["candidate_card_instance_ids"] == ["hasu-live"]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["hasu-live"],
+        },
+    )
+
+    assert "hasu-live" in state.players["player_1"].hand
+    assert not state.pending_effects
 
 
 def test_registry_hash_mismatch_is_explicit(tmp_path):
@@ -4332,6 +10289,2413 @@ def test_live_start_branch_choice_can_discard_two_hand_cards():
     assert not state.pending_effects
 
 
+def test_branch_choice_can_filter_on_source_orientation_and_auto_ready_energy():
+    effect = EffectDefinition(
+        effect_id="test-wait-or-discard-ready:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="h" * 64,
+        effect_index=1,
+        label_ja="wait or discard ready energy",
+        effect_type="activated",
+        timing="activated_main",
+        trigger="player_activation",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_turn",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice={
+            "choice_type": "choose_effect_branch",
+            "zone": "hand",
+            "branch_ids": ["wait_source", "discard_hand"],
+            "branch_selection_minimum": {"discard_hand": 1},
+            "branch_selection_maximum": {"discard_hand": 1},
+            "branch_conditions": {"wait_source": {"source_orientation": "active"}},
+        },
+        actions=[
+            {"action_type": "apply_wait", "target": "source", "branch": "wait_source"},
+            {
+                "action_type": "ready_energy",
+                "target": "auto",
+                "amount": 1,
+                "branch": "wait_source",
+            },
+            {
+                "action_type": "ready_energy",
+                "target": "auto",
+                "amount": 1,
+                "branch": "discard_hand",
+            },
+            {"action_type": "discard_from_hand", "branch": "discard_hand"},
+        ],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test fixture",
+    )
+    member = CardDefinition(
+        card_code="TEST-SOURCE",
+        card_id="TEST-SOURCE",
+        name_ja="Source",
+        card_type="member",
+    )
+    energy = CardDefinition(
+        card_code="TEST-ENERGY",
+        card_id="TEST-ENERGY",
+        name_ja="Energy",
+        card_type="energy",
+    )
+    hand_card = member.model_copy(
+        update={"card_code": "TEST-HAND", "card_id": "TEST-HAND"}
+    )
+
+    state = _minimal_effect_state(effect)
+    state.cards["source-member"] = CardInstance(
+        instance_id="source-member",
+        owner_id="player_1",
+        card=member,
+        orientation="active",
+    )
+    state.cards["wait-energy"] = CardInstance(
+        instance_id="wait-energy",
+        owner_id="player_1",
+        card=energy,
+        orientation="wait",
+    )
+    state.cards["hand-card"] = CardInstance(
+        instance_id="hand-card",
+        owner_id="player_1",
+        card=hand_card,
+    )
+    state.players["player_1"].member_area["center"] = "source-member"
+    state.players["player_1"].energy_area = ["wait-energy"]
+    state.players["player_1"].hand = ["hand-card"]
+    state.pending_effects[0].source_card_instance_id = "source-member"
+
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["available_branch_ids"] == ["wait_source", "discard_hand"]
+    waited = _apply_direct(
+        state.model_copy(deep=True),
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1", "selected_branch": "wait_source"},
+    )
+    assert waited.cards["source-member"].orientation == "wait"
+    assert waited.cards["wait-energy"].orientation == "active"
+    assert not waited.pending_effects
+
+    state.cards["source-member"].orientation = "wait"
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["available_branch_ids"] == ["discard_hand"]
+    with pytest.raises(Exception, match="branch selection is unavailable"):
+        _apply_direct(
+            state.model_copy(deep=True),
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1", "selected_branch": "wait_source"},
+        )
+
+    discard_branch = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1", "selected_branch": "discard_hand"},
+    )
+    assert discard_branch.cards["wait-energy"].orientation == "active"
+    assert discard_branch.pending_effects[0].trigger_data["selected_branch"] == (
+        "discard_hand"
+    )
+    resolved = _apply_direct(
+        discard_branch,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["hand-card"],
+        },
+    )
+    assert "hand-card" in resolved.players["player_1"].waiting_room
+    assert not resolved.pending_effects
+
+
+def test_onplay_branch_choice_can_mill_or_wait_filtered_opponent_member():
+    effect = EffectDefinition.model_validate(
+        {
+            "effect_id": "test-mill-or-wait:1",
+            "card_code": "TEST-MEMBER",
+            "text_revision_id": 1,
+            "raw_text_hash": "i" * 64,
+            "effect_index": 1,
+            "label_ja": "mill or wait opponent cost2",
+            "effect_type": "triggered",
+            "timing": "on_play",
+            "trigger": "member_played",
+            "execution_mode": "prompt_then_resolve",
+            "frequency_limit": "none",
+            "is_optional": False,
+            "condition": {},
+            "cost": [],
+            "choice": {
+                "choice_type": "choose_effect_branch",
+                "branch_ids": ["mill3", "wait_opponent_cost2"],
+                "branch_selection_minimum": {"wait_opponent_cost2": 1},
+                "branch_selection_maximum": {"wait_opponent_cost2": 1},
+                "branch_choice_filters": {
+                    "wait_opponent_cost2": {
+                        "choice_type": "member_from_stage",
+                        "zone": "stage",
+                        "target_player": "opponent",
+                        "card_type": "member",
+                        "maximum_cost": 2,
+                    }
+                },
+            },
+            "actions": [
+                {"action_type": "mill_top_cards", "amount": 3, "branch": "mill3"},
+                {
+                    "action_type": "apply_wait_member",
+                    "target": "selected",
+                    "branch": "wait_opponent_cost2",
+                },
+            ],
+            "duration": None,
+            "simulation_support": "test_validated_executable",
+            "review_status": "test_validated",
+            "source_reference": "test fixture",
+        }
+    )
+    low_member = CardDefinition(
+        card_code="TEST-LOW-COST",
+        card_id="TEST-LOW-COST",
+        name_ja="Low",
+        card_type="member",
+        cost=2,
+    )
+    high_member = low_member.model_copy(
+        update={"card_code": "TEST-HIGH-COST", "card_id": "TEST-HIGH-COST", "cost": 3}
+    )
+    state = _minimal_effect_state(effect)
+    state.cards["opponent-low"] = CardInstance(
+        instance_id="opponent-low",
+        owner_id="player_2",
+        card=low_member,
+        orientation="active",
+    )
+    state.cards["opponent-high"] = CardInstance(
+        instance_id="opponent-high",
+        owner_id="player_2",
+        card=high_member,
+        orientation="active",
+    )
+    state.players["player_2"].member_area["left"] = "opponent-low"
+    state.players["player_2"].member_area["right"] = "opponent-high"
+
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["available_branch_ids"] == ["mill3", "wait_opponent_cost2"]
+
+    milled = _apply_direct(
+        state.model_copy(deep=True),
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1", "selected_branch": "mill3"},
+    )
+    assert milled.players["player_1"].main_deck == []
+    assert milled.players["player_1"].waiting_room == [
+        "deck-live-1",
+        "deck-member-1",
+        "deck-live-2",
+    ]
+    assert not milled.pending_effects
+
+    pending_wait = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1", "selected_branch": "wait_opponent_cost2"},
+    )
+    wait_options = generate_legal_actions(pending_wait)[0].options["invocations"][0]
+    assert wait_options["candidate_card_instance_ids"] == ["opponent-low"]
+
+    resolved = _apply_direct(
+        pending_wait,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["opponent-low"],
+        },
+    )
+    assert resolved.cards["opponent-low"].orientation == "wait"
+    assert resolved.cards["opponent-high"].orientation == "active"
+    assert not resolved.pending_effects
+
+
+def test_static_opponent_wait_member_amount_source_uses_match_state():
+    blade_effect = EffectDefinition(
+        effect_id="test-static-wait-blade:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="j" * 64,
+        effect_index=1,
+        label_ja="opponent wait blade",
+        effect_type="static",
+        timing="static_always",
+        trigger="static_always",
+        execution_mode="auto_resolve",
+        frequency_limit="none",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice=None,
+        actions=[
+            {
+                "action_type": "gain_blade",
+                "amount_source": "opponent_stage_wait_member_count",
+            }
+        ],
+        duration="game",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test fixture",
+    )
+    heart_effect = EffectDefinition(
+        effect_id="test-static-wait-heart:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="k" * 64,
+        effect_index=2,
+        label_ja="opponent wait heart",
+        effect_type="static",
+        timing="static_always",
+        trigger="static_always",
+        execution_mode="auto_resolve",
+        frequency_limit="none",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice=None,
+        actions=[
+            {
+                "action_type": "gain_heart",
+                "amount_source": "opponent_stage_wait_member_count",
+                "color_slot": "heart06",
+            }
+        ],
+        duration="game",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test fixture",
+    )
+    source_member = CardDefinition(
+        card_code="TEST-SOURCE",
+        card_id="TEST-SOURCE",
+        name_ja="Source",
+        card_type="member",
+        effect_ids=[blade_effect.effect_id, heart_effect.effect_id],
+    )
+    opponent_member = CardDefinition(
+        card_code="TEST-OPPONENT",
+        card_id="TEST-OPPONENT",
+        name_ja="Opponent",
+        card_type="member",
+    )
+    state = _minimal_effect_state(blade_effect)
+    state.effect_definitions = {
+        blade_effect.effect_id: blade_effect,
+        heart_effect.effect_id: heart_effect,
+    }
+    state.cards["source-member"] = CardInstance(
+        instance_id="source-member",
+        owner_id="player_1",
+        card=source_member,
+    )
+    state.players["player_1"].member_area["center"] = "source-member"
+    for slot, orientation in {
+        "left": "wait",
+        "center": "active",
+        "right": "wait",
+    }.items():
+        instance_id = f"opponent-{slot}"
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_2",
+            card=opponent_member,
+            orientation=orientation,
+        )
+        state.players["player_2"].member_area[slot] = instance_id
+
+    assert _static_numeric_bonus(
+        state, "player_1", "source-member", "gain_blade"
+    ) == 2
+    assert _static_heart_bonus(state, "player_1", "source-member")["heart06"] == 2
+
+
+def test_static_stage_and_success_amount_sources_use_match_state():
+    effects = [
+        EffectDefinition(
+            effect_id="test-static-unit-count:1",
+            card_code="TEST-MEMBER",
+            text_revision_id=1,
+            raw_text_hash="u" * 64,
+            effect_index=1,
+            label_ja="unit count blade",
+            effect_type="static",
+            timing="static_always",
+            trigger="static_always",
+            execution_mode="auto_resolve",
+            frequency_limit="none",
+            is_optional=False,
+            condition={},
+            cost=[],
+            choice=None,
+            actions=[
+                {
+                    "action_type": "gain_blade",
+                    "amount_source": "own_stage_member_unit_count",
+                    "value": {"unit_key": "miracra_park", "exclude_source": True},
+                }
+            ],
+            duration="game",
+            simulation_support="test_validated_executable",
+            review_status="test_validated",
+            source_reference="test fixture",
+        ),
+        EffectDefinition(
+            effect_id="test-static-filter-count:1",
+            card_code="TEST-MEMBER",
+            text_revision_id=1,
+            raw_text_hash="v" * 64,
+            effect_index=2,
+            label_ja="filtered count blade",
+            effect_type="static",
+            timing="static_always",
+            trigger="static_always",
+            execution_mode="auto_resolve",
+            frequency_limit="none",
+            is_optional=False,
+            condition={},
+            cost=[],
+            choice=None,
+            actions=[
+                {
+                    "action_type": "gain_blade",
+                    "amount_source": "own_stage_member_filter_count",
+                    "multiplier": 2,
+                    "value": {"minimum_cost": 4, "exclude_unit_key": "cerise_bouquet"},
+                }
+            ],
+            duration="game",
+            simulation_support="test_validated_executable",
+            review_status="test_validated",
+            source_reference="test fixture",
+        ),
+        EffectDefinition(
+            effect_id="test-static-opponent-success-lead:1",
+            card_code="TEST-MEMBER",
+            text_revision_id=1,
+            raw_text_hash="w" * 64,
+            effect_index=3,
+            label_ja="opponent success lead blade",
+            effect_type="static",
+            timing="static_always",
+            trigger="static_always",
+            execution_mode="auto_resolve",
+            frequency_limit="none",
+            is_optional=False,
+            condition={"own_success_live_count_less_than_opponent": True},
+            cost=[],
+            choice=None,
+            actions=[
+                {
+                    "action_type": "gain_blade",
+                    "amount_source": "opponent_success_live_count_difference",
+                }
+            ],
+            duration="game",
+            simulation_support="test_validated_executable",
+            review_status="test_validated",
+            source_reference="test fixture",
+        ),
+        EffectDefinition(
+            effect_id="test-static-other-edel:1",
+            card_code="TEST-MEMBER",
+            text_revision_id=1,
+            raw_text_hash="x" * 64,
+            effect_index=4,
+            label_ja="other edel blade",
+            effect_type="static",
+            timing="static_always",
+            trigger="static_always",
+            execution_mode="auto_resolve",
+            frequency_limit="none",
+            is_optional=False,
+            condition={
+                "own_stage_other_member_unit_count_at_least": {
+                    "unit_key": "edel_note",
+                    "count": 1,
+                }
+            },
+            cost=[],
+            choice=None,
+            actions=[{"action_type": "gain_blade", "amount": 2}],
+            duration="game",
+            simulation_support="test_validated_executable",
+            review_status="test_validated",
+            source_reference="test fixture",
+        ),
+        EffectDefinition(
+            effect_id="test-static-opponent-excess:1",
+            card_code="TEST-MEMBER",
+            text_revision_id=1,
+            raw_text_hash="y" * 64,
+            effect_index=5,
+            label_ja="opponent excess score",
+            effect_type="static",
+            timing="static_always",
+            trigger="static_always",
+            execution_mode="auto_resolve",
+            frequency_limit="none",
+            is_optional=False,
+            condition={"opponent_excess_heart_count_at_least": 2},
+            cost=[],
+            choice=None,
+            actions=[{"action_type": "modify_score", "amount": 1}],
+            duration="game",
+            simulation_support="test_validated_executable",
+            review_status="test_validated",
+            source_reference="test fixture",
+        ),
+    ]
+    source_member = CardDefinition(
+        card_code="TEST-SOURCE",
+        card_id="TEST-SOURCE",
+        name_ja="Source",
+        card_type="member",
+        cost=3,
+        unit_keys=["miracra_park", "edel_note"],
+        effect_ids=[effect.effect_id for effect in effects],
+    )
+    state = _minimal_effect_state(effects[0])
+    state.effect_definitions = {effect.effect_id: effect for effect in effects}
+    state.cards["source-member"] = CardInstance(
+        instance_id="source-member",
+        owner_id="player_1",
+        card=source_member,
+    )
+    state.players["player_1"].member_area["center"] = "source-member"
+    for slot, cost, unit_keys in [
+        ("left", 5, ["miracra_park", "edel_note"]),
+        ("right", 4, ["dollchestra"]),
+    ]:
+        instance_id = f"own-{slot}"
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code=f"TEST-{slot.upper()}",
+                card_id=f"TEST-{slot.upper()}",
+                name_ja=f"Member {slot}",
+                card_type="member",
+                cost=cost,
+                unit_keys=unit_keys,
+            ),
+        )
+        state.players["player_1"].member_area[slot] = instance_id
+    state.players["player_1"].success_live_area = ["source-live"]
+    for index in range(3):
+        instance_id = f"opponent-success-{index}"
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_2",
+            card=state.cards["source-live"].card.model_copy(deep=True),
+        )
+        state.players["player_2"].success_live_area.append(instance_id)
+    state.players["player_2"].live_result.live_allocations = [
+        {"remaining_hearts": {"heart01": 2}, "remaining_all_color_hearts": 0}
+    ]
+
+    assert _static_numeric_bonus(
+        state, "player_1", "source-member", "gain_blade"
+    ) == 9
+    assert _static_numeric_bonus(
+        state, "player_1", "source-member", "modify_score"
+    ) == 1
+
+    no_excess = state.model_copy(deep=True)
+    no_excess.players["player_2"].live_result.live_allocations = [
+        {"remaining_hearts": {}, "remaining_all_color_hearts": 0}
+    ]
+    assert _static_numeric_bonus(
+        no_excess, "player_1", "source-member", "modify_score"
+    ) == 0
+
+
+def test_static_position_heart_and_live_area_conditions_gate_modifiers():
+    effects = [
+        EffectDefinition(
+            effect_id="test-static-side-blade-score:1",
+            card_code="TEST-MEMBER",
+            text_revision_id=1,
+            raw_text_hash="a" * 64,
+            effect_index=1,
+            label_ja="center side original blade score",
+            effect_type="static",
+            timing="static_always",
+            trigger="static_always",
+            execution_mode="auto_resolve",
+            frequency_limit="none",
+            is_optional=False,
+            condition={
+                "source_slot": "center",
+                "own_side_stage_member_original_blade_exact": 2,
+            },
+            cost=[],
+            choice=None,
+            actions=[{"action_type": "modify_score", "amount": 1}],
+            duration="game",
+            simulation_support="test_validated_executable",
+            review_status="test_validated",
+            source_reference="test fixture",
+        ),
+        EffectDefinition(
+            effect_id="test-static-most-hearts-score:1",
+            card_code="TEST-MEMBER",
+            text_revision_id=1,
+            raw_text_hash="b" * 64,
+            effect_index=2,
+            label_ja="source most stage hearts score",
+            effect_type="static",
+            timing="static_always",
+            trigger="static_always",
+            execution_mode="auto_resolve",
+            frequency_limit="none",
+            is_optional=False,
+            condition={"source_has_most_stage_hearts": True},
+            cost=[],
+            choice=None,
+            actions=[{"action_type": "modify_score", "amount": 1}],
+            duration="game",
+            simulation_support="test_validated_executable",
+            review_status="test_validated",
+            source_reference="test fixture",
+        ),
+        EffectDefinition(
+            effect_id="test-static-center-highest-cost:1",
+            card_code="TEST-MEMBER",
+            text_revision_id=1,
+            raw_text_hash="c" * 64,
+            effect_index=3,
+            label_ja="center highest cost heart",
+            effect_type="static",
+            timing="static_always",
+            trigger="static_always",
+            execution_mode="auto_resolve",
+            frequency_limit="none",
+            is_optional=False,
+            condition={"own_center_member_highest_cost": True},
+            cost=[],
+            choice=None,
+            actions=[
+                {"action_type": "gain_heart", "amount": 1, "color_slot": "heart03"}
+            ],
+            duration="game",
+            simulation_support="test_validated_executable",
+            review_status="test_validated",
+            source_reference="test fixture",
+        ),
+        EffectDefinition(
+            effect_id="test-static-liella-live-required-heart:1",
+            card_code="TEST-MEMBER",
+            text_revision_id=1,
+            raw_text_hash="d" * 64,
+            effect_index=4,
+            label_ja="liella live required heart total heart",
+            effect_type="static",
+            timing="static_always",
+            trigger="static_always",
+            execution_mode="auto_resolve",
+            frequency_limit="none",
+            is_optional=False,
+            condition={
+                "live_area_work_required_heart_total_at_least": {
+                    "work_key": "love_live_superstar",
+                    "count": 8,
+                }
+            },
+            cost=[],
+            choice=None,
+            actions=[
+                {"action_type": "gain_heart", "amount": 1, "color_slot": "heart03"}
+            ],
+            duration="game",
+            simulation_support="test_validated_executable",
+            review_status="test_validated",
+            source_reference="test fixture",
+        ),
+    ]
+    source_member = CardDefinition(
+        card_code="TEST-SOURCE",
+        card_id="TEST-SOURCE",
+        name_ja="Source",
+        card_type="member",
+        cost=5,
+        basic_hearts={"heart01": 3},
+        effect_ids=[effect.effect_id for effect in effects],
+    )
+    state = _minimal_effect_state(effects[0])
+    state.effect_definitions = {effect.effect_id: effect for effect in effects}
+    state.cards["source-member"] = CardInstance(
+        instance_id="source-member",
+        owner_id="player_1",
+        card=source_member,
+    )
+    state.players["player_1"].member_area = {
+        "left": "own-left",
+        "center": "source-member",
+        "right": "own-right",
+    }
+    for slot, cost in [("left", 5), ("right", 4)]:
+        instance_id = f"own-{slot}"
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code=f"TEST-{slot.upper()}",
+                card_id=f"TEST-{slot.upper()}",
+                name_ja=f"Own {slot}",
+                card_type="member",
+                cost=cost,
+                blade=2,
+                basic_hearts={"heart02": 1},
+            ),
+        )
+    for slot, hearts in [("left", 2), ("center", 1), ("right", 0)]:
+        instance_id = f"opp-{slot}"
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_2",
+            card=CardDefinition(
+                card_code=f"TEST-OPP-{slot.upper()}",
+                card_id=f"TEST-OPP-{slot.upper()}",
+                name_ja=f"Opponent {slot}",
+                card_type="member",
+                basic_hearts={"heart01": hearts},
+            ),
+        )
+        state.players["player_2"].member_area[slot] = instance_id
+    state.cards["liella-live"] = CardInstance(
+        instance_id="liella-live",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="TEST-LIELLA-LIVE",
+            card_id="TEST-LIELLA-LIVE",
+            name_ja="Liella Live",
+            card_type="live",
+            work_keys=["love_live_superstar"],
+            required_hearts={"heart01": 4, "heart02": 4},
+        ),
+    )
+    state.players["player_1"].live_area = ["liella-live"]
+
+    assert _static_numeric_bonus(
+        state, "player_1", "source-member", "modify_score"
+    ) == 2
+    assert _static_heart_bonus(state, "player_1", "source-member")["heart03"] == 2
+
+    side_mismatch = state.model_copy(deep=True)
+    side_mismatch.cards["own-right"].card.blade = 3
+    assert _static_numeric_bonus(
+        side_mismatch, "player_1", "source-member", "modify_score"
+    ) == 1
+
+    not_most_hearts = state.model_copy(deep=True)
+    not_most_hearts.cards["opp-left"].card.basic_hearts = {"heart01": 3}
+    assert _static_numeric_bonus(
+        not_most_hearts, "player_1", "source-member", "modify_score"
+    ) == 1
+
+    not_highest_cost = state.model_copy(deep=True)
+    not_highest_cost.cards["own-right"].card.cost = 6
+    assert (
+        _static_heart_bonus(not_highest_cost, "player_1", "source-member")[
+            "heart03"
+        ]
+        == 1
+    )
+
+    no_liella_live = state.model_copy(deep=True)
+    no_liella_live.players["player_1"].live_area = []
+    assert _static_heart_bonus(no_liella_live, "player_1", "source-member")[
+        "heart03"
+    ] == 1
+
+
+def test_static_opposing_movement_and_attachment_conditions_gate_modifiers():
+    effects = [
+        EffectDefinition(
+            effect_id="test-static-opposing-cost-heart:1",
+            card_code="TEST-MEMBER",
+            text_revision_id=1,
+            raw_text_hash="e" * 64,
+            effect_index=1,
+            label_ja="opposing cost heart",
+            effect_type="static",
+            timing="static_always",
+            trigger="static_always",
+            execution_mode="auto_resolve",
+            frequency_limit="none",
+            is_optional=False,
+            condition={"opposing_member_cost_greater_than_source": True},
+            cost=[],
+            choice=None,
+            actions=[
+                {"action_type": "gain_heart", "amount": 1, "color_slot": "heart01"}
+            ],
+            duration="game",
+            simulation_support="test_validated_executable",
+            review_status="test_validated",
+            source_reference="test fixture",
+        ),
+        EffectDefinition(
+            effect_id="test-static-not-moved-blade:1",
+            card_code="TEST-MEMBER",
+            text_revision_id=1,
+            raw_text_hash="f" * 64,
+            effect_index=2,
+            label_ja="not moved blade",
+            effect_type="static",
+            timing="static_always",
+            trigger="static_always",
+            execution_mode="auto_resolve",
+            frequency_limit="none",
+            is_optional=False,
+            condition={"source_not_moved_this_turn": True},
+            cost=[],
+            choice=None,
+            actions=[{"action_type": "gain_blade", "amount": 2}],
+            duration="game",
+            simulation_support="test_validated_executable",
+            review_status="test_validated",
+            source_reference="test fixture",
+        ),
+        EffectDefinition(
+            effect_id="test-static-attached-energy-score:1",
+            card_code="TEST-MEMBER",
+            text_revision_id=1,
+            raw_text_hash="g" * 64,
+            effect_index=3,
+            label_ja="attached energy score",
+            effect_type="static",
+            timing="static_always",
+            trigger="static_always",
+            execution_mode="auto_resolve",
+            frequency_limit="none",
+            is_optional=False,
+            condition={"source_attached_energy_count_at_least": 2},
+            cost=[],
+            choice=None,
+            actions=[{"action_type": "modify_score", "amount": 1}],
+            duration="game",
+            simulation_support="test_validated_executable",
+            review_status="test_validated",
+            source_reference="test fixture",
+        ),
+    ]
+    source_member = CardDefinition(
+        card_code="TEST-SOURCE",
+        card_id="TEST-SOURCE",
+        name_ja="Source",
+        card_type="member",
+        cost=4,
+        effect_ids=[effect.effect_id for effect in effects],
+    )
+    state = _minimal_effect_state(effects[0])
+    state.effect_definitions = {effect.effect_id: effect for effect in effects}
+    state.cards["source-member"] = CardInstance(
+        instance_id="source-member",
+        owner_id="player_1",
+        card=source_member,
+    )
+    state.players["player_1"].member_area["center"] = "source-member"
+    state.cards["opposing-member"] = CardInstance(
+        instance_id="opposing-member",
+        owner_id="player_2",
+        card=CardDefinition(
+            card_code="TEST-OPPOSING",
+            card_id="TEST-OPPOSING",
+            name_ja="Opposing",
+            card_type="member",
+            cost=5,
+        ),
+    )
+    state.players["player_2"].member_area["center"] = "opposing-member"
+    for index in range(2):
+        instance_id = f"attached-energy-{index}"
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code=f"TEST-ENERGY-{index}",
+                card_id=f"TEST-ENERGY-{index}",
+                name_ja=f"Energy {index}",
+                card_type="energy",
+            ),
+        )
+        state.players["player_1"].member_area_attachments["center"].append(
+            instance_id
+        )
+
+    assert _static_heart_bonus(state, "player_1", "source-member")["heart01"] == 1
+    assert _static_numeric_bonus(
+        state, "player_1", "source-member", "gain_blade"
+    ) == 2
+    assert _static_numeric_bonus(
+        state, "player_1", "source-member", "modify_score"
+    ) == 1
+
+    lower_opposing_cost = state.model_copy(deep=True)
+    lower_opposing_cost.cards["opposing-member"].card.cost = 4
+    assert (
+        _static_heart_bonus(lower_opposing_cost, "player_1", "source-member")[
+            "heart01"
+        ]
+        == 0
+    )
+
+    moved_source = state.model_copy(deep=True)
+    moved_source.players["player_1"].member_areas_entered_this_turn = ["center"]
+    assert _static_numeric_bonus(
+        moved_source, "player_1", "source-member", "gain_blade"
+    ) == 0
+
+    one_attached_energy = state.model_copy(deep=True)
+    one_attached_energy.players["player_1"].member_area_attachments["center"] = [
+        "attached-energy-0"
+    ]
+    assert _static_numeric_bonus(
+        one_attached_energy, "player_1", "source-member", "modify_score"
+    ) == 0
+
+
+def test_place_energy_from_deck_can_target_opponent():
+    effect = EffectDefinition(
+        effect_id="test-opponent-energy:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="l" * 64,
+        effect_index=1,
+        label_ja="opponent places wait energy",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice=None,
+        actions=[
+            {
+                "action_type": "place_energy_from_deck",
+                "target": "opponent",
+                "amount": 1,
+                "orientation": "wait",
+            }
+        ],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test fixture",
+    )
+    energy = CardDefinition(
+        card_code="TEST-ENERGY",
+        card_id="TEST-ENERGY",
+        name_ja="Energy",
+        card_type="energy",
+    )
+    state = _minimal_effect_state(effect)
+    state.cards["opponent-energy"] = CardInstance(
+        instance_id="opponent-energy",
+        owner_id="player_2",
+        card=energy,
+        face_up=False,
+    )
+    state.players["player_2"].energy_deck = ["opponent-energy"]
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    assert resolved.players["player_2"].energy_deck == []
+    assert resolved.players["player_2"].energy_area == ["opponent-energy"]
+    assert resolved.cards["opponent-energy"].orientation == "wait"
+
+
+def test_live_start_branch_choice_uses_branch_specific_stage_filters():
+    effect = EffectDefinition.model_validate(
+        {
+            "effect_id": "test-aqours-branch-filter:1",
+            "card_code": "TEST-LIVE",
+            "text_revision_id": 1,
+            "raw_text_hash": "q" * 64,
+            "effect_index": 1,
+            "label_ja": (
+                "【ライブ開始時】自分のステージのセンターエリアにコスト9以上の"
+                "『Aqours』のメンバーがいる場合、以下から1つを選ぶ。 "
+                "・ライブ終了時まで、自分のステージにいるメンバー1人は、"
+                "【ブレード】【ブレード】を得る。 "
+                "・相手のステージにいるコスト4以下のメンバー1人をウェイトにする。"
+            ),
+            "effect_type": "triggered",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "execution_mode": "prompt_then_resolve",
+            "frequency_limit": "once_per_live",
+            "is_optional": False,
+            "condition": {
+                "own_center_member_work_cost_at_least": {
+                    "work_key": "love_live_sunshine",
+                    "count": 9,
+                }
+            },
+            "cost": [],
+            "choice": {
+                "choice_type": "choose_effect_branch",
+                "branch_ids": ["gain_blade", "wait_opponent_cost4"],
+                "branch_selection_minimum": {
+                    "gain_blade": 1,
+                    "wait_opponent_cost4": 1,
+                },
+                "branch_selection_maximum": {
+                    "gain_blade": 1,
+                    "wait_opponent_cost4": 1,
+                },
+                "branch_choice_filters": {
+                    "gain_blade": {
+                        "choice_type": "member_from_stage",
+                        "zone": "stage",
+                        "card_type": "member",
+                        "target_player": "self",
+                    },
+                    "wait_opponent_cost4": {
+                        "choice_type": "member_from_stage",
+                        "zone": "stage",
+                        "card_type": "member",
+                        "target_player": "opponent",
+                        "maximum_cost": 4,
+                    },
+                },
+            },
+            "actions": [
+                {
+                    "action_type": "gain_blade",
+                    "target": "selected",
+                    "amount": 2,
+                    "branch": "gain_blade",
+                },
+                {
+                    "action_type": "apply_wait_member",
+                    "target": "selected",
+                    "branch": "wait_opponent_cost4",
+                },
+            ],
+            "duration": "live",
+            "simulation_support": "test_validated_executable",
+            "review_status": "test_validated",
+            "source_reference": "test fixture",
+        }
+    )
+    aqours_center = CardDefinition(
+        card_code="TEST-AQOURS-CENTER",
+        card_id="TEST-AQOURS-CENTER",
+        name_ja="高海千歌",
+        card_type="member",
+        cost=9,
+        work_keys=["love_live_sunshine"],
+    )
+    own_target = CardDefinition(
+        card_code="TEST-AQOURS-TARGET",
+        card_id="TEST-AQOURS-TARGET",
+        name_ja="桜内梨子",
+        card_type="member",
+        cost=3,
+        work_keys=["love_live_sunshine"],
+    )
+    opponent_cost4 = CardDefinition(
+        card_code="TEST-OPPONENT-COST4",
+        card_id="TEST-OPPONENT-COST4",
+        name_ja="相手コスト4",
+        card_type="member",
+        cost=4,
+    )
+    opponent_cost5 = CardDefinition(
+        card_code="TEST-OPPONENT-COST5",
+        card_id="TEST-OPPONENT-COST5",
+        name_ja="相手コスト5",
+        card_type="member",
+        cost=5,
+    )
+
+    state = _minimal_effect_state(effect)
+    state.cards.update(
+        {
+            "own-center": CardInstance(
+                instance_id="own-center",
+                owner_id="player_1",
+                card=aqours_center,
+            ),
+            "own-target": CardInstance(
+                instance_id="own-target",
+                owner_id="player_1",
+                card=own_target,
+            ),
+            "opp-cost4": CardInstance(
+                instance_id="opp-cost4",
+                owner_id="player_2",
+                card=opponent_cost4,
+            ),
+            "opp-cost5": CardInstance(
+                instance_id="opp-cost5",
+                owner_id="player_2",
+                card=opponent_cost5,
+            ),
+        }
+    )
+    state.players["player_1"].member_area["center"] = "own-center"
+    state.players["player_1"].member_area["left"] = "own-target"
+    state.players["player_2"].member_area["left"] = "opp-cost4"
+    state.players["player_2"].member_area["right"] = "opp-cost5"
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": state.pending_effects[0].invocation_id,
+            "selected_branch": "gain_blade",
+        },
+    )
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["selected_branch"] == "gain_blade"
+    assert options["choice_zone"] == "stage"
+    assert options["target_player"] == "self"
+    assert "own-target" in options["candidate_card_instance_ids"]
+    assert "opp-cost4" not in options["candidate_card_instance_ids"]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": state.pending_effects[0].invocation_id,
+            "selected_card_instance_ids": ["own-target"],
+        },
+    )
+    assert any(
+        modifier.modifier_type == "blade"
+        and modifier.amount == 2
+        and modifier.target_card_instance_id == "own-target"
+        for modifier in state.players["player_1"].manual_modifiers
+    )
+    assert not state.pending_effects
+
+    state = _minimal_effect_state(effect)
+    state.cards.update(
+        {
+            "own-center": CardInstance(
+                instance_id="own-center",
+                owner_id="player_1",
+                card=aqours_center,
+            ),
+            "own-target": CardInstance(
+                instance_id="own-target",
+                owner_id="player_1",
+                card=own_target,
+            ),
+            "opp-cost4": CardInstance(
+                instance_id="opp-cost4",
+                owner_id="player_2",
+                card=opponent_cost4,
+            ),
+            "opp-cost5": CardInstance(
+                instance_id="opp-cost5",
+                owner_id="player_2",
+                card=opponent_cost5,
+            ),
+        }
+    )
+    state.players["player_1"].member_area["center"] = "own-center"
+    state.players["player_1"].member_area["left"] = "own-target"
+    state.players["player_2"].member_area["left"] = "opp-cost4"
+    state.players["player_2"].member_area["right"] = "opp-cost5"
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": state.pending_effects[0].invocation_id,
+            "selected_branch": "wait_opponent_cost4",
+        },
+    )
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["selected_branch"] == "wait_opponent_cost4"
+    assert options["target_player"] == "opponent"
+    assert options["candidate_card_instance_ids"] == ["opp-cost4"]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": state.pending_effects[0].invocation_id,
+            "selected_card_instance_ids": ["opp-cost4"],
+        },
+    )
+    assert state.cards["opp-cost4"].orientation == "wait"
+    assert state.cards["opp-cost5"].orientation == "active"
+    assert not state.pending_effects
+
+
+def test_draw_then_optional_wait_opponent_member_can_choose_no_target():
+    effect = EffectDefinition(
+        effect_id="test-draw-optional-opponent-wait:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="h" * 64,
+        effect_index=1,
+        label_ja="draw then optional opponent wait",
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice={
+            "choice_type": "member_from_stage",
+            "zone": "stage",
+            "target_player": "opponent",
+            "card_type": "member",
+            "maximum_cost": 9,
+            "minimum": 0,
+            "maximum": 1,
+        },
+        actions=[
+            {"action_type": "draw_card", "amount": 1},
+            {"action_type": "apply_wait_member", "target": "selected"},
+        ],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    opponent_cost9 = CardDefinition(
+        card_code="OPP-COST9",
+        card_id="OPP-COST9",
+        name_ja="対手9",
+        card_type="member",
+        cost=9,
+    )
+    opponent_cost10 = CardDefinition(
+        card_code="OPP-COST10",
+        card_id="OPP-COST10",
+        name_ja="対手10",
+        card_type="member",
+        cost=10,
+    )
+    state = _minimal_effect_state(effect)
+    state.cards.update(
+        {
+            "opp-cost9": CardInstance(
+                instance_id="opp-cost9",
+                owner_id="player_2",
+                card=opponent_cost9,
+            ),
+            "opp-cost10": CardInstance(
+                instance_id="opp-cost10",
+                owner_id="player_2",
+                card=opponent_cost10,
+            ),
+        }
+    )
+    state.players["player_2"].member_area["left"] = "opp-cost9"
+    state.players["player_2"].member_area["right"] = "opp-cost10"
+
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["target_player"] == "opponent"
+    assert options["candidate_card_instance_ids"] == ["opp-cost9"]
+
+    hand_count = len(state.players["player_1"].hand)
+    source_orientation = state.cards["source-live"].orientation
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": state.pending_effects[0].invocation_id,
+            "selected_card_instance_ids": [],
+        },
+    )
+    assert len(state.players["player_1"].hand) == hand_count + 1
+    assert state.cards["source-live"].orientation == source_orientation
+    assert state.cards["opp-cost9"].orientation == "active"
+    assert state.cards["opp-cost10"].orientation == "active"
+    assert not state.pending_effects
+
+
+def test_wait_opponent_member_checks_own_stage_cost_condition():
+    effect = EffectDefinition(
+        effect_id="test-own-stage-cost-opponent-wait:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="h" * 64,
+        effect_index=1,
+        label_ja="own stage cost condition then opponent wait",
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={"own_stage_member_cost_at_least": 10},
+        cost=[],
+        choice={
+            "choice_type": "member_from_stage",
+            "zone": "stage",
+            "target_player": "opponent",
+            "card_type": "member",
+            "maximum_cost": 4,
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[{"action_type": "apply_wait_member", "target": "selected"}],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    own_cost9 = CardDefinition(
+        card_code="OWN-COST9",
+        card_id="OWN-COST9",
+        name_ja="自分9",
+        card_type="member",
+        cost=9,
+    )
+    own_cost10 = CardDefinition(
+        card_code="OWN-COST10",
+        card_id="OWN-COST10",
+        name_ja="自分10",
+        card_type="member",
+        cost=10,
+    )
+    opponent_cost4 = CardDefinition(
+        card_code="OPP-COST4",
+        card_id="OPP-COST4",
+        name_ja="対手4",
+        card_type="member",
+        cost=4,
+    )
+    state = _minimal_effect_state(effect)
+    state.cards.update(
+        {
+            "own-cost9": CardInstance(
+                instance_id="own-cost9",
+                owner_id="player_1",
+                card=own_cost9,
+            ),
+            "opp-cost4": CardInstance(
+                instance_id="opp-cost4",
+                owner_id="player_2",
+                card=opponent_cost4,
+            ),
+        }
+    )
+    state.players["player_1"].member_area["center"] = "own-cost9"
+    state.players["player_2"].member_area["center"] = "opp-cost4"
+
+    with pytest.raises(Exception, match="stage_member_cost_too_low"):
+        _apply_direct(
+            state,
+            "resolve_effect",
+            player_id="player_1",
+            payload={
+                "invocation_id": state.pending_effects[0].invocation_id,
+                "selected_card_instance_ids": ["opp-cost4"],
+            },
+        )
+
+    state.cards["own-cost9"].card = own_cost10
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": state.pending_effects[0].invocation_id,
+            "selected_card_instance_ids": ["opp-cost4"],
+        },
+    )
+    assert state.cards["opp-cost4"].orientation == "wait"
+    assert not state.pending_effects
+
+
+def test_live_start_branch_can_grant_live_success_draw():
+    state = _minimal_effect_state(_aqours_live_start_branch_effect())
+
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["available_branch_ids"] == ["grant_success_draw"]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_branch": "grant_success_draw",
+        },
+    )
+
+    modifiers = state.players["player_1"].manual_modifiers
+    assert [
+        (
+            modifier.modifier_type,
+            modifier.flag,
+            modifier.target_card_instance_id,
+            modifier.value,
+        )
+        for modifier in modifiers
+    ] == [
+        (
+            "flag",
+            "granted_live_success_draw",
+            "source-live",
+            {"amount": 1},
+        )
+    ]
+
+    events: list[GameEvent] = []
+    state.success_live_moved_instance_ids = {"player_1": ["source-live"]}
+    _queue_live_success_effects(state, events)
+
+    assert state.players["player_1"].hand == ["deck-live-1"]
+    assert any(
+        event.event_type == "granted_live_success_draw_resolved"
+        and event.data["live_card_instance_id"] == "source-live"
+        for event in events
+    )
+
+
+def test_live_start_can_disable_source_live_success_effects():
+    disable_effect = EffectDefinition(
+        effect_id="test-disable-live-success:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="d" * 64,
+        effect_index=1,
+        label_ja=(
+            "【ライブ開始時】自分のステージにいる『Aqours』のメンバーが持つ"
+            "ハートに、【heart02】が合計6個以上ある場合、このカードの"
+            "【ライブ成功時】能力を無効にする。"
+        ),
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={
+            "own_stage_heart_at_least": {
+                "unit_key": "aqours",
+                "color_slot": "heart02",
+                "count": 6,
+            }
+        },
+        actions=[{"action_type": "disable_source_live_success_effects"}],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="parsed_draft",
+        source_reference="unit test",
+    )
+    success_effect = EffectDefinition(
+        effect_id="test-disable-live-success:2",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="d" * 64,
+        effect_index=2,
+        label_ja="【ライブ成功時】相手は、エネルギーデッキからエネルギーカードを1枚ウェイト状態で置く。",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="manual_resolution",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        actions=[{"action_type": "manual_resolution"}],
+        duration="live",
+        simulation_support="manual_resolution",
+        review_status="parsed_draft",
+        source_reference="unit test",
+    )
+    state = _minimal_effect_state(disable_effect)
+    state.effect_definitions[success_effect.effect_id] = success_effect
+    state.cards["source-live"].card.effect_ids = [
+        disable_effect.effect_id,
+        success_effect.effect_id,
+    ]
+    aqours_member = CardDefinition(
+        card_code="TEST-AQOURS",
+        card_id="TEST-AQOURS",
+        name_ja="高海千歌",
+        card_type="member",
+        basic_hearts={"heart02": 3},
+        unit_keys=["aqours"],
+    )
+    for slot, instance_id in {"left": "aqours-left", "center": "aqours-center"}.items():
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=aqours_member.model_copy(
+                update={"card_code": f"TEST-{slot.upper()}", "card_id": f"TEST-{slot.upper()}"}
+            ),
+        )
+        state.players["player_1"].member_area[slot] = instance_id
+
+    low_state = state.model_copy(deep=True)
+    low_state.cards["aqours-center"].card.basic_hearts = {"heart02": 2}
+    with pytest.raises(Exception, match="stage_heart_count_too_low"):
+        _apply_direct(
+            low_state,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    assert [
+        (
+            modifier.modifier_type,
+            modifier.flag,
+            modifier.target_card_instance_id,
+            modifier.value,
+        )
+        for modifier in state.players["player_1"].manual_modifiers
+    ] == [
+        (
+            "flag",
+            "disabled_live_success_effects",
+            "source-live",
+            {"trigger": "live_succeeded"},
+        )
+    ]
+
+    events: list[GameEvent] = []
+    state.success_live_moved_instance_ids = {"player_1": ["source-live"]}
+    state.live_success_effects_queued = False
+    _queue_live_success_effects(state, events)
+
+    assert state.pending_effects == []
+    assert any(
+        event.event_type == "effect_trigger_disabled"
+        and event.data["effect_id"] == success_effect.effect_id
+        and event.data["source_card_instance_id"] == "source-live"
+        for event in events
+    )
+
+
+def test_live_success_replaces_source_score_when_yell_has_no_blade_heartless_or_excess2():
+    effect = EffectDefinition(
+        effect_id="test-replace-score:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="r" * 64,
+        effect_index=1,
+        label_ja=(
+            "【ライブ成功時】このターン、エールにより公開された自分のカードの中に"
+            "ブレードハートを持たないカードが0枚の場合か、または自分が余剰ハートを"
+            "2つ以上持っている場合、このカードのスコアは４になる。"
+        ),
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={"own_yell_no_blade_heartless_or_excess_heart_count_at_least": 2},
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "replace_score", "amount": 4}],
+        duration="game",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="unit test",
+    )
+    state = _minimal_effect_state(effect)
+    player = state.players["player_1"]
+    player.success_live_area = ["source-live"]
+    player.live_result.revealed_instance_ids = ["blade-member", "special-live"]
+    player.live_result.live_allocations = [
+        {"remaining_hearts": {"heart01": 0}, "remaining_all_color_hearts": 0}
+    ]
+    state.cards["blade-member"] = CardInstance(
+        instance_id="blade-member",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="TEST-BLADE-MEMBER",
+            card_id="TEST-BLADE-MEMBER",
+            name_ja="ブレード持ち",
+            card_type="member",
+            blade_heart_color_slot="heart01",
+        ),
+    )
+    state.cards["special-live"] = CardInstance(
+        instance_id="special-live",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="TEST-SPECIAL-LIVE",
+            card_id="TEST-SPECIAL-LIVE",
+            name_ja="特殊ブレード持ち",
+            card_type="live",
+            special_blade_hearts=[
+                SpecialBladeHeart(effect_type="score", value=1, source_alt="スコア1")
+            ],
+        ),
+    )
+    state.cards["plain-member"] = CardInstance(
+        instance_id="plain-member",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="TEST-PLAIN-MEMBER",
+            card_id="TEST-PLAIN-MEMBER",
+            name_ja="ブレードなし",
+            card_type="member",
+        ),
+    )
+
+    result = apply_action(
+        state.model_copy(deep=True),
+        ActionRequest(
+            action_type="resolve_effect",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        ),
+    )
+    assert [
+        (modifier.modifier_type, modifier.amount, modifier.target_card_instance_id)
+        for modifier in result.state.players["player_1"].manual_modifiers
+    ] == [("score_replacement", 4, "source-live")]
+
+    blocked_state = state.model_copy(deep=True)
+    blocked_state.players["player_1"].live_result.revealed_instance_ids = [
+        "blade-member",
+        "plain-member",
+    ]
+    with pytest.raises(Exception, match="yell_revealed_non_blade_heart_exists"):
+        apply_action(
+            blocked_state,
+            ActionRequest(
+                action_type="resolve_effect",
+                expected_revision=blocked_state.revision,
+                player_id="player_1",
+                payload={"invocation_id": "inv-1"},
+            ),
+        )
+
+    excess_state = blocked_state.model_copy(deep=True)
+    excess_state.players["player_1"].live_result.live_allocations = [
+        {"remaining_hearts": {"heart01": 2}, "remaining_all_color_hearts": 0}
+    ]
+    result = apply_action(
+        excess_state,
+        ActionRequest(
+            action_type="resolve_effect",
+            expected_revision=excess_state.revision,
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        ),
+    )
+    assert sum(
+        modifier.modifier_type == "score_replacement"
+        for modifier in result.state.players["player_1"].manual_modifiers
+    ) == 1
+
+
+def test_live_success_special_blade_heart_condition_filters_revealed_cards():
+    effect = EffectDefinition(
+        effect_id="test-revealed-score-live:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="s" * 64,
+        effect_index=1,
+        label_ja="【ライブ成功時】エール公開の【スコア】ライブを確認する。",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={
+            "own_yell_revealed_special_blade_heart_count_at_least": {
+                "effect_type": "score",
+                "card_type": "live",
+                "work_key": "love_live_sunshine",
+                "count": 1,
+            }
+        },
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "modify_score", "amount": 1}],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="unit test",
+    )
+    state = _minimal_effect_state(effect)
+    state.players["player_1"].live_result.revealed_instance_ids = ["aqours-live"]
+    state.cards["aqours-live"] = CardInstance(
+        instance_id="aqours-live",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="TEST-AQOURS-LIVE",
+            card_id="TEST-AQOURS-LIVE",
+            name_ja="Aqours スコアライブ",
+            card_type="live",
+            work_keys=["love_live_sunshine"],
+            special_blade_hearts=[
+                SpecialBladeHeart(effect_type="score", value=1, source_alt="スコア1")
+            ],
+        ),
+    )
+
+    resolved = _apply_direct(
+        state.model_copy(deep=True),
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    assert any(
+        modifier.modifier_type == "score" and modifier.amount == 1
+        for modifier in resolved.players["player_1"].manual_modifiers
+    )
+
+    mismatch = state.model_copy(deep=True)
+    mismatch.cards["aqours-live"].card.work_keys = ["nijigasaki"]
+    with pytest.raises(
+        Exception,
+        match="yell_revealed_special_blade_heart_count_too_low",
+    ):
+        _apply_direct(
+            mismatch,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+
+def test_stage_member_names_present_condition_requires_all_names():
+    effect = EffectDefinition(
+        effect_id="test-stage-names-draw:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="n" * 64,
+        effect_index=1,
+        label_ja="【ライブ成功時】ステージに指定名がいる場合、カードを1枚引く。",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={"own_stage_member_names_present": ["澁谷かのん", "唐 可可"]},
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "draw_card", "amount": 1}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="unit test",
+    )
+    state = _minimal_effect_state(effect)
+    for slot, name in [("left", "澁谷かのん"), ("right", "唐 可可")]:
+        instance_id = f"stage-{slot}"
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code=f"TEST-{slot.upper()}",
+                card_id=f"TEST-{slot.upper()}",
+                name_ja=name,
+                card_type="member",
+            ),
+        )
+        state.players["player_1"].member_area[slot] = instance_id
+
+    resolved = _apply_direct(
+        state.model_copy(deep=True),
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    assert len(resolved.players["player_1"].hand) == 1
+
+    missing = state.model_copy(deep=True)
+    missing.players["player_1"].member_area["right"] = None
+    with pytest.raises(Exception, match="stage_member_names_missing"):
+        _apply_direct(
+            missing,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+
+def test_live_success_score_bonus_requires_deck_refreshed_this_turn():
+    effect = EffectDefinition(
+        effect_id="test-refresh-score:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="f" * 64,
+        effect_index=1,
+        label_ja="【ライブ成功時】このターン、自分のデッキがリフレッシュしていた場合、このカードのスコアを＋２する。",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={"own_deck_refreshed_this_turn": True},
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "modify_score", "amount": 2}],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="unit test",
+    )
+    state = _minimal_effect_state(effect)
+
+    with pytest.raises(Exception, match="deck_not_refreshed_this_turn"):
+        _apply_direct(
+            state.model_copy(deep=True),
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+    refreshed_state = state.model_copy(deep=True)
+    refreshed_state.players["player_1"].refreshed_this_turn = True
+    refreshed_state = _apply_direct(
+        refreshed_state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    assert [
+        (modifier.modifier_type, modifier.amount)
+        for modifier in refreshed_state.players["player_1"].manual_modifiers
+    ] == [("score", 2)]
+
+    refreshed_state.phase = "turn_complete"
+    refreshed_state.next_first_player_id = "player_1"
+    result = apply_action(
+        refreshed_state,
+        ActionRequest(
+            action_type="start_next_turn",
+            expected_revision=refreshed_state.revision,
+            player_id="player_1",
+            payload={},
+        ),
+    )
+    assert result.state.players["player_1"].refreshed_this_turn is False
+
+
+def test_live_start_center_side_cost_equal_waits_opponent_original_blade3_members():
+    effect = EffectDefinition(
+        effect_id="test-side-cost-wait:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="e" * 64,
+        effect_index=1,
+        label_ja=(
+            "【ライブ開始時】【センター】自分のステージの右サイドエリアと"
+            "左サイドエリアにいるメンバーのコストが同じ場合、相手の"
+            "ステージにいる元々持つ【ブレード】の数が3つ以下のすべての"
+            "メンバーをウェイトにする。"
+        ),
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={
+            "source_slot": "center",
+            "own_side_stage_member_costs_equal": True,
+        },
+        actions=[
+            {
+                "action_type": "apply_wait_member",
+                "target": "opponent_stage_original_blade_at_most",
+                "amount": 3,
+            }
+        ],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="parsed_draft",
+        source_reference="unit test",
+    )
+    state = _minimal_effect_state(effect)
+    source_member = CardDefinition(
+        card_code="TEST-SOURCE",
+        card_id="TEST-SOURCE",
+        name_ja="渡辺曜",
+        card_type="member",
+        cost=5,
+    )
+    side_member = CardDefinition(
+        card_code="TEST-SIDE",
+        card_id="TEST-SIDE",
+        name_ja="サイド",
+        card_type="member",
+        cost=4,
+    )
+    low_blade = CardDefinition(
+        card_code="TEST-LOW-BLADE",
+        card_id="TEST-LOW-BLADE",
+        name_ja="低ブレード",
+        card_type="member",
+        blade=3,
+    )
+    high_blade = low_blade.model_copy(
+        update={
+            "card_code": "TEST-HIGH-BLADE",
+            "card_id": "TEST-HIGH-BLADE",
+            "name_ja": "高ブレード",
+            "blade": 4,
+        }
+    )
+    zero_blade = low_blade.model_copy(
+        update={
+            "card_code": "TEST-ZERO-BLADE",
+            "card_id": "TEST-ZERO-BLADE",
+            "name_ja": "ゼロブレード",
+            "blade": 0,
+        }
+    )
+    state.cards["source-live"].card = source_member
+    state.players["player_1"].member_area = {
+        "left": "own-left",
+        "center": "source-live",
+        "right": "own-right",
+    }
+    state.cards["own-left"] = CardInstance(
+        instance_id="own-left",
+        owner_id="player_1",
+        card=side_member,
+    )
+    state.cards["own-right"] = CardInstance(
+        instance_id="own-right",
+        owner_id="player_1",
+        card=side_member.model_copy(
+            update={"card_code": "TEST-SIDE-2", "card_id": "TEST-SIDE-2"}
+        ),
+    )
+    state.cards["opp-low"] = CardInstance(
+        instance_id="opp-low",
+        owner_id="player_2",
+        card=low_blade,
+        orientation="active",
+    )
+    state.cards["opp-high"] = CardInstance(
+        instance_id="opp-high",
+        owner_id="player_2",
+        card=high_blade,
+        orientation="active",
+    )
+    state.cards["opp-zero"] = CardInstance(
+        instance_id="opp-zero",
+        owner_id="player_2",
+        card=zero_blade,
+        orientation="active",
+    )
+    state.players["player_2"].member_area = {
+        "left": "opp-low",
+        "center": "opp-high",
+        "right": "opp-zero",
+    }
+
+    mismatch = state.model_copy(deep=True)
+    mismatch.cards["own-right"].card.cost = 6
+    with pytest.raises(Exception, match="side_stage_member_cost_mismatch"):
+        _apply_direct(
+            mismatch,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    assert resolved.cards["opp-low"].orientation == "wait"
+    assert resolved.cards["opp-zero"].orientation == "wait"
+    assert resolved.cards["opp-high"].orientation == "active"
+    assert not resolved.pending_effects
+
+
+def test_live_start_branch_targets_baton_entered_aqours_member():
+    state = _minimal_effect_state(_aqours_live_start_branch_effect())
+    aqours_member = CardDefinition(
+        card_code="TEST-AQOURS",
+        card_id="TEST-AQOURS",
+        name_ja="高海千歌",
+        card_type="member",
+        work_keys=["love_live_sunshine"],
+    )
+    other_work_member = aqours_member.model_copy(
+        update={
+            "card_code": "TEST-NON-AQOURS",
+            "card_id": "TEST-NON-AQOURS",
+            "name_ja": "高坂穂乃果",
+            "work_keys": ["love_live"],
+        }
+    )
+    state.cards["baton-aqours"] = CardInstance(
+        instance_id="baton-aqours",
+        owner_id="player_1",
+        card=aqours_member,
+    )
+    state.cards["baton-other-work"] = CardInstance(
+        instance_id="baton-other-work",
+        owner_id="player_1",
+        card=other_work_member,
+    )
+    state.cards["non-baton-aqours"] = CardInstance(
+        instance_id="non-baton-aqours",
+        owner_id="player_1",
+        card=aqours_member.model_copy(
+            update={"card_code": "TEST-AQOURS-2", "card_id": "TEST-AQOURS-2"}
+        ),
+    )
+    player = state.players["player_1"]
+    player.member_area = {
+        "left": "baton-aqours",
+        "center": "baton-other-work",
+        "right": "non-baton-aqours",
+    }
+    player.member_areas_baton_entered_this_turn = ["left", "center"]
+
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["available_branch_ids"] == [
+        "grant_success_draw",
+        "baton_aqours_heart",
+    ]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_branch": "baton_aqours_heart",
+        },
+    )
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["selected_branch"] == "baton_aqours_heart"
+    assert options["candidate_card_instance_ids"] == ["baton-aqours"]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["baton-aqours"],
+        },
+    )
+
+    modifiers = state.players["player_1"].manual_modifiers
+    assert [
+        (
+            modifier.modifier_type,
+            modifier.color_slot,
+            modifier.amount,
+            modifier.target_card_instance_id,
+        )
+        for modifier in modifiers
+    ] == [("heart", "heart02", 1, "baton-aqours")]
+    assert not state.pending_effects
+
+
+def test_live_start_branch_requires_success2_for_score_branch():
+    state = _minimal_effect_state(_aqours_live_start_branch_effect())
+    live = state.cards["live-1"].card
+    for instance_id in ("success-live-1", "success-live-2"):
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=live.model_copy(deep=True),
+        )
+    state.players["player_1"].success_live_area = [
+        "success-live-1",
+        "success-live-2",
+    ]
+
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["available_branch_ids"] == [
+        "grant_success_draw",
+        "success2_score",
+    ]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_branch": "success2_score",
+        },
+    )
+
+    assert [
+        (modifier.modifier_type, modifier.amount)
+        for modifier in state.players["player_1"].manual_modifiers
+    ] == [("score", 1)]
+    assert not state.pending_effects
+
+
+def test_live_start_all_aqours_drawn_hand_card_can_go_to_deck_top_or_bottom():
+    state = _minimal_effect_state(_all_aqours_draw_top_or_bottom_effect())
+    aqours_member = CardDefinition(
+        card_code="TEST-AQOURS",
+        card_id="TEST-AQOURS",
+        name_ja="高海千歌",
+        card_type="member",
+        work_keys=["love_live_sunshine"],
+    )
+    other_member = aqours_member.model_copy(
+        update={
+            "card_code": "TEST-OTHER",
+            "card_id": "TEST-OTHER",
+            "work_keys": ["love_live"],
+        }
+    )
+    hand_card = CardDefinition(
+        card_code="TEST-HAND",
+        card_id="TEST-HAND",
+        name_ja="手札",
+        card_type="member",
+    )
+    draw_card = hand_card.model_copy(
+        update={"card_code": "TEST-DRAW", "card_id": "TEST-DRAW"}
+    )
+    state.cards["aqours-left"] = CardInstance(
+        instance_id="aqours-left",
+        owner_id="player_1",
+        card=aqours_member,
+    )
+    state.cards["other-center"] = CardInstance(
+        instance_id="other-center",
+        owner_id="player_1",
+        card=other_member,
+    )
+    state.players["player_1"].member_area = {
+        "left": "aqours-left",
+        "center": "other-center",
+        "right": None,
+    }
+
+    with pytest.raises(Exception, match="stage_member_work_mismatch"):
+        _apply_direct(
+            state.model_copy(deep=True),
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+    state.cards["aqours-center"] = CardInstance(
+        instance_id="aqours-center",
+        owner_id="player_1",
+        card=aqours_member.model_copy(
+            update={"card_code": "TEST-AQOURS-2", "card_id": "TEST-AQOURS-2"}
+        ),
+    )
+    state.cards["hand-old"] = CardInstance(
+        instance_id="hand-old",
+        owner_id="player_1",
+        card=hand_card,
+    )
+    state.cards["drawn-card"] = CardInstance(
+        instance_id="drawn-card",
+        owner_id="player_1",
+        card=draw_card,
+        face_up=False,
+    )
+    state.players["player_1"].member_area["center"] = "aqours-center"
+    state.players["player_1"].hand = ["hand-old"]
+    state.players["player_1"].main_deck = ["drawn-card", "deck-live-1"]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    assert state.pending_effects[0].resolution_stage == "after_cost"
+    assert state.players["player_1"].hand == ["hand-old", "drawn-card"]
+    assert state.players["player_1"].main_deck == ["deck-live-1"]
+    assert any(
+        modifier.modifier_type == "score" and modifier.amount == 1
+        for modifier in state.players["player_1"].manual_modifiers
+    )
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["candidate_card_instance_ids"] == ["hand-old", "drawn-card"]
+    assert options["destination_options"] == ["main_deck_top", "main_deck_bottom"]
+
+    top_state = _apply_direct(
+        state.model_copy(deep=True),
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["drawn-card"],
+            "selected_destination": "main_deck_top",
+        },
+    )
+    assert top_state.players["player_1"].main_deck[:2] == [
+        "drawn-card",
+        "deck-live-1",
+    ]
+
+    bottom_state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["drawn-card"],
+            "selected_destination": "main_deck_bottom",
+        },
+    )
+    assert bottom_state.players["player_1"].main_deck[-2:] == [
+        "deck-live-1",
+        "drawn-card",
+    ]
+
+
+def test_onplay_branch_choice_uses_branch_conditions_for_waiting_room_lives():
+    effect = EffectDefinition.model_validate(
+        {
+            "effect_id": "test-waiting-live-branches:1",
+            "card_code": "TEST-MEMBER",
+            "text_revision_id": 1,
+            "raw_text_hash": "w" * 64,
+            "effect_index": 1,
+            "label_ja": (
+                "【登場】以下から1つを選ぶ。 "
+                "・自分の控え室にカード名が異なるライブカードが3枚以上ある場合、"
+                "自分の控え室からライブカードを1枚手札に加える。 "
+                "・自分の控え室にグループ名が異なるライブカードが3枚以上ある場合、"
+                "自分の控え室からライブカードを2枚手札に加える。"
+            ),
+            "effect_type": "triggered",
+            "timing": "on_play",
+            "trigger": "member_played",
+            "execution_mode": "prompt_then_resolve",
+            "frequency_limit": "none",
+            "is_optional": False,
+            "condition": {},
+            "cost": [],
+            "choice": {
+                "choice_type": "choose_effect_branch",
+                "branch_ids": ["distinct_name_live", "distinct_group_live"],
+                "branch_conditions": {
+                    "distinct_name_live": {
+                        "waiting_room_live_distinct_name_count_at_least": 3,
+                    },
+                    "distinct_group_live": {
+                        "waiting_room_live_distinct_group_count_at_least": 3,
+                    },
+                },
+                "branch_selection_minimum": {
+                    "distinct_name_live": 1,
+                    "distinct_group_live": 2,
+                },
+                "branch_selection_maximum": {
+                    "distinct_name_live": 1,
+                    "distinct_group_live": 2,
+                },
+                "branch_choice_filters": {
+                    "distinct_name_live": {
+                        "choice_type": "card_from_zone",
+                        "zone": "waiting_room",
+                        "card_type": "live",
+                    },
+                    "distinct_group_live": {
+                        "choice_type": "card_from_zone",
+                        "zone": "waiting_room",
+                        "card_type": "live",
+                    },
+                },
+            },
+            "actions": [
+                {
+                    "action_type": "return_from_waiting_room",
+                    "branch": "distinct_name_live",
+                },
+                {
+                    "action_type": "return_from_waiting_room",
+                    "branch": "distinct_group_live",
+                },
+            ],
+            "duration": None,
+            "simulation_support": "test_validated_executable",
+            "review_status": "test_validated",
+            "source_reference": "test fixture",
+        }
+    )
+    base_live = state_live = CardDefinition(
+        card_code="TEST-LIVE",
+        card_id="TEST-LIVE",
+        name_ja="テストライブ",
+        card_type="live",
+        score=1,
+        required_hearts={"heart01": 1},
+    )
+    state = _minimal_effect_state(effect)
+    for index, name in enumerate(["Live A", "Live B", "Live C"], start=1):
+        instance_id = f"same-group-live-{index}"
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=base_live.model_copy(
+                update={
+                    "card_code": f"TEST-LIVE-{index}",
+                    "card_id": f"TEST-LIVE-{index}",
+                    "name_ja": name,
+                    "work_keys": ["nijigasaki"],
+                }
+            ),
+        )
+        state.players["player_1"].waiting_room.append(instance_id)
+
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["available_branch_ids"] == ["distinct_name_live"]
+    with pytest.raises(Exception, match="branch selection is unavailable"):
+        _apply_direct(
+            state,
+            "resolve_effect",
+            player_id="player_1",
+            payload={
+                "invocation_id": "inv-1",
+                "selected_branch": "distinct_group_live",
+            },
+        )
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_branch": "distinct_name_live",
+        },
+    )
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["card_selection_minimum"] == 1
+    assert options["card_selection_maximum"] == 1
+    assert options["candidate_card_instance_ids"] == [
+        "same-group-live-1",
+        "same-group-live-2",
+        "same-group-live-3",
+    ]
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["same-group-live-1"],
+        },
+    )
+    assert "same-group-live-1" in state.players["player_1"].hand
+    assert not state.pending_effects
+
+    state = _minimal_effect_state(effect)
+    for index, work_key in enumerate(
+        ["love_live", "love_live_sunshine", "nijigasaki"],
+        start=1,
+    ):
+        instance_id = f"distinct-group-live-{index}"
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=state_live.model_copy(
+                update={
+                    "card_code": f"TEST-GROUP-LIVE-{index}",
+                    "card_id": f"TEST-GROUP-LIVE-{index}",
+                    "name_ja": f"Group Live {index}",
+                    "work_keys": [work_key],
+                }
+            ),
+        )
+        state.players["player_1"].waiting_room.append(instance_id)
+
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["available_branch_ids"] == [
+        "distinct_name_live",
+        "distinct_group_live",
+    ]
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_branch": "distinct_group_live",
+        },
+    )
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["card_selection_minimum"] == 2
+    assert options["card_selection_maximum"] == 2
+    assert options["candidate_card_instance_ids"] == [
+        "distinct-group-live-1",
+        "distinct-group-live-2",
+        "distinct-group-live-3",
+    ]
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": [
+                "distinct-group-live-1",
+                "distinct-group-live-2",
+            ],
+        },
+    )
+    assert "distinct-group-live-1" in state.players["player_1"].hand
+    assert "distinct-group-live-2" in state.players["player_1"].hand
+    assert "distinct-group-live-3" in state.players["player_1"].waiting_room
+    assert not state.pending_effects
+
+
 def test_onplay_reveals_opponent_hand_and_draws_if_no_live(tmp_path):
     service, match_id = _create_match(tmp_path, seed=224)
     state = _reach_first_main(service, match_id)
@@ -4628,6 +12992,199 @@ def test_multi_player_effect_discards_to_three_then_draws_three(tmp_path):
     assert len(state.players["player_2"].hand) == 6
     assert state.pending_choice is None
     assert not state.pending_effects
+
+
+def test_multi_player_draw_discard_can_continue_to_stage_member_follow_up():
+    state = _minimal_effect_state(_muse_stage_draw_discard_heart_score_effect())
+    card = CardDefinition(
+        card_code="TEST-CARD",
+        card_id="TEST-CARD",
+        name_ja="手札カード",
+        card_type="member",
+    )
+    state.cards["p1-old"] = CardInstance(
+        instance_id="p1-old",
+        owner_id="player_1",
+        card=card,
+    )
+    state.cards["p1-draw"] = CardInstance(
+        instance_id="p1-draw",
+        owner_id="player_1",
+        card=card,
+        face_up=False,
+    )
+    state.cards["p2-old"] = CardInstance(
+        instance_id="p2-old",
+        owner_id="player_2",
+        card=card,
+    )
+    state.cards["p2-draw"] = CardInstance(
+        instance_id="p2-draw",
+        owner_id="player_2",
+        card=card,
+        face_up=False,
+    )
+    state.players["player_1"].hand = ["p1-old"]
+    state.players["player_1"].main_deck = ["p1-draw"]
+    state.players["player_2"].hand = ["p2-old"]
+    state.players["player_2"].main_deck = ["p2-draw"]
+    muse_member = CardDefinition(
+        card_code="TEST-MUSE",
+        card_id="TEST-MUSE",
+        name_ja="高坂穂乃果",
+        card_type="member",
+        work_keys=["love_live"],
+    )
+    stage_members = {
+        "left": muse_member,
+        "center": muse_member.model_copy(update={"name_ja": "南ことり"}),
+        "right": muse_member.model_copy(update={"name_ja": "園田海未"}),
+    }
+    for slot, member in stage_members.items():
+        instance_id = f"stage-{slot}"
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=member,
+        )
+        state.players["player_1"].member_area[slot] = instance_id
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    assert state.players["player_1"].hand == ["p1-old", "p1-draw"]
+    assert state.players["player_2"].hand == ["p2-old", "p2-draw"]
+    assert state.pending_choice is not None
+    assert state.pending_choice.player_id == "player_1"
+    assert state.pending_choice.options["multi_player_choice_type"] == (
+        "multi_player_draw_then_discard"
+    )
+    assert state.pending_choice.options["candidate_card_instance_ids"] == [
+        "p1-old",
+        "p1-draw",
+    ]
+    assert state.pending_choice.options["minimum"] == 1
+
+    state = _apply_direct(
+        state,
+        "resolve_effect_choice",
+        player_id="player_1",
+        payload={"selected_card_instance_ids": ["p1-draw"]},
+    )
+    assert state.pending_choice.player_id == "player_2"
+    assert state.pending_choice.options["candidate_card_instance_ids"] == [
+        "p2-old",
+        "p2-draw",
+    ]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect_choice",
+        player_id="player_2",
+        payload={"selected_card_instance_ids": ["p2-old"]},
+    )
+    assert state.pending_choice is None
+    assert state.pending_effects[0].resolution_stage == "after_cost"
+    assert "p1-draw" in state.players["player_1"].waiting_room
+    assert "p2-old" in state.players["player_2"].waiting_room
+
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["choice_type"] == "member_from_stage"
+    assert options["choice_zone"] == "stage"
+    assert options["candidate_card_instance_ids"] == [
+        "stage-left",
+        "stage-center",
+        "stage-right",
+    ]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["stage-center"],
+        },
+    )
+
+    assert not state.pending_effects
+    assert any(
+        modifier.modifier_type == "heart"
+        and modifier.color_slot == "heart03"
+        and modifier.amount == 1
+        and modifier.target_card_instance_id == "stage-center"
+        for modifier in state.players["player_1"].manual_modifiers
+    )
+    assert any(
+        modifier.modifier_type == "score" and modifier.amount == 1
+        for modifier in state.players["player_1"].manual_modifiers
+    )
+
+
+def test_multi_player_draw_discard_finishes_without_follow_up_under_stage_count():
+    state = _minimal_effect_state(_muse_stage_draw_discard_heart_score_effect())
+    card = CardDefinition(
+        card_code="TEST-CARD",
+        card_id="TEST-CARD",
+        name_ja="手札カード",
+        card_type="member",
+    )
+    for player_id, old_id, draw_id in (
+        ("player_1", "p1-old", "p1-draw"),
+        ("player_2", "p2-old", "p2-draw"),
+    ):
+        state.cards[old_id] = CardInstance(
+            instance_id=old_id,
+            owner_id=player_id,
+            card=card,
+        )
+        state.cards[draw_id] = CardInstance(
+            instance_id=draw_id,
+            owner_id=player_id,
+            card=card,
+            face_up=False,
+        )
+        state.players[player_id].hand = [old_id]
+        state.players[player_id].main_deck = [draw_id]
+    state.cards["stage-left"] = CardInstance(
+        instance_id="stage-left",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="TEST-MUSE",
+            card_id="TEST-MUSE",
+            name_ja="高坂穂乃果",
+            card_type="member",
+            work_keys=["love_live"],
+        ),
+    )
+    state.players["player_1"].member_area["left"] = "stage-left"
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    state = _apply_direct(
+        state,
+        "resolve_effect_choice",
+        player_id="player_1",
+        payload={"selected_card_instance_ids": ["p1-old"]},
+    )
+    state = _apply_direct(
+        state,
+        "resolve_effect_choice",
+        player_id="player_2",
+        payload={"selected_card_instance_ids": ["p2-old"]},
+    )
+
+    assert state.pending_choice is None
+    assert not state.pending_effects
+    assert state.players["player_1"].manual_modifiers == []
 
 
 def test_pending_effect_can_be_skipped_with_a_debug_event(tmp_path):
@@ -5135,6 +13692,168 @@ def test_live_success_hand6_or_less_returns_member_from_waiting_room():
     assert not state.pending_effects
 
 
+def test_effect_can_deploy_selected_member_from_hand_to_empty_stage():
+    effect = EffectDefinition.model_validate(
+        {
+            "effect_id": "test-hand-deploy:1",
+            "card_code": "TEST-MEMBER",
+            "text_revision_id": 1,
+            "raw_text_hash": "a" * 64,
+            "effect_index": 1,
+            "label_ja": (
+                "【登場】【E】【E】支払ってもよい："
+                "手札からコスト4以下のメンバーカードを1枚ステージに登場させる。"
+            ),
+            "effect_type": "triggered",
+            "timing": "on_play",
+            "trigger": "member_played",
+            "execution_mode": "prompt_then_resolve",
+            "frequency_limit": "none",
+            "is_optional": True,
+            "condition": {},
+            "cost": [],
+            "choice": {
+                "choice_type": "deploy_member_from_waiting_room",
+                "zone": "hand",
+                "card_type": "member",
+                "maximum_cost": 4,
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [{"action_type": "deploy_selected_to_empty_stage"}],
+            "duration": None,
+            "simulation_support": "test_validated_executable",
+            "review_status": "test_validated",
+            "source_reference": "test fixture",
+        }
+    )
+    state = _minimal_effect_state(effect)
+    player = state.players["player_1"]
+    target = "deck-member-1"
+    player.main_deck.remove(target)
+    player.hand.append(target)
+    state.cards[target].card.cost = 4
+    state.cards[target].face_up = False
+    player.member_area["right"] = None
+
+    legal = generate_legal_actions(state)
+    options = legal[0].options["invocations"][0]
+    assert options["choice_zone"] == "hand"
+    assert target in options["candidate_card_instance_ids"]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": state.pending_effects[0].invocation_id,
+            "accepted": True,
+            "selected_card_instance_ids": [target],
+            "selected_position_slot": "right",
+        },
+    )
+
+    assert target not in state.players["player_1"].hand
+    assert state.players["player_1"].member_area["right"] == target
+    assert state.cards[target].orientation == "wait"
+    assert state.cards[target].face_up
+    assert state.players["player_1"].member_entered_count_this_turn == 1
+    assert "right" in state.players["player_1"].member_areas_entered_this_turn
+    assert not state.pending_effects
+
+
+def test_effect_choice_filters_opponent_member_by_original_blade():
+    effect = EffectDefinition.model_validate(
+        {
+            "effect_id": "test-original-blade:1",
+            "card_code": "TEST-MEMBER",
+            "text_revision_id": 1,
+            "raw_text_hash": "b" * 64,
+            "effect_index": 1,
+            "label_ja": (
+                "【ライブ開始時】相手のステージにいる元々持つ"
+                "【ブレード】の数が3つ以下のメンバー1人をウェイトにする。"
+            ),
+            "effect_type": "triggered",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "execution_mode": "prompt_then_resolve",
+            "frequency_limit": "once_per_live",
+            "is_optional": False,
+            "condition": {},
+            "cost": [],
+            "choice": {
+                "choice_type": "member_from_stage",
+                "zone": "stage",
+                "target_player": "opponent",
+                "card_type": "member",
+                "maximum_original_blade": 3,
+                "exclude_unit_key": "dollchestra",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [{"action_type": "apply_wait_member", "target": "selected"}],
+            "duration": "live",
+            "simulation_support": "test_validated_executable",
+            "review_status": "test_validated",
+            "source_reference": "test fixture",
+        }
+    )
+    state = _minimal_effect_state(effect)
+    opponent = state.players["player_2"]
+    eligible = "opponent-original-blade-3"
+    ineligible = "opponent-original-blade-4"
+    excluded_unit = "opponent-dollchestra-blade-2"
+    base_member = state.cards["deck-member-1"].card
+    state.cards[eligible] = CardInstance(
+        instance_id=eligible,
+        owner_id="player_2",
+        card=base_member.model_copy(update={"blade": 3}),
+    )
+    state.cards[ineligible] = CardInstance(
+        instance_id=ineligible,
+        owner_id="player_2",
+        card=base_member.model_copy(update={"blade": 4}),
+    )
+    state.cards[excluded_unit] = CardInstance(
+        instance_id=excluded_unit,
+        owner_id="player_2",
+        card=base_member.model_copy(update={"blade": 2, "unit_keys": ["dollchestra"]}),
+    )
+    opponent.member_area = {"left": eligible, "center": ineligible, "right": excluded_unit}
+    opponent.manual_modifiers.append(
+        ManualModifier(
+            modifier_id="test:blade-minus",
+            modifier_type="blade",
+            duration="live",
+            created_turn=state.turn_number,
+            amount=-2,
+            target_card_instance_id=ineligible,
+        )
+    )
+
+    legal = generate_legal_actions(state)
+    options = legal[0].options["invocations"][0]
+    assert eligible in options["candidate_card_instance_ids"]
+    assert ineligible not in options["candidate_card_instance_ids"]
+    assert excluded_unit not in options["candidate_card_instance_ids"]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": state.pending_effects[0].invocation_id,
+            "selected_card_instance_ids": [eligible],
+        },
+    )
+
+    assert state.cards[eligible].orientation == "wait"
+    assert state.cards[ineligible].orientation == "active"
+    assert state.cards[excluded_unit].orientation == "active"
+    assert not state.pending_effects
+
+
 def _create_match(tmp_path: Path, seed: int = 7):
     card_database = tmp_path / "cards.sqlite3"
     import_normalized_cards(card_database, SAMPLE_CARDS, NORMALIZATION)
@@ -5349,6 +14068,225 @@ def _draw_three_return_hand_three_to_top_effect() -> EffectDefinition:
             {"action_type": "move_selected_to_deck_top"},
         ],
         duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test fixture",
+    )
+
+
+def _bulk_waiting_members_to_bottom_effect() -> EffectDefinition:
+    return EffectDefinition(
+        effect_id="test-bulk-waiting-members-bottom:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="b" * 64,
+        effect_index=1,
+        label_ja=(
+            "【登場】自分と相手はそれぞれ、自身の控え室にあるすべての"
+            "メンバーカードをシャッフルし、自身のデッキの下に置く。"
+            "これにより自分と相手のカードが合計20枚以上デッキの下に置かれた場合、"
+            "自分の控え室からライブカードを1枚手札に加え、"
+            "ライブ終了時まで、【ブレード】【ブレード】を得る。"
+        ),
+        effect_type="triggered",
+        timing="on_play",
+        trigger="member_played",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="none",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice={
+            "choice_type": "post_action_card_from_zone",
+            "zone": "waiting_room",
+            "card_type": "live",
+            "minimum": 1,
+            "maximum": 1,
+            "post_action_condition_key": "bulk_moved_waiting_room_member_count",
+            "post_action_condition_minimum": 20,
+        },
+        actions=[
+            {
+                "action_type": "move_waiting_room_members_to_deck_bottom",
+                "target": "both",
+            },
+            {"action_type": "return_from_waiting_room"},
+            {"action_type": "gain_blade", "amount": 2},
+        ],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test fixture",
+    )
+
+
+def _muse_stage_draw_discard_heart_score_effect() -> EffectDefinition:
+    return EffectDefinition(
+        effect_id="test-muse-draw-discard-heart-score:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="m" * 64,
+        effect_index=1,
+        label_ja=(
+            "【ライブ開始時】自分のステージにメンバーが1人以上いる場合、"
+            "自分と相手はカードを1枚引き、手札を1枚控え室に置く。"
+            "2人以上いる場合、さらに自分のステージにいる『μ's』のメンバー1人は、"
+            "ライブ終了時まで、【heart03】を得る。"
+            "3人以上おり、かつそれぞれ名前が異なる場合、さらにこのカードのスコアを＋１する。"
+        ),
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={"own_stage_member_count_at_least": 1},
+        cost=[],
+        choice={
+            "choice_type": "multi_player_draw_then_discard",
+            "zone": "hand",
+            "amount": 1,
+            "discard_amount": 1,
+        },
+        follow_up_choice={
+            "choice_type": "member_from_stage",
+            "zone": "stage",
+            "card_type": "member",
+            "work_key": "love_live",
+            "minimum": 1,
+            "maximum": 1,
+            "condition": {"own_stage_member_count_at_least": 2},
+        },
+        actions=[
+            {
+                "action_type": "gain_heart",
+                "target": "selected",
+                "amount": 1,
+                "color_slot": "heart03",
+                "value": {"condition": {"own_stage_member_count_at_least": 2}},
+            },
+            {
+                "action_type": "modify_score",
+                "amount": 1,
+                "value": {
+                    "condition": {
+                        "own_stage_member_distinct_name_count_at_least": 3
+                    }
+                },
+            },
+        ],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test fixture",
+    )
+
+
+def _all_aqours_draw_top_or_bottom_effect() -> EffectDefinition:
+    return EffectDefinition(
+        effect_id="test-all-aqours-draw-top-bottom:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="o" * 64,
+        effect_index=1,
+        label_ja=(
+            "【ライブ開始時】自分のステージにいるメンバーがすべて"
+            "『Aqours』の場合、このカードのスコアを＋１し、"
+            "カードを1枚引き、手札からカードを1枚デッキの一番上か一番下に置く。"
+        ),
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={"own_stage_members_only_work_key": "love_live_sunshine"},
+        cost=[],
+        choice={
+            "choice_type": "post_action_card_from_zone",
+            "zone": "hand",
+            "minimum": 1,
+            "maximum": 1,
+            "destination_options": ["main_deck_top", "main_deck_bottom"],
+        },
+        actions=[
+            {"action_type": "modify_score", "amount": 1},
+            {"action_type": "draw_card", "amount": 1},
+            {"action_type": "move_selected_to_deck_top_or_bottom"},
+        ],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test fixture",
+    )
+
+
+def _aqours_live_start_branch_effect() -> EffectDefinition:
+    return EffectDefinition(
+        effect_id="test-aqours-branch:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="n" * 64,
+        effect_index=1,
+        label_ja=(
+            "【ライブ開始時】以下から1つを選ぶ。 "
+            "・このカードは「【ライブ成功時】カードを1枚引く。」を得る。 "
+            "・ライブ終了時まで、このターンにバトンタッチして登場した"
+            "『Aqours』のメンバー1人は【heart02】を得る。 "
+            "・自分の成功ライブカード置き場にカードが2枚以上ある場合、"
+            "このカードのスコアを＋１する。"
+        ),
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice={
+            "choice_type": "choose_effect_branch",
+            "branch_ids": [
+                "grant_success_draw",
+                "baton_aqours_heart",
+                "success2_score",
+            ],
+            "branch_selection_minimum": {"baton_aqours_heart": 1},
+            "branch_selection_maximum": {"baton_aqours_heart": 1},
+            "branch_conditions": {
+                "success2_score": {"success_live_count_at_least": 2}
+            },
+            "branch_choice_filters": {
+                "baton_aqours_heart": {
+                    "choice_type": "member_from_stage",
+                    "zone": "stage",
+                    "card_type": "member",
+                    "work_key": "love_live_sunshine",
+                    "target_player": "self",
+                    "baton_entered_this_turn": True,
+                }
+            },
+        },
+        actions=[
+            {
+                "action_type": "grant_live_success_draw",
+                "amount": 1,
+                "branch": "grant_success_draw",
+            },
+            {
+                "action_type": "gain_heart",
+                "target": "selected",
+                "amount": 1,
+                "color_slot": "heart02",
+                "branch": "baton_aqours_heart",
+            },
+            {
+                "action_type": "modify_score",
+                "amount": 1,
+                "branch": "success2_score",
+            },
+        ],
+        duration="live",
         simulation_support="test_validated_executable",
         review_status="test_validated",
         source_reference="test fixture",

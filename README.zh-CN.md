@@ -1,4 +1,4 @@
-# Love Live! Series Official Card Game Analysis & Simulation Platform
+﻿# Love Live! Series Official Card Game Analysis & Simulation Platform
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
@@ -18,8 +18,8 @@
 - FastAPI + React SPA 可视化规则验证器
 - 可回放的 Action-only GameState
 - 925 条 effect registry entry
-  - 466 条为 `test_validated_executable`
-  - 459 条为 timing prompt / 未支持处理用 `manual_resolution`
+  - 628 条为 `test_validated_executable`
+  - 297 条为 timing prompt / 未支持处理用 `manual_resolution`
 - 面向未来低成本 online 同步的 state hash / compatibility metadata 基础
 - Hosted Online MVP 房间 API
   - 通过 room code 创建 / 加入房间
@@ -53,7 +53,8 @@
 - 少量技能支持包含手牌 / Energy / Stage Member / Heart 颜色 / 牌堆顶检查的限定结构化 prompt
 - 部分双方都需要选择的效果已可通过 multi-player pending choice 顺序处理
 - 支持把 Stage Member 目标拆成多个选择组，并对各组选中目标应用相同的临时 modifier
-- 按 registry entry 计算的 `test_validated_executable` 覆盖率已达到 50.38%
+- 支持每个分支使用不同 Stage Member 候选池的技能选择
+- 按 registry entry 计算的 `test_validated_executable` 覆盖率已达到 67.89%
 - 暂不能自动执行的技能通过 `ManualAdjustmentAction` 补充
 - 无法处理的技能可以用调试用 `effect_skipped_due_to_error` 显式记录后跳过
 
@@ -78,7 +79,7 @@ Deck Builder 当前状态:
 
 - 还没有覆盖全卡技能自动执行。
 - 当前 broad prompt coverage 大量包含 timing-only manual fallback。
-- 最新 Phase 5 sandbox 中 `skip` mode 的 `illegal_action` 为 0。最近一次 `30 decks x 50 matches` 回归在 `block` mode 下为 35 局 `mandatory_manual_resolution` / 9 局 `max_actions` / 6 局完走，在 `skip` mode 下为 10 局完走 / 40 局 `max_actions`。grouped Stage Member choice 支持后的 `30 decks x 20 matches --manual-policy block` smoke 为 2 局完走 / 11 局 `mandatory_manual_resolution` / 7 局 `max_actions` / `illegal_action = 0`，`PL!SP-bp4-023:1` 已从 blocker 中消失。继续将 `PL!N-bp4-031:1` 和 Baton Touch 登场的莲之空 Member 2 人条件减少 required Heart 结构化后，20-match block smoke 为 2 局完走 / 9 局 `mandatory_manual_resolution` / 9 局 `max_actions`。主要剩余问题是长局推进和复杂 Live 系 manual effect。
+- 最新 Phase 5 sandbox 中 `skip` mode 的 `illegal_action` 为 0。最近一次 `30 decks x 50 matches` 回归在 `block` mode 下为 35 局 `mandatory_manual_resolution` / 9 局 `max_actions` / 6 局完走，在 `skip` mode 下为 10 局完走 / 40 局 `max_actions`。grouped Stage Member choice 支持后的 `30 decks x 20 matches --manual-policy block` smoke 为 2 局完走 / 11 局 `mandatory_manual_resolution` / 7 局 `max_actions` / `illegal_action = 0`，`PL!SP-bp4-023:1` 已从 blocker 中消失。继续将 `PL!N-bp4-031:1`、Baton Touch 登场的莲之空 Member 2 人条件减少 required Heart、みらくらぱーく！extra Heart 条件、Nijigasaki named Baton draw/discard、source Member base Heart 颜色选择替换、required Heart / Heart count 过滤选择、Nijigasaki 条件式 Energy ready、余剩 Heart 条件的 Live 成功 inspect reorder、center Liella! base Blade replacement、source Member position change、Liella! Baton replacement 回收、Yell 公开 Liella! Member 不同名 5 张条件、无余剩 Heart 条件、Aqours Member Blade 6 条件、每个分支使用不同 Stage Member 候选池的 Aqours center cost 9 条件、控室 Live 不同卡名 / 不同 group 分支回收、双方控室 Member 批量放到牌堆底以及 20 张条件的 Live 回手 / Blade 付与、μ's Live-start 双方 draw/discard follow-up、Aqours Live-start 三分支、Aqours 全员条件的抽牌后置顶/置底、余剩 Heart 3 个以上消耗加分、Yell 公开 Member 回手、Aqours heart02 条件使 source Live-success 无效、左右 side cost 相同条件让对手 original Blade 3 以下成员批量 wait、Yell Blade Heart / 余剩 Heart 条件的 score 4 replacement、牌堆 refresh 历史条件 score +2 结构化。继续结构化 hand count Blade、成功 Live 区 μ's 追加抽牌、Yell 公开莲之空 Member 10 张条件、Hasunosora 指定名舞台 Energy ready + Live 回收、Edel Note 分组 Blade/Heart、Hasunosora 高分条件 Energy placement、舞台 2 人条件 score 3 Live 回收、member_moved 抽牌 / Energy / 对手 wait、Yell 公开 special Blade Heart 条件、Stage name 条件的 Live-success 加分 / 抽牌、static success / 舞台数量 / 对手余剩 Heart modifier、Live-start member-entered count、Yell 公开 Nijigasaki Member Heart 6 色条件、Yell 公开 μ's 非 Blade-Heart Member 抽弃、Yell 公开卡牌置顶 / 置底、Liella! Yell 公开条件的 Energy / 回收、moved source 追加抽牌、Live-success 复合 score 条件、top reveal 入手、余剩 Heart 正负 score、source 下 Energy 数参照、optional mill / Energy placement、从手牌登场 Member、source wait 后给 center μ's Blade、source wait 对手 original-Blade wait / unit-exclusion opponent wait 后，最新小规模 block smoke 为 10 decks / 5 matches，0 局完走 / 2 局 `mandatory_manual_resolution` / 3 局 `max_actions`，skipped effects 为 0。20-match block smoke 未能在 300 秒内完成，需要继续追踪 sandbox 速度。
 - 依赖 FAQ 或个别裁定的效果尚未规格化。
 - `data/loveca.sqlite3` 是仓库内锁版本权威卡牌 DB。官方补充包或 parser/schema/effect registry 变化后，由维护者重建并提交新的 DB 与 `data/loveca-db-manifest.json`；普通用户和 CI 不应自行 import 产生不同线上 DB。保存牌组是 `decklist.v0` 用户数据，可以和卡牌数据库分开保留。
 - Web/API 测试依赖 `httpx2`。环境缺少该依赖时，`tests/test_catalog_api.py` 和 `tests/test_webapp.py` 会在收集阶段停止。
