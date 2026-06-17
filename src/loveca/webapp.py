@@ -173,6 +173,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
             page=page,
             per_page=per_page,
             max_matches=DEFAULT_MATCH_HISTORY_LIMIT,
+            exclude_match_ids=app.state.room_service.repository.active_match_ids(),
         )
 
     @app.post("/api/matches")
@@ -296,6 +297,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
     @app.get("/api/matches/{match_id}")
     def get_match(match_id: str) -> dict[str, Any]:
         try:
+            _reject_public_room_match(app, match_id)
             state = service.repository.get_state(match_id)
             return {
                 "state": state.model_dump(),
@@ -313,6 +315,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
     @app.get("/api/matches/{match_id}/legal-actions")
     def legal_actions(match_id: str) -> list[dict[str, Any]]:
         try:
+            _reject_public_room_match(app, match_id)
             state = service.repository.get_state(match_id)
             return [action.model_dump() for action in generate_legal_actions(state)]
         except MatchNotFoundError as exc:
@@ -321,6 +324,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
     @app.post("/api/matches/{match_id}/actions")
     def submit_action(match_id: str, action: ActionRequest) -> dict[str, Any]:
         try:
+            _reject_public_room_match(app, match_id)
             return service.apply(match_id, action).model_dump()
         except MatchNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -330,6 +334,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
     @app.get("/api/matches/{match_id}/replay")
     def replay(match_id: str) -> dict[str, Any]:
         try:
+            _reject_public_room_match(app, match_id)
             return service.repository.replay(match_id)
         except MatchNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -564,6 +569,11 @@ def _match_payload(service: MatchService, match_id: str) -> dict[str, Any]:
             action.model_dump() for action in generate_legal_actions(state)
         ],
     }
+
+
+def _reject_public_room_match(app: FastAPI, match_id: str) -> None:
+    if app.state.room_service.repository.match_is_active_room_match(match_id):
+        raise HTTPException(status_code=404, detail=f"match not found: {match_id}")
 
 
 def _room_payload(

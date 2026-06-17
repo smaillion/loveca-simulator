@@ -194,13 +194,27 @@ def test_match_history_paginates_without_purging_active_room_match(tmp_path):
     assert polled.json()["match_id"] == room_match_id
     assert polled.json()["match"]["state"]["match_id"] == room_match_id
 
+    assert client.get(f"/api/matches/{room_match_id}").status_code == 404
+    assert client.get(f"/api/matches/{room_match_id}/legal-actions").status_code == 404
+    assert client.get(f"/api/matches/{room_match_id}/replay").status_code == 404
+    blocked_action = client.post(
+        f"/api/matches/{room_match_id}/actions",
+        json={
+            "action_type": "choose_first_player",
+            "expected_revision": 0,
+            "payload": {"first_player_id": "player_1"},
+        },
+    )
+    assert blocked_action.status_code == 404
+
     first_page = client.get("/api/matches?page=1&per_page=10")
     assert first_page.status_code == 200
     payload = first_page.json()
     assert len(payload["items"]) == 10
+    assert room_match_id not in {item["match_id"] for item in payload["items"]}
     assert payload["page"] == 1
     assert payload["per_page"] == 10
-    assert payload["total"] == 31
+    assert payload["total"] == 30
 
 
 def test_match_history_caps_results_at_100(tmp_path):
