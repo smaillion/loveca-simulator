@@ -91,6 +91,10 @@ def test_hosted_room_api_create_join_act_and_replay(tmp_path):
     assert joined_payload["status"] == "active"
     assert joined_payload["player_id"] == "player_2"
     assert joined_payload["match"]["state"]["revision"] == 0
+    assert all(
+        action["player_id"] in {None, "player_2"}
+        for action in joined_payload["match"]["legal_actions"]
+    )
 
     hidden = client.get(f"/api/rooms/{room_code}")
     assert hidden.status_code == 200
@@ -122,6 +126,15 @@ def test_hosted_room_api_create_join_act_and_replay(tmp_path):
     )
     assert acted.status_code == 200
     assert acted.json()["state"]["revision"] == 1
+    acted_state = acted.json()["state"]
+    assert set(acted_state["players"]["player_1"]["hand"]).issubset(acted_state["cards"])
+    assert set(acted_state["players"]["player_2"]["hand"]).isdisjoint(acted_state["cards"])
+
+    host_poll = client.get(f"/api/rooms/{room_code}?player_token={host_token}")
+    assert host_poll.status_code == 200
+    host_state = host_poll.json()["match"]["state"]
+    assert set(host_state["players"]["player_1"]["hand"]).issubset(host_state["cards"])
+    assert set(host_state["players"]["player_2"]["hand"]).isdisjoint(host_state["cards"])
 
     opponent_action = client.post(
         f"/api/rooms/{room_code}/actions",
@@ -153,6 +166,17 @@ def test_hosted_room_api_create_join_act_and_replay(tmp_path):
     polled = client.get(f"/api/rooms/{room_code}?player_token={guest_token}")
     assert polled.status_code == 200
     assert polled.json()["match"]["state"]["revision"] == 1
+    guest_state = polled.json()["match"]["state"]
+    host_hand = set(guest_state["players"]["player_1"]["hand"])
+    guest_hand = set(guest_state["players"]["player_2"]["hand"])
+    assert host_hand
+    assert guest_hand
+    assert host_hand.isdisjoint(guest_state["cards"])
+    assert guest_hand.issubset(guest_state["cards"])
+    assert all(
+        action["player_id"] in {None, "player_2"}
+        for action in polled.json()["match"]["legal_actions"]
+    )
 
     replay = client.get(f"/api/rooms/{room_code}/replay?player_token={host_token}")
     assert replay.status_code == 200

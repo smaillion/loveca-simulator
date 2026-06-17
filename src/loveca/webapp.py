@@ -33,7 +33,13 @@ from loveca.decks.library import (
 )
 from loveca.simulation.effects import DEFAULT_EFFECT_REGISTRY
 from loveca.simulation.engine import RuleEngineError, generate_legal_actions
-from loveca.simulation.models import ActionRequest
+from loveca.simulation.models import (
+    ActionRequest,
+    ActionResult,
+    GameEvent,
+    LegalAction,
+    MatchState,
+)
 from loveca.simulation.online import card_database_fingerprint, effect_registry_hash
 from loveca.simulation.rooms import (
     RoomError,
@@ -249,12 +255,16 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
     @app.post("/api/rooms/{room_code}/actions")
     def submit_room_action(room_code: str, request: RoomActionRequest) -> dict[str, Any]:
         try:
+            _room, player_id = app.state.room_service.get_room_for_player(
+                room_code,
+                request.player_token,
+            )
             result = app.state.room_service.apply_action(
                 room_code=room_code,
                 token=request.player_token,
                 action=request.action,
             )
-            return result.model_dump()
+            return _action_result_payload(result, player_id=player_id)
         except RoomNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except RoomTokenError as exc:
@@ -557,18 +567,69 @@ def _resolve_deck(player: PlayerSetup, allowed_root: Path):
     return load_deck(resolved)
 
 
-def _match_payload(service: MatchService, match_id: str) -> dict[str, Any]:
+def _match_payload(
+    service: MatchService,
+    match_id: str,
+    *,
+    player_id: str | None = None,
+) -> dict[str, Any]:
     state = service.repository.get_state(match_id)
+    legal_actions = generate_legal_actions(state)
+    events = service.repository.list_events(match_id)
+    return _match_state_payload(
+        state,
+        events=events,
+        legal_actions=legal_actions,
+        player_id=player_id,
+    )
+
+
+def _action_result_payload(result: ActionResult, *, player_id: str | None) -> dict[str, Any]:
+    return _match_state_payload(
+        result.state,
+        events=result.events,
+        legal_actions=result.legal_actions,
+        player_id=player_id,
+    )
+
+
+def _match_state_payload(
+    state: MatchState,
+    *,
+    events: list[GameEvent],
+    legal_actions: list[LegalAction],
+    player_id: str | None,
+) -> dict[str, Any]:
+    state_payload = state.model_dump()
+    visible_actions = legal_actions
+    if player_id is not None:
+        _redact_opponent_hands(state_payload, player_id)
+        visible_actions = [
+            action
+            for action in legal_actions
+            if action.player_id is None or action.player_id == player_id
+        ]
     return {
-        "state": state.model_dump(),
-        "events": [
-            event.model_dump()
-            for event in service.repository.list_events(match_id)
-        ],
-        "legal_actions": [
-            action.model_dump() for action in generate_legal_actions(state)
-        ],
+        "state": state_payload,
+        "events": [event.model_dump() for event in events],
+        "legal_actions": [action.model_dump() for action in visible_actions],
     }
+
+
+def _redact_opponent_hands(state_payload: dict[str, Any], player_id: str) -> None:
+    players = state_payload.get("players")
+    cards = state_payload.get("cards")
+    if not isinstance(players, dict) or not isinstance(cards, dict):
+        return
+    for opponent_id, player in players.items():
+        if opponent_id == player_id or not isinstance(player, dict):
+            continue
+        hand = player.get("hand")
+        if not isinstance(hand, list):
+            continue
+        for instance_id in hand:
+            if isinstance(instance_id, str):
+                cards.pop(instance_id, None)
 
 
 def _reject_public_room_match(app: FastAPI, match_id: str) -> None:
@@ -598,5 +659,5 @@ def _room_payload(
     if player_token is not None:
         payload["player_token"] = player_token
     if room.match_id is not None and player_id is not None:
-        payload["match"] = _match_payload(service, room.match_id)
+        payload["match"] = _match_payload(service, room.match_id, player_id=player_id)
     return payload

@@ -612,6 +612,7 @@ export default function App() {
             state={match.state}
             role={playerRoleLabel(match.state, topPlayerId, locale)}
             compact
+            hideHand
             onCard={setDetails}
           />
           <LiveCenter state={match.state} onCard={setDetails} />
@@ -1467,12 +1468,14 @@ function PlayerBoard({
   state,
   role,
   compact = false,
+  hideHand = false,
   onCard,
 }: {
   player: PlayerState;
   state: MatchState;
   role: string;
   compact?: boolean;
+  hideHand?: boolean;
   onCard: (card: CardInstance) => void;
 }) {
   const { locale, tr } = useUiLanguage();
@@ -1521,6 +1524,7 @@ function PlayerBoard({
         state={state}
         onCard={onCard}
         hand
+        hidden={hideHand}
       />
     </section>
   );
@@ -1793,6 +1797,7 @@ function Zone({
   state,
   onCard,
   hand = false,
+  hidden = false,
   small = false,
 }: {
   label: string;
@@ -1800,6 +1805,7 @@ function Zone({
   state: MatchState;
   onCard: (card: CardInstance) => void;
   hand?: boolean;
+  hidden?: boolean;
   small?: boolean;
 }) {
   const { tr } = useUiLanguage();
@@ -1808,9 +1814,19 @@ function Zone({
       <span className="zone-label">{label}</span>
       <div className="card-strip">
         {ids.length === 0 && <span className="zone-empty">{tr("空", "空き")}</span>}
-        {ids.map((id) => (
-          <CardTile key={id} instance={state.cards[id]} onClick={onCard} />
-        ))}
+        {hidden
+          ? ids.map((id, index) => (
+            <div
+              className="hidden-hand-card"
+              aria-label={tr("隐藏的对手手牌", "非公開の相手手札")}
+              key={id}
+            >
+              <span>{index + 1}</span>
+            </div>
+          ))
+          : ids.map((id) => (
+            <CardTile key={id} instance={state.cards[id]} onClick={onCard} />
+          ))}
       </div>
     </div>
   );
