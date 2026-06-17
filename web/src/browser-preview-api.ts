@@ -115,7 +115,12 @@ async function fetchPreviewJson<T>(path: string): Promise<T> {
     }
     throw new Error(response.statusText);
   }
-  return response.json() as Promise<T>;
+  return response.json().catch(() => {
+    throw new Error(
+      `Expected JSON from ${path}, but received a non-JSON response. `
+      + "Build or deploy the preview data package before using the static preview.",
+    );
+  }) as Promise<T>;
 }
 
 function cardDetailToSummary(detail: CatalogCardDetail): CatalogCardSummary {

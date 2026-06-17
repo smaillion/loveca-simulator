@@ -1,14 +1,14 @@
 {
   "name": "loveca-rules-debugger",
   "private": true,
-  "version": "0.4.2-alpha.1",
+  "version": "0.76.0",
   "type": "module",
   "engines": {
     "node": "^20.0.0 || ^22.0.0 || >=24.0.0"
   },
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json && vite build",
+    "build": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json && vite build && node scripts/export-static-preview-data.mjs",
     "test": "vitest run",
     "test:e2e": "playwright test",
     "smoke:e2e": "node e2e/smoke.mjs"

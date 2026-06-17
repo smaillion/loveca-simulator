@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "loveca-simulation"
-version = "0.4.2a1"
+version = "0.76.0"
 description = "Local card database, deck analysis, and simulation tools for Love Live! Series Official Card Game."
 readme = "README.md"
 requires-python = ">=3.11"

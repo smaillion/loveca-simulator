@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
+      # main is intentionally omitted while gateway promotion remains manual-only.
       - develop
       - preview
     paths:

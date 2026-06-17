@@ -24,7 +24,9 @@ from loveca.simulation.online import (
     match_state_hash,
 )
 
-MAX_RETAINED_MATCHES = 25
+DEFAULT_MATCH_HISTORY_LIMIT = 100
+DEFAULT_MATCH_HISTORY_PAGE_SIZE = 10
+MAX_RETAINED_MATCHES = DEFAULT_MATCH_HISTORY_LIMIT
 
 RUNTIME_SCHEMA_SQL = f"""
 PRAGMA foreign_keys = ON;
@@ -194,7 +196,6 @@ class MatchRepository:
                     """,
                     (state.match_id, state.revision, state_json, now),
                 )
-                _prune_old_matches(connection, self.max_retained_matches)
                 connection.commit()
             except Exception:
                 connection.rollback()
@@ -205,16 +206,63 @@ class MatchRepository:
             legal_actions=generate_legal_actions(state),
         )
 
-    def list_matches(self) -> list[dict[str, Any]]:
+    def list_matches(
+        self,
+        *,
+        page: int = 1,
+        per_page: int = DEFAULT_MATCH_HISTORY_PAGE_SIZE,
+        max_matches: int = DEFAULT_MATCH_HISTORY_LIMIT,
+        exclude_match_ids: set[str] | None = None,
+    ) -> dict[str, Any]:
+        if page < 1:
+            raise ValueError("page must be at least 1")
+        if per_page < 1:
+            raise ValueError("per_page must be at least 1")
+        if max_matches < 1:
+            raise ValueError("max_matches must be at least 1")
+        offset = (page - 1) * per_page
+        limit = min(per_page, max(0, max_matches - offset))
+        exclusion_clause = ""
+        exclusion_parameters: list[str] = []
+        if exclude_match_ids:
+            placeholders = ", ".join("?" for _ in exclude_match_ids)
+            exclusion_clause = f"WHERE match_id NOT IN ({placeholders})"
+            exclusion_parameters = sorted(exclude_match_ids)
         with closing(_connect(self.path)) as connection:
-            rows = connection.execute(
-                """
-                SELECT match_id, rule_version, seed, status, revision, created_at, updated_at
-                FROM matches
-                ORDER BY updated_at DESC
-                """
-            ).fetchall()
-        return [dict(row) for row in rows]
+            rows = []
+            if limit > 0:
+                rows = connection.execute(
+                    f"""
+                    SELECT match_id, rule_version, seed, status, revision, created_at, updated_at
+                    FROM matches
+                    {exclusion_clause}
+                    ORDER BY updated_at DESC, created_at DESC, match_id DESC
+                    LIMIT ? OFFSET ?
+                    """,
+                    (*exclusion_parameters, limit, offset),
+                ).fetchall()
+            total = int(
+                connection.execute(
+                    f"""
+                    SELECT COUNT(*)
+                    FROM (
+                        SELECT match_id
+                        FROM matches
+                        {exclusion_clause}
+                        ORDER BY updated_at DESC, created_at DESC, match_id DESC
+                        LIMIT ?
+                    )
+                    """,
+                    (*exclusion_parameters, max_matches),
+                ).fetchone()[0]
+            )
+        return {
+            "items": [dict(row) for row in rows],
+            "page": page,
+            "per_page": per_page,
+            "total": total,
+            "max_total": max_matches,
+        }
 
     def prune_old_matches(self, max_matches: int | None = None) -> int:
         limit = self.max_retained_matches if max_matches is None else max_matches
@@ -448,19 +496,50 @@ def _connect(path: Path) -> sqlite3.Connection:
 
 
 def _prune_old_matches(connection: sqlite3.Connection, max_matches: int) -> int:
+    protected_match_ids: list[str] = []
+    if _table_exists(connection, "hosted_rooms"):
+        protected_match_ids = [
+            str(row["match_id"])
+            for row in connection.execute(
+                """
+                SELECT match_id
+                FROM hosted_rooms
+                WHERE match_id IS NOT NULL AND status != 'expired'
+                """
+            ).fetchall()
+        ]
+    protected_clause = ""
+    parameters: list[Any] = []
+    if protected_match_ids:
+        placeholders = ", ".join("?" for _ in protected_match_ids)
+        protected_clause = f"AND match_id NOT IN ({placeholders})"
+        parameters.extend(protected_match_ids)
+    parameters.append(max_matches)
     rows = connection.execute(
-        """
+        f"""
         SELECT match_id
         FROM matches
+        WHERE status != 'active'
+        {protected_clause}
         ORDER BY updated_at DESC, created_at DESC, match_id DESC
         LIMIT -1 OFFSET ?
         """,
-        (max_matches,),
+        parameters,
     ).fetchall()
     stale_match_ids = [str(row["match_id"]) for row in rows]
     for match_id in stale_match_ids:
         connection.execute("DELETE FROM matches WHERE match_id = ?", (match_id,))
     return len(stale_match_ids)
+
+
+def _table_exists(connection: sqlite3.Connection, table_name: str) -> bool:
+    return (
+        connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+            (table_name,),
+        ).fetchone()
+        is not None
+    )
 
 
 def _json(value: Any) -> str:

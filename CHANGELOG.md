@@ -1,6 +1,21 @@
 # 変更履歴 / 变更记录
 
-## Unreleased
+## v0.76 - 2026-06-18
+
+### 修正 / 修复
+
+- 対戦中の非公開情報表示を見直し、Local / Online とも操作プレイヤー基準で相手の手札を隠すようにした。
+- 先後攻を自動ランダム化し、対戦開始時の手動選択を不要にした。
+- 自動効果、特殊エール、続きの効果選択に画面上の提示を追加し、解決済み効果が次の操作へ進みやすいようにした。
+- 自分の控え室を確認できる UI を追加し、Online room の離脱 cleanup と mobile layout を改善した。
+- README と起動時 Alpha 告知を更新し、最新版の修正内容、残っている制限、Discord での bug 報告 / 対戦相手募集導線を明記した。
+
+### 既知の制限 / 已知限制
+
+- 全カード効果はまだ自動化できておらず、一部は手動処理または debug skip が必要。
+- Online room はテスト機能で、アカウント、長期保存、厳密な不正対策は未対応。
+
+## v0.75 - 2026-06-17
 
 ### 追加 / 新增
 
@@ -11,11 +26,63 @@
 - Pages preview workflow に公式カード DB / import artifact の GitHub Actions cache を追加し、通常の publish で毎回公式サイトから全量再取得しないようにした。
 - 専用 `preview` ブランチで `data/loveca.sqlite3` をコミットし、GitHub Pages はその SQLite から静的 preview data を生成する運用に変更。
 - Browser preview の初回起動時に、できること / できないことを説明する案内ダイアログを追加。
+- 対戦画面の初回起動時に使い方ガイドを自動表示し、ヘルプボタンから再表示できるようにした。ガイドはページ分割と図解を追加し、未自動化スキルで止まった場合は手動処理で実際の対戦結果を入力できることを自然な文言で案内する。
 - Browser preview の初回起動時に 20 個の generated sample deck を localStorage に作成するようにした。
 - Deck Builder に decklist.v0 JSON の import / export を追加。
 - Browser-only preview の設計文書を追加し、IndexedDB / localStorage、deck import/export、play history export、public data policy の境界を整理。
 - effect registry を 925 件に拡張し、同文の top-deck reorder、Live-success reorder、起動 self-Wait / ready-other Member pattern を追加。
-- `test_validated_executable` effect を 466 件まで拡張し、registry entry ベースの coverage が 50.38% に到達。
+- `test_validated_executable` effect を 628 件まで拡張し、registry entry ベースの coverage が 67.89% に到達。timing segment 登録率は 925/947、97.68% を維持。
+- `PL!HS-bp2-021:1` と `PL!HS-pb1-029:1` を exact-text pattern として構造化し、Baton Touch 登場した蓮ノ空 Member 2 人条件の `heart04` required Heart 減少と、みらくらぱーく！ extra Heart 条件の draw / required Heart 減少を自動解決できるようにした。
+- Nijigasaki の named Baton Touch 登場時 draw / discard 4 件と、Live 開始時に source Member の元々持つ Heart を選択色へ置換する 4 件を exact-text pattern として構造化。
+- required Heart 色数で Waiting Room の Live 候補を絞る起動効果 3 件、Heart count で inspect 候補を絞る効果 4 件、条件付き Nijigasaki Energy ready 1 件、余剰 Heart 条件の Live-success inspect reorder 1 件を構造化。
+- center Liella! Member の元々持つ Blade 数を Live 終了時まで 3 に置換する pattern と、source Member 自身を position change する 5 件の exact-text pattern を構造化。
+- Liella! Baton replacement Member を控室から手札に戻す pattern と、Yell 公開カード内の不同名 Liella! Member 5 枚条件で Live score を +1 する pattern を構造化。
+- 余剰 Heart を持たない Live-success score pattern と、Stage Member choice の `minimum_blade` filter を追加し、Aqours Member Blade 6 条件を構造化。
+- 分岐ごとに異なる Stage Member 候補を持つ branch choice と center Member work/cost 条件を追加し、`PL!S-bp3-024:1` を構造化。
+- 分岐ごとの条件を持つ Waiting Room Live 回収 branch choice を追加し、`PL!N-bp5-011:1` を構造化。
+- 双方の控室 Member を一括で deck bottom に戻す operation と post-action 条件 gate を追加し、`PL!HS-pb1-012:1` を構造化。
+- μ's Live-start 双方 draw/discard follow-up、Aqours Live-start 三分岐、Aqours 全員条件の draw 後 top/bottom 戻し、余剰 Heart 3 以上消費 score、Yell 公開 Member 回収、Aqours heart02 条件による source Live-success 無効化、side cost 同値による相手 original Blade 3 以下一括 wait、Yell Blade Heart / 余剰 Heart 条件の score 4 replacement、deck refresh 履歴条件 score +2 を構造化。
+- hand count Blade、成功 Live 置き場 μ's 追加 draw、Yell 公開蓮ノ空 Member 10 枚条件、Hasunosora named-stage Energy ready + Live 回収、Edel Note grouped Blade/Heart、Hasunosora 高スコア条件 Energy placement、Stage 2 条件の score 3 Live 回収を構造化。
+- non-center source position change、opponent 余剰 Heart clear count gate、色別余剰 Heart 条件、wait Stage Member 数 score、extra Heart Stage Member draw を構造化。
+- Yell 公開枚数比較 draw、同点 / 高スコア時の Yell 公開カード回収、余剰 Heart draw/discard、source score / Blade 条件、BiBi distinct-name 回収、控室 work count 条件、Stage Heart 総数比較 score を構造化。
+- opponent Stage の cost 条件付き Member wait と、draw 後に cost 9 以下の opponent Member を 1 人まで wait する Live-start pattern を構造化。
+- optional discard cost 後に Yell 公開カードから cost 2 以下 Member または score 2 以下 Live を回収する Live-success pattern を構造化。
+- Energy 2 枚を支払って source Member を position change する activated pattern を構造化し、activated effect cost で選択 Energy を実行器へ渡すようにした。
+- Stage 内 position change / swap から `member_moved` trigger を enqueue し、移動した source Member が `heart06` を得る auto-triggered pattern 3 件を構造化。
+- Energy 2 / Energy 4 を支払って控え室の cost 制限内 Member を空き Member area に登場させる activated pattern を構造化し、waiting-room deploy choice と空き slot 検証を実行器へ追加。
+- activated effect の cost choice を発動時に実行できるようにし、Aqours Live 回収 2 件と右サイド登場 Energy ready 1 件を構造化。
+- left side 登場時の optional pay-Energy draw と、optional pay-Energy Liella! Member 回収を構造化。
+- on-play simple effects、live-start pay / discard modifiers、activated wait-or-discard ready Energy branch を追加し、9 件を構造化。
+- on-play branch effects、moved-source auto modifiers、成功 Live 枚数同値条件の Live-start Heart modifier を追加し、8 件を構造化。
+- opponent wait count static modifiers、multi-segment static Heart / Blade、Live-success Energy placement / pay draw effects を追加し、8 件を構造化。
+- moved-source の draw / Energy / opponent wait pattern と、Yell 公開 special Blade Heart / Stage name 条件の Live-success score / draw pattern を追加し、8 件を構造化。
+- moved-source / special Blade Heart 条件追加後の最新小規模 block smoke は 10 decks / 5 matches で 0 完走 / 2 `mandatory_manual_resolution` / 3 `max_actions`、skipped effects 0。
+- success score 比較、相手 success lead、Stage unit / cost-filter count、相手 Stage count、相手余剰 Heart 条件の static modifier pattern を追加し、7 件を構造化。
+- static count modifier 追加後の最新小規模 block smoke は 10 decks / 5 matches で 0 完走 / 2 `mandatory_manual_resolution` / 3 `max_actions`、skipped effects 0。
+- static position / Heart / Live-area 条件 modifier pattern を追加し、center side original Blade、source most stage Hearts、center highest cost、Liella! Live required-Heart total 条件の 4 件を構造化。
+- static position / Heart / Live-area 条件追加後の最新小規模 block smoke は 10 decks / 5 matches で 0 完走 / 2 `mandatory_manual_resolution` / 3 `max_actions`、skipped effects 0。
+- static opposing-cost / movement / attachment 条件 modifier pattern を追加し、正面 Member cost 比較、source 未移動、source 下 Energy 2 枚条件の 3 件を構造化。
+- static opposing-cost / movement / attachment 条件追加後の最新小規模 block smoke は 10 decks / 5 matches で 0 完走 / 2 `mandatory_manual_resolution` / 3 `max_actions`、skipped effects 0。
+- Live-start member-entered count and Yell-revealed Live-success conditions を追加し、Nijigasaki member Heart 6 色条件、μ's non-Blade-Heart revealed Member draw/discard、member entered 2 回 score の 3 件を構造化。
+- Yell / Live-success condition 追加後の最新小規模 block smoke は 10 decks / 5 matches で 0 完走 / 2 `mandatory_manual_resolution` / 3 `max_actions`、skipped effects 0。
+- Yell-revealed card recovery / deck placement と source moved condition を追加し、Liella! revealed card count Energy placement、revealed distinct Liella! Member Live recovery、named-stage Yell recovery、revealed card deck top / bottom、center Liella! moved score、moved source extra draw の 7 件を構造化。
+- Yell-revealed recovery 追加後の最新小規模 block smoke は 10 decks / 5 matches で 0 完走 / 2 `mandatory_manual_resolution` / 3 `max_actions`、skipped effects 0。
+- Live-success conditional score / Energy pattern を追加し、複合 OR score 条件、top reveal to hand、余剰 Heart 正負 score、source 下 Energy 数参照、optional mill、optional Energy placement + opponent draw の 6 件を構造化。
+- Live-success conditional score / Energy 追加後の最新小規模 block smoke は 10 decks / 5 matches で 0 完走 / 2 `mandatory_manual_resolution` / 3 `max_actions`、skipped effects 0。
+- hand deploy / source-wait Blade pattern を追加し、手札から cost 4 以下の指定名 Nijigasaki Member を登場させる 4 件と、source wait 後に center μ's Member へ Blade を付与する 2 件を構造化。
+- source wait 後に相手 Stage Member を wait する pattern と original-Blade choice filter を追加し、cost 9 以下、BiBi-only original Blade 3 以下、original Blade 4 ちょうどの 5 件を構造化。
+- dual timing の on-play opponent wait と `DOLLCHESTRA` 除外 original-Blade choice filter を追加し、cost 9 以下、Stage cost 10 条件 cost 4 以下、original Blade 3 以下かつ非 DOLLCHESTRA の 4 件を追加で構造化。
+- hand deploy / source-wait Blade 追加後の最新小規模 block smoke は 10 decks / 5 matches で 0 完走 / 2 `mandatory_manual_resolution` / 3 `max_actions`、skipped effects 0。
+- source wait opponent original-Blade wait 追加後の最新小規模 block smoke は 10 decks / 5 matches で 0 完走 / 2 `mandatory_manual_resolution` / 3 `max_actions`、skipped effects 0。
+- moved-source `heart06` trigger 後の最新小規模 block smoke は 10 decks / 5 matches で 1 完走 / 4 `max_actions`、mandatory manual blocker 0、skipped effects 0。
+- activated Energy cost position change 後の最新小規模 block smoke は 10 decks / 5 matches で 1 完走 / 4 `max_actions`、mandatory manual blocker 0、skipped effects 0。
+- activated Waiting Room Member deploy 後の最新小規模 block smoke は 10 decks / 5 matches で 1 完走 / 4 `max_actions`、mandatory manual blocker 0、skipped effects 0。
+- activated cost-choice 回収後の最新小規模 block smoke は 10 decks / 5 matches で 1 完走 / 4 `max_actions`、mandatory manual blocker 0、skipped effects 0。
+- on-play pay-Energy pattern 追加後の最新小規模 block smoke は 10 decks / 5 matches で 1 完走 / 4 `max_actions`、mandatory manual blocker 0、skipped effects 0。
+- simple on-play / activated branch 追加後の最新小規模 block smoke は 10 decks / 5 matches で 1 完走 / 4 `max_actions`、mandatory manual blocker 0、skipped effects 0。
+- on-play branch / moved-source modifier 追加後の最新小規模 block smoke は 10 decks / 5 matches で 1 完走 / 4 `max_actions`、mandatory manual blocker 0、skipped effects 0。
+- static / Live-success simple effect 追加後の最新小規模 block smoke は 10 decks / 5 matches で 1 完走 / 4 `max_actions`、mandatory manual blocker 0、skipped effects 0。
+- Yell 公開 cost / score 回収構造化後の最新小規模 block smoke は 10 decks / 5 matches で 1 完走 / 4 `max_actions`、mandatory manual blocker 0。20-match block smoke は 300 秒内に完走せず、sandbox 速度追跡が必要。
 - grouped Stage Member choice を追加し、`PL!SP-bp4-023:1` のように「指定名 Member 1 人」と「それ以外の Liella! Member 1 人」を別 group で選び、両方に Live 期間 Blade modifier を適用できるようにした。
 - Live-specific temporary modifier として、Live score、必要 Heart 増減、必要 Heart 置換の基礎を追加。
 - `ライブ開始時` / `ライブ成功時` の exact-text pattern を追加し、公開した山札上カードによる score 加算、成功 Live 枚数による必要 Heart 変更、Stage Heart / Blade 条件などを構造化。
@@ -76,11 +143,54 @@
 - 为 Pages preview workflow 增加官方卡牌 DB / import artifact 的 GitHub Actions cache，避免普通发布每次都从官网全量重抓。
 - 改为使用专用 `preview` 分支提交 `data/loveca.sqlite3`，GitHub Pages 从该 SQLite 生成静态 preview data。
 - Browser preview 首次打开时新增说明弹窗，展示当前能做和不能做的功能边界。
+- 对战界面首次打开时自动显示使用说明，并可从帮助按钮再次打开。说明改为分页图文形式，重点用自然语言解释未自动化技能卡住时可以通过“人工处理”补入实际牌局结果。
 - Browser preview 首次启动时会在 localStorage 中生成 20 个 generated sample deck。
 - Deck Builder 增加 decklist.v0 JSON 导入 / 导出。
 - 新增 Browser-only preview 设计文档，整理 IndexedDB / localStorage、牌组导入导出、游玩履历导出和 public data policy 边界。
 - 将 effect registry 扩展到 925 条，新增同文 top-deck reorder、Live 成功 reorder、起动 self-Wait / ready-other Member 模式。
-- 将 `test_validated_executable` 技能扩展到 466 条，按 registry entry 计算达到 50.38% 覆盖率。
+- 将 `test_validated_executable` 技能扩展到 628 条，按 registry entry 计算达到 67.89% 覆盖率。timing segment 登记率维持在 925/947，即 97.68%。
+- 将 `PL!HS-bp2-021:1` 和 `PL!HS-pb1-029:1` 结构化为 exact-text pattern，自动处理 Baton Touch 登场的莲之空 Member 2 人条件减少 `heart04` required Heart，以及 みらくらぱーく！extra Heart 条件下抽牌 / 减少 required Heart。
+- 将 Nijigasaki named Baton Touch 登场时抽牌 / 弃牌 4 条，以及 Live 开始时把 source Member 原本持有 Heart 替换为所选颜色的 4 条结构化为 exact-text pattern。
+- 结构化支持 3 条按 required Heart 颜色数量筛选 Waiting Room Live 的起动效果、4 条按 Heart count 筛选 inspect 候选的效果、1 条 Nijigasaki 条件式 Energy ready，以及 1 条余剩 Heart 条件的 Live 成功 inspect reorder。
+- 结构化支持 center Liella! Member 原本持有 Blade 数在 Live 结束前变为 3 的 pattern，以及 5 条 source Member 自身 position change 的 exact-text pattern。
+- 结构化支持 Liella! Baton replacement Member 从控室回手，以及 Yell 公开牌中不同名 Liella! Member 5 张以上时 Live score +1 的 pattern。
+- 新增无余剩 Heart 的 Live-success score pattern，以及 Stage Member choice 的 `minimum_blade` filter，并结构化 Aqours Member Blade 6 条件。
+- 新增每个分支使用不同 Stage Member 候选池的 branch choice 和 center Member work/cost 条件，并结构化 `PL!S-bp3-024:1`。
+- 新增每个分支带独立条件的 Waiting Room Live 回收 branch choice，并结构化 `PL!N-bp5-011:1`。
+- 新增双方控室 Member 批量放到牌堆底的 operation 和 post-action 条件 gate，并结构化 `PL!HS-pb1-012:1`。
+- 结构化 μ's Live-start 双方 draw/discard follow-up、Aqours Live-start 三分支、Aqours 全员条件的抽牌后置顶/置底、余剩 Heart 3 个以上消耗加分、Yell 公开 Member 回手、Aqours heart02 条件使 source Live-success 无效、左右 side cost 相同条件让对手 original Blade 3 以下成员批量 wait、Yell Blade Heart / 余剩 Heart 条件的 score 4 replacement、牌堆 refresh 历史条件 score +2。
+- 结构化支持支付 Energy 2 / Energy 4 后，从控室把 cost 限制内 Member 登场到空 Member area 的起动 pattern，并在执行器中新增 waiting-room deploy choice 与空 slot 校验。
+- 支持 activated effect 在发动时执行 cost choice，并结构化 2 条 Aqours Live 回收和 1 条右侧登场 Energy ready。
+- 结构化支持 left side 登场时 optional pay-Energy 抽牌，以及 optional pay-Energy 回收 Liella! Member。
+- 新增 on-play simple effects、live-start pay / discard modifiers、activated wait-or-discard ready Energy branch，结构化 9 条技能。
+- 新增 on-play branch effects、moved-source auto modifiers、成功 Live 张数相同条件的 Live-start Heart modifier，结构化 8 条技能。
+- 新增 opponent wait count static modifiers、multi-segment static Heart / Blade、Live-success Energy placement / pay draw effects，结构化 8 条技能。
+- 新增 moved-source 抽牌 / Energy / 对手 wait pattern，以及 Yell 公开 special Blade Heart / Stage name 条件的 Live-success 加分 / 抽牌 pattern，结构化 8 条技能。
+- moved-source / special Blade Heart 条件追加后的最新小规模 block smoke 为 10 decks / 5 matches 中 0 局完走 / 2 局 `mandatory_manual_resolution` / 3 局 `max_actions`，skipped effects 为 0。
+- 新增 success score 比较、对手 success lead、Stage unit / cost-filter count、对手 Stage count、对手余剩 Heart 条件的 static modifier pattern，结构化 7 条技能。
+- static count modifier 追加后的最新小规模 block smoke 为 10 decks / 5 matches 中 0 局完走 / 2 局 `mandatory_manual_resolution` / 3 局 `max_actions`，skipped effects 为 0。
+- 新增 static position / Heart / Live-area 条件 modifier pattern，结构化 center side original Blade、source most stage Hearts、center highest cost、Liella! Live required-Heart total 条件的 4 条技能。
+- static position / Heart / Live-area 条件追加后的最新小规模 block smoke 为 10 decks / 5 matches 中 0 局完走 / 2 局 `mandatory_manual_resolution` / 3 局 `max_actions`，skipped effects 为 0。
+- 新增 static opposing-cost / movement / attachment 条件 modifier pattern，结构化正面 Member cost 比较、source 未移动、source 下 Energy 2 张条件的 3 条技能。
+- static opposing-cost / movement / attachment 条件追加后的最新小规模 block smoke 为 10 decks / 5 matches 中 0 局完走 / 2 局 `mandatory_manual_resolution` / 3 局 `max_actions`，skipped effects 为 0。
+- 新增 Live-start member-entered count 与 Yell-revealed Live-success 条件，结构化 Nijigasaki Member Heart 6 色条件、μ's 非 Blade-Heart 公开 Member 抽弃、Member 登场 2 次 score 的 3 条技能。
+- Yell / Live-success 条件追加后的最新小规模 block smoke 为 10 decks / 5 matches 中 0 局完走 / 2 局 `mandatory_manual_resolution` / 3 局 `max_actions`，skipped effects 为 0。
+- 新增 Yell-revealed 卡牌回收 / 置回牌堆与 source moved 条件，结构化 Liella! 公开卡数量放 Energy、不同名 Liella! Member 公开 Live 回收、指定名舞台 Yell 回收、公开卡置顶 / 置底、center Liella! 移动加分、moved source 追加抽牌的 7 条技能。
+- Yell-revealed recovery 追加后的最新小规模 block smoke 为 10 decks / 5 matches 中 0 局完走 / 2 局 `mandatory_manual_resolution` / 3 局 `max_actions`，skipped effects 为 0。
+- 新增 Live-success conditional score / Energy pattern，结构化复合 OR 加分条件、top reveal 入手、余剩 Heart 正负加分、source 下 Energy 数参照、optional mill、optional Energy placement + 对手抽牌的 6 条技能。
+- Live-success conditional score / Energy 追加后的最新小规模 block smoke 为 10 decks / 5 matches 中 0 局完走 / 2 局 `mandatory_manual_resolution` / 3 局 `max_actions`，skipped effects 为 0。
+- 新增 hand deploy / source-wait Blade pattern，结构化从手牌登场 cost 4 以下指定名 Nijigasaki Member 的 4 条技能，以及 source wait 后给 center μ's Member 付与 Blade 的 2 条技能。
+- 新增 source wait 后让对手 Stage Member wait 的 pattern 与 original-Blade choice filter，结构化 cost 9 以下、BiBi-only original Blade 3 以下、original Blade 正好 4 的 5 条技能。
+- 新增 dual timing 的登场 opponent wait 与 `DOLLCHESTRA` 排除 original-Blade choice filter，追加结构化 cost 9 以下、Stage cost 10 条件 cost 4 以下、original Blade 3 以下且非 DOLLCHESTRA 的 4 条技能。
+- hand deploy / source-wait Blade 追加后的最新小规模 block smoke 为 10 decks / 5 matches 中 0 局完走 / 2 局 `mandatory_manual_resolution` / 3 局 `max_actions`，skipped effects 为 0。
+- source wait opponent original-Blade wait 追加后的最新小规模 block smoke 为 10 decks / 5 matches 中 0 局完走 / 2 局 `mandatory_manual_resolution` / 3 局 `max_actions`，skipped effects 为 0。
+- activated 控室 Member 登场后的最新小规模 block smoke 为 10 decks / 5 matches 中 1 局完走 / 4 局 `max_actions`，mandatory manual blocker 为 0，skipped effects 为 0。
+- activated cost-choice 回收后的最新小规模 block smoke 为 10 decks / 5 matches 中 1 局完走 / 4 局 `max_actions`，mandatory manual blocker 为 0，skipped effects 为 0。
+- on-play pay-Energy pattern 追加后的最新小规模 block smoke 为 10 decks / 5 matches 中 1 局完走 / 4 局 `max_actions`，mandatory manual blocker 为 0，skipped effects 为 0。
+- simple on-play / activated branch 追加后的最新小规模 block smoke 为 10 decks / 5 matches 中 1 局完走 / 4 局 `max_actions`，mandatory manual blocker 为 0，skipped effects 为 0。
+- on-play branch / moved-source modifier 追加后的最新小规模 block smoke 为 10 decks / 5 matches 中 1 局完走 / 4 局 `max_actions`，mandatory manual blocker 为 0，skipped effects 为 0。
+- static / Live-success simple effect 追加后的最新小规模 block smoke 为 10 decks / 5 matches 中 1 局完走 / 4 局 `max_actions`，mandatory manual blocker 为 0，skipped effects 为 0。
+- 最新 10-match block smoke 为 10 局 `max_actions` 且 mandatory manual blocker 为 0，semantic mock smoke 为 1 局完走 / 9 局 `max_actions`。semantic schema gap 为 0。
 - 新增 grouped Stage Member choice，支持像 `PL!SP-bp4-023:1` 这样把“指定名 Member 1 人”和“除此以外的 Liella! Member 1 人”分组选择，并对两个目标应用 Live 期间 Blade modifier。
 - 新增 Live 专用临时 modifier 基础，覆盖 Live score、所需 Heart 增减和所需 Heart 替换。
 - 新增 `ライブ開始時` / `ライブ成功時` exact-text pattern，结构化支持公开牌堆顶后的 score 加算、按成功 Live 数改变所需 Heart、Stage Heart / Blade 条件等。

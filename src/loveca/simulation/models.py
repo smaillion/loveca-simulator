@@ -40,7 +40,9 @@ ModifierType = Literal[
     "blade",
     "heart",
     "required_heart",
+    "score_replacement",
     "base_heart_replacement",
+    "base_blade_replacement",
     "yell_blade_heart_replacement",
     "flag",
 ]
@@ -145,6 +147,8 @@ class PlayerState(BaseModel):
         default_factory=lambda: {"left": [], "center": [], "right": []}
     )
     member_areas_entered_this_turn: list[str] = Field(default_factory=list)
+    member_areas_moved_this_turn: list[str] = Field(default_factory=list)
+    member_entered_count_this_turn: int = 0
     member_areas_baton_entered_this_turn: list[str] = Field(default_factory=list)
     energy_area: list[str] = Field(default_factory=list)
     live_area: list[str] = Field(default_factory=list)
@@ -154,6 +158,7 @@ class PlayerState(BaseModel):
     manual_modifiers: list[ManualModifier] = Field(default_factory=list)
     effect_ready_flags_this_turn: list[str] = Field(default_factory=list)
     refresh_count: int = 0
+    refreshed_this_turn: bool = False
     live_result: LivePerformanceResult = Field(default_factory=LivePerformanceResult)
 
 

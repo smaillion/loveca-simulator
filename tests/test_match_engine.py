@@ -12,6 +12,7 @@ from loveca.decks.analyzer import load_deck, parse_deck
 from loveca.simulation.engine import (
     IllegalActionError,
     StaleRevisionError,
+    apply_action,
     generate_legal_actions,
 )
 from loveca.simulation.models import ActionRequest, MatchState
@@ -74,48 +75,33 @@ def test_initial_main_deck_shuffle_is_seeded_and_observable(tmp_path):
         seed=4243,
     )
 
-    def choose_first(service, match_id):
-        state = service.repository.get_state(match_id)
-        return service.apply(
-            match_id,
-            ActionRequest(
-                action_type="choose_first_player",
-                expected_revision=state.revision,
-                payload={"first_player_id": "player_1"},
-            ),
-        )
+    first = first_service.repository.get_state(first_match_id)
+    repeated = repeated_service.repository.get_state(repeated_match_id)
+    different = different_service.repository.get_state(different_match_id)
 
-    first = choose_first(first_service, first_match_id)
-    repeated = choose_first(repeated_service, repeated_match_id)
-    different = choose_first(different_service, different_match_id)
-
-    assert first.state.players["player_1"].hand == repeated.state.players["player_1"].hand
-    assert first.state.players["player_1"].main_deck == repeated.state.players["player_1"].main_deck
-    assert first.state.players["player_1"].hand != different.state.players["player_1"].hand
+    assert first.players["player_1"].hand == repeated.players["player_1"].hand
+    assert first.players["player_1"].main_deck == repeated.players["player_1"].main_deck
+    assert first.players["player_1"].hand != different.players["player_1"].hand
+    first_replay = first_service.repository.replay(first_match_id)
     shuffle_events = [
-        event for event in first.events if event.event_type == "deck_shuffled"
+        event
+        for event in first_replay["events"]
+        if event["event_type"] == "deck_shuffled"
     ]
-    assert {event.player_id for event in shuffle_events} == {
+    assert {event["player_id"] for event in shuffle_events} == {
         "player_1",
         "player_2",
     }
-    assert all(event.data["card_count"] == 60 for event in shuffle_events)
+    assert all(event["data"]["card_count"] == 60 for event in shuffle_events)
 
 
 def test_setup_phase_order_and_next_turn_start(tmp_path):
     service, match_id = _create_match(tmp_path, seed=260428)
 
     state = service.repository.get_state(match_id)
-    assert state.phase == "setup_choose_first"
-    assert len(state.players["player_1"].main_deck) == 60
-
-    state = _apply(
-        service,
-        match_id,
-        state,
-        "choose_first_player",
-        payload={"first_player_id": "player_1"},
-    )
+    assert state.phase == "setup_mulligan_first"
+    assert state.first_player_id == "player_1"
+    assert len(state.players["player_1"].main_deck) == 54
     assert len(state.players["player_1"].hand) == 6
     assert len(state.players["player_2"].hand) == 6
 
@@ -471,6 +457,112 @@ def test_manual_adjustment_and_member_play_are_action_only(tmp_path):
     assert state.players["player_1"].member_area["center"] == member_id
     assert all(state.cards[item].orientation == "wait" for item in energy_ids)
     assert state.players["player_1"].member_areas_entered_this_turn == ["center"]
+
+
+def test_manual_return_from_waiting_room_moves_card_to_hand(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=17)
+    state = _reach_first_main(service, match_id)
+    manual_options = next(
+        action.options
+        for action in generate_legal_actions(state)
+        if action.action_type == "manual_adjustment"
+    )
+    assert "return_from_waiting_room" in manual_options["adjustment_types"]
+    card_id = state.players["player_1"].hand[0]
+
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "manual_adjustment",
+        player_id="player_1",
+        payload={
+            "reason": "prepare waiting-room return",
+            "requires_confirmation": True,
+            "confirmed_by": "tester",
+            "adjustments": [
+                {
+                    "adjustment_type": "discard_card",
+                    "target_player_id": "player_1",
+                    "target_card_instance_id": card_id,
+                }
+            ],
+        },
+    )
+    assert card_id in state.players["player_1"].waiting_room
+    assert card_id not in state.players["player_1"].hand
+
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "manual_adjustment",
+        player_id="player_1",
+        payload={
+            "reason": "return from waiting room",
+            "requires_confirmation": True,
+            "confirmed_by": "tester",
+            "adjustments": [
+                {
+                    "adjustment_type": "return_from_waiting_room",
+                    "target_player_id": "player_1",
+                    "target_card_instance_id": card_id,
+                }
+            ],
+        },
+    )
+    assert card_id in state.players["player_1"].hand
+    assert card_id not in state.players["player_1"].waiting_room
+
+    deck_card = state.players["player_1"].main_deck[0]
+    with pytest.raises(IllegalActionError, match="waiting room"):
+
+        _apply(
+            service,
+            match_id,
+            state,
+            "manual_adjustment",
+            player_id="player_1",
+            payload={
+                "reason": "reject non-waiting-room target",
+                "requires_confirmation": True,
+                "confirmed_by": "tester",
+                "adjustments": [
+                    {
+                        "adjustment_type": "return_from_waiting_room",
+                        "target_player_id": "player_1",
+                        "target_card_instance_id": deck_card,
+                    }
+                ],
+            },
+        )
+
+
+def test_manual_discard_card_rejects_non_hand_target(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=715)
+    state = _reach_first_main(service, match_id)
+    deck_card = state.players["player_1"].main_deck[0]
+
+    with pytest.raises(IllegalActionError, match="target must be in hand"):
+        _apply(
+            service,
+            match_id,
+            state,
+            "manual_adjustment",
+            player_id="player_1",
+            payload={
+                "reason": "manual discard should only target hand",
+                "requires_confirmation": True,
+                "confirmed_by": "tester",
+                "adjustments": [
+                    {
+                        "adjustment_type": "discard_card",
+                        "target_player_id": "player_1",
+                        "target_card_instance_id": deck_card,
+                    }
+                ],
+            },
+        )
 
 
 def test_manual_energy_adjustment_supports_multiple_targets(tmp_path):
@@ -925,6 +1017,10 @@ def test_position_and_formation_change_move_complete_member_groups(tmp_path):
     assert state.players["player_1"].member_area_attachments["center"] == [
         attached_id
     ]
+    assert state.players["player_1"].member_areas_moved_this_turn == [
+        "center",
+        "left",
+    ]
 
     state = _apply(
         service,
@@ -954,6 +1050,11 @@ def test_position_and_formation_change_move_complete_member_groups(tmp_path):
     }
     assert state.players["player_1"].member_area_attachments["right"] == [
         attached_id
+    ]
+    assert state.players["player_1"].member_areas_moved_this_turn == [
+        "center",
+        "left",
+        "right",
     ]
 
 
@@ -1010,6 +1111,7 @@ def test_move_member_accepts_only_top_stage_member_and_derives_source_slot(tmp_p
     )
     assert state.players["player_1"].member_area["left"] is None
     assert state.players["player_1"].member_area["right"] == stage_id
+    assert state.players["player_1"].member_areas_moved_this_turn == ["right"]
 
     with pytest.raises(
         IllegalActionError,
@@ -1033,6 +1135,78 @@ def test_move_member_accepts_only_top_stage_member_and_derives_source_slot(tmp_p
                 ],
             },
         )
+
+
+def test_area_move_does_not_mark_member_area_as_entered_for_turn(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=127)
+    state = _reach_first_main(service, match_id)
+    player = state.players["player_1"]
+    stage_id, hand_id = [
+        instance_id
+        for instance_id in player.main_deck
+        if state.cards[instance_id].card.card_type == "member"
+    ][:2]
+    state = apply_action(
+        state,
+        ActionRequest(
+            action_type="manual_adjustment",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={
+                "reason": "prepare existing Stage Member",
+                "adjustments": [
+                    {
+                        "adjustment_type": "move_card",
+                        "target_player_id": "player_1",
+                        "target_card_instance_id": stage_id,
+                        "to_zone": "member_left",
+                    },
+                    {
+                        "adjustment_type": "move_card",
+                        "target_player_id": "player_1",
+                        "target_card_instance_id": hand_id,
+                        "to_zone": "hand",
+                    },
+                ],
+            },
+        ),
+    ).state
+    state.players["player_1"].member_areas_entered_this_turn.clear()
+
+    state = apply_action(
+        state,
+        ActionRequest(
+            action_type="manual_adjustment",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={
+                "reason": "area move",
+                "adjustments": [
+                    {
+                        "adjustment_type": "move_member",
+                        "target_player_id": "player_1",
+                        "target_card_instance_id": stage_id,
+                        "to_slot": "right",
+                    }
+                ],
+            },
+        ),
+    ).state
+
+    assert state.players["player_1"].member_area["left"] is None
+    assert state.players["player_1"].member_area["right"] == stage_id
+    assert state.players["player_1"].member_areas_entered_this_turn == []
+    assert state.players["player_1"].member_areas_moved_this_turn == ["right"]
+
+    play_action = next(
+        action
+        for action in generate_legal_actions(state)
+        if action.action_type == "play_member"
+    )
+    assert any(
+        placement["card_instance_id"] == hand_id and placement["slot"] == "left"
+        for placement in play_action.options["placements"]
+    )
 
 
 def test_top_member_departure_cleans_attached_member_and_energy(tmp_path):
@@ -1120,13 +1294,18 @@ def test_top_member_departure_cleans_attached_member_and_energy(tmp_path):
 def test_stale_or_illegal_action_does_not_persist(tmp_path):
     service, match_id = _create_match(tmp_path, seed=5)
     before = service.repository.get_state(match_id)
+    with closing(sqlite3.connect(service.repository.path)) as connection:
+        before_action_count = connection.execute(
+            "SELECT COUNT(*) FROM match_actions"
+        ).fetchone()[0]
     with pytest.raises(StaleRevisionError):
         service.apply(
             match_id,
             ActionRequest(
-                action_type="choose_first_player",
+                action_type="submit_mulligan",
                 expected_revision=99,
-                payload={"first_player_id": "player_1"},
+                player_id="player_1",
+                payload={"card_instance_ids": []},
             ),
         )
     with pytest.raises(IllegalActionError):
@@ -1134,13 +1313,16 @@ def test_stale_or_illegal_action_does_not_persist(tmp_path):
             match_id,
             ActionRequest(
                 action_type="advance_phase",
-                expected_revision=0,
+                expected_revision=before.revision,
             ),
         )
     after = service.repository.get_state(match_id)
     assert after == before
     with closing(sqlite3.connect(service.repository.path)) as connection:
-        assert connection.execute("SELECT COUNT(*) FROM match_actions").fetchone()[0] == 0
+        assert (
+            connection.execute("SELECT COUNT(*) FROM match_actions").fetchone()[0]
+            == before_action_count
+        )
 
 
 def test_replay_reconstructs_current_state(tmp_path):
@@ -1150,15 +1332,8 @@ def test_replay_reconstructs_current_state(tmp_path):
         service,
         match_id,
         state,
-        "choose_first_player",
-        payload={"first_player_id": "player_2"},
-    )
-    state = _apply(
-        service,
-        match_id,
-        state,
         "submit_mulligan",
-        player_id="player_2",
+        player_id="player_1",
         payload={"card_instance_ids": []},
     )
     state = _apply(
@@ -1166,7 +1341,7 @@ def test_replay_reconstructs_current_state(tmp_path):
         match_id,
         state,
         "submit_mulligan",
-        player_id="player_1",
+        player_id="player_2",
         payload={"card_instance_ids": []},
     )
 
@@ -1401,7 +1576,7 @@ def test_runtime_v1_is_rejected_and_v2_initialization_is_idempotent(tmp_path):
     assert version == "2"
 
 
-def test_runtime_prunes_old_matches_with_cascading_records(tmp_path):
+def test_runtime_prunes_old_completed_matches_with_cascading_records(tmp_path):
     runtime_path = tmp_path / "runtime-prune.sqlite3"
     initialize_runtime_database(runtime_path)
     with closing(sqlite3.connect(runtime_path)) as connection:
@@ -1422,7 +1597,7 @@ def test_runtime_prunes_old_matches_with_cascading_records(tmp_path):
                     created_at,
                     updated_at
                 )
-                VALUES (?, 'cards.sqlite3', 'test', ?, 'active', 0, '{}', '{}', ?, ?)
+                VALUES (?, 'cards.sqlite3', 'test', ?, 'complete', 0, '{}', '{}', ?, ?)
                 """,
                 (match_id, index, timestamp, timestamp),
             )
@@ -1471,8 +1646,8 @@ def test_runtime_prunes_old_matches_with_cascading_records(tmp_path):
         connection.commit()
 
     repository = MatchRepository(runtime_path)
-    assert repository.prune_old_matches() == 5
-    assert [row["match_id"] for row in repository.list_matches()][0] == "match-29"
+    assert repository.prune_old_matches(max_matches=25) == 5
+    assert [row["match_id"] for row in repository.list_matches()["items"]][0] == "match-29"
 
     with closing(sqlite3.connect(runtime_path)) as connection:
         for table in ("matches", "match_actions", "match_events", "match_snapshots"):
@@ -1481,6 +1656,61 @@ def test_runtime_prunes_old_matches_with_cascading_records(tmp_path):
             "SELECT match_id FROM matches ORDER BY updated_at ASC LIMIT 1"
         ).fetchone()[0]
     assert oldest_remaining == "match-05"
+
+
+def test_runtime_prune_keeps_active_and_hosted_room_matches(tmp_path):
+    runtime_path = tmp_path / "runtime-prune-hosted.sqlite3"
+    initialize_runtime_database(runtime_path)
+    with closing(sqlite3.connect(runtime_path)) as connection:
+        connection.executescript(
+            """
+            CREATE TABLE hosted_rooms (
+                room_code TEXT PRIMARY KEY,
+                status TEXT NOT NULL,
+                match_id TEXT
+            );
+            """
+        )
+        for index in range(32):
+            match_id = f"match-{index:02d}"
+            status = "active" if index == 0 else "complete"
+            timestamp = f"2026-06-15T00:{index:02d}:00+00:00"
+            connection.execute(
+                """
+                INSERT INTO matches (
+                    match_id,
+                    card_database_path,
+                    rule_version,
+                    seed,
+                    status,
+                    revision,
+                    initial_state_json,
+                    current_state_json,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, 'cards.sqlite3', 'test', ?, ?, 0, '{}', '{}', ?, ?)
+                """,
+                (match_id, index, status, timestamp, timestamp),
+            )
+        connection.execute(
+            """
+            INSERT INTO hosted_rooms (room_code, status, match_id)
+            VALUES ('ABC123', 'active', 'match-01')
+            """
+        )
+        connection.commit()
+
+    repository = MatchRepository(runtime_path)
+    assert repository.prune_old_matches(max_matches=25) == 5
+
+    with closing(sqlite3.connect(runtime_path)) as connection:
+        remaining = {
+            row[0]
+            for row in connection.execute("SELECT match_id FROM matches").fetchall()
+        }
+    assert "match-00" in remaining
+    assert "match-01" in remaining
 
 
 def _create_match(tmp_path: Path, *, seed: int) -> tuple[MatchService, str]:
@@ -1495,19 +1725,13 @@ def _create_match(tmp_path: Path, *, seed: int) -> tuple[MatchService, str]:
         second_deck=load_deck(SAMPLE_DECK),
         seed=seed,
         match_id=f"match-{seed}",
+        first_player_id="player_1",
     )
     return service, result.state.match_id
 
 
 def _reach_first_main(service: MatchService, match_id: str):
     state = service.repository.get_state(match_id)
-    state = _apply(
-        service,
-        match_id,
-        state,
-        "choose_first_player",
-        payload={"first_player_id": "player_1"},
-    )
     for player_id in ("player_1", "player_2"):
         state = _apply(
             service,

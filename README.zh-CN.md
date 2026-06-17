@@ -1,4 +1,4 @@
-# Love Live! Series Official Card Game Analysis & Simulation Platform
+﻿# Love Live! Series Official Card Game Analysis & Simulation Platform
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
@@ -8,7 +8,7 @@
 
 ## 当前状态
 
-`v0.4.2-alpha.1` 当前已收录:
+`v0.76` 当前已收录:
 
 - 正式官方 `card_list` 卡牌 importer
 - 避免 `＋` / `+` 混用的卡号正规化
@@ -18,8 +18,8 @@
 - FastAPI + React SPA 可视化规则验证器
 - 可回放的 Action-only GameState
 - 925 条 effect registry entry
-  - 466 条为 `test_validated_executable`
-  - 459 条为 timing prompt / 未支持处理用 `manual_resolution`
+  - 628 条为 `test_validated_executable`
+  - 297 条为 timing prompt / 未支持处理用 `manual_resolution`
 - 面向未来低成本 online 同步的 state hash / compatibility metadata 基础
 - Hosted Online MVP 房间 API
   - 通过 room code 创建 / 加入房间
@@ -32,7 +32,7 @@
 - GitHub Pages browser preview 用静态 SPA 发布 workflow
   - preview data package 只包含解析后的卡牌 / 技能数据
   - 不打包卡图文件，牌面图片走官方 `image_url`
-  - 首次启动时在 browser localStorage 中生成 20 个 preview sample deck
+  - 首次启动时在 browser localStorage 中生成 5 个合法的 `decklist.v0` preview sample deck
   - 支持 decklist.v0 JSON 导入 / 导出
 
 当前开发主线:
@@ -53,7 +53,8 @@
 - 少量技能支持包含手牌 / Energy / Stage Member / Heart 颜色 / 牌堆顶检查的限定结构化 prompt
 - 部分双方都需要选择的效果已可通过 multi-player pending choice 顺序处理
 - 支持把 Stage Member 目标拆成多个选择组，并对各组选中目标应用相同的临时 modifier
-- 按 registry entry 计算的 `test_validated_executable` 覆盖率已达到 50.38%
+- 支持每个分支使用不同 Stage Member 候选池的技能选择
+- 按 registry entry 计算的 `test_validated_executable` 覆盖率已达到 67.89%
 - 暂不能自动执行的技能通过 `ManualAdjustmentAction` 补充
 - 无法处理的技能可以用调试用 `effect_skipped_due_to_error` 显式记录后跳过
 
@@ -72,17 +73,22 @@ Deck Builder 当前状态:
 - 面向全量卡池的完整技能提示覆盖
 - AI、Monte Carlo、胜率引擎
 - 正式在线运营、账户、用户同步和严格防作弊
-- GitHub Pages preview 在打包解析后 data package 时，已经可以不依赖 FastAPI 浏览卡库、使用浏览器本地 deck 保存，并执行 MVP deck 分析。对战通过 `runtime-config.json` 的 `apiBaseUrl` 连接 Cloudflare Worker gateway。
+- GitHub Pages preview 在打包解析后 data package 时，已经可以不依赖 FastAPI 浏览卡库、使用浏览器本地 deck 保存，并执行 MVP deck 分析。对战只有在 `runtime-config.json` 的 `apiBaseUrl` 指向 Hosted FastAPI 时可用。
+
+## 反馈与约战
+
+Bug 报告、规则行为讨论和 online 对战伙伴寻找请前往 [Discord](https://discord.gg/8uYQH7z8)。报告问题时，请尽量附上版本、运行方式是本地 / Hosted / Pages preview、复现步骤、decklist.v0 JSON、Replay JSON 和截图。
 
 ## 已知限制
 
-- 还没有覆盖全卡技能自动执行。
-- 当前 broad prompt coverage 大量包含 timing-only manual fallback。
-- 最新 Phase 5 sandbox 中 `skip` mode 的 `illegal_action` 为 0。最近一次 `30 decks x 50 matches` 回归在 `block` mode 下为 35 局 `mandatory_manual_resolution` / 9 局 `max_actions` / 6 局完走，在 `skip` mode 下为 10 局完走 / 40 局 `max_actions`。grouped Stage Member choice 支持后的 `30 decks x 20 matches --manual-policy block` smoke 为 2 局完走 / 11 局 `mandatory_manual_resolution` / 7 局 `max_actions` / `illegal_action = 0`，`PL!SP-bp4-023:1` 已从 blocker 中消失。继续将 `PL!N-bp4-031:1` 和 Baton Touch 登场的莲之空 Member 2 人条件减少 required Heart 结构化后，20-match block smoke 为 2 局完走 / 9 局 `mandatory_manual_resolution` / 9 局 `max_actions`。主要剩余问题是长局推进和复杂 Live 系 manual effect。
+- 这是开发中的 alpha 版本，不是官方数字客户端。当前目标是规则验证和收集 playtest feedback。
+- 还没有覆盖全卡技能自动执行。未支持技能可能需要 `ManualAdjustmentAction`、结构化 pending choice，或用调试 skip 继续推进。
+- Phase 5 sandbox 中 `illegal_action` 已显著减少，但长局仍会遇到 `mandatory_manual_resolution` 和 `max_actions`。最新详细数字请看 `CHANGELOG.md` 与 `TODO.md`。
 - 依赖 FAQ 或个别裁定的效果尚未规格化。
 - `data/loveca.sqlite3` 是仓库内锁版本权威卡牌 DB。官方补充包或 parser/schema/effect registry 变化后，由维护者重建并提交新的 DB 与 `data/loveca-db-manifest.json`；普通用户和 CI 不应自行 import 产生不同线上 DB。保存牌组是 `decklist.v0` 用户数据，可以和卡牌数据库分开保留。
 - Web/API 测试依赖 `httpx2`。环境缺少该依赖时，`tests/test_catalog_api.py` 和 `tests/test_webapp.py` 会在收集阶段停止。
 - Hosted Online MVP 只用于低成本测试反馈。规则判定由 FastAPI 侧 Python engine 执行，但不包含账号、长期保存或严格防作弊。
+- GitHub Pages browser preview 主要用于卡库浏览、Deck Builder、decklist.v0 import / export 和 MVP deck 分析。对战只有配置 Hosted API 时可用。
 
 ## UI 功能与使用方式
 
@@ -91,7 +97,7 @@ Deck Builder 当前状态:
 - 右上角语言切换可在简体中文 UI 和日文 UI 之间切换，选择会保存到 browser localStorage。
 - 可以选择已保存牌组，或从 Deck Builder 带回当前编辑中的牌组，创建本地规则验证对局。
 - 配置了 Hosted API 的环境可以创建 room code，让 host / guest 分别选择牌组后加入同一个 online room。Online match 中己方盘面始终显示在画面下方，Action Dock 只显示当前 room token 可以提交的操作。
-- Browser preview 支持查看已打包卡库、使用初始 sample deck、本地保存牌组、decklist.v0 导入 / 导出和 MVP 牌组分析。对战只有在 runtime config 设置了 `apiBaseUrl` 时才会连接 Hosted API。
+- Browser preview 支持查看已打包卡库、使用 5 个合法的初始 `decklist.v0` sample deck、本地保存牌组、decklist.v0 导入 / 导出和 MVP 牌组分析。对战只有在 runtime config 设置了 `apiBaseUrl` 时才会连接 Hosted API。
 
 ### 卡牌目录
 
@@ -140,7 +146,7 @@ Deck Builder：右侧筛选选卡，中央查看构筑与分析结果。
 
 公开 preview 从专用 `preview` 分支发布。这个分支会直接提交已审核的 `data/loveca.sqlite3`，GitHub Pages workflow 从这个 SQLite 导出静态 JSON。`develop` 可以继续高频开发，不会触发 Pages 重建；只有准备更新公开 preview 时才同步到 `preview` 分支。
 
-browser preview 的 deck 保存在 localStorage。Deck 主要只保存卡号和数量，20 个初始 sample deck 加上普通用户自己的牌组通常只会占用很小空间。需要迁移或分享时，请使用 Deck Builder 的 JSON 导入 / 导出。
+browser preview 的 deck 保存在 localStorage。Deck 主要只保存卡号和数量，5 个合法的初始 `decklist.v0` sample deck 加上普通用户自己的牌组通常只会占用很小空间。需要迁移或分享时，请使用 Deck Builder 的 JSON 导入 / 导出。
 
 如果向 private tester 提供预构建 DB，也应明确 release version、schema version、parser version、card database fingerprint 和 effect registry hash。任何破坏兼容性的版本更新后，都需要重新导入。
 
@@ -275,8 +281,11 @@ GitHub Actions：
 
 - `.github/workflows/api-image.yml` 会构建 Docker image。
 - Pull Request 只做 build 验证。
-- push 到 `develop` / `preview` 或手动执行时，会推送 GHCR 镜像 `ghcr.io/smaillion/loveca-simulator-api`。
-- `.github/workflows/deploy-api.yml` 可手动执行，构建 / 推送 GHCR image，并通过 SSH 更新 VPS 上的 compose service。
+- `api-image.yml` 在 push 到 `develop` / `preview` 或手动执行时，会推送 GHCR 镜像 `ghcr.io/smaillion/loveca-simulator-api`。
+- `.github/workflows/deploy-api.yml` 在 push 到 `develop` 或手动执行时，会构建 / 推送 GHCR image，并通过 SSH 更新 VPS 上的 compose service。
+- `.github/workflows/deploy-worker.yml` 在 `develop` / `preview` 的 Worker 相关文件变更或手动执行时，会更新 Cloudflare Worker gateway。
+- `.github/workflows/pages-preview.yml` 在 push 到 `preview` 或手动执行时发布 GitHub Pages preview。
+- 当前阶段 push 到 `main` 不触发自动 publish / deploy。接近生产的 release promotion 必须由 maintainer 明确手动执行 workflow，或走专门 release 流程。
 
 部署需要的 GitHub Secrets：
 
