@@ -694,6 +694,55 @@ describe("App", () => {
     expect(requestBody.player_2.deck_path).toBeUndefined();
   });
 
+  it("hides the opponent hand on the match board by default", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const ownHandId = "player_1-H001";
+    const opponentHandId = "player_2-H001";
+    const matchCreate = {
+      ...MATCH_PAYLOAD,
+      state: {
+        ...MATCH_PAYLOAD.state,
+        players: {
+          player_1: {
+            ...createPlayerState("player_1", "Player 1"),
+            hand: [ownHandId],
+          },
+          player_2: {
+            ...createPlayerState("player_2", "Player 2"),
+            hand: [opponentHandId],
+          },
+        },
+        cards: {
+          [ownHandId]: {
+            instance_id: ownHandId,
+            owner_id: "player_1",
+            orientation: "active",
+            face_up: true,
+            card: { ...CATALOG_DETAIL.card, name_ja: "自分の手札" },
+          },
+          [opponentHandId]: {
+            instance_id: opponentHandId,
+            owner_id: "player_2",
+            orientation: "active",
+            face_up: true,
+            card: { ...CATALOG_DETAIL.card, name_ja: "相手の秘密手札" },
+          },
+        },
+      },
+    };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByLabelText("玩家 1 牌组")).toBeInTheDocument());
+    const createButton = screen.getByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+
+    await waitFor(() => expect(screen.getAllByText("自分の手札").length).toBeGreaterThan(0));
+    expect(screen.queryByText("相手の秘密手札")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("隐藏的对手手牌")).toBeInTheDocument();
+  });
+
   it("switches the operational UI to Japanese and persists the choice", async () => {
     render(<App />);
 
