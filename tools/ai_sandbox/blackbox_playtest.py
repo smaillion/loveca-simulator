@@ -439,6 +439,11 @@ def choose_action(
                 used.update(selected)
             payload["selected_card_instance_ids_by_group"] = selected_by_group
             return action.action_type, action.player_id, payload
+        if choice_type == "position_change_source":
+            slots = list(invocation.get("position_change_slots", []))
+            if slots:
+                payload["to_slot"] = slots[0]
+            return action.action_type, action.player_id, payload
         if choice.get("choice_type") == "choose_effect_branch":
             selected_branch = invocation.get("selected_branch")
             if selected_branch:
@@ -458,8 +463,10 @@ def choose_action(
                         : max(minimum, min(maximum, len(candidates)))
                     ]
             else:
-                branches = list(invocation.get("branch_ids", [])) or list(
-                    choice.get("branch_ids", [])
+                branches = (
+                    list(invocation.get("available_branch_ids", []))
+                    or list(invocation.get("branch_ids", []))
+                    or list(choice.get("branch_ids", []))
                 )
                 if branches:
                     branch_energy_required = dict(
@@ -492,6 +499,12 @@ def choose_action(
             payload["selected_card_instance_ids"] = candidates[
                 : max(minimum, min(maximum, len(candidates)))
             ]
+        destinations = list(
+            invocation.get("destination_options", [])
+            or choice.get("destination_options", [])
+        )
+        if destinations and "selected_card_instance_ids" in payload:
+            payload["selected_destination"] = destinations[0]
         colors = list(choice.get("color_slots", []))
         if choice.get("choice_type") == "choose_color" or colors:
             payload["selected_color_slot"] = colors[0] if colors else "heart01"

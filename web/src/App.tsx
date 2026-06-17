@@ -8,6 +8,7 @@ import {
   CirclePlay,
   Database,
   Download,
+  HelpCircle,
   History,
   Play,
   RefreshCw,
@@ -114,10 +115,10 @@ const heartLabels: Record<UiLocale, Record<string, string>> = {
 };
 
 const judgmentBasisLabels: Record<string, [string, string]> = {
-  no_successful_live: ["双方均无满足所需 Heart 的 Live，不产生胜者", "双方とも必要ハートを満たすライブがなく、勝者なし"],
-  only_one_player_has_successful_live: ["仅一方有成功 Live，该玩家胜利", "一方のみ成功ライブがあり、そのプレイヤーの勝利"],
-  equal_total_score: ["双方 Live 总分相同，双方均胜利", "双方のライブ合計スコアが同じため、双方勝利"],
-  higher_total_score: ["比较双方 Live 总分，较高者胜利", "双方のライブ合計スコアを比較し、高い側の勝利"],
+  no_successful_live: ["双方均无满足所需爱心的演出，不产生胜者", "双方とも必要ハートを満たすライブがなく、勝者なし"],
+  only_one_player_has_successful_live: ["仅一方有成功演出，该玩家胜利", "一方のみ成功ライブがあり、そのプレイヤーの勝利"],
+  equal_total_score: ["双方演出总分相同，双方均胜利", "双方のライブ合計スコアが同じため、双方勝利"],
+  higher_total_score: ["比较双方演出总分，较高者胜利", "双方のライブ合計スコアを比較し、高い側の勝利"],
 };
 
 export default function App() {
@@ -127,7 +128,7 @@ export default function App() {
   const [locale, setLocale] = useState<UiLocale>(() => {
     const stored = localStorage.getItem("loveca-ui-locale");
     if (stored === "ja" || stored === "zh") return stored;
-    return getRuntimeConfigSnapshot().browserPreview ? "ja" : "zh";
+    return "ja";
   });
   const [screen, setScreen] = useState<"home" | "match" | "catalog" | "decks">("home");
   const [match, setMatch] = useState<MatchPayload | null>(null);
@@ -140,6 +141,8 @@ export default function App() {
   const [manualOpen, setManualOpen] = useState(false);
   const [manualSource, setManualSource] = useState<EffectInvocation | null>(null);
   const [showPreviewNotice, setShowPreviewNotice] = useState(browserPreview);
+  const [showUsageGuide, setShowUsageGuide] = useState(true);
+  const [usageGuideLocale, setUsageGuideLocale] = useState<UiLocale>("ja");
   const [onlineSession, setOnlineSession] = useState<OnlineSession | null>(null);
   const [onlineRoom, setOnlineRoom] = useState<RoomPayload | null>(null);
   const [onlineStatus, setOnlineStatus] = useState<string | null>(null);
@@ -208,10 +211,14 @@ export default function App() {
       }}
     />
   ) : null;
+  const usageGuide = showUsageGuide && !showPreviewNotice ? (
+    <UsageGuideDialog locale={usageGuideLocale} onClose={() => setShowUsageGuide(false)} />
+  ) : null;
   const renderShell = (content: ReactNode) => (
     <UiLanguageContext.Provider value={{ locale, setLocale }}>
       {content}
       {previewNotice}
+      {usageGuide}
     </UiLanguageContext.Provider>
   );
 
@@ -331,10 +338,14 @@ export default function App() {
           hostedOnline={hostedOnline}
           matchCreationDisabled={browserPreview}
           matchCreationDisabledMessage={locale === "zh"
-            ? "浏览器 Preview 版暂不包含本地规则引擎。请使用本地版启动对战，或连接 Hosted FastAPI 创建在线测试房间。"
-            : "ブラウザ Preview 版にはローカルルールエンジンが含まれていません。ローカル版で対戦を開始するか、Hosted FastAPI に接続してオンライン検証ルームを作成してください。"}
+            ? "浏览器预览版暂不包含本地规则引擎。请使用本地版启动对战，或连接远程服务创建在线测试房间。"
+            : "ブラウザプレビュー版にはローカルルールエンジンが含まれていません。ローカル版で対戦を開始するか、リモートサービスに接続してオンライン検証ルームを作成してください。"}
           onBrowse={() => setScreen("catalog")}
           onDeckBuilder={() => setScreen("decks")}
+          onHelp={() => {
+            setUsageGuideLocale(locale);
+            setShowUsageGuide(true);
+          }}
           onlineAvailable={hostedOnline}
           onlineRoom={onlineRoom}
           onlineStatus={onlineStatus}
@@ -455,7 +466,11 @@ export default function App() {
           </div>
         </div>
         <div className="phase-status">
-          {onlineSession && <span className="turn-number">Room {onlineSession.roomCode}</span>}
+          {onlineSession && (
+            <span className="turn-number">
+              {locale === "zh" ? "房间" : "ルーム"} {onlineSession.roomCode}
+            </span>
+          )}
           <span className="turn-number">
             {locale === "zh" ? `第 ${match.state.turn_number} 回合` : `ターン ${match.state.turn_number}`}
           </span>
@@ -466,7 +481,19 @@ export default function App() {
         </div>
         <div className="top-actions">
           <LanguageToggle />
-          <span className="revision">rev {match.state.revision}</span>
+          <span className="revision">
+            {locale === "zh" ? "版本" : "更新"} {match.state.revision}
+          </span>
+          <button
+            className="icon-button"
+            title={locale === "zh" ? "使用说明" : "使い方"}
+            onClick={() => {
+              setUsageGuideLocale(locale);
+              setShowUsageGuide(true);
+            }}
+          >
+            <HelpCircle size={18} />
+          </button>
           <button
             className="icon-button"
             title={locale === "zh" ? "浏览卡牌库" : "カード閲覧"}
@@ -485,7 +512,7 @@ export default function App() {
             <a
               className="icon-button"
               href={roomReplayUrl(onlineSession.roomCode, onlineSession.playerToken)}
-              title={locale === "zh" ? "导出在线 Replay JSON" : "オンラインリプレイ JSON を出力"}
+              title={locale === "zh" ? "导出在线回放 JSON" : "オンラインリプレイ JSON を出力"}
             >
               <Download size={18} />
             </a>
@@ -493,7 +520,7 @@ export default function App() {
             <button
               className="icon-button"
               disabled
-              title={locale === "zh" ? "Preview demo 不支持 Replay 导出" : "Preview デモではリプレイ出力は未対応"}
+              title={locale === "zh" ? "预览版不支持回放导出" : "プレビュー版ではリプレイ出力は未対応"}
             >
               <Download size={18} />
             </button>
@@ -501,7 +528,7 @@ export default function App() {
             <a
               className="icon-button"
               href={matchReplayUrl(match.state.match_id)}
-              title={locale === "zh" ? "导出 Replay JSON" : "リプレイ JSON を出力"}
+              title={locale === "zh" ? "导出回放 JSON" : "リプレイ JSON を出力"}
             >
               <Download size={18} />
             </a>
@@ -558,7 +585,7 @@ export default function App() {
       {onlineSession && match.legal_actions.length > 0 && visibleActions.length === 0 && (
         <footer className="action-dock">
           <div className="action-context">
-            <strong>Legal Actions</strong>
+            <strong>{locale === "zh" ? "下一步操作" : "次にできる操作"}</strong>
             <span>{locale === "zh" ? "等待对手操作" : "相手の操作待ち"}</span>
           </div>
         </footer>
@@ -626,7 +653,7 @@ function PreviewNotice({
     <div className="preview-notice-backdrop" role="dialog" aria-modal="true">
       <section className="preview-notice">
         <div className="preview-notice-header">
-          <strong>{locale === "zh" ? "浏览器 Preview 版" : "ブラウザ Preview 版"}</strong>
+          <strong>{locale === "zh" ? "浏览器预览版" : "ブラウザプレビュー版"}</strong>
           <button
             className="mini-icon"
             onClick={onClose}
@@ -662,8 +689,8 @@ function PreviewNotice({
               <li>
                 {hostedOnline
                   ? locale === "zh"
-                    ? "WebSocket、房间列表、账号和长期保存"
-                    : "WebSocket、ルーム一覧、アカウント、長期保存"
+                    ? "实时通信、房间列表、账号和长期保存"
+                    : "リアルタイム通信、ルーム一覧、アカウント、長期保存"
                   : locale === "zh"
                     ? "在线双人对战"
                     : "オンライン二人対戦"}
@@ -675,12 +702,216 @@ function PreviewNotice({
         </div>
         <p>
           {locale === "zh"
-            ? "数据保存在当前浏览器中。这个 preview 分支用于稳定公开体验，开发中的规则引擎仍会在 develop 上继续快速迭代。"
-            : "データはこのブラウザ内に保存されます。この preview ブランチは公開体験を安定させるためのもので、開発中のルールエンジンは develop で継続して更新されます。"}
+            ? "数据保存在当前浏览器中。这个预览版本用于稳定公开体验，开发中的规则引擎仍会继续快速迭代。"
+            : "データはこのブラウザ内に保存されます。このプレビュー版は公開体験を安定させるためのもので、開発中のルールエンジンは継続して更新されます。"}
         </p>
         <button className="primary-button" onClick={onClose}>
           {locale === "zh" ? "开始使用" : "始める"}
         </button>
+      </section>
+    </div>
+  );
+}
+
+function UsageGuideDialog({
+  locale,
+  onClose,
+}: {
+  locale: UiLocale;
+  onClose: () => void;
+}) {
+  const isZh = locale === "zh";
+  const [pageIndex, setPageIndex] = useState(0);
+  const pages = [
+    {
+      icon: <CirclePlay size={28} />,
+      label: isZh ? "01 / 开始" : "01 / 開始",
+      title: isZh ? "先看底部能点什么" : "まず下のボタンを見ます",
+      caption: isZh
+        ? "对局里不用猜下一步。现在能做的事，都会变成屏幕底部的按钮。"
+        : "次に何をするか迷う必要はありません。今できることは画面下部のボタンになります。",
+      visual: (
+        <div className="usage-flow-strip">
+          <div className="usage-flow-card">
+            <ClipboardList size={22} />
+            <strong>{isZh ? "选牌组" : "デッキ選択"}</strong>
+          </div>
+          <span className="usage-flow-arrow">→</span>
+          <div className="usage-flow-card accent">
+            <Play size={22} />
+            <strong>{isZh ? "下一步按钮" : "次のボタン"}</strong>
+          </div>
+          <span className="usage-flow-arrow">→</span>
+          <div className="usage-flow-card">
+            <History size={22} />
+            <strong>{isZh ? "看记录" : "履歴確認"}</strong>
+          </div>
+        </div>
+      ),
+      items: [
+        isZh ? "不知道该做什么时，先看屏幕底部。" : "何をするか迷ったら、まず画面下部を見ます。",
+        isZh ? "想确认卡牌效果，就点那张卡。" : "カード効果を確認したいときは、そのカードを押します。",
+        isZh ? "刚才发生了什么，可以看右侧记录。" : "直前に何が起きたかは、右側の履歴で確認できます。",
+      ],
+    },
+    {
+      icon: <Settings2 size={28} />,
+      label: isZh ? "02 / 卡住" : "02 / 停止時",
+      title: isZh ? "卡住时不是出错" : "止まってもエラーではありません",
+      caption: isZh
+        ? "有些技能还没完全自动处理。系统会停下来，让你像线下打牌一样把结果补进去。"
+        : "まだ自動処理できない能力があります。その場合は、実際の対戦と同じように結果を手で入れます。",
+      visual: (
+        <div className="usage-manual-visual">
+          <div className="usage-effect-card">
+            <span>{isZh ? "待处理技能" : "待機中の能力"}</span>
+            <strong>{isZh ? "需要你处理" : "手で処理します"}</strong>
+            <small>{isZh ? "自动处理还没覆盖" : "自動処理は未対応"}</small>
+          </div>
+          <div className="usage-manual-button">
+            <Settings2 size={22} />
+            <strong>{isZh ? "人工处理" : "手動処理"}</strong>
+          </div>
+        </div>
+      ),
+      items: [
+        isZh ? "先看它正在等哪张卡、哪个技能。" : "まず、どのカードの能力で止まっているか確認します。",
+        isZh ? "点“人工处理技能”，把实际处理结果填进去。" : "「手動処理」を押して、実際の処理結果を入力します。",
+        isZh ? "除非只是调试，否则不要一上来就跳过技能。" : "デバッグ目的でない限り、いきなりスキップしないでください。",
+      ],
+    },
+    {
+      icon: <ArrowDownToLine size={28} />,
+      label: isZh ? "03 / 怎么补" : "03 / 補正方法",
+      title: isZh ? "按牌局结果补一下" : "対戦結果に合わせて入れます",
+      caption: isZh
+        ? "比如这个技能应该抽 1 张、把一张卡从控室拿回手牌，或者给角色加爱心，就在这里选对应动作。"
+        : "例えば、1枚引く、控え室から手札に戻す、ハートを増やす、といった結果をここで選びます。",
+      visual: (
+        <div className="usage-adjust-grid">
+          <div>
+            <ArrowDownToLine size={20} />
+            <span>{isZh ? "移动卡" : "カード移動"}</span>
+          </div>
+          <div>
+            <RefreshCw size={20} />
+            <span>{isZh ? "能量横竖" : "エネルギー向き"}</span>
+          </div>
+          <div>
+            <Activity size={20} />
+            <span>{isZh ? "分数/爱心" : "スコア/ハート"}</span>
+          </div>
+          <div>
+            <Database size={20} />
+            <span>{isZh ? "看牌/抽牌" : "確認/ドロー"}</span>
+          </div>
+        </div>
+      ),
+      items: [
+        isZh ? "卡去了哪里，就用“移动卡”。" : "カードの移動先を直すときは「カード移動」です。",
+        isZh ? "能量要横放或竖起来，就用能量状态调整。" : "エネルギーの向きを変えるときは、エネルギー状態の調整を使います。",
+        isZh ? "分数、爱心、应援棒变了，就用数值修正。" : "スコア、ハート、ブレードが変わるなら数値修正を使います。",
+      ],
+    },
+    {
+      icon: <History size={28} />,
+      label: isZh ? "04 / 提交后" : "04 / 送信後",
+      title: isZh ? "提交后继续打" : "送信したら続きます",
+      caption: isZh
+        ? "提交后系统会把这次人工处理记到右侧记录里，然后对局继续。漏了一步也可以再补。"
+        : "送信すると、その手動処理は右側の履歴に残り、対戦が続きます。足りない分は後から補えます。",
+      visual: (
+        <div className="usage-flow-strip">
+          <div className="usage-flow-card accent">
+            <Settings2 size={22} />
+            <strong>{isZh ? "人工处理" : "手動処理"}</strong>
+          </div>
+          <span className="usage-flow-arrow">→</span>
+          <div className="usage-flow-card">
+            <History size={22} />
+            <strong>{isZh ? "操作记录" : "履歴"}</strong>
+          </div>
+          <span className="usage-flow-arrow">→</span>
+          <div className="usage-flow-card">
+            <Play size={22} />
+            <strong>{isZh ? "继续" : "続行"}</strong>
+          </div>
+        </div>
+      ),
+      items: [
+        isZh ? "先看场面是不是和实际处理结果一致。" : "まず盤面が実際の処理結果と合っているか見ます。",
+        isZh ? "如果少动了一张卡，再开人工处理补一次。" : "カードを動かし忘れたら、もう一度手動処理で補います。",
+        isZh ? "真的不知道怎么处理，或只是想继续测试流程时，才跳过。" : "処理が分からない、または流れだけ確認したいときだけスキップします。",
+      ],
+    },
+  ];
+  const page = pages[pageIndex];
+  const isLastPage = pageIndex === pages.length - 1;
+  return (
+    <div className="usage-guide-backdrop" role="dialog" aria-modal="true" aria-labelledby="usage-guide-title">
+      <section className="usage-guide">
+        <div className="usage-guide-header">
+          <div>
+            <span>{page.label}</span>
+            <strong id="usage-guide-title">
+              {page.title}
+            </strong>
+          </div>
+          <button
+            className="mini-icon"
+            onClick={onClose}
+            aria-label={isZh ? "关闭使用说明" : "使い方を閉じる"}
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="usage-guide-page">
+          <div className="usage-guide-hero">
+            <div className="usage-guide-icon">{page.icon}</div>
+            {page.visual}
+          </div>
+          <div className="usage-guide-copy">
+            <p>{page.caption}</p>
+            <ul>
+              {page.items.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        <div className="usage-guide-footer">
+          <button
+            className="secondary-button"
+            disabled={pageIndex === 0}
+            onClick={() => setPageIndex((current) => Math.max(0, current - 1))}
+          >
+            {isZh ? "上一页" : "前へ"}
+          </button>
+          <div className="usage-guide-dots" aria-label={isZh ? "说明页码" : "ページ"}>
+            {pages.map((item, index) => (
+              <button
+                key={item.label}
+                className={index === pageIndex ? "active" : ""}
+                aria-label={`${index + 1}`}
+                onClick={() => setPageIndex(index)}
+              />
+            ))}
+          </div>
+          <button
+            className="primary-button"
+            onClick={() => {
+              if (isLastPage) {
+                onClose();
+              } else {
+                setPageIndex((current) => Math.min(pages.length - 1, current + 1));
+              }
+            }}
+          >
+            {isLastPage
+              ? isZh ? "知道了，开始使用" : "確認して始める"
+              : isZh ? "下一页" : "次へ"}
+          </button>
+        </div>
       </section>
     </div>
   );
@@ -711,6 +942,7 @@ function StartScreen({
   matchCreationDisabledMessage,
   onBrowse,
   onDeckBuilder,
+  onHelp,
   onlineAvailable,
   onlineRoom,
   onlineStatus,
@@ -729,6 +961,7 @@ function StartScreen({
   matchCreationDisabledMessage: string;
   onBrowse: () => void;
   onDeckBuilder: () => void;
+  onHelp: () => void;
   onlineAvailable: boolean;
   onlineRoom: RoomPayload | null;
   onlineStatus: string | null;
@@ -751,10 +984,10 @@ function StartScreen({
   }) => void | Promise<void>;
   onResume: (id: string) => void;
 }) {
-  const { tr } = useUiLanguage();
-  const [player1Name, setPlayer1Name] = useState("Player 1");
-  const [player2Name, setPlayer2Name] = useState("Player 2");
-  const [onlinePlayerName, setOnlinePlayerName] = useState("Online Player");
+  const { locale, tr } = useUiLanguage();
+  const [player1Name, setPlayer1Name] = useState(locale === "zh" ? "玩家 1" : "プレイヤー 1");
+  const [player2Name, setPlayer2Name] = useState(locale === "zh" ? "玩家 2" : "プレイヤー 2");
+  const [onlinePlayerName, setOnlinePlayerName] = useState(locale === "zh" ? "在线玩家" : "オンライン参加者");
   const [seed, setSeed] = useState("");
   const [roomCode, setRoomCode] = useState("");
   const [player1SourceId, setPlayer1SourceId] = useState("");
@@ -793,8 +1026,15 @@ function StartScreen({
         </div>
         <div className="start-actions">
           <LanguageToggle />
+          <button
+            className="icon-button"
+            title={tr("使用说明", "使い方")}
+            onClick={onHelp}
+          >
+            <HelpCircle size={18} />
+          </button>
           <span className="local-badge">
-            {browserPreview ? "GitHub Pages · Preview" : "127.0.0.1 · Local"}
+            {browserPreview ? tr("GitHub Pages · 预览", "GitHub Pages · プレビュー") : tr("127.0.0.1 · 本地", "127.0.0.1 · ローカル")}
           </span>
         </div>
       </header>
@@ -808,15 +1048,15 @@ function StartScreen({
                 {browserPreview
                   ? hostedOnline
                     ? tr(
-                      "Preview 版可编辑牌组，并可连接 Hosted FastAPI 创建在线测试房间。",
-                      "Preview 版ではデッキ編集に加え、Hosted FastAPI に接続してオンライン検証ルームを作成できます。",
+                      "预览版可编辑牌组，也可以连接远程服务创建在线测试房间。",
+                      "プレビュー版ではデッキ編集に加え、リモートサービスへ接続してオンライン検証ルームを作成できます。",
                     )
                     : tr(
-                      "Preview 版可编辑和分析牌组；对战需要本地规则引擎。",
-                      "Preview 版ではデッキ編集と分析が利用できます。対戦にはローカルルールエンジンが必要です。",
+                      "预览版可编辑和分析牌组；对战需要本地规则引擎。",
+                      "プレビュー版ではデッキ編集と分析が利用できます。対戦にはローカルルールエンジンが必要です。",
                     )
                   : tr(
-                    "选择双方牌组来源，运行完整对局并保留 Replay。",
+                    "选择双方牌组来源，运行完整对局并保留回放。",
                     "両プレイヤーのデッキを選択して対戦を開始し、リプレイを保存します。",
                   )}
               </p>
@@ -824,15 +1064,15 @@ function StartScreen({
           </div>
           <div className="form-grid">
             <label>
-              Player 1
+              {tr("玩家 1", "プレイヤー 1")}
               <input value={player1Name} onChange={(e) => setPlayer1Name(e.target.value)} />
             </label>
             <label>
-              Player 2
+              {tr("玩家 2", "プレイヤー 2")}
               <input value={player2Name} onChange={(e) => setPlayer2Name(e.target.value)} />
             </label>
             <label>
-              {tr("Player 1 牌组", "Player 1 デッキ")}
+              {tr("玩家 1 牌组", "プレイヤー 1 デッキ")}
               <select
                 value={player1SourceId}
                 onChange={(event) => setPlayer1SourceId(event.target.value)}
@@ -845,7 +1085,7 @@ function StartScreen({
               </select>
             </label>
             <label>
-              {tr("Player 2 牌组", "Player 2 デッキ")}
+              {tr("玩家 2 牌组", "プレイヤー 2 デッキ")}
               <select
                 value={player2SourceId}
                 onChange={(event) => setPlayer2SourceId(event.target.value)}
@@ -910,11 +1150,11 @@ function StartScreen({
               <div className="section-heading compact-heading">
                 <Swords size={18} />
                 <div>
-                  <h2>{tr("在线房间 Preview", "オンラインルーム Preview")}</h2>
+                  <h2>{tr("在线测试房间", "オンライン検証ルーム")}</h2>
                   <p>
                     {tr(
-                      "HTTP 轮询连接远程 FastAPI；不含账号、房间列表或防作弊。",
-                      "HTTP ポーリングで FastAPI に接続します。アカウント、ルーム一覧、不正対策はありません。",
+                      "通过远程服务同步房间；暂时没有账号、房间列表或防作弊。",
+                      "リモートサービスでルームを同期します。アカウント、ルーム一覧、不正対策はまだありません。",
                     )}
                   </p>
                 </div>
@@ -1017,8 +1257,8 @@ function StartScreen({
               <h2>{tr("最近对局", "最近の対戦")}</h2>
               <p>
                 {browserPreview
-                  ? tr("Preview 版暂不保存对局。", "Preview 版では対戦履歴は保存されません。")
-                  : tr("从独立 runtime SQLite 恢复。", "専用 runtime SQLite から再開します。")}
+                  ? tr("预览版暂不保存对局。", "プレビュー版では対戦履歴は保存されません。")
+                  : tr("从本地数据库恢复。", "ローカルデータベースから再開します。")}
               </p>
             </div>
           </div>
@@ -1038,9 +1278,9 @@ function StartScreen({
                       ? tr("已完成", "完了")
                       : tr("进行中", "進行中")}
                   </strong>
-                  <small>{item.match_id.slice(0, 8)} · seed {item.seed}</small>
+                  <small>{item.match_id.slice(0, 8)} · {tr("种子", "シード")} {item.seed}</small>
                 </span>
-                <span>rev {item.revision}</span>
+                <span>{tr("版本", "更新")} {item.revision}</span>
               </button>
             ))}
           </div>
@@ -1076,14 +1316,14 @@ function PlayerBoard({
         </div>
         <div className="player-metrics">
           <Metric label={tr("牌库", "デッキ")} value={player.main_deck.length} />
-          <Metric label="Energy" value={player.energy_area.length} />
-          <Metric label={tr("可用能量", "Active Energy")} value={activeEnergy} />
-          <Metric label={tr("成功 Live", "成功ライブ")} value={`${player.success_live_area.length} / 3`} />
+          <Metric label={tr("能量", "エネルギー")} value={player.energy_area.length} />
+          <Metric label={tr("可用能量", "使用可能エネルギー")} value={activeEnergy} />
+          <Metric label={tr("成功演出", "成功ライブ")} value={`${player.success_live_area.length} / 3`} />
           <Metric label={tr("分数", "スコア")} value={player.live_result.total_score} />
         </div>
       </div>
       <div className="zone-row">
-        <Zone label="成功ライブ" ids={player.success_live_area} state={state} onCard={onCard} small />
+        <Zone label={tr("成功演出", "成功ライブ")} ids={player.success_live_area} state={state} onCard={onCard} small />
         <div className="member-stage">
           {(["left", "center", "right"] as const).map((slot) => (
             <div className="member-slot" key={slot}>
@@ -1091,7 +1331,7 @@ function PlayerBoard({
               {player.member_area[slot] ? (
                 <CardTile instance={state.cards[player.member_area[slot]!]} onClick={onCard} />
               ) : (
-                <div className="slot-empty">Member</div>
+                <div className="slot-empty">{tr("角色", "メンバー")}</div>
               )}
               <StageAttachments
                 ids={player.member_area_attachments?.[slot] ?? []}
@@ -1101,7 +1341,7 @@ function PlayerBoard({
             </div>
           ))}
         </div>
-        <Zone label="Energy" ids={player.energy_area} state={state} onCard={onCard} small />
+        <Zone label={tr("能量", "エネルギー")} ids={player.energy_area} state={state} onCard={onCard} small />
       </div>
       <Zone
         label={`${tr("手牌", "手札")} ${player.hand.length}`}
@@ -1115,10 +1355,11 @@ function PlayerBoard({
 }
 
 function LiveCenter({ state, onCard }: { state: MatchState; onCard: (card: CardInstance) => void }) {
+  const { tr } = useUiLanguage();
   return (
     <section className="live-center">
       <Zone
-        label={`${state.players.player_2.name} Live`}
+        label={`${state.players.player_2.name} ${tr("演出区", "ライブエリア")}`}
         ids={state.players.player_2.live_area}
         state={state}
         onCard={onCard}
@@ -1126,7 +1367,7 @@ function LiveCenter({ state, onCard }: { state: MatchState; onCard: (card: CardI
       />
       <LiveAnalysisPanel state={state} onCard={onCard} />
       <Zone
-        label={`${state.players.player_1.name} Live`}
+        label={`${state.players.player_1.name} ${tr("演出区", "ライブエリア")}`}
         ids={state.players.player_1.live_area}
         state={state}
         onCard={onCard}
@@ -1185,7 +1426,7 @@ function LiveAnalysisPanel({
             {summary
               ? judgmentBasisLabels[summary.basis]?.[locale === "zh" ? 0 : 1]
                 ?? summary.basis
-              : tr("等待双方完成应援与 Heart 判定", "双方のエールとハート判定を待っています")}
+              : tr("等待双方完成应援与爱心判定", "双方のエールとハート判定を待っています")}
           </strong>
           {summary && (
             <span>
@@ -1244,8 +1485,8 @@ function PlayerLiveBreakdown({
       : result.requirements_satisfied === null
       ? tr("尚未判定", "未判定")
       : result.requirements_satisfied
-        ? tr("所需 Heart 满足", "必要ハートを達成")
-        : tr("所需 Heart 未满足", "必要ハート未達成");
+        ? tr("所需爱心满足", "必要ハートを達成")
+        : tr("所需爱心未满足", "必要ハート未達成");
   return (
     <article className="live-breakdown">
       <header>
@@ -1264,7 +1505,7 @@ function PlayerLiveBreakdown({
           </span>
         </div>
         <div className="live-metrics">
-          <Metric label="Blade" value={result.blade_count} />
+          <Metric label={tr("应援棒", "ブレード")} value={result.blade_count} />
           <Metric label={tr("应援翻开", "エール公開")} value={result.revealed_instance_ids.length} />
           <Metric label={tr("基础分", "基本スコア")} value={result.base_score} />
           <Metric label={tr("特殊加分", "追加スコア")} value={result.score_bonus} />
@@ -1273,13 +1514,13 @@ function PlayerLiveBreakdown({
       </header>
 
       <div className="heart-ledger">
-        <HeartLine label={tr("成员 Heart", "メンバーハート")} hearts={result.member_hearts} />
-        <HeartLine label={tr("应援 Heart", "エールハート")} hearts={result.yell_hearts} />
+        <HeartLine label={tr("成员爱心", "メンバーハート")} hearts={result.member_hearts} />
+        <HeartLine label={tr("应援爱心", "エールハート")} hearts={result.yell_hearts} />
         {Object.keys(result.manual_hearts).length > 0 && (
           <HeartLine label={tr("人工调整", "手動調整")} hearts={result.manual_hearts} />
         )}
         <HeartLine
-          label={tr("Live 所有 Heart", "ライブで使用可能なハート")}
+          label={tr("演出可用爱心", "ライブで使用可能なハート")}
           hearts={result.available_hearts}
           allColor={result.all_color_hearts}
         />
@@ -1299,7 +1540,7 @@ function PlayerLiveBreakdown({
 
       {result.special_blade_heart_results.length > 0 && (
         <div className="special-results">
-          <span>特殊 Blade Heart</span>
+          <span>{tr("特殊应援棒爱心", "特殊ブレードハート")}</span>
           <div>
             {result.special_blade_heart_results.map((item, index) => (
               <code key={`${item.card_instance_id}-${index}`}>
@@ -1313,7 +1554,7 @@ function PlayerLiveBreakdown({
       <div className="allocation-list">
         {result.live_allocations.length === 0 && (
           <div className="allocation-empty">
-            {tr("尚无逐张 Live Heart 分配结果", "ライブごとのハート割り当て結果はまだありません")}
+            {tr("尚无逐张演出爱心分配结果", "ライブごとのハート割り当て結果はまだありません")}
           </div>
         )}
         {result.live_allocations.map((allocation) => (
@@ -1412,6 +1653,7 @@ function CardTile({
   onClick: (card: CardInstance) => void;
   selected?: boolean;
 }) {
+  const { locale } = useUiLanguage();
   return (
     <button
       className={`card-tile ${instance.orientation === "wait" ? "wait" : ""} ${selected ? "selected" : ""}`}
@@ -1421,7 +1663,7 @@ function CardTile({
       <LocalCardArt card={instance.card} />
       <div className="card-caption">
         <span>{instance.card.name_ja}</span>
-        {instance.orientation === "wait" && <em>WAIT</em>}
+        {instance.orientation === "wait" && <em>{orientationLabel("wait", locale)}</em>}
       </div>
     </button>
   );
@@ -1436,7 +1678,7 @@ export function StageAttachments({
   state: MatchState;
   onCard: (card: CardInstance) => void;
 }) {
-  const { tr } = useUiLanguage();
+  const { locale, tr } = useUiLanguage();
   if (ids.length === 0) {
     return <span className="stage-attachments-empty">{tr("下方 0", "下 0")}</span>;
   }
@@ -1449,14 +1691,14 @@ export function StageAttachments({
       <summary>
         {tr("下方", "下")} {ids.length}
         <small>
-          Member {memberCount} · Energy {energyCount}
+          {tr("角色", "メンバー")} {memberCount} · {tr("能量", "エネルギー")} {energyCount}
         </small>
       </summary>
       <div className="stage-attachment-list">
         {ids.map((id) => (
           <button key={id} onClick={() => onCard(state.cards[id])}>
             <strong>{state.cards[id].card.name_ja}</strong>
-            <span>{state.cards[id].card.card_type}</span>
+            <span>{cardTypeLabel(state.cards[id].card.card_type, locale)}</span>
           </button>
         ))}
       </div>
@@ -1470,19 +1712,19 @@ function EventLog({ events, state }: { events: GameEvent[]; state: MatchState })
     <aside className="event-panel">
       <div className="event-heading">
         <History size={18} />
-        <strong>Action / Event Log</strong>
+        <strong>{tr("操作记录", "操作・イベント履歴")}</strong>
         <span>{events.length}</span>
       </div>
       <div className="event-list">
         {events.length === 0 && (
-          <div className="empty-state">{tr("等待第一项 Action", "最初のアクション待ち")}</div>
+          <div className="empty-state">{tr("等待第一步操作", "最初の操作待ち")}</div>
         )}
         {[...events].reverse().map((event, index) => (
           <div className={`event-row ${event.source}`} key={`${event.event_type}-${index}`}>
             <span>{event.source}</span>
             <strong>{event.event_type}</strong>
             <small>
-              {event.player_id ? state.players[event.player_id]?.name : "System"}
+              {event.player_id ? state.players[event.player_id]?.name : tr("系统", "システム")}
             </small>
             <code>{JSON.stringify(event.data)}</code>
           </div>
@@ -1521,7 +1763,7 @@ function ActionDock({
   return (
     <footer className="action-dock">
       <div className="action-context">
-        <strong>Legal Actions</strong>
+        <strong>{tr("下一步操作", "次にできる操作")}</strong>
         <span>{state.active_player_id ? state.players[state.active_player_id].name : "System"}</span>
       </div>
       <div className="action-controls">
@@ -1779,18 +2021,18 @@ function InspectionCard({
       <div className="inspection-card-details">
         <div>
           <strong>{card.name_ja}</strong>
-          <span>{card.card_type.toUpperCase()} · {card.card_code}</span>
+          <span>{cardTypeLabel(card.card_type, locale)} · {card.card_code}</span>
         </div>
         <dl>
-          {card.cost !== null && <><dt>Cost</dt><dd>{card.cost}</dd></>}
-          {card.blade !== null && <><dt>Blade</dt><dd>{card.blade}</dd></>}
-          {card.score !== null && <><dt>Score</dt><dd>{card.score}</dd></>}
+          {card.cost !== null && <><dt>{locale === "zh" ? "费用" : "コスト"}</dt><dd>{card.cost}</dd></>}
+          {card.blade !== null && <><dt>{locale === "zh" ? "应援棒" : "ブレード"}</dt><dd>{card.blade}</dd></>}
+          {card.score !== null && <><dt>{locale === "zh" ? "分数" : "スコア"}</dt><dd>{card.score}</dd></>}
         </dl>
         {Object.keys(card.basic_hearts).length > 0 && (
-          <span>Heart: {formatHeartSummary(card.basic_hearts, locale)}</span>
+          <span>{locale === "zh" ? "爱心" : "ハート"}: {formatHeartSummary(card.basic_hearts, locale)}</span>
         )}
         {Object.keys(card.required_hearts).length > 0 && (
-          <span>Required: {formatHeartSummary(card.required_hearts, locale)}</span>
+          <span>{locale === "zh" ? "所需" : "必要"}: {formatHeartSummary(card.required_hearts, locale)}</span>
         )}
         <p>{formatEffectText(card.raw_effect_text_ja, locale)}</p>
       </div>
@@ -1854,11 +2096,48 @@ function effectSupportStatusLabel(status: string, locale: UiLocale): string {
   return locale === "zh" ? label[0] : label[1];
 }
 
+function orientationLabel(orientation: string, locale: UiLocale): string {
+  const labels: Record<string, [string, string]> = {
+    active: ["竖置", "アクティブ"],
+    wait: ["横置", "ウェイト"],
+  };
+  const label = labels[orientation.toLowerCase()];
+  return label ? label[locale === "zh" ? 0 : 1] : orientation;
+}
+
+function cardTypeLabel(type: string, locale: UiLocale): string {
+  const labels: Record<string, [string, string]> = {
+    member: ["角色", "メンバー"],
+    energy: ["能量", "エネルギー"],
+    live: ["Live", "ライブ"],
+  };
+  const label = labels[type.toLowerCase()];
+  return label ? label[locale === "zh" ? 0 : 1] : type;
+}
+
+function zoneLabel(zone: string, locale: UiLocale): string {
+  const labels: Record<string, [string, string]> = {
+    hand: ["手牌", "手札"],
+    main_deck: ["主牌堆", "メインデッキ"],
+    energy_deck: ["能量牌堆", "エネルギーデッキ"],
+    energy_area: ["能量区", "エネルギーエリア"],
+    live_area: ["Live 区", "ライブエリア"],
+    waiting_room: ["控室", "控え室"],
+    resolution_area: ["处理区", "処理エリア"],
+    success_live_area: ["成功 Live 区", "成功ライブエリア"],
+    member_left: ["左侧角色位", "左のメンバー枠"],
+    member_center: ["中间角色位", "中央のメンバー枠"],
+    member_right: ["右侧角色位", "右のメンバー枠"],
+  };
+  const label = labels[zone];
+  return label ? label[locale === "zh" ? 0 : 1] : zone;
+}
+
 function effectBranchLabel(branchId: string, locale: UiLocale): string {
   const labels: Record<string, [string, string]> = {
     draw_discard: ["抽 1 张后弃 1 张手牌", "1枚引いて手札を1枚控え室へ"],
     wait_opponent_cost2: [
-      "将对手全部 cost 2 以下 Member 变为 Wait",
+      "将对手全部费用 2 以下角色横置",
       "相手のコスト2以下メンバーすべてをウェイト",
     ],
     ready_member: ["选择 Member 变为 Active", "メンバーを選んでアクティブ"],
@@ -2193,13 +2472,13 @@ export function EffectResolutionAction({
               }
             >
               {isEnergyChoice
-                ? `${state.cards[instanceId].card.name_ja} · ${state.cards[instanceId].orientation.toUpperCase()}`
+                ? `${state.cards[instanceId].card.name_ja} · ${orientationLabel(state.cards[instanceId].orientation, locale)}`
                 : state.cards[instanceId].card.name_ja}
             </button>
           ))}
           <span>
             {selectedCards.length} / {maximumCards}
-            {minimumCards > 0 ? ` · min ${minimumCards}` : ""}
+            {minimumCards > 0 ? ` · ${tr("至少", "最低")} ${minimumCards}` : ""}
           </span>
         </div>
       )}
@@ -2252,7 +2531,7 @@ export function EffectResolutionAction({
                   })}
                   <span>
                     {selected.length} / {maximum}
-                    {(group.minimum ?? 0) > 0 ? ` · min ${group.minimum}` : ""}
+                    {(group.minimum ?? 0) > 0 ? ` · ${tr("至少", "最低")} ${group.minimum}` : ""}
                   </span>
                 </div>
               </div>
@@ -2304,7 +2583,7 @@ export function EffectResolutionAction({
                 )
               }
             >
-              Energy {instanceId.split("-").at(-1)}
+              {tr("能量", "エネルギー")} {instanceId.split("-").at(-1)}
             </button>
           ))}
           <span>{selectedEnergy.length} / {requiredEnergy}</span>
@@ -2541,7 +2820,7 @@ function MemberPlayAction({
   return (
     <div className="member-play-action">
       <div className="member-play-step member-card-step">
-        <span className="member-play-label">{tr("1 · 选择 Member", "1 · メンバーを選択")}</span>
+        <span className="member-play-label">{tr("1 · 选择角色", "1 · メンバーを選択")}</span>
         <div className="member-choice-strip">
           {selection.memberIds.map((instanceId) => (
             <div
@@ -2558,7 +2837,7 @@ function MemberPlayAction({
                   setSelectedPlayMode("");
                 }}
               />
-              <span>cost {state.cards[instanceId].card.cost ?? 0}</span>
+              <span>{tr("费用", "コスト")} {state.cards[instanceId].card.cost ?? 0}</span>
             </div>
           ))}
         </div>
@@ -2593,7 +2872,7 @@ function MemberPlayAction({
                       : tr("空", "空き")}
                 </span>
                 {currentId && (
-                  <small>cost {state.cards[currentId].card.cost ?? 0}</small>
+                  <small>{tr("费用", "コスト")} {state.cards[currentId].card.cost ?? 0}</small>
                 )}
               </button>
             );
@@ -2620,19 +2899,19 @@ function MemberPlayAction({
         <span className="member-play-label">{tr("费用", "コスト")}</span>
         <dl>
           <div>
-            <dt>{tr("新 Member", "新しいメンバー")}</dt>
+            <dt>{tr("新角色", "新しいメンバー")}</dt>
             <dd>{newCost}</dd>
           </div>
           <div>
-            <dt>{tr("旧 Member", "元のメンバー")}</dt>
+            <dt>{tr("原角色", "元のメンバー")}</dt>
             <dd>{placement?.replaced_member_cost ?? 0}</dd>
           </div>
           <div>
-            <dt>{tr("Baton 减免", "バトンタッチ軽減")}</dt>
+            <dt>{tr("换位减免", "バトンタッチ軽減")}</dt>
             <dd>-{reduction}</dd>
           </div>
           <div>
-            <dt>{tr("Energy 总数", "エネルギー合計")}</dt>
+            <dt>{tr("能量总数", "エネルギー合計")}</dt>
             <dd>{player.energy_area.length}</dd>
           </div>
           <div>
@@ -2640,7 +2919,7 @@ function MemberPlayAction({
             <dd>{energy.length}</dd>
           </div>
           <div className="payment-total">
-            <dt>{tr("实付 Energy", "支払うエネルギー")}</dt>
+            <dt>{tr("实付能量", "支払うエネルギー")}</dt>
             <dd>{placement?.payment_cost ?? 0}</dd>
           </div>
         </dl>
@@ -2824,7 +3103,7 @@ function ManualDrawer({
       <aside className="manual-drawer" onMouseDown={(event) => event.stopPropagation()}>
         <header>
           <div>
-            <strong>ManualAdjustmentAction</strong>
+            <strong>{tr("人工处理技能", "能力を手動処理")}</strong>
             <span>{tr("结构化人工规则调整", "構造化手動ルール調整")}</span>
             {source && (
               <span>
@@ -2920,8 +3199,8 @@ function ManualDrawer({
                       : [...current, card.instance_id],
                   )
                 }
-              >
-                {card.card.name_ja} · {card.orientation.toUpperCase()}
+                >
+                {card.card.name_ja} · {orientationLabel(card.orientation, locale)}
               </button>
             ))}
             <span>{tr("已选", "選択")} {cardIds.length}</span>
@@ -2949,7 +3228,7 @@ function ManualDrawer({
         )}
         {type === "move_card" && (
           <label>
-            Target zone
+            {tr("移动到哪里", "移動先")}
             <select value={toZone} onChange={(e) => setToZone(e.target.value)}>
               {[
                 "hand",
@@ -2963,14 +3242,14 @@ function ManualDrawer({
                 "member_center",
                 "member_right",
               ].map((item) => (
-                <option key={item}>{item}</option>
+                <option key={item} value={item}>{zoneLabel(item, locale)}</option>
               ))}
             </select>
           </label>
         )}
         {type === "attach_card_under_member" && (
           <label>
-            Target Member Area
+            {tr("放到哪个角色下方", "どのメンバーの下に置くか")}
             <select
               value={targetSlot}
               onChange={(e) =>
@@ -2983,10 +3262,10 @@ function ManualDrawer({
                   key={slot}
                   value={slot}
                 >
-                  {memberSlotLabel(slot)} ·{" "}
+                  {memberSlotLabel(slot, locale)} ·{" "}
                   {player.member_area[slot]
                     ? state.cards[player.member_area[slot]!].card.name_ja
-                    : "空"}
+                    : tr("空", "空き")}
                 </option>
               ))}
             </select>
@@ -2995,7 +3274,7 @@ function ManualDrawer({
         {type === "move_attached_card" && (
           <>
             <label>
-              Target zone
+              {tr("移动到哪里", "移動先")}
               <select value={toZone} onChange={(e) => setToZone(e.target.value)}>
                 {(selectedCard?.card.card_type === "energy"
                   ? ["energy_area", "energy_deck"]
@@ -3009,23 +3288,24 @@ function ManualDrawer({
                       ] !== null
                     }
                     key={item}
+                    value={item}
                   >
-                    {item}
+                    {zoneLabel(item, locale)}
                   </option>
                 ))}
               </select>
             </label>
             {selectedCard?.card.card_type === "energy" && toZone === "energy_area" && (
               <label>
-                Energy state
+                {tr("能量放置方式", "エネルギーの向き")}
                 <select
                   value={energyOrientation}
                   onChange={(e) =>
                     setEnergyOrientation(e.target.value as "active" | "wait")
                   }
                 >
-                  <option value="active">Active</option>
-                  <option value="wait">Wait</option>
+                  <option value="active">{orientationLabel("active", locale)}</option>
+                  <option value="wait">{orientationLabel("wait", locale)}</option>
                 </select>
               </label>
             )}
@@ -3034,7 +3314,7 @@ function ManualDrawer({
         {type === "position_change" && (
           <div className="manual-range">
             <label>
-              From
+              {tr("从哪里", "移動元")}
               <select
                 value={fromSlot}
                 onChange={(e) =>
@@ -3049,7 +3329,7 @@ function ManualDrawer({
               </select>
             </label>
             <label>
-              To
+              {tr("移到哪里", "移動先")}
               <select
                 value={toSlot}
                 onChange={(e) =>
@@ -3079,7 +3359,7 @@ function ManualDrawer({
                     }))
                   }
                 >
-                  <option value="">空</option>
+                  <option value="">{tr("空", "空き")}</option>
                   {stageMemberIds.map((id) => (
                     <option key={id} value={id}>
                       {state.cards[id].card.name_ja}
@@ -3092,7 +3372,7 @@ function ManualDrawer({
         )}
         {type === "modify_heart" && (
           <label>
-            {tr("Heart 颜色", "ハートの色")}
+            {tr("爱心颜色", "ハートの色")}
             <select value={color} onChange={(e) => setColor(e.target.value)}>
               {["heart0", "heart01", "heart02", "heart03", "heart04", "heart05", "heart06"].map(
                 (item) => (
@@ -3138,26 +3418,26 @@ function ManualDrawer({
         )}
         {persistent && (
           <label>
-            Duration
+            {tr("持续时间", "続く期間")}
             <select
               value={duration}
               onChange={(e) => setDuration(e.target.value as "live" | "turn" | "game")}
             >
-              <option value="live">live · 本次 Performance</option>
-              <option value="turn">turn · 本回合</option>
-              <option value="game">game · 整场对局</option>
+              <option value="live">{tr("本次表演", "今回のライブ")}</option>
+              <option value="turn">{tr("本回合", "このターン")}</option>
+              <option value="game">{tr("整场对局", "この対戦中")}</option>
             </select>
           </label>
         )}
         {["set_flag", "clear_flag"].includes(type) && (
           <label>
-            Flag name
+            {tr("标记名", "フラグ名")}
             <input value={flag} onChange={(e) => setFlag(e.target.value)} />
           </label>
         )}
         {["draw_card", "inspect_top_cards", "modify_score", "modify_heart", "modify_blade"].includes(type) && (
           <label>
-            Amount
+            {tr("数量", "数")}
             <input value={amount} onChange={(e) => setAmount(e.target.value)} type="number" />
           </label>
         )}
@@ -3266,13 +3546,13 @@ function CardDialog({
           <LocalCardArt card={instance.card} className="dialog-card-art" />
         </div>
         <div className="dialog-content">
-          <span>{instance.card.card_type.toUpperCase()} · {instance.card.card_code}</span>
+          <span>{cardTypeLabel(instance.card.card_type, locale)} · {instance.card.card_code}</span>
           <h2>{instance.card.name_ja}</h2>
           <div className="attribute-grid">
-            <Metric label="Cost" value={instance.card.cost ?? "-"} />
-            <Metric label="Blade" value={instance.card.blade ?? "-"} />
-            <Metric label="Score" value={instance.card.score ?? "-"} />
-            <Metric label="State" value={instance.orientation} />
+            <Metric label={tr("费用", "コスト")} value={instance.card.cost ?? "-"} />
+            <Metric label={tr("应援棒", "ブレード")} value={instance.card.blade ?? "-"} />
+            <Metric label={tr("分数", "スコア")} value={instance.card.score ?? "-"} />
+            <Metric label={tr("状态", "状態")} value={orientationLabel(instance.orientation, locale)} />
           </div>
           <h3>{tr("官方日文效果", "公式日本語テキスト")}</h3>
           <p className="effect-text">
@@ -3298,16 +3578,16 @@ function CardDialog({
               <code key={error}>{error}</code>
             ))}
           </div>
-          <h3>Heart</h3>
+          <h3>{tr("爱心", "ハート")}</h3>
           {Object.keys(instance.card.basic_hearts).length > 0 && (
             <HeartLine
-              label={tr("基本 Heart", "基本ハート")}
+              label={tr("基本爱心", "基本ハート")}
               hearts={instance.card.basic_hearts}
             />
           )}
           {Object.keys(instance.card.required_hearts).length > 0 && (
             <HeartLine
-              label={tr("所需 Heart", "必要ハート")}
+              label={tr("所需爱心", "必要ハート")}
               hearts={instance.card.required_hearts}
             />
           )}
@@ -3357,7 +3637,7 @@ function LocalCardArt({
   }
   return (
     <div className={`card-fallback ${card.card_type} ${className}`.trim()}>
-      <span>{card.card_type.toUpperCase()}</span>
+      <span>{cardTypeLabel(card.card_type, "ja")}</span>
       <strong>{card.name_ja}</strong>
       <small>{card.card_code}</small>
     </div>
@@ -3456,18 +3736,18 @@ function memberSlotLabel(slot: string, locale: UiLocale = "zh"): string {
 function adjustmentTypeLabel(type: string, locale: UiLocale): string {
   const labels: Record<string, [string, string]> = {
     move_card: ["通用卡牌移动", "カードを移動"],
-    move_member: ["移动场上 Member", "ステージのメンバーを移動"],
-    attach_card_under_member: ["附加到 Member 下方", "メンバーの下に置く"],
+    move_member: ["移动场上角色", "ステージのメンバーを移動"],
+    attach_card_under_member: ["附加到角色下方", "メンバーの下に置く"],
     move_attached_card: ["移动附属卡", "下にあるカードを移動"],
     formation_change: ["阵型变更", "フォーメーションチェンジ"],
     draw_card: ["抽牌", "カードを引く"],
     inspect_top_cards: ["检查牌库顶", "デッキ上を確認"],
     discard_card: ["手牌送入控室", "手札を控え室に置く"],
-    ready_energy: ["Energy 变为 Active", "エネルギーをActiveにする"],
-    pay_energy: ["Energy 变为 Wait", "エネルギーをWaitにする"],
+    ready_energy: ["能量竖置", "エネルギーをアクティブにする"],
+    pay_energy: ["能量横置", "エネルギーをウェイトにする"],
     modify_score: ["调整分数", "スコアを調整"],
-    modify_heart: ["调整 Heart", "ハートを調整"],
-    modify_blade: ["调整 Blade", "ブレードを調整"],
+    modify_heart: ["调整爱心", "ハートを調整"],
+    modify_blade: ["调整应援棒", "ブレードを調整"],
     set_flag: ["设置标记", "フラグを設定"],
     clear_flag: ["清除标记", "フラグを解除"],
   };
