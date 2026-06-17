@@ -75,48 +75,33 @@ def test_initial_main_deck_shuffle_is_seeded_and_observable(tmp_path):
         seed=4243,
     )
 
-    def choose_first(service, match_id):
-        state = service.repository.get_state(match_id)
-        return service.apply(
-            match_id,
-            ActionRequest(
-                action_type="choose_first_player",
-                expected_revision=state.revision,
-                payload={"first_player_id": "player_1"},
-            ),
-        )
+    first = first_service.repository.get_state(first_match_id)
+    repeated = repeated_service.repository.get_state(repeated_match_id)
+    different = different_service.repository.get_state(different_match_id)
 
-    first = choose_first(first_service, first_match_id)
-    repeated = choose_first(repeated_service, repeated_match_id)
-    different = choose_first(different_service, different_match_id)
-
-    assert first.state.players["player_1"].hand == repeated.state.players["player_1"].hand
-    assert first.state.players["player_1"].main_deck == repeated.state.players["player_1"].main_deck
-    assert first.state.players["player_1"].hand != different.state.players["player_1"].hand
+    assert first.players["player_1"].hand == repeated.players["player_1"].hand
+    assert first.players["player_1"].main_deck == repeated.players["player_1"].main_deck
+    assert first.players["player_1"].hand != different.players["player_1"].hand
+    first_replay = first_service.repository.replay(first_match_id)
     shuffle_events = [
-        event for event in first.events if event.event_type == "deck_shuffled"
+        event
+        for event in first_replay["events"]
+        if event["event_type"] == "deck_shuffled"
     ]
-    assert {event.player_id for event in shuffle_events} == {
+    assert {event["player_id"] for event in shuffle_events} == {
         "player_1",
         "player_2",
     }
-    assert all(event.data["card_count"] == 60 for event in shuffle_events)
+    assert all(event["data"]["card_count"] == 60 for event in shuffle_events)
 
 
 def test_setup_phase_order_and_next_turn_start(tmp_path):
     service, match_id = _create_match(tmp_path, seed=260428)
 
     state = service.repository.get_state(match_id)
-    assert state.phase == "setup_choose_first"
-    assert len(state.players["player_1"].main_deck) == 60
-
-    state = _apply(
-        service,
-        match_id,
-        state,
-        "choose_first_player",
-        payload={"first_player_id": "player_1"},
-    )
+    assert state.phase == "setup_mulligan_first"
+    assert state.first_player_id == "player_1"
+    assert len(state.players["player_1"].main_deck) == 54
     assert len(state.players["player_1"].hand) == 6
     assert len(state.players["player_2"].hand) == 6
 
@@ -1309,13 +1294,18 @@ def test_top_member_departure_cleans_attached_member_and_energy(tmp_path):
 def test_stale_or_illegal_action_does_not_persist(tmp_path):
     service, match_id = _create_match(tmp_path, seed=5)
     before = service.repository.get_state(match_id)
+    with closing(sqlite3.connect(service.repository.path)) as connection:
+        before_action_count = connection.execute(
+            "SELECT COUNT(*) FROM match_actions"
+        ).fetchone()[0]
     with pytest.raises(StaleRevisionError):
         service.apply(
             match_id,
             ActionRequest(
-                action_type="choose_first_player",
+                action_type="submit_mulligan",
                 expected_revision=99,
-                payload={"first_player_id": "player_1"},
+                player_id="player_1",
+                payload={"card_instance_ids": []},
             ),
         )
     with pytest.raises(IllegalActionError):
@@ -1323,13 +1313,16 @@ def test_stale_or_illegal_action_does_not_persist(tmp_path):
             match_id,
             ActionRequest(
                 action_type="advance_phase",
-                expected_revision=0,
+                expected_revision=before.revision,
             ),
         )
     after = service.repository.get_state(match_id)
     assert after == before
     with closing(sqlite3.connect(service.repository.path)) as connection:
-        assert connection.execute("SELECT COUNT(*) FROM match_actions").fetchone()[0] == 0
+        assert (
+            connection.execute("SELECT COUNT(*) FROM match_actions").fetchone()[0]
+            == before_action_count
+        )
 
 
 def test_replay_reconstructs_current_state(tmp_path):
@@ -1339,15 +1332,8 @@ def test_replay_reconstructs_current_state(tmp_path):
         service,
         match_id,
         state,
-        "choose_first_player",
-        payload={"first_player_id": "player_2"},
-    )
-    state = _apply(
-        service,
-        match_id,
-        state,
         "submit_mulligan",
-        player_id="player_2",
+        player_id="player_1",
         payload={"card_instance_ids": []},
     )
     state = _apply(
@@ -1355,7 +1341,7 @@ def test_replay_reconstructs_current_state(tmp_path):
         match_id,
         state,
         "submit_mulligan",
-        player_id="player_1",
+        player_id="player_2",
         payload={"card_instance_ids": []},
     )
 
@@ -1739,19 +1725,13 @@ def _create_match(tmp_path: Path, *, seed: int) -> tuple[MatchService, str]:
         second_deck=load_deck(SAMPLE_DECK),
         seed=seed,
         match_id=f"match-{seed}",
+        first_player_id="player_1",
     )
     return service, result.state.match_id
 
 
 def _reach_first_main(service: MatchService, match_id: str):
     state = service.repository.get_state(match_id)
-    state = _apply(
-        service,
-        match_id,
-        state,
-        "choose_first_player",
-        payload={"first_player_id": "player_1"},
-    )
     for player_id in ("player_1", "player_2"):
         state = _apply(
             service,

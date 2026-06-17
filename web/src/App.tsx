@@ -151,7 +151,7 @@ export default function App() {
   const [details, setDetails] = useState<CardInstance | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualSource, setManualSource] = useState<EffectInvocation | null>(null);
-  const [showPreviewNotice, setShowPreviewNotice] = useState(browserPreview);
+  const [showPreviewNotice, setShowPreviewNotice] = useState(true);
   const [showUsageGuide, setShowUsageGuide] = useState(true);
   const [usageGuideLocale, setUsageGuideLocale] = useState<UiLocale>("ja");
   const [onlineSession, setOnlineSession] = useState<OnlineSession | null>(null);
@@ -183,7 +183,6 @@ export default function App() {
       .then((config) => {
         if (disposed) return;
         setRuntimeConfig(config);
-        setShowPreviewNotice(config.browserPreview);
         if (!matchHistoryAvailable(config)) {
           setMatchHistory(emptyMatchHistory);
           setMatchHistoryLoaded(true);
@@ -248,10 +247,9 @@ export default function App() {
     return () => window.removeEventListener("beforeunload", leaveOnUnload);
   }, [onlineSession]);
 
-  const previewNotice = browserPreview && showPreviewNotice ? (
+  const previewNotice = showPreviewNotice ? (
     <PreviewNotice
       locale={locale}
-      hostedOnline={hostedOnline}
       onClose={() => {
         setShowPreviewNotice(false);
       }}
@@ -741,18 +739,24 @@ function mergeEvents(existing: GameEvent[], incoming: GameEvent[]): GameEvent[] 
 
 function PreviewNotice({
   locale,
-  hostedOnline,
   onClose,
 }: {
   locale: UiLocale;
-  hostedOnline: boolean;
   onClose: () => void;
 }) {
+  const discordUrl = "https://discord.gg/8uYQH7z8";
   return (
-    <div className="preview-notice-backdrop" role="dialog" aria-modal="true">
+    <div
+      className="preview-notice-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="preview-notice-title"
+    >
       <section className="preview-notice">
         <div className="preview-notice-header">
-          <strong>{locale === "zh" ? "浏览器预览版" : "ブラウザプレビュー版"}</strong>
+          <strong id="preview-notice-title">
+            {locale === "zh" ? "Alpha 版本说明" : "Alpha 版のご案内"}
+          </strong>
           <button
             className="mini-icon"
             onClick={onClose}
@@ -763,46 +767,43 @@ function PreviewNotice({
         </div>
         <div className="preview-notice-grid">
           <section>
-            <h3>{locale === "zh" ? "当前可以做" : "現在できること"}</h3>
+            <h3>{locale === "zh" ? "最新版已修正" : "最新版で修正済み"}</h3>
             <ul>
-              <li>{locale === "zh" ? "浏览已打包的卡库数据" : "同梱済みカードデータの閲覧"}</li>
-              <li>{locale === "zh" ? "查看卡牌详情和官方图片链接" : "カード詳細と公式画像 URL の確認"}</li>
-              <li>{locale === "zh" ? "在浏览器本地保存牌组" : "ブラウザローカルでデッキ保存"}</li>
-              <li>{locale === "zh" ? "查看 5 个合法初始测试牌组" : "5個の合法な初期テストデッキの確認"}</li>
-              <li>{locale === "zh" ? "导入 / 导出 decklist.v0 JSON" : "decklist.v0 JSON の読み込み / 書き出し"}</li>
-              <li>{locale === "zh" ? "进行 MVP 牌组合法性和属性分析" : "MVP デッキ合法性 / 属性分析"}</li>
+              <li>{locale === "zh" ? "对战中会隐藏对手手牌，并按当前操作人切换可见信息。" : "対戦中は相手の手札を隠し、操作プレイヤー基準で見える情報を切り替えます。"}</li>
+              <li>{locale === "zh" ? "先后攻改为自动随机，不再需要开局手动选择。" : "先後攻は自動ランダム化し、開始時の手動選択をなくしました。"}</li>
+              <li>{locale === "zh" ? "自动技能、特殊应援和后续效果选择现在会显示提示。" : "自動効果、特殊エール、続きの効果選択に画面上の提示を追加しました。"}</li>
+              <li>{locale === "zh" ? "新增己方控室查看，并改善 Online 离房清理和移动端布局。" : "自分の控え室確認、Online room 離脱 cleanup、モバイル表示を改善しました。"}</li>
             </ul>
           </section>
           <section>
-            <h3>{locale === "zh" ? "当前还不能做" : "まだできないこと"}</h3>
+            <h3>{locale === "zh" ? "仍需修正" : "まだ残っている制限"}</h3>
             <ul>
-              <li>
-                {hostedOnline
-                  ? locale === "zh"
-                    ? "浏览器内纯本地对战引擎"
-                    : "ブラウザ内だけで動くローカル対戦エンジン"
-                  : locale === "zh"
-                    ? "浏览器内完整对战验证"
-                    : "ブラウザ内の完全な対戦検証"}
-              </li>
-              <li>
-                {hostedOnline
-                  ? locale === "zh"
-                    ? "实时通信、房间列表、账号和长期保存"
-                    : "リアルタイム通信、ルーム一覧、アカウント、長期保存"
-                  : locale === "zh"
-                    ? "在线双人对战"
-                    : "オンライン二人対戦"}
-              </li>
-              <li>{locale === "zh" ? "完整技能自动化" : "全スキル自動化"}</li>
-              <li>{locale === "zh" ? "云端账号、同步或防作弊" : "クラウドアカウント、同期、不正対策"}</li>
+              <li>{locale === "zh" ? "全卡技能尚未自动化，部分效果仍需要手动处理或 debug skip。" : "全カード効果はまだ自動化できておらず、一部は手動処理または debug skip が必要です。"}</li>
+              <li>{locale === "zh" ? "长局 sandbox 仍会遇到 manual_resolution / max_actions。" : "長局 sandbox では manual_resolution / max_actions がまだ残ります。"}</li>
+              <li>{locale === "zh" ? "Online 房间仍是测试功能，暂不支持账号、长期保存或严格防作弊。" : "Online room はテスト機能です。アカウント、長期保存、厳密な不正対策はありません。"}</li>
+              <li>{locale === "zh" ? "FAQ / 个别裁定、AI、Monte Carlo、胜率引擎尚未完成。" : "FAQ / 個別裁定、AI、Monte Carlo、勝率エンジンは未完成です。"}</li>
             </ul>
           </section>
         </div>
+        <div className="preview-notice-discord">
+          <strong>
+            {locale === "zh"
+              ? "发现 Bug 或想找在线对战伙伴？"
+              : "バグ報告やオンライン対戦相手探しはこちら"}
+          </strong>
+          <span>
+            {locale === "zh"
+              ? "请把版本、复现步骤、decklist 或 replay 一起发到 Discord。"
+              : "Discord にバージョン、再現手順、decklist や replay を添えて共有してください。"}
+          </span>
+          <a href={discordUrl} target="_blank" rel="noreferrer">
+            Discord
+          </a>
+        </div>
         <p>
           {locale === "zh"
-            ? "数据保存在当前浏览器中。这个预览版本用于稳定公开体验，开发中的规则引擎仍会继续快速迭代。"
-            : "データはこのブラウザ内に保存されます。このプレビュー版は公開体験を安定させるためのもので、開発中のルールエンジンは継続して更新されます。"}
+            ? "Deck 和预览数据保存在当前浏览器中。这个版本用于公开体验和规则反馈，规则引擎仍会继续快速迭代。"
+            : "Deck とプレビューデータはこのブラウザ内に保存されます。この版は公開体験とルールフィードバック用で、ルールエンジンは継続して更新されます。"}
         </p>
         <button className="primary-button" onClick={onClose}>
           {locale === "zh" ? "开始使用" : "始める"}
@@ -1561,6 +1562,9 @@ function PlayerBoard({
         </div>
         <Zone label={tr("能量", "エネルギー")} ids={player.energy_area} state={state} onCard={onCard} small />
       </div>
+      {!compact && (
+        <WaitingRoomViewer player={player} state={state} onCard={onCard} />
+      )}
       <Zone
         label={`${tr("手牌", "手札")} ${player.hand.length}`}
         ids={player.hand}
@@ -1570,6 +1574,34 @@ function PlayerBoard({
         hidden={hideHand}
       />
     </section>
+  );
+}
+
+function WaitingRoomViewer({
+  player,
+  state,
+  onCard,
+}: {
+  player: PlayerState;
+  state: MatchState;
+  onCard: (card: CardInstance) => void;
+}) {
+  const { tr } = useUiLanguage();
+  return (
+    <details className="waiting-room-viewer">
+      <summary>
+        <span>{tr("查看己方控室", "自分の控え室を見る")}</span>
+        <strong>{player.waiting_room.length}</strong>
+      </summary>
+      <div className="waiting-room-strip">
+        {player.waiting_room.length === 0 && (
+          <span className="zone-empty">{tr("控室为空", "控え室は空です")}</span>
+        )}
+        {player.waiting_room.map((id) => (
+          <CardTile key={id} instance={state.cards[id]} onClick={onCard} />
+        ))}
+      </div>
+    </details>
   );
 }
 
@@ -2382,6 +2414,15 @@ function effectSupportStatusLabel(status: string, locale: UiLocale): string {
   return locale === "zh" ? label[0] : label[1];
 }
 
+function effectResolutionStageLabel(stage: string | undefined, locale: UiLocale): string | null {
+  if (stage === "after_cost") {
+    return locale === "zh"
+      ? "已完成发动/成本处理，继续选择后续效果。"
+      : "発動・コスト処理済みです。続きの効果選択を行ってください。";
+  }
+  return null;
+}
+
 function orientationLabel(orientation: string, locale: UiLocale): string {
   const labels: Record<string, [string, string]> = {
     active: ["竖置", "アクティブ"],
@@ -2641,6 +2682,7 @@ export function EffectResolutionAction({
     execution_mode: string;
     is_optional: boolean;
     simulation_support: string;
+    resolution_stage?: string;
     candidate_card_instance_ids: string[];
     choice_type?: string;
     card_selection_minimum?: number;
@@ -2750,6 +2792,11 @@ export function EffectResolutionAction({
         {effectExecutionModeLabel(current.execution_mode, locale)} ·{" "}
         {current.is_optional ? tr("可选", "任意") : tr("强制", "強制")}
       </small>
+      {effectResolutionStageLabel(current.resolution_stage, locale) && (
+        <div className="effect-stage-hint">
+          {effectResolutionStageLabel(current.resolution_stage, locale)}
+        </div>
+      )}
       <p>{formatEffectText(current.label_ja, locale)}</p>
       {isBranchChoice && (
         <div className="effect-candidates effect-branch-choices">

@@ -8,7 +8,7 @@
 
 ## 現在の状態
 
-`v0.4.2-alpha.1` の収録内容:
+`v0.76` の収録内容:
 
 - 公式 `card_list` からの正式カード importer
 - `＋` / `+` 混在を避けるカード番号正規化
@@ -72,18 +72,23 @@ Deck Builder の現在の到達点:
 - 全カード効果の自動化
 - 全量カードプールに対する完全な効果 prompt coverage
 - AI、Monte Carlo、勝率エンジン
-- 本格的な online 運用、アカウント、ユーザー同期、防作弊
+- 本格的な online 運用、アカウント、ユーザー同期、不正対策
 - GitHub Pages preview は解析済み data package を同梱した場合、FastAPI なしでカードカタログ閲覧、browser local deck 保存、MVP deck 分析まで動作します。対戦は runtime config の `apiBaseUrl` を設定した場合のみ Hosted FastAPI に接続できます。
+
+## フィードバックと対戦相手募集
+
+バグ報告、ルール挙動の相談、online 対戦相手探しは [Discord](https://discord.gg/8uYQH7z8) を使ってください。報告時は、できれば利用中の版、ローカル / Hosted / Pages preview のどれか、再現手順、decklist.v0 JSON、Replay JSON、スクリーンショットを添えてください。
 
 ## 既知の制限
 
-- 全カード効果の自動実行 coverage はまだありません。
-- 現在の broad prompt coverage は timing-only manual fallback を多く含みます。
-- 最新の Phase 5 sandbox では `skip` mode の `illegal_action` は 0 です。直近の `30 decks x 50 matches` 回帰は `block` mode で 35 `mandatory_manual_resolution` / 9 `max_actions` / 6 完走、`skip` mode で 10 完走 / 40 `max_actions` でした。grouped Stage Member choice 対応後の `30 decks x 20 matches --manual-policy block` smoke は 2 完走 / 11 `mandatory_manual_resolution` / 7 `max_actions` / `illegal_action = 0` で、`PL!SP-bp4-023:1` は blocker から消えました。さらに `PL!N-bp4-031:1`、Baton Touch 登場した蓮ノ空 Member 2 人条件の required Heart 減少、みらくらぱーく！ extra Heart 条件、Nijigasaki named Baton draw/discard、source Member base Heart 色選択置換、required Heart / Heart count filtered choice、Nijigasaki 条件付き Energy ready、余剰 Heart 条件の Live-success inspect reorder、center Liella! base Blade replacement、source Member position change、Liella! Baton replacement 回収、Yell 公開 Liella! Member 不同名 5 枚条件、余剰 Heart なし条件、Aqours Member Blade 6 条件、分岐ごとに異なる Stage Member 候補を使う Aqours center cost 9 条件、控室 Live の不同名 / 不同 group 分岐回収、双方の控室 Member 一括 deck bottom 移動と 20 枚条件の Live 回収 / Blade 付与、μ's Live-start 双方 draw/discard follow-up、Aqours Live-start 三分岐、Aqours 全員条件の draw 後 top/bottom 戻し、余剰 Heart 3 以上消費 score、Yell 公開 Member 回収、Aqours heart02 条件による source Live-success 無効化、side cost 同値による相手 original Blade 3 以下一括 wait、Yell Blade Heart / 余剰 Heart 条件の score 4 replacement、deck refresh 履歴条件 score +2 を構造化しました。さらに hand count Blade、成功 Live 置き場 μ's 追加 draw、Yell 公開蓮ノ空 Member 10 枚条件、Hasunosora named-stage Energy ready + Live 回収、Edel Note grouped Blade/Heart、Hasunosora 高スコア条件 Energy placement、Stage 2 条件の score 3 Live 回収、member_moved の draw / Energy / opponent wait、Yell 公開 special Blade Heart 条件、Stage name 条件の Live-success score / draw、static success / Stage count / opponent excess Heart modifier、Live-start member-entered count、Yell 公開 Nijigasaki Member Heart 6 色条件、Yell 公開 μ's non-Blade-Heart Member draw/discard、Yell 公開カードの deck top / bottom 戻し、Liella! Yell 公開条件の Energy / 回収、moved source 追加 draw、Live-success の複合 score 条件、top reveal 入手、余剰 Heart 正負 score、source 下 Energy 数参照、optional mill / Energy placement、手札からの Member 登場、source wait center μ's Blade 付与、source wait opponent original-Blade wait / unit-exclusion opponent wait を構造化しました。最新小規模 block smoke は 10 decks / 5 matches で 0 完走 / 2 `mandatory_manual_resolution` / 3 `max_actions`、skipped effects 0 です。20-match block smoke は 300 秒内に完走せず、速度面の追跡が必要です。
+- これは開発中の alpha 版です。公式アプリではなく、ルール検証とプレイテスト feedback を集めるためのツールです。
+- 全カード効果の自動実行 coverage はまだありません。未対応効果は `ManualAdjustmentAction`、構造化 pending choice、またはデバッグ用 skip で進行する場合があります。
+- Phase 5 sandbox では `illegal_action` は大きく減っていますが、長局では `mandatory_manual_resolution` や `max_actions` が残っています。最新の詳細は `CHANGELOG.md` と `TODO.md` を確認してください。
 - FAQ / 個別裁定に依存する効果はまだ仕様化していません。
 - `data/loveca.sqlite3` は repository 内の locked authoritative card DB です。公式カード追加や parser / schema / effect registry の互換性変更後は、maintainer が DB と `data/loveca-db-manifest.json` を再生成して commit します。ユーザーや CI が online 用に別 DB を import してはいけません。保存済みデッキは `decklist.v0` のユーザーデータなので、カード DB とは分けて保持できます。
 - Web/API テストには `httpx2` が必要です。環境に未導入の場合、`tests/test_catalog_api.py` と `tests/test_webapp.py` は収集段階で停止します。
 - Hosted Online MVP は低コスト検証用です。ルール判定は FastAPI 側の Python engine が行いますが、アカウント、恒久保存、厳密な不正対策はありません。
+- GitHub Pages browser preview はカード閲覧、Deck Builder、decklist.v0 import / export、MVP deck 分析を主目的にしています。対戦は Hosted API が設定された環境でのみ利用できます。
 
 ## UI 機能と使い方
 

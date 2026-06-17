@@ -34,9 +34,10 @@ def test_match_state_hash_is_deterministic(tmp_path):
     result = service.apply(
         match_id,
         ActionRequest(
-            action_type="choose_first_player",
+            action_type="submit_mulligan",
             expected_revision=state.revision,
-            payload={"first_player_id": "player_1"},
+            player_id="player_1",
+            payload={"card_instance_ids": []},
         ),
     )
 
@@ -92,12 +93,13 @@ def test_compatibility_fingerprint_and_replay_metadata(tmp_path):
     replay = service.repository.replay(match_id)
     assert replay["metadata"]["protocol_version"] == "loveca-online.v0"
     assert replay["metadata"]["card_database_fingerprint"]
-    assert replay["metadata"]["initial_state_hash"] == match_state_hash(
+    assert replay["metadata"]["final_state_hash"] == match_state_hash(
         service.repository.get_state(match_id)
     )
-    assert replay["metadata"]["final_state_hash"] == replay["metadata"][
-        "initial_state_hash"
-    ]
+    assert (
+        replay["metadata"]["initial_state_hash"]
+        != replay["metadata"]["final_state_hash"]
+    )
 
 
 def _create_match(tmp_path):
@@ -110,5 +112,6 @@ def _create_match(tmp_path):
         second_name="B",
         second_deck=load_deck(SAMPLE_DECK),
         seed=42,
+        first_player_id="player_1",
     )
     return service, created.state.match_id

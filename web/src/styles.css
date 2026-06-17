@@ -230,6 +230,46 @@ button {
   line-height: 1.6;
 }
 
+.preview-notice-discord {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(217, 57, 91, 0.32);
+  background: rgba(217, 57, 91, 0.08);
+}
+
+.preview-notice-discord strong,
+.preview-notice-discord span {
+  min-width: 0;
+}
+
+.preview-notice-discord strong {
+  font-size: 13px;
+}
+
+.preview-notice-discord span {
+  grid-column: 1;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.preview-notice-discord a {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  justify-self: end;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
 .usage-guide-backdrop {
   position: fixed;
   inset: 0;
@@ -701,6 +741,52 @@ button {
 .hand-zone {
   min-height: 140px;
   margin-top: 8px;
+}
+
+.waiting-room-viewer {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f7faf9;
+  margin-top: 8px;
+  padding: 6px 8px;
+}
+
+.waiting-room-viewer summary {
+  align-items: center;
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.waiting-room-viewer summary span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.waiting-room-viewer summary strong {
+  background: #dfe7e3;
+  border-radius: 999px;
+  color: var(--ink);
+  flex: 0 0 auto;
+  font-size: 11px;
+  min-width: 28px;
+  padding: 2px 8px;
+  text-align: center;
+}
+
+.waiting-room-strip {
+  display: flex;
+  gap: 5px;
+  max-height: 132px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-top: 8px;
 }
 
 .card-strip {
@@ -1449,6 +1535,16 @@ button {
 .effect-resolution p {
   color: var(--muted);
   margin: 0;
+}
+
+.effect-stage-hint {
+  border: 1px solid #bfd8c7;
+  background: #eef8f1;
+  color: #1f5132;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 6px 8px;
 }
 
 .effect-resolution-header {
@@ -2200,6 +2296,20 @@ label {
     grid-template-columns: 1fr;
   }
 
+  .preview-notice-discord {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-notice-discord span,
+  .preview-notice-discord a {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .preview-notice-discord a {
+    justify-self: start;
+  }
+
   .usage-guide-grid {
     grid-template-columns: 1fr;
   }
@@ -2276,6 +2386,26 @@ label {
     width: 100%;
   }
 
+  .effect-resolution-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .effect-stage-hint {
+    font-size: 0.75rem;
+    line-height: 1.35;
+  }
+
+  .effect-candidates,
+  .effect-resolution-buttons {
+    align-items: stretch;
+  }
+
+  .effect-candidates button,
+  .effect-resolution-buttons button {
+    min-width: min(100%, 150px);
+  }
+
   .inspection-card-grid {
     grid-template-columns: 1fr;
     max-height: 62vh;
@@ -2304,6 +2434,27 @@ label {
 
   .member-payment-summary dl {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .waiting-room-viewer {
+    padding: 5px 7px;
+  }
+
+  .waiting-room-viewer summary {
+    font-size: 11px;
+    gap: 6px;
+  }
+
+  .waiting-room-strip {
+    max-height: 108px;
+    padding-top: 6px;
+  }
+
+  .waiting-room-strip .card-tile,
+  .waiting-room-strip .hidden-hand-card {
+    width: 66px;
+    min-width: 66px;
+    height: 96px;
   }
 
   .player-heading {

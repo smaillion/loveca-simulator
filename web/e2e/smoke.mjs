@@ -1,9 +1,15 @@
 import { chromium } from "@playwright/test";
 
+const BASE_URL = process.env.LOVECA_E2E_BASE_URL ?? "http://127.0.0.1:8765";
+const SMOKE_DECK = await buildSmokeDeck();
+
 const browser = await chromium.launch({ headless: true });
 try {
   const desktop = await browser.newPage({ viewport: { width: 1280, height: 1024 } });
   desktop.setDefaultTimeout(5000);
+  await desktop.addInitScript(() => {
+    localStorage.setItem("loveca-ui-locale", "zh");
+  });
 
   async function clickAction(locator) {
     const revisionText = await desktop.locator(".revision").textContent();
@@ -13,17 +19,20 @@ try {
     }
     await locator.click();
     await desktop.waitForFunction(
-      (expected) => document.querySelector(".revision")?.textContent?.includes(expected),
-      `rev ${revision + 1}`,
+      (expected) => {
+        const text = document.querySelector(".revision")?.textContent ?? "";
+        const revisionValue = Number.parseInt(text.match(/\d+/)?.[0] ?? "", 10);
+        return Number.isInteger(revisionValue) && revisionValue >= expected;
+      },
+      revision + 1,
     );
   }
 
   console.log("open desktop");
-  await desktop.goto("http://127.0.0.1:8765/");
+  await desktop.goto(`${BASE_URL}/`);
+  await closeUsageGuide(desktop);
   console.log("create");
   await desktop.getByRole("button", { name: "创建对局" }).click();
-  console.log("choose first");
-  await clickAction(desktop.getByRole("button", { name: "Player 1 先攻" }));
   console.log("mulligan first");
   await clickAction(desktop.getByRole("button", { name: /^确认 0$/ }));
   console.log("mulligan second");
@@ -80,9 +89,13 @@ try {
 
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 } });
   mobile.setDefaultTimeout(5000);
+  await mobile.addInitScript(() => {
+    localStorage.setItem("loveca-ui-locale", "zh");
+  });
   await mobile.route("**/api/card-images/**", (route) => route.abort());
   console.log("open mobile");
-  await mobile.goto("http://127.0.0.1:8765/");
+  await mobile.goto(`${BASE_URL}/`);
+  await closeUsageGuide(mobile);
   await mobile.getByText("创建规则验证对局").waitFor();
   await mobile.getByRole("button", { name: "创建对局" }).waitFor();
   await mobile.screenshot({
@@ -98,6 +111,7 @@ try {
     throw new Error(`mobile horizontal overflow: ${JSON.stringify(overflow)}`);
   }
   console.log("resume second turn on mobile with image fallback");
+  await ensureHistoryLoaded(mobile);
   await mobile.locator(".match-row").filter({ hasText: "进行中" }).first().click();
   await mobile.getByText("第 2 回合").waitFor();
   await mobile.locator(".card-fallback").first().waitFor();
@@ -117,7 +131,9 @@ try {
 
   console.log("create completed match through replay-safe API actions");
   const completedMatchId = await createCompletedMatch();
-  await desktop.goto("http://127.0.0.1:8765/");
+  await desktop.goto(`${BASE_URL}/`);
+  await closeUsageGuide(desktop);
+  await ensureHistoryLoaded(desktop);
   await desktop
     .locator(".match-row")
     .filter({ hasText: completedMatchId.slice(0, 8) })
@@ -131,13 +147,16 @@ try {
 
   console.log("verify consecutive Member placement uses an available area");
   const memberMatchId = await createMemberPlacementMatch();
-  await desktop.goto("http://127.0.0.1:8765/");
+  await desktop.goto(`${BASE_URL}/`);
+  await closeUsageGuide(desktop);
+  await ensureHistoryLoaded(desktop);
   await desktop
     .locator(".match-row")
     .filter({ hasText: memberMatchId.slice(0, 8) })
     .click();
-  await clickAction(desktop.getByRole("button", { name: "登场" }));
-  await clickAction(desktop.getByRole("button", { name: "登场" }));
+  await clickAction(desktop.locator(".member-play-action .primary-button").first());
+  await skipPendingEffectsIfAny(desktop);
+  await clickAction(desktop.locator(".member-play-action .primary-button").first());
   const memberState = (await api(`/api/matches/${memberMatchId}`)).state;
   if (
     !memberState.players.player_1.member_area.center ||
@@ -151,7 +170,9 @@ try {
 
   console.log("verify Baton Touch on a full Member Area");
   const batonFixture = await createBatonTouchMatch();
-  await desktop.goto("http://127.0.0.1:8765/");
+  await desktop.goto(`${BASE_URL}/`);
+  await closeUsageGuide(desktop);
+  await ensureHistoryLoaded(desktop);
   await desktop
     .locator(".match-row")
     .filter({ hasText: batonFixture.matchId.slice(0, 8) })
@@ -173,10 +194,10 @@ try {
     fullPage: true,
   });
   const paymentSummary = desktop.locator(".member-payment-summary");
-  await paymentSummary.getByText("Baton 减免").waitFor();
-  await paymentSummary.getByText("可用 Active").waitFor();
-  await paymentSummary.getByText("Energy 总数").waitFor();
-  await paymentSummary.getByText("实付 Energy").waitFor();
+  await paymentSummary.getByText("换位减免").waitFor();
+  await paymentSummary.getByText("可用能量").waitFor();
+  await paymentSummary.getByText("能量总数").waitFor();
+  await paymentSummary.getByText("实付能量").waitFor();
   const paymentValues = await paymentSummary.locator("dd").allTextContents();
   if (
     !paymentValues.includes(String(batonFixture.paymentCost)) ||
@@ -185,7 +206,9 @@ try {
     throw new Error(`unexpected Energy summary: ${JSON.stringify(paymentValues)}`);
   }
 
-  await mobile.goto("http://127.0.0.1:8765/");
+  await mobile.goto(`${BASE_URL}/`);
+  await closeUsageGuide(mobile);
+  await ensureHistoryLoaded(mobile);
   await mobile
     .locator(".match-row")
     .filter({ hasText: batonFixture.matchId.slice(0, 8) })
@@ -233,13 +256,13 @@ async function createCompletedMatch() {
     body: JSON.stringify({
       player_1: {
         name: "Player 1",
-        deck_path: "examples/decks/sample-deck.json",
+        deck: deckPayload(),
       },
       player_2: {
         name: "Player 2",
-        deck_path: "examples/decks/sample-deck.json",
+        deck: deckPayload(),
       },
-      seed: 30303,
+      seed: 12345,
     }),
   });
   let state = created.state;
@@ -256,7 +279,6 @@ async function createCompletedMatch() {
     state = result.state;
   }
 
-  await act("choose_first_player", null, { first_player_id: "player_1" });
   await act("submit_mulligan", "player_1", { card_instance_ids: [] });
   await act("submit_mulligan", "player_2", { card_instance_ids: [] });
   for (let index = 0; index < 3; index += 1) {
@@ -329,11 +351,11 @@ async function createMemberPlacementMatch() {
     body: JSON.stringify({
       player_1: {
         name: "Member Test",
-        deck_path: "examples/decks/sample-deck.json",
+        deck: deckPayload(),
       },
       player_2: {
         name: "Opponent",
-        deck_path: "examples/decks/sample-deck.json",
+        deck: deckPayload(),
       },
       seed: 40404,
     }),
@@ -351,47 +373,56 @@ async function createMemberPlacementMatch() {
     });
     state = result.state;
   }
-  await act("choose_first_player", null, { first_player_id: "player_1" });
   await act("submit_mulligan", "player_1", { card_instance_ids: [] });
   await act("submit_mulligan", "player_2", { card_instance_ids: [] });
   for (let index = 0; index < 3; index += 1) {
     await act("advance_phase", "player_1");
   }
+  const activeEnergyCount = state.players.player_1.energy_area.filter(
+    (id) => state.cards[id].orientation === "active",
+  ).length;
   const members = state.players.player_1.main_deck
     .filter((id) => state.cards[id].card.card_type === "member")
+    .filter((id) => !(state.cards[id].card.raw_effect_text_ja ?? "").includes("【登場】"))
     .sort((left, right) => {
       const leftCost = state.cards[left].card.cost ?? 0;
       const rightCost = state.cards[right].card.cost ?? 0;
       return leftCost - rightCost;
     });
-  let selected;
-  let second;
-  for (let firstIndex = 0; firstIndex < members.length && !second; firstIndex += 1) {
-    const first = members[firstIndex];
-    const candidate = members
-      .slice(firstIndex + 1)
-      .find(
-        (item) =>
-          (state.cards[first].card.cost ?? 0) +
-            (state.cards[item].card.cost ?? 0) <=
-          state.players.player_1.energy_area.length,
-      );
-    if (candidate) {
-      selected = first;
-      second = candidate;
-    }
-  }
+  const selected = members[0];
+  const second = members[1];
   if (!selected || !second) {
     throw new Error("fixture deck does not contain two affordable Members");
   }
+  const requiredEnergy =
+    (state.cards[selected].card.cost ?? 0) + (state.cards[second].card.cost ?? 0);
+  const extraEnergyIds = state.players.player_1.energy_deck.slice(
+    0,
+    Math.max(0, requiredEnergy - activeEnergyCount),
+  );
   await act("manual_adjustment", "player_1", {
     reason: "Playwright Member placement setup",
-    adjustments: [selected, second].map((id) => ({
-      adjustment_type: "move_card",
-      target_player_id: "player_1",
-      target_card_instance_id: id,
-      to_zone: "hand",
-    })),
+    adjustments: [
+      ...extraEnergyIds.map((id) => ({
+        adjustment_type: "move_card",
+        target_player_id: "player_1",
+        target_card_instance_id: id,
+        to_zone: "energy_area",
+        orientation: "active",
+      })),
+      ...state.players.player_1.hand.map((id) => ({
+        adjustment_type: "move_card",
+        target_player_id: "player_1",
+        target_card_instance_id: id,
+        to_zone: "waiting_room",
+      })),
+      ...[selected, second].map((id) => ({
+        adjustment_type: "move_card",
+        target_player_id: "player_1",
+        target_card_instance_id: id,
+        to_zone: "hand",
+      })),
+    ],
   });
   return state.match_id;
 }
@@ -402,13 +433,13 @@ async function createBatonTouchMatch() {
     body: JSON.stringify({
       player_1: {
         name: "Baton Test",
-        deck_path: "examples/decks/sample-deck.json",
+        deck: deckPayload(),
       },
       player_2: {
         name: "Opponent",
-        deck_path: "examples/decks/sample-deck.json",
+        deck: deckPayload(),
       },
-      seed: 50505,
+      seed: 50001,
     }),
   });
   let state = created.state;
@@ -424,7 +455,6 @@ async function createBatonTouchMatch() {
     });
     state = result.state;
   }
-  await act("choose_first_player", null, { first_player_id: "player_1" });
   await act("submit_mulligan", "player_1", { card_instance_ids: [] });
   await act("submit_mulligan", "player_2", { card_instance_ids: [] });
   for (let index = 0; index < 3; index += 1) {
@@ -522,7 +552,7 @@ async function createBatonTouchMatch() {
 }
 
 async function api(path, init) {
-  const response = await fetch(`http://127.0.0.1:8765${path}`, {
+  const response = await fetch(`${BASE_URL}${path}`, {
     headers: { "Content-Type": "application/json" },
     ...init,
   });
@@ -530,4 +560,106 @@ async function api(path, init) {
     throw new Error(`${path}: ${response.status} ${await response.text()}`);
   }
   return response.json();
+}
+
+function deckPayload() {
+  return JSON.parse(JSON.stringify(SMOKE_DECK));
+}
+
+async function buildSmokeDeck() {
+  const [members, lives, energies] = await Promise.all([
+    catalogCards("member"),
+    catalogCards("live"),
+    catalogCards("energy"),
+  ]);
+  const selectedMembers = await preferCardsWithoutTrigger(
+    dedupeCardsByCode(members),
+    "member_played",
+    12,
+  );
+  const selectedLives = dedupeCardsByCode(lives).slice(0, 3);
+  const selectedEnergy = dedupeCardsByCode(energies)[0];
+  if (selectedMembers.length < 12 || selectedLives.length < 3 || !selectedEnergy) {
+    throw new Error(
+      `not enough catalog cards for smoke deck: members=${selectedMembers.length}, lives=${selectedLives.length}, energy=${Boolean(selectedEnergy)}`,
+    );
+  }
+  return {
+    version: "decklist.v0",
+    name: "E2E Smoke Deck",
+    main_deck: [
+      ...selectedMembers.map((card) => entryFromSummary(card, 4)),
+      ...selectedLives.map((card) => entryFromSummary(card, 4)),
+    ],
+    energy_deck: [entryFromSummary(selectedEnergy, 12)],
+  };
+}
+
+async function catalogCards(cardType) {
+  const response = await api(`/api/catalog/cards?card_type=${cardType}&limit=500`);
+  return response.items ?? [];
+}
+
+async function preferCardsWithoutTrigger(cards, trigger, amount) {
+  const preferred = [];
+  for (const card of cards) {
+    if (preferred.length >= amount) break;
+    try {
+      const detail = await api(`/api/catalog/cards/${encodeURIComponent(card.card_code)}`);
+      const effects = detail.card?.effects ?? [];
+      if (!effects.some((effect) => effect.trigger === trigger)) {
+        preferred.push(card);
+      }
+    } catch {
+      // Ignore a detail failure here; the smoke deck builder can fall back below.
+    }
+  }
+  return preferred.length >= amount ? preferred : cards.slice(0, amount);
+}
+
+function dedupeCardsByCode(cards) {
+  const byCode = new Map();
+  for (const card of cards.slice().sort(sampleSort)) {
+    if (!byCode.has(card.card_code)) {
+      byCode.set(card.card_code, card);
+    }
+  }
+  return [...byCode.values()];
+}
+
+function sampleSort(left, right) {
+  return (
+    (left.card_set_code ?? "").localeCompare(right.card_set_code ?? "") ||
+    left.card_code.localeCompare(right.card_code)
+  );
+}
+
+function entryFromSummary(card, quantity) {
+  return {
+    card_code: card.card_code,
+    quantity,
+    preferred_printing_id: card.card_id,
+  };
+}
+
+async function closeUsageGuide(page) {
+  const closeButton = page.getByLabel(/关闭使用说明|使い方を閉じる/);
+  await closeButton.first().click({ timeout: 1500 }).catch(() => undefined);
+}
+
+async function ensureHistoryLoaded(page) {
+  if (await page.locator(".match-row").first().count()) return;
+  await page
+    .getByRole("button", { name: /读取|読み込み|刷新|更新/ })
+    .first()
+    .click({ timeout: 3000 })
+    .catch(() => undefined);
+  await page.locator(".match-row").first().waitFor({ timeout: 5000 });
+}
+
+async function skipPendingEffectsIfAny(page) {
+  const skipButton = page.locator(".skip-effect-button").first();
+  if (await skipButton.isVisible({ timeout: 1000 }).catch(() => false)) {
+    await clickAction(skipButton);
+  }
 }

@@ -368,8 +368,12 @@ def _choose_first_player(
         GameEvent(
             event_type="first_player_chosen",
             player_id=first_player_id,
-            data={"second_player_id": second_player_id},
-            source="player",
+            data={
+                "second_player_id": second_player_id,
+                "automatic": bool(action.payload.get("automatic", False)),
+                "selection_method": action.payload.get("selection_method", "manual"),
+            },
+            source="system" if action.payload.get("automatic", False) else "player",
         )
     )
 
@@ -3801,7 +3805,10 @@ def _effect_resolution_options(
         and invocation.resolution_stage == "initial"
     ):
         candidate_ids = _effect_choice_candidates(state, invocation)
-    options: dict[str, Any] = {"candidate_card_instance_ids": candidate_ids}
+    options: dict[str, Any] = {
+        "candidate_card_instance_ids": candidate_ids,
+        "resolution_stage": invocation.resolution_stage,
+    }
     if effect.cost_choice is not None and invocation.resolution_stage == "initial":
         options["choice_type"] = effect.cost_choice.choice_type
         options["choice_zone"] = effect.cost_choice.zone

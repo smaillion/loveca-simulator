@@ -614,16 +614,23 @@ describe("App", () => {
     vi.stubGlobal("fetch", createFetchMock({}));
   });
 
-  it("defaults to Japanese and opens the usage guide when no language is stored", async () => {
+  it("defaults to Japanese and opens the alpha notice before the usage guide", async () => {
     localStorage.removeItem("loveca-ui-locale");
 
     render(<App />);
 
     expect(screen.getByText("LoveCA ルール検証ツール")).toBeInTheDocument();
     expect(
-      screen.getByRole("dialog", { name: "まず下のボタンを見ます" }),
+      screen.getByRole("dialog", { name: "Alpha 版のご案内" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "カードを閲覧" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "始める" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Alpha 版のご案内" })).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.getByRole("dialog", { name: "まず下のボタンを見ます" }),
+    ).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "使い方を閉じる" }));
     await waitFor(() =>
       expect(screen.queryByRole("dialog", { name: "まず下のボタンを見ます" })).not.toBeInTheDocument(),
@@ -778,6 +785,47 @@ describe("App", () => {
     await waitFor(() => expect(screen.getAllByText("自分の手札").length).toBeGreaterThan(0));
     expect(screen.queryByText("相手の秘密手札")).not.toBeInTheDocument();
     expect(screen.getByLabelText("隐藏的对手手牌")).toBeInTheDocument();
+  });
+
+  it("lets the local player expand their waiting room", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const waitingId = "player_1-W001";
+    const matchCreate = {
+      ...MATCH_PAYLOAD,
+      state: {
+        ...MATCH_PAYLOAD.state,
+        players: {
+          player_1: {
+            ...createPlayerState("player_1", "Player 1"),
+            waiting_room: [waitingId],
+          },
+          player_2: createPlayerState("player_2", "Player 2"),
+        },
+        cards: {
+          [waitingId]: {
+            instance_id: waitingId,
+            owner_id: "player_1",
+            orientation: "active",
+            face_up: true,
+            card: { ...CATALOG_DETAIL.card, name_ja: "控室確認カード" },
+          },
+        },
+      },
+    };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+
+    const { container } = render(<App />);
+    await waitFor(() => expect(screen.getByLabelText("玩家 1 牌组")).toBeInTheDocument());
+    const createButton = screen.getByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+
+    await waitFor(() => expect(screen.getByText("查看己方控室")).toBeInTheDocument());
+    const viewer = container.querySelector(".waiting-room-viewer") as HTMLDetailsElement;
+    expect(viewer.open).toBe(false);
+    fireEvent.click(screen.getByText("查看己方控室"));
+    expect(viewer.open).toBe(true);
+    expect(screen.getAllByText("控室確認カード").length).toBeGreaterThan(0);
   });
 
   it("switches the local visible hand to the current local operator", async () => {
@@ -1887,6 +1935,67 @@ describe("App", () => {
       energy_instance_ids: [],
     });
     expect(onManual).not.toHaveBeenCalled();
+  });
+
+  it("shows a continuation hint for multi-step effects after cost handling", () => {
+    const onAction = vi.fn();
+    const onManual = vi.fn();
+    const state = {
+      ...INSPECTION_MATCH_PAYLOAD.state,
+      pending_choice: null,
+      pending_effects: [
+        {
+          invocation_id: "after-cost-effect-001",
+          effect_id: "PL!SP-bp1-021:1",
+          source_card_instance_id: "player_1-M001",
+          player_id: "player_1",
+          trigger_event: "member_played",
+          trigger_data: {},
+          resolution_stage: "after_cost" as const,
+        },
+      ],
+    };
+    const action = {
+      action_type: "resolve_effect",
+      player_id: "player_1",
+      label_zh: "处理待结算技能",
+      label_ja: "待機中の能力を解決",
+      options: {
+        invocations: [
+          {
+            invocation_id: "after-cost-effect-001",
+            effect_id: "PL!SP-bp1-021:1",
+            source_card_instance_id: "player_1-M001",
+            label_ja: "【登場】カードを1枚引き、手札を1枚控え室に置く。",
+            trigger: "member_played",
+            timing: "on_play",
+            execution_mode: "prompt_then_resolve",
+            is_optional: false,
+            simulation_support: "test_validated_executable",
+            resolution_stage: "after_cost",
+            candidate_card_instance_ids: ["player_1-M002"],
+            card_selection_minimum: 1,
+            card_selection_maximum: 1,
+            choice_zone: "hand",
+          },
+        ],
+        waiting_player_ids: [],
+      },
+    };
+
+    render(
+      <EffectResolutionAction
+        action={action as never}
+        state={state as never}
+        loading={false}
+        onAction={onAction}
+        onManual={onManual}
+      />,
+    );
+
+    expect(
+      screen.getByText("已完成发动/成本处理，继续选择后续效果。"),
+    ).toBeInTheDocument();
   });
 
   it("shows card details for duplicate waiting-room effect choices", () => {

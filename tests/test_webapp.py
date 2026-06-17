@@ -29,40 +29,43 @@ def test_match_api_create_act_resume_and_replay(tmp_path):
         json={
             "player_1": {"name": "Player A", "deck": deck},
             "player_2": {"name": "Player B", "deck": deck},
-            "seed": 106,
+            "seed": 1,
         },
     )
 
     assert response.status_code == 200
     payload = response.json()
     match_id = payload["state"]["match_id"]
-    assert payload["state"]["revision"] == 0
+    assert payload["state"]["revision"] == 1
+    assert payload["state"]["phase"] == "setup_mulligan_first"
+    assert payload["state"]["first_player_id"] == "player_1"
     assert payload["state"]["players"]["player_1"]["member_area_attachments"] == {
         "left": [],
         "center": [],
         "right": [],
     }
-    assert payload["legal_actions"][0]["action_type"] == "choose_first_player"
+    assert payload["legal_actions"][0]["action_type"] == "submit_mulligan"
 
     action_response = client.post(
         f"/api/matches/{match_id}/actions",
         json={
-            "action_type": "choose_first_player",
-            "expected_revision": 0,
-            "payload": {"first_player_id": "player_1"},
+            "action_type": "submit_mulligan",
+            "expected_revision": 1,
+            "player_id": "player_1",
+            "payload": {"card_instance_ids": []},
         },
     )
     assert action_response.status_code == 200
-    assert action_response.json()["state"]["revision"] == 1
+    assert action_response.json()["state"]["revision"] == 2
 
     resumed = client.get(f"/api/matches/{match_id}")
     assert resumed.status_code == 200
-    assert resumed.json()["state"]["phase"] == "setup_mulligan_first"
+    assert resumed.json()["state"]["phase"] == "setup_mulligan_second"
     assert resumed.json()["events"]
 
     replay = client.get(f"/api/matches/{match_id}/replay")
     assert replay.status_code == 200
-    assert replay.json()["final_state"]["revision"] == 1
+    assert replay.json()["final_state"]["revision"] == 2
 
 
 def test_hosted_room_api_create_join_act_and_replay(tmp_path):
@@ -71,7 +74,7 @@ def test_hosted_room_api_create_join_act_and_replay(tmp_path):
 
     created = client.post(
         "/api/rooms",
-        json={"player_name": "Host", "deck": deck, "seed": 106},
+        json={"player_name": "Host", "deck": deck, "seed": 1},
     )
     assert created.status_code == 200
     room_payload = created.json()
@@ -90,9 +93,9 @@ def test_hosted_room_api_create_join_act_and_replay(tmp_path):
     guest_token = joined_payload["player_token"]
     assert joined_payload["status"] == "active"
     assert joined_payload["player_id"] == "player_2"
-    assert joined_payload["match"]["state"]["revision"] == 0
+    assert joined_payload["match"]["state"]["revision"] == 1
     assert all(
-        action["player_id"] in {None, "player_2"}
+        action["player_id"] in {None, "player_1"}
         for action in joined_payload["match"]["legal_actions"]
     )
 
@@ -105,9 +108,10 @@ def test_hosted_room_api_create_join_act_and_replay(tmp_path):
         json={
             "player_token": "wrong",
             "action": {
-                "action_type": "choose_first_player",
-                "expected_revision": 0,
-                "payload": {"first_player_id": "player_1"},
+                "action_type": "submit_mulligan",
+                "expected_revision": 2,
+                "player_id": "player_1",
+                "payload": {"card_instance_ids": []},
             },
         },
     )
@@ -118,14 +122,15 @@ def test_hosted_room_api_create_join_act_and_replay(tmp_path):
         json={
             "player_token": host_token,
             "action": {
-                "action_type": "choose_first_player",
-                "expected_revision": 0,
-                "payload": {"first_player_id": "player_1"},
+                "action_type": "submit_mulligan",
+                "expected_revision": 1,
+                "player_id": "player_1",
+                "payload": {"card_instance_ids": []},
             },
         },
     )
     assert acted.status_code == 200
-    assert acted.json()["state"]["revision"] == 1
+    assert acted.json()["state"]["revision"] == 2
     acted_state = acted.json()["state"]
     assert set(acted_state["players"]["player_1"]["hand"]).issubset(acted_state["cards"])
     assert set(acted_state["players"]["player_2"]["hand"]).isdisjoint(acted_state["cards"])
@@ -156,7 +161,7 @@ def test_hosted_room_api_create_join_act_and_replay(tmp_path):
             "player_token": guest_token,
             "action": {
                 "action_type": "submit_mulligan",
-                "expected_revision": 1,
+                "expected_revision": 2,
                 "payload": {"card_instance_ids": []},
             },
         },
@@ -165,7 +170,7 @@ def test_hosted_room_api_create_join_act_and_replay(tmp_path):
 
     polled = client.get(f"/api/rooms/{room_code}?player_token={guest_token}")
     assert polled.status_code == 200
-    assert polled.json()["match"]["state"]["revision"] == 1
+    assert polled.json()["match"]["state"]["revision"] == 2
     guest_state = polled.json()["match"]["state"]
     host_hand = set(guest_state["players"]["player_1"]["hand"])
     guest_hand = set(guest_state["players"]["player_2"]["hand"])
@@ -180,7 +185,7 @@ def test_hosted_room_api_create_join_act_and_replay(tmp_path):
 
     replay = client.get(f"/api/rooms/{room_code}/replay?player_token={host_token}")
     assert replay.status_code == 200
-    assert replay.json()["final_state"]["revision"] == 1
+    assert replay.json()["final_state"]["revision"] == 2
 
 
 def test_match_history_paginates_without_purging_active_room_match(tmp_path):
@@ -406,14 +411,15 @@ def test_api_rejects_stale_revision_without_mutation(tmp_path):
     response = client.post(
         f"/api/matches/{match_id}/actions",
         json={
-            "action_type": "choose_first_player",
+            "action_type": "submit_mulligan",
             "expected_revision": 9,
-            "payload": {"first_player_id": "player_1"},
+            "player_id": "player_1",
+            "payload": {"card_instance_ids": []},
         },
     )
 
     assert response.status_code == 409
-    assert client.get(f"/api/matches/{match_id}").json()["state"]["revision"] == 0
+    assert client.get(f"/api/matches/{match_id}").json()["state"]["revision"] == 1
 
 
 def test_uncached_card_image_returns_404(tmp_path):

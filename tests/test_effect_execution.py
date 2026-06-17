@@ -9930,15 +9930,10 @@ def test_replay_uses_match_effect_snapshot_after_registry_changes(tmp_path):
         second_name="B",
         second_deck=load_deck(SAMPLE_DECK),
         seed=99,
+        first_player_id="player_1",
     )
     match_id = created.state.match_id
-    state = _apply(
-        service,
-        match_id,
-        created.state,
-        "choose_first_player",
-        payload={"first_player_id": "player_1"},
-    )
+    state = created.state
     registry_copy.write_text("{not valid json", encoding="utf-8")
 
     replay = service.repository.replay(match_id)
@@ -13957,6 +13952,7 @@ def _create_match(tmp_path: Path, seed: int = 7):
         second_name="B",
         second_deck=load_deck(SAMPLE_DECK),
         seed=seed,
+        first_player_id="player_1",
     )
     return service, result.state.match_id
 
@@ -14495,13 +14491,6 @@ def _apply_direct(
 
 def _reach_first_main(service: MatchService, match_id: str):
     state = service.repository.get_state(match_id)
-    state = _apply(
-        service,
-        match_id,
-        state,
-        "choose_first_player",
-        payload={"first_player_id": "player_1"},
-    )
     state = _apply(
         service, match_id, state, "submit_mulligan", player_id="player_1",
         payload={"card_instance_ids": []},

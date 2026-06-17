@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import random
 import secrets
 import uuid
 from pathlib import Path
@@ -37,6 +38,7 @@ class MatchService:
         second_deck: DeckList,
         seed: int | None = None,
         match_id: str | None = None,
+        first_player_id: str | None = None,
     ) -> ActionResult:
         for label, deck in (("player_1", first_deck), ("player_2", second_deck)):
             analysis = analyze_deck(self.card_database_path, deck)
@@ -62,9 +64,26 @@ class MatchService:
             effect_registry_version=registry_version,
             effect_definitions=effects,
         )
-        return self.repository.create_match(
+        resolved_first_player_id = first_player_id or _random_first_player_id(resolved_seed)
+        if resolved_first_player_id not in state.players:
+            raise MatchSetupError("first_player_id must be player_1 or player_2")
+        created = self.repository.create_match(
             state,
             card_database_path=self.card_database_path,
+        )
+        return self.repository.apply(
+            created.state.match_id,
+            ActionRequest(
+                action_type="choose_first_player",
+                expected_revision=created.state.revision,
+                payload={
+                    "first_player_id": resolved_first_player_id,
+                    "automatic": first_player_id is None,
+                    "selection_method": "random_seeded"
+                    if first_player_id is None
+                    else "explicit",
+                },
+            ),
         )
 
     def create_match_from_paths(
@@ -86,3 +105,7 @@ class MatchService:
 
     def apply(self, match_id: str, action: ActionRequest) -> ActionResult:
         return self.repository.apply(match_id, action)
+
+
+def _random_first_player_id(seed: int) -> str:
+    return ("player_1", "player_2")[random.Random(f"{seed}:first_player").randrange(2)]
