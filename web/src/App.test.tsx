@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import App, {
   EffectResolutionAction,
   InspectionChoiceAction,
+  ManualDrawer,
   StageAttachments,
   availableValue,
   canResolveEffect,
@@ -1301,6 +1302,57 @@ describe("App", () => {
       selected_card_instance_ids: ["player_1-M002"],
       ordered_card_instance_ids: undefined,
     });
+  });
+
+  it("offers a manual adjustment for returning a waiting-room card to hand", () => {
+    const onSubmit = vi.fn();
+    const state = {
+      ...MATCH_PAYLOAD.state,
+      active_player_id: "player_1",
+      cards: INSPECTION_CARDS,
+      players: {
+        ...MATCH_PAYLOAD.state.players,
+        player_1: {
+          ...MATCH_PAYLOAD.state.players.player_1,
+          waiting_room: ["player_1-M002"],
+          main_deck: ["player_1-M003"],
+        },
+      },
+    };
+
+    render(
+      <ManualDrawer
+        state={state as never}
+        source={null}
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("调整类型"), {
+      target: { value: "return_from_waiting_room" },
+    });
+
+    const targetSelect = screen.getByLabelText("目标卡牌");
+    expect(targetSelect).toHaveTextContent("候補カード");
+    expect(targetSelect).not.toHaveTextContent("条件外カード");
+    expect(screen.getByRole("button", { name: "提交结构化调整" })).toBeDisabled();
+
+    fireEvent.change(targetSelect, { target: { value: "player_1-M002" } });
+    fireEvent.click(screen.getByRole("button", { name: "提交结构化调整" }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      "player_1",
+      expect.objectContaining({
+        adjustments: [
+          expect.objectContaining({
+            adjustment_type: "return_from_waiting_room",
+            target_player_id: "player_1",
+            target_card_instance_id: "player_1-M002",
+          }),
+        ],
+      }),
+    );
   });
 
   it("resolves optional discard-to-Wait-Energy effects without manual adjustment", () => {

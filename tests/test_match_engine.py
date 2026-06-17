@@ -473,6 +473,84 @@ def test_manual_adjustment_and_member_play_are_action_only(tmp_path):
     assert state.players["player_1"].member_areas_entered_this_turn == ["center"]
 
 
+def test_manual_return_from_waiting_room_moves_card_to_hand(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=17)
+    state = _reach_first_main(service, match_id)
+    manual_options = next(
+        action.options
+        for action in generate_legal_actions(state)
+        if action.action_type == "manual_adjustment"
+    )
+    assert "return_from_waiting_room" in manual_options["adjustment_types"]
+    card_id = state.players["player_1"].hand[0]
+
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "manual_adjustment",
+        player_id="player_1",
+        payload={
+            "reason": "prepare waiting-room return",
+            "requires_confirmation": True,
+            "confirmed_by": "tester",
+            "adjustments": [
+                {
+                    "adjustment_type": "discard_card",
+                    "target_player_id": "player_1",
+                    "target_card_instance_id": card_id,
+                }
+            ],
+        },
+    )
+    assert card_id in state.players["player_1"].waiting_room
+    assert card_id not in state.players["player_1"].hand
+
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "manual_adjustment",
+        player_id="player_1",
+        payload={
+            "reason": "return from waiting room",
+            "requires_confirmation": True,
+            "confirmed_by": "tester",
+            "adjustments": [
+                {
+                    "adjustment_type": "return_from_waiting_room",
+                    "target_player_id": "player_1",
+                    "target_card_instance_id": card_id,
+                }
+            ],
+        },
+    )
+    assert card_id in state.players["player_1"].hand
+    assert card_id not in state.players["player_1"].waiting_room
+
+    deck_card = state.players["player_1"].main_deck[0]
+    with pytest.raises(IllegalActionError, match="waiting room"):
+        _apply(
+            service,
+            match_id,
+            state,
+            "manual_adjustment",
+            player_id="player_1",
+            payload={
+                "reason": "reject non-waiting-room target",
+                "requires_confirmation": True,
+                "confirmed_by": "tester",
+                "adjustments": [
+                    {
+                        "adjustment_type": "return_from_waiting_room",
+                        "target_player_id": "player_1",
+                        "target_card_instance_id": deck_card,
+                    }
+                ],
+            },
+        )
+
+
 def test_manual_energy_adjustment_supports_multiple_targets(tmp_path):
     service, match_id = _create_match(tmp_path, seed=19)
     state = _reach_first_main(service, match_id)
