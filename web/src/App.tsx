@@ -16,7 +16,15 @@ import {
   Swords,
   X,
 } from "lucide-react";
-import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   createMatch,
   createRoom,
@@ -147,6 +155,8 @@ export default function App() {
   const [screen, setScreen] = useState<"home" | "match" | "catalog" | "decks">("home");
   const [match, setMatch] = useState<MatchPayload | null>(null);
   const [matchHistory, setMatchHistory] = useState<MatchListResponse>(emptyMatchHistory);
+  const [matchHistoryLoaded, setMatchHistoryLoaded] = useState(false);
+  const [matchHistoryLoading, setMatchHistoryLoading] = useState(false);
   const [savedDecks, setSavedDecks] = useState<SavedDeckSummary[]>([]);
   const [draftDeck, setDraftDeck] = useState<DeckList | null>(null);
   const [loading, setLoading] = useState(false);
@@ -161,6 +171,25 @@ export default function App() {
   const [onlineRoom, setOnlineRoom] = useState<RoomPayload | null>(null);
   const [onlineStatus, setOnlineStatus] = useState<string | null>(null);
 
+  const loadMatchHistoryPage = useCallback((page = 1) => {
+    if (!matchHistoryAvailable(runtimeConfig)) {
+      setMatchHistory(emptyMatchHistory);
+      setMatchHistoryLoaded(true);
+      return Promise.resolve();
+    }
+    setMatchHistoryLoading(true);
+    return listMatches({ page, perPage: MATCH_HISTORY_PAGE_SIZE })
+      .then((history) => {
+        setMatchHistory(history);
+        setMatchHistoryLoaded(true);
+      })
+      .catch(() => {
+        setMatchHistory(emptyMatchHistory);
+        setMatchHistoryLoaded(true);
+      })
+      .finally(() => setMatchHistoryLoading(false));
+  }, [runtimeConfig]);
+
   useEffect(() => {
     let disposed = false;
     loadRuntimeConfig()
@@ -168,24 +197,18 @@ export default function App() {
         if (disposed) return;
         setRuntimeConfig(config);
         setShowPreviewNotice(config.browserPreview);
-        if (matchHistoryAvailable(config)) {
-          listMatches({ page: 1, perPage: MATCH_HISTORY_PAGE_SIZE })
-            .then(setMatchHistory)
-            .catch(() => setMatchHistory(emptyMatchHistory));
-        } else {
+        if (!matchHistoryAvailable(config)) {
           setMatchHistory(emptyMatchHistory);
+          setMatchHistoryLoaded(true);
         }
         listSavedDecks().then(setSavedDecks).catch(() => setSavedDecks([]));
       })
       .catch(() => {
         if (disposed) return;
         const config = getRuntimeConfigSnapshot();
-        if (matchHistoryAvailable(config)) {
-          listMatches({ page: 1, perPage: MATCH_HISTORY_PAGE_SIZE })
-            .then(setMatchHistory)
-            .catch(() => setMatchHistory(emptyMatchHistory));
-        } else {
+        if (!matchHistoryAvailable(config)) {
           setMatchHistory(emptyMatchHistory);
+          setMatchHistoryLoaded(true);
         }
         listSavedDecks().then(setSavedDecks).catch(() => setSavedDecks([]));
       });
@@ -359,6 +382,8 @@ export default function App() {
         <StartScreen
           matches={matchHistory.items}
           history={matchHistory}
+          historyLoaded={matchHistoryLoaded}
+          historyLoading={matchHistoryLoading}
           deckSources={deckSources}
           loading={loading}
           error={error}
@@ -449,13 +474,8 @@ export default function App() {
               setScreen("match");
             })
           }
-          onHistoryPage={(page) =>
-            matchHistoryAvailable(runtimeConfig)
-              ? listMatches({ page, perPage: MATCH_HISTORY_PAGE_SIZE })
-                .then(setMatchHistory)
-                .catch(() => setMatchHistory(emptyMatchHistory))
-              : setMatchHistory(emptyMatchHistory)
-          }
+          onHistoryRefresh={() => void loadMatchHistoryPage(1)}
+          onHistoryPage={(page) => void loadMatchHistoryPage(page)}
         />,
       );
   }
@@ -1033,6 +1053,8 @@ function LanguageToggle() {
 function StartScreen({
   matches,
   history,
+  historyLoaded,
+  historyLoading,
   deckSources,
   loading,
   error,
@@ -1050,10 +1072,13 @@ function StartScreen({
   onJoinOnlineRoom,
   onCreate,
   onResume,
+  onHistoryRefresh,
   onHistoryPage,
 }: {
   matches: MatchSummary[];
   history: MatchListResponse;
+  historyLoaded: boolean;
+  historyLoading: boolean;
   deckSources: StartDeckSource[];
   loading: boolean;
   error: string | null;
@@ -1085,6 +1110,7 @@ function StartScreen({
     seed?: number;
   }) => void | Promise<void>;
   onResume: (id: string) => void;
+  onHistoryRefresh: () => void;
   onHistoryPage: (page: number) => void;
 }) {
   const { locale, tr } = useUiLanguage();
@@ -1366,13 +1392,27 @@ function StartScreen({
                   : tr(
                     "保存最近 100 局的入口。可以回到中断的测试，也可以确认之前打到第几步。",
                     "最近100件まで表示します。中断した検証の再開や、どこまで進んだかの確認に使います。",
-                  )}
+                )}
               </p>
             </div>
+            {!browserPreview && (
+              <button
+                className="secondary-button"
+                disabled={historyLoading}
+                onClick={onHistoryRefresh}
+              >
+                {historyLoading ? <RefreshCw className="spin" size={16} /> : <RefreshCw size={16} />}
+                {historyLoaded ? tr("刷新", "更新") : tr("读取", "読み込み")}
+              </button>
+            )}
           </div>
           <div className="match-list">
             {matches.length === 0 && (
-              <div className="empty-state">{tr("暂无已保存对局", "保存済みの対戦はありません")}</div>
+              <div className="empty-state">
+                {historyLoaded
+                  ? tr("暂无已保存对局", "保存済みの対戦はありません")
+                  : tr("点击读取最近对局", "最近の対戦を読み込んでください")}
+              </div>
             )}
             {matches.map((item) => (
               <button

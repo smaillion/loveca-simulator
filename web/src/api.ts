@@ -140,11 +140,20 @@ export function hostedOnlineAvailable(): boolean {
 function shouldUsePreviewData(config: RuntimeConfig): boolean {
   return config.browserPreview
     || (config.mode === "preview" && !config.apiBaseUrl)
+    || (!config.apiBaseUrl && staticLocalBuildLikely())
     || (
       typeof window !== "undefined"
       && window.location.hostname.endsWith("github.io")
       && !config.apiBaseUrl
     );
+}
+
+function staticLocalBuildLikely(): boolean {
+  if (typeof window === "undefined") return false;
+  const { port, protocol } = window.location;
+  if (protocol === "file:") return true;
+  if (port === "4173") return true;
+  return false;
 }
 
 export function listMatches(input: {

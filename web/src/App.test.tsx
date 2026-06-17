@@ -602,6 +602,14 @@ describe("App", () => {
     await waitFor(() => expect(screen.getByLabelText("玩家 1 牌组")).toBeInTheDocument());
     expect(screen.getAllByText("Test Deck").length).toBeGreaterThan(0);
     expect(screen.getByPlaceholderText("自动生成")).toHaveValue("");
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith("runtime-config.json", expect.anything()));
+    expect(
+      vi.mocked(fetch).mock.calls.some(
+        ([input]) => input.toString().startsWith("/api/matches"),
+      ),
+    ).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: "读取" }));
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith(
         "/api/matches?page=1&per_page=10",
@@ -631,6 +639,29 @@ describe("App", () => {
         ([input, init]) =>
           new URL(input.toString(), "http://localhost").pathname === "/api/matches"
           && (init?.method ?? "GET") === "GET",
+      ),
+    ).toBe(false);
+  });
+
+  it("loads saved deck sources on the browser preview start screen", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const fetchMock = createFetchMock({
+      runtimeConfig: {
+        mode: "preview",
+        browserPreview: true,
+        apiBaseUrl: "",
+        cardDatabaseFingerprint: "",
+      },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByLabelText("玩家 1 牌组")).toBeInTheDocument());
+    expect(screen.getAllByText("Test Deck").length).toBeGreaterThan(0);
+    expect(
+      fetchMock.mock.calls.some(
+        ([input]) => input.toString().startsWith("/api/matches"),
       ),
     ).toBe(false);
   });
@@ -1060,10 +1091,14 @@ describe("App", () => {
       target: { value: "LL-TEST-001-SR" },
     });
 
-    expect(screen.getByLabelText("选择卡面")).toHaveValue("LL-TEST-001-SR");
-    expect(screen.getByAltText("テストカード")).toHaveAttribute(
-      "src",
-      "/api/card-images/LL-TEST-001-SR",
+    await waitFor(() =>
+      expect(screen.getByLabelText("选择卡面")).toHaveValue("LL-TEST-001-SR"),
+    );
+    await waitFor(() =>
+      expect(screen.getByAltText("テストカード")).toHaveAttribute(
+        "src",
+        "/api/card-images/LL-TEST-001-SR",
+      ),
     );
   });
 
