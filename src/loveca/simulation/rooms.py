@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import secrets
 import sqlite3
-import string
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -225,6 +224,37 @@ class RoomRepository:
             connection.commit()
             return int(cursor.rowcount)
 
+    def active_match_ids(self) -> set[str]:
+        now = _utc_now()
+        with closing(self._connect()) as connection:
+            rows = connection.execute(
+                """
+                SELECT match_id
+                FROM hosted_rooms
+                WHERE match_id IS NOT NULL
+                  AND status != 'expired'
+                  AND expires_at > ?
+                """,
+                (now,),
+            ).fetchall()
+        return {str(row["match_id"]) for row in rows}
+
+    def match_is_active_room_match(self, match_id: str) -> bool:
+        now = _utc_now()
+        with closing(self._connect()) as connection:
+            row = connection.execute(
+                """
+                SELECT 1
+                FROM hosted_rooms
+                WHERE match_id = ?
+                  AND status != 'expired'
+                  AND expires_at > ?
+                LIMIT 1
+                """,
+                (match_id, now),
+            ).fetchone()
+        return row is not None
+
     def validate_token(self, record: RoomRecord, token: str) -> str:
         if secrets.compare_digest(token, record.host_token):
             return "player_1"
@@ -291,7 +321,11 @@ class RoomService:
         self.repository.touch_room(joined.room_code)
         return joined
 
-    def get_room_for_player(self, room_code: str, token: str | None) -> tuple[RoomRecord, str | None]:
+    def get_room_for_player(
+        self,
+        room_code: str,
+        token: str | None,
+    ) -> tuple[RoomRecord, str | None]:
         record = self.repository.get_room(room_code)
         if token is None:
             return record, None

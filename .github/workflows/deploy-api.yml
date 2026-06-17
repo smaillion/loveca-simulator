@@ -113,10 +113,24 @@ jobs:
         run: |
           origin_base_url="$(printf '%s' "$ORIGIN_BASE_URL" | sed 's#/*$##')"
           test -n "$origin_base_url"
+          for attempt in $(seq 1 12); do
+            if curl --fail --show-error --silent --max-time 20 "$origin_base_url/api/health"; then
+              exit 0
+            fi
+            echo "Origin health check failed; retrying ($attempt/12)"
+            sleep 5
+          done
           curl --fail --show-error --silent --max-time 20 "$origin_base_url/api/health"
 
       - name: Health check through Worker gateway URL
         run: |
           gateway_base_url="$(printf '%s' "$GATEWAY_API_BASE_URL" | sed 's#/*$##')"
           test -n "$gateway_base_url"
+          for attempt in $(seq 1 12); do
+            if curl --fail --show-error --silent --max-time 20 "$gateway_base_url/api/health"; then
+              exit 0
+            fi
+            echo "Gateway health check failed; retrying ($attempt/12)"
+            sleep 5
+          done
           curl --fail --show-error --silent --max-time 20 "$gateway_base_url/api/health"

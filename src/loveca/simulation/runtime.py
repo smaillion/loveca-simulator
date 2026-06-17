@@ -212,6 +212,7 @@ class MatchRepository:
         page: int = 1,
         per_page: int = DEFAULT_MATCH_HISTORY_PAGE_SIZE,
         max_matches: int = DEFAULT_MATCH_HISTORY_LIMIT,
+        exclude_match_ids: set[str] | None = None,
     ) -> dict[str, Any]:
         if page < 1:
             raise ValueError("page must be at least 1")
@@ -221,30 +222,38 @@ class MatchRepository:
             raise ValueError("max_matches must be at least 1")
         offset = (page - 1) * per_page
         limit = min(per_page, max(0, max_matches - offset))
+        exclusion_clause = ""
+        exclusion_parameters: list[str] = []
+        if exclude_match_ids:
+            placeholders = ", ".join("?" for _ in exclude_match_ids)
+            exclusion_clause = f"WHERE match_id NOT IN ({placeholders})"
+            exclusion_parameters = sorted(exclude_match_ids)
         with closing(_connect(self.path)) as connection:
             rows = []
             if limit > 0:
                 rows = connection.execute(
-                    """
+                    f"""
                     SELECT match_id, rule_version, seed, status, revision, created_at, updated_at
                     FROM matches
+                    {exclusion_clause}
                     ORDER BY updated_at DESC, created_at DESC, match_id DESC
                     LIMIT ? OFFSET ?
                     """,
-                    (limit, offset),
+                    (*exclusion_parameters, limit, offset),
                 ).fetchall()
             total = int(
                 connection.execute(
-                    """
+                    f"""
                     SELECT COUNT(*)
                     FROM (
                         SELECT match_id
                         FROM matches
+                        {exclusion_clause}
                         ORDER BY updated_at DESC, created_at DESC, match_id DESC
                         LIMIT ?
                     )
                     """,
-                    (max_matches,),
+                    (*exclusion_parameters, max_matches),
                 ).fetchone()[0]
             )
         return {
