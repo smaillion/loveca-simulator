@@ -67,6 +67,23 @@ jobs:
       - name: Test SSH login
         run: ssh ${SSH_OPTS} "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" 'true'
 
+      - name: Capture current API image
+        run: |
+          previous_image="$(
+            ssh ${SSH_OPTS} "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" '
+              cd "${{ secrets.DEPLOY_PATH }}" 2>/dev/null || exit 0
+              if [ -f compose.api.yml ]; then
+                awk '"'"'$1 == "image:" { print $2; exit }'"'"' compose.api.yml
+              fi
+            '
+          )"
+          echo "PREVIOUS_API_IMAGE=$previous_image" >> "$GITHUB_ENV"
+          if [ -n "$previous_image" ]; then
+            echo "Found previous API image: $previous_image"
+          else
+            echo "No previous API image found; rollback will be skipped if deployment fails."
+          fi
+
       - name: Write remote compose file
         run: |
           ssh ${SSH_OPTS} "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" 'mkdir -p "${{ secrets.DEPLOY_PATH }}/runtime" "${{ secrets.DEPLOY_PATH }}/logs"'
@@ -134,3 +151,34 @@ jobs:
             sleep 5
           done
           curl --fail --show-error --silent --max-time 20 "$gateway_base_url/api/health"
+
+      - name: Roll back API service on deploy failure
+        if: ${{ failure() }}
+        run: |
+          if [ -z "${PREVIOUS_API_IMAGE}" ]; then
+            echo "No previous API image was captured; rollback skipped."
+            exit 0
+          fi
+          attempted_image="${IMAGE_NAME}:${IMAGE_TAG}"
+          if [ "${PREVIOUS_API_IMAGE}" = "$attempted_image" ]; then
+            echo "Previous API image matches attempted image; rollback skipped."
+            exit 0
+          fi
+          echo "Rolling back API from $attempted_image to ${PREVIOUS_API_IMAGE}"
+          ssh ${SSH_OPTS} "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "
+            set -eu
+            cd \"${{ secrets.DEPLOY_PATH }}\"
+            if docker compose version >/dev/null 2>&1; then
+              compose=\"docker compose\"
+            elif command -v docker-compose >/dev/null 2>&1; then
+              compose=\"docker-compose\"
+            else
+              echo \"Docker Compose is not installed. Install docker-compose-plugin or docker-compose on the VPS.\" >&2
+              exit 1
+            fi
+            sed -i \"s#^[[:space:]]*image:.*#    image: ${PREVIOUS_API_IMAGE}#\" compose.api.yml
+            \$compose -f compose.api.yml pull
+            \$compose -f compose.api.yml up -d
+            \$compose -f compose.api.yml ps
+          "
+          echo "Rolled back API service to ${PREVIOUS_API_IMAGE}" >> "$GITHUB_STEP_SUMMARY"
