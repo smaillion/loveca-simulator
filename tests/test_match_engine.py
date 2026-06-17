@@ -12,6 +12,7 @@ from loveca.decks.analyzer import load_deck, parse_deck
 from loveca.simulation.engine import (
     IllegalActionError,
     StaleRevisionError,
+    apply_action,
     generate_legal_actions,
 )
 from loveca.simulation.models import ActionRequest, MatchState
@@ -925,6 +926,10 @@ def test_position_and_formation_change_move_complete_member_groups(tmp_path):
     assert state.players["player_1"].member_area_attachments["center"] == [
         attached_id
     ]
+    assert state.players["player_1"].member_areas_moved_this_turn == [
+        "center",
+        "left",
+    ]
 
     state = _apply(
         service,
@@ -954,6 +959,11 @@ def test_position_and_formation_change_move_complete_member_groups(tmp_path):
     }
     assert state.players["player_1"].member_area_attachments["right"] == [
         attached_id
+    ]
+    assert state.players["player_1"].member_areas_moved_this_turn == [
+        "center",
+        "left",
+        "right",
     ]
 
 
@@ -1010,6 +1020,7 @@ def test_move_member_accepts_only_top_stage_member_and_derives_source_slot(tmp_p
     )
     assert state.players["player_1"].member_area["left"] is None
     assert state.players["player_1"].member_area["right"] == stage_id
+    assert state.players["player_1"].member_areas_moved_this_turn == ["right"]
 
     with pytest.raises(
         IllegalActionError,
@@ -1033,6 +1044,78 @@ def test_move_member_accepts_only_top_stage_member_and_derives_source_slot(tmp_p
                 ],
             },
         )
+
+
+def test_area_move_does_not_mark_member_area_as_entered_for_turn(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=127)
+    state = _reach_first_main(service, match_id)
+    player = state.players["player_1"]
+    stage_id, hand_id = [
+        instance_id
+        for instance_id in player.main_deck
+        if state.cards[instance_id].card.card_type == "member"
+    ][:2]
+    state = apply_action(
+        state,
+        ActionRequest(
+            action_type="manual_adjustment",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={
+                "reason": "prepare existing Stage Member",
+                "adjustments": [
+                    {
+                        "adjustment_type": "move_card",
+                        "target_player_id": "player_1",
+                        "target_card_instance_id": stage_id,
+                        "to_zone": "member_left",
+                    },
+                    {
+                        "adjustment_type": "move_card",
+                        "target_player_id": "player_1",
+                        "target_card_instance_id": hand_id,
+                        "to_zone": "hand",
+                    },
+                ],
+            },
+        ),
+    ).state
+    state.players["player_1"].member_areas_entered_this_turn.clear()
+
+    state = apply_action(
+        state,
+        ActionRequest(
+            action_type="manual_adjustment",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={
+                "reason": "area move",
+                "adjustments": [
+                    {
+                        "adjustment_type": "move_member",
+                        "target_player_id": "player_1",
+                        "target_card_instance_id": stage_id,
+                        "to_slot": "right",
+                    }
+                ],
+            },
+        ),
+    ).state
+
+    assert state.players["player_1"].member_area["left"] is None
+    assert state.players["player_1"].member_area["right"] == stage_id
+    assert state.players["player_1"].member_areas_entered_this_turn == []
+    assert state.players["player_1"].member_areas_moved_this_turn == ["right"]
+
+    play_action = next(
+        action
+        for action in generate_legal_actions(state)
+        if action.action_type == "play_member"
+    )
+    assert any(
+        placement["card_instance_id"] == hand_id and placement["slot"] == "left"
+        for placement in play_action.options["placements"]
+    )
 
 
 def test_top_member_departure_cleans_attached_member_and_energy(tmp_path):

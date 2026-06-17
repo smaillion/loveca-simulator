@@ -416,6 +416,7 @@ function createPlayerState(playerId: string, name: string) {
     member_area: { left: null, center: null, right: null },
     member_area_attachments: { left: [], center: [], right: [] },
     member_areas_entered_this_turn: [],
+    member_areas_moved_this_turn: [],
     energy_area: [],
     live_area: [],
     waiting_room: [],

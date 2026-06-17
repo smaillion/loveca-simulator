@@ -3335,7 +3335,7 @@ def test_moved_liella_stage_member_blade_modifier_filters_by_turn_movement():
         "center": "center-member",
         "right": "right-member",
     }
-    player.member_areas_entered_this_turn = ["left", "right"]
+    player.member_areas_moved_this_turn = ["left", "right"]
 
     result = apply_action(
         state,
@@ -5621,7 +5621,8 @@ def test_source_position_change_can_require_no_high_blade_muse_and_exclude_cente
     player = resolved.players["player_1"]
     assert player.member_area["left"] == "right-member"
     assert player.member_area["right"] == "source-live"
-    assert set(player.member_areas_entered_this_turn) >= {"left", "right"}
+    assert player.member_areas_entered_this_turn == []
+    assert set(player.member_areas_moved_this_turn) >= {"left", "right"}
 
 
 def test_baton_replaced_member_returns_to_hand_only_from_trigger_data():
@@ -6183,7 +6184,7 @@ def test_source_moved_this_turn_operation_condition_draws_extra_card():
     )
     state.players["player_1"].member_area["center"] = "source-member"
     state.pending_effects[0].source_card_instance_id = "source-member"
-    state.players["player_1"].member_areas_entered_this_turn = ["center"]
+    state.players["player_1"].member_areas_moved_this_turn = ["center"]
 
     resolved = _apply_direct(
         state,
@@ -8192,7 +8193,7 @@ def test_moved_stage_members_gain_selected_heart_until_live_end():
         "center": "center-member",
         "right": "right-member",
     }
-    player.member_areas_entered_this_turn = ["left", "right"]
+    player.member_areas_moved_this_turn = ["left", "right"]
 
     result = apply_action(
         state,
@@ -8870,7 +8871,7 @@ def test_moved_stage_member_count_required_heart_modifier_filters_by_unit():
         "center": "center-member",
         "right": "right-member",
     }
-    player.member_areas_entered_this_turn = ["left", "right"]
+    player.member_areas_moved_this_turn = ["left", "right"]
 
     result = apply_action(
         state,
@@ -11164,7 +11165,7 @@ def test_static_opposing_movement_and_attachment_conditions_gate_modifiers():
     )
 
     moved_source = state.model_copy(deep=True)
-    moved_source.players["player_1"].member_areas_entered_this_turn = ["center"]
+    moved_source.players["player_1"].member_areas_moved_this_turn = ["center"]
     assert _static_numeric_bonus(
         moved_source, "player_1", "source-member", "gain_blade"
     ) == 0
