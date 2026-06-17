@@ -230,6 +230,46 @@ button {
   line-height: 1.6;
 }
 
+.preview-notice-discord {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  align-items: center;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(217, 57, 91, 0.32);
+  background: rgba(217, 57, 91, 0.08);
+}
+
+.preview-notice-discord strong,
+.preview-notice-discord span {
+  min-width: 0;
+}
+
+.preview-notice-discord strong {
+  font-size: 13px;
+}
+
+.preview-notice-discord span {
+  grid-column: 1;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.preview-notice-discord a {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  justify-self: end;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
 .usage-guide-backdrop {
   position: fixed;
   inset: 0;
@@ -703,6 +743,52 @@ button {
   margin-top: 8px;
 }
 
+.waiting-room-viewer {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f7faf9;
+  margin-top: 8px;
+  padding: 6px 8px;
+}
+
+.waiting-room-viewer summary {
+  align-items: center;
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.waiting-room-viewer summary span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.waiting-room-viewer summary strong {
+  background: #dfe7e3;
+  border-radius: 999px;
+  color: var(--ink);
+  flex: 0 0 auto;
+  font-size: 11px;
+  min-width: 28px;
+  padding: 2px 8px;
+  text-align: center;
+}
+
+.waiting-room-strip {
+  display: flex;
+  gap: 5px;
+  max-height: 132px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-top: 8px;
+}
+
 .card-strip {
   display: flex;
   gap: 5px;
@@ -730,6 +816,23 @@ button {
 
 .card-tile.selected {
   outline: 3px solid var(--teal);
+}
+
+.hidden-hand-card {
+  width: 82px;
+  min-width: 82px;
+  height: 112px;
+  border: 1px solid #7c8a92;
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.16) 25%, transparent 25%) 0 0 / 12px 12px,
+    linear-gradient(135deg, transparent 75%, rgba(255, 255, 255, 0.16) 75%) 0 0 / 12px 12px,
+    #344650;
+  color: white;
+  font-weight: 700;
+  font-size: 14px;
 }
 
 .card-tile img {
@@ -1065,6 +1168,15 @@ button {
   border-bottom: 1px solid var(--line);
 }
 
+.special-results {
+  margin-top: 6px;
+  border: 1px solid #ead59b;
+  border-radius: 6px;
+  background: #fff9e9;
+  padding: 8px;
+  animation: specialYellGlow 1.7s ease-out 1;
+}
+
 .yell-reveals button,
 .allocation-row > button {
   border: 1px solid var(--line);
@@ -1079,6 +1191,46 @@ button {
   background: #fff9e9;
   padding: 3px 5px;
   font-size: 9px;
+}
+
+@keyframes eventPulse {
+  0% {
+    transform: translateX(0);
+    box-shadow: 0 0 0 0 rgba(21, 128, 122, 0.24);
+  }
+  35% {
+    transform: translateX(-2px);
+    box-shadow: 0 0 0 4px rgba(21, 128, 122, 0.11);
+  }
+  100% {
+    transform: translateX(0);
+    box-shadow: 0 0 0 1px rgba(21, 128, 122, 0.18), 0 8px 18px rgba(21, 128, 122, 0.08);
+  }
+}
+
+@keyframes specialYellGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(212, 146, 32, 0.35);
+  }
+  45% {
+    box-shadow: 0 0 0 5px rgba(212, 146, 32, 0.14);
+  }
+  100% {
+    box-shadow: none;
+  }
+}
+
+@keyframes waitingDot {
+  0%,
+  80%,
+  100% {
+    opacity: 0.28;
+    transform: translateY(0);
+  }
+  40% {
+    opacity: 0.95;
+    transform: translateY(-4px);
+  }
 }
 
 .allocation-list {
@@ -1164,6 +1316,23 @@ button {
   border-left-color: var(--warning);
 }
 
+.event-row.event-highlight {
+  position: relative;
+  box-shadow: 0 0 0 1px rgba(21, 128, 122, 0.18), 0 8px 18px rgba(21, 128, 122, 0.08);
+}
+
+.event-row.effect-highlight {
+  border-left-color: var(--accent);
+  background: linear-gradient(90deg, #eefcf9 0%, #ffffff 54%);
+  animation: eventPulse 1.5s ease-out 1;
+}
+
+.event-row.special-yell-highlight {
+  border-left-color: #d49220;
+  background: linear-gradient(90deg, #fff6dc 0%, #ffffff 58%);
+  animation: eventPulse 1.5s ease-out 1;
+}
+
 .event-row > span {
   color: var(--muted);
   text-transform: uppercase;
@@ -1172,6 +1341,14 @@ button {
 
 .event-row small {
   color: var(--muted);
+}
+
+.event-summary {
+  grid-column: 1 / -1;
+  color: var(--ink);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
 }
 
 .event-row code {
@@ -1205,6 +1382,40 @@ button {
 .action-context span {
   color: var(--muted);
   font-size: 12px;
+}
+
+.waiting-dock {
+  min-height: 84px;
+}
+
+.opponent-waiting-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: var(--muted);
+}
+
+.opponent-waiting-indicator span {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--accent);
+  opacity: 0.35;
+  animation: waitingDot 1.25s ease-in-out infinite;
+}
+
+.opponent-waiting-indicator span:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.opponent-waiting-indicator span:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+.opponent-waiting-indicator strong {
+  color: var(--ink);
+  font-size: 13px;
 }
 
 .action-controls {
@@ -1326,6 +1537,16 @@ button {
   margin: 0;
 }
 
+.effect-stage-hint {
+  border: 1px solid #bfd8c7;
+  background: #eef8f1;
+  color: #1f5132;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 6px 8px;
+}
+
 .effect-resolution-header {
   display: flex;
   justify-content: space-between;
@@ -1336,6 +1557,27 @@ button {
   border: 1px solid var(--line);
   background: white;
   padding: 6px 8px;
+}
+
+.choice-card-label {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+}
+
+.choice-card-label strong,
+.choice-card-label small {
+  max-width: min(320px, 72vw);
+  overflow-wrap: anywhere;
+}
+
+.choice-card-label small {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
 }
 
 .effect-candidates button.selected {
@@ -2054,6 +2296,20 @@ label {
     grid-template-columns: 1fr;
   }
 
+  .preview-notice-discord {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-notice-discord span,
+  .preview-notice-discord a {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .preview-notice-discord a {
+    justify-self: start;
+  }
+
   .usage-guide-grid {
     grid-template-columns: 1fr;
   }
@@ -2130,6 +2386,26 @@ label {
     width: 100%;
   }
 
+  .effect-resolution-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .effect-stage-hint {
+    font-size: 0.75rem;
+    line-height: 1.35;
+  }
+
+  .effect-candidates,
+  .effect-resolution-buttons {
+    align-items: stretch;
+  }
+
+  .effect-candidates button,
+  .effect-resolution-buttons button {
+    min-width: min(100%, 150px);
+  }
+
   .inspection-card-grid {
     grid-template-columns: 1fr;
     max-height: 62vh;
@@ -2160,12 +2436,34 @@ label {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .waiting-room-viewer {
+    padding: 5px 7px;
+  }
+
+  .waiting-room-viewer summary {
+    font-size: 11px;
+    gap: 6px;
+  }
+
+  .waiting-room-strip {
+    max-height: 108px;
+    padding-top: 6px;
+  }
+
+  .waiting-room-strip .card-tile,
+  .waiting-room-strip .hidden-hand-card {
+    width: 66px;
+    min-width: 66px;
+    height: 96px;
+  }
+
   .player-heading {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .card-tile {
+  .card-tile,
+  .hidden-hand-card {
     width: 72px;
     min-width: 72px;
   }

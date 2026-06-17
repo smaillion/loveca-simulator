@@ -306,6 +306,7 @@ def generate_legal_actions(state: MatchState) -> list[LegalAction]:
                     "draw_card",
                     "inspect_top_cards",
                     "discard_card",
+                    "return_from_waiting_room",
                     "ready_energy",
                     "pay_energy",
                     "modify_score",
@@ -367,8 +368,12 @@ def _choose_first_player(
         GameEvent(
             event_type="first_player_chosen",
             player_id=first_player_id,
-            data={"second_player_id": second_player_id},
-            source="player",
+            data={
+                "second_player_id": second_player_id,
+                "automatic": bool(action.payload.get("automatic", False)),
+                "selection_method": action.payload.get("selection_method", "manual"),
+            },
+            source="system" if action.payload.get("automatic", False) else "player",
         )
     )
 
@@ -1106,7 +1111,7 @@ def _legal_effect_activations(
                 continue
             if effect.timing != "activated_main":
                 continue
-            if _effect_used_this_turn(state, effect_id, instance_id):
+            if _effect_usage_limit_reached(state, effect, instance_id):
                 continue
             if effect.condition.get("source_orientation") == "active":
                 if instance.orientation != "active":
@@ -1124,6 +1129,58 @@ def _legal_effect_activations(
                 }
             )
     return activations
+
+
+def _activation_energy_ids(
+    state: MatchState,
+    player_id: str,
+    effect: Any,
+    requested_energy_ids: Any,
+) -> list[str]:
+    if requested_energy_ids is not None:
+        return requested_energy_ids
+    required = sum(
+        operation.amount or 0
+        for operation in effect.cost
+        if operation.action_type == "pay_energy"
+    )
+    if required <= 0:
+        return []
+    player = state.players[player_id]
+    return [
+        instance_id
+        for instance_id in player.energy_area
+        if state.cards[instance_id].orientation == "active"
+    ][:required]
+
+
+def _activated_effect_needs_pending_resolution(
+    state: MatchState,
+    invocation: EffectInvocation,
+) -> bool:
+    effect = state.effect_definitions[invocation.effect_id]
+    if effect.simulation_support == "manual_resolution":
+        return True
+    if (
+        _effect_uses_inspection_choice(effect)
+        or _effect_uses_multi_player_choice(effect)
+        or _effect_uses_post_cost_card_choice(effect)
+        or _effect_uses_branch_choice(effect)
+        or _effect_accepts_color_choice(effect)
+        or _effect_uses_count_choice(effect)
+        or _effect_uses_position_change_choice(effect)
+        or _effect_uses_deploy_to_empty_stage_choice(effect, invocation)
+        or _effect_uses_follow_up_card_choice(effect, invocation)
+        or _effect_uses_grouped_stage_member_choice(effect)
+    ):
+        return True
+    if _effect_uses_post_action_card_choice(effect):
+        return _post_action_choice_should_continue(state, invocation)
+    if _effect_uses_card_choice(effect):
+        return True
+    return any(
+        _operation_requires_selected_choice(operation) for operation in effect.actions
+    )
 
 
 def _activate_effect(
@@ -1153,6 +1210,27 @@ def _activate_effect(
         trigger_event="player_activation",
         resolution_stage="after_cost",
     )
+    has_cost_selection_payload = "selected_card_instance_ids" in action.payload
+    if effect.cost_choice is not None and not has_cost_selection_payload:
+        invocation.resolution_stage = "initial"
+        events.append(
+            GameEvent(
+                event_type="effect_activated",
+                player_id=player_id,
+                data={
+                    "invocation_id": invocation.invocation_id,
+                    "effect_id": effect.effect_id,
+                    "source_card_instance_id": source_id,
+                    "trigger": effect.trigger,
+                    "timing": effect.timing,
+                    "execution_mode": effect.execution_mode,
+                    "energy_instance_ids": [],
+                },
+                source="player",
+            )
+        )
+        state.pending_effects.append(invocation)
+        return
     selected_ids = action.payload.get("selected_card_instance_ids", [])
     if effect.cost_choice is not None:
         if not isinstance(selected_ids, list) or any(
@@ -1169,13 +1247,19 @@ def _activate_effect(
             raise IllegalActionError("effect cost card selection is not legal")
     elif selected_ids:
         raise IllegalActionError("this activated effect does not accept cost cards")
+    energy_ids = _activation_energy_ids(
+        state,
+        player_id,
+        effect,
+        action.payload.get("energy_instance_ids"),
+    )
     _execute_operations(
         state,
         invocation,
         effect.cost,
         events,
         selected_ids=selected_ids,
-        energy_ids=action.payload.get("energy_instance_ids", []),
+        energy_ids=energy_ids,
     )
     pre_choice_operations = [
         operation
@@ -1190,7 +1274,6 @@ def _activate_effect(
             events,
             selected_ids=[],
         )
-    state.pending_effects.append(invocation)
     events.append(
         GameEvent(
             event_type="effect_activated",
@@ -1202,10 +1285,37 @@ def _activate_effect(
                 "trigger": effect.trigger,
                 "timing": effect.timing,
                 "execution_mode": effect.execution_mode,
+                "energy_instance_ids": energy_ids,
             },
             source="player",
         )
     )
+    if _activated_effect_needs_pending_resolution(state, invocation):
+        state.pending_effects.append(invocation)
+        return
+    _record_effect_usage(state, invocation)
+    events.append(
+        GameEvent(
+            event_type="effect_resolved",
+            player_id=invocation.player_id,
+            data={
+                "invocation_id": invocation.invocation_id,
+                "effect_id": invocation.effect_id,
+                "source_card_instance_id": invocation.source_card_instance_id,
+                "selected_card_instance_ids": [],
+                "selected_card_instance_ids_by_group": {},
+                "selected_branch": None,
+                "selected_color_slot": None,
+                "selected_count": None,
+                "selected_position_slot": None,
+                "trigger": effect.trigger,
+                "timing": effect.timing,
+            },
+            source="player",
+        )
+    )
+    _resolve_automatic_effects(state, events)
+    _continue_after_effect_queue(state, events)
 
 
 def _resolve_effect(
@@ -2265,6 +2375,11 @@ def _queue_member_moved_effects(
     )
 
 
+def _record_member_area_moved(player: Any, slot: str) -> None:
+    if slot not in player.member_areas_moved_this_turn:
+        player.member_areas_moved_this_turn.append(slot)
+
+
 def _source_trigger_disabled(
     state: MatchState,
     player_id: str,
@@ -2885,7 +3000,7 @@ def _effect_unavailable_reason(
         source_slot = _top_member_slot(player, invocation.source_card_instance_id)
         if source_slot is None:
             return "source_slot_mismatch"
-        if source_slot in player.member_areas_entered_this_turn:
+        if source_slot in player.member_areas_moved_this_turn:
             return "source_moved_this_turn"
     moved_slot_member = effect.condition.get("own_stage_slot_member_moved_this_turn")
     if isinstance(moved_slot_member, dict):
@@ -2893,7 +3008,7 @@ def _effect_unavailable_reason(
         work_key = moved_slot_member.get("work_key")
         if not isinstance(slot, str) or slot not in player.member_area:
             return "stage_slot_invalid"
-        if slot not in player.member_areas_entered_this_turn:
+        if slot not in player.member_areas_moved_this_turn:
             return "stage_slot_member_not_moved_this_turn"
         instance_id = player.member_area.get(slot)
         if instance_id is None:
@@ -3690,7 +3805,10 @@ def _effect_resolution_options(
         and invocation.resolution_stage == "initial"
     ):
         candidate_ids = _effect_choice_candidates(state, invocation)
-    options: dict[str, Any] = {"candidate_card_instance_ids": candidate_ids}
+    options: dict[str, Any] = {
+        "candidate_card_instance_ids": candidate_ids,
+        "resolution_stage": invocation.resolution_stage,
+    }
     if effect.cost_choice is not None and invocation.resolution_stage == "initial":
         options["choice_type"] = effect.cost_choice.choice_type
         options["choice_zone"] = effect.cost_choice.zone
@@ -3926,7 +4044,7 @@ def _effect_operation_condition_met(
         return False
     if condition.get("source_moved_this_turn"):
         source_slot = _top_member_slot(player, invocation.source_card_instance_id)
-        if source_slot is None or source_slot not in player.member_areas_entered_this_turn:
+        if source_slot is None or source_slot not in player.member_areas_moved_this_turn:
             return False
     played_from_zone = condition.get("played_from_zone")
     if isinstance(played_from_zone, str):
@@ -3934,7 +4052,7 @@ def _effect_operation_condition_met(
             return False
     if condition.get("own_stage_other_member_moved_this_turn"):
         source_slot = _top_member_slot(player, invocation.source_card_instance_id)
-        moved_slots = set(player.member_areas_entered_this_turn)
+        moved_slots = set(player.member_areas_moved_this_turn)
         if source_slot is not None:
             moved_slots.discard(source_slot)
         if not any(player.member_area.get(slot) is not None for slot in moved_slots):
@@ -4677,7 +4795,7 @@ def _stage_member_targets_for_operation(
             continue
         if exclude_source and target_id == invocation.source_card_instance_id:
             continue
-        if moved_this_turn and target_slot not in player.member_areas_entered_this_turn:
+        if moved_this_turn and target_slot not in player.member_areas_moved_this_turn:
             continue
         card = state.cards[target_id].card
         if isinstance(work_key, str) and work_key not in card.work_keys:
@@ -5641,9 +5759,6 @@ def _execute_operations(
                 {"from_slot": from_slot, "to_slot": to_slot},
                 events,
             )
-            for moved_slot in {from_slot, to_slot}:
-                if moved_slot not in player.member_areas_entered_this_turn:
-                    player.member_areas_entered_this_turn.append(moved_slot)
         elif operation_type == "modify_score":
             player.manual_modifiers.append(
                 ManualModifier(
@@ -6073,7 +6188,7 @@ def _operation_amount(
             work_key = operation.value.get("work_key")
             unit_key = operation.value.get("unit_key")
         count = 0
-        for slot in player.member_areas_entered_this_turn:
+        for slot in player.member_areas_moved_this_turn:
             instance_id = player.member_area.get(slot)
             if instance_id is None:
                 continue
@@ -7026,6 +7141,7 @@ def _start_next_turn(
         _expire_modifiers(state, player_id, "turn", events)
         state.players[player_id].live_result = LivePerformanceResult()
         state.players[player_id].member_areas_entered_this_turn = []
+        state.players[player_id].member_areas_moved_this_turn = []
         state.players[player_id].member_entered_count_this_turn = 0
         state.players[player_id].member_areas_baton_entered_this_turn = []
         state.players[player_id].effect_ready_flags_this_turn = []
@@ -7256,6 +7372,14 @@ def _apply_manual_entry(
             raise IllegalActionError("manual discard target must be in hand")
         player.hand.remove(instance_id)
         player.waiting_room.append(instance_id)
+    elif adjustment_type == "return_from_waiting_room":
+        instance_id = adjustment.get("target_card_instance_id")
+        if instance_id not in player.waiting_room:
+            raise IllegalActionError(
+                "manual return target must be in waiting room"
+            )
+        player.waiting_room.remove(instance_id)
+        player.hand.append(instance_id)
     elif adjustment_type == "move_card":
         instance_id = adjustment.get("target_card_instance_id")
         to_zone = adjustment.get("to_zone")
@@ -7430,6 +7554,15 @@ def _manual_move_card(
                     },
                     source="manual",
                 )
+            )
+            _record_member_area_moved(player, slot)
+            _queue_member_moved_effects(
+                state,
+                player_id,
+                [instance_id],
+                events,
+                from_slot=stage_slot,
+                to_slot=slot,
             )
         if not was_on_stage:
             player.member_entered_count_this_turn += 1
@@ -7609,8 +7742,8 @@ def _position_change(
         player.member_area_attachments[from_slot],
         player.member_area_attachments[to_slot],
     ) = (
-        player.member_area_attachments[to_slot],
-        player.member_area_attachments[from_slot],
+        target_attachments,
+        moving_attachments,
     )
     event_type = (
         "stage_member_group_moved"
@@ -7632,17 +7765,19 @@ def _position_change(
             source="manual",
         )
     )
-    moved_ids = [moving_id]
+    moved_entries = [(moving_id, str(from_slot), str(to_slot))]
     if target_id is not None:
-        moved_ids.append(target_id)
-    _queue_member_moved_effects(
-        state,
-        player_id,
-        moved_ids,
-        events,
-        from_slot=str(from_slot),
-        to_slot=str(to_slot),
-    )
+        moved_entries.append((target_id, str(to_slot), str(from_slot)))
+    for member_id, source_slot, destination_slot in moved_entries:
+        _record_member_area_moved(player, destination_slot)
+        _queue_member_moved_effects(
+            state,
+            player_id,
+            [member_id],
+            events,
+            from_slot=source_slot,
+            to_slot=destination_slot,
+        )
 
 
 def _formation_change(
@@ -7670,6 +7805,11 @@ def _formation_change(
         )
     attachment_by_member = {
         member_id: list(player.member_area_attachments[slot])
+        for slot, member_id in player.member_area.items()
+        if member_id is not None
+    }
+    before_slot_by_member = {
+        member_id: slot
         for slot, member_id in player.member_area.items()
         if member_id is not None
     }
@@ -7702,6 +7842,21 @@ def _formation_change(
             source="manual",
         )
     )
+    for to_slot, member_id in player.member_area.items():
+        if member_id is None:
+            continue
+        from_slot = before_slot_by_member[member_id]
+        if from_slot == to_slot:
+            continue
+        _record_member_area_moved(player, to_slot)
+        _queue_member_moved_effects(
+            state,
+            player_id,
+            [member_id],
+            events,
+            from_slot=from_slot,
+            to_slot=to_slot,
+        )
 
 
 def _move_top_member_off_stage(

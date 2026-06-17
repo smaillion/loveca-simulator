@@ -3335,7 +3335,7 @@ def test_moved_liella_stage_member_blade_modifier_filters_by_turn_movement():
         "center": "center-member",
         "right": "right-member",
     }
-    player.member_areas_entered_this_turn = ["left", "right"]
+    player.member_areas_moved_this_turn = ["left", "right"]
 
     result = apply_action(
         state,
@@ -5016,6 +5016,87 @@ def test_position_change_triggers_moved_source_heart_modifier():
     )
 
 
+def test_activated_pay_energy_simple_effect_resolves_and_hides_activation():
+    effect = EffectDefinition(
+        effect_id="test-activated-simple-pay-energy:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="q" * 64,
+        effect_index=1,
+        label_ja="activated simple pay Energy test",
+        effect_type="activated",
+        timing="activated_main",
+        trigger="player_activation",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_turn",
+        is_optional=False,
+        condition={"source_zone": "stage", "minimum_active_energy": 1},
+        cost=[{"action_type": "pay_energy", "amount": 1}],
+        choice=None,
+        actions=[{"action_type": "gain_blade", "amount": 1}],
+        duration="turn",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    state.phase = "first_main"
+    state.pending_effects = []
+    source_member = CardDefinition(
+        card_code="TEST-SOURCE-MEMBER",
+        card_id="TEST-SOURCE-MEMBER",
+        name_ja="source member",
+        card_type="member",
+        blade=1,
+        basic_hearts={"heart01": 1},
+        effect_ids=[effect.effect_id],
+    )
+    energy_card = CardDefinition(
+        card_code="TEST-ENERGY",
+        card_id="TEST-ENERGY",
+        name_ja="test energy",
+        card_type="energy",
+    )
+    state.cards["source-live"].card = source_member
+    state.cards["energy-1"] = CardInstance(
+        instance_id="energy-1",
+        owner_id="player_1",
+        card=energy_card,
+    )
+    state.players["player_1"].member_area["center"] = "source-live"
+    state.players["player_1"].energy_area = ["energy-1"]
+
+    state = _apply_direct(
+        state,
+        "activate_effect",
+        player_id="player_1",
+        payload={
+            "effect_id": effect.effect_id,
+            "source_card_instance_id": "source-live",
+        },
+    )
+
+    assert state.cards["energy-1"].orientation == "wait"
+    assert not state.pending_effects
+    assert any(
+        modifier.modifier_type == "blade"
+        and modifier.amount == 1
+        and modifier.target_card_instance_id == "source-live"
+        for modifier in state.players["player_1"].manual_modifiers
+    )
+    assert any(
+        usage.effect_id == effect.effect_id
+        and usage.source_card_instance_id == "source-live"
+        for usage in state.effect_usage
+    )
+    assert not any(
+        entry["effect_id"] == effect.effect_id
+        for action in generate_legal_actions(state)
+        if action.action_type == "activate_effect"
+        for entry in action.options["activations"]
+    )
+
+
 def test_activated_pay_energy_source_position_change_swaps_member_slots():
     effect = EffectDefinition(
         effect_id="test-activated-position-change:1",
@@ -5099,16 +5180,18 @@ def test_activated_pay_energy_source_position_change_swaps_member_slots():
     )
     assert activation["source_card_instance_id"] == "source-live"
 
-    with pytest.raises(Exception, match="requires exactly 2 Active Energy"):
-        _apply_direct(
-            state.model_copy(deep=True),
-            "activate_effect",
-            player_id="player_1",
-            payload={
-                "effect_id": effect.effect_id,
-                "source_card_instance_id": "source-live",
-            },
-        )
+    auto_paid = _apply_direct(
+        state.model_copy(deep=True),
+        "activate_effect",
+        player_id="player_1",
+        payload={
+            "effect_id": effect.effect_id,
+            "source_card_instance_id": "source-live",
+        },
+    )
+    assert auto_paid.cards["energy-1"].orientation == "wait"
+    assert auto_paid.cards["energy-2"].orientation == "wait"
+    assert auto_paid.pending_effects[0].effect_id == effect.effect_id
 
     state = _apply_direct(
         state,
@@ -5391,18 +5474,6 @@ def test_activated_pay_energy_discard_cost_returns_waiting_room_live():
     player.waiting_room = ["aqours-live", "other-live"]
     player.energy_area = ["energy-1", "energy-2"]
 
-    with pytest.raises(Exception, match="effect cost card selection is not legal"):
-        _apply_direct(
-            state.model_copy(deep=True),
-            "activate_effect",
-            player_id="player_1",
-            payload={
-                "effect_id": effect.effect_id,
-                "source_card_instance_id": "source-live",
-                "energy_instance_ids": ["energy-1", "energy-2"],
-            },
-        )
-
     state = _apply_direct(
         state,
         "activate_effect",
@@ -5410,8 +5481,29 @@ def test_activated_pay_energy_discard_cost_returns_waiting_room_live():
         payload={
             "effect_id": effect.effect_id,
             "source_card_instance_id": "source-live",
-            "energy_instance_ids": ["energy-1", "energy-2"],
+        },
+    )
+
+    assert state.cards["energy-1"].orientation == "active"
+    assert state.cards["energy-2"].orientation == "active"
+    player = state.players["player_1"]
+    assert player.hand == ["discard-card"]
+    invocation = state.pending_effects[0]
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["choice_type"] == "card_from_zone"
+    assert options["choice_zone"] == "hand"
+    assert options["candidate_card_instance_ids"] == ["discard-card"]
+    assert options["energy_required"] == 2
+    assert options["energy_instance_ids"] == ["energy-1", "energy-2"]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": invocation.invocation_id,
             "selected_card_instance_ids": ["discard-card"],
+            "energy_instance_ids": ["energy-1", "energy-2"],
         },
     )
 
@@ -5621,7 +5713,8 @@ def test_source_position_change_can_require_no_high_blade_muse_and_exclude_cente
     player = resolved.players["player_1"]
     assert player.member_area["left"] == "right-member"
     assert player.member_area["right"] == "source-live"
-    assert set(player.member_areas_entered_this_turn) >= {"left", "right"}
+    assert player.member_areas_entered_this_turn == []
+    assert set(player.member_areas_moved_this_turn) >= {"left", "right"}
 
 
 def test_baton_replaced_member_returns_to_hand_only_from_trigger_data():
@@ -6183,7 +6276,7 @@ def test_source_moved_this_turn_operation_condition_draws_extra_card():
     )
     state.players["player_1"].member_area["center"] = "source-member"
     state.pending_effects[0].source_card_instance_id = "source-member"
-    state.players["player_1"].member_areas_entered_this_turn = ["center"]
+    state.players["player_1"].member_areas_moved_this_turn = ["center"]
 
     resolved = _apply_direct(
         state,
@@ -8192,7 +8285,7 @@ def test_moved_stage_members_gain_selected_heart_until_live_end():
         "center": "center-member",
         "right": "right-member",
     }
-    player.member_areas_entered_this_turn = ["left", "right"]
+    player.member_areas_moved_this_turn = ["left", "right"]
 
     result = apply_action(
         state,
@@ -8870,7 +8963,7 @@ def test_moved_stage_member_count_required_heart_modifier_filters_by_unit():
         "center": "center-member",
         "right": "right-member",
     }
-    player.member_areas_entered_this_turn = ["left", "right"]
+    player.member_areas_moved_this_turn = ["left", "right"]
 
     result = apply_action(
         state,
@@ -9837,15 +9930,10 @@ def test_replay_uses_match_effect_snapshot_after_registry_changes(tmp_path):
         second_name="B",
         second_deck=load_deck(SAMPLE_DECK),
         seed=99,
+        first_player_id="player_1",
     )
     match_id = created.state.match_id
-    state = _apply(
-        service,
-        match_id,
-        created.state,
-        "choose_first_player",
-        payload={"first_player_id": "player_1"},
-    )
+    state = created.state
     registry_copy.write_text("{not valid json", encoding="utf-8")
 
     replay = service.repository.replay(match_id)
@@ -11164,7 +11252,7 @@ def test_static_opposing_movement_and_attachment_conditions_gate_modifiers():
     )
 
     moved_source = state.model_copy(deep=True)
-    moved_source.players["player_1"].member_areas_entered_this_turn = ["center"]
+    moved_source.players["player_1"].member_areas_moved_this_turn = ["center"]
     assert _static_numeric_bonus(
         moved_source, "player_1", "source-member", "gain_blade"
     ) == 0
@@ -13864,6 +13952,7 @@ def _create_match(tmp_path: Path, seed: int = 7):
         second_name="B",
         second_deck=load_deck(SAMPLE_DECK),
         seed=seed,
+        first_player_id="player_1",
     )
     return service, result.state.match_id
 
@@ -14402,13 +14491,6 @@ def _apply_direct(
 
 def _reach_first_main(service: MatchService, match_id: str):
     state = service.repository.get_state(match_id)
-    state = _apply(
-        service,
-        match_id,
-        state,
-        "choose_first_player",
-        payload={"first_player_id": "player_1"},
-    )
     state = _apply(
         service, match_id, state, "submit_mulligan", player_id="player_1",
         payload={"card_instance_ids": []},

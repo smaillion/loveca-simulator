@@ -287,6 +287,7 @@ export interface PlayerState {
   member_area: Record<"left" | "center" | "right", string | null>;
   member_area_attachments: Record<"left" | "center" | "right", string[]>;
   member_areas_entered_this_turn: string[];
+  member_areas_moved_this_turn: string[];
   energy_area: string[];
   live_area: string[];
   waiting_room: string[];
@@ -451,5 +452,9 @@ export interface RoomPayload {
   created_at: string;
   updated_at: string;
   expires_at: string;
+  host_last_seen_at: string | null;
+  guest_last_seen_at: string | null;
+  closed_at: string | null;
+  close_reason: string | null;
   match: MatchPayload | null;
 }

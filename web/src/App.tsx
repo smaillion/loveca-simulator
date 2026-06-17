@@ -33,6 +33,7 @@ import {
   getMatch,
   getRoom,
   getSavedDeck,
+  leaveRoom,
   joinRoom,
   listMatches,
   listSavedDecks,
@@ -44,6 +45,11 @@ import {
 } from "./api";
 import { CatalogBrowser } from "./catalog-browser";
 import { DeckBuilder } from "./deck-builder";
+import {
+  HEART_LABELS,
+  formatEffectText as formatLocalizedEffectText,
+  formatHeartSummary as formatLocalizedHeartSummary,
+} from "./text-format";
 import type {
   CardInstance,
   DeckList,
@@ -115,26 +121,7 @@ type OnlineSession = {
   playerToken: string;
 };
 
-const heartLabels: Record<UiLocale, Record<string, string>> = {
-  zh: {
-    heart0: "任意色",
-    heart01: "粉色",
-    heart02: "红色",
-    heart03: "黄色",
-    heart04: "绿色",
-    heart05: "蓝色",
-    heart06: "紫色",
-  },
-  ja: {
-    heart0: "任意色",
-    heart01: "ピンク",
-    heart02: "赤",
-    heart03: "黄",
-    heart04: "緑",
-    heart05: "青",
-    heart06: "紫",
-  },
-};
+const heartLabels = HEART_LABELS;
 
 const judgmentBasisLabels: Record<string, [string, string]> = {
   no_successful_live: ["双方均无满足所需爱心的演出，不产生胜者", "双方とも必要ハートを満たすライブがなく、勝者なし"],
@@ -164,7 +151,7 @@ export default function App() {
   const [details, setDetails] = useState<CardInstance | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualSource, setManualSource] = useState<EffectInvocation | null>(null);
-  const [showPreviewNotice, setShowPreviewNotice] = useState(browserPreview);
+  const [showPreviewNotice, setShowPreviewNotice] = useState(true);
   const [showUsageGuide, setShowUsageGuide] = useState(true);
   const [usageGuideLocale, setUsageGuideLocale] = useState<UiLocale>("ja");
   const [onlineSession, setOnlineSession] = useState<OnlineSession | null>(null);
@@ -196,7 +183,6 @@ export default function App() {
       .then((config) => {
         if (disposed) return;
         setRuntimeConfig(config);
-        setShowPreviewNotice(config.browserPreview);
         if (!matchHistoryAvailable(config)) {
           setMatchHistory(emptyMatchHistory);
           setMatchHistoryLoaded(true);
@@ -251,11 +237,19 @@ export default function App() {
       window.clearInterval(id);
     };
   }, [onlineSession]);
+  useEffect(() => {
+    if (!onlineSession) return;
+    const session = onlineSession;
+    const leaveOnUnload = () => {
+      void leaveRoom(session.roomCode, session.playerToken, { keepalive: true }).catch(() => undefined);
+    };
+    window.addEventListener("beforeunload", leaveOnUnload);
+    return () => window.removeEventListener("beforeunload", leaveOnUnload);
+  }, [onlineSession]);
 
-  const previewNotice = browserPreview && showPreviewNotice ? (
+  const previewNotice = showPreviewNotice ? (
     <PreviewNotice
       locale={locale}
-      hostedOnline={hostedOnline}
       onClose={() => {
         setShowPreviewNotice(false);
       }}
@@ -264,6 +258,23 @@ export default function App() {
   const usageGuide = showUsageGuide && !showPreviewNotice ? (
     <UsageGuideDialog locale={usageGuideLocale} onClose={() => setShowUsageGuide(false)} />
   ) : null;
+
+  async function returnToMatchList() {
+    const session = onlineSession;
+    try {
+      if (session) {
+        await leaveRoom(session.roomCode, session.playerToken);
+      }
+    } catch (reason) {
+      setOnlineStatus(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setMatch(null);
+      setOnlineSession(null);
+      setOnlineRoom(null);
+      setOnlineStatus(null);
+    }
+  }
+
   const renderShell = (content: ReactNode) => (
     <UiLanguageContext.Provider value={{ locale, setLocale }}>
       {content}
@@ -504,7 +515,7 @@ export default function App() {
       );
   }
 
-  const bottomPlayerId = onlineSession?.playerId ?? "player_1";
+  const bottomPlayerId = onlineSession?.playerId ?? localPerspectivePlayerId(match.state, match.legal_actions);
   const topPlayerId = bottomPlayerId === "player_1" ? "player_2" : "player_1";
   const visibleActions = onlineSession
     ? match.legal_actions.filter((action) => canSubmitOnlineAction(action, onlineSession.playerId))
@@ -590,13 +601,14 @@ export default function App() {
           )}
           <button
             className="icon-button"
-            title={locale === "zh" ? "返回对局列表" : "対戦一覧へ戻る"}
-            onClick={() => {
-              setMatch(null);
-              setOnlineSession(null);
-              setOnlineRoom(null);
-              setOnlineStatus(null);
-            }}
+            title={onlineSession
+              ? locale === "zh"
+                ? "退出在线房间"
+                : "オンラインルームから退出"
+              : locale === "zh"
+                ? "返回对局列表"
+                : "対戦一覧へ戻る"}
+            onClick={() => void returnToMatchList()}
           >
             <X size={18} />
           </button>
@@ -612,6 +624,7 @@ export default function App() {
             state={match.state}
             role={playerRoleLabel(match.state, topPlayerId, locale)}
             compact
+            hideHand
             onCard={setDetails}
           />
           <LiveCenter state={match.state} onCard={setDetails} />
@@ -638,10 +651,16 @@ export default function App() {
         />
       )}
       {onlineSession && match.legal_actions.length > 0 && visibleActions.length === 0 && (
-        <footer className="action-dock">
+        <footer className="action-dock waiting-dock">
           <div className="action-context">
             <strong>{locale === "zh" ? "下一步操作" : "次にできる操作"}</strong>
             <span>{locale === "zh" ? "等待对手操作" : "相手の操作待ち"}</span>
+          </div>
+          <div className="opponent-waiting-indicator" aria-label={locale === "zh" ? "等待对手操作中" : "相手の操作待ち"}>
+            <span />
+            <span />
+            <span />
+            <strong>{locale === "zh" ? "正在等待对手选择操作" : "相手の操作を待っています"}</strong>
           </div>
         </footer>
       )}
@@ -684,6 +703,29 @@ function canSubmitOnlineAction(action: LegalAction, localPlayerId: string): bool
   return action.player_id === null || action.player_id === localPlayerId;
 }
 
+export function localPerspectivePlayerId(
+  state: MatchState,
+  actions: LegalAction[],
+): "player_1" | "player_2" {
+  const actionPlayerIds = new Set(
+    actions
+      .map((action) => action.player_id)
+      .filter((playerId): playerId is "player_1" | "player_2" =>
+        playerId === "player_1" || playerId === "player_2",
+      ),
+  );
+  if (actionPlayerIds.size === 1) {
+    return Array.from(actionPlayerIds)[0];
+  }
+  if (state.active_player_id === "player_1" || state.active_player_id === "player_2") {
+    return state.active_player_id;
+  }
+  if (state.first_player_id === "player_1" || state.first_player_id === "player_2") {
+    return state.first_player_id;
+  }
+  return "player_1";
+}
+
 function playerRoleLabel(state: MatchState, playerId: string, locale: UiLocale): string {
   if (state.first_player_id === playerId) return "先攻";
   if (state.second_player_id === playerId) return locale === "zh" ? "后攻" : "後攻";
@@ -697,18 +739,24 @@ function mergeEvents(existing: GameEvent[], incoming: GameEvent[]): GameEvent[] 
 
 function PreviewNotice({
   locale,
-  hostedOnline,
   onClose,
 }: {
   locale: UiLocale;
-  hostedOnline: boolean;
   onClose: () => void;
 }) {
+  const discordUrl = "https://discord.gg/8uYQH7z8";
   return (
-    <div className="preview-notice-backdrop" role="dialog" aria-modal="true">
+    <div
+      className="preview-notice-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="preview-notice-title"
+    >
       <section className="preview-notice">
         <div className="preview-notice-header">
-          <strong>{locale === "zh" ? "浏览器预览版" : "ブラウザプレビュー版"}</strong>
+          <strong id="preview-notice-title">
+            {locale === "zh" ? "Alpha 版本说明" : "Alpha 版のご案内"}
+          </strong>
           <button
             className="mini-icon"
             onClick={onClose}
@@ -719,46 +767,43 @@ function PreviewNotice({
         </div>
         <div className="preview-notice-grid">
           <section>
-            <h3>{locale === "zh" ? "当前可以做" : "現在できること"}</h3>
+            <h3>{locale === "zh" ? "最新版已修正" : "最新版で修正済み"}</h3>
             <ul>
-              <li>{locale === "zh" ? "浏览已打包的卡库数据" : "同梱済みカードデータの閲覧"}</li>
-              <li>{locale === "zh" ? "查看卡牌详情和官方图片链接" : "カード詳細と公式画像 URL の確認"}</li>
-              <li>{locale === "zh" ? "在浏览器本地保存牌组" : "ブラウザローカルでデッキ保存"}</li>
-              <li>{locale === "zh" ? "查看 5 个合法初始测试牌组" : "5個の合法な初期テストデッキの確認"}</li>
-              <li>{locale === "zh" ? "导入 / 导出 decklist.v0 JSON" : "decklist.v0 JSON の読み込み / 書き出し"}</li>
-              <li>{locale === "zh" ? "进行 MVP 牌组合法性和属性分析" : "MVP デッキ合法性 / 属性分析"}</li>
+              <li>{locale === "zh" ? "对战中会隐藏对手手牌，并按当前操作人切换可见信息。" : "対戦中は相手の手札を隠し、操作プレイヤー基準で見える情報を切り替えます。"}</li>
+              <li>{locale === "zh" ? "先后攻改为自动随机，不再需要开局手动选择。" : "先後攻は自動ランダム化し、開始時の手動選択をなくしました。"}</li>
+              <li>{locale === "zh" ? "自动技能、特殊应援和后续效果选择现在会显示提示。" : "自動効果、特殊エール、続きの効果選択に画面上の提示を追加しました。"}</li>
+              <li>{locale === "zh" ? "新增己方控室查看，并改善 Online 离房清理和移动端布局。" : "自分の控え室確認、Online room 離脱 cleanup、モバイル表示を改善しました。"}</li>
             </ul>
           </section>
           <section>
-            <h3>{locale === "zh" ? "当前还不能做" : "まだできないこと"}</h3>
+            <h3>{locale === "zh" ? "仍需修正" : "まだ残っている制限"}</h3>
             <ul>
-              <li>
-                {hostedOnline
-                  ? locale === "zh"
-                    ? "浏览器内纯本地对战引擎"
-                    : "ブラウザ内だけで動くローカル対戦エンジン"
-                  : locale === "zh"
-                    ? "浏览器内完整对战验证"
-                    : "ブラウザ内の完全な対戦検証"}
-              </li>
-              <li>
-                {hostedOnline
-                  ? locale === "zh"
-                    ? "实时通信、房间列表、账号和长期保存"
-                    : "リアルタイム通信、ルーム一覧、アカウント、長期保存"
-                  : locale === "zh"
-                    ? "在线双人对战"
-                    : "オンライン二人対戦"}
-              </li>
-              <li>{locale === "zh" ? "完整技能自动化" : "全スキル自動化"}</li>
-              <li>{locale === "zh" ? "云端账号、同步或防作弊" : "クラウドアカウント、同期、不正対策"}</li>
+              <li>{locale === "zh" ? "全卡技能尚未自动化，部分效果仍需要手动处理或 debug skip。" : "全カード効果はまだ自動化できておらず、一部は手動処理または debug skip が必要です。"}</li>
+              <li>{locale === "zh" ? "长局 sandbox 仍会遇到 manual_resolution / max_actions。" : "長局 sandbox では manual_resolution / max_actions がまだ残ります。"}</li>
+              <li>{locale === "zh" ? "Online 房间仍是测试功能，暂不支持账号、长期保存或严格防作弊。" : "Online room はテスト機能です。アカウント、長期保存、厳密な不正対策はありません。"}</li>
+              <li>{locale === "zh" ? "FAQ / 个别裁定、AI、Monte Carlo、胜率引擎尚未完成。" : "FAQ / 個別裁定、AI、Monte Carlo、勝率エンジンは未完成です。"}</li>
             </ul>
           </section>
         </div>
+        <div className="preview-notice-discord">
+          <strong>
+            {locale === "zh"
+              ? "发现 Bug 或想找在线对战伙伴？"
+              : "バグ報告やオンライン対戦相手探しはこちら"}
+          </strong>
+          <span>
+            {locale === "zh"
+              ? "请把版本、复现步骤、decklist 或 replay 一起发到 Discord。"
+              : "Discord にバージョン、再現手順、decklist や replay を添えて共有してください。"}
+          </span>
+          <a href={discordUrl} target="_blank" rel="noreferrer">
+            Discord
+          </a>
+        </div>
         <p>
           {locale === "zh"
-            ? "数据保存在当前浏览器中。这个预览版本用于稳定公开体验，开发中的规则引擎仍会继续快速迭代。"
-            : "データはこのブラウザ内に保存されます。このプレビュー版は公開体験を安定させるためのもので、開発中のルールエンジンは継続して更新されます。"}
+            ? "Deck 和预览数据保存在当前浏览器中。这个版本用于公开体验和规则反馈，规则引擎仍会继续快速迭代。"
+            : "Deck とプレビューデータはこのブラウザ内に保存されます。この版は公開体験とルールフィードバック用で、ルールエンジンは継続して更新されます。"}
         </p>
         <button className="primary-button" onClick={onClose}>
           {locale === "zh" ? "开始使用" : "始める"}
@@ -1467,12 +1512,14 @@ function PlayerBoard({
   state,
   role,
   compact = false,
+  hideHand = false,
   onCard,
 }: {
   player: PlayerState;
   state: MatchState;
   role: string;
   compact?: boolean;
+  hideHand?: boolean;
   onCard: (card: CardInstance) => void;
 }) {
   const { locale, tr } = useUiLanguage();
@@ -1515,14 +1562,46 @@ function PlayerBoard({
         </div>
         <Zone label={tr("能量", "エネルギー")} ids={player.energy_area} state={state} onCard={onCard} small />
       </div>
+      {!compact && (
+        <WaitingRoomViewer player={player} state={state} onCard={onCard} />
+      )}
       <Zone
         label={`${tr("手牌", "手札")} ${player.hand.length}`}
         ids={player.hand}
         state={state}
         onCard={onCard}
         hand
+        hidden={hideHand}
       />
     </section>
+  );
+}
+
+function WaitingRoomViewer({
+  player,
+  state,
+  onCard,
+}: {
+  player: PlayerState;
+  state: MatchState;
+  onCard: (card: CardInstance) => void;
+}) {
+  const { tr } = useUiLanguage();
+  return (
+    <details className="waiting-room-viewer">
+      <summary>
+        <span>{tr("查看己方控室", "自分の控え室を見る")}</span>
+        <strong>{player.waiting_room.length}</strong>
+      </summary>
+      <div className="waiting-room-strip">
+        {player.waiting_room.length === 0 && (
+          <span className="zone-empty">{tr("控室为空", "控え室は空です")}</span>
+        )}
+        {player.waiting_room.map((id) => (
+          <CardTile key={id} instance={state.cards[id]} onClick={onCard} />
+        ))}
+      </div>
+    </details>
   );
 }
 
@@ -1793,6 +1872,7 @@ function Zone({
   state,
   onCard,
   hand = false,
+  hidden = false,
   small = false,
 }: {
   label: string;
@@ -1800,6 +1880,7 @@ function Zone({
   state: MatchState;
   onCard: (card: CardInstance) => void;
   hand?: boolean;
+  hidden?: boolean;
   small?: boolean;
 }) {
   const { tr } = useUiLanguage();
@@ -1808,9 +1889,19 @@ function Zone({
       <span className="zone-label">{label}</span>
       <div className="card-strip">
         {ids.length === 0 && <span className="zone-empty">{tr("空", "空き")}</span>}
-        {ids.map((id) => (
-          <CardTile key={id} instance={state.cards[id]} onClick={onCard} />
-        ))}
+        {hidden
+          ? ids.map((id, index) => (
+            <div
+              className="hidden-hand-card"
+              aria-label={tr("隐藏的对手手牌", "非公開の相手手札")}
+              key={id}
+            >
+              <span>{index + 1}</span>
+            </div>
+          ))
+          : ids.map((id) => (
+            <CardTile key={id} instance={state.cards[id]} onClick={onCard} />
+          ))}
       </div>
     </div>
   );
@@ -1879,7 +1970,7 @@ export function StageAttachments({
 }
 
 function EventLog({ events, state }: { events: GameEvent[]; state: MatchState }) {
-  const { tr } = useUiLanguage();
+  const { locale, tr } = useUiLanguage();
   return (
     <aside className="event-panel">
       <div className="event-heading">
@@ -1892,17 +1983,79 @@ function EventLog({ events, state }: { events: GameEvent[]; state: MatchState })
           <div className="empty-state">{tr("等待第一步操作", "最初の操作待ち")}</div>
         )}
         {[...events].reverse().map((event, index) => (
-          <div className={`event-row ${event.source}`} key={`${event.event_type}-${index}`}>
+          <div
+            className={`event-row ${event.source} ${eventVisualClass(event)}`}
+            key={`${event.event_type}-${index}`}
+          >
             <span>{event.source}</span>
-            <strong>{event.event_type}</strong>
+            <strong>{eventTitle(event, locale)}</strong>
             <small>
               {event.player_id ? state.players[event.player_id]?.name : tr("系统", "システム")}
             </small>
+            {eventSummary(event, state, locale) && (
+              <em className="event-summary">{eventSummary(event, state, locale)}</em>
+            )}
             <code>{JSON.stringify(event.data)}</code>
           </div>
         ))}
       </div>
     </aside>
+  );
+}
+
+function eventVisualClass(event: GameEvent): string {
+  if (event.event_type === "effect_auto_resolved") return "event-highlight effect-highlight";
+  if (event.event_type === "yell_completed" && specialYellResults(event).length > 0) {
+    return "event-highlight special-yell-highlight";
+  }
+  return "";
+}
+
+function eventTitle(event: GameEvent, locale: UiLocale): string {
+  const labels: Record<string, [string, string]> = {
+    effect_auto_resolved: ["技能自动发动", "能力の自動解決"],
+    effect_resolved: ["技能结算", "能力解決"],
+    effect_triggered: ["技能触发", "能力誘発"],
+    yell_completed: ["应援结算完成", "エール解決完了"],
+  };
+  return labels[event.event_type]?.[locale === "zh" ? 0 : 1] ?? event.event_type;
+}
+
+function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): string | null {
+  if (event.event_type === "effect_auto_resolved") {
+    const effectId = typeof event.data.effect_id === "string" ? event.data.effect_id : "";
+    const sourceId = typeof event.data.source_card_instance_id === "string"
+      ? event.data.source_card_instance_id
+      : "";
+    const sourceName = sourceId ? state.cards[sourceId]?.card.name_ja : "";
+    const prefix = locale === "zh" ? "自动处理" : "自動処理";
+    return [prefix, sourceName, effectId].filter(Boolean).join(" · ");
+  }
+  if (event.event_type === "yell_completed") {
+    const specials = specialYellResults(event);
+    if (specials.length === 0) return null;
+    const label = locale === "zh" ? "特殊应援" : "特殊エール";
+    return `${label}: ${specials
+      .map((item) => `${item.source_alt} ${item.effect_type}+${item.value}`)
+      .join(" / ")}`;
+  }
+  return null;
+}
+
+function specialYellResults(event: GameEvent): Array<{
+  source_alt: string;
+  effect_type: string;
+  value: number;
+}> {
+  const value = event.data.special_blade_heart_results;
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (item): item is { source_alt: string; effect_type: string; value: number } =>
+      typeof item === "object"
+      && item !== null
+      && typeof (item as Record<string, unknown>).source_alt === "string"
+      && typeof (item as Record<string, unknown>).effect_type === "string"
+      && typeof (item as Record<string, unknown>).value === "number",
   );
 }
 
@@ -2216,21 +2369,14 @@ export function formatHeartSummary(
   hearts: Record<string, number>,
   locale: UiLocale = "zh",
 ): string {
-  return Object.entries(hearts)
-    .filter(([, amount]) => amount > 0)
-    .map(([color, amount]) => `${heartLabels[locale][color] ?? color} ${amount}`)
-    .join(" / ");
+  return formatLocalizedHeartSummary(hearts, locale);
 }
 
 export function formatEffectText(
   rawText: string | null,
   locale: UiLocale = "zh",
 ): string {
-  if (!rawText) return "効果テキストなし";
-  return rawText.replace(
-    /heart0[1-6]|heart0/gi,
-    (token) => heartLabels[locale][token.toLowerCase()] ?? token,
-  );
+  return formatLocalizedEffectText(rawText, locale);
 }
 
 function effectTriggerLabel(trigger: string, locale: UiLocale): string {
@@ -2268,6 +2414,15 @@ function effectSupportStatusLabel(status: string, locale: UiLocale): string {
   return locale === "zh" ? label[0] : label[1];
 }
 
+function effectResolutionStageLabel(stage: string | undefined, locale: UiLocale): string | null {
+  if (stage === "after_cost") {
+    return locale === "zh"
+      ? "已完成发动/成本处理，继续选择后续效果。"
+      : "発動・コスト処理済みです。続きの効果選択を行ってください。";
+  }
+  return null;
+}
+
 function orientationLabel(orientation: string, locale: UiLocale): string {
   const labels: Record<string, [string, string]> = {
     active: ["竖置", "アクティブ"],
@@ -2285,6 +2440,44 @@ function cardTypeLabel(type: string, locale: UiLocale): string {
   };
   const label = labels[type.toLowerCase()];
   return label ? label[locale === "zh" ? 0 : 1] : type;
+}
+
+function cardChoiceMeta(instance: CardInstance, locale: UiLocale): string {
+  const card = instance.card;
+  const parts = [cardTypeLabel(card.card_type, locale), card.card_code];
+  if (card.cost !== null) {
+    parts.push(`${locale === "zh" ? "费用" : "コスト"} ${card.cost}`);
+  }
+  if (card.blade !== null) {
+    parts.push(`${locale === "zh" ? "Blade" : "ブレード"} ${card.blade}`);
+  }
+  if (card.score !== null) {
+    parts.push(`${locale === "zh" ? "分数" : "スコア"} ${card.score}`);
+  }
+  const hearts =
+    card.card_type === "live"
+      ? formatHeartSummary(card.required_hearts, locale)
+      : formatHeartSummary(card.basic_hearts, locale);
+  if (hearts) {
+    const heartLabel =
+      card.card_type === "live"
+        ? locale === "zh" ? "所需" : "必要"
+        : locale === "zh" ? "爱心" : "ハート";
+    parts.push(`${heartLabel} ${hearts}`);
+  }
+  parts.push(orientationLabel(instance.orientation, locale));
+  parts.push(`#${instance.instance_id.split("-").at(-1) ?? instance.instance_id}`);
+  return parts.join(" · ");
+}
+
+function ChoiceCardLabel({ instance }: { instance: CardInstance }) {
+  const { locale } = useUiLanguage();
+  return (
+    <span className="choice-card-label">
+      <strong>{instance.card.name_ja}</strong>
+      <small>{cardChoiceMeta(instance, locale)}</small>
+    </span>
+  );
 }
 
 function zoneLabel(zone: string, locale: UiLocale): string {
@@ -2489,6 +2682,7 @@ export function EffectResolutionAction({
     execution_mode: string;
     is_optional: boolean;
     simulation_support: string;
+    resolution_stage?: string;
     candidate_card_instance_ids: string[];
     choice_type?: string;
     card_selection_minimum?: number;
@@ -2544,7 +2738,6 @@ export function EffectResolutionAction({
   const maximumCards = usesCardChoice
     ? current.card_selection_maximum ?? Math.max(minimumCards, current.candidate_card_instance_ids.length)
     : 0;
-  const isEnergyChoice = current.choice_zone === "energy_area";
   const colorSlots = current.color_slots ?? [];
   const requiresColor = choiceType === "choose_color";
   const requiresCount = choiceType === "choose_count";
@@ -2599,6 +2792,11 @@ export function EffectResolutionAction({
         {effectExecutionModeLabel(current.execution_mode, locale)} ·{" "}
         {current.is_optional ? tr("可选", "任意") : tr("强制", "強制")}
       </small>
+      {effectResolutionStageLabel(current.resolution_stage, locale) && (
+        <div className="effect-stage-hint">
+          {effectResolutionStageLabel(current.resolution_stage, locale)}
+        </div>
+      )}
       <p>{formatEffectText(current.label_ja, locale)}</p>
       {isBranchChoice && (
         <div className="effect-candidates effect-branch-choices">
@@ -2643,9 +2841,7 @@ export function EffectResolutionAction({
                 })
               }
             >
-              {isEnergyChoice
-                ? `${state.cards[instanceId].card.name_ja} · ${orientationLabel(state.cards[instanceId].orientation, locale)}`
-                : state.cards[instanceId].card.name_ja}
+              <ChoiceCardLabel instance={state.cards[instanceId]} />
             </button>
           ))}
           <span>
@@ -2673,7 +2869,6 @@ export function EffectResolutionAction({
                     const disabled =
                       excludedIds.has(instanceId) ||
                       (!isSelected && selectedGroupIdSet.has(instanceId));
-                    const card = state.cards[instanceId];
                     return (
                       <button
                         className={isSelected ? "selected" : ""}
@@ -2697,7 +2892,7 @@ export function EffectResolutionAction({
                           })
                         }
                       >
-                        {card?.card.name_ja ?? instanceId}
+                        <ChoiceCardLabel instance={state.cards[instanceId]} />
                       </button>
                     );
                   })}
@@ -2953,7 +3148,7 @@ export function InspectionChoiceAction({
   );
 }
 
-function MemberPlayAction({
+export function MemberPlayAction({
   action,
   state,
   loading,
@@ -3005,8 +3200,6 @@ function MemberPlayAction({
                 selected={instanceId === selection.selectedMemberId}
                 onClick={() => {
                   setSelectedMemberId(instanceId);
-                  setSelectedSlot("");
-                  setSelectedPlayMode("");
                 }}
               />
               <span>{tr("费用", "コスト")} {state.cards[instanceId].card.cost ?? 0}</span>
@@ -3155,7 +3348,7 @@ function SelectionAction({
   );
 }
 
-function ManualDrawer({
+export function ManualDrawer({
   state,
   source,
   onClose,
@@ -3203,6 +3396,7 @@ function ManualDrawer({
     .map((slot) => player.member_area[slot])
     .filter((id): id is string => id !== null)
     .map((id) => state.cards[id]);
+  const handCards = player.hand.map((id) => state.cards[id]);
   const selectableCards =
     type === "attach_card_under_member"
       ? attachableCards
@@ -3210,6 +3404,10 @@ function ManualDrawer({
         ? attachedCards
         : type === "move_member"
           ? stageCards
+          : type === "discard_card"
+            ? handCards
+          : type === "return_from_waiting_room"
+            ? player.waiting_room.map((id) => state.cards[id])
           : ["ready_energy", "pay_energy"].includes(type)
             ? player.energy_area.map((id) => state.cards[id])
           : genericCards;
@@ -3266,6 +3464,10 @@ function ManualDrawer({
             ? formationIds.length === stageMemberIds.length
               && new Set(formationIds).size === stageMemberIds.length
               && stageMemberIds.every((id) => formationIds.includes(id))
+            : type === "discard_card"
+              ? Boolean(cardId)
+            : type === "return_from_waiting_room"
+              ? Boolean(cardId)
             : ["ready_energy", "pay_energy"].includes(type)
               ? cardIds.length > 0
             : true;
@@ -3316,6 +3518,7 @@ function ManualDrawer({
               "draw_card",
               "inspect_top_cards",
               "discard_card",
+              "return_from_waiting_room",
               "ready_energy",
               "pay_energy",
               "modify_score",
@@ -3336,6 +3539,7 @@ function ManualDrawer({
           "attach_card_under_member",
           "move_attached_card",
           "discard_card",
+          "return_from_waiting_room",
         ].includes(type) && (
           <label>
             {tr("目标卡牌", "対象カード")}
@@ -3915,6 +4119,7 @@ function adjustmentTypeLabel(type: string, locale: UiLocale): string {
     draw_card: ["抽牌", "カードを引く"],
     inspect_top_cards: ["检查牌库顶", "デッキ上を確認"],
     discard_card: ["手牌送入控室", "手札を控え室に置く"],
+    return_from_waiting_room: ["控室加入手牌", "控え室から手札に加える"],
     ready_energy: ["能量竖置", "エネルギーをアクティブにする"],
     pay_energy: ["能量横置", "エネルギーをウェイトにする"],
     modify_score: ["调整分数", "スコアを調整"],

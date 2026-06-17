@@ -13,6 +13,7 @@ import {
   listCatalogFacets,
   listCatalogReviewCandidates,
 } from "./api";
+import { formatEffectText } from "./text-format";
 import type {
   CatalogCardDetail,
   CatalogFacetsResponse,
@@ -501,7 +502,7 @@ export function CatalogBrowser({
 
               <section className="catalog-panel">
                 <h3>{tr(locale, "技能", "スキル")}</h3>
-                <pre>{detail.text_revisions[0]?.raw_effect_text_ja ?? tr(locale, "无", "なし")}</pre>
+                <pre>{formatEffectText(detail.text_revisions[0]?.raw_effect_text_ja ?? null, locale)}</pre>
               </section>
 
               <section className="catalog-panel catalog-review-panel">

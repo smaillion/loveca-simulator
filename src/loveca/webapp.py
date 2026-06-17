@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from loveca import __version__
 from loveca.cards.catalog import (
     CardCatalogError,
     get_catalog_card,
@@ -33,7 +34,13 @@ from loveca.decks.library import (
 )
 from loveca.simulation.effects import DEFAULT_EFFECT_REGISTRY
 from loveca.simulation.engine import RuleEngineError, generate_legal_actions
-from loveca.simulation.models import ActionRequest
+from loveca.simulation.models import (
+    ActionRequest,
+    ActionResult,
+    GameEvent,
+    LegalAction,
+    MatchState,
+)
 from loveca.simulation.online import card_database_fingerprint, effect_registry_hash
 from loveca.simulation.rooms import (
     RoomError,
@@ -90,6 +97,10 @@ class RoomActionRequest(BaseModel):
     action: ActionRequest
 
 
+class LeaveRoomRequest(BaseModel):
+    player_token: str
+
+
 class ApiSettings(BaseModel):
     card_database_path: Path
     runtime_database_path: Path
@@ -100,6 +111,7 @@ class ApiSettings(BaseModel):
     effect_registry_path: Path = Field(default=DEFAULT_EFFECT_REGISTRY)
     allowed_origins: list[str] = Field(default_factory=list)
     room_ttl_hours: int = 24
+    room_delete_grace_hours: int = 1
 
 
 def default_settings() -> ApiSettings:
@@ -118,7 +130,21 @@ def default_settings() -> ApiSettings:
         ),
         allowed_origins=_parse_allowed_origins(os.environ.get("LOVECA_ALLOWED_ORIGINS", "")),
         room_ttl_hours=int(os.environ.get("LOVECA_ROOM_TTL_HOURS", "24")),
+        room_delete_grace_hours=int(
+            os.environ.get("LOVECA_ROOM_DELETE_GRACE_HOURS", "1")
+        ),
     )
+
+
+def _deployment_metadata() -> dict[str, str]:
+    keys = {
+        "git_sha": "LOVECA_DEPLOY_GIT_SHA",
+        "git_ref": "LOVECA_DEPLOY_GIT_REF",
+        "github_run_id": "LOVECA_DEPLOY_GITHUB_RUN_ID",
+        "image": "LOVECA_DEPLOY_IMAGE",
+        "image_tag": "LOVECA_DEPLOY_IMAGE_TAG",
+    }
+    return {name: os.environ.get(env_name, "unknown") for name, env_name in keys.items()}
 
 
 def create_app(settings: ApiSettings | None = None) -> FastAPI:
@@ -130,7 +156,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
     )
     app = FastAPI(
         title="LoveCA Visual Rules Debugger",
-        version="0.4.2a1",
+        version=__version__,
     )
     if resolved.allowed_origins:
         app.add_middleware(
@@ -146,7 +172,19 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         service,
         resolved.runtime_database_path,
         ttl_hours=resolved.room_ttl_hours,
+        delete_grace_hours=resolved.room_delete_grace_hours,
     )
+
+    @app.get("/runtime-config.json")
+    def runtime_config() -> dict[str, Any]:
+        return {
+            "mode": "release",
+            "browserPreview": False,
+            "apiBaseUrl": "",
+            "cardDatabaseFingerprint": card_database_fingerprint(
+                resolved.card_database_path
+            ),
+        }
 
     @app.get("/api/health")
     def health() -> dict[str, Any]:
@@ -158,6 +196,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
                 resolved.card_database_path
             ),
             "effect_registry_hash": effect_registry_hash(resolved.effect_registry_path),
+            "deployment": _deployment_metadata(),
         }
 
     @app.get("/api/matches")
@@ -246,15 +285,34 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         except (DeckFileError, MatchSetupError, RoomStateError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    @app.post("/api/rooms/{room_code}/leave")
+    def leave_room(room_code: str, request: LeaveRoomRequest) -> dict[str, Any]:
+        try:
+            room = app.state.room_service.leave_room(
+                room_code=room_code,
+                token=request.player_token,
+            )
+            return _room_payload(service, room, player_id=None)
+        except RoomNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except RoomTokenError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        except RoomError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
     @app.post("/api/rooms/{room_code}/actions")
     def submit_room_action(room_code: str, request: RoomActionRequest) -> dict[str, Any]:
         try:
+            _room, player_id = app.state.room_service.get_room_for_player(
+                room_code,
+                request.player_token,
+            )
             result = app.state.room_service.apply_action(
                 room_code=room_code,
                 token=request.player_token,
                 action=request.action,
             )
-            return result.model_dump()
+            return _action_result_payload(result, player_id=player_id)
         except RoomNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except RoomTokenError as exc:
@@ -286,7 +344,11 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
 
     @app.post("/api/rooms/cleanup")
     def cleanup_rooms() -> dict[str, Any]:
-        return {"expired_count": app.state.room_service.cleanup_expired()}
+        summary = app.state.room_service.cleanup_expired()
+        return {
+            "expired_count": summary.expired_count,
+            "deleted_count": summary.deleted_count,
+        }
 
     @app.post("/api/matches/cleanup")
     def cleanup_matches(
@@ -557,18 +619,69 @@ def _resolve_deck(player: PlayerSetup, allowed_root: Path):
     return load_deck(resolved)
 
 
-def _match_payload(service: MatchService, match_id: str) -> dict[str, Any]:
+def _match_payload(
+    service: MatchService,
+    match_id: str,
+    *,
+    player_id: str | None = None,
+) -> dict[str, Any]:
     state = service.repository.get_state(match_id)
+    legal_actions = generate_legal_actions(state)
+    events = service.repository.list_events(match_id)
+    return _match_state_payload(
+        state,
+        events=events,
+        legal_actions=legal_actions,
+        player_id=player_id,
+    )
+
+
+def _action_result_payload(result: ActionResult, *, player_id: str | None) -> dict[str, Any]:
+    return _match_state_payload(
+        result.state,
+        events=result.events,
+        legal_actions=result.legal_actions,
+        player_id=player_id,
+    )
+
+
+def _match_state_payload(
+    state: MatchState,
+    *,
+    events: list[GameEvent],
+    legal_actions: list[LegalAction],
+    player_id: str | None,
+) -> dict[str, Any]:
+    state_payload = state.model_dump()
+    visible_actions = legal_actions
+    if player_id is not None:
+        _redact_opponent_hands(state_payload, player_id)
+        visible_actions = [
+            action
+            for action in legal_actions
+            if action.player_id is None or action.player_id == player_id
+        ]
     return {
-        "state": state.model_dump(),
-        "events": [
-            event.model_dump()
-            for event in service.repository.list_events(match_id)
-        ],
-        "legal_actions": [
-            action.model_dump() for action in generate_legal_actions(state)
-        ],
+        "state": state_payload,
+        "events": [event.model_dump() for event in events],
+        "legal_actions": [action.model_dump() for action in visible_actions],
     }
+
+
+def _redact_opponent_hands(state_payload: dict[str, Any], player_id: str) -> None:
+    players = state_payload.get("players")
+    cards = state_payload.get("cards")
+    if not isinstance(players, dict) or not isinstance(cards, dict):
+        return
+    for opponent_id, player in players.items():
+        if opponent_id == player_id or not isinstance(player, dict):
+            continue
+        hand = player.get("hand")
+        if not isinstance(hand, list):
+            continue
+        for instance_id in hand:
+            if isinstance(instance_id, str):
+                cards.pop(instance_id, None)
 
 
 def _reject_public_room_match(app: FastAPI, match_id: str) -> None:
@@ -593,10 +706,14 @@ def _room_payload(
         "created_at": room.created_at,
         "updated_at": room.updated_at,
         "expires_at": room.expires_at,
+        "host_last_seen_at": room.host_last_seen_at,
+        "guest_last_seen_at": room.guest_last_seen_at,
+        "closed_at": room.closed_at,
+        "close_reason": room.close_reason,
         "match": None,
     }
     if player_token is not None:
         payload["player_token"] = player_token
     if room.match_id is not None and player_id is not None:
-        payload["match"] = _match_payload(service, room.match_id)
+        payload["match"] = _match_payload(service, room.match_id, player_id=player_id)
     return payload
