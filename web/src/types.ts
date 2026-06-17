@@ -432,6 +432,14 @@ export interface MatchSummary {
   updated_at: string;
 }
 
+export interface MatchListResponse {
+  items: MatchSummary[];
+  page: number;
+  per_page: number;
+  total: number;
+  max_total: number;
+}
+
 export interface RoomPayload {
   room_code: string;
   status: "waiting_for_guest" | "active" | "expired";

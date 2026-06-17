@@ -35,7 +35,6 @@ from loveca.simulation.effects import DEFAULT_EFFECT_REGISTRY
 from loveca.simulation.engine import RuleEngineError, generate_legal_actions
 from loveca.simulation.models import ActionRequest
 from loveca.simulation.online import card_database_fingerprint, effect_registry_hash
-from loveca.simulation.runtime import MatchNotFoundError, MatchRuntimeError
 from loveca.simulation.rooms import (
     RoomError,
     RoomNotFoundError,
@@ -43,6 +42,12 @@ from loveca.simulation.rooms import (
     RoomService,
     RoomStateError,
     RoomTokenError,
+)
+from loveca.simulation.runtime import (
+    DEFAULT_MATCH_HISTORY_LIMIT,
+    DEFAULT_MATCH_HISTORY_PAGE_SIZE,
+    MatchNotFoundError,
+    MatchRuntimeError,
 )
 from loveca.simulation.service import MatchService, MatchSetupError
 
@@ -156,8 +161,19 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         }
 
     @app.get("/api/matches")
-    def list_matches() -> list[dict[str, Any]]:
-        return service.repository.list_matches()
+    def list_matches(
+        page: int = Query(default=1, ge=1),
+        per_page: int = Query(
+            default=DEFAULT_MATCH_HISTORY_PAGE_SIZE,
+            ge=1,
+            le=DEFAULT_MATCH_HISTORY_PAGE_SIZE,
+        ),
+    ) -> dict[str, Any]:
+        return service.repository.list_matches(
+            page=page,
+            per_page=per_page,
+            max_matches=DEFAULT_MATCH_HISTORY_LIMIT,
+        )
 
     @app.post("/api/matches")
     def create_match(request: CreateMatchRequest) -> dict[str, Any]:
@@ -270,6 +286,12 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
     @app.post("/api/rooms/cleanup")
     def cleanup_rooms() -> dict[str, Any]:
         return {"expired_count": app.state.room_service.cleanup_expired()}
+
+    @app.post("/api/matches/cleanup")
+    def cleanup_matches(
+        retain: int = Query(default=DEFAULT_MATCH_HISTORY_LIMIT, ge=1, le=1000),
+    ) -> dict[str, Any]:
+        return {"deleted_count": service.repository.prune_old_matches(retain)}
 
     @app.get("/api/matches/{match_id}")
     def get_match(match_id: str) -> dict[str, Any]:

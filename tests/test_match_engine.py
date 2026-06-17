@@ -1401,7 +1401,7 @@ def test_runtime_v1_is_rejected_and_v2_initialization_is_idempotent(tmp_path):
     assert version == "2"
 
 
-def test_runtime_prunes_old_matches_with_cascading_records(tmp_path):
+def test_runtime_prunes_old_completed_matches_with_cascading_records(tmp_path):
     runtime_path = tmp_path / "runtime-prune.sqlite3"
     initialize_runtime_database(runtime_path)
     with closing(sqlite3.connect(runtime_path)) as connection:
@@ -1422,7 +1422,7 @@ def test_runtime_prunes_old_matches_with_cascading_records(tmp_path):
                     created_at,
                     updated_at
                 )
-                VALUES (?, 'cards.sqlite3', 'test', ?, 'active', 0, '{}', '{}', ?, ?)
+                VALUES (?, 'cards.sqlite3', 'test', ?, 'complete', 0, '{}', '{}', ?, ?)
                 """,
                 (match_id, index, timestamp, timestamp),
             )
@@ -1471,8 +1471,8 @@ def test_runtime_prunes_old_matches_with_cascading_records(tmp_path):
         connection.commit()
 
     repository = MatchRepository(runtime_path)
-    assert repository.prune_old_matches() == 5
-    assert [row["match_id"] for row in repository.list_matches()][0] == "match-29"
+    assert repository.prune_old_matches(max_matches=25) == 5
+    assert [row["match_id"] for row in repository.list_matches()["items"]][0] == "match-29"
 
     with closing(sqlite3.connect(runtime_path)) as connection:
         for table in ("matches", "match_actions", "match_events", "match_snapshots"):
@@ -1481,6 +1481,61 @@ def test_runtime_prunes_old_matches_with_cascading_records(tmp_path):
             "SELECT match_id FROM matches ORDER BY updated_at ASC LIMIT 1"
         ).fetchone()[0]
     assert oldest_remaining == "match-05"
+
+
+def test_runtime_prune_keeps_active_and_hosted_room_matches(tmp_path):
+    runtime_path = tmp_path / "runtime-prune-hosted.sqlite3"
+    initialize_runtime_database(runtime_path)
+    with closing(sqlite3.connect(runtime_path)) as connection:
+        connection.executescript(
+            """
+            CREATE TABLE hosted_rooms (
+                room_code TEXT PRIMARY KEY,
+                status TEXT NOT NULL,
+                match_id TEXT
+            );
+            """
+        )
+        for index in range(32):
+            match_id = f"match-{index:02d}"
+            status = "active" if index == 0 else "complete"
+            timestamp = f"2026-06-15T00:{index:02d}:00+00:00"
+            connection.execute(
+                """
+                INSERT INTO matches (
+                    match_id,
+                    card_database_path,
+                    rule_version,
+                    seed,
+                    status,
+                    revision,
+                    initial_state_json,
+                    current_state_json,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, 'cards.sqlite3', 'test', ?, ?, 0, '{}', '{}', ?, ?)
+                """,
+                (match_id, index, status, timestamp, timestamp),
+            )
+        connection.execute(
+            """
+            INSERT INTO hosted_rooms (room_code, status, match_id)
+            VALUES ('ABC123', 'active', 'match-01')
+            """
+        )
+        connection.commit()
+
+    repository = MatchRepository(runtime_path)
+    assert repository.prune_old_matches(max_matches=25) == 5
+
+    with closing(sqlite3.connect(runtime_path)) as connection:
+        remaining = {
+            row[0]
+            for row in connection.execute("SELECT match_id FROM matches").fetchall()
+        }
+    assert "match-00" in remaining
+    assert "match-01" in remaining
 
 
 def _create_match(tmp_path: Path, *, seed: int) -> tuple[MatchService, str]:

@@ -1806,6 +1806,27 @@ label {
   color: var(--muted);
 }
 
+.history-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.history-pagination span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.history-pagination small {
+  color: var(--muted);
+}
+
 .empty-state {
   color: var(--muted);
   padding: 20px 8px;

@@ -7,6 +7,7 @@ import type {
   DeckList,
   SavedDeckResponse,
   SavedDeckSummary,
+  MatchListResponse,
   MatchPayload,
   MatchSummary,
   RoomPayload,
@@ -128,8 +129,30 @@ export function hostedOnlineAvailable(): boolean {
   return runtimeConfig.apiBaseUrl.length > 0;
 }
 
-export function listMatches(): Promise<MatchSummary[]> {
-  return request("/api/matches");
+export function listMatches(input: {
+  page?: number;
+  perPage?: number;
+} = {}): Promise<MatchListResponse> {
+  const page = input.page ?? 1;
+  const perPage = input.perPage ?? 10;
+  const query = new URLSearchParams({
+    page: String(page),
+    per_page: String(perPage),
+  });
+  return request<MatchListResponse | MatchSummary[]>(`/api/matches?${query}`).then(
+    (payload) => {
+      if (Array.isArray(payload)) {
+        return {
+          items: payload,
+          page,
+          per_page: perPage,
+          total: payload.length,
+          max_total: 100,
+        };
+      }
+      return payload;
+    },
+  );
 }
 
 export function getMatch(matchId: string): Promise<MatchPayload> {
