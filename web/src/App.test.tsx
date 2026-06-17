@@ -467,7 +467,14 @@ function createFetchMock(overrides: {
     const parsedUrl = new URL(url, "http://localhost");
     const method = init?.method ?? "GET";
     if (url === "runtime-config.json" && method === "GET") {
-      return jsonResponse(overrides.runtimeConfig ?? []);
+      return jsonResponse(
+        overrides.runtimeConfig ?? {
+          mode: "release",
+          browserPreview: false,
+          apiBaseUrl: "",
+          cardDatabaseFingerprint: "",
+        },
+      );
     }
     if (parsedUrl.pathname === "/api/matches" && method === "GET") {
       return jsonResponse(overrides.matches ?? []);
@@ -816,6 +823,14 @@ describe("App", () => {
       const url = input.toString();
       const parsedUrl = new URL(url, "http://localhost");
       const method = init?.method ?? "GET";
+      if (url === "runtime-config.json" && method === "GET") {
+        return jsonResponse({
+          mode: "release",
+          browserPreview: false,
+          apiBaseUrl: "",
+          cardDatabaseFingerprint: "",
+        });
+      }
       if (parsedUrl.pathname === "/api/matches" && method === "GET") {
         return jsonResponse([]);
       }

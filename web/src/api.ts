@@ -137,6 +137,16 @@ export function hostedOnlineAvailable(): boolean {
   return runtimeConfig.apiBaseUrl.length > 0;
 }
 
+function shouldUsePreviewData(config: RuntimeConfig): boolean {
+  return config.browserPreview
+    || (config.mode === "preview" && !config.apiBaseUrl)
+    || (
+      typeof window !== "undefined"
+      && window.location.hostname.endsWith("github.io")
+      && !config.apiBaseUrl
+    );
+}
+
 export function listMatches(input: {
   page?: number;
   perPage?: number;
@@ -306,61 +316,69 @@ export function listCatalogCards(input: {
   limit?: number;
   offset?: number;
 } = {}): Promise<CatalogListResponse> {
-  if (runtimeConfig.browserPreview) {
-    return listPreviewCatalogCards(input);
-  }
-  const params = new URLSearchParams();
-  if (input.q) params.set("q", input.q);
-  if (input.cardType) params.set("card_type", input.cardType);
-  if (input.productCode) params.set("product_code", input.productCode);
-  if (input.workKey) params.set("work_key", input.workKey);
-  if (input.unitKey) params.set("unit_key", input.unitKey);
-  if (input.basicHeartColor) params.set("basic_heart_color", input.basicHeartColor);
-  if (input.memberCostMin !== undefined) params.set("member_cost_min", String(input.memberCostMin));
-  if (input.memberCostMax !== undefined) params.set("member_cost_max", String(input.memberCostMax));
-  if (input.memberBladeMin !== undefined) params.set("member_blade_min", String(input.memberBladeMin));
-  if (input.memberBladeMax !== undefined) params.set("member_blade_max", String(input.memberBladeMax));
-  if (input.memberBladeHeartColor) params.set("member_blade_heart_color", input.memberBladeHeartColor);
-  if (input.requiredHeartColor) params.set("required_heart_color", input.requiredHeartColor);
-  if (input.requiredHeartMin !== undefined) params.set("required_heart_min", String(input.requiredHeartMin));
-  if (input.requiredHeartMax !== undefined) params.set("required_heart_max", String(input.requiredHeartMax));
-  if (input.liveScoreMin !== undefined) params.set("live_score_min", String(input.liveScoreMin));
-  if (input.liveScoreMax !== undefined) params.set("live_score_max", String(input.liveScoreMax));
-  if (input.hasLiveBladeHeart !== undefined) params.set("has_live_blade_heart", String(input.hasLiveBladeHeart));
-  if (input.liveBladeHeartColor) params.set("live_blade_heart_color", input.liveBladeHeartColor);
-  if (input.reviewOnly) params.set("review_only", "true");
-  if (input.limit !== undefined) params.set("limit", String(input.limit));
-  if (input.offset !== undefined) params.set("offset", String(input.offset));
-  const query = params.toString();
-  return request(`/api/catalog/cards${query ? `?${query}` : ""}`);
+  return loadRuntimeConfig().then((config) => {
+    if (shouldUsePreviewData(config)) {
+      return listPreviewCatalogCards(input);
+    }
+    const params = new URLSearchParams();
+    if (input.q) params.set("q", input.q);
+    if (input.cardType) params.set("card_type", input.cardType);
+    if (input.productCode) params.set("product_code", input.productCode);
+    if (input.workKey) params.set("work_key", input.workKey);
+    if (input.unitKey) params.set("unit_key", input.unitKey);
+    if (input.basicHeartColor) params.set("basic_heart_color", input.basicHeartColor);
+    if (input.memberCostMin !== undefined) params.set("member_cost_min", String(input.memberCostMin));
+    if (input.memberCostMax !== undefined) params.set("member_cost_max", String(input.memberCostMax));
+    if (input.memberBladeMin !== undefined) params.set("member_blade_min", String(input.memberBladeMin));
+    if (input.memberBladeMax !== undefined) params.set("member_blade_max", String(input.memberBladeMax));
+    if (input.memberBladeHeartColor) params.set("member_blade_heart_color", input.memberBladeHeartColor);
+    if (input.requiredHeartColor) params.set("required_heart_color", input.requiredHeartColor);
+    if (input.requiredHeartMin !== undefined) params.set("required_heart_min", String(input.requiredHeartMin));
+    if (input.requiredHeartMax !== undefined) params.set("required_heart_max", String(input.requiredHeartMax));
+    if (input.liveScoreMin !== undefined) params.set("live_score_min", String(input.liveScoreMin));
+    if (input.liveScoreMax !== undefined) params.set("live_score_max", String(input.liveScoreMax));
+    if (input.hasLiveBladeHeart !== undefined) params.set("has_live_blade_heart", String(input.hasLiveBladeHeart));
+    if (input.liveBladeHeartColor) params.set("live_blade_heart_color", input.liveBladeHeartColor);
+    if (input.reviewOnly) params.set("review_only", "true");
+    if (input.limit !== undefined) params.set("limit", String(input.limit));
+    if (input.offset !== undefined) params.set("offset", String(input.offset));
+    const query = params.toString();
+    return request(`/api/catalog/cards${query ? `?${query}` : ""}`);
+  });
 }
 
 export function listCatalogFacets(): Promise<CatalogFacetsResponse> {
-  if (runtimeConfig.browserPreview) {
-    return listPreviewCatalogFacets();
-  }
-  return request("/api/catalog/facets");
+  return loadRuntimeConfig().then((config) => {
+    if (shouldUsePreviewData(config)) {
+      return listPreviewCatalogFacets();
+    }
+    return request("/api/catalog/facets");
+  });
 }
 
 export function getCatalogCard(cardCode: string): Promise<CatalogCardDetail> {
-  if (runtimeConfig.browserPreview) {
-    return getPreviewCatalogCard(cardCode);
-  }
-  return request(`/api/catalog/cards/${encodeURIComponent(cardCode)}`);
+  return loadRuntimeConfig().then((config) => {
+    if (shouldUsePreviewData(config)) {
+      return getPreviewCatalogCard(cardCode);
+    }
+    return request(`/api/catalog/cards/${encodeURIComponent(cardCode)}`);
+  });
 }
 
 export function listCatalogReviewCandidates(input: {
   limit?: number;
   offset?: number;
 } = {}): Promise<CatalogReviewCandidateList> {
-  if (runtimeConfig.browserPreview) {
-    return listPreviewCatalogReviewCandidates(input);
-  }
-  const params = new URLSearchParams();
-  if (input.limit !== undefined) params.set("limit", String(input.limit));
-  if (input.offset !== undefined) params.set("offset", String(input.offset));
-  const query = params.toString();
-  return request(`/api/catalog/review-candidates${query ? `?${query}` : ""}`);
+  return loadRuntimeConfig().then((config) => {
+    if (shouldUsePreviewData(config)) {
+      return listPreviewCatalogReviewCandidates(input);
+    }
+    const params = new URLSearchParams();
+    if (input.limit !== undefined) params.set("limit", String(input.limit));
+    if (input.offset !== undefined) params.set("offset", String(input.offset));
+    const query = params.toString();
+    return request(`/api/catalog/review-candidates${query ? `?${query}` : ""}`);
+  });
 }
 
 export function listSavedDecks(): Promise<SavedDeckSummary[]> {
@@ -404,11 +422,13 @@ export function deleteSavedDeck(deckId: string): Promise<{ status: string }> {
 export function analyzeDeck(
   deck: DeckList,
 ): Promise<DeckAnalysisResponse> {
-  if (runtimeConfig.browserPreview) {
-    return analyzePreviewDeck(deck);
-  }
-  return request("/api/decks/analyze", {
-    method: "POST",
-    body: JSON.stringify({ deck }),
+  return loadRuntimeConfig().then((config) => {
+    if (shouldUsePreviewData(config)) {
+      return analyzePreviewDeck(deck);
+    }
+    return request("/api/decks/analyze", {
+      method: "POST",
+      body: JSON.stringify({ deck }),
+    });
   });
 }
