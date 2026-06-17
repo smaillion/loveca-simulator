@@ -175,6 +175,17 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         delete_grace_hours=resolved.room_delete_grace_hours,
     )
 
+    @app.get("/runtime-config.json")
+    def runtime_config() -> dict[str, Any]:
+        return {
+            "mode": "release",
+            "browserPreview": False,
+            "apiBaseUrl": "",
+            "cardDatabaseFingerprint": card_database_fingerprint(
+                resolved.card_database_path
+            ),
+        }
+
     @app.get("/api/health")
     def health() -> dict[str, Any]:
         return {

@@ -474,6 +474,47 @@ def test_health_includes_locked_database_fingerprint(tmp_path, monkeypatch):
     }
 
 
+def test_backend_runtime_config_overrides_static_preview_config(tmp_path):
+    card_database = tmp_path / "cards.sqlite3"
+    import_normalized_cards(card_database, SAMPLE_CARDS, NORMALIZATION)
+    web_dist = tmp_path / "dist"
+    web_dist.mkdir()
+    (web_dist / "runtime-config.json").write_text(
+        (
+            '{\n'
+            '  "mode": "preview",\n'
+            '  "browserPreview": true,\n'
+            '  "apiBaseUrl": "",\n'
+            '  "cardDatabaseFingerprint": "static-preview"\n'
+            '}\n'
+        ),
+        encoding="utf-8",
+    )
+    (web_dist / "index.html").write_text("<!doctype html>", encoding="utf-8")
+
+    app = create_app(
+        ApiSettings(
+            card_database_path=card_database,
+            runtime_database_path=tmp_path / "matches.sqlite3",
+            image_cache_dir=tmp_path / "images",
+            web_dist_dir=web_dist,
+            deck_library_root=tmp_path / "decks",
+            allowed_deck_root=PROJECT_ROOT,
+        )
+    )
+    client = TestClient(app)
+
+    response = client.get("/runtime-config.json")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["mode"] == "release"
+    assert payload["browserPreview"] is False
+    assert payload["apiBaseUrl"] == ""
+    assert payload["cardDatabaseFingerprint"]
+    assert payload["cardDatabaseFingerprint"] != "static-preview"
+
+
 def test_deck_library_api_round_trip(tmp_path):
     client = _client(tmp_path)
     deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
