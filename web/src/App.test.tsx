@@ -1361,13 +1361,121 @@ describe("App", () => {
 
     expect(screen.queryByText("结构化人工处理")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: "候補カード" }));
+    fireEvent.click(screen.getByRole("button", { name: /候補カード/ }));
     fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
 
     expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
       invocation_id: "energy-effect-001",
       accepted: true,
       selected_card_instance_ids: ["player_1-M002"],
+      energy_instance_ids: [],
+    });
+    expect(onManual).not.toHaveBeenCalled();
+  });
+
+  it("shows card details for duplicate waiting-room effect choices", () => {
+    const onAction = vi.fn();
+    const onManual = vi.fn();
+    const duplicateA = {
+      ...INSPECTION_CARDS["player_1-M002"],
+      instance_id: "waiting-a",
+      card: {
+        ...INSPECTION_CARDS["player_1-M002"].card,
+        card_id: "WAIT-A",
+        card_code: "WAIT-A",
+        name_ja: "同名カード",
+        cost: 1,
+      },
+    };
+    const duplicateB = {
+      ...INSPECTION_CARDS["player_1-M002"],
+      instance_id: "waiting-b",
+      card: {
+        ...INSPECTION_CARDS["player_1-M002"].card,
+        card_id: "WAIT-B",
+        card_code: "WAIT-B",
+        name_ja: "同名カード",
+        cost: 3,
+      },
+    };
+    const state = {
+      ...INSPECTION_MATCH_PAYLOAD.state,
+      pending_choice: null,
+      cards: {
+        ...INSPECTION_MATCH_PAYLOAD.state.cards,
+        "waiting-a": duplicateA,
+        "waiting-b": duplicateB,
+      },
+      players: {
+        ...INSPECTION_MATCH_PAYLOAD.state.players,
+        player_1: {
+          ...INSPECTION_MATCH_PAYLOAD.state.players.player_1,
+          waiting_room: ["waiting-a", "waiting-b"],
+        },
+      },
+      pending_effects: [
+        {
+          invocation_id: "waiting-effect-001",
+          effect_id: "PL!TEST-WAITING:1",
+          source_card_instance_id: "player_1-M001",
+          player_id: "player_1",
+          trigger_event: "member_played",
+          trigger_data: {},
+          resolution_stage: "initial" as const,
+        },
+      ],
+    };
+    const action = {
+      action_type: "resolve_effect",
+      player_id: "player_1",
+      label_zh: "处理待结算技能",
+      label_ja: "待機中の能力を解決",
+      options: {
+        invocations: [
+          {
+            invocation_id: "waiting-effect-001",
+            effect_id: "PL!TEST-WAITING:1",
+            source_card_instance_id: "player_1-M001",
+            label_ja: "控室からカードを1枚選ぶ。",
+            trigger: "member_played",
+            timing: "on_play",
+            execution_mode: "prompt_then_resolve",
+            is_optional: false,
+            simulation_support: "test_validated_executable",
+            candidate_card_instance_ids: ["waiting-a", "waiting-b"],
+            choice_type: "card_from_zone",
+            card_selection_minimum: 1,
+            card_selection_maximum: 1,
+            choice_zone: "waiting_room",
+          },
+        ],
+        waiting_player_ids: [],
+      },
+    };
+
+    render(
+      <EffectResolutionAction
+        action={action as never}
+        state={state as never}
+        loading={false}
+        onAction={onAction}
+        onManual={onManual}
+      />,
+    );
+
+    expect(screen.getAllByRole("button", { name: /同名カード/ })).toHaveLength(2);
+    expect(screen.getByText(/WAIT-A/)).toBeInTheDocument();
+    expect(screen.getByText(/费用 1/)).toBeInTheDocument();
+    expect(screen.getByText(/WAIT-B/)).toBeInTheDocument();
+    expect(screen.getByText(/费用 3/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getAllByRole("button", { name: /同名カード/ })[1]);
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "waiting-effect-001",
+      accepted: true,
+      selected_card_instance_ids: ["waiting-b"],
       energy_instance_ids: [],
     });
     expect(onManual).not.toHaveBeenCalled();
@@ -1448,9 +1556,9 @@ describe("App", () => {
     );
 
     expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
-    fireEvent.click(screen.getAllByRole("button", { name: "確認メンバー" })[0]);
-    expect(screen.getAllByRole("button", { name: "確認メンバー" })[1]).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: "候補カード" }));
+    fireEvent.click(screen.getAllByRole("button", { name: /確認メンバー/ })[0]);
+    expect(screen.getAllByRole("button", { name: /確認メンバー/ })[1]).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /候補カード/ }));
     fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
 
     expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
@@ -1596,7 +1704,7 @@ describe("App", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "候補カード" }));
+    fireEvent.click(screen.getByRole("button", { name: /候補カード/ }));
     fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
 
     expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {

@@ -2287,6 +2287,44 @@ function cardTypeLabel(type: string, locale: UiLocale): string {
   return label ? label[locale === "zh" ? 0 : 1] : type;
 }
 
+function cardChoiceMeta(instance: CardInstance, locale: UiLocale): string {
+  const card = instance.card;
+  const parts = [cardTypeLabel(card.card_type, locale), card.card_code];
+  if (card.cost !== null) {
+    parts.push(`${locale === "zh" ? "费用" : "コスト"} ${card.cost}`);
+  }
+  if (card.blade !== null) {
+    parts.push(`${locale === "zh" ? "Blade" : "ブレード"} ${card.blade}`);
+  }
+  if (card.score !== null) {
+    parts.push(`${locale === "zh" ? "分数" : "スコア"} ${card.score}`);
+  }
+  const hearts =
+    card.card_type === "live"
+      ? formatHeartSummary(card.required_hearts, locale)
+      : formatHeartSummary(card.basic_hearts, locale);
+  if (hearts) {
+    const heartLabel =
+      card.card_type === "live"
+        ? locale === "zh" ? "所需" : "必要"
+        : locale === "zh" ? "爱心" : "ハート";
+    parts.push(`${heartLabel} ${hearts}`);
+  }
+  parts.push(orientationLabel(instance.orientation, locale));
+  parts.push(`#${instance.instance_id.split("-").at(-1) ?? instance.instance_id}`);
+  return parts.join(" · ");
+}
+
+function ChoiceCardLabel({ instance }: { instance: CardInstance }) {
+  const { locale } = useUiLanguage();
+  return (
+    <span className="choice-card-label">
+      <strong>{instance.card.name_ja}</strong>
+      <small>{cardChoiceMeta(instance, locale)}</small>
+    </span>
+  );
+}
+
 function zoneLabel(zone: string, locale: UiLocale): string {
   const labels: Record<string, [string, string]> = {
     hand: ["手牌", "手札"],
@@ -2544,7 +2582,6 @@ export function EffectResolutionAction({
   const maximumCards = usesCardChoice
     ? current.card_selection_maximum ?? Math.max(minimumCards, current.candidate_card_instance_ids.length)
     : 0;
-  const isEnergyChoice = current.choice_zone === "energy_area";
   const colorSlots = current.color_slots ?? [];
   const requiresColor = choiceType === "choose_color";
   const requiresCount = choiceType === "choose_count";
@@ -2643,9 +2680,7 @@ export function EffectResolutionAction({
                 })
               }
             >
-              {isEnergyChoice
-                ? `${state.cards[instanceId].card.name_ja} · ${orientationLabel(state.cards[instanceId].orientation, locale)}`
-                : state.cards[instanceId].card.name_ja}
+              <ChoiceCardLabel instance={state.cards[instanceId]} />
             </button>
           ))}
           <span>
@@ -2673,7 +2708,6 @@ export function EffectResolutionAction({
                     const disabled =
                       excludedIds.has(instanceId) ||
                       (!isSelected && selectedGroupIdSet.has(instanceId));
-                    const card = state.cards[instanceId];
                     return (
                       <button
                         className={isSelected ? "selected" : ""}
@@ -2697,7 +2731,7 @@ export function EffectResolutionAction({
                           })
                         }
                       >
-                        {card?.card.name_ja ?? instanceId}
+                        <ChoiceCardLabel instance={state.cards[instanceId]} />
                       </button>
                     );
                   })}
