@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
+      # main is intentionally omitted while production-like deploys remain manual-only.
       - develop
     paths:
       - ".github/workflows/deploy-api.yml"

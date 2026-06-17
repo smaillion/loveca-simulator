@@ -7,23 +7,31 @@ This file records maintenance rules that should stay stable across releases.
 ### 日本語
 
 - 通常の新機能ブランチは `develop` から作成する。
+- hotfix ブランチも、緊急でない限り `develop` から作成する。
+- `develop` は通常の統合ブランチであり、Hosted Online の検証と低コスト online smoke の主な対象とする。
 - `preview` は公開 GitHub Pages preview 用の独立ブランチとして扱う。
 - `preview` や preview 専用ブランチから通常の feature branch を切らない。
 - 公開 preview を更新する場合のみ、安定した時点の成果を `preview` に同期する。
+- `main` は手動で昇格する安定 snapshot ブランチとして扱う。
+- 現段階では `main` への push で自動 publish / deploy しない。production 相当の公開は maintainer が明示的に workflow を手動実行するか、専用の release 手順で行う。
 - 誤って preview 系ブランチから作業を始めた場合は、`develop` ベースの replacement branch を作成するか、必要に応じて history を rewrite して修正する。
 - Hosted Online は GitHub Pages frontend、Cloudflare Worker API gateway、Caddy HTTPS origin、localhost FastAPI を基本構成とする。
-- 正式 frontend 配布は `develop` または `main` の安定 build に切り替え、`runtime-config.json` の `apiBaseUrl` で Worker URL に接続する。
+- 正式 frontend 配布は、当面は `develop` の安定 build または maintainer が手動昇格した `main` snapshot から行い、`runtime-config.json` の `apiBaseUrl` で Worker URL に接続する。
 - VPS は frontend 静的配信を担当せず、backend API origin のみを担当させる。
 
 ### 简体中文
 
 - 常规新功能分支默认从 `develop` 创建。
+- hotfix 分支除非特别紧急，也默认从 `develop` 创建。
+- `develop` 是常规集成分支，也是 Hosted Online 验证和低成本 online smoke 的主要目标。
 - `preview` 作为公开 GitHub Pages preview 的独立分支保留。
 - 不从 `preview` 或 preview 专用分支继续创建常规 feature branch。
 - 只有准备更新公开 preview 时，才把稳定点同步到 `preview`。
+- `main` 作为手动晋升的稳定 snapshot 分支维护。
+- 当前阶段 `main` push 不触发自动 publish / deploy。接近生产的公开发布必须由 maintainer 明确手动执行 workflow，或走专门的 release 流程。
 - 如果误从 preview 系分支开始开发，应创建 develop-based replacement branch，必要时 rewrite 历史修正。
 - Hosted Online 采用 GitHub Pages frontend、Cloudflare Worker API gateway、Caddy HTTPS origin、localhost FastAPI 作为基本结构。
-- 正式 frontend 分发应切换为 `develop` 或 `main` 的稳定构建，并通过 `runtime-config.json` 的 `apiBaseUrl` 连接 Worker URL。
+- 正式 frontend 分发现阶段来自 `develop` 稳定构建，或 maintainer 手动晋升后的 `main` snapshot，并通过 `runtime-config.json` 的 `apiBaseUrl` 连接 Worker URL。
 - VPS 不托管前端静态文件，只保留 backend API origin 职责。
 
 ## Changelog Language
