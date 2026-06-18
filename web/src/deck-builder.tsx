@@ -1555,7 +1555,7 @@ function DeckBuilderManual({ locale }: { locale: UiLocale }) {
     <details className="deck-manual-panel">
       <summary>
         <BookOpen size={16} />
-        <span>{tr(locale, "Deck Builder 使用说明", "Deck Builder 使い方")}</span>
+        <span>{tr(locale, "Deck Builder 使用说明", "Deck Builder 使い方マニュアル")}</span>
       </summary>
       <div className="deck-manual-grid">
         <section>
@@ -1569,32 +1569,52 @@ function DeckBuilderManual({ locale }: { locale: UiLocale }) {
           </p>
         </section>
         <section>
-          <strong>{tr(locale, "2. 按区域加入牌组", "2. 種別ごとに投入")}</strong>
+          <strong>{tr(locale, "2. 加入正确区域", "2. 種別ごとに投入")}</strong>
           <p>
             {tr(
               locale,
-              "Member / Live 会进入主牌组，Energy 会进入能量组。主牌组目标是 Member 48 + Live 12；Energy 目标是 12。",
-              "メンバー / ライブはメインデッキへ、エネルギーはエネルギーデッキへ入ります。目標はメンバー48枚 + ライブ12枚、エネルギー12枚です。",
+              "Member / Live 会进入主牌组，Energy 会进入能量组。添加按钮会按卡牌类型自动决定目标区域。",
+              "メンバー / ライブはメインデッキへ、エネルギーはエネルギーデッキへ入ります。追加ボタンはカード種別に応じて投入先を自動で選びます。",
             )}
           </p>
         </section>
         <section>
-          <strong>{tr(locale, "3. 看分析结果修正", "3. 分析を見て調整")}</strong>
+          <strong>{tr(locale, "3. 检查构筑合法性", "3. 構築条件を確認")}</strong>
           <p>
             {tr(
               locale,
-              "状态总览和当前牌组分析会自动刷新。Member / Live 同一卡号最多 4 张，Energy 不受同卡 4 张限制。",
-              "状態サマリーと現在のデッキ分析は自動更新されます。メンバー / ライブは同じカード番号4枚まで、エネルギーは同名4枚制限なしです。",
+              "目标是 Member 48 + Live 12 + Energy 12。Member / Live 同一卡号最多 4 张，Energy 不受同卡 4 张限制。",
+              "目標はメンバー48枚 + ライブ12枚 + エネルギー12枚です。メンバー / ライブは同じカード番号4枚まで、エネルギーは同名4枚制限なしです。",
             )}
           </p>
         </section>
         <section>
-          <strong>{tr(locale, "4. 保存、分享、进入对战", "4. 保存・共有・対戦へ")}</strong>
+          <strong>{tr(locale, "4. 查看分析结果", "4. 分析を見て調整")}</strong>
           <p>
             {tr(
               locale,
-              "保存会写入当前浏览器或本地服务；JSON 可导入导出。分享 UUID 会上传当前牌组，别人用 UUID 下载后才会写入自己的本地列表。",
-              "保存はこのブラウザまたはローカルサービスに記録されます。JSON の読み込み / 書き出しも可能です。共有 UUID は現在のデッキだけをアップロードし、相手が UUID で取り込んだ時だけ相手のローカル一覧に保存されます。",
+              "当前牌组分析会自动刷新，显示枚数问题、Cost、Heart、Blade、Live Score、特殊应援和技能时点。",
+              "現在のデッキ分析は自動更新され、枚数問題、コスト、ハート、ブレード、ライブスコア、特殊エール、能力タイミングを確認できます。",
+            )}
+          </p>
+        </section>
+        <section>
+          <strong>{tr(locale, "5. 保存和迁移", "5. 保存と移行")}</strong>
+          <p>
+            {tr(
+              locale,
+              "保存会写入当前浏览器或本地服务；JSON 导入 / 导出用于备份、跨环境迁移和离线分享。",
+              "保存はこのブラウザまたはローカルサービスに記録されます。JSON 読み込み / 書き出しはバックアップ、環境移行、オフライン共有に使います。",
+            )}
+          </p>
+        </section>
+        <section>
+          <strong>{tr(locale, "6. 分享并进入对战", "6. 共有して対戦へ")}</strong>
+          <p>
+            {tr(
+              locale,
+              "分享 UUID 只上传当前牌组。别人用 UUID 下载后才会写入自己的本地列表；“用于对战”会把当前编辑牌组带回开始画面。",
+              "共有 UUID は現在のデッキだけをアップロードします。相手が UUID で取り込んだ時だけ相手のローカル一覧に保存されます。「対戦に使う」で編集中のデッキを開始画面へ戻せます。",
             )}
           </p>
         </section>

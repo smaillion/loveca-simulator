@@ -61,6 +61,7 @@
 Deck Builder の現在の到達点:
 
 - 保存済みデッキの作成、読み込み、更新、削除
+- 画面内の折りたたみ式 manual で、検索、投入、構築条件、分析、保存、共有、対戦利用の流れを確認可能
 - `Member` / `Live` / `Energy` の分割表示
 - `Member 48` / `Live 12` / `Energy 12` の構築数チェック
 - 作品、ユニット、Heart 色、Blade、Live 必要 Heart、Score、Blade Heart による絞り込み
@@ -108,16 +109,19 @@ Deck Builder の現在の到達点:
 ### Deck Builder
 
 - 保存済みデッキの作成、読み込み、上書き保存、名前変更、削除ができます。
+- 画面上部の「Deck Builder 使い方マニュアル」から、検索、投入、構築条件、分析、保存、共有、対戦利用の流れを確認できます。
 - decklist.v0 JSON の import / export に対応しているため、browser preview とローカル環境の間でデッキを移動できます。
 - `Member` / `Live` / `Energy` を分けて表示し、`Member 48` / `Live 12` / `Energy 12` と同名カード上限を UI 上で確認しながら編集できます。
 - カード検索は、カード名 / カード番号の検索、カード種別、作品、ユニット、Member の基本 Heart / Cost / Blade / Blade Heart、Live の必要 Heart / Score / Blade Heart で絞り込めます。検索結果は card code、card name、card type、Member cost、Blade、Live 必要 Heart、Live score、現在の投入枚数で並び替えできます。
 - 検索結果のカードは詳細 dialog で画像と主要 stat を確認でき、追加ボタンでデッキへ投入できます。
 - 右側の分析 dashboard は自動更新され、構築合法性、枚数問題、Member cost curve、基本 Heart、Live 必要 Heart、Score、特殊 Blade Heart、効果 timing / execution summary を確認できます。
+- 共有 UUID は現在のデッキだけを server に一時 upload し、相手が UUID で取り込んだ時だけ相手のローカル保存一覧に追加されます。通常の保存済み deck list は引き続き各ブラウザ / ローカル環境に保持されます。
 - Deck Builder で選んだデッキは「対戦に使う」操作でホームへ戻し、ローカル対戦または online room の deck source として使えます。
 
 ### ルール検証 UI
 
 - Match 画面では、双方のステージ、手札・山札・控え室などの zone count、Live / Energy / Heart 状態、現在 phase、turn number を同じ画面で追跡できます。
+- モバイルでは自分の手札カードを大きめに表示し、成功 Live 進捗、Live 判定、相手エリアは必要に応じて pop-up で確認できます。
 - Action Dock には現在実行可能な action が表示され、Member 登場、Baton Touch、Live Set、mulligan、Heart 割り当て、pending effect 解決などを UI から送信できます。
 - 一部の効果は構造化 prompt として表示され、対象カード選択、choice branch、inspection / reveal の並べ替えや移動先選択を UI 上で処理できます。
 - 自動実行できない効果は `ManualAdjustmentAction` drawer で、カード移動、Heart 補正、Live success 補正、任意メモを入力して検証を継続できます。

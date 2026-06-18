@@ -1418,7 +1418,8 @@ describe("App", () => {
 
     await waitFor(() => expect(screen.getByText("牌组编辑与保存")).toBeInTheDocument());
     expect(screen.getByText("Deck Builder 使用说明")).toBeInTheDocument();
-    expect(screen.getByText("4. 保存、分享、进入对战")).toBeInTheDocument();
+    expect(screen.getByText("4. 查看分析结果")).toBeInTheDocument();
+    expect(screen.getByText("6. 分享并进入对战")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("テストカード")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "加入主牌组" }));
     await waitFor(() => expect(screen.getAllByText("LL-TEST-001").length).toBeGreaterThan(0));

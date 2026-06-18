@@ -61,6 +61,7 @@
 Deck Builder 当前状态:
 
 - 创建、读取、更新、删除本地保存牌组
+- 画面内折叠式 manual 可说明搜索、加入牌组、构筑条件、分析、保存、分享和进入对战的流程
 - 按 `Member` / `Live` / `Energy` 分区显示已组牌组
 - 检查 `Member 48` / `Live 12` / `Energy 12` 的构筑数量
 - 按作品、组合、Heart 颜色、Blade、Live 所需 Heart、Score、Blade Heart 筛选
@@ -108,16 +109,19 @@ Bug 报告、规则行为讨论和 online 对战伙伴寻找请前往 [Discord](
 ### Deck Builder
 
 - 可以创建、读取、覆盖保存、重命名和删除本地保存牌组。
+- 画面顶部的“Deck Builder 使用说明”会说明搜索、加入牌组、构筑条件、分析、保存、分享和进入对战的流程。
 - 支持 decklist.v0 JSON 导入 / 导出，方便在 browser preview 和本地环境之间迁移牌组。
 - 已组牌组按 `Member` / `Live` / `Energy` 分区显示，编辑时会检查 `Member 48` / `Live 12` / `Energy 12` 和同名卡上限。
 - 卡牌搜索支持按卡名 / 卡号、卡牌种类、作品、组合、Member 基本 Heart / Cost / Blade / Blade Heart、Live 所需 Heart / Score / Blade Heart 筛选。搜索结果可以按卡号、卡名、卡牌种类、Member cost、Blade、Live 所需 Heart、Live score 和当前投入枚数排序。
 - 搜索结果中的卡牌可以打开详情 dialog 查看图片和主要 stat，也可以直接用添加按钮投入牌组。
 - 右侧分析 dashboard 会自动刷新，展示构筑合法性、枚数问题、Member cost curve、基本 Heart、Live 所需 Heart、Score、特殊 Blade Heart、技能 timing / execution summary。
+- 分享 UUID 只会把当前牌组临时上传到 server；别人用 UUID 下载后才会写入自己的本地保存列表。普通保存牌组仍然保存在各自浏览器或本地环境中。
 - 在 Deck Builder 里选择的牌组可以通过“用于对战”回到首页，并作为本地对局或 online room 的 deck source。
 
 ### 规则验证器
 
 - Match 画面同屏展示双方舞台、手牌 / 牌库 / 控室等 zone count、Live / Energy / Heart 状态、当前 phase 和 turn number。
+- 手机端会放大显示己方手牌卡面，成功 Live 进度、Live 判定和对手区域可通过弹窗查看。
 - Action Dock 会列出当前可执行 action，可从 UI 发送 Member 登场、Baton Touch、Live Set、调度、Heart 分配和 pending effect 结算等操作。
 - 部分技能以结构化 prompt 显示，可在 UI 中处理目标卡选择、choice branch、inspection / reveal 的排序和移动目标。
 - 暂不能自动执行的技能可用 `ManualAdjustmentAction` drawer 手动输入卡牌移动、Heart 修正、Live success 修正和备注，继续推进验证。
