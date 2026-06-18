@@ -26,6 +26,12 @@ export interface SavedDeckResponse {
   deck: DeckList;
 }
 
+export interface SharedDeckResponse {
+  share_id: string;
+  deck: DeckList;
+  created_at: string;
+}
+
 export interface DeckAnalysisIssue {
   severity: string;
   code: string;

@@ -19,6 +19,7 @@ import {
   analyzeDeck,
   createSavedDeck,
   deleteSavedDeck,
+  downloadSharedDeck,
   getCatalogCard,
   getSavedDeck,
   listCatalogCards,
@@ -26,6 +27,7 @@ import {
   listSavedDecks,
   renameSavedDeck,
   updateSavedDeck,
+  uploadSharedDeck,
 } from "./api";
 import { formatEffectText } from "./text-format";
 import type {
@@ -173,6 +175,11 @@ export function DeckBuilder({
   const [analysis, setAnalysis] = useState<DeckAnalysisResponse | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [mobileCatalogOpen, setMobileCatalogOpen] = useState(false);
+  const [savedDecksOpen, setSavedDecksOpen] = useState(false);
+  const [shareId, setShareId] = useState("");
+  const [shareLookupId, setShareLookupId] = useState("");
+  const [sharing, setSharing] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const visibleCards = useMemo(
@@ -714,6 +721,62 @@ export function DeckBuilder({
     }
   }
 
+  async function uploadCurrentDeckShare() {
+    setSharing(true);
+    setMessage(null);
+    try {
+      const payload = { ...deck, name: deckName || deck.name };
+      const response = await uploadSharedDeck(payload);
+      setShareId(response.share_id);
+      setMessage(
+        tr(
+          locale,
+          `分享 UUID 已生成：${response.share_id}`,
+          `共有 UUID を作成しました：${response.share_id}`,
+        ),
+      );
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setSharing(false);
+    }
+  }
+
+  async function downloadSharedDeckToLocal() {
+    const normalizedShareId = shareLookupId.trim();
+    if (!normalizedShareId) return;
+    setSharing(true);
+    setMessage(null);
+    try {
+      const response = await downloadSharedDeck(normalizedShareId);
+      const importedName =
+        response.deck.name
+          ? `${response.deck.name} (${response.share_id.slice(0, 8)})`
+          : `Shared ${response.share_id.slice(0, 8)}`;
+      const localDeck = { ...response.deck, name: importedName };
+      const saved = await createSavedDeck({
+        deck: localDeck,
+        name: importedName,
+        overwrite: false,
+      });
+      setDeck(saved.deck);
+      setDeckName(saved.deck.name ?? "");
+      setSelectedDeckId(saved.path);
+      await refreshDecks();
+      setMessage(
+        tr(
+          locale,
+          "共享牌组已下载到本地列表。",
+          "共有デッキをローカル一覧に取り込みました。",
+        ),
+      );
+    } catch (reason) {
+      setMessage(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setSharing(false);
+    }
+  }
+
   const analyzedEnergyCount = analysis?.card_type_counts.energy_deck?.energy ?? energyCount;
   function selectCatalogCard(card: CatalogCardSummary) {
     setSelectedCardCode(card.card_code);
@@ -751,14 +814,23 @@ export function DeckBuilder({
 
       {message && <div className="error-banner">{message}</div>}
 
+      <DeckBuilderManual locale={locale} />
+
       <main className="deck-workspace">
-        <section className="deck-sidebar">
+        <section className={`deck-sidebar deck-saved-sidebar ${savedDecksOpen ? "mobile-open" : "mobile-collapsed"}`}>
           <div className="section-heading compact-heading">
             <BookOpen size={18} />
             <div>
               <h2>{tr(locale, "已保存牌组", "保存済みデッキ")}</h2>
               <p>{tr(locale, "本地文件库", "ローカルファイルライブラリ")}</p>
             </div>
+            <button
+              className="mini-link deck-saved-toggle"
+              type="button"
+              onClick={() => setSavedDecksOpen((current) => !current)}
+            >
+              {savedDecksOpen ? tr(locale, "收起", "閉じる") : tr(locale, "展开", "開く")}
+            </button>
           </div>
           <div className="deck-list">
             {loadingDecks && (
@@ -797,6 +869,47 @@ export function DeckBuilder({
             >
               <Trash2 size={16} />
               {tr(locale, "删除当前", "現在のデッキを削除")}
+            </button>
+          </div>
+          <div className="deck-share-panel">
+            <strong>{tr(locale, "分享 UUID", "共有 UUID")}</strong>
+            <p>
+              {tr(
+                locale,
+                "上传当前牌组生成 UUID；下载后才会写入本地牌组列表。",
+                "現在のデッキをアップロードして UUID を作成します。取り込み後だけローカル一覧に保存されます。",
+              )}
+            </p>
+            <button
+              className="secondary-button"
+              disabled={sharing || totalCount === 0}
+              type="button"
+              onClick={() => void uploadCurrentDeckShare()}
+            >
+              <Upload size={16} />
+              {tr(locale, "上传分享", "共有アップロード")}
+            </button>
+            {shareId && (
+              <code className="deck-share-id" aria-label={tr(locale, "分享 UUID", "共有 UUID")}>
+                {shareId}
+              </code>
+            )}
+            <label className="deck-share-input">
+              <span>{tr(locale, "下载 UUID", "取り込み UUID")}</span>
+              <input
+                value={shareLookupId}
+                onChange={(event) => setShareLookupId(event.target.value)}
+                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+              />
+            </label>
+            <button
+              className="secondary-button"
+              disabled={sharing || !shareLookupId.trim()}
+              type="button"
+              onClick={() => void downloadSharedDeckToLocal()}
+            >
+              <Download size={16} />
+              {tr(locale, "下载到本地", "ローカルに取り込む")}
             </button>
           </div>
         </section>
@@ -889,6 +1002,14 @@ export function DeckBuilder({
                 onClick={() => void renameCurrentDeck()}
               >
                 {tr(locale, "重命名", "名前変更")}
+              </button>
+              <button
+                className="secondary-button deck-mobile-catalog-button"
+                type="button"
+                onClick={() => setMobileCatalogOpen(true)}
+              >
+                <Search size={18} />
+                {tr(locale, "搜索选卡", "カード検索")}
               </button>
             </div>
           </div>
@@ -1095,7 +1216,13 @@ export function DeckBuilder({
           </section>
         </section>
 
-        <section className="deck-sidebar deck-catalog">
+        <section className={`deck-sidebar deck-catalog ${mobileCatalogOpen ? "mobile-open" : ""}`}>
+          <div className="deck-mobile-catalog-header">
+            <strong>{tr(locale, "搜索并加入卡牌", "カード検索と追加")}</strong>
+            <button className="icon-button" type="button" onClick={() => setMobileCatalogOpen(false)}>
+              <ArrowLeft size={18} />
+            </button>
+          </div>
           <div className="deck-search">
             <label className="catalog-search">
               <Search size={16} />
@@ -1420,6 +1547,59 @@ export function DeckBuilder({
         />
       )}
     </div>
+  );
+}
+
+function DeckBuilderManual({ locale }: { locale: UiLocale }) {
+  return (
+    <details className="deck-manual-panel">
+      <summary>
+        <BookOpen size={16} />
+        <span>{tr(locale, "Deck Builder 使用说明", "Deck Builder 使い方")}</span>
+      </summary>
+      <div className="deck-manual-grid">
+        <section>
+          <strong>{tr(locale, "1. 搜索和确认卡牌", "1. カードを探して確認")}</strong>
+          <p>
+            {tr(
+              locale,
+              "用作品、组合、费用、Heart 颜色、Blade、Score 等条件筛选；点击详情可以确认卡图、日文效果和印刷版本。",
+              "作品、ユニット、コスト、ハート色、ブレード、スコアなどで絞り込みます。詳細からカード画像、公式日本語テキスト、印刷版を確認できます。",
+            )}
+          </p>
+        </section>
+        <section>
+          <strong>{tr(locale, "2. 按区域加入牌组", "2. 種別ごとに投入")}</strong>
+          <p>
+            {tr(
+              locale,
+              "Member / Live 会进入主牌组，Energy 会进入能量组。主牌组目标是 Member 48 + Live 12；Energy 目标是 12。",
+              "メンバー / ライブはメインデッキへ、エネルギーはエネルギーデッキへ入ります。目標はメンバー48枚 + ライブ12枚、エネルギー12枚です。",
+            )}
+          </p>
+        </section>
+        <section>
+          <strong>{tr(locale, "3. 看分析结果修正", "3. 分析を見て調整")}</strong>
+          <p>
+            {tr(
+              locale,
+              "状态总览和当前牌组分析会自动刷新。Member / Live 同一卡号最多 4 张，Energy 不受同卡 4 张限制。",
+              "状態サマリーと現在のデッキ分析は自動更新されます。メンバー / ライブは同じカード番号4枚まで、エネルギーは同名4枚制限なしです。",
+            )}
+          </p>
+        </section>
+        <section>
+          <strong>{tr(locale, "4. 保存、分享、进入对战", "4. 保存・共有・対戦へ")}</strong>
+          <p>
+            {tr(
+              locale,
+              "保存会写入当前浏览器或本地服务；JSON 可导入导出。分享 UUID 会上传当前牌组，别人用 UUID 下载后才会写入自己的本地列表。",
+              "保存はこのブラウザまたはローカルサービスに記録されます。JSON の読み込み / 書き出しも可能です。共有 UUID は現在のデッキだけをアップロードし、相手が UUID で取り込んだ時だけ相手のローカル一覧に保存されます。",
+            )}
+          </p>
+        </section>
+      </div>
+    </details>
   );
 }
 

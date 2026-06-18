@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import os
+import sqlite3
+import uuid
 from dataclasses import asdict
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -78,6 +82,10 @@ class CreateMatchRequest(BaseModel):
 
 
 class AnalyzeDeckRequest(BaseModel):
+    deck: dict[str, Any]
+
+
+class ShareDeckRequest(BaseModel):
     deck: dict[str, Any]
 
 
@@ -410,6 +418,23 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail="card image is not cached")
         return FileResponse(path)
 
+    @app.post("/api/deck-shares")
+    def create_deck_share(request: ShareDeckRequest) -> dict[str, Any]:
+        try:
+            deck = parse_deck(request.deck)
+            return _create_deck_share(resolved.runtime_database_path, asdict(deck))
+        except DeckFileError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/api/deck-shares/{share_id}")
+    def get_deck_share(share_id: str) -> dict[str, Any]:
+        try:
+            return _load_deck_share(resolved.runtime_database_path, share_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
     @app.get("/api/decks")
     def list_decks() -> list[dict[str, Any]]:
         try:
@@ -617,6 +642,63 @@ def _resolve_deck(player: PlayerSetup, allowed_root: Path):
     from loveca.decks.analyzer import load_deck
 
     return load_deck(resolved)
+
+
+def _ensure_deck_share_table(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS shared_decks (
+            share_id TEXT PRIMARY KEY,
+            deck_json TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        )
+        """
+    )
+
+
+def _create_deck_share(runtime_database_path: Path, deck: dict[str, Any]) -> dict[str, Any]:
+    runtime_database_path.parent.mkdir(parents=True, exist_ok=True)
+    share_id = str(uuid.uuid4())
+    created_at = datetime.now(UTC).isoformat()
+    deck_json = json.dumps(deck, ensure_ascii=False, sort_keys=True)
+    with sqlite3.connect(runtime_database_path) as connection:
+        _ensure_deck_share_table(connection)
+        connection.execute(
+            """
+            INSERT INTO shared_decks (share_id, deck_json, created_at)
+            VALUES (?, ?, ?)
+            """,
+            (share_id, deck_json, created_at),
+        )
+    return {
+        "share_id": share_id,
+        "deck": deck,
+        "created_at": created_at,
+    }
+
+
+def _load_deck_share(runtime_database_path: Path, share_id: str) -> dict[str, Any]:
+    try:
+        normalized_share_id = str(uuid.UUID(share_id))
+    except ValueError as exc:
+        raise ValueError("share_id must be a UUID") from exc
+    with sqlite3.connect(runtime_database_path) as connection:
+        _ensure_deck_share_table(connection)
+        row = connection.execute(
+            """
+            SELECT share_id, deck_json, created_at
+            FROM shared_decks
+            WHERE share_id = ?
+            """,
+            (normalized_share_id,),
+        ).fetchone()
+    if row is None:
+        raise KeyError(f"shared deck not found: {normalized_share_id}")
+    return {
+        "share_id": row[0],
+        "deck": json.loads(row[1]),
+        "created_at": row[2],
+    }
 
 
 def _match_payload(

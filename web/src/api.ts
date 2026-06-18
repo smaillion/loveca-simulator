@@ -11,6 +11,7 @@ import type {
   MatchPayload,
   MatchSummary,
   RoomPayload,
+  SharedDeckResponse,
 } from "./types";
 import {
   getPreviewCatalogCard,
@@ -441,6 +442,27 @@ export function renameSavedDeck(
 
 export function deleteSavedDeck(deckId: string): Promise<{ status: string }> {
   return deletePreviewSavedDeck(deckId);
+}
+
+export function uploadSharedDeck(deck: DeckList): Promise<SharedDeckResponse> {
+  return loadRuntimeConfig().then((config) => {
+    if (!config.apiBaseUrl) {
+      throw new Error("Hosted API base URL is not configured.");
+    }
+    return request("/api/deck-shares", {
+      method: "POST",
+      body: JSON.stringify({ deck }),
+    });
+  });
+}
+
+export function downloadSharedDeck(shareId: string): Promise<SharedDeckResponse> {
+  return loadRuntimeConfig().then((config) => {
+    if (!config.apiBaseUrl) {
+      throw new Error("Hosted API base URL is not configured.");
+    }
+    return request(`/api/deck-shares/${encodeURIComponent(shareId)}`);
+  });
 }
 
 export function analyzeDeck(

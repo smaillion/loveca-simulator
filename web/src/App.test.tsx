@@ -488,6 +488,8 @@ function createFetchMock(overrides: {
   deckAnalysis?: unknown;
   savedDeckGet?: unknown;
   deckSaveResponse?: unknown;
+  deckShareUpload?: unknown;
+  deckShareDownload?: unknown;
 }) {
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = input.toString();
@@ -518,6 +520,24 @@ function createFetchMock(overrides: {
     }
     if (path.startsWith("/api/rooms/") && method === "GET") {
       return jsonResponse(overrides.roomPoll ?? roomPayload("active"));
+    }
+    if (path === "/api/deck-shares" && method === "POST") {
+      return jsonResponse(
+        overrides.deckShareUpload ?? {
+          share_id: "11111111-1111-4111-8111-111111111111",
+          deck: SAMPLE_DECK,
+          created_at: "2026-06-19T00:00:00+00:00",
+        },
+      );
+    }
+    if (path.startsWith("/api/deck-shares/") && method === "GET") {
+      return jsonResponse(
+        overrides.deckShareDownload ?? {
+          share_id: path.split("/").pop(),
+          deck: SAMPLE_DECK,
+          created_at: "2026-06-19T00:00:00+00:00",
+        },
+      );
     }
     if (path === "/api/decks" && method === "GET") {
       return jsonResponse(
@@ -1008,6 +1028,42 @@ describe("App", () => {
     );
   });
 
+  it("shows a waiting dock when the online opponent must act", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const runtimeConfig = {
+      mode: "release" as const,
+      browserPreview: false,
+      apiBaseUrl: "https://api.test",
+      cardDatabaseFingerprint: "test",
+    };
+    const opponentWaitingMatch = {
+      ...MATCH_PAYLOAD,
+      state: {
+        ...MATCH_PAYLOAD.state,
+        phase: "first_main",
+        active_player_id: "player_2",
+      },
+      legal_actions: [],
+    };
+    const fetchMock = createFetchMock({
+      runtimeConfig,
+      roomCreate: {
+        ...roomPayload("active"),
+        match: opponentWaitingMatch,
+      },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    resetRuntimeConfigForTests(runtimeConfig);
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByText("在线测试房间")).toBeInTheDocument());
+    const createRoomButton = screen.getByRole("button", { name: "房间创建" });
+    await waitFor(() => expect(createRoomButton).not.toBeDisabled());
+    fireEvent.click(createRoomButton);
+
+    await waitFor(() => expect(screen.getByText("正在等待对手选择操作")).toBeInTheDocument());
+  });
+
   it("sends a keepalive hosted-room leave request on page unload", async () => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const runtimeConfig = {
@@ -1361,6 +1417,8 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "牌组编辑器" }));
 
     await waitFor(() => expect(screen.getByText("牌组编辑与保存")).toBeInTheDocument());
+    expect(screen.getByText("Deck Builder 使用说明")).toBeInTheDocument();
+    expect(screen.getByText("4. 保存、分享、进入对战")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("テストカード")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "加入主牌组" }));
     await waitFor(() => expect(screen.getAllByText("LL-TEST-001").length).toBeGreaterThan(0));
@@ -1394,6 +1452,62 @@ describe("App", () => {
     expect(toolbar).toBeTruthy();
     expect(toolbar?.textContent).toContain("导入 JSON");
     expect(toolbar?.textContent).toContain("导出 JSON");
+  });
+
+  it("uploads a deck share and imports a shared deck into the local browser library", async () => {
+    const runtimeConfig = {
+      mode: "release" as const,
+      browserPreview: false,
+      apiBaseUrl: "https://api.test",
+      cardDatabaseFingerprint: "test",
+    };
+    const sharedDeck: DeckList = {
+      version: "decklist.v0",
+      name: "Shared Deck",
+      main_deck: [
+        {
+          card_code: "LL-TEST-001",
+          quantity: 1,
+          preferred_printing_id: "LL-TEST-001-PR",
+        },
+      ],
+      energy_deck: [],
+    };
+    const fetchMock = createFetchMock({
+      runtimeConfig,
+      catalogCards: { items: [CATALOG_SUMMARY], total: 1, limit: 24, offset: 0 },
+      deckShareDownload: {
+        share_id: "22222222-2222-4222-8222-222222222222",
+        deck: sharedDeck,
+        created_at: "2026-06-19T00:00:00+00:00",
+      },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    resetRuntimeConfigForTests(runtimeConfig);
+
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "牌组编辑器" }));
+    await waitFor(() => expect(screen.getByText("牌组编辑与保存")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("テストカード")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: "加入主牌组" }));
+    fireEvent.click(screen.getByRole("button", { name: "上传分享" }));
+    await waitFor(() =>
+      expect(screen.getByText(/分享 UUID 已生成/)).toBeInTheDocument(),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.test/api/deck-shares",
+      expect.objectContaining({ method: "POST" }),
+    );
+
+    fireEvent.change(screen.getByPlaceholderText("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"), {
+      target: { value: "22222222-2222-4222-8222-222222222222" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "下载到本地" }));
+    await waitFor(() =>
+      expect(screen.getByText("共享牌组已下载到本地列表。")).toBeInTheDocument(),
+    );
+    expect(screen.getByText("Shared Deck (22222222)")).toBeInTheDocument();
   });
 
   it("splits the built deck into Member, Live, and compact Energy sections without thumbnails", async () => {
