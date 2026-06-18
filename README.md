@@ -121,7 +121,7 @@ Deck Builder の現在の到達点:
 ### ルール検証 UI
 
 - Match 画面では、双方のステージ、手札・山札・控え室などの zone count、Live / Energy / Heart 状態、現在 phase、turn number を同じ画面で追跡できます。
-- モバイルでは自分の手札カードを大きめに表示し、成功 Live 進捗、Live 判定、相手エリアは必要に応じて pop-up で確認できます。
+- モバイルでは自分の手札カードを大きめに表示し、Member 登場は手札タップ / ドラッグで候補を選んでから確認ボタンで送信できます。成功 Live 進捗、Live 判定、相手エリアは必要に応じて pop-up で確認できます。
 - Action Dock には現在実行可能な action が表示され、Member 登場、Baton Touch、Live Set、mulligan、Heart 割り当て、pending effect 解決などを UI から送信できます。
 - 一部の効果は構造化 prompt として表示され、対象カード選択、choice branch、inspection / reveal の並べ替えや移動先選択を UI 上で処理できます。
 - 自動実行できない効果は `ManualAdjustmentAction` drawer で、カード移動、Heart 補正、Live success 補正、任意メモを入力して検証を継続できます。

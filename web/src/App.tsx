@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 import {
   createContext,
+  type DragEvent,
+  type PointerEvent,
   type ReactNode,
   useCallback,
   useContext,
@@ -121,6 +123,24 @@ type OnlineSession = {
   playerToken: string;
 };
 
+type MemberPlayDraft = {
+  selectedMemberId: string;
+  selectedSlot: string;
+  selectedPlayMode: MemberPlayMode | "";
+};
+
+type MobileMemberPlayContext = {
+  legalMemberIds: Set<string>;
+  selectedMemberId: string;
+  draggingMemberId: string | null;
+  availableSlots: string[];
+  selectedSlot: string;
+  onSelectMember: (instanceId: string) => void;
+  onSelectSlot: (slot: string, instanceId?: string) => void;
+  onTouchDragStart: (instanceId: string) => void;
+  onTouchDragEnd: () => void;
+};
+
 const heartLabels = HEART_LABELS;
 
 const judgmentBasisLabels: Record<string, [string, string]> = {
@@ -158,6 +178,15 @@ export default function App() {
   const [onlineRoom, setOnlineRoom] = useState<RoomPayload | null>(null);
   const [onlineStatus, setOnlineStatus] = useState<string | null>(null);
   const [mobileMatchPanel, setMobileMatchPanel] = useState<"opponent" | "live" | null>(null);
+  const [memberPlayDraft, setMemberPlayDraft] = useState<MemberPlayDraft>({
+    selectedMemberId: "",
+    selectedSlot: "",
+    selectedPlayMode: "",
+  });
+  const [mobileDraggedMemberId, setMobileDraggedMemberId] = useState<string | null>(null);
+  const isMobileLayout = useMediaQuery(
+    "(max-width: 640px), (max-width: 1180px) and (max-aspect-ratio: 9/16)",
+  );
 
   const loadMatchHistoryPage = useCallback((page = 1) => {
     if (!matchHistoryAvailable(runtimeConfig)) {
@@ -247,6 +276,10 @@ export default function App() {
     window.addEventListener("beforeunload", leaveOnUnload);
     return () => window.removeEventListener("beforeunload", leaveOnUnload);
   }, [onlineSession]);
+  useEffect(() => {
+    setMemberPlayDraft({ selectedMemberId: "", selectedSlot: "", selectedPlayMode: "" });
+    setMobileDraggedMemberId(null);
+  }, [match?.state.revision]);
 
   const previewNotice = showPreviewNotice ? (
     <PreviewNotice
@@ -521,6 +554,18 @@ export default function App() {
   const visibleActions = onlineSession
     ? match.legal_actions.filter((action) => canSubmitOnlineAction(action, onlineSession.playerId))
     : match.legal_actions;
+  const mobilePlayMemberAction = visibleActions.find(
+    (action) => action.action_type === "play_member" && action.player_id === bottomPlayerId,
+  );
+  const mobileMemberPlayContext = isMobileLayout && mobilePlayMemberAction
+    ? buildMobileMemberPlayContext(
+      mobilePlayMemberAction,
+      memberPlayDraft,
+      setMemberPlayDraft,
+      mobileDraggedMemberId,
+      setMobileDraggedMemberId,
+    )
+    : undefined;
   const showOnlineWaitingDock =
     onlineSession !== null &&
     visibleActions.length === 0 &&
@@ -651,6 +696,7 @@ export default function App() {
               player={match.state.players[bottomPlayerId]}
               state={match.state}
               role={playerRoleLabel(match.state, bottomPlayerId, locale)}
+              mobileMemberPlay={mobileMemberPlayContext}
               onCard={setDetails}
             />
           </div>
@@ -662,6 +708,9 @@ export default function App() {
         <ActionDock
           state={match.state}
           actions={visibleActions}
+          memberPlayDraft={memberPlayDraft}
+          onMemberPlayDraftChange={setMemberPlayDraft}
+          mobileMemberPlayEnabled={Boolean(mobileMemberPlayContext)}
           loading={loading}
           onAction={handleAction}
           onManual={(source) => {
@@ -727,6 +776,23 @@ function useUiLanguage() {
     ...context,
     tr: (zh: string, ja: string) => (context.locale === "zh" ? zh : ja),
   };
+}
+
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() =>
+    typeof window !== "undefined" && typeof window.matchMedia === "function"
+      ? window.matchMedia(query).matches
+      : false,
+  );
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
+    const media = window.matchMedia(query);
+    const update = () => setMatches(media.matches);
+    update();
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, [query]);
+  return matches;
 }
 
 function canSubmitOnlineAction(action: LegalAction, localPlayerId: string): boolean {
@@ -894,7 +960,7 @@ function PreviewNotice({
               <li>{locale === "zh" ? "对战中会隐藏对手手牌，并按当前操作人切换可见信息。" : "対戦中は相手の手札を隠し、操作プレイヤー基準で見える情報を切り替えます。"}</li>
               <li>{locale === "zh" ? "先后攻改为自动随机，不再需要开局手动选择。" : "先後攻は自動ランダム化し、開始時の手動選択をなくしました。"}</li>
               <li>{locale === "zh" ? "自动技能、特殊应援和后续效果选择现在会显示提示。" : "自動効果、特殊エール、続きの効果選択に画面上の提示を追加しました。"}</li>
-              <li>{locale === "zh" ? "手机版对战加入成功 Live 摘要、Live / 对手区域弹窗、较大的手牌显示和对手操作等待提示。" : "スマホ対戦画面に成功ライブ要約、ライブ / 相手エリアのポップアップ、大きめの手札表示、相手操作待ち表示を追加しました。"}</li>
+              <li>{locale === "zh" ? "手机版对战加入成功 Live 摘要、Live / 对手区域弹窗、较大的手牌显示，以及点选 / 拖拽手牌后确认登场。" : "スマホ対戦画面に成功ライブ要約、ライブ / 相手エリアのポップアップ、大きめの手札表示、手札タップ / ドラッグ後の登場確認を追加しました。"}</li>
               <li>{locale === "zh" ? "Deck 画面加入使用说明、折叠式保存列表、搜索弹窗、JSON 导入导出和 UUID 牌组分享。" : "Deck 画面に使い方、保存済みリスト折りたたみ、検索ポップアップ、JSON 読み込み / 書き出し、UUID デッキ共有を追加しました。"}</li>
               <li>{locale === "zh" ? "Deck 分析会自动显示枚数、Heart、Blade、Score、特殊应援和技能时点摘要。" : "Deck 分析で枚数、ハート、ブレード、スコア、特殊エール、能力タイミングを自動表示します。"}</li>
             </ul>
@@ -1637,6 +1703,7 @@ function PlayerBoard({
   role,
   compact = false,
   hideHand = false,
+  mobileMemberPlay,
   onCard,
 }: {
   player: PlayerState;
@@ -1644,6 +1711,7 @@ function PlayerBoard({
   role: string;
   compact?: boolean;
   hideHand?: boolean;
+  mobileMemberPlay?: MobileMemberPlayContext;
   onCard: (card: CardInstance) => void;
 }) {
   const { locale, tr } = useUiLanguage();
@@ -1669,7 +1737,27 @@ function PlayerBoard({
         <Zone label={tr("成功演出", "成功ライブ")} ids={player.success_live_area} state={state} onCard={onCard} small />
         <div className="member-stage">
           {(["left", "center", "right"] as const).map((slot) => (
-            <div className="member-slot" key={slot}>
+            <div
+              className={`member-slot ${
+                mobileMemberPlay?.availableSlots.includes(slot) ? "play-drop-enabled" : ""
+              } ${mobileMemberPlay?.selectedSlot === slot ? "play-drop-selected" : ""}`}
+              data-member-drop-slot={slot}
+              key={slot}
+              onClick={() => {
+                if (!mobileMemberPlay?.availableSlots.includes(slot)) return;
+                mobileMemberPlay.onSelectSlot(slot);
+              }}
+              onDragOver={(event) => {
+                if (!mobileMemberPlay?.availableSlots.includes(slot)) return;
+                event.preventDefault();
+              }}
+              onDrop={(event) => {
+                if (!mobileMemberPlay?.availableSlots.includes(slot)) return;
+                event.preventDefault();
+                const instanceId = event.dataTransfer.getData("text/loveca-card-instance-id");
+                mobileMemberPlay.onSelectSlot(slot, instanceId);
+              }}
+            >
               <span>{memberSlotLabel(slot, locale)}</span>
               {player.member_area[slot] ? (
                 <CardTile instance={state.cards[player.member_area[slot]!]} onClick={onCard} />
@@ -1696,6 +1784,7 @@ function PlayerBoard({
         onCard={onCard}
         hand
         hidden={hideHand}
+        mobileMemberPlay={mobileMemberPlay}
       />
     </section>
   );
@@ -1998,6 +2087,7 @@ function Zone({
   hand = false,
   hidden = false,
   small = false,
+  mobileMemberPlay,
 }: {
   label: string;
   ids: string[];
@@ -2006,6 +2096,7 @@ function Zone({
   hand?: boolean;
   hidden?: boolean;
   small?: boolean;
+  mobileMemberPlay?: MobileMemberPlayContext;
 }) {
   const { tr } = useUiLanguage();
   return (
@@ -2024,7 +2115,46 @@ function Zone({
             </div>
           ))
           : ids.map((id) => (
-            <CardTile key={id} instance={state.cards[id]} onClick={onCard} />
+            <CardTile
+              key={id}
+              instance={state.cards[id]}
+              selected={hand && mobileMemberPlay?.selectedMemberId === id}
+              playSelectable={hand && mobileMemberPlay?.legalMemberIds.has(id)}
+              touchDragging={hand && mobileMemberPlay?.draggingMemberId === id}
+              onClick={(card) => {
+                if (hand && mobileMemberPlay?.legalMemberIds.has(card.instance_id)) {
+                  mobileMemberPlay.onSelectMember(card.instance_id);
+                  return;
+                }
+                onCard(card);
+              }}
+              onDragStart={(event) => {
+                if (!hand || !mobileMemberPlay?.legalMemberIds.has(id)) return;
+                event.dataTransfer.setData("text/loveca-card-instance-id", id);
+                mobileMemberPlay.onSelectMember(id);
+              }}
+              onPointerDown={(event) => {
+                if (!hand || !mobileMemberPlay?.legalMemberIds.has(id) || event.pointerType === "mouse") return;
+                mobileMemberPlay.onTouchDragStart(id);
+                mobileMemberPlay.onSelectMember(id);
+                event.currentTarget.setPointerCapture(event.pointerId);
+              }}
+              onPointerUp={(event) => {
+                if (!hand || !mobileMemberPlay?.legalMemberIds.has(id) || event.pointerType === "mouse") return;
+                const target = document
+                  .elementFromPoint(event.clientX, event.clientY)
+                  ?.closest<HTMLElement>("[data-member-drop-slot]");
+                const slot = target?.dataset.memberDropSlot;
+                if (slot) {
+                  mobileMemberPlay.onSelectSlot(slot, id);
+                }
+                mobileMemberPlay.onTouchDragEnd();
+              }}
+              onPointerCancel={() => {
+                if (!hand || !mobileMemberPlay?.legalMemberIds.has(id)) return;
+                mobileMemberPlay.onTouchDragEnd();
+              }}
+            />
           ))}
       </div>
     </div>
@@ -2035,15 +2165,32 @@ function CardTile({
   instance,
   onClick,
   selected = false,
+  playSelectable = false,
+  touchDragging = false,
+  onDragStart,
+  onPointerDown,
+  onPointerUp,
+  onPointerCancel,
 }: {
   instance: CardInstance;
   onClick: (card: CardInstance) => void;
   selected?: boolean;
+  playSelectable?: boolean;
+  touchDragging?: boolean;
+  onDragStart?: (event: DragEvent<HTMLButtonElement>) => void;
+  onPointerDown?: (event: PointerEvent<HTMLButtonElement>) => void;
+  onPointerUp?: (event: PointerEvent<HTMLButtonElement>) => void;
+  onPointerCancel?: (event: PointerEvent<HTMLButtonElement>) => void;
 }) {
   const { locale } = useUiLanguage();
   return (
     <button
-      className={`card-tile ${instance.orientation === "wait" ? "wait" : ""} ${selected ? "selected" : ""}`}
+      className={`card-tile ${instance.orientation === "wait" ? "wait" : ""} ${selected ? "selected" : ""} ${playSelectable ? "play-selectable" : ""} ${touchDragging ? "touch-dragging" : ""}`}
+      draggable={playSelectable}
+      onDragStart={onDragStart}
+      onPointerDown={onPointerDown}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
       onClick={() => onClick(instance)}
       title={instance.card.name_ja}
     >
@@ -2186,12 +2333,18 @@ function specialYellResults(event: GameEvent): Array<{
 function ActionDock({
   state,
   actions,
+  memberPlayDraft,
+  onMemberPlayDraftChange,
+  mobileMemberPlayEnabled = false,
   loading,
   onAction,
   onManual,
 }: {
   state: MatchState;
   actions: LegalAction[];
+  memberPlayDraft: MemberPlayDraft;
+  onMemberPlayDraftChange: (draft: MemberPlayDraft) => void;
+  mobileMemberPlayEnabled?: boolean;
   loading: boolean;
   onAction: (
     actionType: string,
@@ -2210,7 +2363,7 @@ function ActionDock({
   }, [state.revision]);
 
   return (
-    <footer className="action-dock">
+    <footer className={`action-dock ${actions.some((action) => action.action_type === "play_member") ? "member-play-dock" : ""}`}>
       <div className="action-context">
         <strong>{tr("下一步操作", "次にできる操作")}</strong>
         <span>{state.active_player_id ? state.players[state.active_player_id].name : "System"}</span>
@@ -2359,6 +2512,9 @@ function ActionDock({
                 key={`${action.action_type}-${state.revision}`}
                 action={action}
                 state={state}
+                externalDraft={memberPlayDraft}
+                onExternalDraftChange={onMemberPlayDraftChange}
+                mobileMode={mobileMemberPlayEnabled}
                 loading={loading}
                 onAction={onAction}
               />
@@ -3275,11 +3431,17 @@ export function InspectionChoiceAction({
 export function MemberPlayAction({
   action,
   state,
+  externalDraft,
+  onExternalDraftChange,
+  mobileMode = false,
   loading,
   onAction,
 }: {
   action: LegalAction;
   state: MatchState;
+  externalDraft?: MemberPlayDraft;
+  onExternalDraftChange?: (draft: MemberPlayDraft) => void;
+  mobileMode?: boolean;
   loading: boolean;
   onAction: (
     actionType: string,
@@ -3293,11 +3455,21 @@ export function MemberPlayAction({
   const [selectedMemberId, setSelectedMemberId] = useState("");
   const [selectedSlot, setSelectedSlot] = useState("");
   const [selectedPlayMode, setSelectedPlayMode] = useState<MemberPlayMode | "">("");
+  const draft = externalDraft ?? { selectedMemberId, selectedSlot, selectedPlayMode };
+  const updateDraft = (patch: Partial<MemberPlayDraft>) => {
+    if (externalDraft && onExternalDraftChange) {
+      onExternalDraftChange({ ...externalDraft, ...patch });
+      return;
+    }
+    if (patch.selectedMemberId !== undefined) setSelectedMemberId(patch.selectedMemberId);
+    if (patch.selectedSlot !== undefined) setSelectedSlot(patch.selectedSlot);
+    if (patch.selectedPlayMode !== undefined) setSelectedPlayMode(patch.selectedPlayMode);
+  };
   const selection = resolveMemberPlaySelection(
     placements,
-    selectedMemberId,
-    selectedSlot,
-    selectedPlayMode,
+    draft.selectedMemberId,
+    draft.selectedSlot,
+    draft.selectedPlayMode,
   );
   const player = state.players[action.player_id ?? ""];
   const placement = selection.placement;
@@ -3309,9 +3481,22 @@ export function MemberPlayAction({
     : 0;
 
   return (
-    <div className="member-play-action">
+    <div className={`member-play-action ${mobileMode ? "mobile-member-play-action" : ""}`}>
       <div className="member-play-step member-card-step">
         <span className="member-play-label">{tr("1 · 选择角色", "1 · メンバーを選択")}</span>
+        <div className="member-play-hand-hint">
+          <strong>
+            {selection.selectedMemberId
+              ? state.cards[selection.selectedMemberId].card.name_ja
+              : tr("从手牌选择角色", "手札からメンバーを選択")}
+          </strong>
+          <span>
+            {tr(
+              "在手机上点击手牌，或拖到左 / 中 / 右区域，再按确认。",
+              "スマホでは手札をタップ、または左 / 中央 / 右へドラッグしてから確認します。",
+            )}
+          </span>
+        </div>
         <div className="member-choice-strip">
           {selection.memberIds.map((instanceId) => (
             <div
@@ -3323,7 +3508,7 @@ export function MemberPlayAction({
                 instance={state.cards[instanceId]}
                 selected={instanceId === selection.selectedMemberId}
                 onClick={() => {
-                  setSelectedMemberId(instanceId);
+                  updateDraft({ selectedMemberId: instanceId });
                 }}
               />
               <span>{tr("费用", "コスト")} {state.cards[instanceId].card.cost ?? 0}</span>
@@ -3348,8 +3533,7 @@ export function MemberPlayAction({
                 disabled={!legal}
                 key={slot}
                 onClick={() => {
-                  setSelectedSlot(slot);
-                  setSelectedPlayMode("");
+                  updateDraft({ selectedSlot: slot, selectedPlayMode: "" });
                 }}
               >
                 <strong>{memberSlotLabel(slot, locale)}</strong>
@@ -3375,7 +3559,7 @@ export function MemberPlayAction({
                 className={mode === selection.selectedMode ? "selected" : ""}
                 data-mode={mode}
                 key={mode}
-                onClick={() => setSelectedPlayMode(mode)}
+                onClick={() => updateDraft({ selectedPlayMode: mode })}
               >
                 {mode === "baton" ? "バトンタッチ" : tr("通常登场", "通常登場")}
               </button>
@@ -3386,7 +3570,50 @@ export function MemberPlayAction({
 
       <div className="member-payment-summary">
         <span className="member-play-label">{tr("费用", "コスト")}</span>
-        <dl>
+        <div className="member-payment-compact" aria-label={tr("费用摘要", "コスト概要")}>
+          <span>
+            <small>{tr("实付", "支払")}</small>
+            <strong>{placement?.payment_cost ?? 0}</strong>
+          </span>
+          <span>
+            <small>{tr("可用", "使用可")}</small>
+            <strong>{energy.length}</strong>
+          </span>
+          <span>
+            <small>{tr("新", "新")}</small>
+            <strong>{newCost}</strong>
+          </span>
+          <details className="member-cost-details">
+            <summary>{tr("详情", "詳細")}</summary>
+            <dl className="member-cost-breakdown">
+              <div>
+                <dt>{tr("新角色", "新しいメンバー")}</dt>
+                <dd>{newCost}</dd>
+              </div>
+              <div>
+                <dt>{tr("原角色", "元のメンバー")}</dt>
+                <dd>{placement?.replaced_member_cost ?? 0}</dd>
+              </div>
+              <div>
+                <dt>{tr("换位减免", "バトンタッチ軽減")}</dt>
+                <dd>-{reduction}</dd>
+              </div>
+              <div>
+                <dt>{tr("能量总数", "エネルギー合計")}</dt>
+                <dd>{player.energy_area.length}</dd>
+              </div>
+              <div>
+                <dt>{tr("可用能量", "使用可能エネルギー")}</dt>
+                <dd>{energy.length}</dd>
+              </div>
+              <div className="payment-total">
+                <dt>{tr("实付能量", "支払うエネルギー")}</dt>
+                <dd>{placement?.payment_cost ?? 0}</dd>
+              </div>
+            </dl>
+          </details>
+        </div>
+        <dl className="member-payment-breakdown">
           <div>
             <dt>{tr("新角色", "新しいメンバー")}</dt>
             <dd>{newCost}</dd>
@@ -4298,5 +4525,61 @@ export function resolveMemberPlaySelection(
     availableModes,
     selectedMode,
     placement,
+  };
+}
+
+function buildMobileMemberPlayContext(
+  action: LegalAction,
+  draft: MemberPlayDraft,
+  setDraft: (draft: MemberPlayDraft) => void,
+  draggingMemberId: string | null,
+  setDraggingMemberId: (instanceId: string | null) => void,
+): MobileMemberPlayContext {
+  const placements = action.options.placements as MemberPlacement[];
+  const selection = resolveMemberPlaySelection(
+    placements,
+    draft.selectedMemberId,
+    draft.selectedSlot,
+    draft.selectedPlayMode,
+  );
+  const legalMemberIds = new Set(selection.memberIds);
+  return {
+    legalMemberIds,
+    selectedMemberId: selection.selectedMemberId,
+    draggingMemberId,
+    availableSlots: selection.availableSlots,
+    selectedSlot: selection.selectedSlot,
+    onSelectMember: (instanceId) => {
+      if (!legalMemberIds.has(instanceId)) return;
+      const nextSelection = resolveMemberPlaySelection(
+        placements,
+        instanceId,
+        draft.selectedSlot,
+        draft.selectedPlayMode,
+      );
+      setDraft({
+        selectedMemberId: instanceId,
+        selectedSlot: nextSelection.selectedSlot,
+        selectedPlayMode: nextSelection.selectedMode,
+      });
+    },
+    onSelectSlot: (slot, instanceId) => {
+      const memberSlot = slot as "left" | "center" | "right";
+      const nextMemberId = instanceId && legalMemberIds.has(instanceId)
+        ? instanceId
+        : selection.selectedMemberId;
+      const nextSelection = resolveMemberPlaySelection(placements, nextMemberId, memberSlot, "");
+      if (!nextSelection.availableSlots.includes(memberSlot)) return;
+      setDraft({
+        selectedMemberId: nextMemberId,
+        selectedSlot: memberSlot,
+        selectedPlayMode: nextSelection.selectedMode,
+      });
+    },
+    onTouchDragStart: (instanceId) => {
+      if (!legalMemberIds.has(instanceId)) return;
+      setDraggingMemberId(instanceId);
+    },
+    onTouchDragEnd: () => setDraggingMemberId(null),
   };
 }
