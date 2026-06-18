@@ -424,6 +424,106 @@ def _live_start_pay_energy_gain_blade(row: sqlite3.Row) -> EffectCandidate | Non
     )
 
 
+def _live_start_pay_up_to2_gain_blade_per_energy(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    label = (
+        "【ライブ開始時】【E】を2つまで支払ってもよい："
+        "ライブ終了時まで、支払った【E】につき、【ブレード】を得る。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base(
+            row,
+            pattern_id="live_start_pay_up_to2_gain_blade_per_energy",
+            effect_index=effect_index,
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        frequency_limit="once_per_live",
+        is_optional=True,
+        condition={"source_zone": "stage", "minimum_active_energy": 1},
+        cost=[{"action_type": "pay_energy", "amount_source": "selected_count"}],
+        choice={
+            "choice_type": "choose_count",
+            "minimum": 1,
+            "maximum": 2,
+        },
+        actions=[{"action_type": "gain_blade", "amount_source": "selected_count"}],
+        duration="live",
+    )
+
+
+def _live_start_discard_two_same_group_gain_heart_blade(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    patterns: dict[str, tuple[str, str, int, int]] = {
+        "【ライブ開始時】手札の同じグループ名を持つカード2枚を控え室に置いてもよい：ライブ終了時まで、【heart01】【heart01】を得る。": (
+            "same_group_heart01_2",
+            "heart01",
+            2,
+            0,
+        ),
+        "【ライブ開始時】手札の同じユニット名を持つカード2枚を控え室に置いてもよい：ライブ終了時まで、【heart04】【heart04】【ブレード】【ブレード】を得る。": (
+            "same_unit_heart04_2_blade2",
+            "heart04",
+            2,
+            2,
+        ),
+        "【ライブ開始時】手札の同じユニット名を持つカード2枚を控え室に置いてもよい：ライブ終了時まで、【heart05】【heart05】【ブレード】【ブレード】を得る。": (
+            "same_unit_heart05_2_blade2",
+            "heart05",
+            2,
+            2,
+        ),
+    }
+    for label, (suffix, color_slot, heart_amount, blade_amount) in patterns.items():
+        matched = _matching_segment(row, label)
+        if matched is None:
+            continue
+        effect_index, exact_label = matched
+        actions: list[dict[str, Any]] = [
+            {
+                "action_type": "gain_heart",
+                "amount": heart_amount,
+                "color_slot": color_slot,
+            }
+        ]
+        if blade_amount:
+            actions.append({"action_type": "gain_blade", "amount": blade_amount})
+        return EffectCandidate(
+            **_base(
+                row,
+                pattern_id=f"live_start_discard_two_{suffix}",
+                effect_index=effect_index,
+            ),
+            label_ja=exact_label,
+            effect_type="triggered",
+            timing="live_start",
+            trigger="live_started",
+            frequency_limit="once_per_live",
+            is_optional=True,
+            condition={"source_zone": "stage"},
+            cost=[{"action_type": "discard_from_hand"}],
+            cost_choice={
+                "choice_type": "card_from_zone",
+                "zone": "hand",
+                "minimum": 2,
+                "maximum": 2,
+                "condition": {"selected_share_unit_key": True},
+            },
+            choice=None,
+            actions=actions,
+            duration="live",
+        )
+    return None
+
+
 def _live_start_choose_color_gain_heart_per_success_live(
     row: sqlite3.Row,
 ) -> EffectCandidate | None:
@@ -10514,6 +10614,8 @@ _PATTERNS = (
     _onplay_inspect3_reorder,
     _live_success_inspect3_reorder,
     _live_start_pay_energy_gain_blade,
+    _live_start_pay_up_to2_gain_blade_per_energy,
+    _live_start_discard_two_same_group_gain_heart_blade,
     _live_start_choose_color_gain_heart_per_success_live,
     _live_success_draw_then_discard,
     _live_start_draw_then_discard,

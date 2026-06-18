@@ -3380,6 +3380,7 @@ export function EffectResolutionAction({
       minimum?: number;
       maximum?: number;
     }>;
+    energy_required_source?: string;
   }>;
   const waitingPlayerIds = (action.options.waiting_player_ids ?? []) as string[];
   const [invocationId, setInvocationId] = useState(invocations[0]?.invocation_id ?? "");
@@ -3406,7 +3407,6 @@ export function EffectResolutionAction({
     (item) => item.invocation_id === current.invocation_id,
   );
   const manual = current.simulation_support === "manual_resolution";
-  const requiredEnergy = current.energy_required ?? 0;
   const choiceType = current.choice_type ?? "";
   const usesCardChoice = ["card_from_zone", "energy_from_area", "member_from_stage"].includes(choiceType)
     || Boolean(current.choice_zone && current.candidate_card_instance_ids.length > 0);
@@ -3428,6 +3428,9 @@ export function EffectResolutionAction({
   const minimumCount = current.card_selection_minimum ?? 0;
   const maximumCount = current.card_selection_maximum ?? 0;
   const resolvedSelectedCount = selectedCount ?? minimumCount;
+  const requiredEnergy = current.energy_required_source === "selected_count"
+    ? resolvedSelectedCount
+    : current.energy_required ?? 0;
   const selectedGroupIdSet = new Set(
     Object.values(selectedGroups).flatMap((items) => items),
   );

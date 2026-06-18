@@ -7000,58 +7000,100 @@
       "trigger": "player_activation"
     },
     {
-      "actions": [
-        {
-          "action_type": "manual_resolution"
-        }
-      ],
-      "card_code": "PL!HS-PR-016",
-      "choice": null,
-      "condition": {},
-      "cost": [],
-      "cost_choice": null,
-      "duration": "live",
       "effect_id": "PL!HS-PR-016:1",
+      "card_code": "PL!HS-PR-016",
+      "text_revision_id": 781,
+      "raw_text_hash": "b3eafbf2ae39b961229c1648a503fa1e35dcc3f08bcdf5d61106604e2a1bc449",
       "effect_index": 1,
+      "label_ja": "【ライブ開始時】手札の同じユニット名を持つカード2枚を控え室に置いてもよい：ライブ終了時まで、【heart04】【heart04】【ブレード】【ブレード】を得る。",
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "timing": "live_start",
+      "trigger": "live_started",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "once_per_live",
       "is_optional": true,
-      "label_ja": "【ライブ開始時】手札の同じユニット名を持つカード2枚を控え室に置いてもよい：ライブ終了時まで、【heart04】【heart04】【ブレード】【ブレード】を得る。",
-      "raw_text_hash": "b3eafbf2ae39b961229c1648a503fa1e35dcc3f08bcdf5d61106604e2a1bc449",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
-      "text_revision_id": 781,
-      "timing": "live_start",
-      "trigger": "live_started"
+      "condition": {
+        "source_zone": "stage"
+      },
+      "cost": [
+        {
+          "action_type": "discard_from_hand"
+        }
+      ],
+      "choice": null,
+      "actions": [
+        {
+          "action_type": "gain_heart",
+          "amount": 2,
+          "color_slot": "heart04"
+        },
+        {
+          "action_type": "gain_blade",
+          "amount": 2
+        }
+      ],
+      "duration": "live",
+      "simulation_support": "test_validated_executable",
+      "review_status": "test_validated",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
+      "cost_choice": {
+        "choice_type": "card_from_zone",
+        "zone": "hand",
+        "minimum": 2,
+        "maximum": 2,
+        "condition": {
+          "selected_share_unit_key": true
+        }
+      },
+      "follow_up_choice": null
     },
     {
-      "actions": [
-        {
-          "action_type": "manual_resolution"
-        }
-      ],
-      "card_code": "PL!HS-PR-017",
-      "choice": null,
-      "condition": {},
-      "cost": [],
-      "cost_choice": null,
-      "duration": "live",
       "effect_id": "PL!HS-PR-017:1",
+      "card_code": "PL!HS-PR-017",
+      "text_revision_id": 782,
+      "raw_text_hash": "fbb86ca822647b393c282389e1141b4386699b55a967f8470e0dbe03d45d0f22",
       "effect_index": 1,
+      "label_ja": "【ライブ開始時】手札の同じユニット名を持つカード2枚を控え室に置いてもよい：ライブ終了時まで、【heart05】【heart05】【ブレード】【ブレード】を得る。",
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "timing": "live_start",
+      "trigger": "live_started",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "once_per_live",
       "is_optional": true,
-      "label_ja": "【ライブ開始時】手札の同じユニット名を持つカード2枚を控え室に置いてもよい：ライブ終了時まで、【heart05】【heart05】【ブレード】【ブレード】を得る。",
-      "raw_text_hash": "fbb86ca822647b393c282389e1141b4386699b55a967f8470e0dbe03d45d0f22",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
-      "text_revision_id": 782,
-      "timing": "live_start",
-      "trigger": "live_started"
+      "condition": {
+        "source_zone": "stage"
+      },
+      "cost": [
+        {
+          "action_type": "discard_from_hand"
+        }
+      ],
+      "choice": null,
+      "actions": [
+        {
+          "action_type": "gain_heart",
+          "amount": 2,
+          "color_slot": "heart05"
+        },
+        {
+          "action_type": "gain_blade",
+          "amount": 2
+        }
+      ],
+      "duration": "live",
+      "simulation_support": "test_validated_executable",
+      "review_status": "test_validated",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
+      "cost_choice": {
+        "choice_type": "card_from_zone",
+        "zone": "hand",
+        "minimum": 2,
+        "maximum": 2,
+        "condition": {
+          "selected_share_unit_key": true
+        }
+      },
+      "follow_up_choice": null
     },
     {
       "actions": [
@@ -9530,31 +9572,48 @@
       "trigger": "live_started"
     },
     {
-      "actions": [
-        {
-          "action_type": "manual_resolution"
-        }
-      ],
-      "card_code": "PL!HS-bp5-006",
-      "choice": null,
-      "condition": {},
-      "cost": [],
-      "cost_choice": null,
-      "duration": "live",
       "effect_id": "PL!HS-bp5-006:1",
+      "card_code": "PL!HS-bp5-006",
+      "text_revision_id": 231,
+      "raw_text_hash": "4c0314bf50ab0bb6adf97d00916463e015c01166229b3cfe95e2915f579d299e",
       "effect_index": 1,
+      "label_ja": "【ライブ開始時】手札の同じグループ名を持つカード2枚を控え室に置いてもよい：ライブ終了時まで、【heart01】【heart01】を得る。",
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "timing": "live_start",
+      "trigger": "live_started",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "once_per_live",
       "is_optional": true,
-      "label_ja": "【ライブ開始時】手札の同じグループ名を持つカード2枚を控え室に置いてもよい：ライブ終了時まで、【heart01】【heart01】を得る。",
-      "raw_text_hash": "4c0314bf50ab0bb6adf97d00916463e015c01166229b3cfe95e2915f579d299e",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
-      "text_revision_id": 231,
-      "timing": "live_start",
-      "trigger": "live_started"
+      "condition": {
+        "source_zone": "stage"
+      },
+      "cost": [
+        {
+          "action_type": "discard_from_hand"
+        }
+      ],
+      "choice": null,
+      "actions": [
+        {
+          "action_type": "gain_heart",
+          "amount": 2,
+          "color_slot": "heart01"
+        }
+      ],
+      "duration": "live",
+      "simulation_support": "test_validated_executable",
+      "review_status": "test_validated",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
+      "cost_choice": {
+        "choice_type": "card_from_zone",
+        "zone": "hand",
+        "minimum": 2,
+        "maximum": 2,
+        "condition": {
+          "selected_share_unit_key": true
+        }
+      },
+      "follow_up_choice": null
     },
     {
       "actions": [
@@ -29366,31 +29425,45 @@
       "trigger": "static_always"
     },
     {
-      "actions": [
-        {
-          "action_type": "manual_resolution"
-        }
-      ],
-      "card_code": "PL!SP-bp4-022",
-      "choice": null,
-      "condition": {},
-      "cost": [],
-      "cost_choice": null,
-      "duration": "live",
       "effect_id": "PL!SP-bp4-022:1",
+      "card_code": "PL!SP-bp4-022",
+      "text_revision_id": 396,
+      "raw_text_hash": "5a814bbe5fe26348f77904446aed01fdd540f04dcd9cbe3fb0a38367f1902439",
       "effect_index": 1,
+      "label_ja": "【ライブ開始時】【E】を2つまで支払ってもよい：ライブ終了時まで、支払った【E】につき、【ブレード】を得る。",
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "timing": "live_start",
+      "trigger": "live_started",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "once_per_live",
       "is_optional": true,
-      "label_ja": "【ライブ開始時】【E】を2つまで支払ってもよい：ライブ終了時まで、支払った【E】につき、【ブレード】を得る。",
-      "raw_text_hash": "5a814bbe5fe26348f77904446aed01fdd540f04dcd9cbe3fb0a38367f1902439",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
-      "text_revision_id": 396,
-      "timing": "live_start",
-      "trigger": "live_started"
+      "condition": {
+        "source_zone": "stage",
+        "minimum_active_energy": 1
+      },
+      "cost": [
+        {
+          "action_type": "pay_energy",
+          "amount_source": "selected_count"
+        }
+      ],
+      "choice": {
+        "choice_type": "choose_count",
+        "minimum": 1,
+        "maximum": 2
+      },
+      "actions": [
+        {
+          "action_type": "gain_blade",
+          "amount_source": "selected_count"
+        }
+      ],
+      "duration": "live",
+      "simulation_support": "test_validated_executable",
+      "review_status": "test_validated",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
+      "cost_choice": null,
+      "follow_up_choice": null
     },
     {
       "actions": [

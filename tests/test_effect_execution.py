@@ -396,6 +396,10 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
         "live_start_deep_center_liella_base_blade3",
         "live_start_grouped_superstar_named_and_other_liella_blade",
         "live_start_grouped_edel_note_blade2_and_other_name_heart06_2",
+        "live_start_pay_up_to2_gain_blade_per_energy",
+        "live_start_discard_two_same_group_heart01_2",
+        "live_start_discard_two_same_unit_heart04_2_blade2",
+        "live_start_discard_two_same_unit_heart05_2_blade2",
         "live_start_pay2_or_discard2",
         "live_start_draw1_discard1",
         "manual_timing_fallback",
@@ -10325,6 +10329,193 @@ def test_live_start_branch_choice_can_pay_energy_or_discard_hand():
     assert state.cards["energy-1"].orientation == "wait"
     assert state.cards["energy-2"].orientation == "wait"
     assert not state.pending_effects
+
+
+def test_live_start_choose_count_energy_payment_uses_selected_count():
+    effect = EffectDefinition(
+        effect_id="test-pay-selected-count-blade:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="c" * 64,
+        effect_index=1,
+        label_ja="pay up to two Energy for Blade",
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=True,
+        condition={},
+        cost=[{"action_type": "pay_energy", "amount_source": "selected_count"}],
+        choice={"choice_type": "choose_count", "minimum": 1, "maximum": 2},
+        actions=[{"action_type": "gain_blade", "amount_source": "selected_count"}],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    energy_card = CardDefinition(
+        card_code="TEST-ENERGY",
+        card_id="TEST-ENERGY",
+        name_ja="テストエネルギー",
+        card_type="energy",
+    )
+    state.cards["energy-1"] = CardInstance(
+        instance_id="energy-1",
+        owner_id="player_1",
+        card=energy_card,
+        orientation="active",
+    )
+    state.cards["energy-2"] = CardInstance(
+        instance_id="energy-2",
+        owner_id="player_1",
+        card=energy_card.model_copy(deep=True),
+        orientation="active",
+    )
+    state.players["player_1"].energy_area = ["energy-1", "energy-2"]
+
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["choice_type"] == "choose_count"
+    assert options["energy_required_source"] == "selected_count"
+    assert options["energy_instance_ids"] == ["energy-1", "energy-2"]
+
+    with pytest.raises(Exception, match="requires exactly 2 Active Energy"):
+        _apply_direct(
+            state,
+            "resolve_effect",
+            player_id="player_1",
+            payload={
+                "invocation_id": "inv-1",
+                "accepted": True,
+                "selected_count": 2,
+                "energy_instance_ids": ["energy-1"],
+            },
+        )
+    assert state.cards["energy-1"].orientation == "active"
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "accepted": True,
+            "selected_count": 2,
+            "energy_instance_ids": ["energy-1", "energy-2"],
+        },
+    )
+
+    assert state.cards["energy-1"].orientation == "wait"
+    assert state.cards["energy-2"].orientation == "wait"
+    modifier = next(
+        item
+        for item in state.players["player_1"].manual_modifiers
+        if item.modifier_type == "blade"
+    )
+    assert modifier.amount == 2
+    assert modifier.target_card_instance_id == "source-live"
+
+
+def test_cost_choice_can_require_selected_cards_to_share_unit_key():
+    effect = EffectDefinition(
+        effect_id="test-same-unit-cost:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="u" * 64,
+        effect_index=1,
+        label_ja="discard two cards with same unit",
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=True,
+        condition={},
+        cost=[{"action_type": "discard_from_hand"}],
+        cost_choice={
+            "choice_type": "card_from_zone",
+            "zone": "hand",
+            "minimum": 2,
+            "maximum": 2,
+            "condition": {"selected_share_unit_key": True},
+        },
+        choice=None,
+        actions=[
+            {"action_type": "gain_heart", "amount": 2, "color_slot": "heart04"}
+        ],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    base_card = CardDefinition(
+        card_code="TEST-HAND",
+        card_id="TEST-HAND",
+        name_ja="同ユニット",
+        card_type="member",
+        unit_keys=["unit_a"],
+    )
+    state.cards["hand-a1"] = CardInstance(
+        instance_id="hand-a1",
+        owner_id="player_1",
+        card=base_card,
+    )
+    state.cards["hand-a2"] = CardInstance(
+        instance_id="hand-a2",
+        owner_id="player_1",
+        card=base_card.model_copy(deep=True),
+    )
+    state.cards["hand-b1"] = CardInstance(
+        instance_id="hand-b1",
+        owner_id="player_1",
+        card=base_card.model_copy(update={"unit_keys": ["unit_b"]}, deep=True),
+    )
+    state.players["player_1"].hand = ["hand-a1", "hand-a2", "hand-b1"]
+
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["cost_choice"]["condition"] == {"selected_share_unit_key": True}
+    assert set(options["candidate_card_instance_ids"]) == {
+        "hand-a1",
+        "hand-a2",
+        "hand-b1",
+    }
+
+    with pytest.raises(Exception, match="effect cost card selection is not legal"):
+        _apply_direct(
+            state,
+            "resolve_effect",
+            player_id="player_1",
+            payload={
+                "invocation_id": "inv-1",
+                "accepted": True,
+                "selected_card_instance_ids": ["hand-a1", "hand-b1"],
+            },
+        )
+    assert state.players["player_1"].hand == ["hand-a1", "hand-a2", "hand-b1"]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "accepted": True,
+            "selected_card_instance_ids": ["hand-a1", "hand-a2"],
+        },
+    )
+
+    assert "hand-a1" not in state.players["player_1"].hand
+    assert "hand-a2" not in state.players["player_1"].hand
+    assert {"hand-a1", "hand-a2"}.issubset(state.players["player_1"].waiting_room)
+    modifier = next(
+        item
+        for item in state.players["player_1"].manual_modifiers
+        if item.modifier_type == "heart"
+    )
+    assert modifier.amount == 2
+    assert modifier.color_slot == "heart04"
 
 
 def test_live_start_branch_choice_can_discard_two_hand_cards():

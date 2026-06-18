@@ -1387,6 +1387,9 @@ def _resolve_effect(
             or len(selected_ids) > effect.cost_choice.maximum
             or len(selected_ids) != len(set(selected_ids))
             or any(item not in cost_candidates for item in selected_ids)
+            or not _selected_cards_satisfy_choice_condition(
+                state, selected_ids, effect.cost_choice
+            )
         ):
             raise IllegalActionError("effect cost card selection is not legal")
     elif _effect_uses_branch_choice(effect):
@@ -1417,6 +1420,9 @@ def _resolve_effect(
             or len(selected_ids) > choice.maximum
             or len(selected_ids) != len(set(selected_ids))
             or any(item not in candidates for item in selected_ids)
+            or not _selected_cards_satisfy_choice_condition(
+                state, selected_ids, choice
+            )
         ):
             raise IllegalActionError("effect follow-up selection is not legal")
     elif _effect_uses_grouped_stage_member_choice(effect):
@@ -1427,6 +1433,9 @@ def _resolve_effect(
             or len(selected_ids) > effect.choice.maximum
             or len(selected_ids) != len(set(selected_ids))
             or any(item not in candidates for item in selected_ids)
+            or not _selected_cards_satisfy_choice_condition(
+                state, selected_ids, effect.choice
+            )
         ):
             raise IllegalActionError("effect card selection is not legal")
     elif _effect_uses_inspection_choice(effect):
@@ -3727,9 +3736,12 @@ def _effect_unavailable_reason(
         _effect_uses_cost_card_choice(effect)
         and invocation.resolution_stage == "initial"
     ):
+        cost_candidates = _effect_cost_choice_candidates(state, invocation)
         if effect.cost_choice.minimum > 0 and (
-            len(_effect_cost_choice_candidates(state, invocation))
-            < effect.cost_choice.minimum
+            len(cost_candidates) < effect.cost_choice.minimum
+            or not _choice_candidates_can_satisfy_condition(
+                state, cost_candidates, effect.cost_choice
+            )
         ):
             return "cost_choice_candidates_unavailable"
         return None
@@ -3744,7 +3756,13 @@ def _effect_unavailable_reason(
         )
         and effect.choice.minimum > 0
     ):
-        if len(_effect_choice_candidates(state, invocation)) < effect.choice.minimum:
+        choice_candidates = _effect_choice_candidates(state, invocation)
+        if (
+            len(choice_candidates) < effect.choice.minimum
+            or not _choice_candidates_can_satisfy_condition(
+                state, choice_candidates, effect.choice
+            )
+        ):
             return "choice_candidates_unavailable"
     if (
         _effect_uses_card_choice(effect)
@@ -3882,7 +3900,7 @@ def _effect_resolution_options(
     pay_amount = 0
     if invocation.resolution_stage == "initial":
         pay_amount = sum(
-            operation.amount or 0
+            _operation_amount(operation, player=state.players[invocation.player_id])
             for operation in effect.cost
             if operation.action_type == "pay_energy"
         )
@@ -3894,6 +3912,23 @@ def _effect_resolution_options(
             if state.cards[item].orientation == "active"
         ]
         options["energy_required"] = pay_amount
+    elif (
+        invocation.resolution_stage == "initial"
+        and effect.choice is not None
+        and effect.choice.choice_type == "choose_count"
+        and any(
+            operation.action_type == "pay_energy"
+            and operation.amount_source == "selected_count"
+            for operation in effect.cost
+        )
+    ):
+        player = state.players[invocation.player_id]
+        options["energy_instance_ids"] = [
+            item
+            for item in player.energy_area
+            if state.cards[item].orientation == "active"
+        ]
+        options["energy_required_source"] = "selected_count"
     return options
 
 
@@ -4350,6 +4385,71 @@ def _effect_cost_choice_candidates(
     if effect.cost_choice is None:
         return []
     return _effect_candidates_for_choice(state, invocation, effect.cost_choice)
+
+
+def _selected_cards_satisfy_choice_condition(
+    state: MatchState,
+    selected_ids: list[str],
+    choice: Any,
+) -> bool:
+    condition = getattr(choice, "condition", {})
+    if not isinstance(condition, dict) or not condition:
+        return True
+    selected_cards = [
+        state.cards[item].card for item in selected_ids if item in state.cards
+    ]
+    if len(selected_cards) != len(selected_ids):
+        return False
+    if condition.get("selected_share_unit_key"):
+        if not selected_cards:
+            return False
+        shared_units = set(selected_cards[0].unit_keys)
+        for card in selected_cards[1:]:
+            shared_units.intersection_update(card.unit_keys)
+        if not shared_units:
+            return False
+    if condition.get("selected_share_work_key"):
+        if not selected_cards:
+            return False
+        shared_works = set(selected_cards[0].work_keys)
+        for card in selected_cards[1:]:
+            shared_works.intersection_update(card.work_keys)
+        if not shared_works:
+            return False
+    if condition.get("selected_same_name_ja"):
+        if len({card.name_ja for card in selected_cards}) > 1:
+            return False
+    return True
+
+
+def _choice_candidates_can_satisfy_condition(
+    state: MatchState,
+    candidate_ids: list[str],
+    choice: Any,
+) -> bool:
+    condition = getattr(choice, "condition", {})
+    if not isinstance(condition, dict) or not condition:
+        return True
+    minimum = getattr(choice, "minimum", 0)
+    if condition.get("selected_share_unit_key"):
+        counts: dict[str, int] = {}
+        for instance_id in candidate_ids:
+            for unit_key in state.cards[instance_id].card.unit_keys:
+                counts[unit_key] = counts.get(unit_key, 0) + 1
+        return any(count >= minimum for count in counts.values())
+    if condition.get("selected_share_work_key"):
+        counts: dict[str, int] = {}
+        for instance_id in candidate_ids:
+            for work_key in state.cards[instance_id].card.work_keys:
+                counts[work_key] = counts.get(work_key, 0) + 1
+        return any(count >= minimum for count in counts.values())
+    if condition.get("selected_same_name_ja"):
+        counts: dict[str, int] = {}
+        for instance_id in candidate_ids:
+            name_ja = state.cards[instance_id].card.name_ja
+            counts[name_ja] = counts.get(name_ja, 0) + 1
+        return any(count >= minimum for count in counts.values())
+    return True
 
 
 def _choice_card_type_stat_filters(choice: Any) -> list[dict[str, Any]]:
@@ -5561,7 +5661,13 @@ def _execute_operations(
                     )
                 state.cards[instance_id].orientation = "wait"
         elif operation_type == "pay_energy":
-            required = operation.amount or 0
+            required = _operation_amount(
+                operation,
+                selected_count,
+                player,
+                state=state,
+                operation_context=operation_context,
+            )
             if (
                 not isinstance(energy_ids, list)
                 or len(energy_ids) != required
