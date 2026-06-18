@@ -121,7 +121,7 @@ Bug 报告、规则行为讨论和 online 对战伙伴寻找请前往 [Discord](
 ### 规则验证器
 
 - Match 画面同屏展示双方舞台、手牌 / 牌库 / 控室等 zone count、Live / Energy / Heart 状态、当前 phase 和 turn number。
-- 手机端会放大显示己方手牌卡面；Member 登场可以点选 / 拖拽手牌作为候选，再通过确认按钮提交。成功 Live 进度、Live 判定和对手区域可通过弹窗查看。
+- 手机端会放大显示己方手牌卡面；Member 登场通过卡牌下方的登场候选按钮、区域选择和确认按钮提交。点击卡牌本体仍用于查看详情。成功 Live 进度、Live 判定和对手区域可通过弹窗查看。
 - Action Dock 会列出当前可执行 action，可从 UI 发送 Member 登场、Baton Touch、Live Set、调度、Heart 分配和 pending effect 结算等操作。
 - 部分技能以结构化 prompt 显示，可在 UI 中处理目标卡选择、choice branch、inspection / reveal 的排序和移动目标。
 - 暂不能自动执行的技能可用 `ManualAdjustmentAction` drawer 手动输入卡牌移动、Heart 修正、Live success 修正和备注，继续推进验证。

@@ -19,7 +19,6 @@ import {
 import {
   createContext,
   type DragEvent,
-  type PointerEvent,
   type ReactNode,
   useCallback,
   useContext,
@@ -129,16 +128,24 @@ type MemberPlayDraft = {
   selectedPlayMode: MemberPlayMode | "";
 };
 
+type LiveSetDraft = {
+  selectedCardIds: string[];
+};
+
 type MobileMemberPlayContext = {
   legalMemberIds: Set<string>;
   selectedMemberId: string;
-  draggingMemberId: string | null;
   availableSlots: string[];
   selectedSlot: string;
   onSelectMember: (instanceId: string) => void;
   onSelectSlot: (slot: string, instanceId?: string) => void;
-  onTouchDragStart: (instanceId: string) => void;
-  onTouchDragEnd: () => void;
+};
+
+type MobileLiveSetContext = {
+  legalCardIds: Set<string>;
+  selectedCardIds: string[];
+  maximum: number;
+  onToggleCard: (instanceId: string) => void;
 };
 
 const heartLabels = HEART_LABELS;
@@ -183,7 +190,11 @@ export default function App() {
     selectedSlot: "",
     selectedPlayMode: "",
   });
-  const [mobileDraggedMemberId, setMobileDraggedMemberId] = useState<string | null>(null);
+  const [liveSetDraft, setLiveSetDraft] = useState<LiveSetDraft>({
+    selectedCardIds: [],
+  });
+  const [autoLivePanelKey, setAutoLivePanelKey] = useState("");
+  const [mobileActionPanelOpen, setMobileActionPanelOpen] = useState(false);
   const isMobileLayout = useMediaQuery(
     "(max-width: 640px), (max-width: 1180px) and (max-aspect-ratio: 9/16)",
   );
@@ -278,8 +289,22 @@ export default function App() {
   }, [onlineSession]);
   useEffect(() => {
     setMemberPlayDraft({ selectedMemberId: "", selectedSlot: "", selectedPlayMode: "" });
-    setMobileDraggedMemberId(null);
+    setLiveSetDraft({ selectedCardIds: [] });
   }, [match?.state.revision]);
+  useEffect(() => {
+    if (!match || screen !== "match" || !isMobileLayout || !isLiveProcessPhase(match.state.phase)) return;
+    const key = `${match.state.match_id}:${match.state.turn_number}:${match.state.phase}`;
+    if (autoLivePanelKey === key) return;
+    setAutoLivePanelKey(key);
+    setMobileMatchPanel("live");
+  }, [
+    autoLivePanelKey,
+    isMobileLayout,
+    match?.state.match_id,
+    match?.state.phase,
+    match?.state.turn_number,
+    screen,
+  ]);
 
   const previewNotice = showPreviewNotice ? (
     <PreviewNotice
@@ -557,14 +582,32 @@ export default function App() {
   const mobilePlayMemberAction = visibleActions.find(
     (action) => action.action_type === "play_member" && action.player_id === bottomPlayerId,
   );
+  const mobileSetLiveAction = visibleActions.find(
+    (action) => action.action_type === "set_live_cards" && action.player_id === bottomPlayerId,
+  );
+  const mobileDialogActionTypes = new Set([
+    "activate_effect",
+    "resolve_effect",
+    "resolve_effect_choice",
+    "resolve_manual_inspection",
+    "skip_effect",
+    "manual_adjustment",
+  ]);
+  const mobileDialogActions = isMobileLayout
+    ? visibleActions.filter((action) => mobileDialogActionTypes.has(action.action_type))
+    : [];
+  const dockActions = isMobileLayout && mobileDialogActions.length > 0
+    ? visibleActions.filter((action) => !mobileDialogActionTypes.has(action.action_type))
+    : visibleActions;
   const mobileMemberPlayContext = isMobileLayout && mobilePlayMemberAction
     ? buildMobileMemberPlayContext(
       mobilePlayMemberAction,
       memberPlayDraft,
       setMemberPlayDraft,
-      mobileDraggedMemberId,
-      setMobileDraggedMemberId,
     )
+    : undefined;
+  const mobileLiveSetContext = isMobileLayout && mobileSetLiveAction
+    ? buildMobileLiveSetContext(mobileSetLiveAction, liveSetDraft, setLiveSetDraft)
     : undefined;
   const showOnlineWaitingDock =
     onlineSession !== null &&
@@ -697,6 +740,7 @@ export default function App() {
               state={match.state}
               role={playerRoleLabel(match.state, bottomPlayerId, locale)}
               mobileMemberPlay={mobileMemberPlayContext}
+              mobileLiveSet={mobileLiveSetContext}
               onCard={setDetails}
             />
           </div>
@@ -704,13 +748,32 @@ export default function App() {
         <EventLog events={match.events} state={match.state} />
       </main>
 
-      {visibleActions.length > 0 && (
+      {isMobileLayout && mobileDialogActions.length > 0 && (
+        <footer className="action-dock mobile-skill-entry-dock">
+          <div className="action-context">
+            <strong>{locale === "zh" ? "待处理技能" : "処理待ち能力"}</strong>
+            <span>{locale === "zh" ? "打开弹窗选择目标与结算" : "ポップアップで対象選択と解決"}</span>
+          </div>
+          <button
+            className="primary-button mobile-skill-entry-button"
+            type="button"
+            onClick={() => setMobileActionPanelOpen(true)}
+          >
+            <Settings2 size={18} />
+            {locale === "zh" ? `处理技能 ${mobileDialogActions.length}` : `能力を処理 ${mobileDialogActions.length}`}
+          </button>
+        </footer>
+      )}
+      {dockActions.length > 0 && (
         <ActionDock
           state={match.state}
-          actions={visibleActions}
+          actions={dockActions}
           memberPlayDraft={memberPlayDraft}
           onMemberPlayDraftChange={setMemberPlayDraft}
+          liveSetDraft={liveSetDraft}
+          onLiveSetDraftChange={setLiveSetDraft}
           mobileMemberPlayEnabled={Boolean(mobileMemberPlayContext)}
+          mobileLiveSetEnabled={Boolean(mobileLiveSetContext)}
           loading={loading}
           onAction={handleAction}
           onManual={(source) => {
@@ -764,6 +827,23 @@ export default function App() {
           opponentRole={playerRoleLabel(match.state, topPlayerId, locale)}
           onCard={setDetails}
           onClose={() => setMobileMatchPanel(null)}
+        />
+      )}
+      {mobileActionPanelOpen && (
+        <MobileActionDialog
+          state={match.state}
+          actions={mobileDialogActions}
+          loading={loading}
+          onAction={(actionType, playerId, payload) => {
+            setMobileActionPanelOpen(false);
+            void handleAction(actionType, playerId, payload);
+          }}
+          onManual={(source) => {
+            setMobileActionPanelOpen(false);
+            setManualSource(source ?? null);
+            setManualOpen(true);
+          }}
+          onClose={() => setMobileActionPanelOpen(false)}
         />
       )}
     </div>,
@@ -826,6 +906,15 @@ function playerRoleLabel(state: MatchState, playerId: string, locale: UiLocale):
   if (state.first_player_id === playerId) return "先攻";
   if (state.second_player_id === playerId) return locale === "zh" ? "后攻" : "後攻";
   return locale === "zh" ? "未定" : "未定";
+}
+
+function isLiveProcessPhase(phase: string): boolean {
+  return (
+    phase.startsWith("performance") ||
+    phase.startsWith("yell") ||
+    phase === "live_judgment" ||
+    phase === "turn_complete"
+  );
 }
 
 function MobileMatchSummary({
@@ -913,8 +1002,54 @@ function MobileMatchDialog({
             onCard={onCard}
           />
         ) : (
-          <LiveCenter state={state} onCard={onCard} />
+          <LiveCenter state={state} onCard={onCard} compact />
         )}
+      </section>
+    </div>
+  );
+}
+
+function MobileActionDialog({
+  state,
+  actions,
+  loading,
+  onAction,
+  onManual,
+  onClose,
+}: {
+  state: MatchState;
+  actions: LegalAction[];
+  loading: boolean;
+  onAction: (
+    actionType: string,
+    playerId?: string | null,
+    payload?: Record<string, unknown>,
+  ) => void;
+  onManual: (source?: EffectInvocation) => void;
+  onClose: () => void;
+}) {
+  const { tr } = useUiLanguage();
+  return (
+    <div className="dialog-backdrop mobile-action-dialog-backdrop" onMouseDown={onClose}>
+      <section className="mobile-action-dialog" onMouseDown={(event) => event.stopPropagation()}>
+        <header className="mobile-match-dialog-header">
+          <strong>{tr("技能处理", "能力処理")}</strong>
+          <button className="icon-button" type="button" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </header>
+        <ActionDock
+          state={state}
+          actions={actions}
+          memberPlayDraft={{ selectedMemberId: "", selectedSlot: "", selectedPlayMode: "" }}
+          onMemberPlayDraftChange={() => undefined}
+          liveSetDraft={{ selectedCardIds: [] }}
+          onLiveSetDraftChange={() => undefined}
+          loading={loading}
+          onAction={onAction}
+          onManual={onManual}
+          embedded
+        />
       </section>
     </div>
   );
@@ -960,7 +1095,7 @@ function PreviewNotice({
               <li>{locale === "zh" ? "对战中会隐藏对手手牌，并按当前操作人切换可见信息。" : "対戦中は相手の手札を隠し、操作プレイヤー基準で見える情報を切り替えます。"}</li>
               <li>{locale === "zh" ? "先后攻改为自动随机，不再需要开局手动选择。" : "先後攻は自動ランダム化し、開始時の手動選択をなくしました。"}</li>
               <li>{locale === "zh" ? "自动技能、特殊应援和后续效果选择现在会显示提示。" : "自動効果、特殊エール、続きの効果選択に画面上の提示を追加しました。"}</li>
-              <li>{locale === "zh" ? "手机版对战加入成功 Live 摘要、Live / 对手区域弹窗、较大的手牌显示，以及点选 / 拖拽手牌后确认登场。" : "スマホ対戦画面に成功ライブ要約、ライブ / 相手エリアのポップアップ、大きめの手札表示、手札タップ / ドラッグ後の登場確認を追加しました。"}</li>
+              <li>{locale === "zh" ? "手机版对战加入成功 Live 摘要、Live / 对手区域弹窗、较大的手牌显示，以及独立的登场候选按钮与确认登场。" : "スマホ対戦画面に成功ライブ要約、ライブ / 相手エリアのポップアップ、大きめの手札表示、登場候補ボタンと確認登場を追加しました。"}</li>
               <li>{locale === "zh" ? "Deck 画面加入使用说明、折叠式保存列表、搜索弹窗、JSON 导入导出和 UUID 牌组分享。" : "Deck 画面に使い方、保存済みリスト折りたたみ、検索ポップアップ、JSON 読み込み / 書き出し、UUID デッキ共有を追加しました。"}</li>
               <li>{locale === "zh" ? "Deck 分析会自动显示枚数、Heart、Blade、Score、特殊应援和技能时点摘要。" : "Deck 分析で枚数、ハート、ブレード、スコア、特殊エール、能力タイミングを自動表示します。"}</li>
             </ul>
@@ -1704,6 +1839,7 @@ function PlayerBoard({
   compact = false,
   hideHand = false,
   mobileMemberPlay,
+  mobileLiveSet,
   onCard,
 }: {
   player: PlayerState;
@@ -1712,6 +1848,7 @@ function PlayerBoard({
   compact?: boolean;
   hideHand?: boolean;
   mobileMemberPlay?: MobileMemberPlayContext;
+  mobileLiveSet?: MobileLiveSetContext;
   onCard: (card: CardInstance) => void;
 }) {
   const { locale, tr } = useUiLanguage();
@@ -1785,6 +1922,7 @@ function PlayerBoard({
         hand
         hidden={hideHand}
         mobileMemberPlay={mobileMemberPlay}
+        mobileLiveSet={mobileLiveSet}
       />
     </section>
   );
@@ -1818,10 +1956,18 @@ function WaitingRoomViewer({
   );
 }
 
-function LiveCenter({ state, onCard }: { state: MatchState; onCard: (card: CardInstance) => void }) {
+function LiveCenter({
+  state,
+  onCard,
+  compact = false,
+}: {
+  state: MatchState;
+  onCard: (card: CardInstance) => void;
+  compact?: boolean;
+}) {
   const { tr } = useUiLanguage();
   return (
-    <section className="live-center">
+    <section className={`live-center ${compact ? "compact-live-center" : ""}`}>
       <Zone
         label={`${state.players.player_2.name} ${tr("演出区", "ライブエリア")}`}
         ids={state.players.player_2.live_area}
@@ -1829,7 +1975,7 @@ function LiveCenter({ state, onCard }: { state: MatchState; onCard: (card: CardI
         onCard={onCard}
         small
       />
-      <LiveAnalysisPanel state={state} onCard={onCard} />
+      <LiveAnalysisPanel state={state} onCard={onCard} compact={compact} />
       <Zone
         label={`${state.players.player_1.name} ${tr("演出区", "ライブエリア")}`}
         ids={state.players.player_1.live_area}
@@ -1844,9 +1990,11 @@ function LiveCenter({ state, onCard }: { state: MatchState; onCard: (card: CardI
 function LiveAnalysisPanel({
   state,
   onCard,
+  compact = false,
 }: {
   state: MatchState;
   onCard: (card: CardInstance) => void;
+  compact?: boolean;
 }) {
   const { locale, tr } = useUiLanguage();
   const visible =
@@ -1871,6 +2019,16 @@ function LiveAnalysisPanel({
           </em>
         )}
       </div>
+    );
+  }
+  if (compact) {
+    return (
+      <CompactLiveAnalysisPanel
+        state={state}
+        onCard={onCard}
+        winners={winners}
+        summaryBasis={summary?.basis}
+      />
     );
   }
   return (
@@ -1927,6 +2085,103 @@ function LiveAnalysisPanel({
         ))}
       </div>
     </section>
+  );
+}
+
+function CompactLiveAnalysisPanel({
+  state,
+  onCard,
+  winners,
+  summaryBasis,
+}: {
+  state: MatchState;
+  onCard: (card: CardInstance) => void;
+  winners: string[];
+  summaryBasis?: string;
+}) {
+  const { locale, tr } = useUiLanguage();
+  return (
+    <section className="live-analysis compact-live-analysis">
+      <header className="compact-live-heading">
+        <strong>{phaseLabels[state.phase]?.[locale === "zh" ? 0 : 1] ?? state.phase}</strong>
+        <span>
+          {winners.length > 0
+            ? `${tr("胜者", "勝者")}：${winners.join("、")}`
+            : summaryBasis
+              ? tr("无胜者", "勝者なし")
+              : tr("判定中", "判定中")}
+        </span>
+      </header>
+      <div className="compact-live-breakdown-grid">
+        {["player_2", "player_1"].map((playerId) => (
+          <PlayerLiveCompactBreakdown
+            key={playerId}
+            player={state.players[playerId]}
+            state={state}
+            onCard={onCard}
+          />
+        ))}
+      </div>
+      {state.phase === "turn_complete" && state.next_first_player_id && (
+        <div className="compact-next-first">
+          {tr("次回先攻", "次回先攻")}：{state.players[state.next_first_player_id].name}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function PlayerLiveCompactBreakdown({
+  player,
+  state,
+  onCard,
+}: {
+  player: PlayerState;
+  state: MatchState;
+  onCard: (card: CardInstance) => void;
+}) {
+  const { tr } = useUiLanguage();
+  const result = player.live_result;
+  const status = result.requirements_satisfied === null
+    ? tr("未判定", "未判定")
+    : result.requirements_satisfied
+      ? tr("成功", "成功")
+      : tr("失败", "失敗");
+  return (
+    <article className="compact-live-breakdown">
+      <header>
+        <strong>{player.name}</strong>
+        <span className={result.requirements_satisfied ? "status-success" : result.requirements_satisfied === false ? "status-failed" : ""}>
+          {status}
+        </span>
+      </header>
+      <div className="compact-live-metrics">
+        <span>{tr("应援", "エール")} {result.revealed_instance_ids.length}</span>
+        <span>{tr("分数", "スコア")} {result.total_score}</span>
+        <span>{tr("加分", "加点")} {result.score_bonus}</span>
+      </div>
+      {result.special_blade_heart_results.length > 0 && (
+        <div className="compact-special-results">
+          {result.special_blade_heart_results.map((item, index) => (
+            <code key={`${item.card_instance_id}-${index}`}>{item.source_alt} {item.value}</code>
+          ))}
+        </div>
+      )}
+      <div className="compact-allocation-list">
+        {result.live_allocations.length === 0 && <em>{tr("Live 未公开", "ライブ未公開")}</em>}
+        {result.live_allocations.map((allocation) => (
+          <button
+            className={allocation.satisfied ? "satisfied" : "failed"}
+            key={allocation.live_instance_id}
+            type="button"
+            onClick={() => onCard(state.cards[allocation.live_instance_id])}
+          >
+            <span>{state.cards[allocation.live_instance_id].card.name_ja}</span>
+            <strong>{allocation.satisfied ? tr("OK", "OK") : tr("NG", "NG")}</strong>
+          </button>
+        ))}
+      </div>
+    </article>
   );
 }
 
@@ -2088,6 +2343,7 @@ function Zone({
   hidden = false,
   small = false,
   mobileMemberPlay,
+  mobileLiveSet,
 }: {
   label: string;
   ids: string[];
@@ -2097,6 +2353,7 @@ function Zone({
   hidden?: boolean;
   small?: boolean;
   mobileMemberPlay?: MobileMemberPlayContext;
+  mobileLiveSet?: MobileLiveSetContext;
 }) {
   const { tr } = useUiLanguage();
   return (
@@ -2115,46 +2372,54 @@ function Zone({
             </div>
           ))
           : ids.map((id) => (
-            <CardTile
-              key={id}
-              instance={state.cards[id]}
-              selected={hand && mobileMemberPlay?.selectedMemberId === id}
-              playSelectable={hand && mobileMemberPlay?.legalMemberIds.has(id)}
-              touchDragging={hand && mobileMemberPlay?.draggingMemberId === id}
-              onClick={(card) => {
-                if (hand && mobileMemberPlay?.legalMemberIds.has(card.instance_id)) {
-                  mobileMemberPlay.onSelectMember(card.instance_id);
-                  return;
-                }
-                onCard(card);
-              }}
-              onDragStart={(event) => {
-                if (!hand || !mobileMemberPlay?.legalMemberIds.has(id)) return;
-                event.dataTransfer.setData("text/loveca-card-instance-id", id);
-                mobileMemberPlay.onSelectMember(id);
-              }}
-              onPointerDown={(event) => {
-                if (!hand || !mobileMemberPlay?.legalMemberIds.has(id) || event.pointerType === "mouse") return;
-                mobileMemberPlay.onTouchDragStart(id);
-                mobileMemberPlay.onSelectMember(id);
-                event.currentTarget.setPointerCapture(event.pointerId);
-              }}
-              onPointerUp={(event) => {
-                if (!hand || !mobileMemberPlay?.legalMemberIds.has(id) || event.pointerType === "mouse") return;
-                const target = document
-                  .elementFromPoint(event.clientX, event.clientY)
-                  ?.closest<HTMLElement>("[data-member-drop-slot]");
-                const slot = target?.dataset.memberDropSlot;
-                if (slot) {
-                  mobileMemberPlay.onSelectSlot(slot, id);
-                }
-                mobileMemberPlay.onTouchDragEnd();
-              }}
-              onPointerCancel={() => {
-                if (!hand || !mobileMemberPlay?.legalMemberIds.has(id)) return;
-                mobileMemberPlay.onTouchDragEnd();
-              }}
-            />
+            hand && mobileMemberPlay?.legalMemberIds.has(id) ? (
+              <div
+                className={`hand-card-play-wrapper ${
+                  mobileMemberPlay.selectedMemberId === id ? "selected" : ""
+                }`}
+                draggable
+                key={id}
+                onDragStart={(event) => {
+                  event.dataTransfer.setData("text/loveca-card-instance-id", id);
+                  mobileMemberPlay.onSelectMember(id);
+                }}
+              >
+                <CardTile
+                  instance={state.cards[id]}
+                  selected={mobileMemberPlay.selectedMemberId === id}
+                  onClick={onCard}
+                />
+                <button
+                  className="hand-play-select-button"
+                  type="button"
+                  onClick={() => mobileMemberPlay.onSelectMember(id)}
+                >
+                  {tr("登场候选", "登場候補")}
+                </button>
+              </div>
+            ) : hand && mobileLiveSet?.legalCardIds.has(id) ? (
+              <div
+                className={`hand-card-play-wrapper live-set-wrapper ${
+                  mobileLiveSet.selectedCardIds.includes(id) ? "selected" : ""
+                }`}
+                key={id}
+              >
+                <CardTile
+                  instance={state.cards[id]}
+                  selected={mobileLiveSet.selectedCardIds.includes(id)}
+                  onClick={onCard}
+                />
+                <button
+                  className="hand-play-select-button live-set-select-button"
+                  type="button"
+                  onClick={() => mobileLiveSet.onToggleCard(id)}
+                >
+                  {tr("セット候补", "セット候補")}
+                </button>
+              </div>
+            ) : (
+              <CardTile key={id} instance={state.cards[id]} onClick={onCard} />
+            )
           ))}
       </div>
     </div>
@@ -2166,31 +2431,20 @@ function CardTile({
   onClick,
   selected = false,
   playSelectable = false,
-  touchDragging = false,
   onDragStart,
-  onPointerDown,
-  onPointerUp,
-  onPointerCancel,
 }: {
   instance: CardInstance;
   onClick: (card: CardInstance) => void;
   selected?: boolean;
   playSelectable?: boolean;
-  touchDragging?: boolean;
   onDragStart?: (event: DragEvent<HTMLButtonElement>) => void;
-  onPointerDown?: (event: PointerEvent<HTMLButtonElement>) => void;
-  onPointerUp?: (event: PointerEvent<HTMLButtonElement>) => void;
-  onPointerCancel?: (event: PointerEvent<HTMLButtonElement>) => void;
 }) {
   const { locale } = useUiLanguage();
   return (
     <button
-      className={`card-tile ${instance.orientation === "wait" ? "wait" : ""} ${selected ? "selected" : ""} ${playSelectable ? "play-selectable" : ""} ${touchDragging ? "touch-dragging" : ""}`}
+      className={`card-tile ${instance.orientation === "wait" ? "wait" : ""} ${selected ? "selected" : ""} ${playSelectable ? "play-selectable" : ""}`}
       draggable={playSelectable}
       onDragStart={onDragStart}
-      onPointerDown={onPointerDown}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerCancel}
       onClick={() => onClick(instance)}
       title={instance.card.name_ja}
     >
@@ -2335,7 +2589,11 @@ function ActionDock({
   actions,
   memberPlayDraft,
   onMemberPlayDraftChange,
+  liveSetDraft,
+  onLiveSetDraftChange,
   mobileMemberPlayEnabled = false,
+  mobileLiveSetEnabled = false,
+  embedded = false,
   loading,
   onAction,
   onManual,
@@ -2344,7 +2602,11 @@ function ActionDock({
   actions: LegalAction[];
   memberPlayDraft: MemberPlayDraft;
   onMemberPlayDraftChange: (draft: MemberPlayDraft) => void;
+  liveSetDraft: LiveSetDraft;
+  onLiveSetDraftChange: (draft: LiveSetDraft) => void;
   mobileMemberPlayEnabled?: boolean;
+  mobileLiveSetEnabled?: boolean;
+  embedded?: boolean;
   loading: boolean;
   onAction: (
     actionType: string,
@@ -2363,7 +2625,7 @@ function ActionDock({
   }, [state.revision]);
 
   return (
-    <footer className={`action-dock ${actions.some((action) => action.action_type === "play_member") ? "member-play-dock" : ""}`}>
+    <footer className={`action-dock ${embedded ? "embedded-action-dock" : ""} ${actions.some((action) => action.action_type === "play_member") ? "member-play-dock" : ""} ${actions.some((action) => action.action_type === "set_live_cards") ? "live-set-dock" : ""}`}>
       <div className="action-context">
         <strong>{tr("下一步操作", "次にできる操作")}</strong>
         <span>{state.active_player_id ? state.players[state.active_player_id].name : "System"}</span>
@@ -2489,18 +2751,33 @@ function ActionDock({
           }
           if (action.action_type === "set_live_cards") {
             const hand = action.options.hand_instance_ids as string[];
+            const liveSelection = mobileLiveSetEnabled
+              ? liveSetDraft.selectedCardIds.filter((id) => hand.includes(id)).slice(0, 3)
+              : selected;
             return (
               <SelectionAction
                 key={action.action_type}
                 title={tr("选择最多 3 张卡设置到 Live 区", "ライブエリアに置くカードを3枚まで選択")}
                 ids={hand}
-                selected={selected}
+                selected={liveSelection}
                 state={state}
                 maximum={3}
-                onToggle={(id) => toggleSelected(selected, id, setSelected, 3)}
+                mobileMode={mobileLiveSetEnabled}
+                onToggle={(id) => {
+                  if (mobileLiveSetEnabled) {
+                    toggleSelected(
+                      liveSelection,
+                      id,
+                      (value) => onLiveSetDraftChange({ selectedCardIds: value }),
+                      3,
+                    );
+                  } else {
+                    toggleSelected(selected, id, setSelected, 3);
+                  }
+                }}
                 onSubmit={() =>
                   onAction(action.action_type, action.player_id, {
-                    card_instance_ids: selected,
+                    card_instance_ids: liveSelection,
                   })
                 }
               />
@@ -3479,6 +3756,18 @@ export function MemberPlayAction({
   const reduction = placement?.use_baton_touch
     ? Math.min(newCost, placement.replaced_member_cost)
     : 0;
+  const submitMemberPlay = () => {
+    if (!placement) return;
+    onAction(action.action_type, action.player_id, {
+      card_instance_id: placement.card_instance_id,
+      slot: placement.slot,
+      use_baton_touch: placement.use_baton_touch,
+      energy_instance_ids: energy.slice(0, placement.payment_cost),
+    });
+  };
+  const confirmLabel = placement?.use_baton_touch
+    ? tr("确认バトンタッチ", "確認してバトンタッチ")
+    : tr("确认登场", "確認して登場");
 
   return (
     <div className={`member-play-action ${mobileMode ? "mobile-member-play-action" : ""}`}>
@@ -3492,8 +3781,8 @@ export function MemberPlayAction({
           </strong>
           <span>
             {tr(
-              "在手机上点击手牌，或拖到左 / 中 / 右区域，再按确认。",
-              "スマホでは手札をタップ、または左 / 中央 / 右へドラッグしてから確認します。",
+              "点卡牌看详情；按卡牌下方“登场候选”，再选区域并确认。",
+              "カード本体は詳細表示です。下の「登場候補」を押し、エリアを選んで確認します。",
             )}
           </span>
         </div>
@@ -3642,17 +3931,35 @@ export function MemberPlayAction({
         <button
           className="primary-button"
           disabled={loading || !placement}
-          onClick={() => {
-            if (!placement) return;
-            onAction(action.action_type, action.player_id, {
-              card_instance_id: placement.card_instance_id,
-              slot: placement.slot,
-              use_baton_touch: placement.use_baton_touch,
-              energy_instance_ids: energy.slice(0, placement.payment_cost),
-            });
-          }}
+          onClick={submitMemberPlay}
         >
-          {placement?.use_baton_touch ? "バトンタッチ" : tr("登场", "登場")}
+          {placement?.use_baton_touch
+            ? mobileMode
+              ? confirmLabel
+              : "バトンタッチ"
+            : mobileMode
+              ? confirmLabel
+              : tr("登场", "登場")}
+        </button>
+      </div>
+      <div className="mobile-member-confirm-row" aria-label={tr("登场确认", "登場確認")}>
+        <div>
+          <strong>
+            {selection.selectedMemberId
+              ? state.cards[selection.selectedMemberId].card.name_ja
+              : tr("选择登场角色", "登場するメンバーを選択")}
+          </strong>
+          <span>
+            {memberSlotLabel(selection.selectedSlot, locale)} · {tr("实付", "支払")}{" "}
+            {placement?.payment_cost ?? 0} / {tr("可用", "使用可")} {energy.length}
+          </span>
+        </div>
+        <button
+          className="primary-button"
+          disabled={loading || !placement}
+          onClick={submitMemberPlay}
+        >
+          {confirmLabel}
         </button>
       </div>
     </div>
@@ -3665,6 +3972,7 @@ function SelectionAction({
   selected,
   state,
   maximum,
+  mobileMode = false,
   onToggle,
   onSubmit,
 }: {
@@ -3673,13 +3981,19 @@ function SelectionAction({
   selected: string[];
   state: MatchState;
   maximum?: number;
+  mobileMode?: boolean;
   onToggle: (id: string) => void;
   onSubmit: () => void;
 }) {
   const { tr } = useUiLanguage();
+  const selectedNames = selected.map((id) => state.cards[id]?.card.name_ja).filter(Boolean);
   return (
-    <div className="selection-action">
-      <span>{title}</span>
+    <div className={`selection-action ${mobileMode ? "mobile-selection-action" : ""}`}>
+      <span>
+        {mobileMode
+          ? tr("手牌下方的「セット候補」で选择 Live 卡。", "手札下の「セット候補」でライブカードを選びます。")
+          : title}
+      </span>
       <div className="selection-cards">
         {ids.map((id) => (
           <button
@@ -3695,6 +4009,24 @@ function SelectionAction({
         {tr("确认", "確定")} {selected.length}
         {maximum ? ` / ${maximum}` : ""}
       </button>
+      {mobileMode && (
+        <div className="mobile-member-confirm-row mobile-live-confirm-row">
+          <div>
+            <strong>
+              {selectedNames.length > 0
+                ? selectedNames.join("、")
+                : tr("未选择 Live 卡", "ライブカード未選択")}
+            </strong>
+            <span>
+              {tr("可设置 0 到 3 张", "0〜3枚までセット可能")} · {selected.length}
+              {maximum ? ` / ${maximum}` : ""}
+            </span>
+          </div>
+          <button className="primary-button" type="button" onClick={onSubmit}>
+            {tr("确认设置", "セット確定")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -4532,8 +4864,6 @@ function buildMobileMemberPlayContext(
   action: LegalAction,
   draft: MemberPlayDraft,
   setDraft: (draft: MemberPlayDraft) => void,
-  draggingMemberId: string | null,
-  setDraggingMemberId: (instanceId: string | null) => void,
 ): MobileMemberPlayContext {
   const placements = action.options.placements as MemberPlacement[];
   const selection = resolveMemberPlaySelection(
@@ -4546,7 +4876,6 @@ function buildMobileMemberPlayContext(
   return {
     legalMemberIds,
     selectedMemberId: selection.selectedMemberId,
-    draggingMemberId,
     availableSlots: selection.availableSlots,
     selectedSlot: selection.selectedSlot,
     onSelectMember: (instanceId) => {
@@ -4576,10 +4905,29 @@ function buildMobileMemberPlayContext(
         selectedPlayMode: nextSelection.selectedMode,
       });
     },
-    onTouchDragStart: (instanceId) => {
-      if (!legalMemberIds.has(instanceId)) return;
-      setDraggingMemberId(instanceId);
+  };
+}
+
+function buildMobileLiveSetContext(
+  action: LegalAction,
+  draft: LiveSetDraft,
+  setDraft: (draft: LiveSetDraft) => void,
+): MobileLiveSetContext {
+  const hand = action.options.hand_instance_ids as string[];
+  const legalCardIds = new Set(hand);
+  const selectedCardIds = draft.selectedCardIds.filter((id) => legalCardIds.has(id)).slice(0, 3);
+  return {
+    legalCardIds,
+    selectedCardIds,
+    maximum: 3,
+    onToggleCard: (instanceId) => {
+      if (!legalCardIds.has(instanceId)) return;
+      toggleSelected(
+        selectedCardIds,
+        instanceId,
+        (value) => setDraft({ selectedCardIds: value }),
+        3,
+      );
     },
-    onTouchDragEnd: () => setDraggingMemberId(null),
   };
 }

@@ -601,6 +601,10 @@ button {
   display: none;
 }
 
+.mobile-action-dialog-backdrop {
+  display: none;
+}
+
 .board-column {
   padding: 12px;
   min-width: 0;
@@ -1891,6 +1895,14 @@ button {
   display: none;
 }
 
+.mobile-member-confirm-row {
+  display: none;
+}
+
+.mobile-live-confirm-row {
+  display: none;
+}
+
 .member-payment-summary dl {
   margin: 0 0 6px;
   display: grid;
@@ -2654,15 +2666,27 @@ label {
   }
 
   .mobile-own-board .hand-zone {
-    min-height: 122px;
+    min-height: 154px;
     margin-top: 0;
     padding: 4px;
   }
 
   .mobile-own-board .hand-zone .card-strip {
-    max-height: 118px;
+    max-height: 150px;
     overflow-x: auto;
     overflow-y: hidden;
+  }
+
+  .mobile-own-board .hand-card-play-wrapper {
+    flex: 0 0 78px;
+    width: 78px;
+    display: grid;
+    gap: 3px;
+  }
+
+  .mobile-own-board .hand-card-play-wrapper.selected .card-tile {
+    outline: 3px solid var(--teal);
+    box-shadow: 0 0 0 2px rgba(9, 132, 126, 0.16);
   }
 
   .mobile-own-board .hand-zone .card-tile,
@@ -2688,20 +2712,26 @@ label {
     font-size: 8px;
   }
 
-  .mobile-own-board .hand-zone .card-tile.play-selectable {
-    cursor: grab;
-    outline: 2px solid rgba(9, 132, 126, 0.28);
-    outline-offset: -2px;
+  .hand-play-select-button {
+    min-height: 24px;
+    border: 1px solid var(--teal);
+    border-radius: 6px;
+    background: white;
+    color: var(--teal);
+    padding: 2px 3px;
+    font-size: 9px;
+    font-weight: 900;
+    white-space: nowrap;
   }
 
-  .mobile-own-board .hand-zone .card-tile.play-selectable.selected {
-    outline: 3px solid var(--teal);
-    box-shadow: 0 0 0 2px rgba(9, 132, 126, 0.16);
+  .hand-card-play-wrapper.selected .hand-play-select-button {
+    background: var(--teal);
+    color: white;
   }
 
-  .mobile-own-board .hand-zone .card-tile.touch-dragging {
-    opacity: 0.72;
-    transform: translateY(-6px) scale(1.03);
+  .live-set-wrapper.selected .hand-play-select-button {
+    border-color: var(--accent);
+    background: var(--accent);
   }
 
   .mobile-own-board .card-fallback {
@@ -2723,7 +2753,21 @@ label {
     z-index: 70;
   }
 
+  .mobile-action-dialog-backdrop {
+    display: grid;
+    z-index: 88;
+  }
+
   .mobile-match-dialog {
+    width: min(100%, 560px);
+    max-height: calc(100vh - 28px);
+    overflow: auto;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    padding: 10px;
+  }
+
+  .mobile-action-dialog {
     width: min(100%, 560px);
     max-height: calc(100vh - 28px);
     overflow: auto;
@@ -2762,6 +2806,117 @@ label {
     border-top: 1px solid var(--line);
   }
 
+  .compact-live-center .zone {
+    display: none;
+  }
+
+  .compact-live-analysis {
+    padding: 8px;
+  }
+
+  .compact-live-heading {
+    display: grid;
+    gap: 2px;
+    margin-bottom: 8px;
+  }
+
+  .compact-live-heading strong {
+    font-size: 14px;
+  }
+
+  .compact-live-heading span,
+  .compact-next-first {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .compact-live-breakdown-grid {
+    display: grid;
+    gap: 8px;
+  }
+
+  .compact-live-breakdown {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: white;
+    padding: 8px;
+  }
+
+  .compact-live-breakdown header {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .compact-live-breakdown header strong,
+  .compact-live-breakdown header span {
+    font-size: 12px;
+  }
+
+  .compact-live-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+
+  .compact-live-metrics span,
+  .compact-special-results code {
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface-soft);
+    padding: 3px 5px;
+    font-size: 10px;
+    font-weight: 800;
+    text-align: center;
+  }
+
+  .compact-special-results {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+
+  .compact-allocation-list {
+    display: grid;
+    gap: 4px;
+  }
+
+  .compact-allocation-list button {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px;
+    align-items: center;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: white;
+    padding: 5px 6px;
+  }
+
+  .compact-allocation-list button.satisfied {
+    border-color: rgba(9, 132, 126, 0.45);
+    background: #e9f6f4;
+  }
+
+  .compact-allocation-list button.failed {
+    border-color: rgba(190, 43, 70, 0.36);
+    background: #fff2f4;
+  }
+
+  .compact-allocation-list button span {
+    overflow: hidden;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .compact-allocation-list button strong {
+    font-size: 11px;
+  }
+
   .action-dock {
     position: fixed;
     left: 0;
@@ -2774,11 +2929,51 @@ label {
     box-shadow: 0 -8px 20px rgba(18, 25, 30, 0.14);
   }
 
-  .action-dock.member-play-dock {
+  .action-dock.embedded-action-dock {
+    position: static;
+    max-height: none;
     overflow: visible;
+    border: 0;
+    box-shadow: none;
+    padding: 0;
   }
 
-  .action-dock.member-play-dock .action-context {
+  .embedded-action-dock .action-context {
+    margin-bottom: 8px;
+  }
+
+  .embedded-action-dock .action-controls {
+    gap: 8px;
+  }
+
+  .mobile-skill-entry-dock {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(132px, auto);
+    gap: 8px;
+    align-items: center;
+  }
+
+  .mobile-skill-entry-button {
+    min-height: 48px;
+    justify-content: center;
+    border-color: var(--accent-dark);
+    background: var(--accent);
+    color: white;
+    font-weight: 900;
+  }
+
+  .action-dock.member-play-dock {
+    overflow: visible;
+    padding-bottom: 70px;
+  }
+
+  .action-dock.live-set-dock {
+    overflow: visible;
+    padding-bottom: 70px;
+  }
+
+  .action-dock.member-play-dock .action-context,
+  .action-dock.live-set-dock .action-context {
     display: none;
   }
 
@@ -2822,6 +3017,12 @@ label {
   .effect-candidates button,
   .effect-resolution-buttons button {
     min-width: min(100%, 150px);
+  }
+
+  .mobile-action-dialog .effect-candidates button,
+  .mobile-action-dialog .effect-resolution-buttons button,
+  .mobile-action-dialog .effect-option {
+    min-height: 44px;
   }
 
   .inspection-card-grid {
@@ -2978,15 +3179,86 @@ label {
   }
 
   .member-payment-summary .primary-button {
+    display: none;
     min-height: 42px;
     padding: 8px 10px;
     font-size: 13px;
     font-weight: 900;
+    border-color: var(--accent-dark);
+    background: var(--accent);
+    color: white;
   }
 
   .member-play-step,
   .member-payment-summary {
     padding: 6px;
+  }
+
+  .mobile-selection-action {
+    display: grid;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .mobile-selection-action > span {
+    font-size: 11px;
+    line-height: 1.3;
+  }
+
+  .mobile-selection-action .selection-cards,
+  .mobile-selection-action > .primary-button {
+    display: none;
+  }
+
+  .mobile-member-confirm-row {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    z-index: 95;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(132px, auto);
+    gap: 8px;
+    align-items: center;
+    border: 1px solid rgba(190, 43, 70, 0.28);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.98);
+    box-shadow: 0 -8px 22px rgba(18, 25, 30, 0.18);
+    padding: 8px;
+  }
+
+  .mobile-member-confirm-row div {
+    min-width: 0;
+    display: grid;
+    gap: 2px;
+  }
+
+  .mobile-member-confirm-row strong {
+    overflow: hidden;
+    color: var(--ink);
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-member-confirm-row span {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .mobile-member-confirm-row .primary-button {
+    min-height: 46px;
+    padding: 8px 10px;
+    border-color: var(--accent-dark);
+    background: var(--accent);
+    color: white;
+    font-size: 13px;
+    font-weight: 900;
+  }
+
+  .mobile-live-confirm-row {
+    display: grid;
   }
 
   .member-choice-strip {
