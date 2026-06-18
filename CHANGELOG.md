@@ -9,6 +9,10 @@
 - 自動効果、特殊エール、続きの効果選択に画面上の提示を追加し、解決済み効果が次の操作へ進みやすいようにした。
 - 自分の控え室を確認できる UI を追加し、Online room の離脱 cleanup と mobile layout を改善した。
 - README と起動時 Alpha 告知を更新し、最新版の修正内容、残っている制限、Discord での bug 報告 / 対戦相手募集導線を明記した。
+- モバイル対戦画面を再構成し、成功 Live 進捗、Live 判定、相手エリアを小さい画面でも確認しやすくした。相手操作中は下部 dock に待機表示を出す。
+- Deck Builder の mobile layout を改善し、保存済み deck list の折りたたみ、カード検索 pop-up、Deck 画面内の使い方 manual を追加した。
+- Deck 共有用 UUID upload / download を追加し、通常の deck list はローカル保存のまま、必要な時だけ server 経由で decklist.v0 を交換できるようにした。
+- Deck 画面の Alpha / manual 表記を更新し、JSON import/export、構築合法性、Member / Live / Energy の枚数目標、共有 UUID の扱いを画面内で確認できるようにした。
 
 ### 既知の制限 / 已知限制
 

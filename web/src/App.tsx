@@ -157,6 +157,7 @@ export default function App() {
   const [onlineSession, setOnlineSession] = useState<OnlineSession | null>(null);
   const [onlineRoom, setOnlineRoom] = useState<RoomPayload | null>(null);
   const [onlineStatus, setOnlineStatus] = useState<string | null>(null);
+  const [mobileMatchPanel, setMobileMatchPanel] = useState<"opponent" | "live" | null>(null);
 
   const loadMatchHistoryPage = useCallback((page = 1) => {
     if (!matchHistoryAvailable(runtimeConfig)) {
@@ -520,9 +521,14 @@ export default function App() {
   const visibleActions = onlineSession
     ? match.legal_actions.filter((action) => canSubmitOnlineAction(action, onlineSession.playerId))
     : match.legal_actions;
+  const showOnlineWaitingDock =
+    onlineSession !== null &&
+    visibleActions.length === 0 &&
+    match.state.phase !== "complete" &&
+    match.state.game_result === null;
 
   return renderShell(
-    <div className="app-shell">
+    <div className="app-shell match-shell">
       <header className="topbar">
         <div className="brand-lockup">
           <Swords size={22} />
@@ -617,23 +623,37 @@ export default function App() {
 
       {error && <div className="error-banner">{error}</div>}
 
+      <MobileMatchSummary
+        state={match.state}
+        topPlayerId={topPlayerId}
+        bottomPlayerId={bottomPlayerId}
+        onOpenOpponent={() => setMobileMatchPanel("opponent")}
+        onOpenLive={() => setMobileMatchPanel("live")}
+      />
+
       <main className="workspace">
         <section className="board-column">
-          <PlayerBoard
-            player={match.state.players[topPlayerId]}
-            state={match.state}
-            role={playerRoleLabel(match.state, topPlayerId, locale)}
-            compact
-            hideHand
-            onCard={setDetails}
-          />
-          <LiveCenter state={match.state} onCard={setDetails} />
-          <PlayerBoard
-            player={match.state.players[bottomPlayerId]}
-            state={match.state}
-            role={playerRoleLabel(match.state, bottomPlayerId, locale)}
-            onCard={setDetails}
-          />
+          <div className="mobile-opponent-board">
+            <PlayerBoard
+              player={match.state.players[topPlayerId]}
+              state={match.state}
+              role={playerRoleLabel(match.state, topPlayerId, locale)}
+              compact
+              hideHand
+              onCard={setDetails}
+            />
+          </div>
+          <div className="mobile-live-center">
+            <LiveCenter state={match.state} onCard={setDetails} />
+          </div>
+          <div className="mobile-own-board">
+            <PlayerBoard
+              player={match.state.players[bottomPlayerId]}
+              state={match.state}
+              role={playerRoleLabel(match.state, bottomPlayerId, locale)}
+              onCard={setDetails}
+            />
+          </div>
         </section>
         <EventLog events={match.events} state={match.state} />
       </main>
@@ -650,7 +670,7 @@ export default function App() {
           }}
         />
       )}
-      {onlineSession && match.legal_actions.length > 0 && visibleActions.length === 0 && (
+      {showOnlineWaitingDock && (
         <footer className="action-dock waiting-dock">
           <div className="action-context">
             <strong>{locale === "zh" ? "下一步操作" : "次にできる操作"}</strong>
@@ -685,6 +705,16 @@ export default function App() {
             setManualSource(null);
             void handleAction("manual_adjustment", playerId, payload);
           }}
+        />
+      )}
+      {mobileMatchPanel && (
+        <MobileMatchDialog
+          panel={mobileMatchPanel}
+          state={match.state}
+          opponentPlayerId={topPlayerId}
+          opponentRole={playerRoleLabel(match.state, topPlayerId, locale)}
+          onCard={setDetails}
+          onClose={() => setMobileMatchPanel(null)}
         />
       )}
     </div>,
@@ -732,6 +762,98 @@ function playerRoleLabel(state: MatchState, playerId: string, locale: UiLocale):
   return locale === "zh" ? "未定" : "未定";
 }
 
+function MobileMatchSummary({
+  state,
+  topPlayerId,
+  bottomPlayerId,
+  onOpenOpponent,
+  onOpenLive,
+}: {
+  state: MatchState;
+  topPlayerId: string;
+  bottomPlayerId: string;
+  onOpenOpponent: () => void;
+  onOpenLive: () => void;
+}) {
+  const { locale, tr } = useUiLanguage();
+  const topPlayer = state.players[topPlayerId];
+  const bottomPlayer = state.players[bottomPlayerId];
+  return (
+    <nav className="mobile-match-summary" aria-label={tr("手机对战摘要", "モバイル対戦サマリー")}>
+      <div className="mobile-success-pill opponent">
+        <small>{tr("对手成功", "相手成功")}</small>
+        <strong>{topPlayer.success_live_area.length} / 3</strong>
+        <span>{topPlayer.name}</span>
+      </div>
+      <button className="secondary-button" type="button" onClick={onOpenLive}>
+        <Activity size={15} />
+        {tr("Live 判定", "ライブ判定")}
+      </button>
+      <button className="secondary-button" type="button" onClick={onOpenOpponent}>
+        <BookOpen size={15} />
+        {tr("对手区域", "相手エリア")}
+      </button>
+      <div className="mobile-success-pill self">
+        <small>{tr("己方成功", "自分成功")}</small>
+        <strong>{bottomPlayer.success_live_area.length} / 3</strong>
+        <span>{bottomPlayer.name}</span>
+      </div>
+      <span className="mobile-phase-chip">
+        <span className="mobile-turn-label">
+          {locale === "zh" ? `第 ${state.turn_number} 回合` : `ターン ${state.turn_number}`}
+        </span>
+        <span>{phaseLabels[state.phase]?.[locale === "zh" ? 0 : 1] ?? state.phase}</span>
+      </span>
+    </nav>
+  );
+}
+
+function MobileMatchDialog({
+  panel,
+  state,
+  opponentPlayerId,
+  opponentRole,
+  onCard,
+  onClose,
+}: {
+  panel: "opponent" | "live";
+  state: MatchState;
+  opponentPlayerId: string;
+  opponentRole: string;
+  onCard: (card: CardInstance) => void;
+  onClose: () => void;
+}) {
+  const { tr } = useUiLanguage();
+  return (
+    <div className="dialog-backdrop mobile-match-dialog-backdrop" onMouseDown={onClose}>
+      <section className="mobile-match-dialog" onMouseDown={(event) => event.stopPropagation()}>
+        <header className="mobile-match-dialog-header">
+          <strong>
+            {panel === "opponent"
+              ? tr("对手区域", "相手エリア")
+              : tr("Live 判定", "ライブ判定")}
+          </strong>
+          <button className="icon-button" type="button" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </header>
+        {panel === "opponent" ? (
+          <PlayerBoard
+            player={state.players[opponentPlayerId]}
+            state={state}
+            role={opponentRole}
+            compact
+            hideHand
+            onCard={onCard}
+          />
+        ) : (
+          <LiveCenter state={state} onCard={onCard} />
+        )}
+      </section>
+    </div>
+  );
+}
+
 function mergeEvents(existing: GameEvent[], incoming: GameEvent[]): GameEvent[] {
   if (incoming.length <= existing.length) return existing;
   return [...existing, ...incoming.slice(existing.length)];
@@ -772,7 +894,8 @@ function PreviewNotice({
               <li>{locale === "zh" ? "对战中会隐藏对手手牌，并按当前操作人切换可见信息。" : "対戦中は相手の手札を隠し、操作プレイヤー基準で見える情報を切り替えます。"}</li>
               <li>{locale === "zh" ? "先后攻改为自动随机，不再需要开局手动选择。" : "先後攻は自動ランダム化し、開始時の手動選択をなくしました。"}</li>
               <li>{locale === "zh" ? "自动技能、特殊应援和后续效果选择现在会显示提示。" : "自動効果、特殊エール、続きの効果選択に画面上の提示を追加しました。"}</li>
-              <li>{locale === "zh" ? "新增己方控室查看，并改善 Online 离房清理和移动端布局。" : "自分の控え室確認、Online room 離脱 cleanup、モバイル表示を改善しました。"}</li>
+              <li>{locale === "zh" ? "手机版对战加入成功 Live 摘要、Live / 对手区域弹窗和对手操作等待提示。" : "スマホ対戦画面に成功ライブ要約、ライブ / 相手エリアのポップアップ、相手操作待ち表示を追加しました。"}</li>
+              <li>{locale === "zh" ? "Deck 画面加入使用说明、折叠式保存列表、搜索弹窗和 UUID 牌组分享。" : "Deck 画面に使い方、保存済みリスト折りたたみ、検索ポップアップ、UUID デッキ共有を追加しました。"}</li>
             </ul>
           </section>
           <section>

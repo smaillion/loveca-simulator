@@ -32,7 +32,18 @@ try {
   await desktop.goto(`${BASE_URL}/`);
   await closeUsageGuide(desktop);
   console.log("create");
+  const createResponse = desktop.waitForResponse(
+    (response) =>
+      response.url().includes("/api/matches") &&
+      response.request().method() === "POST" &&
+      response.status() === 200,
+  );
   await desktop.getByRole("button", { name: "创建对局" }).click();
+  const createdMatch = await (await createResponse).json();
+  const createdMatchId = createdMatch.state?.match_id ?? createdMatch.match_id;
+  if (typeof createdMatchId !== "string") {
+    throw new Error(`unable to read created match id: ${JSON.stringify(createdMatch)}`);
+  }
   console.log("mulligan first");
   await clickAction(desktop.getByRole("button", { name: /^确认 0$/ }));
   console.log("mulligan second");
@@ -77,7 +88,7 @@ try {
     fullPage: true,
   });
   await clickAction(desktop.getByRole("button", { name: "开始下一回合" }));
-  await desktop.getByText("第 2 回合").waitFor();
+  await desktop.locator(".turn-number", { hasText: "第 2 回合" }).waitFor();
   await desktop.getByText("先攻活动阶段").first().waitFor();
   const desktopOverflow = await desktop.evaluate(() => ({
     body: document.body.scrollWidth,
@@ -112,9 +123,9 @@ try {
   }
   console.log("resume second turn on mobile with image fallback");
   await ensureHistoryLoaded(mobile);
-  await mobile.locator(".match-row").filter({ hasText: "进行中" }).first().click();
-  await mobile.getByText("第 2 回合").waitFor();
-  await mobile.locator(".card-fallback").first().waitFor();
+  await mobile.locator(".match-row").filter({ hasText: createdMatchId.slice(0, 8) }).first().click();
+  await mobile.locator(".mobile-turn-label", { hasText: "第 2 回合" }).waitFor();
+  await mobile.locator(".mobile-own-board .card-tile").first().waitFor();
   await mobile.screenshot({
     path: "test-results/second-turn-mobile.png",
     fullPage: true,
@@ -128,6 +139,7 @@ try {
       `completed mobile horizontal overflow: ${JSON.stringify(completedMobileOverflow)}`,
     );
   }
+  await assertNoMobilePageScroll(mobile, "second-turn mobile match");
 
   console.log("create completed match through replay-safe API actions");
   const completedMatchId = await createCompletedMatch();
@@ -227,6 +239,7 @@ try {
       `Member play mobile horizontal overflow: ${JSON.stringify(memberMobileOverflow)}`,
     );
   }
+  await assertNoMobilePageScroll(mobile, "Member play mobile match");
 
   await clickAction(desktop.locator(".member-payment-summary .primary-button"));
   const batonState = (await api(`/api/matches/${batonFixture.matchId}`)).state;
@@ -643,8 +656,30 @@ function entryFromSummary(card, quantity) {
 }
 
 async function closeUsageGuide(page) {
-  const closeButton = page.getByLabel(/关闭使用说明|使い方を閉じる/);
-  await closeButton.first().click({ timeout: 1500 }).catch(() => undefined);
+  await page.locator(".preview-notice .primary-button").first().click({ timeout: 1500 }).catch(
+    async () => {
+      const alphaButton = page.getByRole("button", { name: /始める|开始使用/ });
+      await alphaButton.first().click({ timeout: 1500 }).catch(() => undefined);
+    },
+  );
+  await page.locator(".usage-guide .mini-icon").first().click({ timeout: 1500 }).catch(
+    async () => {
+      const closeButton = page.getByLabel(/关闭使用说明|使い方を閉じる/);
+      await closeButton.first().click({ timeout: 1500 }).catch(() => undefined);
+    },
+  );
+}
+
+async function assertNoMobilePageScroll(page, label) {
+  const scroll = await page.evaluate(() => ({
+    html: document.documentElement.scrollHeight,
+    body: document.body.scrollHeight,
+    viewport: window.innerHeight,
+  }));
+  const pageHeight = Math.max(scroll.html, scroll.body);
+  if (pageHeight > scroll.viewport + 4) {
+    throw new Error(`${label} vertical page scroll: ${JSON.stringify(scroll)}`);
+  }
 }
 
 async function ensureHistoryLoaded(page) {

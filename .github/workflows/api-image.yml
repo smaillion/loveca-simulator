@@ -14,22 +14,6 @@ on:
       - "data/loveca-db-manifest.json"
       - "data_sources/**"
       - ".github/workflows/api-image.yml"
-  push:
-    branches:
-      # main is intentionally omitted while stable snapshot promotion remains manual-only.
-      - develop
-      - preview
-    paths:
-      - "Dockerfile"
-      - ".dockerignore"
-      - "compose.api.yml"
-      - "pyproject.toml"
-      - "src/**"
-      - "tools/**"
-      - "data/loveca.sqlite3"
-      - "data/loveca-db-manifest.json"
-      - "data_sources/**"
-      - ".github/workflows/api-image.yml"
 
 permissions:
   contents: read

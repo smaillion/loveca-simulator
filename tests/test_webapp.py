@@ -565,6 +565,25 @@ def test_deck_analyze_api(tmp_path):
     assert "issues" in analysis
 
 
+def test_deck_share_api_uploads_and_downloads_by_uuid(tmp_path):
+    client = _client(tmp_path)
+    sample_deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
+
+    uploaded = client.post("/api/deck-shares", json={"deck": sample_deck})
+    assert uploaded.status_code == 200
+    payload = uploaded.json()
+    share_id = payload["share_id"]
+    assert payload["deck"]["version"] == "decklist.v0"
+
+    loaded = client.get(f"/api/deck-shares/{share_id}")
+    assert loaded.status_code == 200
+    assert loaded.json()["share_id"] == share_id
+    assert loaded.json()["deck"] == payload["deck"]
+
+    invalid = client.get("/api/deck-shares/not-a-uuid")
+    assert invalid.status_code == 400
+
+
 def test_catalog_api_exposes_card_review_data(tmp_path):
     client = _client(tmp_path)
 
