@@ -2734,6 +2734,11 @@ label {
     background: var(--accent);
   }
 
+  .mulligan-wrapper.selected .hand-play-select-button {
+    border-color: var(--accent);
+    background: var(--accent);
+  }
+
   .mobile-own-board .card-fallback {
     padding: 2px;
   }
@@ -2978,8 +2983,14 @@ label {
     padding-bottom: 70px;
   }
 
+  .action-dock.mulligan-dock {
+    overflow: visible;
+    padding-bottom: 70px;
+  }
+
   .action-dock.member-play-dock .action-context,
-  .action-dock.live-set-dock .action-context {
+  .action-dock.live-set-dock .action-context,
+  .action-dock.mulligan-dock .action-context {
     display: none;
   }
 

@@ -132,6 +132,10 @@ type LiveSetDraft = {
   selectedCardIds: string[];
 };
 
+type MulliganDraft = {
+  selectedCardIds: string[];
+};
+
 type MobileMemberPlayContext = {
   legalMemberIds: Set<string>;
   selectedMemberId: string;
@@ -145,6 +149,12 @@ type MobileLiveSetContext = {
   legalCardIds: Set<string>;
   selectedCardIds: string[];
   maximum: number;
+  onToggleCard: (instanceId: string) => void;
+};
+
+type MobileMulliganContext = {
+  legalCardIds: Set<string>;
+  selectedCardIds: string[];
   onToggleCard: (instanceId: string) => void;
 };
 
@@ -191,6 +201,9 @@ export default function App() {
     selectedPlayMode: "",
   });
   const [liveSetDraft, setLiveSetDraft] = useState<LiveSetDraft>({
+    selectedCardIds: [],
+  });
+  const [mulliganDraft, setMulliganDraft] = useState<MulliganDraft>({
     selectedCardIds: [],
   });
   const [autoLivePanelKey, setAutoLivePanelKey] = useState("");
@@ -290,6 +303,7 @@ export default function App() {
   useEffect(() => {
     setMemberPlayDraft({ selectedMemberId: "", selectedSlot: "", selectedPlayMode: "" });
     setLiveSetDraft({ selectedCardIds: [] });
+    setMulliganDraft({ selectedCardIds: [] });
   }, [match?.state.revision]);
   useEffect(() => {
     if (!match || screen !== "match" || !isMobileLayout || !isLiveProcessPhase(match.state.phase)) return;
@@ -585,6 +599,9 @@ export default function App() {
   const mobileSetLiveAction = visibleActions.find(
     (action) => action.action_type === "set_live_cards" && action.player_id === bottomPlayerId,
   );
+  const mobileMulliganAction = visibleActions.find(
+    (action) => action.action_type === "submit_mulligan" && action.player_id === bottomPlayerId,
+  );
   const mobileDialogActionTypes = new Set([
     "activate_effect",
     "resolve_effect",
@@ -608,6 +625,9 @@ export default function App() {
     : undefined;
   const mobileLiveSetContext = isMobileLayout && mobileSetLiveAction
     ? buildMobileLiveSetContext(mobileSetLiveAction, liveSetDraft, setLiveSetDraft)
+    : undefined;
+  const mobileMulliganContext = isMobileLayout && mobileMulliganAction
+    ? buildMobileMulliganContext(mobileMulliganAction, mulliganDraft, setMulliganDraft)
     : undefined;
   const showOnlineWaitingDock =
     onlineSession !== null &&
@@ -741,6 +761,7 @@ export default function App() {
               role={playerRoleLabel(match.state, bottomPlayerId, locale)}
               mobileMemberPlay={mobileMemberPlayContext}
               mobileLiveSet={mobileLiveSetContext}
+              mobileMulligan={mobileMulliganContext}
               onCard={setDetails}
             />
           </div>
@@ -772,8 +793,11 @@ export default function App() {
           onMemberPlayDraftChange={setMemberPlayDraft}
           liveSetDraft={liveSetDraft}
           onLiveSetDraftChange={setLiveSetDraft}
+          mulliganDraft={mulliganDraft}
+          onMulliganDraftChange={setMulliganDraft}
           mobileMemberPlayEnabled={Boolean(mobileMemberPlayContext)}
           mobileLiveSetEnabled={Boolean(mobileLiveSetContext)}
+          mobileMulliganEnabled={Boolean(mobileMulliganContext)}
           loading={loading}
           onAction={handleAction}
           onManual={(source) => {
@@ -829,6 +853,9 @@ export default function App() {
           opponentRole={playerRoleLabel(match.state, topPlayerId, locale)}
           onCard={setDetails}
           onAction={(actionType, playerId, payload) => {
+            if (actionType === "start_next_turn") {
+              setMobileMatchPanel(null);
+            }
             void handleAction(actionType, playerId, payload);
           }}
           onManual={(source) => {
@@ -1034,6 +1061,8 @@ function MobileMatchDialog({
                   onMemberPlayDraftChange={() => undefined}
                   liveSetDraft={{ selectedCardIds: [] }}
                   onLiveSetDraftChange={() => undefined}
+                  mulliganDraft={{ selectedCardIds: [] }}
+                  onMulliganDraftChange={() => undefined}
                   loading={loading}
                   onAction={onAction}
                   onManual={onManual}
@@ -1084,6 +1113,8 @@ function MobileActionDialog({
           onMemberPlayDraftChange={() => undefined}
           liveSetDraft={{ selectedCardIds: [] }}
           onLiveSetDraftChange={() => undefined}
+          mulliganDraft={{ selectedCardIds: [] }}
+          onMulliganDraftChange={() => undefined}
           loading={loading}
           onAction={onAction}
           onManual={onManual}
@@ -1879,6 +1910,7 @@ function PlayerBoard({
   hideHand = false,
   mobileMemberPlay,
   mobileLiveSet,
+  mobileMulligan,
   onCard,
 }: {
   player: PlayerState;
@@ -1888,6 +1920,7 @@ function PlayerBoard({
   hideHand?: boolean;
   mobileMemberPlay?: MobileMemberPlayContext;
   mobileLiveSet?: MobileLiveSetContext;
+  mobileMulligan?: MobileMulliganContext;
   onCard: (card: CardInstance) => void;
 }) {
   const { locale, tr } = useUiLanguage();
@@ -1962,6 +1995,7 @@ function PlayerBoard({
         hidden={hideHand}
         mobileMemberPlay={mobileMemberPlay}
         mobileLiveSet={mobileLiveSet}
+        mobileMulligan={mobileMulligan}
       />
     </section>
   );
@@ -2383,6 +2417,7 @@ function Zone({
   small = false,
   mobileMemberPlay,
   mobileLiveSet,
+  mobileMulligan,
 }: {
   label: string;
   ids: string[];
@@ -2393,6 +2428,7 @@ function Zone({
   small?: boolean;
   mobileMemberPlay?: MobileMemberPlayContext;
   mobileLiveSet?: MobileLiveSetContext;
+  mobileMulligan?: MobileMulliganContext;
 }) {
   const { tr } = useUiLanguage();
   return (
@@ -2454,6 +2490,26 @@ function Zone({
                   onClick={() => mobileLiveSet.onToggleCard(id)}
                 >
                   {tr("セット候补", "セット候補")}
+                </button>
+              </div>
+            ) : hand && mobileMulligan?.legalCardIds.has(id) ? (
+              <div
+                className={`hand-card-play-wrapper mulligan-wrapper ${
+                  mobileMulligan.selectedCardIds.includes(id) ? "selected" : ""
+                }`}
+                key={id}
+              >
+                <CardTile
+                  instance={state.cards[id]}
+                  selected={mobileMulligan.selectedCardIds.includes(id)}
+                  onClick={onCard}
+                />
+                <button
+                  className="hand-play-select-button mulligan-select-button"
+                  type="button"
+                  onClick={() => mobileMulligan.onToggleCard(id)}
+                >
+                  {tr("调度候选", "引き直し候補")}
                 </button>
               </div>
             ) : (
@@ -2630,8 +2686,11 @@ function ActionDock({
   onMemberPlayDraftChange,
   liveSetDraft,
   onLiveSetDraftChange,
+  mulliganDraft,
+  onMulliganDraftChange,
   mobileMemberPlayEnabled = false,
   mobileLiveSetEnabled = false,
+  mobileMulliganEnabled = false,
   embedded = false,
   loading,
   onAction,
@@ -2643,8 +2702,11 @@ function ActionDock({
   onMemberPlayDraftChange: (draft: MemberPlayDraft) => void;
   liveSetDraft: LiveSetDraft;
   onLiveSetDraftChange: (draft: LiveSetDraft) => void;
+  mulliganDraft: MulliganDraft;
+  onMulliganDraftChange: (draft: MulliganDraft) => void;
   mobileMemberPlayEnabled?: boolean;
   mobileLiveSetEnabled?: boolean;
+  mobileMulliganEnabled?: boolean;
   embedded?: boolean;
   loading: boolean;
   onAction: (
@@ -2664,7 +2726,7 @@ function ActionDock({
   }, [state.revision]);
 
   return (
-    <footer className={`action-dock ${embedded ? "embedded-action-dock" : ""} ${actions.some((action) => action.action_type === "play_member") ? "member-play-dock" : ""} ${actions.some((action) => action.action_type === "set_live_cards") ? "live-set-dock" : ""}`}>
+    <footer className={`action-dock ${embedded ? "embedded-action-dock" : ""} ${actions.some((action) => action.action_type === "play_member") ? "member-play-dock" : ""} ${actions.some((action) => action.action_type === "set_live_cards") ? "live-set-dock" : ""} ${actions.some((action) => action.action_type === "submit_mulligan") ? "mulligan-dock" : ""}`}>
       <div className="action-context">
         <strong>{tr("下一步操作", "次にできる操作")}</strong>
         <span>{state.active_player_id ? state.players[state.active_player_id].name : "System"}</span>
@@ -2772,17 +2834,34 @@ function ActionDock({
           }
           if (action.action_type === "submit_mulligan") {
             const hand = action.options.hand_instance_ids as string[];
+            const mulliganSelection = mobileMulliganEnabled
+              ? mulliganDraft.selectedCardIds.filter((id) => hand.includes(id))
+              : selected;
             return (
               <SelectionAction
                 key={action.action_type}
                 title={tr("选择需要调度的手牌", "引き直す手札を選択")}
                 ids={hand}
-                selected={selected}
+                selected={mulliganSelection}
                 state={state}
-                onToggle={(id) => toggleSelected(selected, id, setSelected)}
+                mobileMode={mobileMulliganEnabled}
+                mobileHint={tr("手牌下方的「调度候选」用于选择要换掉的手牌。", "手札下の「引き直し候補」で戻すカードを選びます。")}
+                mobileConfirmLabel={tr("确认调度", "引き直し確定")}
+                mobileSummary={tr("可选择任意张", "任意の枚数を選択可能")}
+                onToggle={(id) => {
+                  if (mobileMulliganEnabled) {
+                    toggleSelected(
+                      mulliganSelection,
+                      id,
+                      (value) => onMulliganDraftChange({ selectedCardIds: value }),
+                    );
+                  } else {
+                    toggleSelected(selected, id, setSelected);
+                  }
+                }}
                 onSubmit={() =>
                   onAction(action.action_type, action.player_id, {
-                    card_instance_ids: selected,
+                    card_instance_ids: mulliganSelection,
                   })
                 }
               />
@@ -2802,6 +2881,9 @@ function ActionDock({
                 state={state}
                 maximum={3}
                 mobileMode={mobileLiveSetEnabled}
+                mobileHint={tr("手牌下方的「セット候補」で选择 Live 卡。", "手札下の「セット候補」でライブカードを選びます。")}
+                mobileConfirmLabel={tr("确认设置", "セット確定")}
+                mobileSummary={tr("可设置 0 到 3 张", "0〜3枚までセット可能")}
                 onToggle={(id) => {
                   if (mobileLiveSetEnabled) {
                     toggleSelected(
@@ -4012,6 +4094,9 @@ function SelectionAction({
   state,
   maximum,
   mobileMode = false,
+  mobileHint,
+  mobileConfirmLabel,
+  mobileSummary,
   onToggle,
   onSubmit,
 }: {
@@ -4021,6 +4106,9 @@ function SelectionAction({
   state: MatchState;
   maximum?: number;
   mobileMode?: boolean;
+  mobileHint?: string;
+  mobileConfirmLabel?: string;
+  mobileSummary?: string;
   onToggle: (id: string) => void;
   onSubmit: () => void;
 }) {
@@ -4030,7 +4118,7 @@ function SelectionAction({
     <div className={`selection-action ${mobileMode ? "mobile-selection-action" : ""}`}>
       <span>
         {mobileMode
-          ? tr("手牌下方的「セット候補」で选择 Live 卡。", "手札下の「セット候補」でライブカードを選びます。")
+          ? mobileHint ?? title
           : title}
       </span>
       <div className="selection-cards">
@@ -4057,12 +4145,12 @@ function SelectionAction({
                 : tr("未选择 Live 卡", "ライブカード未選択")}
             </strong>
             <span>
-              {tr("可设置 0 到 3 张", "0〜3枚までセット可能")} · {selected.length}
+              {mobileSummary ?? tr("已选择", "選択済み")} · {selected.length}
               {maximum ? ` / ${maximum}` : ""}
             </span>
           </div>
           <button className="primary-button" type="button" onClick={onSubmit}>
-            {tr("确认设置", "セット確定")}
+            {mobileConfirmLabel ?? tr("确认", "確定")}
           </button>
         </div>
       )}
@@ -4966,6 +5054,28 @@ function buildMobileLiveSetContext(
         instanceId,
         (value) => setDraft({ selectedCardIds: value }),
         3,
+      );
+    },
+  };
+}
+
+function buildMobileMulliganContext(
+  action: LegalAction,
+  draft: MulliganDraft,
+  setDraft: (draft: MulliganDraft) => void,
+): MobileMulliganContext {
+  const hand = action.options.hand_instance_ids as string[];
+  const legalCardIds = new Set(hand);
+  const selectedCardIds = draft.selectedCardIds.filter((id) => legalCardIds.has(id));
+  return {
+    legalCardIds,
+    selectedCardIds,
+    onToggleCard: (instanceId) => {
+      if (!legalCardIds.has(instanceId)) return;
+      toggleSelected(
+        selectedCardIds,
+        instanceId,
+        (value) => setDraft({ selectedCardIds: value }),
       );
     },
   };
