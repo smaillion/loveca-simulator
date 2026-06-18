@@ -2836,6 +2836,12 @@ label {
     gap: 8px;
   }
 
+  .mobile-live-dialog-actions {
+    margin-top: 10px;
+    border-top: 1px solid var(--line);
+    padding-top: 10px;
+  }
+
   .compact-live-breakdown {
     border: 1px solid var(--line);
     border-radius: 8px;

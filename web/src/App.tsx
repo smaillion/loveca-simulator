@@ -823,9 +823,18 @@ export default function App() {
         <MobileMatchDialog
           panel={mobileMatchPanel}
           state={match.state}
+          actions={mobileMatchPanel === "live" && isLiveProcessPhase(match.state.phase) ? visibleActions : []}
+          loading={loading}
           opponentPlayerId={topPlayerId}
           opponentRole={playerRoleLabel(match.state, topPlayerId, locale)}
           onCard={setDetails}
+          onAction={(actionType, playerId, payload) => {
+            void handleAction(actionType, playerId, payload);
+          }}
+          onManual={(source) => {
+            setManualSource(source ?? null);
+            setManualOpen(true);
+          }}
           onClose={() => setMobileMatchPanel(null)}
         />
       )}
@@ -966,16 +975,28 @@ function MobileMatchSummary({
 function MobileMatchDialog({
   panel,
   state,
+  actions,
+  loading,
   opponentPlayerId,
   opponentRole,
   onCard,
+  onAction,
+  onManual,
   onClose,
 }: {
   panel: "opponent" | "live";
   state: MatchState;
+  actions: LegalAction[];
+  loading: boolean;
   opponentPlayerId: string;
   opponentRole: string;
   onCard: (card: CardInstance) => void;
+  onAction: (
+    actionType: string,
+    playerId?: string | null,
+    payload?: Record<string, unknown>,
+  ) => void;
+  onManual: (source?: EffectInvocation) => void;
   onClose: () => void;
 }) {
   const { tr } = useUiLanguage();
@@ -1002,7 +1023,25 @@ function MobileMatchDialog({
             onCard={onCard}
           />
         ) : (
-          <LiveCenter state={state} onCard={onCard} compact />
+          <>
+            <LiveCenter state={state} onCard={onCard} compact />
+            {actions.length > 0 && (
+              <div className="mobile-live-dialog-actions">
+                <ActionDock
+                  state={state}
+                  actions={actions}
+                  memberPlayDraft={{ selectedMemberId: "", selectedSlot: "", selectedPlayMode: "" }}
+                  onMemberPlayDraftChange={() => undefined}
+                  liveSetDraft={{ selectedCardIds: [] }}
+                  onLiveSetDraftChange={() => undefined}
+                  loading={loading}
+                  onAction={onAction}
+                  onManual={onManual}
+                  embedded
+                />
+              </div>
+            )}
+          </>
         )}
       </section>
     </div>
