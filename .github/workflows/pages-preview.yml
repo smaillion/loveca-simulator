@@ -76,14 +76,6 @@ jobs:
         working-directory: web
         run: npm run test -- --run
 
-      - name: Build web app
-        working-directory: web
-        env:
-          VITE_BASE_PATH: /loveca-simulator/
-          VITE_BROWSER_PREVIEW: ${{ vars.VITE_RUNTIME_BROWSER_PREVIEW || 'true' }}
-          VITE_PUBLIC_API_BASE_URL: ${{ vars.VITE_PUBLIC_API_BASE_URL || '' }}
-        run: npm run build
-
       - name: Guard official text bundling
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.include_official_text == 'true' && inputs.public_data_acknowledgement != 'REVIEWED_PUBLIC_DATA_POLICY' }}
         run: |
@@ -91,19 +83,14 @@ jobs:
           echo "Re-run with public_data_acknowledgement=REVIEWED_PUBLIC_DATA_POLICY after review."
           exit 1
 
-      - name: Export static preview data
-        run: |
-          # Export from the locked repository database only. CI must not fetch
-          # official sources or create a divergent card DB.
-          args=(
-            --database data/loveca.sqlite3
-            --output-dir web/dist/preview-data
-            --effect-registry data_sources/effect-registry.v0.json
-          )
-          if [ "${{ inputs.include_official_text }}" = "true" ]; then
-            args+=(--include-official-text)
-          fi
-          python scripts/export-preview-data.py "${args[@]}"
+      - name: Build web app
+        working-directory: web
+        env:
+          VITE_BASE_PATH: /loveca-simulator/
+          VITE_BROWSER_PREVIEW: ${{ vars.VITE_RUNTIME_BROWSER_PREVIEW || 'true' }}
+          VITE_PUBLIC_API_BASE_URL: ${{ vars.VITE_PUBLIC_API_BASE_URL || '' }}
+          INCLUDE_OFFICIAL_TEXT: ${{ inputs.include_official_text || 'false' }}
+        run: npm run build
 
       - name: Write runtime config
         env:
