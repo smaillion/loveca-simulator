@@ -185,6 +185,9 @@ def test_api_play_context_contains_ordinary_legal_actions():
     assert context["state"]["phase"] == "first_main"
     assert context["players"]["player_1"]["hand"] == []
     assert context["legal_actions"][0]["action_type"] == "advance_phase"
+    assert context["legal_action_summary"]["action_type_counts"] == {"advance_phase": 1}
+    assert context["strategy"]["recommended_action_order"] == ["advance_phase"]
+    assert context["strategy"]["progress"]["acting_player_hand_count"] == 0
 
 
 def test_api_play_scripted_provider_selects_ordinary_action():

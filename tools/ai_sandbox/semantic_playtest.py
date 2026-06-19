@@ -938,6 +938,7 @@ def build_api_play_context(state: MatchState, legal_actions: list[LegalAction]) 
             "Do not invent card ids or mutate GameState directly.",
             "The engine will validate the submitted payload.",
             "Prefer actions that progress the game toward successful Live resolution.",
+            "Use strategy.recommended_action_order as a tie-breaker when several actions are legal.",
             "Do not choose manual_adjustment in API Play; manual effects use the dedicated semantic flow.",
         ],
         "allowed_response_schema": {
@@ -959,6 +960,8 @@ def build_api_play_context(state: MatchState, legal_actions: list[LegalAction]) 
             "pending_choice": state.pending_choice.model_dump() if state.pending_choice else None,
             "pending_effects": [effect.model_dump() for effect in state.pending_effects],
         },
+        "strategy": api_play_strategy_summary(state, legal_actions, acting_player_id),
+        "legal_action_summary": summarize_legal_actions(legal_actions),
         "players": {
             player_id: player_context(
                 state,
@@ -969,6 +972,135 @@ def build_api_play_context(state: MatchState, legal_actions: list[LegalAction]) 
         },
         "legal_actions": [action.model_dump() for action in legal_actions],
     }
+
+
+def api_play_strategy_summary(
+    state: MatchState,
+    legal_actions: list[LegalAction],
+    acting_player_id: str,
+) -> dict[str, Any]:
+    action_types = {action.action_type for action in legal_actions}
+    acting_player = state.players.get(acting_player_id)
+    recommended_order = [
+        action_type
+        for action_type in api_play_recommended_action_order(state.phase, bool(state.pending_choice), bool(state.pending_effects))
+        if action_type in action_types
+    ]
+    progress: dict[str, Any] = {
+        "success_live_counts": {
+            player_id: len(player.success_live_area)
+            for player_id, player in sorted(state.players.items())
+        },
+        "pending_choice": state.pending_choice.choice_type if state.pending_choice else None,
+        "pending_effect_count": len(state.pending_effects),
+    }
+    if acting_player is not None:
+        progress.update(
+            {
+                "acting_player_hand_count": len(acting_player.hand),
+                "acting_player_stage_member_count": sum(
+                    1 for instance_id in acting_player.member_area.values() if instance_id
+                ),
+                "acting_player_live_area_count": len(acting_player.live_area),
+                "acting_player_active_energy_count": count_active_energy(state, acting_player_id),
+            }
+        )
+    return {
+        "primary_goal": "choose legal actions that complete setup, progress turns, and create successful Live resolutions",
+        "phase_guidance": api_play_phase_guidance(state.phase),
+        "recommended_action_order": recommended_order,
+        "avoid": [
+            "manual_adjustment in API Play",
+            "invented card ids or payload fields",
+            "cannot_resolve when a listed legal action can progress the game",
+        ],
+        "progress": progress,
+    }
+
+
+def api_play_phase_guidance(phase: str) -> str:
+    if "mulligan" in phase:
+        return "finish mulligan with submit_mulligan unless no such action is legal"
+    if phase.endswith("_main") or phase in {"first_main", "second_main"}:
+        return "resolve playable effects first, play useful Members, then end the main phase"
+    if "live" in phase:
+        return "set Live cards, resolve effect choices, and finish Live judgment without stalling"
+    if phase == "turn_complete":
+        return "start the next turn unless the game is complete"
+    return "prefer the first recommended action that makes deterministic progress"
+
+
+def api_play_recommended_action_order(
+    phase: str,
+    has_pending_choice: bool,
+    has_pending_effects: bool,
+) -> list[str]:
+    order: list[str] = []
+    if has_pending_choice:
+        order.extend([
+            "resolve_effect_choice",
+            "resolve_manual_inspection",
+            "resolve_live_requirements",
+        ])
+    if has_pending_effects:
+        order.extend(["resolve_effect", "activate_effect", "skip_effect"])
+    if "mulligan" in phase:
+        order.extend(["submit_mulligan", "advance_phase"])
+    elif phase.endswith("_main") or phase in {"first_main", "second_main"}:
+        order.extend(["activate_effect", "play_member", "end_main_phase", "advance_phase"])
+    elif "live" in phase:
+        order.extend([
+            "set_live_cards",
+            "resolve_effect",
+            "resolve_effect_choice",
+            "resolve_live_requirements",
+            "advance_phase",
+        ])
+    elif phase == "turn_complete":
+        order.extend(["start_next_turn"])
+    order.extend([
+        "choose_first_player",
+        "submit_mulligan",
+        "advance_phase",
+        "play_member",
+        "end_main_phase",
+        "set_live_cards",
+        "resolve_live_requirements",
+        "start_next_turn",
+        "skip_effect",
+    ])
+    deduped: list[str] = []
+    for action_type in order:
+        if action_type not in deduped:
+            deduped.append(action_type)
+    return deduped
+
+
+def summarize_legal_actions(legal_actions: list[LegalAction]) -> dict[str, Any]:
+    action_type_counts = Counter(action.action_type for action in legal_actions)
+    by_player: dict[str, Counter[str]] = {}
+    for action in legal_actions:
+        player_id = action.player_id or "system"
+        by_player.setdefault(player_id, Counter())[action.action_type] += 1
+    return {
+        "count": len(legal_actions),
+        "action_type_counts": dict(sorted(action_type_counts.items())),
+        "by_player": {
+            player_id: dict(sorted(counter.items()))
+            for player_id, counter in sorted(by_player.items())
+        },
+    }
+
+
+def count_active_energy(state: MatchState, player_id: str) -> int:
+    player = state.players.get(player_id)
+    if player is None:
+        return 0
+    return sum(
+        1
+        for instance_id in player.energy_area
+        if instance_id in state.cards and state.cards[instance_id].orientation == "active"
+    )
 
 
 def build_agent_context(state: MatchState, legal_actions: list[LegalAction]) -> dict[str, Any]:
