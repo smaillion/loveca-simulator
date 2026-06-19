@@ -137,17 +137,25 @@ Bug 报告、规则行为讨论和 online 对战伙伴寻找请前往 [Discord](
 
 ## 界面预览
 
-启动页：可直接选择已保存牌组并创建对局。
+PC 启动页：可直接选择已保存牌组并创建对局。
 
-![启动页](docs/images/home-desktop.png)
+![PC 启动页](docs/images/home-desktop.png)
 
-Deck Builder：右侧筛选选卡，中央查看构筑与分析结果。
+PC Deck Builder：右侧筛选选卡，中央查看构筑与分析结果。
 
-![Deck Builder](docs/images/deck-builder-desktop.png)
+![PC Deck Builder](docs/images/deck-builder-desktop.png)
 
-规则验证器：同屏查看盘面、Action/Event Log 与人工规则调整。
+PC 规则验证器：同屏查看盘面、Action/Event Log 与人工规则调整。
 
-![规则验证器](docs/images/match-actions-desktop.png)
+![PC 规则验证器](docs/images/match-actions-desktop.png)
+
+手机 Deck Builder：卡牌搜索使用弹窗，竖屏下也能查看筛选条件并加入牌组。
+
+![手机 Deck Builder](docs/images/deck-builder-mobile.png)
+
+手机规则验证器：以己方盘面和手牌为中心，登场确认和手动调整入口保持小型化。
+
+![手机规则验证器](docs/images/match-actions-mobile.png)
 
 ## 卡牌 DB 与 asset 分发方针
 

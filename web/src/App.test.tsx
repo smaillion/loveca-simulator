@@ -1196,10 +1196,10 @@ describe("App", () => {
     await waitFor(() =>
       expect(container.querySelector(".mobile-skill-entry-floating")).not.toBeNull(),
     );
-    expect(screen.getByRole("button", { name: /从手牌发动能力 1/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /手牌起动 1/ })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "确认登场" }).length).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole("button", { name: /从手牌发动能力 1/ }));
+    fireEvent.click(screen.getByRole("button", { name: /手牌起动 1/ }));
 
     await waitFor(() => expect(container.querySelector(".mobile-action-dialog")).not.toBeNull());
     expect(screen.getByText("可发动技能")).toBeInTheDocument();

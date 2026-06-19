@@ -689,7 +689,13 @@ export default function App() {
     "skip_effect",
   ]);
   const mobileDialogActions = isMobileLayout
-    ? visibleActions.filter((action) => mobileDialogActionTypes.has(action.action_type))
+    ? visibleActions.filter((action) => {
+      if (!mobileDialogActionTypes.has(action.action_type)) return false;
+      if (action.action_type === "activate_effect" && !isMainPhase(match.state.phase)) {
+        return false;
+      }
+      return true;
+    })
     : [];
   const mobileManualAdjustmentAction = isMobileLayout
     ? visibleActions.find((action) => action.action_type === "manual_adjustment")
@@ -1035,21 +1041,25 @@ function mobileEffectDialogCopy(
     return {
       title: isZh ? "手牌起动能力" : "手札から起動",
       description: isZh ? "选择要从手牌发动的能力" : "手札から使う能力を選択",
-      buttonLabel: isZh ? `从手牌发动能力 ${count}` : `手札から能力を起動 ${count}`,
+      buttonLabel: isZh ? `手牌起动 ${count}` : `手札起動 ${count}`,
     };
   }
   if (hasActivation) {
     return {
       title: isZh ? "可发动能力" : "起動できる能力",
       description: isZh ? "打开弹窗选择能力" : "ポップアップで能力を選択",
-      buttonLabel: isZh ? `发动能力 ${count}` : `能力を起動 ${count}`,
+      buttonLabel: isZh ? `能力 ${count}` : `能力起動 ${count}`,
     };
   }
   return {
     title: isZh ? "待处理能力" : "処理待ち能力",
     description: isZh ? "打开弹窗选择目标与结算" : "ポップアップで対象選択と解決",
-    buttonLabel: isZh ? `处理能力 ${count}` : `能力を処理 ${count}`,
+    buttonLabel: isZh ? `处理 ${count}` : `処理 ${count}`,
   };
+}
+
+function isMainPhase(phase: string): boolean {
+  return phase === "first_main" || phase === "second_main";
 }
 
 function activationActionSourcesAreInHand(action: LegalAction, state: MatchState): boolean {
@@ -1334,7 +1344,7 @@ function PreviewNotice({
               <li>{locale === "zh" ? "对战中会隐藏对手手牌，并按当前操作人切换可见信息。" : "対戦中は相手の手札を隠し、操作プレイヤー基準で見える情報を切り替えます。"}</li>
               <li>{locale === "zh" ? "先后攻改为自动随机，不再需要开局手动选择。" : "先後攻は自動ランダム化し、開始時の手動選択をなくしました。"}</li>
               <li>{locale === "zh" ? "自动技能、特殊应援和后续效果选择现在会显示提示。" : "自動効果、特殊エール、続きの効果選択に画面上の提示を追加しました。"}</li>
-              <li>{locale === "zh" ? "手机版对战加入成功 Live 摘要、Live / 对手区域弹窗、较大的手牌显示，以及独立的登场候选按钮与确认登场。" : "スマホ対戦画面に成功ライブ要約、ライブ / 相手エリアのポップアップ、大きめの手札表示、登場候補ボタンと確認登場を追加しました。"}</li>
+              <li>{locale === "zh" ? "手机版对战加入成功 Live 摘要、Live / 对手区域弹窗、较大的手牌显示、小型能力 / 手动入口和确认登场。" : "スマホ対戦画面に成功ライブ要約、ライブ / 相手エリアのポップアップ、大きめの手札表示、小型の能力 / 手動入口、確認登場を追加しました。"}</li>
               <li>{locale === "zh" ? "Deck 画面加入使用说明、折叠式保存列表、搜索弹窗、JSON 导入导出和 UUID 牌组分享。" : "Deck 画面に使い方、保存済みリスト折りたたみ、検索ポップアップ、JSON 読み込み / 書き出し、UUID デッキ共有を追加しました。"}</li>
               <li>{locale === "zh" ? "Deck 分析会自动显示枚数、Heart、Blade、Score、特殊应援和技能时点摘要。" : "Deck 分析で枚数、ハート、ブレード、スコア、特殊エール、能力タイミングを自動表示します。"}</li>
             </ul>

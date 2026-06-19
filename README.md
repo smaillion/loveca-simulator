@@ -137,17 +137,25 @@ Deck Builder の現在の到達点:
 
 ## 画面イメージ
 
-開始画面: 保存済みデッキを選び、そのまま対局作成まで進められます。
+PC 開始画面: 保存済みデッキを選び、そのまま対局作成まで進められます。
 
-![開始画面](docs/images/home-desktop.png)
+![PC 開始画面](docs/images/home-desktop.png)
 
-Deck Builder: 右側でカード検索と絞り込み、中央で構築内容と分析結果を確認します。
+PC Deck Builder: 右側でカード検索と絞り込み、中央で構築内容と分析結果を確認します。
 
-![Deck Builder](docs/images/deck-builder-desktop.png)
+![PC Deck Builder](docs/images/deck-builder-desktop.png)
 
-ルール検証 UI: 盤面、Action/Event Log、手動調整を同じ画面で追えます。
+PC ルール検証 UI: 盤面、Action/Event Log、手動調整を同じ画面で追えます。
 
-![ルール検証 UI](docs/images/match-actions-desktop.png)
+![PC ルール検証 UI](docs/images/match-actions-desktop.png)
+
+スマホ Deck Builder: カード検索はポップアップで開き、検索条件と追加操作を縦画面で確認できます。
+
+![スマホ Deck Builder](docs/images/deck-builder-mobile.png)
+
+スマホ ルール検証 UI: 自分の盤面と手札を中心に表示し、登場確認や手動調整は小型の操作入口から行います。
+
+![スマホ ルール検証 UI](docs/images/match-actions-mobile.png)
 
 ## カード DB と asset 配布方針
 
