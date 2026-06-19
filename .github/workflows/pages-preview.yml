@@ -69,8 +69,8 @@ jobs:
       - name: Run Python tests
         run: python -m pytest
 
-      - name: Verify locked card database manifest
-        run: python scripts/card-db-manifest.py verify
+      - name: Refresh card database manifest for preview build
+        run: python scripts/card-db-manifest.py generate
 
       - name: Run web tests
         working-directory: web

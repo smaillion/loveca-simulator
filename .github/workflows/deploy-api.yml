@@ -20,6 +20,8 @@ on:
       - "src/**"
       - "data/loveca.sqlite3"
       - "data/loveca-db-manifest.json"
+      - "data_sources/**"
+      - "scripts/card-db-manifest.py"
       - "pyproject.toml"
 
 permissions:
@@ -63,6 +65,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python package
+        run: python -m pip install -e .
+
+      - name: Verify locked card database manifest
+        run: python scripts/card-db-manifest.py verify
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
