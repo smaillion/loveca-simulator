@@ -80,6 +80,8 @@ Minimum expected behavior:
 * wrong token is rejected
 * replay export returns final state and action history
 * cleanup endpoint returns a structured count
+* public match history can be disabled while direct solo matches still work with a returned match token
+* admin runtime storage / cleanup endpoints reject missing or wrong `X-LoveCA-Admin-Key`
 
 ## 4. Browser Two-Session Smoke
 
@@ -134,6 +136,8 @@ Before asking external testers to join:
 * GitHub Pages `runtime-config.json` uses the same public API URL in `apiBaseUrl`.
 * repository variable `VITE_PUBLIC_API_BASE_URL` points at the Worker URL.
 * runtime room data is disposable and TTL cleanup is enabled.
+* daily API restart cron is installed for 04:00 JST, and testers know rooms may
+  need to be recreated after maintenance.
 * logs do not include downloaded official card images or unrelated local files.
 * restart procedure is documented for the current VPS.
 

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import sqlite3
@@ -243,26 +243,126 @@ def test_match_history_paginates_without_purging_active_room_match(tmp_path):
     assert room_match_id not in {item["match_id"] for item in payload["items"]}
     assert payload["page"] == 1
     assert payload["per_page"] == 10
-    assert payload["total"] == 30
+    assert payload["total"] == 25
 
 
-def test_match_history_caps_results_at_100(tmp_path):
+def test_match_history_caps_results_at_25(tmp_path):
     runtime_path = tmp_path / "matches.sqlite3"
     client = _client(tmp_path)
     _insert_match_rows(runtime_path, 105)
 
     first_page = client.get("/api/matches?page=1&per_page=10")
     assert first_page.status_code == 200
-    assert first_page.json()["total"] == 100
+    assert first_page.json()["total"] == 25
     assert len(first_page.json()["items"]) == 10
 
-    last_page = client.get("/api/matches?page=10&per_page=10")
+    last_page = client.get("/api/matches?page=3&per_page=10")
     assert last_page.status_code == 200
-    assert len(last_page.json()["items"]) == 10
+    assert len(last_page.json()["items"]) == 5
 
-    overflow = client.get("/api/matches?page=11&per_page=10")
+    overflow = client.get("/api/matches?page=4&per_page=10")
     assert overflow.status_code == 200
     assert overflow.json()["items"] == []
+
+
+def test_public_match_endpoints_can_be_disabled_while_solo_matches_use_tokens(tmp_path):
+    client = _client(tmp_path, public_match_endpoints=False)
+    deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
+
+    assert client.get("/api/matches").status_code == 404
+    created_match = client.post(
+        "/api/matches",
+        json={
+            "player_1": {"name": "Player A", "deck": deck},
+            "player_2": {"name": "Player B", "deck": deck},
+            "seed": 1,
+        },
+    )
+    assert created_match.status_code == 200
+    payload = created_match.json()
+    match_id = payload["state"]["match_id"]
+    match_token = payload["match_token"]
+    assert match_token
+
+    assert client.get(f"/api/matches/{match_id}").status_code == 403
+    restored = client.get(f"/api/matches/{match_id}?match_token={match_token}")
+    assert restored.status_code == 200
+    assert restored.json()["state"]["match_id"] == match_id
+
+    next_action = payload["legal_actions"][0]
+    action_request = {
+        "action_type": next_action["action_type"],
+        "expected_revision": payload["state"]["revision"],
+        "player_id": next_action["player_id"],
+        "payload": {"card_instance_ids": []},
+    }
+    rejected_action = client.post(
+        f"/api/matches/{match_id}/actions",
+        json=action_request,
+    )
+    assert rejected_action.status_code == 403
+    accepted_action = client.post(
+        f"/api/matches/{match_id}/actions?match_token={match_token}",
+        json=action_request,
+    )
+    assert accepted_action.status_code == 200
+
+    created = client.post(
+        "/api/rooms",
+        json={"player_name": "Host", "deck": deck, "seed": 106},
+    )
+    assert created.status_code == 200
+    room_code = created.json()["room_code"]
+
+    joined = client.post(
+        f"/api/rooms/{room_code}/join",
+        json={"player_name": "Guest", "deck": deck},
+    )
+    assert joined.status_code == 200
+    assert joined.json()["match"]["state"]["match_id"]
+
+
+def test_admin_runtime_storage_and_cleanup_requires_key(tmp_path):
+    client = _client(tmp_path, admin_key="secret")
+    runtime_path = tmp_path / "matches.sqlite3"
+    _insert_match_rows(runtime_path, 3)
+    with sqlite3.connect(runtime_path) as connection:
+        for revision in range(6):
+            connection.execute(
+                """
+                INSERT INTO match_snapshots (
+                    match_id,
+                    revision,
+                    action_sequence,
+                    state_json,
+                    created_at
+                )
+                VALUES ('match-000', ?, ?, ?, '2026-06-15T00:00:00+00:00')
+                """,
+                (revision, revision, "{}" * (revision + 1)),
+            )
+
+    assert client.get("/api/admin/runtime/storage").status_code == 403
+    storage = client.get(
+        "/api/admin/runtime/storage",
+        headers={"X-LoveCA-Admin-Key": "secret"},
+    )
+    assert storage.status_code == 200
+    assert storage.json()["tables"]
+
+    cleanup = client.post(
+        "/api/admin/runtime/cleanup",
+        headers={"X-LoveCA-Admin-Key": "secret"},
+        json={
+            "retain_matches": 25,
+            "max_snapshots_per_match": 3,
+            "vacuum": False,
+        },
+    )
+    assert cleanup.status_code == 200
+    payload = cleanup.json()
+    assert payload["snapshot_deleted_count"] == 3
+    assert payload["deleted_by_age"] == 0
 
 
 def test_hosted_room_leave_expires_room_and_blocks_actions(tmp_path):
@@ -614,18 +714,20 @@ def test_catalog_api_exposes_card_review_data(tmp_path):
     assert "units" in facets_payload
 
 
-def _client(tmp_path: Path) -> TestClient:
+def _client(tmp_path: Path, **settings_overrides) -> TestClient:
     card_database = tmp_path / "cards.sqlite3"
     import_normalized_cards(card_database, SAMPLE_CARDS, NORMALIZATION)
+    settings = {
+        "card_database_path": card_database,
+        "runtime_database_path": tmp_path / "matches.sqlite3",
+        "image_cache_dir": tmp_path / "images",
+        "web_dist_dir": tmp_path / "missing-dist",
+        "deck_library_root": tmp_path / "decks",
+        "allowed_deck_root": PROJECT_ROOT,
+    }
+    settings.update(settings_overrides)
     app = create_app(
-        ApiSettings(
-            card_database_path=card_database,
-            runtime_database_path=tmp_path / "matches.sqlite3",
-            image_cache_dir=tmp_path / "images",
-            web_dist_dir=tmp_path / "missing-dist",
-            deck_library_root=tmp_path / "decks",
-            allowed_deck_root=PROJECT_ROOT,
-        )
+        ApiSettings(**settings)
     )
     return TestClient(app)
 

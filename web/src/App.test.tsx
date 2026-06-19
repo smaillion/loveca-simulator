@@ -504,6 +504,7 @@ function createFetchMock(overrides: {
           mode: "release",
           browserPreview: false,
           apiBaseUrl: "",
+          publicMatchHistory: true,
           cardDatabaseFingerprint: "",
         },
       );
@@ -710,6 +711,7 @@ describe("App", () => {
         mode: "preview",
         browserPreview: true,
         apiBaseUrl: "",
+        publicMatchHistory: false,
         cardDatabaseFingerprint: "",
       },
     });
@@ -736,6 +738,7 @@ describe("App", () => {
         mode: "preview",
         browserPreview: true,
         apiBaseUrl: "",
+        publicMatchHistory: false,
         cardDatabaseFingerprint: "",
       },
     });
@@ -1112,6 +1115,7 @@ describe("App", () => {
       mode: "release" as const,
       browserPreview: false,
       apiBaseUrl: "https://api.test",
+      publicMatchHistory: false,
       cardDatabaseFingerprint: "test",
     };
     const fetchMock = createFetchMock({
@@ -1147,6 +1151,7 @@ describe("App", () => {
       mode: "release" as const,
       browserPreview: false,
       apiBaseUrl: "https://api.test",
+      publicMatchHistory: false,
       cardDatabaseFingerprint: "test",
     };
     const opponentWaitingMatch = {
@@ -1183,6 +1188,7 @@ describe("App", () => {
       mode: "release" as const,
       browserPreview: false,
       apiBaseUrl: "https://api.test",
+      publicMatchHistory: false,
       cardDatabaseFingerprint: "test",
     };
     const fetchMock = createFetchMock({
@@ -1485,6 +1491,7 @@ describe("App", () => {
           mode: "release",
           browserPreview: false,
           apiBaseUrl: "",
+          publicMatchHistory: true,
           cardDatabaseFingerprint: "",
         });
       }
@@ -1573,6 +1580,7 @@ describe("App", () => {
       mode: "release" as const,
       browserPreview: false,
       apiBaseUrl: "https://api.test",
+      publicMatchHistory: false,
       cardDatabaseFingerprint: "test",
     };
     const sharedDeck: DeckList = {

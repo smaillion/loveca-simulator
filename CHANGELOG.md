@@ -4,6 +4,10 @@
 
 ### 追加 / 新增
 
+- Hosted API runtime の保存量を抑えるため、match history の既定上限を 25 件にし、各 match の snapshot は直近 3 件だけ保持するようにした。
+- VPS deploy workflow に JST 04:00 の daily API restart cron を追加し、restart 時に runtime cleanup が走る運用へ寄せた。
+- 公開 Hosted API では global match history を表示せず、solo match は作成時の access token で復帰 / 操作 / replay export できるようにした。
+- 管理者キー付きの runtime storage / cleanup API と簡易 admin page を追加し、snapshot pruning、時間範囲 cleanup、任意 VACUUM を実行できるようにした。
 - Phase 5 effect registry を 925 件中 713 件の `test_validated_executable` まで拡張し、registry entry ベースの coverage を 77.08% に更新。
 - `30 decks x 100 matches` の black-box sandbox を block mode で実行し、100 局すべて完走、blocker 0 を確認。
 - trigger 時点では条件を満たした pending effect が、同一タイミング中の別効果で後から条件失効した場合、限定的に `effect_not_activatable` event を記録して進行できるようにした。
@@ -18,6 +22,10 @@
 
 中文:
 
+- 为了控制 Hosted API runtime 增长，默认 match history 改为保留最近 25 局，每局 snapshot 只保留最近 3 条。
+- VPS deploy workflow 增加 JST 04:00 的每日 API 自动重启 cron，重启时会触发 runtime cleanup。
+- 公开 Hosted API 不再展示全局 match history；单人模拟 match 会在创建时返回 access token，之后恢复、操作和 replay export 都需要该 token。
+- 新增带管理员密钥的 runtime storage / cleanup API 和简易 admin page，可执行 snapshot 裁剪、按时间范围清理以及可选 VACUUM。
 - 将 Phase 5 effect registry 扩展到 925 条中的 713 条 `test_validated_executable`，按 registry entry 计算覆盖率更新为 77.08%。
 - 执行 `30 decks x 100 matches` block mode black-box sandbox，100 局全部完走，blocker 为 0。
 - 对触发时条件满足、但同一时点中被其他效果改变条件导致失效的 pending effect，限定性记录 `effect_not_activatable` 并继续推进。

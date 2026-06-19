@@ -95,11 +95,15 @@ const emptyMatchHistory: MatchListResponse = {
   page: 1,
   per_page: MATCH_HISTORY_PAGE_SIZE,
   total: 0,
-  max_total: 100,
+  max_total: 25,
 };
 
-function matchHistoryAvailable(config: { browserPreview: boolean; apiBaseUrl: string }): boolean {
-  return !config.browserPreview || config.apiBaseUrl.length > 0;
+function matchHistoryAvailable(config: {
+  browserPreview: boolean;
+  apiBaseUrl: string;
+  publicMatchHistory: boolean;
+}): boolean {
+  return config.publicMatchHistory && (!config.browserPreview || config.apiBaseUrl.length > 0);
 }
 
 type UiLocale = "zh" | "ja";
@@ -121,6 +125,45 @@ type OnlineSession = {
   playerId: "player_1" | "player_2";
   playerToken: string;
 };
+
+const LOCAL_MATCH_SESSIONS_KEY = "loveca-local-match-sessions.v0";
+
+function loadLocalMatchSessions(): MatchSummary[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(LOCAL_MATCH_SESSIONS_KEY) ?? "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item) => item && typeof item.match_id === "string" && typeof item.match_token === "string")
+      .slice(0, 25) as MatchSummary[];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalMatchSession(payload: MatchPayload, existingToken?: string | null): MatchSummary[] {
+  const token = payload.match_token ?? existingToken;
+  if (!token) return loadLocalMatchSessions();
+  const existingSessions = loadLocalMatchSessions();
+  const previous = existingSessions.find((session) => session.match_id === payload.state.match_id);
+  const playerNames = Object.values(payload.state.players).map((player) => player.name);
+  const item: MatchSummary = {
+    match_id: payload.state.match_id,
+    rule_version: payload.state.rule_version,
+    seed: payload.state.seed,
+    status: payload.state.phase === "complete" ? "complete" : "active",
+    revision: payload.state.revision,
+    created_at: previous?.created_at ?? new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    match_token: token,
+    label: playerNames.join(" vs "),
+  };
+  const next = [
+    item,
+    ...existingSessions.filter((session) => session.match_id !== item.match_id),
+  ].slice(0, 25);
+  localStorage.setItem(LOCAL_MATCH_SESSIONS_KEY, JSON.stringify(next));
+  return next;
+}
 
 type MemberPlayDraft = {
   selectedMemberId: string;
@@ -171,6 +214,7 @@ export default function App() {
   const [runtimeConfig, setRuntimeConfig] = useState(getRuntimeConfigSnapshot);
   const browserPreview = runtimeConfig.browserPreview;
   const hostedOnline = runtimeConfig.apiBaseUrl.length > 0;
+  const publicMatchHistory = matchHistoryAvailable(runtimeConfig);
   const [locale, setLocale] = useState<UiLocale>(() => {
     const stored = localStorage.getItem("loveca-ui-locale");
     if (stored === "ja" || stored === "zh") return stored;
@@ -181,6 +225,10 @@ export default function App() {
   const [matchHistory, setMatchHistory] = useState<MatchListResponse>(emptyMatchHistory);
   const [matchHistoryLoaded, setMatchHistoryLoaded] = useState(false);
   const [matchHistoryLoading, setMatchHistoryLoading] = useState(false);
+  const [localMatchSessions, setLocalMatchSessions] = useState<MatchSummary[]>(() =>
+    typeof window === "undefined" ? [] : loadLocalMatchSessions(),
+  );
+  const [matchToken, setMatchToken] = useState<string | null>(null);
   const [savedDecks, setSavedDecks] = useState<SavedDeckSummary[]>([]);
   const [draftDeck, setDraftDeck] = useState<DeckList | null>(null);
   const [loading, setLoading] = useState(false);
@@ -345,6 +393,7 @@ export default function App() {
       setOnlineSession(null);
       setOnlineRoom(null);
       setOnlineStatus(null);
+      setMatchToken(null);
     }
   }
 
@@ -415,12 +464,17 @@ export default function App() {
             expected_revision: match.state.revision,
             player_id: playerId,
             payload,
-          }),
-      (next) =>
-        setMatch({
+          }, matchToken),
+      (next) => {
+        const merged = {
           ...next,
           events: [...match.events, ...next.events],
-        }),
+        };
+        setMatch(merged);
+        if (!onlineSession) {
+          setLocalMatchSessions(saveLocalMatchSession(merged, matchToken));
+        }
+      },
     );
     if (succeeded && actionType === "start_next_turn") {
       setMobileMatchPanel(null);
@@ -439,6 +493,15 @@ export default function App() {
     }
     throw new Error(locale === "zh" ? "未知牌组来源。" : "不明なデッキソースです。");
   }
+
+  const visibleMatchHistory: MatchListResponse = publicMatchHistory
+    ? matchHistory
+    : {
+      ...emptyMatchHistory,
+      items: localMatchSessions,
+      total: localMatchSessions.length,
+      max_total: 25,
+    };
 
   if (!match) {
     if (screen === "catalog") {
@@ -469,8 +532,8 @@ export default function App() {
     }
     return renderShell(
         <StartScreen
-          matches={matchHistory.items}
-          history={matchHistory}
+          matches={visibleMatchHistory.items}
+          history={visibleMatchHistory}
           historyLoaded={matchHistoryLoaded}
           historyLoading={matchHistoryLoading}
           deckSources={deckSources}
@@ -478,6 +541,7 @@ export default function App() {
           error={error}
           browserPreview={browserPreview}
           hostedOnline={hostedOnline}
+          publicMatchHistory={publicMatchHistory}
           matchCreationDisabled={browserPreview}
           matchCreationDisabledMessage={locale === "zh"
             ? "浏览器预览版暂不包含本地规则引擎。请使用本地版启动对战，或连接远程服务创建在线测试房间。"
@@ -509,6 +573,7 @@ export default function App() {
                   playerToken: room.player_token,
                 });
                 setOnlineRoom(room);
+                setMatchToken(null);
                 if (room.match) {
                   setMatch(room.match);
                   setScreen("match");
@@ -534,6 +599,7 @@ export default function App() {
                   playerToken: room.player_token,
                 });
                 setOnlineRoom(room);
+                setMatchToken(null);
                 if (room.match) {
                   setMatch(room.match);
                   setScreen("match");
@@ -552,13 +618,21 @@ export default function App() {
                   seed: input.seed,
                 }),
               (next) => {
+                const token = next.match_token ?? null;
+                setMatchToken(token);
+                setLocalMatchSessions(saveLocalMatchSession(next, token));
                 setMatch(next);
                 setScreen("match");
               },
             );
           }}
-          onResume={(id) =>
-            run(() => getMatch(id), (next) => {
+          onResume={(id, token) =>
+            run(() => getMatch(id, token), (next) => {
+              const resolvedToken = token ?? next.match_token ?? null;
+              setMatchToken(resolvedToken);
+              if (resolvedToken) {
+                setLocalMatchSessions(saveLocalMatchSession(next, resolvedToken));
+              }
               setMatch(next);
               setScreen("match");
             })
@@ -712,7 +786,7 @@ export default function App() {
           ) : (
             <a
               className="icon-button"
-              href={matchReplayUrl(match.state.match_id)}
+              href={matchReplayUrl(match.state.match_id, matchToken)}
               title={locale === "zh" ? "导出回放 JSON" : "リプレイ JSON を出力"}
             >
               <Download size={18} />
@@ -1180,6 +1254,7 @@ function PreviewNotice({
               <li>{locale === "zh" ? "全卡技能尚未自动化，部分效果仍需要手动处理或 debug skip。" : "全カード効果はまだ自動化できておらず、一部は手動処理または debug skip が必要です。"}</li>
               <li>{locale === "zh" ? "长局 sandbox 仍会遇到 manual_resolution / max_actions。" : "長局 sandbox では manual_resolution / max_actions がまだ残ります。"}</li>
               <li>{locale === "zh" ? "Online 房间仍是测试功能，暂不支持账号、长期保存或严格防作弊。" : "Online room はテスト機能です。アカウント、長期保存、厳密な不正対策はありません。"}</li>
+              <li>{locale === "zh" ? "服务器会在日本时间每天 04:00 自动重启并清理临时对局缓存，房间中断时请重新创建。" : "サーバーは毎日 JST 04:00 に自動再起動し、一時対戦 cache を整理します。room が切れた場合は作り直してください。"}</li>
               <li>{locale === "zh" ? "FAQ / 个别裁定、AI、Monte Carlo、胜率引擎尚未完成。" : "FAQ / 個別裁定、AI、Monte Carlo、勝率エンジンは未完成です。"}</li>
             </ul>
           </section>
@@ -1302,7 +1377,7 @@ function UsageGuideDialog({
           <span className="usage-flow-arrow">→</span>
           <div className="usage-flow-card accent">
             <History size={22} />
-            <strong>{isZh ? "最近 100 局" : "最近100件"}</strong>
+            <strong>{isZh ? "最近 25 局" : "最近25件"}</strong>
           </div>
           <span className="usage-flow-arrow">→</span>
           <div className="usage-flow-card">
@@ -1504,6 +1579,7 @@ function StartScreen({
   error,
   browserPreview,
   hostedOnline,
+  publicMatchHistory,
   matchCreationDisabled,
   matchCreationDisabledMessage,
   onBrowse,
@@ -1528,6 +1604,7 @@ function StartScreen({
   error: string | null;
   browserPreview: boolean;
   hostedOnline: boolean;
+  publicMatchHistory: boolean;
   matchCreationDisabled: boolean;
   matchCreationDisabledMessage: string;
   onBrowse: () => void;
@@ -1553,7 +1630,7 @@ function StartScreen({
     player2SourceId: string;
     seed?: number;
   }) => void | Promise<void>;
-  onResume: (id: string) => void;
+  onResume: (id: string, token?: string | null) => void;
   onHistoryRefresh: () => void;
   onHistoryPage: (page: number) => void;
 }) {
@@ -1831,15 +1908,20 @@ function StartScreen({
             <div>
               <h2>{tr("最近对局", "最近の対戦")}</h2>
               <p>
-                {browserPreview
-                  ? tr("预览版暂不保存对局。", "プレビュー版では対戦履歴は保存されません。")
+                {!publicMatchHistory
+                  ? tr(
+                    "公开 Online 版只显示本浏览器创建的单人模拟记录；房间对战请使用房间码。",
+                    "公開 Online 版では、このブラウザで作成したソロ検証のみ表示します。ルーム対戦はルームコードを使ってください。",
+                  )
+                  : browserPreview
+                    ? tr("预览版暂不保存对局。", "プレビュー版では対戦履歴は保存されません。")
                   : tr(
-                    "保存最近 100 局的入口。可以回到中断的测试，也可以确认之前打到第几步。",
-                    "最近100件まで表示します。中断した検証の再開や、どこまで進んだかの確認に使います。",
+                    "保存最近 25 局的入口。可以回到中断的测试，也可以确认之前打到第几步。",
+                    "最近25件まで表示します。中断した検証の再開や、どこまで進んだかの確認に使います。",
                 )}
               </p>
             </div>
-            {!browserPreview && (
+            {publicMatchHistory && !browserPreview && (
               <button
                 className="secondary-button"
                 disabled={historyLoading}
@@ -1853,7 +1935,12 @@ function StartScreen({
           <div className="match-list">
             {matches.length === 0 && (
               <div className="empty-state">
-                {historyLoaded
+                {!publicMatchHistory
+                  ? tr(
+                    "还没有本浏览器创建的单人模拟记录。",
+                    "このブラウザで作成したソロ検証はまだありません。",
+                  )
+                  : historyLoaded
                   ? tr("暂无已保存对局", "保存済みの対戦はありません")
                   : tr("点击读取最近对局", "最近の対戦を読み込んでください")}
               </div>
@@ -1862,13 +1949,13 @@ function StartScreen({
               <button
                 className="match-row"
                 key={item.match_id}
-                onClick={() => onResume(item.match_id)}
+                onClick={() => onResume(item.match_id, item.match_token ?? null)}
               >
                 <span>
                   <strong>
-                    {item.status === "complete"
+                    {item.label ?? (item.status === "complete"
                       ? tr("已完成", "完了")
-                      : tr("进行中", "進行中")}
+                      : tr("进行中", "進行中"))}
                   </strong>
                   <small>{item.match_id.slice(0, 8)} · {tr("种子", "シード")} {item.seed}</small>
                 </span>
@@ -1876,7 +1963,7 @@ function StartScreen({
               </button>
             ))}
           </div>
-          {!browserPreview && cappedTotal > 0 && (
+          {publicMatchHistory && !browserPreview && cappedTotal > 0 && (
             <div className="history-pagination">
               <button
                 className="secondary-button"

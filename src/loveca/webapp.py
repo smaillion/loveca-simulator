@@ -7,13 +7,13 @@ import os
 import sqlite3
 import uuid
 from dataclasses import asdict
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -55,8 +55,10 @@ from loveca.simulation.rooms import (
     RoomTokenError,
 )
 from loveca.simulation.runtime import (
+    DEFAULT_ACTIVE_MATCH_TTL_HOURS,
     DEFAULT_MATCH_HISTORY_LIMIT,
     DEFAULT_MATCH_HISTORY_PAGE_SIZE,
+    MAX_SNAPSHOTS_PER_MATCH,
     MatchNotFoundError,
     MatchRuntimeError,
 )
@@ -109,6 +111,14 @@ class LeaveRoomRequest(BaseModel):
     player_token: str
 
 
+class AdminRuntimeCleanupRequest(BaseModel):
+    retain_matches: int = Field(default=DEFAULT_MATCH_HISTORY_LIMIT, ge=1, le=1000)
+    max_snapshots_per_match: int = Field(default=MAX_SNAPSHOTS_PER_MATCH, ge=1, le=50)
+    older_than_hours: int | None = Field(default=None, ge=1, le=24 * 365)
+    include_active_matches: bool = False
+    vacuum: bool = False
+
+
 class ApiSettings(BaseModel):
     card_database_path: Path
     runtime_database_path: Path
@@ -120,6 +130,11 @@ class ApiSettings(BaseModel):
     allowed_origins: list[str] = Field(default_factory=list)
     room_ttl_hours: int = 24
     room_delete_grace_hours: int = 1
+    match_history_limit: int = DEFAULT_MATCH_HISTORY_LIMIT
+    max_snapshots_per_match: int = MAX_SNAPSHOTS_PER_MATCH
+    active_match_ttl_hours: int = DEFAULT_ACTIVE_MATCH_TTL_HOURS
+    admin_key: str | None = None
+    public_match_endpoints: bool = True
 
 
 def default_settings() -> ApiSettings:
@@ -141,6 +156,26 @@ def default_settings() -> ApiSettings:
         room_delete_grace_hours=int(
             os.environ.get("LOVECA_ROOM_DELETE_GRACE_HOURS", "1")
         ),
+        match_history_limit=int(
+            os.environ.get("LOVECA_MATCH_HISTORY_LIMIT", str(DEFAULT_MATCH_HISTORY_LIMIT))
+        ),
+        max_snapshots_per_match=int(
+            os.environ.get(
+                "LOVECA_MAX_SNAPSHOTS_PER_MATCH",
+                str(MAX_SNAPSHOTS_PER_MATCH),
+            )
+        ),
+        active_match_ttl_hours=int(
+            os.environ.get(
+                "LOVECA_ACTIVE_MATCH_TTL_HOURS",
+                str(DEFAULT_ACTIVE_MATCH_TTL_HOURS),
+            )
+        ),
+        admin_key=os.environ.get("LOVECA_ADMIN_KEY") or None,
+        public_match_endpoints=_parse_bool(
+            os.environ.get("LOVECA_PUBLIC_MATCH_ENDPOINTS"),
+            default=True,
+        ),
     )
 
 
@@ -161,6 +196,9 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         resolved.card_database_path,
         resolved.runtime_database_path,
         resolved.effect_registry_path,
+        max_retained_matches=resolved.match_history_limit,
+        max_snapshots_per_match=resolved.max_snapshots_per_match,
+        active_match_ttl_hours=resolved.active_match_ttl_hours,
     )
     app = FastAPI(
         title="LoveCA Visual Rules Debugger",
@@ -182,6 +220,8 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         ttl_hours=resolved.room_ttl_hours,
         delete_grace_hours=resolved.room_delete_grace_hours,
     )
+    service.repository.prune_old_matches(resolved.match_history_limit)
+    service.repository.prune_snapshots(resolved.max_snapshots_per_match)
 
     @app.get("/runtime-config.json")
     def runtime_config() -> dict[str, Any]:
@@ -189,6 +229,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
             "mode": "release",
             "browserPreview": False,
             "apiBaseUrl": "",
+            "publicMatchHistory": resolved.public_match_endpoints,
             "cardDatabaseFingerprint": card_database_fingerprint(
                 resolved.card_database_path
             ),
@@ -216,10 +257,11 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
             le=DEFAULT_MATCH_HISTORY_PAGE_SIZE,
         ),
     ) -> dict[str, Any]:
+        _reject_public_match_endpoints_disabled(app)
         return service.repository.list_matches(
             page=page,
             per_page=per_page,
-            max_matches=DEFAULT_MATCH_HISTORY_LIMIT,
+            max_matches=resolved.match_history_limit,
             exclude_match_ids=app.state.room_service.repository.active_match_ids(),
         )
 
@@ -235,7 +277,11 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
                 second_deck=second_deck,
                 seed=request.seed,
             )
-            return result.model_dump()
+            payload = result.model_dump()
+            payload["match_token"] = service.repository.issue_match_token(
+                result.state.match_id
+            )
+            return payload
         except (DeckFileError, MatchSetupError, OSError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -362,12 +408,27 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
     def cleanup_matches(
         retain: int = Query(default=DEFAULT_MATCH_HISTORY_LIMIT, ge=1, le=1000),
     ) -> dict[str, Any]:
-        return {"deleted_count": service.repository.prune_old_matches(retain)}
+        _reject_public_match_endpoints_disabled(app)
+        return {
+            "deleted_count": service.repository.prune_old_matches(retain),
+            "snapshot_deleted_count": service.repository.prune_snapshots(
+                resolved.max_snapshots_per_match
+            ),
+        }
 
     @app.get("/api/matches/{match_id}")
-    def get_match(match_id: str) -> dict[str, Any]:
+    def get_match(
+        match_id: str,
+        match_token: str | None = Query(default=None),
+        x_loveca_match_token: str | None = Header(default=None),
+    ) -> dict[str, Any]:
         try:
-            _reject_public_room_match(app, match_id)
+            _require_match_access(
+                app,
+                match_id,
+                match_token=match_token,
+                header_token=x_loveca_match_token,
+            )
             state = service.repository.get_state(match_id)
             return {
                 "state": state.model_dump(),
@@ -383,18 +444,37 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @app.get("/api/matches/{match_id}/legal-actions")
-    def legal_actions(match_id: str) -> list[dict[str, Any]]:
+    def legal_actions(
+        match_id: str,
+        match_token: str | None = Query(default=None),
+        x_loveca_match_token: str | None = Header(default=None),
+    ) -> list[dict[str, Any]]:
         try:
-            _reject_public_room_match(app, match_id)
+            _require_match_access(
+                app,
+                match_id,
+                match_token=match_token,
+                header_token=x_loveca_match_token,
+            )
             state = service.repository.get_state(match_id)
             return [action.model_dump() for action in generate_legal_actions(state)]
         except MatchNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @app.post("/api/matches/{match_id}/actions")
-    def submit_action(match_id: str, action: ActionRequest) -> dict[str, Any]:
+    def submit_action(
+        match_id: str,
+        action: ActionRequest,
+        match_token: str | None = Query(default=None),
+        x_loveca_match_token: str | None = Header(default=None),
+    ) -> dict[str, Any]:
         try:
-            _reject_public_room_match(app, match_id)
+            _require_match_access(
+                app,
+                match_id,
+                match_token=match_token,
+                header_token=x_loveca_match_token,
+            )
             return service.apply(match_id, action).model_dump()
         except MatchNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -402,14 +482,67 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @app.get("/api/matches/{match_id}/replay")
-    def replay(match_id: str) -> dict[str, Any]:
+    def replay(
+        match_id: str,
+        match_token: str | None = Query(default=None),
+        x_loveca_match_token: str | None = Header(default=None),
+    ) -> dict[str, Any]:
         try:
-            _reject_public_room_match(app, match_id)
+            _require_match_access(
+                app,
+                match_id,
+                match_token=match_token,
+                header_token=x_loveca_match_token,
+            )
             return service.repository.replay(match_id)
         except MatchNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except MatchRuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    @app.get("/api/admin/runtime/storage")
+    def admin_runtime_storage(
+        x_loveca_admin_key: str | None = Header(default=None),
+    ) -> dict[str, Any]:
+        _require_admin(resolved, x_loveca_admin_key)
+        return _runtime_storage_summary(resolved.runtime_database_path)
+
+    @app.post("/api/admin/runtime/cleanup")
+    def admin_runtime_cleanup(
+        request: AdminRuntimeCleanupRequest,
+        x_loveca_admin_key: str | None = Header(default=None),
+    ) -> dict[str, Any]:
+        _require_admin(resolved, x_loveca_admin_key)
+        deleted_by_retention = service.repository.prune_old_matches(request.retain_matches)
+        deleted_by_age = 0
+        if request.older_than_hours is not None:
+            cutoff = (
+                datetime.now(UTC) - timedelta(hours=request.older_than_hours)
+            ).isoformat(timespec="seconds")
+            deleted_by_age = service.repository.delete_matches_older_than(
+                cutoff,
+                include_active_matches=request.include_active_matches,
+            )
+        snapshot_deleted_count = service.repository.prune_snapshots(
+            request.max_snapshots_per_match
+        )
+        _checkpoint_runtime_database(resolved.runtime_database_path)
+        vacuumed = False
+        if request.vacuum:
+            _vacuum_runtime_database(resolved.runtime_database_path)
+            vacuumed = True
+        return {
+            "deleted_count": deleted_by_retention + deleted_by_age,
+            "deleted_by_retention": deleted_by_retention,
+            "deleted_by_age": deleted_by_age,
+            "snapshot_deleted_count": snapshot_deleted_count,
+            "vacuumed": vacuumed,
+            "storage": _runtime_storage_summary(resolved.runtime_database_path),
+        }
+
+    @app.get("/admin", response_class=HTMLResponse)
+    def admin_page() -> str:
+        return _admin_page_html()
 
     @app.get("/api/card-images/{card_id}")
     def card_image(card_id: str) -> FileResponse:
@@ -627,6 +760,245 @@ def _parse_allowed_origins(value: str) -> list[str]:
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
+def _parse_bool(value: str | None, *, default: bool) -> bool:
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _require_admin(settings: ApiSettings, admin_key: str | None) -> None:
+    if not settings.admin_key:
+        raise HTTPException(status_code=404, detail="admin API is not enabled")
+    if admin_key is None or admin_key != settings.admin_key:
+        raise HTTPException(status_code=403, detail="invalid admin key")
+
+
+def _reject_public_match_endpoints_disabled(app: FastAPI) -> None:
+    if not app.state.settings.public_match_endpoints:
+        raise HTTPException(status_code=404, detail="public match history is disabled")
+
+
+def _runtime_storage_summary(runtime_database_path: Path) -> dict[str, Any]:
+    exists = runtime_database_path.exists()
+    file_bytes = runtime_database_path.stat().st_size if exists else 0
+    if not exists:
+        return {
+            "database_path": str(runtime_database_path),
+            "file_bytes": 0,
+            "page_bytes": 0,
+            "free_bytes": 0,
+            "tables": [],
+            "matches_by_status": [],
+            "rooms_by_status": [],
+            "top_matches_by_snapshot_bytes": [],
+        }
+    with sqlite3.connect(runtime_database_path) as connection:
+        connection.row_factory = sqlite3.Row
+        page_size = int(connection.execute("PRAGMA page_size").fetchone()[0])
+        page_count = int(connection.execute("PRAGMA page_count").fetchone()[0])
+        freelist_count = int(connection.execute("PRAGMA freelist_count").fetchone()[0])
+        tables = [
+            _table_storage_row(
+                connection,
+                table_name,
+                columns,
+            )
+            for table_name, columns in (
+                ("matches", ("initial_state_json", "current_state_json")),
+                ("match_actions", ("payload_json",)),
+                ("match_events", ("event_json",)),
+                ("match_snapshots", ("state_json",)),
+                ("hosted_rooms", ("host_deck_json", "guest_deck_json")),
+                ("shared_decks", ("deck_json",)),
+            )
+        ]
+        matches_by_status = _group_count(connection, "matches", "status")
+        rooms_by_status = _group_count(connection, "hosted_rooms", "status")
+        top_matches = []
+        if _table_exists(connection, "match_snapshots"):
+            top_matches = [
+                dict(row)
+                for row in connection.execute(
+                    """
+                    SELECT
+                        m.match_id,
+                        m.status,
+                        m.revision,
+                        m.updated_at,
+                        COUNT(s.revision) AS snapshot_count,
+                        COALESCE(SUM(LENGTH(s.state_json)), 0) AS snapshot_bytes
+                    FROM matches m
+                    LEFT JOIN match_snapshots s ON s.match_id = m.match_id
+                    GROUP BY m.match_id
+                    ORDER BY snapshot_bytes DESC
+                    LIMIT 20
+                    """
+                ).fetchall()
+            ]
+    return {
+        "database_path": str(runtime_database_path),
+        "file_bytes": file_bytes,
+        "page_bytes": page_size * page_count,
+        "free_bytes": page_size * freelist_count,
+        "tables": tables,
+        "matches_by_status": matches_by_status,
+        "rooms_by_status": rooms_by_status,
+        "top_matches_by_snapshot_bytes": top_matches,
+    }
+
+
+def _table_storage_row(
+    connection: sqlite3.Connection,
+    table_name: str,
+    columns: tuple[str, ...],
+) -> dict[str, Any]:
+    if not _table_exists(connection, table_name):
+        return {
+            "table": table_name,
+            "rows": 0,
+            "approx_json_bytes": 0,
+        }
+    row_count = int(connection.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()[0])
+    expressions = " + ".join(f"COALESCE(LENGTH({column}), 0)" for column in columns)
+    approx_bytes = int(
+        connection.execute(
+            f"SELECT COALESCE(SUM({expressions}), 0) FROM {table_name}"
+        ).fetchone()[0]
+    )
+    return {
+        "table": table_name,
+        "rows": row_count,
+        "approx_json_bytes": approx_bytes,
+    }
+
+
+def _group_count(
+    connection: sqlite3.Connection,
+    table_name: str,
+    column_name: str,
+) -> list[dict[str, Any]]:
+    if not _table_exists(connection, table_name):
+        return []
+    return [
+        {"value": row[0], "count": row[1]}
+        for row in connection.execute(
+            f"SELECT {column_name}, COUNT(*) FROM {table_name} GROUP BY {column_name}"
+        ).fetchall()
+    ]
+
+
+def _table_exists(connection: sqlite3.Connection, table_name: str) -> bool:
+    return (
+        connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+            (table_name,),
+        ).fetchone()
+        is not None
+    )
+
+
+def _checkpoint_runtime_database(runtime_database_path: Path) -> None:
+    if not runtime_database_path.exists():
+        return
+    with sqlite3.connect(runtime_database_path) as connection:
+        connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+
+
+def _vacuum_runtime_database(runtime_database_path: Path) -> None:
+    if not runtime_database_path.exists():
+        return
+    with sqlite3.connect(runtime_database_path) as connection:
+        connection.execute("VACUUM")
+
+
+def _admin_page_html() -> str:
+    return """
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LoveCA Admin</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 2rem; background: #f7f8fb; color: #15171c; }
+      main { max-width: 960px; margin: auto; display: grid; gap: 1rem; }
+      section { background: white; border: 1px solid #d9dee8; border-radius: 8px; padding: 1rem; }
+      label { display: grid; gap: .25rem; margin: .5rem 0; }
+      input { font: inherit; padding: .5rem; }
+      button { font: inherit; font-weight: 700; padding: .6rem .9rem; margin-right: .5rem; }
+      pre { white-space: pre-wrap; background: #111827; color: #e5e7eb; padding: 1rem; border-radius: 6px; overflow: auto; }
+      .danger { color: #b91c1c; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>LoveCA Runtime Admin</h1>
+      <section>
+        <p>管理者キーを入力して runtime DB の容量確認と cleanup を実行します。</p>
+        <label>Admin key <input id="adminKey" type="password" autocomplete="off" /></label>
+        <button id="load">容量を確認</button>
+      </section>
+      <section>
+        <h2>Cleanup</h2>
+        <label>保持する match 数 <input id="retain" type="number" min="1" max="1000" value="25" /></label>
+        <label>match ごとの snapshot 数 <input id="snapshots" type="number" min="1" max="50" value="3" /></label>
+        <label>この時間より古い完了 match を削除（hours, 空欄なら無効） <input id="older" type="number" min="1" /></label>
+        <label><input id="active" type="checkbox" /> active match も時間削除対象に含める（active room は保護）</label>
+        <label><input id="vacuum" type="checkbox" /> VACUUM を実行する（重い処理）</label>
+        <button id="cleanup" class="danger">Cleanup 実行</button>
+      </section>
+      <section>
+        <h2>Result</h2>
+        <pre id="output">Not loaded.</pre>
+      </section>
+    </main>
+    <script>
+      const output = document.getElementById("output");
+      const key = () => document.getElementById("adminKey").value;
+      async function adminFetch(url, options = {}) {
+        const response = await fetch(url, {
+          ...options,
+          headers: {
+            "Content-Type": "application/json",
+            "X-LoveCA-Admin-Key": key(),
+            ...(options.headers || {}),
+          },
+        });
+        const text = await response.text();
+        if (!response.ok) throw new Error(text || response.statusText);
+        return text ? JSON.parse(text) : {};
+      }
+      document.getElementById("load").onclick = async () => {
+        try {
+          output.textContent = JSON.stringify(await adminFetch("/api/admin/runtime/storage"), null, 2);
+        } catch (error) {
+          output.textContent = String(error);
+        }
+      };
+      document.getElementById("cleanup").onclick = async () => {
+        const older = document.getElementById("older").value;
+        const payload = {
+          retain_matches: Number(document.getElementById("retain").value || 25),
+          max_snapshots_per_match: Number(document.getElementById("snapshots").value || 3),
+          older_than_hours: older ? Number(older) : null,
+          include_active_matches: document.getElementById("active").checked,
+          vacuum: document.getElementById("vacuum").checked,
+        };
+        try {
+          output.textContent = JSON.stringify(await adminFetch("/api/admin/runtime/cleanup", {
+            method: "POST",
+            body: JSON.stringify(payload),
+          }), null, 2);
+        } catch (error) {
+          output.textContent = String(error);
+        }
+      };
+    </script>
+  </body>
+</html>
+"""
+
+
 def _resolve_deck(player: PlayerSetup, allowed_root: Path):
     if player.deck is not None:
         return parse_deck(player.deck)
@@ -769,6 +1141,21 @@ def _redact_opponent_hands(state_payload: dict[str, Any], player_id: str) -> Non
 def _reject_public_room_match(app: FastAPI, match_id: str) -> None:
     if app.state.room_service.repository.match_is_active_room_match(match_id):
         raise HTTPException(status_code=404, detail=f"match not found: {match_id}")
+
+
+def _require_match_access(
+    app: FastAPI,
+    match_id: str,
+    *,
+    match_token: str | None,
+    header_token: str | None,
+) -> None:
+    _reject_public_room_match(app, match_id)
+    if app.state.settings.public_match_endpoints:
+        return
+    token = header_token or match_token
+    if not app.state.match_service.repository.validate_match_token(match_id, token):
+        raise HTTPException(status_code=403, detail="invalid match token")
 
 
 def _room_payload(

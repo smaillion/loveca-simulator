@@ -26,6 +26,7 @@
   - 使用 HTTP polling 同步状态
   - 服务端复用 Python Rule Engine
   - 临时 room 默认 24 小时过期
+  - server 预计每天 JST 04:00 自动重启并整理 runtime cache
 - 锁版本权威卡牌 SQLite
   - CI、Docker 和 Pages data export 使用仓库内 `data/loveca.sqlite3`
   - `data/loveca-db-manifest.json` 记录 DB / effect registry 指纹
@@ -91,6 +92,8 @@ Bug 报告、规则行为讨论和 online 对战伙伴寻找请前往 [Discord](
 - `data/loveca.sqlite3` 是仓库内锁版本权威卡牌 DB。官方补充包或 parser/schema/effect registry 变化后，由维护者重建并提交新的 DB 与 `data/loveca-db-manifest.json`；普通用户和 CI 不应自行 import 产生不同线上 DB。保存牌组是 `decklist.v0` 用户数据，可以和卡牌数据库分开保留。
 - Web/API 测试依赖 `httpx2`。环境缺少该依赖时，`tests/test_catalog_api.py` 和 `tests/test_webapp.py` 会在收集阶段停止。
 - Hosted Online MVP 只用于低成本测试反馈。规则判定由 FastAPI 侧 Python engine 执行，但不包含账号、长期保存或严格防作弊。
+- Hosted API 的 runtime DB 是临时数据。默认只保留最近 25 局 match history 和每局最近的少量 snapshot，并在每天 JST 04:00 自动重启时执行 cleanup。如果 online room 被中断，请重新创建房间。
+- 公开 Hosted API 不显示全局 match history。单人模拟 match 会依靠创建浏览器 localStorage 中保存的 access token 恢复。管理员 runtime 查看 / cleanup API 需要 `LOVECA_ADMIN_KEY`。
 - GitHub Pages browser preview 主要用于卡库浏览、Deck Builder、decklist.v0 import / export 和 MVP deck 分析。对战只有配置 Hosted API 时可用。
 
 ## UI 功能与使用方式

@@ -37,6 +37,7 @@ export interface RuntimeConfig {
   mode: "preview" | "release";
   browserPreview: boolean;
   apiBaseUrl: string;
+  publicMatchHistory: boolean;
   cardDatabaseFingerprint: string;
 }
 
@@ -44,6 +45,13 @@ const fallbackRuntimeConfig: RuntimeConfig = {
   mode: viteEnv?.VITE_BROWSER_PREVIEW === "true" ? "preview" : "release",
   browserPreview: viteEnv?.VITE_BROWSER_PREVIEW === "true",
   apiBaseUrl: normalizeBaseUrl(
+    typeof viteEnv?.VITE_PUBLIC_API_BASE_URL === "string"
+      ? viteEnv.VITE_PUBLIC_API_BASE_URL
+      : typeof viteEnv?.VITE_HOSTED_API_BASE_URL === "string"
+        ? viteEnv.VITE_HOSTED_API_BASE_URL
+        : "",
+  ),
+  publicMatchHistory: !normalizeBaseUrl(
     typeof viteEnv?.VITE_PUBLIC_API_BASE_URL === "string"
       ? viteEnv.VITE_PUBLIC_API_BASE_URL
       : typeof viteEnv?.VITE_HOSTED_API_BASE_URL === "string"
@@ -120,6 +128,10 @@ function normalizeRuntimeConfig(payload: unknown): RuntimeConfig {
         ? value.apiBaseUrl
         : fallbackRuntimeConfig.apiBaseUrl,
     ),
+    publicMatchHistory:
+      typeof value.publicMatchHistory === "boolean"
+        ? value.publicMatchHistory
+        : fallbackRuntimeConfig.publicMatchHistory,
     cardDatabaseFingerprint:
       typeof value.cardDatabaseFingerprint === "string"
         ? value.cardDatabaseFingerprint
@@ -175,7 +187,7 @@ export function listMatches(input: {
           page,
           per_page: perPage,
           total: payload.length,
-          max_total: 100,
+          max_total: 25,
         };
       }
       return payload;
@@ -183,8 +195,9 @@ export function listMatches(input: {
   );
 }
 
-export function getMatch(matchId: string): Promise<MatchPayload> {
-  return request(`/api/matches/${matchId}`);
+export function getMatch(matchId: string, matchToken?: string | null): Promise<MatchPayload> {
+  const params = matchToken ? `?${new URLSearchParams({ match_token: matchToken })}` : "";
+  return request(`/api/matches/${matchId}${params}`);
 }
 
 export function createMatch(input: {
@@ -218,8 +231,10 @@ export function submitAction(
     player_id?: string | null;
     payload?: Record<string, unknown>;
   },
+  matchToken?: string | null,
 ): Promise<MatchPayload> {
-  return request(`/api/matches/${matchId}/actions`, {
+  const params = matchToken ? `?${new URLSearchParams({ match_token: matchToken })}` : "";
+  return request(`/api/matches/${matchId}/actions${params}`, {
     method: "POST",
     body: JSON.stringify(input),
   });
@@ -310,8 +325,9 @@ export function roomReplayUrl(roomCode: string, playerToken: string): string {
   return apiResourceUrl(`/api/rooms/${encodeURIComponent(roomCode)}/replay?${params.toString()}`);
 }
 
-export function matchReplayUrl(matchId: string): string {
-  return apiResourceUrl(`/api/matches/${matchId}/replay`);
+export function matchReplayUrl(matchId: string, matchToken?: string | null): string {
+  const params = matchToken ? `?${new URLSearchParams({ match_token: matchToken })}` : "";
+  return apiResourceUrl(`/api/matches/${matchId}/replay${params}`);
 }
 
 export function cardImageUrl(cardId: string): string {

@@ -427,6 +427,7 @@ export interface MatchPayload {
   state: MatchState;
   events: GameEvent[];
   legal_actions: LegalAction[];
+  match_token?: string;
 }
 
 export interface MatchSummary {
@@ -437,6 +438,8 @@ export interface MatchSummary {
   revision: number;
   created_at: string;
   updated_at: string;
+  match_token?: string;
+  label?: string;
 }
 
 export interface MatchListResponse {

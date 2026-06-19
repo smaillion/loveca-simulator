@@ -26,6 +26,7 @@
   - HTTP polling による状態同期
   - Python Rule Engine をサーバー側で再利用
   - 24 時間 TTL の一時 room
+  - server は毎日 JST 04:00 に自動再起動し、runtime cache を整理する想定
 - locked authoritative card SQLite
   - CI、Docker、Pages data export は repository 内の `data/loveca.sqlite3` を使用
   - `data/loveca-db-manifest.json` が DB / effect registry fingerprint を記録
@@ -91,6 +92,8 @@ Deck Builder の現在の到達点:
 - `data/loveca.sqlite3` は repository 内の locked authoritative card DB です。公式カード追加や parser / schema / effect registry の互換性変更後は、maintainer が DB と `data/loveca-db-manifest.json` を再生成して commit します。ユーザーや CI が online 用に別 DB を import してはいけません。保存済みデッキは `decklist.v0` のユーザーデータなので、カード DB とは分けて保持できます。
 - Web/API テストには `httpx2` が必要です。環境に未導入の場合、`tests/test_catalog_api.py` と `tests/test_webapp.py` は収集段階で停止します。
 - Hosted Online MVP は低コスト検証用です。ルール判定は FastAPI 側の Python engine が行いますが、アカウント、恒久保存、厳密な不正対策はありません。
+- Hosted API の runtime DB は一時データです。最近 25 件の match history と各 match の直近 snapshot だけを保つ方針で、毎日 JST 04:00 の自動再起動時にも cleanup が走ります。Online room が切れた場合は新しく作り直してください。
+- 公開 Hosted API では全体の match history を表示しません。ソロ検証 match は作成したブラウザの localStorage に保存した access token で復帰します。管理者用 runtime 確認 / cleanup API は `LOVECA_ADMIN_KEY` が必要です。
 - GitHub Pages browser preview はカード閲覧、Deck Builder、decklist.v0 import / export、MVP deck 分析を主目的にしています。対戦は Hosted API が設定された環境でのみ利用できます。
 
 ## UI 機能と使い方
