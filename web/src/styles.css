@@ -3189,8 +3189,8 @@ label {
 
   .mobile-skill-entry-dock {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(132px, auto);
-    gap: 8px;
+    grid-template-columns: minmax(0, 1fr) minmax(112px, auto);
+    gap: 6px;
     align-items: center;
   }
 
@@ -3198,13 +3198,13 @@ label {
     left: auto;
     right: 8px;
     bottom: calc(176px + max(8px, env(safe-area-inset-bottom)));
-    width: min(224px, calc(100vw - 16px));
+    width: min(196px, calc(100vw - 16px));
     grid-template-columns: minmax(0, 1fr);
     min-height: 0;
     max-height: none;
     overflow: visible;
     z-index: 62;
-    padding: 8px;
+    padding: 6px;
     border: 1px solid var(--accent-dark);
     border-radius: 12px;
     box-shadow: 0 10px 28px rgba(18, 25, 30, 0.22);
@@ -3215,12 +3215,39 @@ label {
   }
 
   .mobile-skill-entry-button {
-    min-height: 48px;
+    min-height: 38px;
     justify-content: center;
     border-color: var(--accent-dark);
     background: var(--accent);
     color: white;
+    padding: 6px 8px;
+    font-size: 12px;
     font-weight: 900;
+  }
+
+  .mobile-manual-adjust-fab {
+    position: fixed;
+    left: 8px;
+    bottom: calc(92px + max(8px, env(safe-area-inset-bottom)));
+    z-index: 58;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 30px;
+    border: 1px solid rgba(100, 116, 139, 0.45);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.88);
+    color: #475569;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 800;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.16);
+    opacity: 0.78;
+  }
+
+  .mobile-manual-adjust-fab:active,
+  .mobile-manual-adjust-fab:hover {
+    opacity: 1;
   }
 
   .action-dock.member-play-dock {
@@ -3680,6 +3707,10 @@ label {
     .mobile-main-skip-button {
       min-height: 28px;
       font-size: 10px;
+    }
+
+    .mobile-manual-adjust-fab {
+      bottom: calc(76px + max(6px, env(safe-area-inset-bottom)));
     }
   }
 

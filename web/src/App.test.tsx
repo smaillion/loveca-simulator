@@ -1196,10 +1196,10 @@ describe("App", () => {
     await waitFor(() =>
       expect(container.querySelector(".mobile-skill-entry-floating")).not.toBeNull(),
     );
-    expect(screen.getByRole("button", { name: /处理技能 1/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /从手牌发动能力 1/ })).toBeInTheDocument();
     expect(screen.getAllByRole("button", { name: "确认登场" }).length).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole("button", { name: /处理技能 1/ }));
+    fireEvent.click(screen.getByRole("button", { name: /从手牌发动能力 1/ }));
 
     await waitFor(() => expect(container.querySelector(".mobile-action-dialog")).not.toBeNull());
     expect(screen.getByText("可发动技能")).toBeInTheDocument();
@@ -1208,6 +1208,57 @@ describe("App", () => {
     expect(
       screen.getByText((content) => content.includes("このカードを手札から控え室に置く")),
     ).toBeInTheDocument();
+  });
+
+  it("does not show the mobile skill entry for generic manual adjustment during mulligan", async () => {
+    stubMobileViewport();
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const hand = MATCH_PAYLOAD.state.players.player_1.hand;
+    const matchCreate = {
+      ...MATCH_PAYLOAD,
+      state: {
+        ...MATCH_PAYLOAD.state,
+        phase: "setup_mulligan_first",
+        active_player_id: "player_1",
+        pending_choice: {
+          choice_type: "mulligan",
+          player_id: "player_1",
+          message_ja: "引き直すカードを選んでください。",
+          message_zh: "请选择要调度的手牌。",
+          options: { hand_instance_ids: hand },
+        },
+      },
+      legal_actions: [
+        {
+          action_type: "submit_mulligan",
+          player_id: "player_1",
+          label_zh: "确认调度",
+          label_ja: "引き直し確定",
+          options: { hand_instance_ids: hand },
+        },
+        {
+          action_type: "manual_adjustment",
+          player_id: "player_1",
+          label_zh: "人工规则调整",
+          label_ja: "手動調整",
+          options: { adjustment_types: [] },
+        },
+      ],
+    };
+    const fetchMock = createFetchMock({ matchCreate });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { container } = render(<App />);
+    await waitFor(() => expect(screen.getByLabelText("玩家 1 牌组")).toBeInTheDocument());
+    const createButton = screen.getByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "确认调度" })).toBeInTheDocument());
+    expect(container.querySelector(".mobile-skill-entry-dock")).toBeNull();
+    expect(container.querySelector(".mobile-manual-adjust-fab")).not.toBeNull();
+    expect(screen.queryByRole("button", { name: /处理能力|能力を処理/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "人工规则调整" })).toBeInTheDocument();
   });
 
   it("shows readable prompts for automatic effects and special yell results in the event log", async () => {

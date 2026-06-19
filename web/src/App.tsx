@@ -687,13 +687,20 @@ export default function App() {
     "resolve_effect_choice",
     "resolve_manual_inspection",
     "skip_effect",
-    "manual_adjustment",
   ]);
   const mobileDialogActions = isMobileLayout
     ? visibleActions.filter((action) => mobileDialogActionTypes.has(action.action_type))
     : [];
-  const dockActions = isMobileLayout && mobileDialogActions.length > 0
-    ? visibleActions.filter((action) => !mobileDialogActionTypes.has(action.action_type))
+  const mobileManualAdjustmentAction = isMobileLayout
+    ? visibleActions.find((action) => action.action_type === "manual_adjustment")
+    : undefined;
+  const mobileDialogCopy = mobileEffectDialogCopy(mobileDialogActions, match.state, locale);
+  const dockActions = isMobileLayout
+    ? visibleActions.filter(
+      (action) =>
+        !mobileDialogActionTypes.has(action.action_type) &&
+        action.action_type !== "manual_adjustment",
+    )
     : visibleActions;
   const mobileMemberPlayContext = isMobileLayout && mobilePlayMemberAction
     ? buildMobileMemberPlayContext(
@@ -848,21 +855,37 @@ export default function App() {
         <EventLog events={match.events} state={match.state} />
       </main>
 
+      {isMobileLayout && mobileManualAdjustmentAction && (
+        <button
+          className="mobile-manual-adjust-fab"
+          type="button"
+          aria-label={locale === "zh" ? "人工规则调整" : "手動調整"}
+          title={locale === "zh" ? "人工规则调整" : "手動調整"}
+          onClick={() => {
+            setManualSource(manualSourceFromAction(mobileManualAdjustmentAction, match.state));
+            setManualOpen(true);
+          }}
+        >
+          <Settings2 size={14} />
+          <span>{locale === "zh" ? "手动" : "手動"}</span>
+        </button>
+      )}
+
       {isMobileLayout && mobileDialogActions.length > 0 && (
         <footer className={`action-dock mobile-skill-entry-dock ${
           dockActions.length > 0 ? "mobile-skill-entry-floating" : ""
         }`}>
           <div className="action-context">
-            <strong>{locale === "zh" ? "待处理技能" : "処理待ち能力"}</strong>
-            <span>{locale === "zh" ? "打开弹窗选择目标与结算" : "ポップアップで対象選択と解決"}</span>
+            <strong>{mobileDialogCopy.title}</strong>
+            <span>{mobileDialogCopy.description}</span>
           </div>
           <button
             className="primary-button mobile-skill-entry-button"
             type="button"
             onClick={() => setMobileActionPanelOpen(true)}
           >
-            <Settings2 size={18} />
-            {locale === "zh" ? `处理技能 ${mobileDialogActions.length}` : `能力を処理 ${mobileDialogActions.length}`}
+            <Settings2 size={16} />
+            {mobileDialogCopy.buttonLabel}
           </button>
         </footer>
       )}
@@ -991,6 +1014,72 @@ function useMediaQuery(query: string): boolean {
 
 function canSubmitOnlineAction(action: LegalAction, localPlayerId: string): boolean {
   return action.player_id === null || action.player_id === localPlayerId;
+}
+
+function mobileEffectDialogCopy(
+  actions: LegalAction[],
+  state: MatchState,
+  locale: UiLocale,
+): { title: string; description: string; buttonLabel: string } {
+  const count = actions.length;
+  const isZh = locale === "zh";
+  const hasActivation = actions.some((action) => action.action_type === "activate_effect");
+  const allActivationsFromHand =
+    hasActivation &&
+    actions.every(
+      (action) =>
+        action.action_type === "activate_effect" &&
+        activationActionSourcesAreInHand(action, state),
+    );
+  if (allActivationsFromHand) {
+    return {
+      title: isZh ? "手牌起动能力" : "手札から起動",
+      description: isZh ? "选择要从手牌发动的能力" : "手札から使う能力を選択",
+      buttonLabel: isZh ? `从手牌发动能力 ${count}` : `手札から能力を起動 ${count}`,
+    };
+  }
+  if (hasActivation) {
+    return {
+      title: isZh ? "可发动能力" : "起動できる能力",
+      description: isZh ? "打开弹窗选择能力" : "ポップアップで能力を選択",
+      buttonLabel: isZh ? `发动能力 ${count}` : `能力を起動 ${count}`,
+    };
+  }
+  return {
+    title: isZh ? "待处理能力" : "処理待ち能力",
+    description: isZh ? "打开弹窗选择目标与结算" : "ポップアップで対象選択と解決",
+    buttonLabel: isZh ? `处理能力 ${count}` : `能力を処理 ${count}`,
+  };
+}
+
+function activationActionSourcesAreInHand(action: LegalAction, state: MatchState): boolean {
+  if (action.player_id === null) return false;
+  const player = state.players[action.player_id];
+  if (!player) return false;
+  const activations = (action.options.activations ?? []) as Array<{
+    source_card_instance_id?: string;
+  }>;
+  return (
+    activations.length > 0 &&
+    activations.every(
+      (activation) =>
+        typeof activation.source_card_instance_id === "string" &&
+        player.hand.includes(activation.source_card_instance_id),
+    )
+  );
+}
+
+function manualSourceFromAction(action: LegalAction, state: MatchState): EffectInvocation | null {
+  const sources = (action.options.source_invocations ?? []) as Array<{
+    invocation_id?: string;
+  }>;
+  const source = sources[0];
+  if (!source?.invocation_id) return null;
+  return (
+    state.pending_effects.find(
+      (item) => item.invocation_id === source.invocation_id,
+    ) ?? null
+  );
 }
 
 export function localPerspectivePlayerId(
