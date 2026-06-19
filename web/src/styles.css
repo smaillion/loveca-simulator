@@ -3182,6 +3182,26 @@ label {
     align-items: center;
   }
 
+  .mobile-skill-entry-floating {
+    left: auto;
+    right: 8px;
+    bottom: calc(176px + max(8px, env(safe-area-inset-bottom)));
+    width: min(224px, calc(100vw - 16px));
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+    max-height: none;
+    overflow: visible;
+    z-index: 62;
+    padding: 8px;
+    border: 1px solid var(--accent-dark);
+    border-radius: 12px;
+    box-shadow: 0 10px 28px rgba(18, 25, 30, 0.22);
+  }
+
+  .mobile-skill-entry-floating .action-context {
+    display: none;
+  }
+
   .mobile-skill-entry-button {
     min-height: 48px;
     justify-content: center;

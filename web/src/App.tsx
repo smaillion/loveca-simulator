@@ -849,7 +849,9 @@ export default function App() {
       </main>
 
       {isMobileLayout && mobileDialogActions.length > 0 && (
-        <footer className="action-dock mobile-skill-entry-dock">
+        <footer className={`action-dock mobile-skill-entry-dock ${
+          dockActions.length > 0 ? "mobile-skill-entry-floating" : ""
+        }`}>
           <div className="action-context">
             <strong>{locale === "zh" ? "待处理技能" : "処理待ち能力"}</strong>
             <span>{locale === "zh" ? "打开弹窗选择目标与结算" : "ポップアップで対象選択と解決"}</span>
