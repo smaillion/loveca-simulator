@@ -42,8 +42,9 @@
 
 - Continue tuning `tools/ai_sandbox/blackbox_playtest.py` action caps and strategies.
 - Keep `30 decks x 100 matches --manual-policy block` as the standard long-run regression after each executor-pattern expansion.
-- Latest Phase 5 long run: `100/100` completed with blocker 0 after the stale-trigger-condition fix.
-- Static registry coverage is still `713 / 925 = 77.08%`; raising it toward 90% requires real executor patterns for remaining `manual_resolution` families.
+- Latest broad Phase 5 long run: `100/100` completed with blocker 0 after the stale-trigger-condition fix.
+- Latest targeted problem-card smoke: `block` completed 9/15 with 6 `mandatory_manual_resolution`; `skip` completed 14/15 with `illegal_action = 0`. Main remaining blockers are `PL!S-bp6-001:1` and `PL!S-pb1-001:1`.
+- Static registry coverage is now `714 / 925 = 77.19%`; raising it toward 90% requires real executor patterns for remaining `manual_resolution` families.
 - Do not mark registry entries executable only to improve coverage numbers.
 
 ## Low Priority
@@ -86,9 +87,10 @@
     pay-or-discard pattern
   - Live-start inspect / reveal effects that derive temporary Heart colors from
     revealed cards
-- Because the long-run sandbox currently completes without blockers, prioritize
-  repeated static/manual families only when they are likely to appear in real
-  decks or improve manual-play usability.
+- Because the broad long-run sandbox completes without blockers but targeted
+  problem-card decks still expose manual blockers, prioritize repeated
+  static/manual families only when they are likely to appear in real decks or
+  improve manual-play usability.
 - Keep `manual_resolution` for these families until the missing semantic slot is
   explicitly modeled; do not mark partial branches as `test_validated_executable`.
 
@@ -96,9 +98,10 @@
 
 - Keep improving the sandbox controller so it continues to expose deeper rule
   blockers instead of overfitting to the current deck pool.
-- Latest long-run baseline: block mode can complete 100/100 matches with no
-  blocker. The next useful sandbox work is broader deck diversity and semantic
-  user-agent comparison, not only increasing `max_actions`.
+- Latest broad long-run baseline: block mode can complete 100/100 matches with
+  no blocker. Targeted problem-card smoke still finds Aqours manual blockers,
+  so the next useful sandbox work is broader deck diversity, targeted deck pools,
+  and semantic user-agent comparison, not only increasing `max_actions`.
 - Next strategy work:
   - tune the current work/Heart-synergy deck generator so generated decks become
     closer to practical deck construction without hiding real rule blockers

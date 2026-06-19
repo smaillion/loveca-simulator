@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import json
+import secrets
 import sqlite3
 import uuid
 from contextlib import closing
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -24,9 +25,11 @@ from loveca.simulation.online import (
     match_state_hash,
 )
 
-DEFAULT_MATCH_HISTORY_LIMIT = 100
+DEFAULT_MATCH_HISTORY_LIMIT = 25
 DEFAULT_MATCH_HISTORY_PAGE_SIZE = 10
 MAX_RETAINED_MATCHES = DEFAULT_MATCH_HISTORY_LIMIT
+MAX_SNAPSHOTS_PER_MATCH = 3
+DEFAULT_ACTIVE_MATCH_TTL_HOURS = 48
 
 RUNTIME_SCHEMA_SQL = f"""
 PRAGMA foreign_keys = ON;
@@ -87,6 +90,12 @@ CREATE TABLE IF NOT EXISTS match_snapshots (
     PRIMARY KEY (match_id, revision)
 );
 
+CREATE TABLE IF NOT EXISTS match_access_tokens (
+    match_id TEXT PRIMARY KEY REFERENCES matches(match_id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_match_actions_match
     ON match_actions(match_id, sequence);
 CREATE INDEX IF NOT EXISTS idx_match_events_match
@@ -137,11 +146,24 @@ def initialize_runtime_database(path: Path) -> None:
 
 
 class MatchRepository:
-    def __init__(self, path: Path, *, max_retained_matches: int = MAX_RETAINED_MATCHES) -> None:
+    def __init__(
+        self,
+        path: Path,
+        *,
+        max_retained_matches: int = MAX_RETAINED_MATCHES,
+        max_snapshots_per_match: int = MAX_SNAPSHOTS_PER_MATCH,
+        active_match_ttl_hours: int = DEFAULT_ACTIVE_MATCH_TTL_HOURS,
+    ) -> None:
         if max_retained_matches < 1:
             raise ValueError("max_retained_matches must be at least 1")
+        if max_snapshots_per_match < 1:
+            raise ValueError("max_snapshots_per_match must be at least 1")
+        if active_match_ttl_hours < 1:
+            raise ValueError("active_match_ttl_hours must be at least 1")
         self.path = path
         self.max_retained_matches = max_retained_matches
+        self.max_snapshots_per_match = max_snapshots_per_match
+        self.active_match_ttl_hours = active_match_ttl_hours
         initialize_runtime_database(path)
 
     def create_match(
@@ -271,7 +293,93 @@ class MatchRepository:
         with closing(_connect(self.path)) as connection:
             try:
                 connection.execute("BEGIN IMMEDIATE")
-                deleted = _prune_old_matches(connection, limit)
+                deleted = _prune_old_matches(
+                    connection,
+                    limit,
+                    stale_active_before=self._stale_active_cutoff(),
+                )
+                connection.commit()
+                return deleted
+            except Exception:
+                connection.rollback()
+                raise
+
+    def prune_snapshots(self, max_snapshots_per_match: int | None = None) -> int:
+        limit = (
+            self.max_snapshots_per_match
+            if max_snapshots_per_match is None
+            else max_snapshots_per_match
+        )
+        if limit < 1:
+            raise ValueError("max_snapshots_per_match must be at least 1")
+        with closing(_connect(self.path)) as connection:
+            try:
+                connection.execute("BEGIN IMMEDIATE")
+                deleted = _prune_all_match_snapshots(connection, limit)
+                connection.commit()
+                return deleted
+            except Exception:
+                connection.rollback()
+                raise
+
+    def issue_match_token(self, match_id: str) -> str:
+        token = secrets.token_urlsafe(24)
+        now = _utc_now()
+        with closing(_connect(self.path)) as connection:
+            try:
+                connection.execute("BEGIN IMMEDIATE")
+                exists = connection.execute(
+                    "SELECT 1 FROM matches WHERE match_id = ?",
+                    (match_id,),
+                ).fetchone()
+                if exists is None:
+                    raise MatchNotFoundError(f"match not found: {match_id}")
+                row = connection.execute(
+                    "SELECT token FROM match_access_tokens WHERE match_id = ?",
+                    (match_id,),
+                ).fetchone()
+                if row is not None:
+                    connection.commit()
+                    return str(row["token"])
+                connection.execute(
+                    """
+                    INSERT INTO match_access_tokens (match_id, token, created_at)
+                    VALUES (?, ?, ?)
+                    """,
+                    (match_id, token, now),
+                )
+                connection.commit()
+                return token
+            except Exception:
+                connection.rollback()
+                raise
+
+    def validate_match_token(self, match_id: str, token: str | None) -> bool:
+        if token is None:
+            return False
+        with closing(_connect(self.path)) as connection:
+            row = connection.execute(
+                "SELECT token FROM match_access_tokens WHERE match_id = ?",
+                (match_id,),
+            ).fetchone()
+        if row is None:
+            return False
+        return secrets.compare_digest(str(row["token"]), token)
+
+    def delete_matches_older_than(
+        self,
+        cutoff_iso: str,
+        *,
+        include_active_matches: bool = False,
+    ) -> int:
+        with closing(_connect(self.path)) as connection:
+            try:
+                connection.execute("BEGIN IMMEDIATE")
+                deleted = _delete_matches_older_than(
+                    connection,
+                    cutoff_iso,
+                    include_active_matches=include_active_matches,
+                )
                 connection.commit()
                 return deleted
             except Exception:
@@ -405,6 +513,11 @@ class MatchRepository:
                     """,
                     (match_id, result.state.revision, sequence, state_json, now),
                 )
+                _prune_match_snapshots(
+                    connection,
+                    match_id,
+                    self.max_snapshots_per_match,
+                )
                 connection.commit()
                 return result
             except Exception:
@@ -487,6 +600,11 @@ class MatchRepository:
             "final_state": replay_state.model_dump(),
         }
 
+    def _stale_active_cutoff(self) -> str:
+        return (
+            datetime.now(UTC) - timedelta(hours=self.active_match_ttl_hours)
+        ).isoformat(timespec="seconds")
+
 
 def _connect(path: Path) -> sqlite3.Connection:
     connection = sqlite3.connect(path)
@@ -495,19 +613,13 @@ def _connect(path: Path) -> sqlite3.Connection:
     return connection
 
 
-def _prune_old_matches(connection: sqlite3.Connection, max_matches: int) -> int:
-    protected_match_ids: list[str] = []
-    if _table_exists(connection, "hosted_rooms"):
-        protected_match_ids = [
-            str(row["match_id"])
-            for row in connection.execute(
-                """
-                SELECT match_id
-                FROM hosted_rooms
-                WHERE match_id IS NOT NULL AND status != 'expired'
-                """
-            ).fetchall()
-        ]
+def _prune_old_matches(
+    connection: sqlite3.Connection,
+    max_matches: int,
+    *,
+    stale_active_before: str | None = None,
+) -> int:
+    protected_match_ids = _protected_match_ids(connection)
     protected_clause = ""
     parameters: list[Any] = []
     if protected_match_ids:
@@ -527,9 +639,108 @@ def _prune_old_matches(connection: sqlite3.Connection, max_matches: int) -> int:
         parameters,
     ).fetchall()
     stale_match_ids = [str(row["match_id"]) for row in rows]
+    if stale_active_before is not None:
+        active_parameters: list[Any] = [stale_active_before]
+        active_protected_clause = ""
+        if protected_match_ids:
+            placeholders = ", ".join("?" for _ in protected_match_ids)
+            active_protected_clause = f"AND match_id NOT IN ({placeholders})"
+            active_parameters.extend(protected_match_ids)
+        active_rows = connection.execute(
+            f"""
+            SELECT match_id
+            FROM matches
+            WHERE status = 'active'
+              AND updated_at < ?
+              {active_protected_clause}
+            """,
+            active_parameters,
+        ).fetchall()
+        stale_match_ids.extend(str(row["match_id"]) for row in active_rows)
     for match_id in stale_match_ids:
         connection.execute("DELETE FROM matches WHERE match_id = ?", (match_id,))
-    return len(stale_match_ids)
+    return len(set(stale_match_ids))
+
+
+def _delete_matches_older_than(
+    connection: sqlite3.Connection,
+    cutoff_iso: str,
+    *,
+    include_active_matches: bool,
+) -> int:
+    protected_match_ids = _protected_match_ids(connection)
+    protected_clause = ""
+    parameters: list[Any] = [cutoff_iso]
+    if protected_match_ids:
+        placeholders = ", ".join("?" for _ in protected_match_ids)
+        protected_clause = f"AND match_id NOT IN ({placeholders})"
+        parameters.extend(protected_match_ids)
+    active_clause = "" if include_active_matches else "AND status != 'active'"
+    rows = connection.execute(
+        f"""
+        SELECT match_id
+        FROM matches
+        WHERE updated_at < ?
+          {active_clause}
+          {protected_clause}
+        """,
+        parameters,
+    ).fetchall()
+    match_ids = [str(row["match_id"]) for row in rows]
+    for match_id in match_ids:
+        connection.execute("DELETE FROM matches WHERE match_id = ?", (match_id,))
+    return len(match_ids)
+
+
+def _prune_all_match_snapshots(
+    connection: sqlite3.Connection,
+    max_snapshots_per_match: int,
+) -> int:
+    rows = connection.execute("SELECT match_id FROM matches").fetchall()
+    return sum(
+        _prune_match_snapshots(connection, str(row["match_id"]), max_snapshots_per_match)
+        for row in rows
+    )
+
+
+def _prune_match_snapshots(
+    connection: sqlite3.Connection,
+    match_id: str,
+    max_snapshots_per_match: int,
+) -> int:
+    cursor = connection.execute(
+        """
+        DELETE FROM match_snapshots
+        WHERE match_id = ?
+          AND revision NOT IN (
+              SELECT revision
+              FROM (
+                  SELECT revision
+                  FROM match_snapshots
+                  WHERE match_id = ?
+                  ORDER BY revision DESC
+                  LIMIT ?
+              )
+          )
+        """,
+        (match_id, match_id, max_snapshots_per_match),
+    )
+    return int(cursor.rowcount)
+
+
+def _protected_match_ids(connection: sqlite3.Connection) -> list[str]:
+    if not _table_exists(connection, "hosted_rooms"):
+        return []
+    return [
+        str(row["match_id"])
+        for row in connection.execute(
+            """
+            SELECT match_id
+            FROM hosted_rooms
+            WHERE match_id IS NOT NULL AND status != 'expired'
+            """
+        ).fetchall()
+    ]
 
 
 def _table_exists(connection: sqlite3.Connection, table_name: str) -> bool:

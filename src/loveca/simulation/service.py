@@ -11,7 +11,12 @@ from loveca.decks.analyzer import DeckList, analyze_deck, load_deck
 from loveca.simulation.catalog import MatchPlayerInput, build_match_cards
 from loveca.simulation.effects import DEFAULT_EFFECT_REGISTRY
 from loveca.simulation.models import ActionRequest, ActionResult, MatchState
-from loveca.simulation.runtime import MatchRepository
+from loveca.simulation.runtime import (
+    DEFAULT_ACTIVE_MATCH_TTL_HOURS,
+    MAX_RETAINED_MATCHES,
+    MAX_SNAPSHOTS_PER_MATCH,
+    MatchRepository,
+)
 
 
 class MatchSetupError(RuntimeError):
@@ -24,10 +29,19 @@ class MatchService:
         card_database_path: Path,
         runtime_database_path: Path,
         effect_registry_path: Path = DEFAULT_EFFECT_REGISTRY,
+        *,
+        max_retained_matches: int = MAX_RETAINED_MATCHES,
+        max_snapshots_per_match: int = MAX_SNAPSHOTS_PER_MATCH,
+        active_match_ttl_hours: int = DEFAULT_ACTIVE_MATCH_TTL_HOURS,
     ) -> None:
         self.card_database_path = card_database_path
         self.effect_registry_path = effect_registry_path
-        self.repository = MatchRepository(runtime_database_path)
+        self.repository = MatchRepository(
+            runtime_database_path,
+            max_retained_matches=max_retained_matches,
+            max_snapshots_per_match=max_snapshots_per_match,
+            active_match_ttl_hours=active_match_ttl_hours,
+        )
 
     def create_match(
         self,

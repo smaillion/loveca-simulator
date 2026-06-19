@@ -18,14 +18,15 @@
 - FastAPI + React SPA の可視化ルール検証 UI
 - Replay 可能な Action-only GameState
 - 925 件の effect registry entry
-  - 713 件は `test_validated_executable`
-  - 212 件は timing prompt / 未対応処理用の `manual_resolution`
+  - 714 件は `test_validated_executable`
+  - 211 件は timing prompt / 未対応処理用の `manual_resolution`
 - 将来の低コスト online 同期に向けた state hash / compatibility metadata の基礎
 - Hosted Online MVP の room API
   - room code による host / guest 参加
   - HTTP polling による状態同期
   - Python Rule Engine をサーバー側で再利用
   - 24 時間 TTL の一時 room
+  - server は毎日 JST 04:00 に自動再起動し、runtime cache を整理する想定
 - locked authoritative card SQLite
   - CI、Docker、Pages data export は repository 内の `data/loveca.sqlite3` を使用
   - `data/loveca-db-manifest.json` が DB / effect registry fingerprint を記録
@@ -54,9 +55,13 @@
 - 双方が選択する一部の効果は multi-player pending choice で順番に処理可能
 - 複数 group に分けて Stage Member を選び、それぞれに同じ一時 modifier を適用する効果に対応
 - 分岐ごとに異なる Stage Member 候補を持つ効果選択に対応
-- registry entry ベースの `test_validated_executable` coverage は 77.08% まで拡張済み
-- Phase 5 black-box sandbox は `30 decks x 100 matches` の block mode で `100/100` 完走、blocker 0 を確認済み
+- registry entry ベースの `test_validated_executable` coverage は 77.19% まで拡張済み
+- Phase 5 broad black-box sandbox は `30 decks x 100 matches` の block mode で `100/100` 完走、blocker 0 を確認済み
+- 問題カードを含む targeted sandbox では、最新 block smoke が `15 matches` 中 9 完走、6 件 `mandatory_manual_resolution` まで改善
 - trigger 時に条件を満たした pending effect が、同一タイミング中の別効果で条件失効した場合は、明示的な `effect_not_activatable` event を残して進行可能
+- 公開して手札に加える効果は、相手側の履歴にも公開カード名が残るようにしています
+- `amount_source=selected_count` を使う効果は、選んだ枚数分の抽牌に対応しています
+- 手札から起動する効果は、必要な Stage target がない場合に起動候補を出さないようにしています
 - 自動実行できない効果は `ManualAdjustmentAction` で補完
 - 処理不能な効果は、デバッグ用に `effect_skipped_due_to_error` として明示記録しながらスキップ可能
 
@@ -86,11 +91,13 @@ Deck Builder の現在の到達点:
 
 - これは開発中の alpha 版です。公式アプリではなく、ルール検証とプレイテスト feedback を集めるためのツールです。
 - 全カード効果の自動実行 coverage はまだありません。未対応効果は `ManualAdjustmentAction`、構造化 pending choice、またはデバッグ用 skip で進行する場合があります。
-- 最新の Phase 5 sandbox 長期回帰では `30 decks x 100 matches` が blocker 0 で完走しています。ただし、これは現在の sandbox deck pool に対する可用性確認であり、全カード効果の自動化完了を意味しません。最新の詳細は `CHANGELOG.md` と `TODO.md` を確認してください。
+- Broad Phase 5 sandbox 長期回帰では `30 decks x 100 matches` が blocker 0 で完走しています。ただし、問題カードを寄せた targeted sandbox では `PL!S-bp6-001:1` / `PL!S-pb1-001:1` などの手動処理 blocker がまだ残ります。最新の詳細は `CHANGELOG.md` と `TODO.md` を確認してください。
 - FAQ / 個別裁定に依存する効果はまだ仕様化していません。
 - `data/loveca.sqlite3` は repository 内の locked authoritative card DB です。公式カード追加や parser / schema / effect registry の互換性変更後は、maintainer が DB と `data/loveca-db-manifest.json` を再生成して commit します。ユーザーや CI が online 用に別 DB を import してはいけません。保存済みデッキは `decklist.v0` のユーザーデータなので、カード DB とは分けて保持できます。
 - Web/API テストには `httpx2` が必要です。環境に未導入の場合、`tests/test_catalog_api.py` と `tests/test_webapp.py` は収集段階で停止します。
 - Hosted Online MVP は低コスト検証用です。ルール判定は FastAPI 側の Python engine が行いますが、アカウント、恒久保存、厳密な不正対策はありません。
+- Hosted API の runtime DB は一時データです。最近 25 件の match history と各 match の直近 snapshot だけを保つ方針で、毎日 JST 04:00 の自動再起動時にも cleanup が走ります。Online room が切れた場合は新しく作り直してください。
+- 公開 Hosted API では全体の match history を表示しません。ソロ検証 match は作成したブラウザの localStorage に保存した access token で復帰します。管理者用 runtime 確認 / cleanup API は `LOVECA_ADMIN_KEY` が必要です。
 - GitHub Pages browser preview はカード閲覧、Deck Builder、decklist.v0 import / export、MVP deck 分析を主目的にしています。対戦は Hosted API が設定された環境でのみ利用できます。
 
 ## UI 機能と使い方
@@ -134,17 +141,25 @@ Deck Builder の現在の到達点:
 
 ## 画面イメージ
 
-開始画面: 保存済みデッキを選び、そのまま対局作成まで進められます。
+PC 開始画面: 保存済みデッキを選び、そのまま対局作成まで進められます。
 
-![開始画面](docs/images/home-desktop.png)
+![PC 開始画面](docs/images/home-desktop.png)
 
-Deck Builder: 右側でカード検索と絞り込み、中央で構築内容と分析結果を確認します。
+PC Deck Builder: 右側でカード検索と絞り込み、中央で構築内容と分析結果を確認します。
 
-![Deck Builder](docs/images/deck-builder-desktop.png)
+![PC Deck Builder](docs/images/deck-builder-desktop.png)
 
-ルール検証 UI: 盤面、Action/Event Log、手動調整を同じ画面で追えます。
+PC ルール検証 UI: 盤面、Action/Event Log、手動調整を同じ画面で追えます。
 
-![ルール検証 UI](docs/images/match-actions-desktop.png)
+![PC ルール検証 UI](docs/images/match-actions-desktop.png)
+
+スマホ Deck Builder: カード検索はポップアップで開き、検索条件と追加操作を縦画面で確認できます。
+
+![スマホ Deck Builder](docs/images/deck-builder-mobile.png)
+
+スマホ ルール検証 UI: 自分の盤面と手札を中心に表示し、登場確認や手動調整は小型の操作入口から行います。
+
+![スマホ ルール検証 UI](docs/images/match-actions-mobile.png)
 
 ## カード DB と asset 配布方針
 

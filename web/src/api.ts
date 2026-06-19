@@ -37,6 +37,7 @@ export interface RuntimeConfig {
   mode: "preview" | "release";
   browserPreview: boolean;
   apiBaseUrl: string;
+  publicMatchHistory: boolean;
   cardDatabaseFingerprint: string;
 }
 
@@ -44,6 +45,13 @@ const fallbackRuntimeConfig: RuntimeConfig = {
   mode: viteEnv?.VITE_BROWSER_PREVIEW === "true" ? "preview" : "release",
   browserPreview: viteEnv?.VITE_BROWSER_PREVIEW === "true",
   apiBaseUrl: normalizeBaseUrl(
+    typeof viteEnv?.VITE_PUBLIC_API_BASE_URL === "string"
+      ? viteEnv.VITE_PUBLIC_API_BASE_URL
+      : typeof viteEnv?.VITE_HOSTED_API_BASE_URL === "string"
+        ? viteEnv.VITE_HOSTED_API_BASE_URL
+        : "",
+  ),
+  publicMatchHistory: !normalizeBaseUrl(
     typeof viteEnv?.VITE_PUBLIC_API_BASE_URL === "string"
       ? viteEnv.VITE_PUBLIC_API_BASE_URL
       : typeof viteEnv?.VITE_HOSTED_API_BASE_URL === "string"
@@ -120,6 +128,10 @@ function normalizeRuntimeConfig(payload: unknown): RuntimeConfig {
         ? value.apiBaseUrl
         : fallbackRuntimeConfig.apiBaseUrl,
     ),
+    publicMatchHistory:
+      typeof value.publicMatchHistory === "boolean"
+        ? value.publicMatchHistory
+        : fallbackRuntimeConfig.publicMatchHistory,
     cardDatabaseFingerprint:
       typeof value.cardDatabaseFingerprint === "string"
         ? value.cardDatabaseFingerprint
@@ -135,7 +147,17 @@ export function apiResourceUrl(path: string): string {
 }
 
 export function hostedOnlineAvailable(): boolean {
-  return runtimeConfig.apiBaseUrl.length > 0;
+  return canUseHostedApi(runtimeConfig);
+}
+
+function canUseHostedApi(config: RuntimeConfig): boolean {
+  return config.apiBaseUrl.length > 0 || !shouldUsePreviewData(config);
+}
+
+function requireHostedApi(): void {
+  if (!canUseHostedApi(runtimeConfig)) {
+    throw new Error("Hosted API base URL is not configured.");
+  }
 }
 
 function shouldUsePreviewData(config: RuntimeConfig): boolean {
@@ -175,7 +197,7 @@ export function listMatches(input: {
           page,
           per_page: perPage,
           total: payload.length,
-          max_total: 100,
+          max_total: 25,
         };
       }
       return payload;
@@ -183,8 +205,9 @@ export function listMatches(input: {
   );
 }
 
-export function getMatch(matchId: string): Promise<MatchPayload> {
-  return request(`/api/matches/${matchId}`);
+export function getMatch(matchId: string, matchToken?: string | null): Promise<MatchPayload> {
+  const params = matchToken ? `?${new URLSearchParams({ match_token: matchToken })}` : "";
+  return request(`/api/matches/${matchId}${params}`);
 }
 
 export function createMatch(input: {
@@ -218,8 +241,10 @@ export function submitAction(
     player_id?: string | null;
     payload?: Record<string, unknown>;
   },
+  matchToken?: string | null,
 ): Promise<MatchPayload> {
-  return request(`/api/matches/${matchId}/actions`, {
+  const params = matchToken ? `?${new URLSearchParams({ match_token: matchToken })}` : "";
+  return request(`/api/matches/${matchId}/actions${params}`, {
     method: "POST",
     body: JSON.stringify(input),
   });
@@ -230,9 +255,7 @@ export function createRoom(input: {
   deck: DeckList;
   seed?: number;
 }): Promise<RoomPayload> {
-  if (!runtimeConfig.apiBaseUrl) {
-    return Promise.reject(new Error("Hosted API base URL is not configured."));
-  }
+  requireHostedApi();
   return request("/api/rooms", {
     method: "POST",
     body: JSON.stringify({
@@ -248,9 +271,7 @@ export function joinRoom(input: {
   playerName: string;
   deck: DeckList;
 }): Promise<RoomPayload> {
-  if (!runtimeConfig.apiBaseUrl) {
-    return Promise.reject(new Error("Hosted API base URL is not configured."));
-  }
+  requireHostedApi();
   return request(`/api/rooms/${encodeURIComponent(input.roomCode)}/join`, {
     method: "POST",
     body: JSON.stringify({
@@ -261,11 +282,14 @@ export function joinRoom(input: {
 }
 
 export function getRoom(roomCode: string, playerToken: string): Promise<RoomPayload> {
-  if (!runtimeConfig.apiBaseUrl) {
-    return Promise.reject(new Error("Hosted API base URL is not configured."));
-  }
+  requireHostedApi();
   const params = new URLSearchParams({ player_token: playerToken });
   return request(`/api/rooms/${encodeURIComponent(roomCode)}?${params.toString()}`);
+}
+
+export function roomStreamUrl(roomCode: string, playerToken: string): string {
+  const params = new URLSearchParams({ player_token: playerToken });
+  return apiResourceUrl(`/api/rooms/${encodeURIComponent(roomCode)}/stream?${params.toString()}`);
 }
 
 export function leaveRoom(
@@ -273,9 +297,7 @@ export function leaveRoom(
   playerToken: string,
   init?: Pick<RequestInit, "keepalive">,
 ): Promise<RoomPayload> {
-  if (!runtimeConfig.apiBaseUrl) {
-    return Promise.reject(new Error("Hosted API base URL is not configured."));
-  }
+  requireHostedApi();
   return request(`/api/rooms/${encodeURIComponent(roomCode)}/leave`, {
     method: "POST",
     keepalive: init?.keepalive,
@@ -293,9 +315,7 @@ export function submitRoomAction(
     payload?: Record<string, unknown>;
   },
 ): Promise<MatchPayload> {
-  if (!runtimeConfig.apiBaseUrl) {
-    return Promise.reject(new Error("Hosted API base URL is not configured."));
-  }
+  requireHostedApi();
   return request(`/api/rooms/${encodeURIComponent(roomCode)}/actions`, {
     method: "POST",
     body: JSON.stringify({
@@ -310,8 +330,9 @@ export function roomReplayUrl(roomCode: string, playerToken: string): string {
   return apiResourceUrl(`/api/rooms/${encodeURIComponent(roomCode)}/replay?${params.toString()}`);
 }
 
-export function matchReplayUrl(matchId: string): string {
-  return apiResourceUrl(`/api/matches/${matchId}/replay`);
+export function matchReplayUrl(matchId: string, matchToken?: string | null): string {
+  const params = matchToken ? `?${new URLSearchParams({ match_token: matchToken })}` : "";
+  return apiResourceUrl(`/api/matches/${matchId}/replay${params}`);
 }
 
 export function cardImageUrl(cardId: string): string {
@@ -446,7 +467,7 @@ export function deleteSavedDeck(deckId: string): Promise<{ status: string }> {
 
 export function uploadSharedDeck(deck: DeckList): Promise<SharedDeckResponse> {
   return loadRuntimeConfig().then((config) => {
-    if (!config.apiBaseUrl) {
+    if (!canUseHostedApi(config)) {
       throw new Error("Hosted API base URL is not configured.");
     }
     return request("/api/deck-shares", {
@@ -458,7 +479,7 @@ export function uploadSharedDeck(deck: DeckList): Promise<SharedDeckResponse> {
 
 export function downloadSharedDeck(shareId: string): Promise<SharedDeckResponse> {
   return loadRuntimeConfig().then((config) => {
-    if (!config.apiBaseUrl) {
+    if (!canUseHostedApi(config)) {
       throw new Error("Hosted API base URL is not configured.");
     }
     return request(`/api/deck-shares/${encodeURIComponent(shareId)}`);

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import sqlite3
@@ -7,7 +7,14 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from loveca.cards.importer import import_normalized_cards
-from loveca.webapp import ApiSettings, create_app
+from loveca.simulation.models import (
+    CardDefinition,
+    CardInstance,
+    GameEvent,
+    MatchState,
+    PlayerState,
+)
+from loveca.webapp import ApiSettings, _match_state_payload, create_app
 
 PROJECT_ROOT = Path(__file__).parents[1]
 SAMPLE_CARDS = (
@@ -188,6 +195,99 @@ def test_hosted_room_api_create_join_act_and_replay(tmp_path):
     assert replay.json()["final_state"]["revision"] == 2
 
 
+def test_hosted_room_stream_emits_lightweight_update_signal(tmp_path):
+    client = _client(tmp_path)
+    deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
+
+    created = client.post(
+        "/api/rooms",
+        json={"player_name": "Host", "deck": deck, "seed": 1},
+    )
+    assert created.status_code == 200
+    room_code = created.json()["room_code"]
+    host_token = created.json()["player_token"]
+
+    joined = client.post(
+        f"/api/rooms/{room_code}/join",
+        json={"player_name": "Guest", "deck": deck},
+    )
+    assert joined.status_code == 200
+
+    wrong_token = client.get(f"/api/rooms/{room_code}/stream?player_token=wrong")
+    assert wrong_token.status_code == 403
+
+    response = client.get(
+        f"/api/rooms/{room_code}/stream?player_token={host_token}&once=true"
+    )
+    assert response.status_code == 200
+    text = response.text
+
+    assert "event: room_update" in text
+    assert f'"room_code": "{room_code}"' in text
+    assert '"revision": 1' in text
+
+
+def test_player_specific_payload_keeps_revealed_card_snapshot_when_hand_is_hidden():
+    card = CardDefinition(
+        card_code="TEST-001",
+        card_id="TEST-001-R",
+        name_ja="公開されるカード",
+        card_type="member",
+        image_url="https://example.test/card.png",
+    )
+    state = MatchState(
+        match_id="match-redaction",
+        seed=1,
+        players={
+            "player_1": PlayerState(
+                player_id="player_1",
+                name="Host",
+                hand=["card-1"],
+            ),
+            "player_2": PlayerState(player_id="player_2", name="Guest"),
+        },
+        cards={
+            "card-1": CardInstance(
+                instance_id="card-1",
+                owner_id="player_1",
+                card=card,
+            )
+        },
+    )
+    event = GameEvent(
+        event_type="effect_resolved",
+        player_id="player_1",
+        source="player",
+        data={
+            "selected_card_instance_ids": ["card-1"],
+            "reveal_selected_to_opponent": True,
+            "revealed_cards": [
+                {
+                    "instance_id": "card-1",
+                    "owner_id": "player_1",
+                    "card_code": card.card_code,
+                    "card_id": card.card_id,
+                    "name_ja": card.name_ja,
+                    "card_type": card.card_type,
+                    "image_url": card.image_url,
+                }
+            ],
+        },
+    )
+
+    payload = _match_state_payload(
+        state,
+        events=[event],
+        legal_actions=[],
+        player_id="player_2",
+    )
+
+    assert "card-1" not in payload["state"]["cards"]
+    assert payload["events"][0]["data"]["revealed_cards"][0]["name_ja"] == (
+        "公開されるカード"
+    )
+
+
 def test_match_history_paginates_without_purging_active_room_match(tmp_path):
     client = _client(tmp_path)
     deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
@@ -243,26 +343,137 @@ def test_match_history_paginates_without_purging_active_room_match(tmp_path):
     assert room_match_id not in {item["match_id"] for item in payload["items"]}
     assert payload["page"] == 1
     assert payload["per_page"] == 10
-    assert payload["total"] == 30
+    assert payload["total"] == 25
 
 
-def test_match_history_caps_results_at_100(tmp_path):
+def test_match_history_caps_results_at_25(tmp_path):
     runtime_path = tmp_path / "matches.sqlite3"
     client = _client(tmp_path)
     _insert_match_rows(runtime_path, 105)
 
     first_page = client.get("/api/matches?page=1&per_page=10")
     assert first_page.status_code == 200
-    assert first_page.json()["total"] == 100
+    assert first_page.json()["total"] == 25
     assert len(first_page.json()["items"]) == 10
 
-    last_page = client.get("/api/matches?page=10&per_page=10")
+    last_page = client.get("/api/matches?page=3&per_page=10")
     assert last_page.status_code == 200
-    assert len(last_page.json()["items"]) == 10
+    assert len(last_page.json()["items"]) == 5
 
-    overflow = client.get("/api/matches?page=11&per_page=10")
+    overflow = client.get("/api/matches?page=4&per_page=10")
     assert overflow.status_code == 200
     assert overflow.json()["items"] == []
+
+
+def test_public_match_endpoints_can_be_disabled_while_solo_matches_use_tokens(tmp_path):
+    client = _client(tmp_path, public_match_endpoints=False)
+    deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
+
+    assert client.get("/api/matches").status_code == 404
+    created_match = client.post(
+        "/api/matches",
+        json={
+            "player_1": {"name": "Player A", "deck": deck},
+            "player_2": {"name": "Player B", "deck": deck},
+            "seed": 1,
+        },
+    )
+    assert created_match.status_code == 200
+    payload = created_match.json()
+    match_id = payload["state"]["match_id"]
+    match_token = payload["match_token"]
+    assert match_token
+
+    assert client.get(f"/api/matches/{match_id}").status_code == 403
+    restored = client.get(f"/api/matches/{match_id}?match_token={match_token}")
+    assert restored.status_code == 200
+    assert restored.json()["state"]["match_id"] == match_id
+
+    next_action = payload["legal_actions"][0]
+    action_request = {
+        "action_type": next_action["action_type"],
+        "expected_revision": payload["state"]["revision"],
+        "player_id": next_action["player_id"],
+        "payload": {"card_instance_ids": []},
+    }
+    rejected_action = client.post(
+        f"/api/matches/{match_id}/actions",
+        json=action_request,
+    )
+    assert rejected_action.status_code == 403
+    accepted_action = client.post(
+        f"/api/matches/{match_id}/actions?match_token={match_token}",
+        json=action_request,
+    )
+    assert accepted_action.status_code == 200
+
+    created = client.post(
+        "/api/rooms",
+        json={"player_name": "Host", "deck": deck, "seed": 106},
+    )
+    assert created.status_code == 200
+    room_code = created.json()["room_code"]
+
+    joined = client.post(
+        f"/api/rooms/{room_code}/join",
+        json={"player_name": "Guest", "deck": deck},
+    )
+    assert joined.status_code == 200
+    assert joined.json()["match"]["state"]["match_id"]
+
+
+def test_admin_runtime_storage_and_cleanup_requires_key(tmp_path):
+    client = _client(tmp_path, admin_key="secret")
+    runtime_path = tmp_path / "matches.sqlite3"
+    _insert_match_rows(runtime_path, 3)
+    with sqlite3.connect(runtime_path) as connection:
+        for revision in range(6):
+            connection.execute(
+                """
+                INSERT INTO match_snapshots (
+                    match_id,
+                    revision,
+                    action_sequence,
+                    state_json,
+                    created_at
+                )
+                VALUES ('match-000', ?, ?, ?, '2026-06-15T00:00:00+00:00')
+                """,
+                (revision, revision, "{}" * (revision + 1)),
+            )
+
+    assert client.get("/api/admin/runtime/storage").status_code == 403
+    storage = client.get(
+        "/api/admin/runtime/storage",
+        headers={"X-LoveCA-Admin-Key": "secret"},
+    )
+    assert storage.status_code == 200
+    assert storage.json()["tables"]
+
+    cleanup = client.post(
+        "/api/admin/runtime/cleanup",
+        headers={"X-LoveCA-Admin-Key": "secret"},
+        json={
+            "retain_matches": 25,
+            "max_snapshots_per_match": 3,
+            "vacuum": False,
+        },
+    )
+    assert cleanup.status_code == 200
+    payload = cleanup.json()
+    assert payload["snapshot_deleted_count"] == 3
+    assert payload["deleted_by_age"] == 0
+
+
+def test_admin_page_escapes_quote_map_as_valid_javascript(tmp_path):
+    client = _client(tmp_path, admin_key="secret")
+
+    response = client.get("/admin")
+
+    assert response.status_code == 200
+    assert """'"': "&quot;",""" in response.text
+    assert '""": "&quot;"' not in response.text
+    assert 'id="adminPanel" hidden' in response.text
 
 
 def test_hosted_room_leave_expires_room_and_blocks_actions(tmp_path):
@@ -584,6 +795,185 @@ def test_deck_share_api_uploads_and_downloads_by_uuid(tmp_path):
     assert invalid.status_code == 400
 
 
+def test_admin_deck_shares_show_uploaded_decks_and_winrate(tmp_path):
+    client = _client(tmp_path, admin_key="secret")
+    sample_deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
+
+    uploaded = client.post("/api/deck-shares", json={"deck": sample_deck})
+    assert uploaded.status_code == 200
+    share_id = uploaded.json()["share_id"]
+
+    created = client.post(
+        "/api/rooms",
+        json={"player_name": "Host", "deck": sample_deck, "seed": 106},
+    )
+    assert created.status_code == 200
+    room_code = created.json()["room_code"]
+    joined = client.post(
+        f"/api/rooms/{room_code}/join",
+        json={"player_name": "Guest", "deck": sample_deck},
+    )
+    assert joined.status_code == 200
+    match_id = joined.json()["match_id"]
+    completed_state = json.dumps(
+        {
+            "game_result": {
+                "outcome": "win",
+                "winner_player_ids": ["player_1"],
+                "reason": "success_live_threshold",
+                "final_turn": 3,
+            }
+        },
+        ensure_ascii=False,
+    )
+    with sqlite3.connect(tmp_path / "matches.sqlite3") as connection:
+        connection.execute(
+            """
+            UPDATE matches
+            SET status = 'complete', current_state_json = ?, updated_at = ?
+            WHERE match_id = ?
+            """,
+            (completed_state, "2026-06-16T04:00:00+00:00", match_id),
+        )
+
+    assert client.get("/api/admin/deck-shares").status_code == 403
+    response = client.get(
+        "/api/admin/deck-shares",
+        headers={"X-LoveCA-Admin-Key": "secret"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    item = next(deck for deck in payload["items"] if deck["share_id"] == share_id)
+    assert payload["matching_method"] == "card_code_quantities"
+    assert item["deck"]["version"] == "decklist.v0"
+    assert item["main_card_count"] == 60
+    assert item["energy_card_count"] == 12
+    assert item["uses"] == 2
+    assert item["completed_uses"] == 2
+    assert item["wins"] == 1
+    assert item["losses"] == 1
+    assert item["draws"] == 0
+    assert item["win_rate"] == 0.5
+    assert item["last_played_at"] == "2026-06-16T04:00:00+00:00"
+
+
+def test_admin_runtime_progress_report_summarizes_pending_effects(tmp_path):
+    client = _client(tmp_path, admin_key="secret")
+    runtime_path = tmp_path / "matches.sqlite3"
+    effect_id = "PL!SP-bp4-025:1"
+    state = {
+        "phase": "performance_first",
+        "turn_number": 4,
+        "pending_choice": {
+            "choice_type": "effect_inspection_selection",
+            "player_id": "player_1",
+        },
+        "pending_effects": [
+            {
+                "invocation_id": "invocation-1",
+                "effect_id": effect_id,
+                "source_card_instance_id": "source-card-1",
+                "player_id": "player_1",
+                "trigger_event": "live_start",
+            }
+        ],
+        "effect_definitions": {
+            effect_id: {
+                "card_code": "PL!SP-bp4-025",
+                "label_ja": "??????????????",
+                "simulation_support": "manual_resolution",
+                "trigger": "live_start",
+            }
+        },
+        "cards": {
+            "source-card-1": {
+                "card": {
+                    "card_code": "PL!SP-bp4-025",
+                    "card_id": "PL!SP-bp4-025-R",
+                    "name_ja": "??????",
+                }
+            }
+        },
+    }
+    event = {
+        "event_type": "effect_skipped_due_to_error",
+        "player_id": "player_1",
+        "data": {
+            "effect_id": effect_id,
+            "source_card_instance_id": "source-card-1",
+            "error": "manual blocker",
+        },
+    }
+    with sqlite3.connect(runtime_path) as connection:
+        connection.execute(
+            """
+            INSERT INTO matches (
+                match_id,
+                card_database_path,
+                rule_version,
+                seed,
+                status,
+                revision,
+                initial_state_json,
+                current_state_json,
+                created_at,
+                updated_at
+            )
+            VALUES (?, 'cards.sqlite3', 'test', 1, 'active', 12, '{}', ?, ?, ?)
+            """,
+            (
+                "progress-match-1",
+                json.dumps(state, ensure_ascii=False),
+                "2026-06-17T01:00:00+00:00",
+                "2026-06-17T01:05:00+00:00",
+            ),
+        )
+        connection.execute(
+            """
+            INSERT INTO match_events (
+                match_id,
+                action_sequence,
+                event_index,
+                event_type,
+                event_json
+            )
+            VALUES (?, 12, 0, ?, ?)
+            """,
+            (
+                "progress-match-1",
+                "effect_skipped_due_to_error",
+                json.dumps(event, ensure_ascii=False),
+            ),
+        )
+
+    assert client.get("/api/admin/runtime/progress").status_code == 403
+    response = client.get(
+        "/api/admin/runtime/progress",
+        headers={"X-LoveCA-Admin-Key": "secret"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert {item["value"]: item["count"] for item in payload["phase_distribution"]}[
+        "performance_first"
+    ] == 1
+    assert payload["stuck_matches"][0]["pending_choice_type"] == "effect_inspection_selection"
+    top_effect = payload["top_stuck_effects"][0]
+    assert top_effect["effect_id"] == effect_id
+    assert top_effect["card_code"] == "PL!SP-bp4-025"
+    reasons = {item["value"]: item["count"] for item in top_effect["reasons"]}
+    assert reasons["pending_manual_resolution"] == 1
+    assert reasons["effect_skipped_due_to_error"] == 1
+
+    report = client.get(
+        "/api/admin/runtime/progress-report",
+        headers={"X-LoveCA-Admin-Key": "secret"},
+    )
+    assert report.status_code == 200
+    assert "text/markdown" in report.headers["content-type"]
+    assert "PL!SP-bp4-025" in report.text
+    assert "effect_skipped_due_to_error" in report.text
+
+
 def test_catalog_api_exposes_card_review_data(tmp_path):
     client = _client(tmp_path)
 
@@ -614,18 +1004,20 @@ def test_catalog_api_exposes_card_review_data(tmp_path):
     assert "units" in facets_payload
 
 
-def _client(tmp_path: Path) -> TestClient:
+def _client(tmp_path: Path, **settings_overrides) -> TestClient:
     card_database = tmp_path / "cards.sqlite3"
     import_normalized_cards(card_database, SAMPLE_CARDS, NORMALIZATION)
+    settings = {
+        "card_database_path": card_database,
+        "runtime_database_path": tmp_path / "matches.sqlite3",
+        "image_cache_dir": tmp_path / "images",
+        "web_dist_dir": tmp_path / "missing-dist",
+        "deck_library_root": tmp_path / "decks",
+        "allowed_deck_root": PROJECT_ROOT,
+    }
+    settings.update(settings_overrides)
     app = create_app(
-        ApiSettings(
-            card_database_path=card_database,
-            runtime_database_path=tmp_path / "matches.sqlite3",
-            image_cache_dir=tmp_path / "images",
-            web_dist_dir=tmp_path / "missing-dist",
-            deck_library_root=tmp_path / "decks",
-            allowed_deck_root=PROJECT_ROOT,
-        )
+        ApiSettings(**settings)
     )
     return TestClient(app)
 

@@ -20,10 +20,12 @@ import {
   createContext,
   type DragEvent,
   type ReactNode,
+  type CSSProperties,
   useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -41,6 +43,7 @@ import {
   loadRuntimeConfig,
   matchReplayUrl,
   roomReplayUrl,
+  roomStreamUrl,
   submitAction,
   submitRoomAction,
 } from "./api";
@@ -95,11 +98,15 @@ const emptyMatchHistory: MatchListResponse = {
   page: 1,
   per_page: MATCH_HISTORY_PAGE_SIZE,
   total: 0,
-  max_total: 100,
+  max_total: 25,
 };
 
-function matchHistoryAvailable(config: { browserPreview: boolean; apiBaseUrl: string }): boolean {
-  return !config.browserPreview || config.apiBaseUrl.length > 0;
+function matchHistoryAvailable(config: {
+  browserPreview: boolean;
+  apiBaseUrl: string;
+  publicMatchHistory: boolean;
+}): boolean {
+  return config.publicMatchHistory && (!config.browserPreview || config.apiBaseUrl.length > 0);
 }
 
 type UiLocale = "zh" | "ja";
@@ -121,6 +128,45 @@ type OnlineSession = {
   playerId: "player_1" | "player_2";
   playerToken: string;
 };
+
+const LOCAL_MATCH_SESSIONS_KEY = "loveca-local-match-sessions.v0";
+
+function loadLocalMatchSessions(): MatchSummary[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(LOCAL_MATCH_SESSIONS_KEY) ?? "[]");
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item) => item && typeof item.match_id === "string" && typeof item.match_token === "string")
+      .slice(0, 25) as MatchSummary[];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalMatchSession(payload: MatchPayload, existingToken?: string | null): MatchSummary[] {
+  const token = payload.match_token ?? existingToken;
+  if (!token) return loadLocalMatchSessions();
+  const existingSessions = loadLocalMatchSessions();
+  const previous = existingSessions.find((session) => session.match_id === payload.state.match_id);
+  const playerNames = Object.values(payload.state.players).map((player) => player.name);
+  const item: MatchSummary = {
+    match_id: payload.state.match_id,
+    rule_version: payload.state.rule_version,
+    seed: payload.state.seed,
+    status: payload.state.phase === "complete" ? "complete" : "active",
+    revision: payload.state.revision,
+    created_at: previous?.created_at ?? new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    match_token: token,
+    label: playerNames.join(" vs "),
+  };
+  const next = [
+    item,
+    ...existingSessions.filter((session) => session.match_id !== item.match_id),
+  ].slice(0, 25);
+  localStorage.setItem(LOCAL_MATCH_SESSIONS_KEY, JSON.stringify(next));
+  return next;
+}
 
 type MemberPlayDraft = {
   selectedMemberId: string;
@@ -158,6 +204,36 @@ type MobileMulliganContext = {
   onToggleCard: (instanceId: string) => void;
 };
 
+type MobileHandActivationContext = {
+  legalCardIds: Set<string>;
+  candidateCardIds: Set<string>;
+  onOpen: () => void;
+};
+
+type RevealedCardSnapshot = {
+  instance_id: string;
+  owner_id?: string;
+  card_code: string;
+  card_id: string;
+  name_ja: string;
+  card_type: "member" | "live" | "energy";
+  image_url?: string | null;
+};
+
+type RevealNotice = {
+  key: string;
+  event: GameEvent;
+  cards: RevealedCardSnapshot[];
+};
+
+type AutoResultNotice = {
+  key: string;
+  event: GameEvent;
+  relatedEvents: GameEvent[];
+  cards: RevealedCardSnapshot[];
+  lines: string[];
+};
+
 const heartLabels = HEART_LABELS;
 
 const judgmentBasisLabels: Record<string, [string, string]> = {
@@ -170,7 +246,8 @@ const judgmentBasisLabels: Record<string, [string, string]> = {
 export default function App() {
   const [runtimeConfig, setRuntimeConfig] = useState(getRuntimeConfigSnapshot);
   const browserPreview = runtimeConfig.browserPreview;
-  const hostedOnline = runtimeConfig.apiBaseUrl.length > 0;
+  const hostedOnline = runtimeConfig.apiBaseUrl.length > 0 || !browserPreview;
+  const publicMatchHistory = matchHistoryAvailable(runtimeConfig);
   const [locale, setLocale] = useState<UiLocale>(() => {
     const stored = localStorage.getItem("loveca-ui-locale");
     if (stored === "ja" || stored === "zh") return stored;
@@ -178,9 +255,14 @@ export default function App() {
   });
   const [screen, setScreen] = useState<"home" | "match" | "catalog" | "decks">("home");
   const [match, setMatch] = useState<MatchPayload | null>(null);
+  const matchShellRef = useRef<HTMLDivElement | null>(null);
   const [matchHistory, setMatchHistory] = useState<MatchListResponse>(emptyMatchHistory);
   const [matchHistoryLoaded, setMatchHistoryLoaded] = useState(false);
   const [matchHistoryLoading, setMatchHistoryLoading] = useState(false);
+  const [localMatchSessions, setLocalMatchSessions] = useState<MatchSummary[]>(() =>
+    typeof window === "undefined" ? [] : loadLocalMatchSessions(),
+  );
+  const [matchToken, setMatchToken] = useState<string | null>(null);
   const [savedDecks, setSavedDecks] = useState<SavedDeckSummary[]>([]);
   const [draftDeck, setDraftDeck] = useState<DeckList | null>(null);
   const [loading, setLoading] = useState(false);
@@ -195,6 +277,10 @@ export default function App() {
   const [onlineRoom, setOnlineRoom] = useState<RoomPayload | null>(null);
   const [onlineStatus, setOnlineStatus] = useState<string | null>(null);
   const [mobileMatchPanel, setMobileMatchPanel] = useState<"opponent" | "live" | null>(null);
+  const [revealNotice, setRevealNotice] = useState<RevealNotice | null>(null);
+  const [dismissedRevealKey, setDismissedRevealKey] = useState("");
+  const [autoResultNotice, setAutoResultNotice] = useState<AutoResultNotice | null>(null);
+  const [dismissedAutoResultKey, setDismissedAutoResultKey] = useState("");
   const [memberPlayDraft, setMemberPlayDraft] = useState<MemberPlayDraft>({
     selectedMemberId: "",
     selectedSlot: "",
@@ -263,7 +349,9 @@ export default function App() {
   useEffect(() => {
     if (!onlineSession) return;
     let disposed = false;
-    const poll = async () => {
+    let fallbackPollId: number | null = null;
+    let eventSource: EventSource | null = null;
+    const refreshRoom = async () => {
       try {
         const room = await getRoom(onlineSession.roomCode, onlineSession.playerToken);
         if (disposed) return;
@@ -284,13 +372,58 @@ export default function App() {
         }
       }
     };
-    void poll();
-    const id = window.setInterval(() => void poll(), 2000);
+    const startFallbackPolling = () => {
+      if (disposed || fallbackPollId !== null) return;
+      fallbackPollId = window.setInterval(() => void refreshRoom(), 8000);
+    };
+    void refreshRoom();
+    if (typeof EventSource === "undefined") {
+      startFallbackPolling();
+    } else {
+      try {
+        eventSource = new EventSource(
+          roomStreamUrl(onlineSession.roomCode, onlineSession.playerToken),
+        );
+        eventSource.addEventListener("room_update", () => {
+          void refreshRoom();
+        });
+        eventSource.addEventListener("room_error", (event) => {
+          if (disposed) return;
+          setOnlineStatus(
+            event instanceof MessageEvent && event.data
+              ? event.data
+              : "room stream error",
+          );
+          eventSource?.close();
+          eventSource = null;
+          startFallbackPolling();
+        });
+        eventSource.onerror = () => {
+          if (disposed) return;
+          setOnlineStatus(
+            locale === "zh"
+              ? "实时同步中断，已切换为低频更新"
+              : "リアルタイム同期が切断され、低頻度更新に切り替えました",
+          );
+          eventSource?.close();
+          eventSource = null;
+          startFallbackPolling();
+        };
+      } catch (reason) {
+        if (!disposed) {
+          setOnlineStatus(reason instanceof Error ? reason.message : String(reason));
+        }
+        startFallbackPolling();
+      }
+    }
     return () => {
       disposed = true;
-      window.clearInterval(id);
+      eventSource?.close();
+      if (fallbackPollId !== null) {
+        window.clearInterval(fallbackPollId);
+      }
     };
-  }, [onlineSession]);
+  }, [locale, onlineSession]);
   useEffect(() => {
     if (!onlineSession) return;
     const session = onlineSession;
@@ -300,6 +433,34 @@ export default function App() {
     window.addEventListener("beforeunload", leaveOnUnload);
     return () => window.removeEventListener("beforeunload", leaveOnUnload);
   }, [onlineSession]);
+  useEffect(() => {
+    if (!match) {
+      setRevealNotice(null);
+      return;
+    }
+    const notice = latestRevealNotice(match.events, match.state);
+    if (!notice) {
+      setRevealNotice(null);
+      return;
+    }
+    if (notice.key !== dismissedRevealKey) {
+      setRevealNotice(notice);
+    }
+  }, [dismissedRevealKey, match]);
+  useEffect(() => {
+    if (!match) {
+      setAutoResultNotice(null);
+      return;
+    }
+    const notice = latestAutoResultNotice(match.events, match.state, locale);
+    if (!notice) {
+      setAutoResultNotice(null);
+      return;
+    }
+    if (notice.key !== dismissedAutoResultKey) {
+      setAutoResultNotice(notice);
+    }
+  }, [dismissedAutoResultKey, locale, match]);
   useEffect(() => {
     setMemberPlayDraft({ selectedMemberId: "", selectedSlot: "", selectedPlayMode: "" });
     setLiveSetDraft({ selectedCardIds: [] });
@@ -317,6 +478,65 @@ export default function App() {
     match?.state.match_id,
     match?.state.phase,
     match?.state.turn_number,
+    screen,
+  ]);
+  useEffect(() => {
+    const shell = matchShellRef.current;
+    if (!shell || !isMobileLayout || screen !== "match") {
+      return;
+    }
+
+    const updateMobileLayoutReserve = () => {
+      const topbar = shell.querySelector<HTMLElement>(".topbar");
+      const mobileSummary = shell.querySelector<HTMLElement>(".mobile-match-summary");
+      const actionDocks = Array.from(
+        shell.querySelectorAll<HTMLElement>(".action-dock:not(.embedded-action-dock)"),
+      ).filter((dock) => dock.parentElement === shell);
+      const topReserve = Math.ceil(
+        (topbar?.getBoundingClientRect().height ?? 0)
+          + (mobileSummary?.getBoundingClientRect().height ?? 0),
+      );
+      const actionReserve = Math.ceil(
+        actionDocks.reduce(
+          (height, dock) => Math.max(height, dock.getBoundingClientRect().height),
+          0,
+        ),
+      );
+      if (topReserve > 0) {
+        shell.style.setProperty("--mobile-top-reserve", `${topReserve}px`);
+      }
+      shell.style.setProperty("--mobile-action-reserve", `${actionReserve}px`);
+    };
+
+    const animationFrame = window.requestAnimationFrame
+      ? window.requestAnimationFrame(updateMobileLayoutReserve)
+      : 0;
+    window.addEventListener("resize", updateMobileLayoutReserve);
+    const Observer = window.ResizeObserver;
+    const observer = Observer ? new Observer(updateMobileLayoutReserve) : null;
+    if (observer) {
+      const observed = [
+        shell.querySelector<HTMLElement>(".topbar"),
+        shell.querySelector<HTMLElement>(".mobile-match-summary"),
+        ...Array.from(
+          shell.querySelectorAll<HTMLElement>(".action-dock:not(.embedded-action-dock)"),
+        ).filter((dock) => dock.parentElement === shell),
+      ].filter((element): element is HTMLElement => Boolean(element));
+      observed.forEach((element) => observer.observe(element));
+    }
+
+    return () => {
+      if (animationFrame && window.cancelAnimationFrame) {
+        window.cancelAnimationFrame(animationFrame);
+      }
+      window.removeEventListener("resize", updateMobileLayoutReserve);
+      observer?.disconnect();
+    };
+  }, [
+    isMobileLayout,
+    match?.legal_actions.length,
+    match?.state.phase,
+    match?.state.revision,
     screen,
   ]);
 
@@ -345,6 +565,7 @@ export default function App() {
       setOnlineSession(null);
       setOnlineRoom(null);
       setOnlineStatus(null);
+      setMatchToken(null);
     }
   }
 
@@ -415,12 +636,17 @@ export default function App() {
             expected_revision: match.state.revision,
             player_id: playerId,
             payload,
-          }),
-      (next) =>
-        setMatch({
+          }, matchToken),
+      (next) => {
+        const merged = {
           ...next,
           events: [...match.events, ...next.events],
-        }),
+        };
+        setMatch(merged);
+        if (!onlineSession) {
+          setLocalMatchSessions(saveLocalMatchSession(merged, matchToken));
+        }
+      },
     );
     if (succeeded && actionType === "start_next_turn") {
       setMobileMatchPanel(null);
@@ -439,6 +665,15 @@ export default function App() {
     }
     throw new Error(locale === "zh" ? "未知牌组来源。" : "不明なデッキソースです。");
   }
+
+  const visibleMatchHistory: MatchListResponse = publicMatchHistory
+    ? matchHistory
+    : {
+      ...emptyMatchHistory,
+      items: localMatchSessions,
+      total: localMatchSessions.length,
+      max_total: 25,
+    };
 
   if (!match) {
     if (screen === "catalog") {
@@ -469,8 +704,8 @@ export default function App() {
     }
     return renderShell(
         <StartScreen
-          matches={matchHistory.items}
-          history={matchHistory}
+          matches={visibleMatchHistory.items}
+          history={visibleMatchHistory}
           historyLoaded={matchHistoryLoaded}
           historyLoading={matchHistoryLoading}
           deckSources={deckSources}
@@ -478,6 +713,7 @@ export default function App() {
           error={error}
           browserPreview={browserPreview}
           hostedOnline={hostedOnline}
+          publicMatchHistory={publicMatchHistory}
           matchCreationDisabled={browserPreview}
           matchCreationDisabledMessage={locale === "zh"
             ? "浏览器预览版暂不包含本地规则引擎。请使用本地版启动对战，或连接远程服务创建在线测试房间。"
@@ -509,6 +745,7 @@ export default function App() {
                   playerToken: room.player_token,
                 });
                 setOnlineRoom(room);
+                setMatchToken(null);
                 if (room.match) {
                   setMatch(room.match);
                   setScreen("match");
@@ -534,6 +771,7 @@ export default function App() {
                   playerToken: room.player_token,
                 });
                 setOnlineRoom(room);
+                setMatchToken(null);
                 if (room.match) {
                   setMatch(room.match);
                   setScreen("match");
@@ -552,13 +790,21 @@ export default function App() {
                   seed: input.seed,
                 }),
               (next) => {
+                const token = next.match_token ?? null;
+                setMatchToken(token);
+                setLocalMatchSessions(saveLocalMatchSession(next, token));
                 setMatch(next);
                 setScreen("match");
               },
             );
           }}
-          onResume={(id) =>
-            run(() => getMatch(id), (next) => {
+          onResume={(id, token) =>
+            run(() => getMatch(id, token), (next) => {
+              const resolvedToken = token ?? next.match_token ?? null;
+              setMatchToken(resolvedToken);
+              if (resolvedToken) {
+                setLocalMatchSessions(saveLocalMatchSession(next, resolvedToken));
+              }
               setMatch(next);
               setScreen("match");
             })
@@ -613,13 +859,32 @@ export default function App() {
     "resolve_effect_choice",
     "resolve_manual_inspection",
     "skip_effect",
-    "manual_adjustment",
   ]);
   const mobileDialogActions = isMobileLayout
-    ? visibleActions.filter((action) => mobileDialogActionTypes.has(action.action_type))
+    ? visibleActions.filter((action) => {
+      if (!mobileDialogActionTypes.has(action.action_type)) return false;
+      if (action.action_type === "activate_effect" && !isMainPhase(match.state.phase)) {
+        return false;
+      }
+      return true;
+    })
     : [];
-  const dockActions = isMobileLayout && mobileDialogActions.length > 0
-    ? visibleActions.filter((action) => !mobileDialogActionTypes.has(action.action_type))
+  const mobileActivateEffectActions = isMobileLayout
+    ? mobileDialogActions.filter((action) => action.action_type === "activate_effect")
+    : [];
+  const mobileFloatingDialogActions = isMobileLayout
+    ? mobileDialogActions.filter((action) => !activationActionSourcesAreInHand(action, match.state))
+    : [];
+  const mobileManualAdjustmentAction = isMobileLayout
+    ? visibleActions.find((action) => action.action_type === "manual_adjustment")
+    : undefined;
+  const mobileDialogCopy = mobileEffectDialogCopy(mobileFloatingDialogActions, match.state, locale);
+  const dockActions = isMobileLayout
+    ? visibleActions.filter(
+      (action) =>
+        !mobileDialogActionTypes.has(action.action_type) &&
+        action.action_type !== "manual_adjustment",
+    )
     : visibleActions;
   const mobileMemberPlayContext = isMobileLayout && mobilePlayMemberAction
     ? buildMobileMemberPlayContext(
@@ -634,14 +899,56 @@ export default function App() {
   const mobileMulliganContext = isMobileLayout && mobileMulliganAction
     ? buildMobileMulliganContext(mobileMulliganAction, mulliganDraft, setMulliganDraft)
     : undefined;
+  const mobileHandActivationContext =
+    isMobileLayout && isMainPhase(match.state.phase) && match.state.active_player_id === bottomPlayerId
+      ? buildMobileHandActivationContext(
+        mobileActivateEffectActions,
+        match.state,
+        bottomPlayerId,
+        () => setMobileActionPanelOpen(true),
+      )
+    : undefined;
   const showOnlineWaitingDock =
     onlineSession !== null &&
     visibleActions.length === 0 &&
     match.state.phase !== "complete" &&
     match.state.game_result === null;
+  const mobileDockMode = !isMobileLayout
+    ? "none"
+    : mobileMemberPlayContext
+      ? "member-play"
+      : mobileLiveSetContext
+        ? "live-set"
+        : mobileMulliganContext
+          ? "mulligan"
+          : showOnlineWaitingDock
+            ? "waiting"
+            : dockActions.length > 0
+              ? "default"
+              : mobileFloatingDialogActions.length > 0
+                ? "effect"
+                : "none";
+  const estimatedMobileActionReserve =
+    mobileDockMode === "member-play"
+      ? 112
+      : mobileDockMode === "live-set" || mobileDockMode === "mulligan"
+        ? 76
+        : mobileDockMode === "none"
+          ? 0
+          : 92;
+  const matchShellStyle = isMobileLayout
+    ? ({
+      "--mobile-top-reserve": "142px",
+      "--mobile-action-reserve": `${estimatedMobileActionReserve}px`,
+    } as CSSProperties)
+    : undefined;
 
   return renderShell(
-    <div className="app-shell match-shell">
+    <div
+      className={`app-shell match-shell mobile-dock-${mobileDockMode}`}
+      ref={matchShellRef}
+      style={matchShellStyle}
+    >
       <header className="topbar">
         <div className="brand-lockup">
           <Swords size={22} />
@@ -712,7 +1019,7 @@ export default function App() {
           ) : (
             <a
               className="icon-button"
-              href={matchReplayUrl(match.state.match_id)}
+              href={matchReplayUrl(match.state.match_id, matchToken)}
               title={locale === "zh" ? "导出回放 JSON" : "リプレイ JSON を出力"}
             >
               <Download size={18} />
@@ -735,6 +1042,28 @@ export default function App() {
       </header>
 
       {error && <div className="error-banner">{error}</div>}
+      {revealNotice && (
+        <RevealNoticePanel
+          notice={revealNotice}
+          state={match.state}
+          onCard={setDetails}
+          onClose={() => {
+            setDismissedRevealKey(revealNotice.key);
+            setRevealNotice(null);
+          }}
+        />
+      )}
+      {autoResultNotice && (
+        <AutoResultNoticePanel
+          notice={autoResultNotice}
+          state={match.state}
+          onCard={setDetails}
+          onClose={() => {
+            setDismissedAutoResultKey(autoResultNotice.key);
+            setAutoResultNotice(null);
+          }}
+        />
+      )}
 
       <MobileMatchSummary
         state={match.state}
@@ -767,6 +1096,7 @@ export default function App() {
               mobileMemberPlay={mobileMemberPlayContext}
               mobileLiveSet={mobileLiveSetContext}
               mobileMulligan={mobileMulliganContext}
+              mobileHandActivation={mobileHandActivationContext}
               onCard={setDetails}
             />
           </div>
@@ -774,19 +1104,37 @@ export default function App() {
         <EventLog events={match.events} state={match.state} />
       </main>
 
-      {isMobileLayout && mobileDialogActions.length > 0 && (
-        <footer className="action-dock mobile-skill-entry-dock">
+      {isMobileLayout && mobileManualAdjustmentAction && (
+        <button
+          className="mobile-manual-adjust-fab"
+          type="button"
+          aria-label={locale === "zh" ? "人工规则调整" : "手動調整"}
+          title={locale === "zh" ? "人工规则调整" : "手動調整"}
+          onClick={() => {
+            setManualSource(manualSourceFromAction(mobileManualAdjustmentAction, match.state));
+            setManualOpen(true);
+          }}
+        >
+          <Settings2 size={14} />
+          <span>{locale === "zh" ? "手动" : "手動"}</span>
+        </button>
+      )}
+
+      {isMobileLayout && mobileFloatingDialogActions.length > 0 && (
+        <footer className={`action-dock mobile-skill-entry-dock ${
+          dockActions.length > 0 ? "mobile-skill-entry-floating" : ""
+        }`}>
           <div className="action-context">
-            <strong>{locale === "zh" ? "待处理技能" : "処理待ち能力"}</strong>
-            <span>{locale === "zh" ? "打开弹窗选择目标与结算" : "ポップアップで対象選択と解決"}</span>
+            <strong>{mobileDialogCopy.title}</strong>
+            <span>{mobileDialogCopy.description}</span>
           </div>
           <button
             className="primary-button mobile-skill-entry-button"
             type="button"
             onClick={() => setMobileActionPanelOpen(true)}
           >
-            <Settings2 size={18} />
-            {locale === "zh" ? `处理技能 ${mobileDialogActions.length}` : `能力を処理 ${mobileDialogActions.length}`}
+            <Settings2 size={16} />
+            {mobileDialogCopy.buttonLabel}
           </button>
         </footer>
       )}
@@ -915,6 +1263,76 @@ function useMediaQuery(query: string): boolean {
 
 function canSubmitOnlineAction(action: LegalAction, localPlayerId: string): boolean {
   return action.player_id === null || action.player_id === localPlayerId;
+}
+
+function mobileEffectDialogCopy(
+  actions: LegalAction[],
+  state: MatchState,
+  locale: UiLocale,
+): { title: string; description: string; buttonLabel: string } {
+  const count = actions.length;
+  const isZh = locale === "zh";
+  const hasActivation = actions.some((action) => action.action_type === "activate_effect");
+  const allActivationsFromHand =
+    hasActivation &&
+    actions.every(
+      (action) =>
+        action.action_type === "activate_effect" &&
+        activationActionSourcesAreInHand(action, state),
+    );
+  if (allActivationsFromHand) {
+    return {
+      title: isZh ? "手牌起动能力" : "手札から起動",
+      description: isZh ? "选择要从手牌发动的能力" : "手札から使う能力を選択",
+      buttonLabel: isZh ? `手牌起动 ${count}` : `手札起動 ${count}`,
+    };
+  }
+  if (hasActivation) {
+    return {
+      title: isZh ? "可发动能力" : "起動できる能力",
+      description: isZh ? "打开弹窗选择能力" : "ポップアップで能力を選択",
+      buttonLabel: isZh ? `能力 ${count}` : `能力起動 ${count}`,
+    };
+  }
+  return {
+    title: isZh ? "待处理能力" : "処理待ち能力",
+    description: isZh ? "打开弹窗选择目标与结算" : "ポップアップで対象選択と解決",
+    buttonLabel: isZh ? `处理 ${count}` : `処理 ${count}`,
+  };
+}
+
+function isMainPhase(phase: string): boolean {
+  return phase === "first_main" || phase === "second_main";
+}
+
+function activationActionSourcesAreInHand(action: LegalAction, state: MatchState): boolean {
+  if (action.player_id === null) return false;
+  const player = state.players[action.player_id];
+  if (!player) return false;
+  const activations = (action.options.activations ?? []) as Array<{
+    source_card_instance_id?: string;
+  }>;
+  return (
+    activations.length > 0 &&
+    activations.some(
+      (activation) =>
+        typeof activation.source_card_instance_id === "string" &&
+        player.hand.includes(activation.source_card_instance_id),
+    )
+  );
+}
+
+function manualSourceFromAction(action: LegalAction, state: MatchState): EffectInvocation | null {
+  const sources = (action.options.source_invocations ?? []) as Array<{
+    invocation_id?: string;
+  }>;
+  const source = sources[0];
+  if (!source?.invocation_id) return null;
+  return (
+    state.pending_effects.find(
+      (item) => item.invocation_id === source.invocation_id,
+    ) ?? null
+  );
 }
 
 export function localPerspectivePlayerId(
@@ -1129,9 +1547,386 @@ function MobileActionDialog({
   );
 }
 
+function RevealNoticePanel({
+  notice,
+  state,
+  onCard,
+  onClose,
+}: {
+  notice: RevealNotice;
+  state: MatchState;
+  onCard: (card: CardInstance) => void;
+  onClose: () => void;
+}) {
+  const { locale, tr } = useUiLanguage();
+  const playerName = notice.event.player_id
+    ? state.players[notice.event.player_id]?.name
+    : null;
+  return (
+    <aside className="reveal-notice" role="status" aria-live="polite">
+      <header>
+        <div>
+          <strong>{tr("公开卡牌", "公開カード")}</strong>
+          <span>
+            {playerName ? `${playerName} · ` : ""}
+            {eventTitle(notice.event, locale)}
+          </span>
+        </div>
+        <button
+          className="icon-button"
+          type="button"
+          aria-label={tr("关闭公开卡牌提示", "公開カード通知を閉じる")}
+          onClick={onClose}
+        >
+          <X size={16} />
+        </button>
+      </header>
+      <div className="reveal-notice-cards">
+        {notice.cards.map((snapshot) => {
+          const instance = snapshotToCardInstance(snapshot);
+          return (
+            <button
+              key={`${snapshot.instance_id}-${snapshot.card_id}`}
+              type="button"
+              onClick={() => onCard(instance)}
+            >
+              <LocalCardArt card={instance.card} />
+              <span>{snapshot.name_ja}</span>
+              <small>{snapshot.card_code}</small>
+            </button>
+          );
+        })}
+      </div>
+    </aside>
+  );
+}
+
+function AutoResultNoticePanel({
+  notice,
+  state,
+  onCard,
+  onClose,
+}: {
+  notice: AutoResultNotice;
+  state: MatchState;
+  onCard: (card: CardInstance) => void;
+  onClose: () => void;
+}) {
+  const { locale, tr } = useUiLanguage();
+  const playerName = notice.event.player_id
+    ? state.players[notice.event.player_id]?.name
+    : null;
+  return (
+    <aside className="auto-result-notice" role="status" aria-live="polite">
+      <header>
+        <div>
+          <strong>{tr("自动效果结果", "自動効果の結果")}</strong>
+          <span>
+            {playerName ? `${playerName} · ` : ""}
+            {eventTitle(notice.event, locale)}
+          </span>
+        </div>
+        <button
+          className="icon-button"
+          type="button"
+          aria-label={tr("关闭自动效果结果", "自動効果の結果を閉じる")}
+          onClick={onClose}
+        >
+          <X size={16} />
+        </button>
+      </header>
+      <div className="auto-result-lines">
+        {notice.lines.map((line) => (
+          <span key={line}>{line}</span>
+        ))}
+      </div>
+      {notice.cards.length > 0 && (
+        <div className="auto-result-cards">
+          {notice.cards.map((snapshot) => {
+            const instance = snapshotToCardInstance(snapshot);
+            return (
+              <button
+                key={`${snapshot.instance_id}-${snapshot.card_id}`}
+                type="button"
+                onClick={() => onCard(instance)}
+              >
+                <LocalCardArt card={instance.card} />
+                <span>{snapshot.name_ja}</span>
+                <small>{snapshot.card_code}</small>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </aside>
+  );
+}
+
 function mergeEvents(existing: GameEvent[], incoming: GameEvent[]): GameEvent[] {
   if (incoming.length <= existing.length) return existing;
   return [...existing, ...incoming.slice(existing.length)];
+}
+
+const autoResultTerminalEvents = new Set([
+  "effect_auto_resolved",
+  "effect_resolved",
+  "granted_live_success_draw_resolved",
+]);
+
+const autoResultOperationEvents = new Set([
+  "effect_cards_milled",
+  "effect_cards_revealed",
+  "effect_cards_revealed_to_hand",
+  "effect_top_cards_revealed",
+  "effect_cards_moved_to_deck_bottom",
+  "effect_member_deployed_from_waiting_room",
+  "granted_live_success_draw_resolved",
+]);
+
+function latestAutoResultNotice(
+  events: GameEvent[],
+  state: MatchState,
+  locale: UiLocale,
+): AutoResultNotice | null {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index];
+    if (!autoResultTerminalEvents.has(event.event_type) && !autoResultOperationEvents.has(event.event_type)) {
+      continue;
+    }
+    const effectId = typeof event.data.effect_id === "string" ? event.data.effect_id : "";
+    const invocationId = typeof event.data.invocation_id === "string" ? event.data.invocation_id : "";
+    const relatedEvents = collectRelatedAutoResultEvents(events, index, effectId, invocationId);
+    if (
+      event.event_type === "effect_resolved"
+      && !relatedEvents.some((item) => autoResultOperationEvents.has(item.event_type))
+    ) {
+      continue;
+    }
+    const lines = autoResultLines(event, relatedEvents, state, locale);
+    const cards = autoResultPublicCards(relatedEvents, state);
+    if (lines.length === 0 && cards.length === 0) continue;
+    return {
+      key: `${state.match_id}:${index}:${event.event_type}:${effectId}:${invocationId}:${relatedEvents.length}`,
+      event,
+      relatedEvents,
+      lines,
+      cards,
+    };
+  }
+  return null;
+}
+
+function collectRelatedAutoResultEvents(
+  events: GameEvent[],
+  terminalIndex: number,
+  effectId: string,
+  invocationId: string,
+): GameEvent[] {
+  const related: GameEvent[] = [];
+  for (let index = terminalIndex; index >= 0; index -= 1) {
+    const event = events[index];
+    const eventEffectId = typeof event.data.effect_id === "string" ? event.data.effect_id : "";
+    const eventInvocationId = typeof event.data.invocation_id === "string" ? event.data.invocation_id : "";
+    const drawReason = typeof event.data.reason === "string" ? event.data.reason : "";
+    const sameEffect =
+      (invocationId && eventInvocationId === invocationId)
+      || (effectId && eventEffectId === effectId)
+      || (effectId && drawReason === `effect:${effectId}`);
+    if (sameEffect) {
+      related.unshift(event);
+      continue;
+    }
+    if (related.length > 0 && autoResultTerminalEvents.has(event.event_type)) {
+      break;
+    }
+  }
+  return related.length > 0 ? related : [events[terminalIndex]];
+}
+
+function autoResultLines(
+  event: GameEvent,
+  relatedEvents: GameEvent[],
+  state: MatchState,
+  locale: UiLocale,
+): string[] {
+  const lines: string[] = [];
+  const effectId = typeof event.data.effect_id === "string" ? event.data.effect_id : "";
+  const sourceId = typeof event.data.source_card_instance_id === "string"
+    ? event.data.source_card_instance_id
+    : "";
+  const sourceName = sourceId ? state.cards[sourceId]?.card.name_ja : "";
+  if (sourceName || effectId) {
+    lines.push([sourceName, effectId].filter(Boolean).join(" · "));
+  }
+
+  for (const related of relatedEvents) {
+    if (related.event_type === "effect_cards_milled") {
+      const ids = stringArray(related.data.milled_card_instance_ids);
+      const names = ids.map((id) => state.cards[id]?.card.name_ja).filter(Boolean);
+      const label = locale === "zh" ? "送入控室" : "控室に置いたカード";
+      lines.push(`${label}: ${names.length > 0 ? names.join(" / ") : ids.length}`);
+    } else if (related.event_type === "cards_drawn") {
+      const ids = stringArray(related.data.instance_ids);
+      const label = locale === "zh" ? "抽牌" : "ドロー";
+      lines.push(`${label}: ${ids.length}`);
+    } else if (related.event_type === "effect_cards_revealed_to_hand") {
+      const moved = stringArray(related.data.moved_to_hand_instance_ids);
+      const waiting = stringArray(related.data.moved_to_waiting_room_instance_ids);
+      if (moved.length > 0) {
+        lines.push(`${locale === "zh" ? "加入手牌" : "手札に加えた"}: ${moved.length}`);
+      }
+      if (waiting.length > 0) {
+        lines.push(`${locale === "zh" ? "其余控室" : "残りを控室"}: ${waiting.length}`);
+      }
+    } else if (related.event_type === "granted_live_success_draw_resolved") {
+      const amount = typeof related.data.amount === "number" ? related.data.amount : 0;
+      lines.push(`${locale === "zh" ? "成功 Live 抽牌" : "成功ライブのドロー"}: ${amount}`);
+    }
+  }
+
+  const hadMilled = relatedEvents.some((related) => related.event_type === "effect_cards_milled");
+  const hadDraw = relatedEvents.some((related) => related.event_type === "cards_drawn");
+  if (hadMilled && !hadDraw) {
+    lines.push(locale === "zh" ? "追加处理: 无" : "追加処理: なし");
+  }
+  return [...new Set(lines.filter(Boolean))];
+}
+
+function autoResultPublicCards(events: GameEvent[], state: MatchState): RevealedCardSnapshot[] {
+  const ids = new Set<string>();
+  const snapshots: RevealedCardSnapshot[] = [];
+  for (const event of events) {
+    for (const snapshot of eventRevealedCardSnapshots(event, state)) {
+      if (ids.has(snapshot.instance_id)) continue;
+      ids.add(snapshot.instance_id);
+      snapshots.push(snapshot);
+    }
+    for (const id of [
+      ...stringArray(event.data.milled_card_instance_ids),
+      ...stringArray(event.data.moved_to_waiting_room_instance_ids),
+    ]) {
+      if (ids.has(id)) continue;
+      const instance = state.cards[id];
+      if (!instance) continue;
+      ids.add(id);
+      snapshots.push({
+        instance_id: id,
+        owner_id: instance.owner_id,
+        card_code: instance.card.card_code,
+        card_id: instance.card.card_id,
+        name_ja: instance.card.name_ja,
+        card_type: instance.card.card_type,
+        image_url: instance.card.image_url,
+      });
+    }
+  }
+  return snapshots;
+}
+
+function stringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function latestRevealNotice(events: GameEvent[], state: MatchState): RevealNotice | null {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index];
+    const cards = eventRevealedCardSnapshots(event, state);
+    if (cards.length === 0) continue;
+    return {
+      key: `${state.match_id}:${index}:${event.event_type}:${cards
+        .map((card) => card.instance_id || card.card_id || card.card_code)
+        .join(",")}`,
+      event,
+      cards,
+    };
+  }
+  return null;
+}
+
+function eventRevealedCardSnapshots(event: GameEvent, state: MatchState): RevealedCardSnapshot[] {
+  const snapshots = event.data.revealed_cards;
+  if (Array.isArray(snapshots)) {
+    const cards = snapshots
+      .map((item) => revealedSnapshotFromUnknown(item))
+      .filter((item): item is RevealedCardSnapshot => item !== null);
+    if (cards.length > 0) return cards;
+  }
+  return revealedInstanceIdsFromEvent(event)
+    .map((id): RevealedCardSnapshot | null => {
+      const instance = state.cards[id];
+      if (!instance) return null;
+      return {
+        instance_id: id,
+        owner_id: instance.owner_id,
+        card_code: instance.card.card_code,
+        card_id: instance.card.card_id,
+        name_ja: instance.card.name_ja,
+        card_type: instance.card.card_type,
+        image_url: instance.card.image_url,
+      };
+    })
+    .filter((item): item is RevealedCardSnapshot => item !== null);
+}
+
+function revealedSnapshotFromUnknown(value: unknown): RevealedCardSnapshot | null {
+  if (typeof value !== "object" || value === null) return null;
+  const snapshot = value as Record<string, unknown>;
+  const cardType = snapshot.card_type;
+  if (cardType !== "member" && cardType !== "live" && cardType !== "energy") return null;
+  const cardCode = typeof snapshot.card_code === "string" ? snapshot.card_code : "";
+  const cardId = typeof snapshot.card_id === "string" ? snapshot.card_id : cardCode;
+  const nameJa = typeof snapshot.name_ja === "string" ? snapshot.name_ja : cardCode;
+  if (!cardCode || !nameJa) return null;
+  return {
+    instance_id: typeof snapshot.instance_id === "string" ? snapshot.instance_id : cardId,
+    owner_id: typeof snapshot.owner_id === "string" ? snapshot.owner_id : undefined,
+    card_code: cardCode,
+    card_id: cardId,
+    name_ja: nameJa,
+    card_type: cardType,
+    image_url: typeof snapshot.image_url === "string" ? snapshot.image_url : null,
+  };
+}
+
+function revealedInstanceIdsFromEvent(event: GameEvent): string[] {
+  const ids = Array.isArray(event.data.revealed_card_instance_ids)
+    ? event.data.revealed_card_instance_ids
+    : event.data.reveal_selected_to_opponent === true
+      && Array.isArray(event.data.selected_card_instance_ids)
+      ? event.data.selected_card_instance_ids
+      : [];
+  return ids.filter((id): id is string => typeof id === "string");
+}
+
+function snapshotToCardInstance(snapshot: RevealedCardSnapshot): CardInstance {
+  return {
+    instance_id: snapshot.instance_id,
+    owner_id: snapshot.owner_id ?? "",
+    orientation: "active",
+    face_up: true,
+    card: {
+      card_code: snapshot.card_code,
+      card_id: snapshot.card_id,
+      image_url: snapshot.image_url ?? null,
+      name_ja: snapshot.name_ja,
+      card_type: snapshot.card_type,
+      cost: null,
+      blade: null,
+      score: null,
+      basic_hearts: {},
+      required_hearts: {},
+      blade_heart_color_slot: null,
+      special_blade_hearts: [],
+      raw_effect_text_ja: null,
+      text_revision_id: null,
+      raw_text_hash: null,
+      work_keys: [],
+      ability_bucket: "none",
+      effect_ids: [],
+      effect_registry_status: "unregistered",
+      effect_registry_errors: [],
+    },
+  };
 }
 
 function PreviewNotice({
@@ -1164,23 +1959,21 @@ function PreviewNotice({
         </div>
         <div className="preview-notice-grid">
           <section>
-            <h3>{locale === "zh" ? "最新版已修正" : "最新版で修正済み"}</h3>
+            <h3>{locale === "zh" ? "本版更新" : "今回の更新"}</h3>
             <ul>
-              <li>{locale === "zh" ? "对战中会隐藏对手手牌，并按当前操作人切换可见信息。" : "対戦中は相手の手札を隠し、操作プレイヤー基準で見える情報を切り替えます。"}</li>
-              <li>{locale === "zh" ? "先后攻改为自动随机，不再需要开局手动选择。" : "先後攻は自動ランダム化し、開始時の手動選択をなくしました。"}</li>
-              <li>{locale === "zh" ? "自动技能、特殊应援和后续效果选择现在会显示提示。" : "自動効果、特殊エール、続きの効果選択に画面上の提示を追加しました。"}</li>
-              <li>{locale === "zh" ? "手机版对战加入成功 Live 摘要、Live / 对手区域弹窗、较大的手牌显示，以及独立的登场候选按钮与确认登场。" : "スマホ対戦画面に成功ライブ要約、ライブ / 相手エリアのポップアップ、大きめの手札表示、登場候補ボタンと確認登場を追加しました。"}</li>
-              <li>{locale === "zh" ? "Deck 画面加入使用说明、折叠式保存列表、搜索弹窗、JSON 导入导出和 UUID 牌组分享。" : "Deck 画面に使い方、保存済みリスト折りたたみ、検索ポップアップ、JSON 読み込み / 書き出し、UUID デッキ共有を追加しました。"}</li>
-              <li>{locale === "zh" ? "Deck 分析会自动显示枚数、Heart、Blade、Score、特殊应援和技能时点摘要。" : "Deck 分析で枚数、ハート、ブレード、スコア、特殊エール、能力タイミングを自動表示します。"}</li>
+              <li>{locale === "zh" ? "对战中会隐藏对手手牌；公开后加入手牌的卡会在对手履历中保留卡名。" : "対戦中は相手の手札を非公開にし、公開して手札に加えたカードは相手側の履歴にもカード名を残します。"}</li>
+              <li>{locale === "zh" ? "修复按弃牌张数抽牌的技能，以及没有合法 Stage 目标时仍显示手牌起动按钮的问题。" : "捨てた枚数分ドローする効果と、合法な Stage 目標がない手札起動ボタン表示を修正しました。"}</li>
+              <li>{locale === "zh" ? "手机对战的登场、Live 判定、能力处理和手动入口继续压缩，减少误触和滚动。" : "スマホ対戦の登場、ライブ判定、能力処理、手動入口をさらに圧縮し、誤操作とスクロールを減らしました。"}</li>
+              <li>{locale === "zh" ? "Deck 画面保留说明、JSON 导入导出、UUID 分享和自动分析。" : "Deck 画面では使い方、JSON 読み込み / 書き出し、UUID 共有、自動分析を利用できます。"}</li>
+              <li>{locale === "zh" ? "Phase 5 技能覆盖继续推进，并用 targeted sandbox 追踪剩余 blocker。" : "Phase 5 の効果対応を進め、targeted sandbox で残り blocker を追跡しています。"}</li>
             </ul>
           </section>
           <section>
             <h3>{locale === "zh" ? "仍需修正" : "まだ残っている制限"}</h3>
             <ul>
-              <li>{locale === "zh" ? "全卡技能尚未自动化，部分效果仍需要手动处理或 debug skip。" : "全カード効果はまだ自動化できておらず、一部は手動処理または debug skip が必要です。"}</li>
-              <li>{locale === "zh" ? "长局 sandbox 仍会遇到 manual_resolution / max_actions。" : "長局 sandbox では manual_resolution / max_actions がまだ残ります。"}</li>
-              <li>{locale === "zh" ? "Online 房间仍是测试功能，暂不支持账号、长期保存或严格防作弊。" : "Online room はテスト機能です。アカウント、長期保存、厳密な不正対策はありません。"}</li>
-              <li>{locale === "zh" ? "FAQ / 个别裁定、AI、Monte Carlo、胜率引擎尚未完成。" : "FAQ / 個別裁定、AI、Monte Carlo、勝率エンジンは未完成です。"}</li>
+              <li>{locale === "zh" ? "全卡技能尚未自动化，复杂效果仍可能需要手动处理或 debug skip。" : "全カード効果は未自動化で、複雑な効果は手動処理または debug skip が必要な場合があります。"}</li>
+              <li>{locale === "zh" ? "Online 房间仍是测试功能；没有账号、长期保存或严格防作弊。" : "Online room はテスト機能で、アカウント、長期保存、厳密な不正対策はありません。"}</li>
+              <li>{locale === "zh" ? "服务器每天 JST 04:00 自动重启并清理临时对局缓存，断线时请重新创建房间。" : "サーバーは毎日 JST 04:00 に自動再起動して一時対戦 cache を整理します。切断時は room を作り直してください。"}</li>
             </ul>
           </section>
         </div>
@@ -1302,7 +2095,7 @@ function UsageGuideDialog({
           <span className="usage-flow-arrow">→</span>
           <div className="usage-flow-card accent">
             <History size={22} />
-            <strong>{isZh ? "最近 100 局" : "最近100件"}</strong>
+            <strong>{isZh ? "最近 25 局" : "最近25件"}</strong>
           </div>
           <span className="usage-flow-arrow">→</span>
           <div className="usage-flow-card">
@@ -1504,6 +2297,7 @@ function StartScreen({
   error,
   browserPreview,
   hostedOnline,
+  publicMatchHistory,
   matchCreationDisabled,
   matchCreationDisabledMessage,
   onBrowse,
@@ -1528,6 +2322,7 @@ function StartScreen({
   error: string | null;
   browserPreview: boolean;
   hostedOnline: boolean;
+  publicMatchHistory: boolean;
   matchCreationDisabled: boolean;
   matchCreationDisabledMessage: string;
   onBrowse: () => void;
@@ -1553,7 +2348,7 @@ function StartScreen({
     player2SourceId: string;
     seed?: number;
   }) => void | Promise<void>;
-  onResume: (id: string) => void;
+  onResume: (id: string, token?: string | null) => void;
   onHistoryRefresh: () => void;
   onHistoryPage: (page: number) => void;
 }) {
@@ -1831,15 +2626,20 @@ function StartScreen({
             <div>
               <h2>{tr("最近对局", "最近の対戦")}</h2>
               <p>
-                {browserPreview
-                  ? tr("预览版暂不保存对局。", "プレビュー版では対戦履歴は保存されません。")
+                {!publicMatchHistory
+                  ? tr(
+                    "公开 Online 版只显示本浏览器创建的单人模拟记录；房间对战请使用房间码。",
+                    "公開 Online 版では、このブラウザで作成したソロ検証のみ表示します。ルーム対戦はルームコードを使ってください。",
+                  )
+                  : browserPreview
+                    ? tr("预览版暂不保存对局。", "プレビュー版では対戦履歴は保存されません。")
                   : tr(
-                    "保存最近 100 局的入口。可以回到中断的测试，也可以确认之前打到第几步。",
-                    "最近100件まで表示します。中断した検証の再開や、どこまで進んだかの確認に使います。",
+                    "保存最近 25 局的入口。可以回到中断的测试，也可以确认之前打到第几步。",
+                    "最近25件まで表示します。中断した検証の再開や、どこまで進んだかの確認に使います。",
                 )}
               </p>
             </div>
-            {!browserPreview && (
+            {publicMatchHistory && !browserPreview && (
               <button
                 className="secondary-button"
                 disabled={historyLoading}
@@ -1853,7 +2653,12 @@ function StartScreen({
           <div className="match-list">
             {matches.length === 0 && (
               <div className="empty-state">
-                {historyLoaded
+                {!publicMatchHistory
+                  ? tr(
+                    "还没有本浏览器创建的单人模拟记录。",
+                    "このブラウザで作成したソロ検証はまだありません。",
+                  )
+                  : historyLoaded
                   ? tr("暂无已保存对局", "保存済みの対戦はありません")
                   : tr("点击读取最近对局", "最近の対戦を読み込んでください")}
               </div>
@@ -1862,13 +2667,13 @@ function StartScreen({
               <button
                 className="match-row"
                 key={item.match_id}
-                onClick={() => onResume(item.match_id)}
+                onClick={() => onResume(item.match_id, item.match_token ?? null)}
               >
                 <span>
                   <strong>
-                    {item.status === "complete"
+                    {item.label ?? (item.status === "complete"
                       ? tr("已完成", "完了")
-                      : tr("进行中", "進行中")}
+                      : tr("进行中", "進行中"))}
                   </strong>
                   <small>{item.match_id.slice(0, 8)} · {tr("种子", "シード")} {item.seed}</small>
                 </span>
@@ -1876,7 +2681,7 @@ function StartScreen({
               </button>
             ))}
           </div>
-          {!browserPreview && cappedTotal > 0 && (
+          {publicMatchHistory && !browserPreview && cappedTotal > 0 && (
             <div className="history-pagination">
               <button
                 className="secondary-button"
@@ -1915,6 +2720,7 @@ function PlayerBoard({
   mobileMemberPlay,
   mobileLiveSet,
   mobileMulligan,
+  mobileHandActivation,
   onCard,
 }: {
   player: PlayerState;
@@ -1925,6 +2731,7 @@ function PlayerBoard({
   mobileMemberPlay?: MobileMemberPlayContext;
   mobileLiveSet?: MobileLiveSetContext;
   mobileMulligan?: MobileMulliganContext;
+  mobileHandActivation?: MobileHandActivationContext;
   onCard: (card: CardInstance) => void;
 }) {
   const { locale, tr } = useUiLanguage();
@@ -2000,6 +2807,7 @@ function PlayerBoard({
         mobileMemberPlay={mobileMemberPlay}
         mobileLiveSet={mobileLiveSet}
         mobileMulligan={mobileMulligan}
+        mobileHandActivation={mobileHandActivation}
       />
     </section>
   );
@@ -2422,6 +3230,7 @@ function Zone({
   mobileMemberPlay,
   mobileLiveSet,
   mobileMulligan,
+  mobileHandActivation,
 }: {
   label: string;
   ids: string[];
@@ -2433,6 +3242,7 @@ function Zone({
   mobileMemberPlay?: MobileMemberPlayContext;
   mobileLiveSet?: MobileLiveSetContext;
   mobileMulligan?: MobileMulliganContext;
+  mobileHandActivation?: MobileHandActivationContext;
 }) {
   const { tr } = useUiLanguage();
   return (
@@ -2455,6 +3265,10 @@ function Zone({
               <div
                 className={`hand-card-play-wrapper ${
                   mobileMemberPlay.selectedMemberId === id ? "selected" : ""
+                } ${mobileHandActivation?.legalCardIds.has(id) ? "has-activation" : ""} ${
+                  mobileHandActivation?.candidateCardIds.has(id) && !mobileHandActivation.legalCardIds.has(id)
+                    ? "has-activation-unavailable"
+                    : ""
                 }`}
                 draggable
                 key={id}
@@ -2475,6 +3289,22 @@ function Zone({
                 >
                   {tr("登场候选", "登場候補")}
                 </button>
+                {mobileHandActivation?.legalCardIds.has(id) ? (
+                  <button
+                    className="hand-activation-chip"
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      mobileHandActivation.onOpen();
+                    }}
+                  >
+                    {tr("起动", "起動")}
+                  </button>
+                ) : mobileHandActivation?.candidateCardIds.has(id) ? (
+                  <span className="hand-activation-chip unavailable">
+                    {tr("不可", "不可")}
+                  </span>
+                ) : null}
               </div>
             ) : hand && mobileLiveSet?.legalCardIds.has(id) ? (
               <div
@@ -2515,6 +3345,24 @@ function Zone({
                 >
                   {tr("调度候选", "引き直し候補")}
                 </button>
+              </div>
+            ) : hand && mobileHandActivation?.legalCardIds.has(id) ? (
+              <div className="hand-card-play-wrapper activation-wrapper" key={id}>
+                <CardTile instance={state.cards[id]} onClick={onCard} />
+                <button
+                  className="hand-play-select-button activation-select-button"
+                  type="button"
+                  onClick={mobileHandActivation.onOpen}
+                >
+                  {tr("手牌起动", "手札起動")}
+                </button>
+              </div>
+            ) : hand && mobileHandActivation?.candidateCardIds.has(id) ? (
+              <div className="hand-card-play-wrapper activation-wrapper unavailable" key={id}>
+                <CardTile instance={state.cards[id]} onClick={onCard} />
+                <span className="hand-activation-chip unavailable">
+                  {tr("不可", "不可")}
+                </span>
               </div>
             ) : (
               <CardTile key={id} instance={state.cards[id]} onClick={onCard} />
@@ -2663,6 +3511,11 @@ function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): st
       .map((item) => `${item.source_alt} ${item.effect_type}+${item.value}`)
       .join(" / ")}`;
   }
+  const revealed = eventRevealedCardLabels(event, state);
+  if (revealed.length > 0) {
+    const label = locale === "zh" ? "公开" : "公開";
+    return `${label}: ${revealed.join(" / ")}`;
+  }
   return null;
 }
 
@@ -2681,6 +3534,31 @@ function specialYellResults(event: GameEvent): Array<{
       && typeof (item as Record<string, unknown>).effect_type === "string"
       && typeof (item as Record<string, unknown>).value === "number",
   );
+}
+
+function eventRevealedCardLabels(event: GameEvent, state: MatchState): string[] {
+  const snapshots = event.data.revealed_cards;
+  if (Array.isArray(snapshots)) {
+    const labels = snapshots
+      .map((item) => {
+        if (typeof item !== "object" || item === null) return null;
+        const snapshot = item as Record<string, unknown>;
+        const name = typeof snapshot.name_ja === "string" ? snapshot.name_ja : "";
+        const code = typeof snapshot.card_code === "string" ? snapshot.card_code : "";
+        return [name, code].filter(Boolean).join(" ");
+      })
+      .filter((item): item is string => Boolean(item));
+    if (labels.length > 0) return labels;
+  }
+  const ids = Array.isArray(event.data.revealed_card_instance_ids)
+    ? event.data.revealed_card_instance_ids
+    : event.data.reveal_selected_to_opponent === true
+      && Array.isArray(event.data.selected_card_instance_ids)
+      ? event.data.selected_card_instance_ids
+      : [];
+  return ids
+    .map((id) => (typeof id === "string" ? state.cards[id]?.card.name_ja : undefined))
+    .filter((item): item is string => Boolean(item));
 }
 
 function ActionDock({
@@ -4206,6 +5084,7 @@ export function SelectionAction({
   state,
   maximum,
   mobileMode = false,
+  mobileInlineChoices = false,
   mobileHint,
   mobileConfirmLabel,
   mobileSummary,
@@ -4219,6 +5098,7 @@ export function SelectionAction({
   state: MatchState;
   maximum?: number;
   mobileMode?: boolean;
+  mobileInlineChoices?: boolean;
   mobileHint?: string;
   mobileConfirmLabel?: string;
   mobileSummary?: string;
@@ -4229,7 +5109,11 @@ export function SelectionAction({
   const { tr } = useUiLanguage();
   const selectedNames = selected.map((id) => state.cards[id]?.card.name_ja).filter(Boolean);
   return (
-    <div className={`selection-action ${mobileMode ? "mobile-selection-action" : ""}`}>
+    <div
+      className={`selection-action ${mobileMode ? "mobile-selection-action" : ""} ${
+        mobileInlineChoices ? "mobile-inline-choices" : ""
+      }`}
+    >
       <span>
         {mobileMode
           ? mobileHint ?? title
@@ -5193,4 +6077,47 @@ function buildMobileMulliganContext(
       );
     },
   };
+}
+
+function buildMobileHandActivationContext(
+  actions: LegalAction[],
+  state: MatchState,
+  playerId: string,
+  onOpen: () => void,
+): MobileHandActivationContext {
+  const handIds = new Set(state.players[playerId]?.hand ?? []);
+  const legalCardIds = new Set<string>();
+  actions.forEach((action) => {
+    if (action.player_id !== playerId) return;
+    const activations = (action.options.activations ?? []) as Array<{
+      source_card_instance_id?: string;
+    }>;
+    activations.forEach((activation) => {
+      const instanceId = activation.source_card_instance_id;
+      if (typeof instanceId === "string" && handIds.has(instanceId)) {
+        legalCardIds.add(instanceId);
+      }
+    });
+  });
+  const candidateCardIds = new Set<string>();
+  handIds.forEach((instanceId) => {
+    const instance = state.cards[instanceId];
+    if (instance && cardHasHandActivatedEffect(instance, state)) {
+      candidateCardIds.add(instanceId);
+    }
+  });
+  return { legalCardIds, candidateCardIds, onOpen };
+}
+
+function cardHasHandActivatedEffect(instance: CardInstance, state: MatchState): boolean {
+  return instance.card.effect_ids.some((effectId) => {
+    const effect = state.effect_definitions[effectId];
+    if (!effect || effect.effect_type !== "activated" || effect.timing !== "activated_main") {
+      return false;
+    }
+    return (
+      effect.label_ja.includes("このカードを手札から") ||
+      effect.label_ja.includes("この能力は、このカードが手札にある場合のみ起動できる")
+    );
+  });
 }

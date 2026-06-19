@@ -1645,7 +1645,7 @@ def test_runtime_prunes_old_completed_matches_with_cascading_records(tmp_path):
             )
         connection.commit()
 
-    repository = MatchRepository(runtime_path)
+    repository = MatchRepository(runtime_path, active_match_ttl_hours=24 * 365 * 10)
     assert repository.prune_old_matches(max_matches=25) == 5
     assert [row["match_id"] for row in repository.list_matches()["items"]][0] == "match-29"
 
@@ -1701,7 +1701,7 @@ def test_runtime_prune_keeps_active_and_hosted_room_matches(tmp_path):
         )
         connection.commit()
 
-    repository = MatchRepository(runtime_path)
+    repository = MatchRepository(runtime_path, active_match_ttl_hours=24 * 365 * 10)
     assert repository.prune_old_matches(max_matches=25) == 5
 
     with closing(sqlite3.connect(runtime_path)) as connection:
@@ -1711,6 +1711,154 @@ def test_runtime_prune_keeps_active_and_hosted_room_matches(tmp_path):
         }
     assert "match-00" in remaining
     assert "match-01" in remaining
+
+
+def test_runtime_prune_removes_stale_unprotected_active_matches(tmp_path):
+    runtime_path = tmp_path / "runtime-prune-stale-active.sqlite3"
+    initialize_runtime_database(runtime_path)
+    with closing(sqlite3.connect(runtime_path)) as connection:
+        connection.executescript(
+            """
+            CREATE TABLE hosted_rooms (
+                room_code TEXT PRIMARY KEY,
+                status TEXT NOT NULL,
+                match_id TEXT
+            );
+            """
+        )
+        rows = [
+            ("stale-open", "active", "2000-01-01T00:00:00+00:00"),
+            ("recent-open", "active", "2099-01-01T00:00:00+00:00"),
+            ("protected-open", "active", "2000-01-01T00:00:00+00:00"),
+        ]
+        for index, (match_id, status, timestamp) in enumerate(rows):
+            connection.execute(
+                """
+                INSERT INTO matches (
+                    match_id,
+                    card_database_path,
+                    rule_version,
+                    seed,
+                    status,
+                    revision,
+                    initial_state_json,
+                    current_state_json,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, 'cards.sqlite3', 'test', ?, ?, 0, '{}', '{}', ?, ?)
+                """,
+                (match_id, index, status, timestamp, timestamp),
+            )
+        connection.execute(
+            """
+            INSERT INTO hosted_rooms (room_code, status, match_id)
+            VALUES ('ABC123', 'active', 'protected-open')
+            """
+        )
+        connection.commit()
+
+    repository = MatchRepository(runtime_path)
+    assert repository.prune_old_matches(max_matches=25) == 1
+
+    with closing(sqlite3.connect(runtime_path)) as connection:
+        remaining = {
+            row[0]
+            for row in connection.execute("SELECT match_id FROM matches").fetchall()
+        }
+    assert "stale-open" not in remaining
+    assert "recent-open" in remaining
+    assert "protected-open" in remaining
+
+
+def test_runtime_prunes_snapshots_to_recent_revisions(tmp_path):
+    runtime_path = tmp_path / "runtime-prune-snapshots.sqlite3"
+    initialize_runtime_database(runtime_path)
+    with closing(sqlite3.connect(runtime_path)) as connection:
+        connection.execute(
+            """
+            INSERT INTO matches (
+                match_id,
+                card_database_path,
+                rule_version,
+                seed,
+                status,
+                revision,
+                initial_state_json,
+                current_state_json,
+                created_at,
+                updated_at
+            )
+            VALUES ('match-1', 'cards.sqlite3', 'test', 1, 'active', 5, '{}', '{}',
+                    '2026-06-15T00:00:00+00:00', '2026-06-15T00:05:00+00:00')
+            """
+        )
+        for revision in range(6):
+            connection.execute(
+                """
+                INSERT INTO match_snapshots (
+                    match_id,
+                    revision,
+                    action_sequence,
+                    state_json,
+                    created_at
+                )
+                VALUES ('match-1', ?, ?, '{}', '2026-06-15T00:00:00+00:00')
+                """,
+                (revision, revision),
+            )
+        connection.commit()
+
+    repository = MatchRepository(runtime_path)
+    assert repository.prune_snapshots(max_snapshots_per_match=3) == 3
+
+    with closing(sqlite3.connect(runtime_path)) as connection:
+        remaining = [
+            row[0]
+            for row in connection.execute(
+                "SELECT revision FROM match_snapshots ORDER BY revision"
+            ).fetchall()
+        ]
+    assert remaining == [3, 4, 5]
+
+
+def test_runtime_keeps_only_recent_snapshots_after_actions(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=991)
+    state = service.repository.get_state(match_id)
+    for player_id in ("player_1", "player_2"):
+        state = _apply(
+            service,
+            match_id,
+            state,
+            "submit_mulligan",
+            player_id=player_id,
+            payload={"card_instance_ids": []},
+        )
+    for _ in range(3):
+        state = _apply(
+            service,
+            match_id,
+            state,
+            "advance_phase",
+            player_id="player_1",
+        )
+
+    with closing(sqlite3.connect(tmp_path / "matches.sqlite3")) as connection:
+        revisions = [
+            row[0]
+            for row in connection.execute(
+                """
+                SELECT revision
+                FROM match_snapshots
+                WHERE match_id = ?
+                ORDER BY revision
+                """,
+                (match_id,),
+            ).fetchall()
+        ]
+    assert len(revisions) == 3
+    assert revisions == sorted(revisions)
+    assert revisions[-1] == state.revision
 
 
 def _create_match(tmp_path: Path, *, seed: int) -> tuple[MatchService, str]:

@@ -199,6 +199,11 @@ The runtime database is a local replay/debug cache.
 Policy:
 
 - Keep at most 25 recent matches.
+- Keep only the most recent few state snapshots per match. Replay remains based
+  on the initial state plus Action log, so old snapshots are disposable debug
+  cache.
+- Hosted API deployments restart daily at 04:00 JST and run runtime cleanup on
+  startup. If an online room is interrupted by maintenance, create a new room.
 - Deleting old matches also deletes their actions, events, and snapshots.
 - Runtime data is not a source of truth.
 - It is safe to delete `data/matches.sqlite3` when local replay history is not needed.
