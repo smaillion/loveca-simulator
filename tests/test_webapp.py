@@ -365,6 +365,17 @@ def test_admin_runtime_storage_and_cleanup_requires_key(tmp_path):
     assert payload["deleted_by_age"] == 0
 
 
+def test_admin_page_escapes_quote_map_as_valid_javascript(tmp_path):
+    client = _client(tmp_path, admin_key="secret")
+
+    response = client.get("/admin")
+
+    assert response.status_code == 200
+    assert """'"': "&quot;",""" in response.text
+    assert '""": "&quot;"' not in response.text
+    assert 'id="adminPanel" hidden' in response.text
+
+
 def test_hosted_room_leave_expires_room_and_blocks_actions(tmp_path):
     client = _client(tmp_path)
     deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))

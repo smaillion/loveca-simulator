@@ -981,47 +981,57 @@ def _admin_page_html() -> str:
   <body>
     <main>
       <h1>LoveCA Runtime Admin</h1>
-      <section>
-        <p>管理者キーを入力して runtime DB の容量確認と cleanup を実行します。</p>
+      <section id="loginView">
+        <p>管理者キーを入力して管理画面に入ります。</p>
         <label>Admin key <input id="adminKey" type="password" autocomplete="off" /></label>
-        <button id="load">容量を確認</button>
+        <button id="login">認証して開く</button>
+        <pre id="loginOutput">未認証</pre>
       </section>
-      <section>
-        <h2>Cleanup</h2>
-        <label>保持する match 数 <input id="retain" type="number" min="1" max="1000" value="25" /></label>
-        <label>match ごとの snapshot 数 <input id="snapshots" type="number" min="1" max="50" value="3" /></label>
-        <label>この時間より古い完了 match を削除（hours, 空欄なら無効） <input id="older" type="number" min="1" /></label>
-        <label><input id="active" type="checkbox" /> active match も時間削除対象に含める（active room は保護）</label>
-        <label><input id="vacuum" type="checkbox" /> VACUUM を実行する（重い処理）</label>
-        <button id="cleanup" class="danger">Cleanup 実行</button>
-      </section>
-      <section>
-        <h2>Shared decks</h2>
-        <p class="muted">Shows uploaded decks and records from online rooms with the same deck contents.</p>
-        <button id="loadDecks">Load shared decks</button>
-        <div id="deckOutput" class="muted">Not loaded.</div>
-      </section>
-      <section>
-        <h2>Progress diagnostics</h2>
-        <p class="muted">Shows match phase distribution and effect cards that frequently remain pending or emit error/skip events.</p>
-        <div class="report-actions">
-          <button id="loadProgress">Load progress summary</button>
-          <button id="downloadProgress">Download markdown report</button>
-        </div>
-        <div id="progressOutput" class="muted">Not loaded.</div>
-      </section>
-      <section>
-        <h2>Result</h2>
-        <pre id="output">Not loaded.</pre>
-      </section>
+      <div id="adminPanel" hidden>
+        <section>
+          <p>runtime DB の容量確認と cleanup を実行します。</p>
+          <button id="load">容量を再確認</button>
+        </section>
+        <section>
+          <h2>Cleanup</h2>
+          <label>保持する match 数 <input id="retain" type="number" min="1" max="1000" value="25" /></label>
+          <label>match ごとの snapshot 数 <input id="snapshots" type="number" min="1" max="50" value="3" /></label>
+          <label>この時間より古い完了 match を削除（hours, 空欄なら無効） <input id="older" type="number" min="1" /></label>
+          <label><input id="active" type="checkbox" /> active match も時間削除対象に含める（active room は保護）</label>
+          <label><input id="vacuum" type="checkbox" /> VACUUM を実行する（重い処理）</label>
+          <button id="cleanup" class="danger">Cleanup 実行</button>
+        </section>
+        <section>
+          <h2>Shared decks</h2>
+          <p class="muted">Shows uploaded decks and records from online rooms with the same deck contents.</p>
+          <button id="loadDecks">Load shared decks</button>
+          <div id="deckOutput" class="muted">Not loaded.</div>
+        </section>
+        <section>
+          <h2>Progress diagnostics</h2>
+          <p class="muted">Shows match phase distribution and effect cards that frequently remain pending or emit error/skip events.</p>
+          <div class="report-actions">
+            <button id="loadProgress">Load progress summary</button>
+            <button id="downloadProgress">Download markdown report</button>
+          </div>
+          <div id="progressOutput" class="muted">Not loaded.</div>
+        </section>
+        <section>
+          <h2>Result</h2>
+          <pre id="output">Not loaded.</pre>
+        </section>
+      </div>
     </main>
     <script>
       const output = document.getElementById("output");
+      const loginOutput = document.getElementById("loginOutput");
+      const loginView = document.getElementById("loginView");
+      const adminPanel = document.getElementById("adminPanel");
       const deckOutput = document.getElementById("deckOutput");
       const progressOutput = document.getElementById("progressOutput");
       const key = () => document.getElementById("adminKey").value;
       const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
-        "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;",
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
       }[char]));
       const rate = (value) => value === null || value === undefined ? "-" : `${Math.round(value * 1000) / 10}%`;
       function renderDeckShares(payload) {
@@ -1107,6 +1117,16 @@ def _admin_page_html() -> str:
         if (!response.ok) throw new Error(text || response.statusText);
         return text ? JSON.parse(text) : {};
       }
+      document.getElementById("login").onclick = async () => {
+        try {
+          const payload = await adminFetch("/api/admin/runtime/storage");
+          loginView.hidden = true;
+          adminPanel.hidden = false;
+          output.textContent = JSON.stringify(payload, null, 2);
+        } catch (error) {
+          loginOutput.textContent = String(error);
+        }
+      };
       document.getElementById("load").onclick = async () => {
         try {
           output.textContent = JSON.stringify(await adminFetch("/api/admin/runtime/storage"), null, 2);
