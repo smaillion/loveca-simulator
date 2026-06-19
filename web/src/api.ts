@@ -287,6 +287,11 @@ export function getRoom(roomCode: string, playerToken: string): Promise<RoomPayl
   return request(`/api/rooms/${encodeURIComponent(roomCode)}?${params.toString()}`);
 }
 
+export function roomStreamUrl(roomCode: string, playerToken: string): string {
+  const params = new URLSearchParams({ player_token: playerToken });
+  return apiResourceUrl(`/api/rooms/${encodeURIComponent(roomCode)}/stream?${params.toString()}`);
+}
+
 export function leaveRoom(
   roomCode: string,
   playerToken: string,

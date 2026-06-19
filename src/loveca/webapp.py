@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import sqlite3
@@ -11,9 +12,9 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Header, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -319,6 +320,59 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
             raise HTTPException(status_code=403, detail=str(exc)) from exc
         except RoomError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    @app.get("/api/rooms/{room_code}/stream")
+    async def stream_room(
+        room_code: str,
+        request: Request,
+        player_token: str = Query(),
+        once: bool = Query(default=False),
+    ) -> StreamingResponse:
+        try:
+            app.state.room_service.get_room_for_player(room_code, player_token)
+        except RoomNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except RoomTokenError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        except RoomError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        async def room_events() -> Any:
+            last_signature = ""
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    room, player_id = app.state.room_service.get_room_for_player(
+                        room_code,
+                        player_token,
+                    )
+                    payload = _room_stream_payload(service, room, player_id=player_id)
+                    signature = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+                    if signature != last_signature:
+                        last_signature = signature
+                        yield _sse_event("room_update", payload)
+                        if once:
+                            break
+                    else:
+                        yield ": heartbeat\n\n"
+                        if once:
+                            break
+                    if room.status == "expired":
+                        break
+                except RoomError as exc:
+                    yield _sse_event("room_error", {"detail": str(exc)})
+                    break
+                await asyncio.sleep(_room_stream_interval_seconds())
+
+        return StreamingResponse(
+            room_events(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+            },
+        )
 
     @app.post("/api/rooms/{room_code}/join")
     def join_room(room_code: str, request: JoinRoomRequest) -> dict[str, Any]:
@@ -1957,3 +2011,37 @@ def _room_payload(
     if room.match_id is not None and player_id is not None:
         payload["match"] = _match_payload(service, room.match_id, player_id=player_id)
     return payload
+
+
+def _room_stream_payload(
+    service: MatchService,
+    room: RoomRecord,
+    *,
+    player_id: str | None,
+) -> dict[str, Any]:
+    revision: int | None = None
+    if room.match_id is not None:
+        revision = service.repository.get_state(room.match_id).revision
+    return {
+        "room_code": room.room_code,
+        "status": room.status,
+        "player_id": player_id,
+        "match_id": room.match_id,
+        "revision": revision,
+        "closed_at": room.closed_at,
+        "close_reason": room.close_reason,
+    }
+
+
+def _sse_event(event: str, data: dict[str, Any]) -> str:
+    payload = json.dumps(data, ensure_ascii=False, sort_keys=True)
+    return f"event: {event}\ndata: {payload}\n\n"
+
+
+def _room_stream_interval_seconds() -> int:
+    raw = os.getenv("LOVECA_ROOM_STREAM_INTERVAL_SECONDS", "1")
+    try:
+        value = int(raw)
+    except ValueError:
+        value = 1
+    return min(max(value, 1), 15)

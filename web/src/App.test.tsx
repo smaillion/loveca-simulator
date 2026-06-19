@@ -832,6 +832,46 @@ describe("App", () => {
     expect(screen.getByLabelText("隐藏的对手手牌")).toBeInTheDocument();
   });
 
+  it("shows revealed card snapshots even when the card is hidden from state", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const matchCreate = {
+      ...MATCH_PAYLOAD,
+      events: [
+        {
+          event_type: "effect_resolved",
+          player_id: "player_2",
+          source: "player",
+          data: {
+            reveal_selected_to_opponent: true,
+            revealed_cards: [
+              {
+                instance_id: "player_2-secret-reveal",
+                owner_id: "player_2",
+                card_code: "TEST-REVEAL-001",
+                card_id: "TEST-REVEAL-001-R",
+                name_ja: "公開テストカード",
+                card_type: "member",
+                image_url: null,
+              },
+            ],
+          },
+        },
+      ],
+    };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByLabelText("玩家 1 牌组")).toBeInTheDocument());
+    const createButton = screen.getByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+
+    await waitFor(() => expect(screen.getByText("公开卡牌")).toBeInTheDocument());
+    expect(screen.getByText("公開テストカード")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /公開テストカード/ }));
+    expect(screen.getByRole("heading", { name: "公開テストカード" })).toBeInTheDocument();
+  });
+
   it("lets the local player expand their waiting room", async () => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const waitingId = "player_1-W001";
@@ -1088,6 +1128,7 @@ describe("App", () => {
     stubMobileViewport();
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const activatedCardId = "player_1-ACT001";
+    const stageActivationId = "player_1-STAGE-ACT001";
     const playCandidateId = "member-a";
     const matchCreate = {
       ...MATCH_PAYLOAD,
@@ -1102,6 +1143,7 @@ describe("App", () => {
           player_1: {
             ...createPlayerState("player_1", "Player 1"),
             hand: [activatedCardId, playCandidateId],
+            member_area: { left: stageActivationId, center: null, right: null },
           },
         },
         cards: {
@@ -1117,6 +1159,7 @@ describe("App", () => {
               name_ja: "起動テスト",
               raw_effect_text_ja:
                 "【起動】このカードを手札から控え室に置く：カードを1枚引き、ライブ終了時まで、自分のステージにいる「藤島 慈」か「大沢瑠璃乃」のうち1人は【ブレード】を得る。この能力は、このカードが手札にある場合のみ起動できる。",
+              effect_ids: ["PL!HS-bp6-014:1"],
             },
           },
           [playCandidateId]: {
@@ -1131,6 +1174,37 @@ describe("App", () => {
               name_ja: "登場候補",
               cost: 0,
             },
+          },
+          [stageActivationId]: {
+            instance_id: stageActivationId,
+            owner_id: "player_1",
+            orientation: "active",
+            face_up: true,
+            card: {
+              ...INSPECTION_CARDS["player_1-M002"].card,
+              card_code: "LL-STAGE-ACT-001",
+              card_id: "LL-STAGE-ACT-001-R",
+              name_ja: "場の起動",
+            },
+          },
+        },
+        effect_definitions: {
+          "PL!HS-bp6-014:1": {
+            effect_id: "PL!HS-bp6-014:1",
+            card_code: "PL!HS-bp6-014",
+            text_revision_id: 51,
+            raw_text_hash: "hash-hand-activation",
+            effect_index: 1,
+            label_ja:
+              "【起動】このカードを手札から控え室に置く：カードを1枚引き、ライブ終了時まで、自分のステージにいる「藤島 慈」か「大沢瑠璃乃」のうち1人は【ブレード】を得る。この能力は、このカードが手札にある場合のみ起動できる。",
+            effect_type: "activated",
+            timing: "activated_main",
+            trigger: "player_activation",
+            execution_mode: "prompt_then_resolve",
+            frequency_limit: "none",
+            is_optional: false,
+            simulation_support: "test_validated_executable",
+            review_status: "test_validated",
           },
         },
       },
@@ -1153,6 +1227,16 @@ describe("App", () => {
                 frequency_limit: "none",
                 simulation_support: "test_validated_executable",
               },
+              {
+                effect_id: "LL-STAGE-ACT-001:1",
+                source_card_instance_id: stageActivationId,
+                label_ja: "【起動】場にいるこのメンバーをウェイトにする。",
+                trigger: "player_activation",
+                timing: "activated_main",
+                execution_mode: "auto_resolve",
+                frequency_limit: "turn_once",
+                simulation_support: "test_validated_executable",
+              },
             ],
           },
         },
@@ -1164,6 +1248,14 @@ describe("App", () => {
           options: {
             active_energy_instance_ids: [],
             placements: [
+              {
+                card_instance_id: activatedCardId,
+                slot: "right",
+                payment_cost: 0,
+                use_baton_touch: false,
+                replaced_card_instance_id: null,
+                replaced_member_cost: 0,
+              },
               {
                 card_instance_id: playCandidateId,
                 slot: "center",
@@ -1194,12 +1286,13 @@ describe("App", () => {
     fireEvent.click(createButton);
 
     await waitFor(() =>
-      expect(container.querySelector(".mobile-skill-entry-floating")).not.toBeNull(),
+      expect(screen.getByRole("button", { name: "起动" })).toBeInTheDocument(),
     );
-    expect(screen.getByRole("button", { name: /手牌起动 1/ })).toBeInTheDocument();
+    expect(container.querySelector(".mobile-skill-entry-floating")).toBeNull();
     expect(screen.getAllByRole("button", { name: "确认登场" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "登场候选" }).length).toBeGreaterThan(1);
 
-    fireEvent.click(screen.getByRole("button", { name: /手牌起动 1/ }));
+    fireEvent.click(screen.getByRole("button", { name: "起动" }));
 
     await waitFor(() => expect(container.querySelector(".mobile-action-dialog")).not.toBeNull());
     expect(screen.getByText("可发动技能")).toBeInTheDocument();
@@ -1208,6 +1301,109 @@ describe("App", () => {
     expect(
       screen.getByText((content) => content.includes("このカードを手札から控え室に置く")),
     ).toBeInTheDocument();
+  });
+
+  it("marks registered hand activated effects as unavailable on mobile when no legal activation exists", async () => {
+    stubMobileViewport();
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const activatedCardId = "player_1-ACT001";
+    const matchCreate = {
+      ...MATCH_PAYLOAD,
+      state: {
+        ...MATCH_PAYLOAD.state,
+        phase: "first_main",
+        active_player_id: "player_1",
+        first_player_id: "player_1",
+        second_player_id: "player_2",
+        players: {
+          ...MATCH_PAYLOAD.state.players,
+          player_1: {
+            ...createPlayerState("player_1", "Player 1"),
+            hand: [activatedCardId],
+            member_area: { left: null, center: null, right: null },
+          },
+        },
+        cards: {
+          [activatedCardId]: {
+            instance_id: activatedCardId,
+            owner_id: "player_1",
+            orientation: "active",
+            face_up: true,
+            card: {
+              ...INSPECTION_CARDS["player_1-M002"].card,
+              card_code: "PL!HS-bp6-014",
+              card_id: "PL!HS-bp6-014-R",
+              name_ja: "起動テスト",
+              cost: 0,
+              effect_ids: ["PL!HS-bp6-014:1"],
+              raw_effect_text_ja:
+                "【起動】このカードを手札から控え室に置く：カードを1枚引き、ライブ終了時まで、自分のステージにいる「藤島 慈」か「大沢瑠璃乃」のうち1人は【ブレード】を得る。この能力は、このカードが手札にある場合のみ起動できる。",
+            },
+          },
+        },
+        effect_definitions: {
+          "PL!HS-bp6-014:1": {
+            effect_id: "PL!HS-bp6-014:1",
+            card_code: "PL!HS-bp6-014",
+            text_revision_id: 51,
+            raw_text_hash: "hash-hand-activation",
+            effect_index: 1,
+            label_ja:
+              "【起動】このカードを手札から控え室に置く：カードを1枚引き、ライブ終了時まで、自分のステージにいる「藤島 慈」か「大沢瑠璃乃」のうち1人は【ブレード】を得る。この能力は、このカードが手札にある場合のみ起動できる。",
+            effect_type: "activated",
+            timing: "activated_main",
+            trigger: "player_activation",
+            execution_mode: "prompt_then_resolve",
+            frequency_limit: "none",
+            is_optional: false,
+            simulation_support: "test_validated_executable",
+            review_status: "test_validated",
+          },
+        },
+      },
+      legal_actions: [
+        {
+          action_type: "play_member",
+          player_id: "player_1",
+          label_zh: "登场",
+          label_ja: "登場",
+          options: {
+            active_energy_instance_ids: [],
+            placements: [
+              {
+                card_instance_id: activatedCardId,
+                slot: "center",
+                payment_cost: 0,
+                use_baton_touch: false,
+                replaced_card_instance_id: null,
+                replaced_member_cost: 0,
+              },
+            ],
+          },
+        },
+        {
+          action_type: "end_main_phase",
+          player_id: "player_1",
+          label_zh: "结束主要阶段",
+          label_ja: "メインフェイズ終了",
+          options: {},
+        },
+      ],
+    };
+    const fetchMock = createFetchMock({ matchCreate });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByLabelText("玩家 1 牌组")).toBeInTheDocument());
+    const createButton = screen.getByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+
+    await waitFor(() =>
+      expect(screen.getAllByRole("button", { name: "确认登场" }).length).toBeGreaterThan(0),
+    );
+    expect(screen.getByText("不可")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "起动" })).not.toBeInTheDocument();
   });
 
   it("does not show the mobile skill entry for generic manual adjustment during mulligan", async () => {
@@ -1312,6 +1508,84 @@ describe("App", () => {
     expect(screen.getByText("自动处理 · 自動能力カード · LL-TEST-001:1")).toBeInTheDocument();
     expect(screen.getByText("应援结算完成")).toBeInTheDocument();
     expect(screen.getByText("特殊应援: ドロー1 draw+1")).toBeInTheDocument();
+  });
+
+  it("shows an automatic result notice for milled cards even when the conditional follow-up does not happen", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const sourceId = "player_1-M001";
+    const milledIds = ["player_1-milled-1", "player_1-milled-2", "player_1-milled-3"];
+    const matchCreate = {
+      ...MATCH_PAYLOAD,
+      state: {
+        ...MATCH_PAYLOAD.state,
+        cards: {
+          ...MATCH_PAYLOAD.state.cards,
+          [sourceId]: {
+            instance_id: sourceId,
+            owner_id: "player_1",
+            orientation: "active",
+            face_up: true,
+            card: { ...CATALOG_DETAIL.card, name_ja: "自動判定カード" },
+          },
+          [milledIds[0]]: {
+            instance_id: milledIds[0],
+            owner_id: "player_1",
+            orientation: "active",
+            face_up: true,
+            card: { ...CATALOG_DETAIL.card, card_type: "member", name_ja: "ミルメンバーA" },
+          },
+          [milledIds[1]]: {
+            instance_id: milledIds[1],
+            owner_id: "player_1",
+            orientation: "active",
+            face_up: true,
+            card: { ...CATALOG_DETAIL.card, card_type: "member", name_ja: "ミルメンバーB" },
+          },
+          [milledIds[2]]: {
+            instance_id: milledIds[2],
+            owner_id: "player_1",
+            orientation: "active",
+            face_up: true,
+            card: { ...CATALOG_DETAIL.card, card_type: "live", name_ja: "ミルLive" },
+          },
+        },
+      },
+      events: [
+        {
+          event_type: "effect_cards_milled",
+          player_id: "player_1",
+          source: "system",
+          data: {
+            invocation_id: "auto-result-test",
+            effect_id: "LL-TEST-MILL:1",
+            milled_card_instance_ids: milledIds,
+          },
+        },
+        {
+          event_type: "effect_auto_resolved",
+          player_id: "player_1",
+          source: "system",
+          data: {
+            invocation_id: "auto-result-test",
+            effect_id: "LL-TEST-MILL:1",
+            source_card_instance_id: sourceId,
+          },
+        },
+      ],
+    };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByLabelText("玩家 1 牌组")).toBeInTheDocument());
+    const createButton = screen.getByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+
+    await waitFor(() => expect(screen.getByText("自动效果结果")).toBeInTheDocument());
+    expect(screen.getByText("自動判定カード · LL-TEST-MILL:1")).toBeInTheDocument();
+    expect(screen.getByText("送入控室: ミルメンバーA / ミルメンバーB / ミルLive")).toBeInTheDocument();
+    expect(screen.getByText("追加处理: 无")).toBeInTheDocument();
+    expect(screen.getAllByText("ミルLive").length).toBeGreaterThan(0);
   });
 
   it("leaves the hosted room before returning from an online match", async () => {

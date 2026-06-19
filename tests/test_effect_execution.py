@@ -20,6 +20,7 @@ from loveca.simulation.effects import (
     validate_registry_for_cards,
 )
 from loveca.simulation.engine import (
+    IllegalActionError,
     _queue_live_success_effects,
     _run_current_yell,
     _static_heart_bonus,
@@ -5616,6 +5617,121 @@ def test_pl_hs_bp6_014_activates_from_hand_and_grants_blade():
     assert not state.pending_effects
 
 
+def test_pl_hs_bp6_014_requires_named_stage_target_before_hand_activation():
+    registry = EffectRegistry.model_validate_json(REGISTRY.read_text(encoding="utf-8"))
+    effect = {effect.effect_id: effect for effect in registry.effects}["PL!HS-bp6-014:1"]
+    state = _minimal_effect_state(effect)
+    state.phase = "first_main"
+    state.pending_effects = []
+    hand_source = CardDefinition(
+        card_code="PL!HS-bp6-014",
+        card_id="PL!HS-bp6-014",
+        name_ja="手札起動テスト",
+        card_type="member",
+        effect_ids=[effect.effect_id],
+    )
+    other_member = CardDefinition(
+        card_code="TEST-OTHER",
+        card_id="TEST-OTHER",
+        name_ja="乙宗 梢",
+        card_type="member",
+        blade=1,
+        basic_hearts={"heart01": 1},
+    )
+    state.cards["hand-source"] = CardInstance(
+        instance_id="hand-source",
+        owner_id="player_1",
+        card=hand_source,
+    )
+    state.cards["other-member"] = CardInstance(
+        instance_id="other-member",
+        owner_id="player_1",
+        card=other_member,
+    )
+    player = state.players["player_1"]
+    player.hand = ["hand-source"]
+    player.member_area = {"left": None, "center": "other-member", "right": None}
+
+    assert not any(
+        entry["effect_id"] == effect.effect_id
+        for action in generate_legal_actions(state)
+        if action.action_type == "activate_effect"
+        for entry in action.options["activations"]
+    )
+
+    with pytest.raises(IllegalActionError, match="not legal"):
+        _apply_direct(
+            state,
+            "activate_effect",
+            player_id="player_1",
+            payload={
+                "effect_id": effect.effect_id,
+                "source_card_instance_id": "hand-source",
+            },
+        )
+
+
+def test_onplay_discard_up_to_three_draws_same_number_of_cards():
+    registry = EffectRegistry.model_validate_json(REGISTRY.read_text(encoding="utf-8"))
+    effect = {effect.effect_id: effect for effect in registry.effects}["PL!HS-bp1-005:1"]
+    state = _minimal_effect_state(effect)
+    state.pending_effects[0].trigger_event = "member_played"
+    hand_card = CardDefinition(
+        card_code="TEST-HAND",
+        card_id="TEST-HAND",
+        name_ja="手札カード",
+        card_type="member",
+    )
+    state.cards["hand-a"] = CardInstance(
+        instance_id="hand-a",
+        owner_id="player_1",
+        card=hand_card,
+    )
+    state.cards["hand-b"] = CardInstance(
+        instance_id="hand-b",
+        owner_id="player_1",
+        card=hand_card.model_copy(deep=True),
+    )
+    state.cards["hand-c"] = CardInstance(
+        instance_id="hand-c",
+        owner_id="player_1",
+        card=hand_card.model_copy(deep=True),
+    )
+    player = state.players["player_1"]
+    player.hand = ["hand-a", "hand-b", "hand-c"]
+    player.main_deck = ["deck-live-1", "deck-member-1", "deck-live-2"]
+
+    result = apply_action(
+        state,
+        ActionRequest(
+            action_type="resolve_effect",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={
+                "invocation_id": "inv-1",
+                "selected_card_instance_ids": ["hand-a", "hand-b"],
+            },
+        ),
+    )
+    state = result.state
+
+    assert "hand-a" in state.players["player_1"].waiting_room
+    assert "hand-b" in state.players["player_1"].waiting_room
+    assert state.players["player_1"].hand == [
+        "hand-c",
+        "deck-live-1",
+        "deck-member-1",
+    ]
+    assert state.players["player_1"].main_deck == ["deck-live-2"]
+    assert not state.pending_effects
+    assert any(
+        event.event_type == "effect_resolved"
+        and event.data["effect_id"] == effect.effect_id
+        and event.data["selected_count"] == 2
+        for event in result.events
+    )
+
+
 def test_activated_pay_energy_source_position_change_swaps_member_slots():
     effect = EffectDefinition(
         effect_id="test-activated-position-change:1",
@@ -10540,6 +10656,10 @@ def test_manual_top_deck_inspection_selects_revealed_card_and_discards_rest(
     )
     assert event["data"]["reveal_selected_to_opponent"] is True
     assert event["data"]["selected_card_instance_ids"] == [selected]
+    assert event["data"]["revealed_cards"][0]["instance_id"] == selected
+    assert event["data"]["revealed_cards"][0]["name_ja"] == (
+        state.cards[selected].card.name_ja
+    )
 
 
 def test_on_play_inspection_reorders_kept_cards_and_records_replay(tmp_path):
@@ -10651,14 +10771,33 @@ def test_on_play_inspection_filter_only_accepts_matching_candidate(tmp_path):
             payload={"selected_card_instance_ids": [invalid]},
         )
 
-    state = _apply_direct(
+    result = apply_action(
         state,
-        "resolve_effect_choice",
-        player_id="player_1",
-        payload={"selected_card_instance_ids": [valid]},
+        ActionRequest(
+            action_type="resolve_effect_choice",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={"selected_card_instance_ids": [valid]},
+        ),
     )
+    state = result.state
     assert valid in state.players["player_1"].hand
     assert invalid in state.players["player_1"].waiting_room
+    resolved_event = next(
+        event for event in result.events if event.event_type == "effect_resolved"
+    )
+    assert resolved_event.data["reveal_selected_to_opponent"] is True
+    assert resolved_event.data["revealed_cards"] == [
+        {
+            "instance_id": valid,
+            "owner_id": "player_1",
+            "card_code": state.cards[valid].card.card_code,
+            "card_id": state.cards[valid].card.card_id,
+            "name_ja": state.cards[valid].card.name_ja,
+            "card_type": state.cards[valid].card.card_type,
+            "image_url": state.cards[valid].card.image_url,
+        }
+    ]
 
 
 def test_onplay_branch_choice_can_draw_discard_or_wait_opponent_cost2(tmp_path):

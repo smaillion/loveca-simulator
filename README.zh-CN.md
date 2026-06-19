@@ -18,8 +18,8 @@
 - FastAPI + React SPA 可视化规则验证器
 - 可回放的 Action-only GameState
 - 925 条 effect registry entry
-  - 713 条为 `test_validated_executable`
-  - 212 条为 timing prompt / 未支持处理用 `manual_resolution`
+  - 714 条为 `test_validated_executable`
+  - 211 条为 timing prompt / 未支持处理用 `manual_resolution`
 - 面向未来低成本 online 同步的 state hash / compatibility metadata 基础
 - Hosted Online MVP 房间 API
   - 通过 room code 创建 / 加入房间
@@ -55,9 +55,13 @@
 - 部分双方都需要选择的效果已可通过 multi-player pending choice 顺序处理
 - 支持把 Stage Member 目标拆成多个选择组，并对各组选中目标应用相同的临时 modifier
 - 支持每个分支使用不同 Stage Member 候选池的技能选择
-- 按 registry entry 计算的 `test_validated_executable` 覆盖率已达到 77.08%
-- Phase 5 black-box sandbox 已在 `30 decks x 100 matches` block mode 中达到 `100/100` 完走，blocker 为 0
+- 按 registry entry 计算的 `test_validated_executable` 覆盖率已达到 77.19%
+- Phase 5 broad black-box sandbox 已在 `30 decks x 100 matches` block mode 中达到 `100/100` 完走，blocker 为 0
+- 包含问题卡的 targeted sandbox 最新 block smoke 改善到 `15 matches` 中 9 局完走、6 件 `mandatory_manual_resolution`
 - 触发时条件满足的 pending effect 如果在同一时点中被其他效果改变条件导致失效，会记录明确的 `effect_not_activatable` event 并继续推进
+- 公开并加入手牌的效果会在对手侧履历中保留公开卡名，方便联机复盘
+- 使用 `amount_source=selected_count` 的效果已支持按选中张数抽牌
+- 从手牌起动且需要 Stage target 的效果，会在没有合法目标时隐藏发动候选
 - 暂不能自动执行的技能通过 `ManualAdjustmentAction` 补充
 - 无法处理的技能可以用调试用 `effect_skipped_due_to_error` 显式记录后跳过
 
@@ -87,7 +91,7 @@ Bug 报告、规则行为讨论和 online 对战伙伴寻找请前往 [Discord](
 
 - 这是开发中的 alpha 版本，不是官方数字客户端。当前目标是规则验证和收集 playtest feedback。
 - 还没有覆盖全卡技能自动执行。未支持技能可能需要 `ManualAdjustmentAction`、结构化 pending choice，或用调试 skip 继续推进。
-- 最新 Phase 5 sandbox 长回归中，`30 decks x 100 matches` 已经以 blocker 0 完走。但这只是当前 sandbox deck pool 下的可用性确认，不代表全卡技能自动化已经完成。最新详细数字请看 `CHANGELOG.md` 与 `TODO.md`。
+- Broad Phase 5 sandbox 长回归中，`30 decks x 100 matches` 已经以 blocker 0 完走。但包含问题卡的 targeted sandbox 仍会暴露 `PL!S-bp6-001:1` / `PL!S-pb1-001:1` 等手动处理 blocker。最新详细数字请看 `CHANGELOG.md` 与 `TODO.md`。
 - 依赖 FAQ 或个别裁定的效果尚未规格化。
 - `data/loveca.sqlite3` 是仓库内锁版本权威卡牌 DB。官方补充包或 parser/schema/effect registry 变化后，由维护者重建并提交新的 DB 与 `data/loveca-db-manifest.json`；普通用户和 CI 不应自行 import 产生不同线上 DB。保存牌组是 `decklist.v0` 用户数据，可以和卡牌数据库分开保留。
 - Web/API 测试依赖 `httpx2`。环境缺少该依赖时，`tests/test_catalog_api.py` 和 `tests/test_webapp.py` 会在收集阶段停止。

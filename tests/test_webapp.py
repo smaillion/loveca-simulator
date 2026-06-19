@@ -7,7 +7,14 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from loveca.cards.importer import import_normalized_cards
-from loveca.webapp import ApiSettings, create_app
+from loveca.simulation.models import (
+    CardDefinition,
+    CardInstance,
+    GameEvent,
+    MatchState,
+    PlayerState,
+)
+from loveca.webapp import ApiSettings, _match_state_payload, create_app
 
 PROJECT_ROOT = Path(__file__).parents[1]
 SAMPLE_CARDS = (
@@ -186,6 +193,99 @@ def test_hosted_room_api_create_join_act_and_replay(tmp_path):
     replay = client.get(f"/api/rooms/{room_code}/replay?player_token={host_token}")
     assert replay.status_code == 200
     assert replay.json()["final_state"]["revision"] == 2
+
+
+def test_hosted_room_stream_emits_lightweight_update_signal(tmp_path):
+    client = _client(tmp_path)
+    deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
+
+    created = client.post(
+        "/api/rooms",
+        json={"player_name": "Host", "deck": deck, "seed": 1},
+    )
+    assert created.status_code == 200
+    room_code = created.json()["room_code"]
+    host_token = created.json()["player_token"]
+
+    joined = client.post(
+        f"/api/rooms/{room_code}/join",
+        json={"player_name": "Guest", "deck": deck},
+    )
+    assert joined.status_code == 200
+
+    wrong_token = client.get(f"/api/rooms/{room_code}/stream?player_token=wrong")
+    assert wrong_token.status_code == 403
+
+    response = client.get(
+        f"/api/rooms/{room_code}/stream?player_token={host_token}&once=true"
+    )
+    assert response.status_code == 200
+    text = response.text
+
+    assert "event: room_update" in text
+    assert f'"room_code": "{room_code}"' in text
+    assert '"revision": 1' in text
+
+
+def test_player_specific_payload_keeps_revealed_card_snapshot_when_hand_is_hidden():
+    card = CardDefinition(
+        card_code="TEST-001",
+        card_id="TEST-001-R",
+        name_ja="公開されるカード",
+        card_type="member",
+        image_url="https://example.test/card.png",
+    )
+    state = MatchState(
+        match_id="match-redaction",
+        seed=1,
+        players={
+            "player_1": PlayerState(
+                player_id="player_1",
+                name="Host",
+                hand=["card-1"],
+            ),
+            "player_2": PlayerState(player_id="player_2", name="Guest"),
+        },
+        cards={
+            "card-1": CardInstance(
+                instance_id="card-1",
+                owner_id="player_1",
+                card=card,
+            )
+        },
+    )
+    event = GameEvent(
+        event_type="effect_resolved",
+        player_id="player_1",
+        source="player",
+        data={
+            "selected_card_instance_ids": ["card-1"],
+            "reveal_selected_to_opponent": True,
+            "revealed_cards": [
+                {
+                    "instance_id": "card-1",
+                    "owner_id": "player_1",
+                    "card_code": card.card_code,
+                    "card_id": card.card_id,
+                    "name_ja": card.name_ja,
+                    "card_type": card.card_type,
+                    "image_url": card.image_url,
+                }
+            ],
+        },
+    )
+
+    payload = _match_state_payload(
+        state,
+        events=[event],
+        legal_actions=[],
+        player_id="player_2",
+    )
+
+    assert "card-1" not in payload["state"]["cards"]
+    assert payload["events"][0]["data"]["revealed_cards"][0]["name_ja"] == (
+        "公開されるカード"
+    )
 
 
 def test_match_history_paginates_without_purging_active_room_match(tmp_path):

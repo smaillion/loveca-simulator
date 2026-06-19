@@ -596,6 +596,11 @@ button {
   min-height: calc(100vh - 176px);
 }
 
+.match-shell {
+  --mobile-top-reserve: 142px;
+  --mobile-action-reserve: 0px;
+}
+
 .mobile-match-summary,
 .mobile-match-dialog-backdrop {
   display: none;
@@ -1365,6 +1370,175 @@ button {
   white-space: pre-wrap;
   word-break: break-word;
   color: #4d575d;
+  font-size: 9px;
+}
+
+.reveal-notice {
+  position: fixed;
+  top: 76px;
+  right: 16px;
+  z-index: 72;
+  width: min(360px, calc(100vw - 32px));
+  border: 1px solid rgba(21, 128, 122, 0.28);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
+  padding: 10px;
+  animation: eventPulse 1.5s ease-out 1;
+}
+
+.auto-result-notice {
+  position: fixed;
+  top: 76px;
+  left: 16px;
+  z-index: 72;
+  width: min(420px, calc(100vw - 32px));
+  border: 1px solid rgba(190, 43, 70, 0.24);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.18);
+  padding: 10px;
+  animation: eventPulse 1.5s ease-out 1;
+}
+
+.reveal-notice header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.reveal-notice header div {
+  display: grid;
+  gap: 2px;
+}
+
+.reveal-notice header strong {
+  font-size: 13px;
+  color: var(--teal-dark);
+}
+
+.reveal-notice header span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.auto-result-notice header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.auto-result-notice header div,
+.auto-result-lines {
+  display: grid;
+  gap: 3px;
+}
+
+.auto-result-notice header strong {
+  color: var(--accent-dark);
+  font-size: 13px;
+}
+
+.auto-result-notice header span,
+.auto-result-lines span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.auto-result-lines span:first-child {
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.reveal-notice-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(74px, 1fr));
+  gap: 8px;
+}
+
+.auto-result-cards {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.auto-result-cards button {
+  flex: 0 0 68px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  padding: 4px;
+  display: grid;
+  gap: 3px;
+  text-align: left;
+}
+
+.auto-result-cards .card-fallback,
+.auto-result-cards img {
+  width: 100%;
+  aspect-ratio: 63 / 88;
+  object-fit: cover;
+  border-radius: 5px;
+}
+
+.auto-result-cards span,
+.auto-result-cards small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.auto-result-cards span {
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.auto-result-cards small {
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.reveal-notice-cards button {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  padding: 5px;
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  min-width: 0;
+}
+
+.reveal-notice-cards .card-fallback,
+.reveal-notice-cards img {
+  width: 100%;
+  aspect-ratio: 63 / 88;
+  object-fit: cover;
+  border-radius: 5px;
+}
+
+.reveal-notice-cards span,
+.reveal-notice-cards small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reveal-notice-cards span {
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.reveal-notice-cards small {
+  color: var(--muted);
   font-size: 9px;
 }
 
@@ -2458,7 +2632,7 @@ label {
 
   .workspace {
     display: block;
-    height: calc(100dvh - 46px - 66px - 150px);
+    height: max(360px, calc(100dvh - var(--mobile-top-reserve, 142px) - var(--mobile-action-reserve, 0px)));
     min-height: 0;
     overflow: hidden;
     padding-bottom: 0;
@@ -2474,6 +2648,81 @@ label {
   .event-panel,
   .mobile-opponent-board,
   .mobile-live-center {
+    display: none;
+  }
+
+  .reveal-notice {
+    top: 54px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-height: 180px;
+    padding: 7px;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .auto-result-notice {
+    top: 54px;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-height: 196px;
+    padding: 7px;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .reveal-notice header {
+    margin-bottom: 5px;
+  }
+
+  .reveal-notice header strong {
+    font-size: 12px;
+  }
+
+  .auto-result-notice header {
+    margin-bottom: 5px;
+  }
+
+  .auto-result-notice header strong {
+    font-size: 12px;
+  }
+
+  .auto-result-lines {
+    gap: 2px;
+  }
+
+  .auto-result-cards {
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  .auto-result-cards button {
+    flex-basis: 58px;
+    padding: 4px;
+  }
+
+  .auto-result-cards small {
+    display: none;
+  }
+
+  .reveal-notice-cards {
+    display: flex;
+    overflow-x: auto;
+    gap: 6px;
+  }
+
+  .reveal-notice-cards button {
+    flex: 0 0 64px;
+    padding: 4px;
+  }
+
+  .reveal-notice-cards span {
+    font-size: 9px;
+  }
+
+  .reveal-notice-cards small {
     display: none;
   }
 
@@ -2786,6 +3035,36 @@ label {
   .mulligan-wrapper.selected .hand-play-select-button {
     border-color: var(--accent);
     background: var(--accent);
+  }
+
+  .activation-wrapper .activation-select-button {
+    border-color: var(--accent-dark);
+    background: rgba(255, 255, 255, 0.98);
+    color: var(--accent-dark);
+  }
+
+  .hand-activation-chip {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    z-index: 4;
+    min-height: 22px;
+    border: 1px solid var(--accent-dark);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.96);
+    color: var(--accent-dark);
+    padding: 1px 6px;
+    font-size: 9px;
+    font-weight: 900;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.2);
+  }
+
+  .hand-activation-chip.unavailable {
+    border-color: var(--border);
+    background: rgba(248, 250, 252, 0.92);
+    color: var(--muted);
+    box-shadow: none;
+    pointer-events: none;
   }
 
   .mobile-own-board .card-fallback {
@@ -3197,7 +3476,7 @@ label {
   .mobile-skill-entry-floating {
     left: auto;
     right: 8px;
-    bottom: calc(104px + max(8px, env(safe-area-inset-bottom)));
+    bottom: calc(var(--mobile-action-reserve, 92px) + max(8px, env(safe-area-inset-bottom)));
     width: auto;
     min-width: 0;
     grid-template-columns: minmax(0, 1fr);
@@ -3238,7 +3517,7 @@ label {
   .mobile-manual-adjust-fab {
     position: fixed;
     left: 8px;
-    bottom: calc(92px + max(8px, env(safe-area-inset-bottom)));
+    bottom: calc(max(var(--mobile-action-reserve, 0px), 58px) + max(8px, env(safe-area-inset-bottom)));
     z-index: 58;
     display: inline-flex;
     align-items: center;
@@ -3268,12 +3547,12 @@ label {
 
   .action-dock.live-set-dock {
     overflow: visible;
-    padding-bottom: 70px;
+    padding: 6px 8px max(8px, env(safe-area-inset-bottom));
   }
 
   .action-dock.mulligan-dock {
     overflow: visible;
-    padding-bottom: 70px;
+    padding: 6px 8px max(8px, env(safe-area-inset-bottom));
   }
 
   .action-dock.member-play-dock .action-context,
@@ -3504,7 +3783,7 @@ label {
 
   .mobile-selection-action {
     display: grid;
-    gap: 6px;
+    gap: 4px;
     width: 100%;
   }
 
@@ -3523,6 +3802,11 @@ label {
     max-width: calc(100vw - 24px);
     overflow-x: auto;
     padding-bottom: 2px;
+  }
+
+  .action-dock.live-set-dock .mobile-selection-action > span,
+  .action-dock.mulligan-dock .mobile-selection-action > span {
+    display: none;
   }
 
   .mobile-selection-action.mobile-inline-choices .selection-cards button {
@@ -3549,6 +3833,14 @@ label {
     box-shadow: 0 -8px 22px rgba(18, 25, 30, 0.18);
     margin-top: 0;
     padding: 8px;
+  }
+
+  .action-dock.live-set-dock .mobile-member-confirm-row,
+  .action-dock.mulligan-dock .mobile-member-confirm-row {
+    grid-template-columns: minmax(0, 1fr) minmax(112px, 34%);
+    gap: 6px;
+    padding: 7px;
+    box-shadow: 0 -5px 16px rgba(18, 25, 30, 0.14);
   }
 
   .mobile-confirm-actions {
@@ -3593,6 +3885,13 @@ label {
     font-size: 13px;
     font-weight: 900;
     white-space: nowrap;
+  }
+
+  .action-dock.live-set-dock .mobile-member-confirm-row .primary-button,
+  .action-dock.mulligan-dock .mobile-member-confirm-row .primary-button {
+    min-height: 42px;
+    padding: 7px 8px;
+    font-size: 12px;
   }
 
   .mobile-main-skip-button {
@@ -3720,7 +4019,7 @@ label {
     }
 
     .mobile-manual-adjust-fab {
-      bottom: calc(76px + max(6px, env(safe-area-inset-bottom)));
+      bottom: calc(max(var(--mobile-action-reserve, 0px), 52px) + max(6px, env(safe-area-inset-bottom)));
     }
   }
 

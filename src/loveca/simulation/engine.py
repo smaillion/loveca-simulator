@@ -41,6 +41,20 @@ _EXPIRABLE_STALE_TRIGGER_REASONS = {
 }
 
 
+def _public_card_snapshot(state: MatchState, instance_id: str) -> dict[str, Any]:
+    instance = state.cards[instance_id]
+    card = instance.card
+    return {
+        "instance_id": instance_id,
+        "owner_id": instance.owner_id,
+        "card_code": card.card_code,
+        "card_id": card.card_id,
+        "name_ja": card.name_ja,
+        "card_type": card.card_type,
+        "image_url": card.image_url,
+    }
+
+
 def apply_action(state: MatchState, action: ActionRequest) -> ActionResult:
     if action.expected_revision != state.revision:
         raise StaleRevisionError(
@@ -964,6 +978,7 @@ def _resolve_manual_inspection(
             raise IllegalActionError("manual inspection source does not match")
         _record_effect_usage(state, invocation)
         state.pending_effects.remove(invocation)
+    reveal_selected = bool(pending.options.get("reveal_selected_to_opponent"))
     events.append(
         GameEvent(
             event_type="manual_card_inspection_resolved",
@@ -974,9 +989,13 @@ def _resolve_manual_inspection(
                 "moved_to_waiting_room_instance_ids": [
                     item for item in inspected if item not in selected
                 ],
-                "reveal_selected_to_opponent": bool(
-                    pending.options.get("reveal_selected_to_opponent")
-                ),
+                "reveal_selected_to_opponent": reveal_selected,
+                "revealed_cards": [
+                    _public_card_snapshot(state, instance_id)
+                    for instance_id in selected
+                ]
+                if reveal_selected
+                else [],
                 "source_effect_id": source_effect_id,
                 "source_card_instance_id": source_card_instance_id,
             },
@@ -1123,6 +1142,10 @@ def _legal_effect_activations(
             if effect.condition.get("source_orientation") == "active":
                 if instance.orientation != "active":
                     continue
+            if not _activated_effect_required_choice_available(
+                state, player_id, effect, instance_id
+            ):
+                continue
             activations.append(
                 {
                     "effect_id": effect_id,
@@ -1147,6 +1170,10 @@ def _legal_effect_activations(
                 continue
             if _effect_usage_limit_reached(state, effect, instance_id):
                 continue
+            if not _activated_effect_required_choice_available(
+                state, player_id, effect, instance_id
+            ):
+                continue
             activations.append(
                 {
                     "effect_id": effect_id,
@@ -1160,6 +1187,53 @@ def _legal_effect_activations(
                 }
             )
     return activations
+
+
+def _activated_effect_required_choice_available(
+    state: MatchState,
+    player_id: str,
+    effect: Any,
+    source_card_instance_id: str,
+) -> bool:
+    if effect.choice is None or not _effect_uses_card_choice(effect):
+        return True
+    if _effect_uses_post_action_card_choice(effect):
+        return True
+    choice_zone = _resolved_choice_zone(effect.choice)
+    source_zone = effect.condition.get("source_zone")
+    if _effect_uses_post_cost_card_choice(effect) and not (
+        source_zone == "hand" and choice_zone == "stage"
+    ):
+        return True
+    invocation = EffectInvocation(
+        invocation_id="activation-check",
+        effect_id=effect.effect_id,
+        source_card_instance_id=source_card_instance_id,
+        player_id=player_id,
+        trigger_event="player_activation",
+        resolution_stage=(
+            "after_cost" if _effect_uses_post_cost_card_choice(effect) else "initial"
+        ),
+    )
+    if not _choice_condition_met(state, invocation, effect.choice):
+        return True
+    minimum, _ = _effect_choice_bounds(state, invocation, effect.choice)
+    if minimum <= 0:
+        return True
+    return (
+        len(_effect_candidates_for_choice(state, invocation, effect.choice))
+        >= minimum
+    )
+
+
+def _effect_uses_selected_count_amount(effect: Any) -> bool:
+    return _operations_use_selected_count(effect.cost) or _operations_use_selected_count(
+        effect.actions
+    )
+
+
+def _operations_use_selected_count(operations: list[Any]) -> bool:
+    return any(operation.amount_source == "selected_count" for operation in operations)
 
 
 def _activation_energy_ids(
@@ -1505,6 +1579,9 @@ def _resolve_effect(
             raise IllegalActionError("effect count selection is not legal")
     elif selected_count is not None:
         raise IllegalActionError("this effect does not accept a count selection")
+    operation_selected_count = selected_count
+    if operation_selected_count is None and _effect_uses_selected_count_amount(effect):
+        operation_selected_count = len(selected_ids)
     if _effect_uses_position_change_choice(effect):
         position_slots = _position_change_source_target_slots(state, invocation)
         if selected_position_slot is None:
@@ -1581,7 +1658,7 @@ def _resolve_effect(
             selected_ids=selected_ids,
             energy_ids=action.payload.get("energy_instance_ids", []),
             selected_color_slot=selected_color_slot,
-            selected_count=selected_count,
+            selected_count=operation_selected_count,
             selected_position_slot=selected_position_slot,
         )
         if effect.cost:
@@ -1618,7 +1695,7 @@ def _resolve_effect(
                 events,
                 selected_ids=[],
                 selected_color_slot=selected_color_slot,
-                selected_count=selected_count,
+                selected_count=operation_selected_count,
                 selected_position_slot=selected_position_slot,
             )
             if _post_action_choice_should_continue(state, invocation):
@@ -1643,7 +1720,7 @@ def _resolve_effect(
                 selected_ids=[],
                 energy_ids=action.payload.get("energy_instance_ids", []),
                 selected_color_slot=selected_color_slot,
-                selected_count=selected_count,
+                selected_count=operation_selected_count,
                 selected_position_slot=selected_position_slot,
             )
             if any(
@@ -1681,7 +1758,7 @@ def _resolve_effect(
         selected_ids=selected_ids,
         selected_ids_by_group=selected_ids_by_group,
         selected_color_slot=selected_color_slot,
-        selected_count=selected_count,
+        selected_count=operation_selected_count,
         selected_position_slot=selected_position_slot,
         selected_destination=selected_destination,
     )
@@ -1699,7 +1776,7 @@ def _resolve_effect(
                 "selected_card_instance_ids_by_group": selected_ids_by_group or {},
                 "selected_branch": selected_branch,
                 "selected_color_slot": selected_color_slot,
-                "selected_count": selected_count,
+                "selected_count": operation_selected_count,
                 "selected_position_slot": selected_position_slot,
                 "trigger": effect.trigger,
                 "timing": effect.timing,
@@ -1966,6 +2043,7 @@ def _resolve_effect_choice(
     state.pending_choice = None
     state.pending_effects.remove(invocation)
     _record_effect_usage(state, invocation)
+    reveal_selected = bool(pending.options.get("reveal_selected_to_opponent", False))
     events.append(
         GameEvent(
             event_type="effect_resolved",
@@ -1980,9 +2058,13 @@ def _resolve_effect_choice(
                 "unselected_card_instance_ids": unselected_ids,
                 "selected_destination": selected_destination,
                 "unselected_destination": unselected_destination,
-                "reveal_selected_to_opponent": bool(
-                    pending.options.get("reveal_selected_to_opponent", False)
-                ),
+                "reveal_selected_to_opponent": reveal_selected,
+                "revealed_cards": [
+                    _public_card_snapshot(state, instance_id)
+                    for instance_id in selected_ids
+                ]
+                if reveal_selected
+                else [],
                 "trigger": effect.trigger,
                 "timing": effect.timing,
             },
@@ -5633,6 +5715,10 @@ def _execute_operations(
                         "invocation_id": invocation.invocation_id,
                         "effect_id": invocation.effect_id,
                         "revealed_card_instance_ids": revealed,
+                        "revealed_cards": [
+                            _public_card_snapshot(state, instance_id)
+                            for instance_id in revealed
+                        ],
                     },
                     source="system",
                 )
@@ -5666,6 +5752,10 @@ def _execute_operations(
                         "invocation_id": invocation.invocation_id,
                         "effect_id": invocation.effect_id,
                         "revealed_card_instance_ids": revealed,
+                        "revealed_cards": [
+                            _public_card_snapshot(state, instance_id)
+                            for instance_id in revealed
+                        ],
                     },
                     source="system",
                 )
@@ -5715,6 +5805,10 @@ def _execute_operations(
                         "matched_card_instance_ids": matched,
                         "moved_to_hand_instance_ids": matched,
                         "moved_to_waiting_room_instance_ids": waiting,
+                        "revealed_cards": [
+                            _public_card_snapshot(state, instance_id)
+                            for instance_id in revealed
+                        ],
                     },
                     source="system",
                 )
@@ -5764,6 +5858,10 @@ def _execute_operations(
                         "matched_card_instance_ids": matched,
                         "moved_to_hand_instance_ids": matched,
                         "moved_to_deck_top_instance_ids": deck_top,
+                        "revealed_cards": [
+                            _public_card_snapshot(state, instance_id)
+                            for instance_id in revealed
+                        ],
                     },
                     source="system",
                 )
@@ -5779,6 +5877,10 @@ def _execute_operations(
                         "invocation_id": invocation.invocation_id,
                         "effect_id": invocation.effect_id,
                         "revealed_card_instance_ids": list(operation_selected_ids),
+                        "revealed_cards": [
+                            _public_card_snapshot(state, instance_id)
+                            for instance_id in operation_selected_ids
+                        ],
                     },
                     source="system",
                 )

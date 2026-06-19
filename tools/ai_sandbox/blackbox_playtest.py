@@ -478,6 +478,7 @@ def choose_action(
             )
         if choice_type in {
             "multi_player_discard_to_hand_size_then_draw",
+            "multi_player_draw_then_discard",
             "multi_player_deploy_waiting_member",
         }:
             return action.action_type, action.player_id, payload
