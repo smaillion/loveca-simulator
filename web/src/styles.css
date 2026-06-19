@@ -3436,6 +3436,24 @@ label {
     display: none;
   }
 
+  .mobile-selection-action.mobile-inline-choices .selection-cards {
+    display: flex;
+    max-width: calc(100vw - 24px);
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .mobile-selection-action.mobile-inline-choices .selection-cards button {
+    flex: 0 0 auto;
+    max-width: 132px;
+    min-height: 34px;
+    padding: 5px 8px;
+    overflow: hidden;
+    font-size: 11px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .mobile-member-confirm-row {
     position: static;
     z-index: 4;

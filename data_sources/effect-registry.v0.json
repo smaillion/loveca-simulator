@@ -10926,27 +10926,47 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "draw_card",
+          "amount": 1
+        },
+        {
+          "action_type": "gain_blade",
+          "amount": 1,
+          "target": "selected"
         }
       ],
       "card_code": "PL!HS-bp6-014",
-      "choice": null,
-      "condition": {
-        "source_zone": "stage"
+      "choice": {
+        "card_type": "member",
+        "choice_type": "member_from_stage",
+        "maximum": 1,
+        "minimum": 1,
+        "name_ja_any": [
+          "藤島 慈",
+          "大沢瑠璃乃"
+        ],
+        "zone": "stage"
       },
-      "cost": [],
+      "condition": {
+        "source_zone": "hand"
+      },
+      "cost": [
+        {
+          "action_type": "source_to_waiting_room"
+        }
+      ],
       "duration": "live",
       "effect_id": "PL!HS-bp6-014:1",
       "effect_index": 1,
       "effect_type": "activated",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【起動】このカードを手札から控え室に置く：カードを1枚引き、ライブ終了時まで、自分のステージにいる「藤島 慈」か「大沢瑠璃乃」のうち1人は【ブレード】を得る。この能力は、このカードが手札にある場合のみ起動できる。",
       "raw_text_hash": "ea6edd527a5f13031d57223915263c2a96f33800a7df42f45cafc7c937824308",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 51,
       "timing": "activated_main",
       "trigger": "player_activation"

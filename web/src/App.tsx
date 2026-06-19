@@ -2892,6 +2892,7 @@ function ActionDock({
                 state={state}
                 maximum={3}
                 mobileMode={mobileLiveSetEnabled}
+                mobileInlineChoices={mobileLiveSetEnabled}
                 mobileHint={tr("手牌下方的「セット候補」で选择 Live 卡。", "手札下の「セット候補」でライブカードを選びます。")}
                 mobileConfirmLabel={tr("确认设置", "セット確定")}
                 mobileSummary={tr("可设置 0 到 3 张", "0〜3枚までセット可能")}
@@ -4206,6 +4207,7 @@ export function SelectionAction({
   state,
   maximum,
   mobileMode = false,
+  mobileInlineChoices = false,
   mobileHint,
   mobileConfirmLabel,
   mobileSummary,
@@ -4219,6 +4221,7 @@ export function SelectionAction({
   state: MatchState;
   maximum?: number;
   mobileMode?: boolean;
+  mobileInlineChoices?: boolean;
   mobileHint?: string;
   mobileConfirmLabel?: string;
   mobileSummary?: string;
@@ -4229,7 +4232,11 @@ export function SelectionAction({
   const { tr } = useUiLanguage();
   const selectedNames = selected.map((id) => state.cards[id]?.card.name_ja).filter(Boolean);
   return (
-    <div className={`selection-action ${mobileMode ? "mobile-selection-action" : ""}`}>
+    <div
+      className={`selection-action ${mobileMode ? "mobile-selection-action" : ""} ${
+        mobileInlineChoices ? "mobile-inline-choices" : ""
+      }`}
+    >
       <span>
         {mobileMode
           ? mobileHint ?? title

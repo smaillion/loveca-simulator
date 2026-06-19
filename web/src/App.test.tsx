@@ -989,6 +989,34 @@ describe("App", () => {
     expect(onSubmit).toHaveBeenCalledOnce();
   });
 
+  it("keeps live-set card choices available inside the mobile confirm area", () => {
+    const onToggle = vi.fn();
+    const { container } = render(
+      <SelectionAction
+        title="选择最多 3 张卡设置到 Live 区"
+        ids={["player_1-M002"]}
+        selected={[]}
+        state={{
+          ...MATCH_PAYLOAD.state,
+          cards: INSPECTION_CARDS,
+        } as never}
+        maximum={3}
+        mobileMode
+        mobileInlineChoices
+        mobileHint="手牌下方的「セット候補」で选择 Live 卡。"
+        mobileConfirmLabel="确认设置"
+        mobileSummary="可设置 0 到 3 张"
+        mobileEmptyLabel="未选择 Live 卡"
+        onToggle={onToggle}
+        onSubmit={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector(".mobile-inline-choices .selection-cards")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "候補カード" }));
+    expect(onToggle).toHaveBeenCalledWith("player_1-M002");
+  });
+
   it("closes the mobile live dialog after starting the next turn", async () => {
     stubMobileViewport();
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);

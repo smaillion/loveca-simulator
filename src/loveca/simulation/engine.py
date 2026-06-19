@@ -1114,6 +1114,8 @@ def _legal_effect_activations(
             effect = state.effect_definitions.get(effect_id)
             if effect is None or effect.effect_type != "activated":
                 continue
+            if effect.condition.get("source_zone") == "hand":
+                continue
             if effect.timing != "activated_main":
                 continue
             if _effect_usage_limit_reached(state, effect, instance_id):
@@ -1121,6 +1123,30 @@ def _legal_effect_activations(
             if effect.condition.get("source_orientation") == "active":
                 if instance.orientation != "active":
                     continue
+            activations.append(
+                {
+                    "effect_id": effect_id,
+                    "source_card_instance_id": instance_id,
+                    "label_ja": effect.label_ja,
+                    "trigger": effect.trigger,
+                    "timing": effect.timing,
+                    "execution_mode": effect.execution_mode,
+                    "frequency_limit": effect.frequency_limit,
+                    "simulation_support": effect.simulation_support,
+                }
+            )
+    for instance_id in player.hand:
+        instance = state.cards[instance_id]
+        for effect_id in instance.card.effect_ids:
+            effect = state.effect_definitions.get(effect_id)
+            if effect is None or effect.effect_type != "activated":
+                continue
+            if effect.condition.get("source_zone") != "hand":
+                continue
+            if effect.timing != "activated_main":
+                continue
+            if _effect_usage_limit_reached(state, effect, instance_id):
+                continue
             activations.append(
                 {
                     "effect_id": effect_id,
@@ -5416,16 +5442,21 @@ def _execute_operations(
             state.cards[invocation.source_card_instance_id].orientation = "wait"
         elif operation_type == "source_to_waiting_room":
             slot = _top_member_slot(player, invocation.source_card_instance_id)
-            if slot is None:
-                raise IllegalActionError("effect source must be on Stage")
-            _move_top_member_off_stage(
-                state,
-                invocation.player_id,
-                slot,
-                "waiting_room",
-                events,
-                reason=f"effect:{invocation.effect_id}",
-            )
+            if slot is not None:
+                _move_top_member_off_stage(
+                    state,
+                    invocation.player_id,
+                    slot,
+                    "waiting_room",
+                    events,
+                    reason=f"effect:{invocation.effect_id}",
+                )
+            elif invocation.source_card_instance_id in player.hand:
+                player.hand.remove(invocation.source_card_instance_id)
+                player.waiting_room.append(invocation.source_card_instance_id)
+                state.cards[invocation.source_card_instance_id].face_up = True
+            else:
+                raise IllegalActionError("effect source must be on Stage or in hand")
         elif operation_type == "apply_wait_member":
             if operation.target == "opponent_stage_cost2_all":
                 opponent_id = (
