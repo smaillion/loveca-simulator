@@ -540,6 +540,14 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
             "storage": _runtime_storage_summary(resolved.runtime_database_path),
         }
 
+    @app.get("/api/admin/deck-shares")
+    def admin_deck_shares(
+        x_loveca_admin_key: str | None = Header(default=None),
+        limit: int = Query(default=100, ge=1, le=500),
+    ) -> dict[str, Any]:
+        _require_admin(resolved, x_loveca_admin_key)
+        return _shared_deck_admin_summary(resolved.runtime_database_path, limit=limit)
+
     @app.get("/admin", response_class=HTMLResponse)
     def admin_page() -> str:
         return _admin_page_html()
@@ -927,7 +935,14 @@ def _admin_page_html() -> str:
       input { font: inherit; padding: .5rem; }
       button { font: inherit; font-weight: 700; padding: .6rem .9rem; margin-right: .5rem; }
       pre { white-space: pre-wrap; background: #111827; color: #e5e7eb; padding: 1rem; border-radius: 6px; overflow: auto; }
+      table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+      th, td { border-bottom: 1px solid #e5e7eb; padding: .5rem; text-align: left; vertical-align: top; }
+      th { color: #4b5563; font-size: .82rem; }
+      details { margin-top: .25rem; }
       .danger { color: #b91c1c; }
+      .muted { color: #6b7280; font-size: .85rem; }
+      .mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .82rem; }
+      .deck-json { max-height: 16rem; }
     </style>
   </head>
   <body>
@@ -948,13 +963,58 @@ def _admin_page_html() -> str:
         <button id="cleanup" class="danger">Cleanup 実行</button>
       </section>
       <section>
+        <h2>Shared decks</h2>
+        <p class="muted">Shows uploaded decks and records from online rooms with the same deck contents.</p>
+        <button id="loadDecks">Load shared decks</button>
+        <div id="deckOutput" class="muted">Not loaded.</div>
+      </section>
+      <section>
         <h2>Result</h2>
         <pre id="output">Not loaded.</pre>
       </section>
     </main>
     <script>
       const output = document.getElementById("output");
+      const deckOutput = document.getElementById("deckOutput");
       const key = () => document.getElementById("adminKey").value;
+      const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;",
+      }[char]));
+      const rate = (value) => value === null || value === undefined ? "-" : `${Math.round(value * 1000) / 10}%`;
+      function renderDeckShares(payload) {
+        if (!payload.items || payload.items.length === 0) {
+          deckOutput.textContent = "No shared decks.";
+          return;
+        }
+        deckOutput.innerHTML = `
+          <p class="muted">matching: ${escapeHtml(payload.matching_method)} / total: ${payload.total}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Deck</th><th>Share ID</th><th>Cards</th><th>Uses</th><th>Record</th><th>Last used</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${payload.items.map((item) => `
+                <tr>
+                  <td>
+                    <strong>${escapeHtml(item.deck_name)}</strong>
+                    <div class="muted">created ${escapeHtml(item.created_at)}</div>
+                    <details>
+                      <summary>deck JSON</summary>
+                      <pre class="deck-json">${escapeHtml(JSON.stringify(item.deck, null, 2))}</pre>
+                    </details>
+                  </td>
+                  <td class="mono">${escapeHtml(item.share_id)}</td>
+                  <td>Main ${item.main_card_count}<br />Energy ${item.energy_card_count}</td>
+                  <td>${item.uses}<br /><span class="muted">unfinished ${item.unfinished_uses}</span></td>
+                  <td>${item.wins}-${item.losses}-${item.draws}<br /><strong>${rate(item.win_rate)}</strong></td>
+                  <td>${escapeHtml(item.last_played_at || "-")}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>`;
+      }
       async function adminFetch(url, options = {}) {
         const response = await fetch(url, {
           ...options,
@@ -973,6 +1033,13 @@ def _admin_page_html() -> str:
           output.textContent = JSON.stringify(await adminFetch("/api/admin/runtime/storage"), null, 2);
         } catch (error) {
           output.textContent = String(error);
+        }
+      };
+      document.getElementById("loadDecks").onclick = async () => {
+        try {
+          renderDeckShares(await adminFetch("/api/admin/deck-shares"));
+        } catch (error) {
+          deckOutput.textContent = String(error);
         }
       };
       document.getElementById("cleanup").onclick = async () => {
@@ -1071,6 +1138,208 @@ def _load_deck_share(runtime_database_path: Path, share_id: str) -> dict[str, An
         "deck": json.loads(row[1]),
         "created_at": row[2],
     }
+
+
+def _shared_deck_admin_summary(
+    runtime_database_path: Path,
+    *,
+    limit: int,
+) -> dict[str, Any]:
+    if not runtime_database_path.exists():
+        return {
+            "items": [],
+            "total": 0,
+            "matching_method": "card_code_quantities",
+        }
+    with sqlite3.connect(runtime_database_path) as connection:
+        connection.row_factory = sqlite3.Row
+        _ensure_deck_share_table(connection)
+        rows = connection.execute(
+            """
+            SELECT share_id, deck_json, created_at
+            FROM shared_decks
+            ORDER BY created_at DESC, share_id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        total = int(connection.execute("SELECT COUNT(*) FROM shared_decks").fetchone()[0])
+        items: list[dict[str, Any]] = []
+        items_by_key: dict[str, list[dict[str, Any]]] = {}
+        for row in rows:
+            deck = json.loads(row["deck_json"])
+            main_count, energy_count = _deck_card_counts(deck)
+            item: dict[str, Any] = {
+                "share_id": row["share_id"],
+                "created_at": row["created_at"],
+                "deck_name": _deck_display_name(deck),
+                "main_card_count": main_count,
+                "energy_card_count": energy_count,
+                "deck": deck,
+                "uses": 0,
+                "completed_uses": 0,
+                "wins": 0,
+                "losses": 0,
+                "draws": 0,
+                "unfinished_uses": 0,
+                "unresolved_results": 0,
+                "win_rate": None,
+                "last_played_at": None,
+            }
+            items.append(item)
+            items_by_key.setdefault(_deck_identity_key(deck), []).append(item)
+        if items and _table_exists(connection, "hosted_rooms") and _table_exists(connection, "matches"):
+            _accumulate_shared_deck_room_stats(connection, items_by_key)
+        for item in items:
+            completed = int(item["completed_uses"])
+            item["win_rate"] = (item["wins"] / completed) if completed else None
+    return {
+        "items": items,
+        "total": total,
+        "matching_method": "card_code_quantities",
+    }
+
+
+def _accumulate_shared_deck_room_stats(
+    connection: sqlite3.Connection,
+    items_by_key: dict[str, list[dict[str, Any]]],
+) -> None:
+    rows = connection.execute(
+        """
+        SELECT
+            r.room_code,
+            r.match_id,
+            r.host_deck_json,
+            r.guest_deck_json,
+            r.updated_at AS room_updated_at,
+            m.status AS match_status,
+            m.current_state_json,
+            m.updated_at AS match_updated_at
+        FROM hosted_rooms r
+        LEFT JOIN matches m ON m.match_id = r.match_id
+        WHERE r.match_id IS NOT NULL
+        """
+    ).fetchall()
+    for row in rows:
+        for player_id, deck_column in (
+            ("player_1", "host_deck_json"),
+            ("player_2", "guest_deck_json"),
+        ):
+            deck_json = row[deck_column]
+            if not deck_json:
+                continue
+            try:
+                key = _deck_identity_key(json.loads(deck_json))
+            except (TypeError, ValueError):
+                continue
+            for item in items_by_key.get(key, []):
+                _apply_shared_deck_match_result(
+                    item,
+                    player_id=player_id,
+                    match_status=row["match_status"],
+                    state_json=row["current_state_json"],
+                    last_played_at=row["match_updated_at"] or row["room_updated_at"],
+                )
+
+
+def _apply_shared_deck_match_result(
+    item: dict[str, Any],
+    *,
+    player_id: str,
+    match_status: str | None,
+    state_json: str | None,
+    last_played_at: str | None,
+) -> None:
+    item["uses"] += 1
+    if last_played_at and (
+        item["last_played_at"] is None or last_played_at > item["last_played_at"]
+    ):
+        item["last_played_at"] = last_played_at
+    if match_status != "complete" or not state_json:
+        item["unfinished_uses"] += 1
+        return
+    try:
+        state = json.loads(state_json)
+    except ValueError:
+        item["unresolved_results"] += 1
+        return
+    result = state.get("game_result") if isinstance(state, dict) else None
+    if not isinstance(result, dict):
+        item["unresolved_results"] += 1
+        return
+    outcome = result.get("outcome")
+    winner_player_ids = {
+        winner for winner in result.get("winner_player_ids", []) if isinstance(winner, str)
+    }
+    if outcome == "draw":
+        item["completed_uses"] += 1
+        item["draws"] += 1
+    elif outcome == "win" and player_id in winner_player_ids:
+        item["completed_uses"] += 1
+        item["wins"] += 1
+    elif outcome == "win":
+        item["completed_uses"] += 1
+        item["losses"] += 1
+    else:
+        item["unresolved_results"] += 1
+
+
+def _deck_identity_key(deck: dict[str, Any]) -> str:
+    return json.dumps(
+        {
+            "main_deck": _deck_identity_entries(deck.get("main_deck")),
+            "energy_deck": _deck_identity_entries(deck.get("energy_deck")),
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+
+
+def _deck_identity_entries(entries: Any) -> list[dict[str, Any]]:
+    normalized = []
+    if not isinstance(entries, list):
+        return normalized
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        card_code = entry.get("card_code")
+        if not isinstance(card_code, str):
+            continue
+        try:
+            quantity = int(entry.get("quantity", 0))
+        except (TypeError, ValueError):
+            quantity = 0
+        normalized.append({"card_code": card_code, "quantity": quantity})
+    return sorted(normalized, key=lambda item: (item["card_code"], item["quantity"]))
+
+
+def _deck_card_counts(deck: dict[str, Any]) -> tuple[int, int]:
+    return (
+        _deck_entry_count(deck.get("main_deck")),
+        _deck_entry_count(deck.get("energy_deck")),
+    )
+
+
+def _deck_entry_count(entries: Any) -> int:
+    if not isinstance(entries, list):
+        return 0
+    total = 0
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        try:
+            total += int(entry.get("quantity", 0))
+        except (TypeError, ValueError):
+            continue
+    return total
+
+
+def _deck_display_name(deck: dict[str, Any]) -> str:
+    name = deck.get("name")
+    if isinstance(name, str) and name.strip():
+        return name.strip()
+    return "Untitled deck"
 
 
 def _match_payload(

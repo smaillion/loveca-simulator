@@ -684,6 +684,68 @@ def test_deck_share_api_uploads_and_downloads_by_uuid(tmp_path):
     assert invalid.status_code == 400
 
 
+def test_admin_deck_shares_show_uploaded_decks_and_winrate(tmp_path):
+    client = _client(tmp_path, admin_key="secret")
+    sample_deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
+
+    uploaded = client.post("/api/deck-shares", json={"deck": sample_deck})
+    assert uploaded.status_code == 200
+    share_id = uploaded.json()["share_id"]
+
+    created = client.post(
+        "/api/rooms",
+        json={"player_name": "Host", "deck": sample_deck, "seed": 106},
+    )
+    assert created.status_code == 200
+    room_code = created.json()["room_code"]
+    joined = client.post(
+        f"/api/rooms/{room_code}/join",
+        json={"player_name": "Guest", "deck": sample_deck},
+    )
+    assert joined.status_code == 200
+    match_id = joined.json()["match_id"]
+    completed_state = json.dumps(
+        {
+            "game_result": {
+                "outcome": "win",
+                "winner_player_ids": ["player_1"],
+                "reason": "success_live_threshold",
+                "final_turn": 3,
+            }
+        },
+        ensure_ascii=False,
+    )
+    with sqlite3.connect(tmp_path / "matches.sqlite3") as connection:
+        connection.execute(
+            """
+            UPDATE matches
+            SET status = 'complete', current_state_json = ?, updated_at = ?
+            WHERE match_id = ?
+            """,
+            (completed_state, "2026-06-16T04:00:00+00:00", match_id),
+        )
+
+    assert client.get("/api/admin/deck-shares").status_code == 403
+    response = client.get(
+        "/api/admin/deck-shares",
+        headers={"X-LoveCA-Admin-Key": "secret"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    item = next(deck for deck in payload["items"] if deck["share_id"] == share_id)
+    assert payload["matching_method"] == "card_code_quantities"
+    assert item["deck"]["version"] == "decklist.v0"
+    assert item["main_card_count"] == 60
+    assert item["energy_card_count"] == 12
+    assert item["uses"] == 2
+    assert item["completed_uses"] == 2
+    assert item["wins"] == 1
+    assert item["losses"] == 1
+    assert item["draws"] == 0
+    assert item["win_rate"] == 0.5
+    assert item["last_played_at"] == "2026-06-16T04:00:00+00:00"
+
+
 def test_catalog_api_exposes_card_review_data(tmp_path):
     client = _client(tmp_path)
 
