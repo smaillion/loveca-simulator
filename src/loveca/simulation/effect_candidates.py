@@ -1011,6 +1011,49 @@ def _activated_wait_ready_other(row: sqlite3.Row) -> EffectCandidate | None:
     )
 
 
+def _activated_hand_source_draw_blade_named_member(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    expected = (
+        "【起動】このカードを手札から控え室に置く：カードを1枚引き、"
+        "ライブ終了時まで、自分のステージにいる「藤島 慈」か「大沢瑠璃乃」"
+        "のうち1人は【ブレード】を得る。"
+        "この能力は、このカードが手札にある場合のみ起動できる。"
+    )
+    matched = _matching_segment(row, expected)
+    if matched is None:
+        return None
+    effect_index, label = matched
+    return EffectCandidate(
+        **_base(
+            row,
+            pattern_id="activated_hand_source_draw_blade_named_member",
+            effect_index=effect_index,
+        ),
+        label_ja=label,
+        effect_type="activated",
+        timing="activated_main",
+        trigger="player_activation",
+        frequency_limit="none",
+        is_optional=False,
+        condition={"source_zone": "hand"},
+        cost=[{"action_type": "source_to_waiting_room"}],
+        choice={
+            "choice_type": "member_from_stage",
+            "zone": "stage",
+            "card_type": "member",
+            "name_ja_any": ["藤島 慈", "大沢瑠璃乃"],
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[
+            {"action_type": "draw_card", "amount": 1},
+            {"action_type": "gain_blade", "target": "selected", "amount": 1},
+        ],
+        duration="live",
+    )
+
+
 def _onplay_ready_all_self_stage(row: sqlite3.Row) -> EffectCandidate | None:
     text = str(row["raw_effect_text_ja"]).strip()
     expected = "【登場】自分のステージにいるすべてのメンバーをアクティブにする。"
@@ -11294,6 +11337,7 @@ _PATTERNS = (
     _live_start_no_timing_live_choose_other_member_gain_blade2,
     _live_start_draw_then_discard,
     _activated_wait_ready_other,
+    _activated_hand_source_draw_blade_named_member,
     _onplay_ready_all_self_stage,
     _onplay_success_score_ready_energy,
     _onplay_success_score_draw,
