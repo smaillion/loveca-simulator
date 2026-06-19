@@ -161,7 +161,7 @@ jobs:
             cat > "$deploy_path/restart-api.sh" <<'"'"'SCRIPT'"'"'
           #!/bin/sh
           set -eu
-          export DOCKER_API_VERSION="${DOCKER_API_VERSION:-1.43}"
+          unset DOCKER_API_VERSION || true
           cd "$(dirname "$0")"
           if docker compose version >/dev/null 2>&1; then
             compose="docker compose"
@@ -195,7 +195,7 @@ jobs:
         run: |
           ssh ${SSH_OPTS} "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" '
             cd "${{ secrets.DEPLOY_PATH }}" &&
-            export DOCKER_API_VERSION="${DOCKER_API_VERSION:-1.43}" &&
+            unset DOCKER_API_VERSION &&
             if docker compose version >/dev/null 2>&1; then
               compose="docker compose"
             elif command -v docker-compose >/dev/null 2>&1; then
