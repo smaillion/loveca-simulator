@@ -1173,6 +1173,38 @@ describe("App", () => {
     );
   });
 
+  it("shows hosted room controls for same-origin release API builds", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const runtimeConfig = {
+      mode: "release" as const,
+      browserPreview: false,
+      apiBaseUrl: "",
+      publicMatchHistory: false,
+      cardDatabaseFingerprint: "test",
+    };
+    const fetchMock = createFetchMock({
+      runtimeConfig,
+      roomCreate: roomPayload("active"),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    resetRuntimeConfigForTests(runtimeConfig);
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByText("在线测试房间")).toBeInTheDocument());
+    const createRoomButton = screen.getByRole("button", { name: "房间创建" });
+    await waitFor(() => expect(createRoomButton).not.toBeDisabled());
+    fireEvent.click(createRoomButton);
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/rooms",
+        expect.objectContaining({
+          method: "POST",
+        }),
+      ),
+    );
+  });
+
   it("shows a waiting dock when the online opponent must act", async () => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const runtimeConfig = {

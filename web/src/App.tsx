@@ -213,7 +213,7 @@ const judgmentBasisLabels: Record<string, [string, string]> = {
 export default function App() {
   const [runtimeConfig, setRuntimeConfig] = useState(getRuntimeConfigSnapshot);
   const browserPreview = runtimeConfig.browserPreview;
-  const hostedOnline = runtimeConfig.apiBaseUrl.length > 0;
+  const hostedOnline = runtimeConfig.apiBaseUrl.length > 0 || !browserPreview;
   const publicMatchHistory = matchHistoryAvailable(runtimeConfig);
   const [locale, setLocale] = useState<UiLocale>(() => {
     const stored = localStorage.getItem("loveca-ui-locale");

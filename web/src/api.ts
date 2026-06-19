@@ -147,7 +147,17 @@ export function apiResourceUrl(path: string): string {
 }
 
 export function hostedOnlineAvailable(): boolean {
-  return runtimeConfig.apiBaseUrl.length > 0;
+  return canUseHostedApi(runtimeConfig);
+}
+
+function canUseHostedApi(config: RuntimeConfig): boolean {
+  return config.apiBaseUrl.length > 0 || !shouldUsePreviewData(config);
+}
+
+function requireHostedApi(): void {
+  if (!canUseHostedApi(runtimeConfig)) {
+    throw new Error("Hosted API base URL is not configured.");
+  }
 }
 
 function shouldUsePreviewData(config: RuntimeConfig): boolean {
@@ -245,9 +255,7 @@ export function createRoom(input: {
   deck: DeckList;
   seed?: number;
 }): Promise<RoomPayload> {
-  if (!runtimeConfig.apiBaseUrl) {
-    return Promise.reject(new Error("Hosted API base URL is not configured."));
-  }
+  requireHostedApi();
   return request("/api/rooms", {
     method: "POST",
     body: JSON.stringify({
@@ -263,9 +271,7 @@ export function joinRoom(input: {
   playerName: string;
   deck: DeckList;
 }): Promise<RoomPayload> {
-  if (!runtimeConfig.apiBaseUrl) {
-    return Promise.reject(new Error("Hosted API base URL is not configured."));
-  }
+  requireHostedApi();
   return request(`/api/rooms/${encodeURIComponent(input.roomCode)}/join`, {
     method: "POST",
     body: JSON.stringify({
@@ -276,9 +282,7 @@ export function joinRoom(input: {
 }
 
 export function getRoom(roomCode: string, playerToken: string): Promise<RoomPayload> {
-  if (!runtimeConfig.apiBaseUrl) {
-    return Promise.reject(new Error("Hosted API base URL is not configured."));
-  }
+  requireHostedApi();
   const params = new URLSearchParams({ player_token: playerToken });
   return request(`/api/rooms/${encodeURIComponent(roomCode)}?${params.toString()}`);
 }
@@ -288,9 +292,7 @@ export function leaveRoom(
   playerToken: string,
   init?: Pick<RequestInit, "keepalive">,
 ): Promise<RoomPayload> {
-  if (!runtimeConfig.apiBaseUrl) {
-    return Promise.reject(new Error("Hosted API base URL is not configured."));
-  }
+  requireHostedApi();
   return request(`/api/rooms/${encodeURIComponent(roomCode)}/leave`, {
     method: "POST",
     keepalive: init?.keepalive,
@@ -308,9 +310,7 @@ export function submitRoomAction(
     payload?: Record<string, unknown>;
   },
 ): Promise<MatchPayload> {
-  if (!runtimeConfig.apiBaseUrl) {
-    return Promise.reject(new Error("Hosted API base URL is not configured."));
-  }
+  requireHostedApi();
   return request(`/api/rooms/${encodeURIComponent(roomCode)}/actions`, {
     method: "POST",
     body: JSON.stringify({
@@ -462,7 +462,7 @@ export function deleteSavedDeck(deckId: string): Promise<{ status: string }> {
 
 export function uploadSharedDeck(deck: DeckList): Promise<SharedDeckResponse> {
   return loadRuntimeConfig().then((config) => {
-    if (!config.apiBaseUrl) {
+    if (!canUseHostedApi(config)) {
       throw new Error("Hosted API base URL is not configured.");
     }
     return request("/api/deck-shares", {
@@ -474,7 +474,7 @@ export function uploadSharedDeck(deck: DeckList): Promise<SharedDeckResponse> {
 
 export function downloadSharedDeck(shareId: string): Promise<SharedDeckResponse> {
   return loadRuntimeConfig().then((config) => {
-    if (!config.apiBaseUrl) {
+    if (!canUseHostedApi(config)) {
       throw new Error("Hosted API base URL is not configured.");
     }
     return request(`/api/deck-shares/${encodeURIComponent(shareId)}`);
