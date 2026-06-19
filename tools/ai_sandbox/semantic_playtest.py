@@ -80,6 +80,9 @@ class ApiPlayAttempt:
     confidence: str
     schema_gap: str | None = None
     submitted_payload: dict[str, Any] = field(default_factory=dict)
+    baseline_action_type: str | None = None
+    baseline_player_id: str | None = None
+    matches_deterministic_baseline: bool | None = None
     fallback_used: bool = False
     error: str | None = None
 
@@ -363,6 +366,7 @@ def run_semantic_matches(
                         provider=provider,
                         match_index=index + 1,
                         action_index=action_count + 1,
+                        baseline_decision=decision,
                     )
                     api_play_attempts.append(api_result.attempt)
                     if api_result.decision is not None:
@@ -463,8 +467,9 @@ def try_api_play_action(
     provider: SemanticAgentProvider,
     match_index: int,
     action_index: int,
+    baseline_decision: tuple[str, str | None, dict[str, Any]] | None = None,
 ) -> ApiPlayResult:
-    context = build_api_play_context(state, legal_actions)
+    context = build_api_play_context(state, legal_actions, baseline_decision=baseline_decision)
     try:
         decision = provider.decide(context)
         validate_api_play_decision(decision, legal_actions)
@@ -482,6 +487,7 @@ def try_api_play_action(
                     schema_gap=str(exc),
                 ),
                 status="api_play_invalid",
+                baseline_decision=baseline_decision,
                 error=str(exc),
             ),
         )
@@ -495,6 +501,7 @@ def try_api_play_action(
                 legal_actions,
                 decision,
                 status="api_play_unresolved",
+                baseline_decision=baseline_decision,
                 error=decision.schema_gap or decision.reason_ja_or_zh,
             ),
         )
@@ -507,6 +514,7 @@ def try_api_play_action(
             legal_actions,
             decision,
             status="api_play_selected",
+            baseline_decision=baseline_decision,
         ),
     )
 
@@ -924,7 +932,12 @@ def validate_manual_adjustment_payload(payload: dict[str, Any], invocation: dict
         raise ValueError("confirmed manual_adjustment requires confirmed_by")
 
 
-def build_api_play_context(state: MatchState, legal_actions: list[LegalAction]) -> dict[str, Any]:
+def build_api_play_context(
+    state: MatchState,
+    legal_actions: list[LegalAction],
+    *,
+    baseline_decision: tuple[str, str | None, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     acting_player_id = next(
         (action.player_id for action in legal_actions if action.player_id),
         state.active_player_id,
@@ -939,6 +952,7 @@ def build_api_play_context(state: MatchState, legal_actions: list[LegalAction]) 
             "The engine will validate the submitted payload.",
             "Prefer actions that progress the game toward successful Live resolution.",
             "Use strategy.recommended_action_order as a tie-breaker when several actions are legal.",
+            "deterministic_baseline_action is a valid scripted-policy reference; follow it when uncertain, but choose a different legal action if it clearly improves progress.",
             "Do not choose manual_adjustment in API Play; manual effects use the dedicated semantic flow.",
         ],
         "allowed_response_schema": {
@@ -961,6 +975,7 @@ def build_api_play_context(state: MatchState, legal_actions: list[LegalAction]) 
             "pending_effects": [effect.model_dump() for effect in state.pending_effects],
         },
         "strategy": api_play_strategy_summary(state, legal_actions, acting_player_id),
+        "deterministic_baseline_action": decision_context(baseline_decision),
         "legal_action_summary": summarize_legal_actions(legal_actions),
         "players": {
             player_id: player_context(
@@ -971,6 +986,20 @@ def build_api_play_context(state: MatchState, legal_actions: list[LegalAction]) 
             for player_id in sorted(state.players)
         },
         "legal_actions": [action.model_dump() for action in legal_actions],
+    }
+
+
+def decision_context(
+    decision: tuple[str, str | None, dict[str, Any]] | None,
+) -> dict[str, Any] | None:
+    if decision is None:
+        return None
+    action_type, player_id, payload = decision
+    return {
+        "action_type": action_type,
+        "player_id": player_id,
+        "payload": payload,
+        "note": "scripted deterministic sandbox would choose this legal action",
     }
 
 
@@ -1391,8 +1420,18 @@ def api_play_attempt_from_decision(
     decision: SemanticDecision,
     *,
     status: str,
+    baseline_decision: tuple[str, str | None, dict[str, Any]] | None = None,
     error: str | None = None,
 ) -> ApiPlayAttempt:
+    baseline_action_type = baseline_decision[0] if baseline_decision else None
+    baseline_player_id = baseline_decision[1] if baseline_decision else None
+    matches_baseline = None
+    if baseline_decision is not None and decision.decision == "submit_action":
+        matches_baseline = (
+            decision.action_type == baseline_action_type
+            and decision.player_id == baseline_player_id
+            and decision.payload == baseline_decision[2]
+        )
     return ApiPlayAttempt(
         match_index=match_index,
         action_index=action_index,
@@ -1406,6 +1445,9 @@ def api_play_attempt_from_decision(
         confidence=decision.confidence,
         schema_gap=decision.schema_gap,
         submitted_payload=decision.payload,
+        baseline_action_type=baseline_action_type,
+        baseline_player_id=baseline_player_id,
+        matches_deterministic_baseline=matches_baseline,
         error=error,
     )
 
@@ -1471,6 +1513,8 @@ def write_semantic_outputs(
         f"* API Play attempt statuses: {dict(sorted(api_play_statuses.items()))}",
         f"* Schema gaps: {dict(schema_gaps.most_common(20))}",
         f"* API Play schema gaps: {dict(api_play_schema_gaps.most_common(20))}",
+        f"* API Play baseline matches: {sum(item.matches_deterministic_baseline is True for item in api_play_attempts)}",
+        f"* API Play baseline divergences: {sum(item.matches_deterministic_baseline is False for item in api_play_attempts)}",
         "",
         "## Match Results",
         "",
@@ -1496,16 +1540,17 @@ def write_semantic_outputs(
                 "",
                 "## API Play Attempts",
                 "",
-                "| Match | Action | Status | Phase | Action | Confidence | Fallback | Gap | Reason / Error |",
-                "|---:|---:|---|---|---|---|---|---|---|",
+                "| Match | Action | Status | Phase | Action | Baseline | Match | Confidence | Fallback | Gap | Reason / Error |",
+                "|---:|---:|---|---|---|---|---|---|---|---|---|",
             ]
         )
         for item in api_play_attempts:
             reason = item.error or item.agent_reason
             lines.append(
                 f"| {item.match_index} | {item.action_index} | {item.status} | "
-                f"{item.phase} | {item.action_type or ''} | {item.confidence} | "
-                f"{'yes' if item.fallback_used else ''} | "
+                f"{item.phase} | {item.action_type or ''} | {item.baseline_action_type or ''} | "
+                f"{'' if item.matches_deterministic_baseline is None else item.matches_deterministic_baseline} | "
+                f"{item.confidence} | {'yes' if item.fallback_used else ''} | "
                 f"{_markdown_cell(item.schema_gap or '')} | {_markdown_cell(reason)} |"
             )
     if attempts:

@@ -163,6 +163,8 @@ def summarize_policy_run(
     blockers = Counter(item.blocker or "none" for item in matches)
     semantic_statuses = Counter(item.status for item in semantic_attempts)
     api_statuses = Counter(item.status for item in api_play_attempts)
+    api_baseline_matches = sum(item.matches_deterministic_baseline is True for item in api_play_attempts)
+    api_baseline_divergences = sum(item.matches_deterministic_baseline is False for item in api_play_attempts)
     schema_gaps = Counter(
         item.schema_gap for item in [*semantic_attempts, *api_play_attempts] if item.schema_gap
     )
@@ -184,6 +186,8 @@ def summarize_policy_run(
         ),
         "semantic_attempt_statuses": dict(sorted(semantic_statuses.items())),
         "api_play_attempt_statuses": dict(sorted(api_statuses.items())),
+        "api_play_baseline_match_count": api_baseline_matches,
+        "api_play_baseline_divergence_count": api_baseline_divergences,
         "schema_gaps": dict(schema_gaps.most_common(20)),
     }
 
@@ -293,6 +297,15 @@ def build_actionable_findings(report: dict[str, Any]) -> list[dict[str, Any]]:
             {"top_schema_gap": gap, "count": count},
         )
 
+    baseline_divergences = int(api.get("api_play_baseline_divergence_count") or 0)
+    if baseline_divergences:
+        add(
+            "info",
+            "api_play_diverged_from_baseline",
+            "API Play selected legal actions different from the deterministic baseline; inspect these attempts to decide whether the strategy is better or just noisy.",
+            {"api_play_baseline_divergence_count": baseline_divergences},
+        )
+
     unresolved_statuses = {
         status: count
         for status, count in (api.get("api_play_attempt_statuses") or {}).items()
@@ -358,8 +371,8 @@ def write_comparison_outputs(output: Path, report: dict[str, Any]) -> None:
         "",
         "## Summary",
         "",
-        "| Policy | Completed | Completion | Avg Actions | Max Actions | Manual | API OK | API Fail | Fallback | Blockers |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---|",
+        "| Policy | Completed | Completion | Avg Actions | Max Actions | Manual | API OK | API Fail | Fallback | Baseline Match | Baseline Diff | Blockers |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|",
     ]
     for policy in ("deterministic", "api"):
         summary = report["runs"][policy]["summary"]
@@ -376,6 +389,8 @@ def write_comparison_outputs(output: Path, report: dict[str, Any]) -> None:
                     str(summary["api_play_count"]),
                     str(summary["api_play_failure_count"]),
                     str(summary["deterministic_fallback_count"]),
+                    str(summary.get("api_play_baseline_match_count", 0)),
+                    str(summary.get("api_play_baseline_divergence_count", 0)),
                     _markdown_cell(summary["blockers"]),
                 ]
             )

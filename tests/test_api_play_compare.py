@@ -53,6 +53,9 @@ def test_summarize_policy_run_counts_completion_and_api_play_statuses():
             action_type="advance_phase",
             player_id="player_1",
             confidence="high",
+            baseline_action_type="advance_phase",
+            baseline_player_id="player_1",
+            matches_deterministic_baseline=True,
         ),
         ApiPlayAttempt(
             match_index=2,
@@ -66,6 +69,9 @@ def test_summarize_policy_run_counts_completion_and_api_play_statuses():
             player_id=None,
             confidence="low",
             schema_gap="needs_strategy",
+            baseline_action_type="play_member",
+            baseline_player_id="player_1",
+            matches_deterministic_baseline=False,
         ),
     ]
 
@@ -82,6 +88,8 @@ def test_summarize_policy_run_counts_completion_and_api_play_statuses():
         "api_play_selected": 1,
         "api_play_unresolved": 1,
     }
+    assert summary["api_play_baseline_match_count"] == 1
+    assert summary["api_play_baseline_divergence_count"] == 1
     assert summary["schema_gaps"] == {"needs_strategy": 1}
 
 
@@ -102,6 +110,8 @@ def test_build_actionable_findings_flags_mock_fallback_and_regression():
         "deterministic_fallback_count": 0,
         "semantic_attempt_statuses": {},
         "api_play_attempt_statuses": {},
+        "api_play_baseline_match_count": 0,
+        "api_play_baseline_divergence_count": 0,
         "schema_gaps": {},
     }
     api = {
@@ -112,6 +122,8 @@ def test_build_actionable_findings_flags_mock_fallback_and_regression():
         "api_play_failure_count": 2,
         "deterministic_fallback_count": 2,
         "api_play_attempt_statuses": {"api_play_cannot_resolve": 2},
+        "api_play_baseline_match_count": 0,
+        "api_play_baseline_divergence_count": 0,
         "schema_gaps": {"mock_provider:api_play": 2},
     }
     report = {
@@ -150,6 +162,8 @@ def test_comparison_outputs_write_machine_and_human_reports(tmp_path):
         "deterministic_fallback_count": 0,
         "semantic_attempt_statuses": {},
         "api_play_attempt_statuses": {},
+        "api_play_baseline_match_count": 0,
+        "api_play_baseline_divergence_count": 0,
         "schema_gaps": {},
     }
     api = {

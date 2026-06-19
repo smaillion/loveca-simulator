@@ -179,7 +179,11 @@ def test_api_play_context_contains_ordinary_legal_actions():
         options={"phase": "first_energy"},
     )
 
-    context = build_api_play_context(state, [action])
+    context = build_api_play_context(
+        state,
+        [action],
+        baseline_decision=("advance_phase", "player_1", {"phase": "first_energy"}),
+    )
 
     assert context["mode"] == "api_play"
     assert context["state"]["phase"] == "first_main"
@@ -188,6 +192,12 @@ def test_api_play_context_contains_ordinary_legal_actions():
     assert context["legal_action_summary"]["action_type_counts"] == {"advance_phase": 1}
     assert context["strategy"]["recommended_action_order"] == ["advance_phase"]
     assert context["strategy"]["progress"]["acting_player_hand_count"] == 0
+    assert context["deterministic_baseline_action"] == {
+        "action_type": "advance_phase",
+        "player_id": "player_1",
+        "payload": {"phase": "first_energy"},
+        "note": "scripted deterministic sandbox would choose this legal action",
+    }
 
 
 def test_api_play_scripted_provider_selects_ordinary_action():
@@ -218,11 +228,14 @@ def test_api_play_scripted_provider_selects_ordinary_action():
         provider=provider,
         match_index=1,
         action_index=1,
+        baseline_decision=("advance_phase", "player_1", {}),
     )
 
     assert result.decision == ("advance_phase", "player_1", {})
     assert result.attempt.status == "api_play_selected"
     assert result.attempt.confidence == "high"
+    assert result.attempt.baseline_action_type == "advance_phase"
+    assert result.attempt.matches_deterministic_baseline is True
 
 
 def test_agent_context_contains_source_text_and_manual_schema():
