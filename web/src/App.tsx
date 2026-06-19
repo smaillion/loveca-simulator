@@ -19,7 +19,6 @@ import {
 import {
   createContext,
   type DragEvent,
-  Fragment,
   type ReactNode,
   useCallback,
   useContext,
@@ -2919,34 +2918,17 @@ function ActionDock({
           }
           if (action.action_type === "play_member") {
             return (
-              <Fragment key={`${action.action_type}-${state.revision}`}>
-                <MemberPlayAction
-                  action={action}
-                  state={state}
-                  externalDraft={memberPlayDraft}
-                  onExternalDraftChange={onMemberPlayDraftChange}
-                  mobileMode={mobileMemberPlayEnabled}
-                  loading={loading}
-                  onAction={onAction}
-                />
-                {mobileMainPhaseSkipAction && (
-                  <button
-                    className="secondary-button mobile-main-skip-button"
-                    disabled={loading}
-                    type="button"
-                    onClick={() =>
-                      onAction(
-                        mobileMainPhaseSkipAction.action_type,
-                        mobileMainPhaseSkipAction.player_id,
-                      )
-                    }
-                  >
-                    {locale === "zh"
-                      ? "不登场，结束主要阶段"
-                      : "登場せずメインを終了"}
-                  </button>
-                )}
-              </Fragment>
+              <MemberPlayAction
+                key={`${action.action_type}-${state.revision}`}
+                action={action}
+                state={state}
+                externalDraft={memberPlayDraft}
+                onExternalDraftChange={onMemberPlayDraftChange}
+                mobileMode={mobileMemberPlayEnabled}
+                mobileSkipAction={mobileMainPhaseSkipAction}
+                loading={loading}
+                onAction={onAction}
+              />
             );
           }
           if (action.action_type === "resolve_live_requirements") {
@@ -3916,6 +3898,7 @@ export function MemberPlayAction({
   externalDraft,
   onExternalDraftChange,
   mobileMode = false,
+  mobileSkipAction,
   loading,
   onAction,
 }: {
@@ -3924,6 +3907,7 @@ export function MemberPlayAction({
   externalDraft?: MemberPlayDraft;
   onExternalDraftChange?: (draft: MemberPlayDraft) => void;
   mobileMode?: boolean;
+  mobileSkipAction?: LegalAction;
   loading: boolean;
   onAction: (
     actionType: string,
@@ -3973,6 +3957,14 @@ export function MemberPlayAction({
   const confirmLabel = placement?.use_baton_touch
     ? tr("确认バトンタッチ", "確認してバトンタッチ")
     : tr("确认登场", "確認して登場");
+  const projectedStats = projectMemberPlayStageStats(
+    player,
+    state,
+    selection.selectedMemberId,
+    selection.selectedSlot,
+  );
+  const projectedHeartText =
+    formatHeartSummary(projectedStats.hearts, locale) || tr("Heart 0", "ハート0");
 
   return (
     <div className={`member-play-action ${mobileMode ? "mobile-member-play-action" : ""}`}>
@@ -4155,20 +4147,56 @@ export function MemberPlayAction({
               : tr("选择登场角色", "登場するメンバーを選択")}
           </strong>
           <span>
-            {memberSlotLabel(selection.selectedSlot, locale)} · {tr("实付", "支払")}{" "}
-            {placement?.payment_cost ?? 0} / {tr("可用", "使用可")} {energy.length}
+            {memberSlotLabel(selection.selectedSlot, locale)} · {tr("支付", "支払")}{" "}
+            {placement?.payment_cost ?? 0}/{energy.length} · {tr("登场后", "登場後")}{" "}
+            {projectedHeartText} / B{projectedStats.blade}
           </span>
         </div>
-        <button
-          className="primary-button"
-          disabled={loading || !placement}
-          onClick={submitMemberPlay}
-        >
-          {confirmLabel}
-        </button>
+        <div className="mobile-confirm-actions">
+          <button
+            className="primary-button"
+            disabled={loading || !placement}
+            onClick={submitMemberPlay}
+          >
+            {confirmLabel}
+          </button>
+          {mobileSkipAction && (
+            <button
+              className="secondary-button mobile-main-skip-button"
+              disabled={loading}
+              type="button"
+              onClick={() => onAction(mobileSkipAction.action_type, mobileSkipAction.player_id)}
+            >
+              {tr("不登场结束", "登場せず終了")}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
+}
+
+function projectMemberPlayStageStats(
+  player: PlayerState,
+  state: MatchState,
+  selectedMemberId: string,
+  selectedSlot: string,
+): { hearts: Record<string, number>; blade: number } {
+  const hearts: Record<string, number> = {};
+  let blade = 0;
+  for (const slot of MEMBER_SLOT_DISPLAY_ORDER) {
+    const instanceId = slot === selectedSlot && selectedMemberId
+      ? selectedMemberId
+      : player.member_area[slot];
+    if (!instanceId) continue;
+    const card = state.cards[instanceId]?.card;
+    if (!card || card.card_type !== "member") continue;
+    blade += card.blade ?? 0;
+    for (const [color, amount] of Object.entries(card.basic_hearts)) {
+      hearts[color] = (hearts[color] ?? 0) + amount;
+    }
+  }
+  return { hearts, blade };
 }
 
 export function SelectionAction({

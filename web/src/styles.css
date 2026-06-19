@@ -3179,8 +3179,9 @@ label {
   }
 
   .action-dock.member-play-dock {
+    max-height: none;
     overflow: visible;
-    padding-bottom: 70px;
+    padding: 6px 8px max(8px, env(safe-area-inset-bottom));
   }
 
   .action-dock.live-set-dock {
@@ -3278,6 +3279,9 @@ label {
     padding: 6px 8px;
   }
 
+  .mobile-member-play-action .member-card-step,
+  .mobile-member-play-action .member-target-step,
+  .mobile-member-play-action .member-payment-summary,
   .mobile-member-play-action .member-choice-strip {
     display: none;
   }
@@ -3433,11 +3437,8 @@ label {
   }
 
   .mobile-member-confirm-row {
-    position: fixed;
-    left: 8px;
-    right: 8px;
-    bottom: max(8px, env(safe-area-inset-bottom));
-    z-index: 95;
+    position: static;
+    z-index: 4;
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(132px, auto);
     gap: 8px;
@@ -3446,10 +3447,21 @@ label {
     border-radius: 10px;
     background: rgba(255, 255, 255, 0.98);
     box-shadow: 0 -8px 22px rgba(18, 25, 30, 0.18);
+    margin-top: 0;
     padding: 8px;
   }
 
-  .mobile-member-confirm-row div {
+  .mobile-confirm-actions {
+    min-width: 0;
+    display: grid;
+    gap: 5px;
+  }
+
+  .mobile-confirm-actions button {
+    width: 100%;
+  }
+
+  .mobile-member-confirm-row > div:not(.mobile-confirm-actions) {
     min-width: 0;
     display: grid;
     gap: 2px;
@@ -3464,9 +3476,12 @@ label {
   }
 
   .mobile-member-confirm-row span {
+    overflow: hidden;
     color: var(--muted);
     font-size: 11px;
     font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .mobile-member-confirm-row .primary-button {
@@ -3477,20 +3492,20 @@ label {
     color: white;
     font-size: 13px;
     font-weight: 900;
+    white-space: nowrap;
   }
 
   .mobile-main-skip-button {
-    position: fixed;
-    left: 8px;
-    right: 8px;
-    bottom: calc(max(8px, env(safe-area-inset-bottom)) + 62px);
-    z-index: 94;
-    min-height: 38px;
+    width: 100%;
+    min-height: 31px;
+    padding: 5px 7px;
     border-color: var(--line);
     background: white;
-    font-size: 12px;
+    color: var(--muted);
+    font-size: 11px;
     font-weight: 900;
-    box-shadow: 0 -5px 18px rgba(18, 25, 30, 0.12);
+    justify-content: center;
+    box-shadow: none;
   }
 
   .mobile-live-confirm-row {
@@ -3556,6 +3571,53 @@ label {
   .waiting-room-strip {
     max-height: 108px;
     padding-top: 6px;
+  }
+
+  @media (max-height: 760px) {
+    .action-dock.member-play-dock {
+      padding: 5px 6px max(6px, env(safe-area-inset-bottom));
+    }
+
+    .mobile-member-play-action .member-card-step {
+      padding: 4px 6px;
+    }
+
+    .member-play-hand-hint span {
+      display: none;
+    }
+
+    .member-slot-choice {
+      min-height: 36px;
+    }
+
+    .member-payment-compact > span {
+      padding: 3px 4px;
+    }
+
+    .mobile-member-confirm-row {
+      gap: 6px;
+      grid-template-columns: minmax(0, 1fr) minmax(112px, auto);
+      padding: 6px;
+    }
+
+    .mobile-member-confirm-row strong {
+      font-size: 12px;
+    }
+
+    .mobile-member-confirm-row span {
+      font-size: 10px;
+    }
+
+    .mobile-member-confirm-row .primary-button {
+      min-height: 42px;
+      padding: 7px 8px;
+      font-size: 12px;
+    }
+
+    .mobile-main-skip-button {
+      min-height: 28px;
+      font-size: 10px;
+    }
   }
 
   .waiting-room-strip .card-tile,
