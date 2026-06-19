@@ -52,6 +52,24 @@ This file records maintenance rules that should stay stable across releases.
 - 官方卡名、官方规则术语和卡牌效果标签应尽量保留官方日文表记。
 - 命令名、文件路径、enum、API 字段和内部标识不翻译，保持代码中的原样。
 
+## Local Pre-Push Checks
+
+### 日本語
+
+- 通常の push 前には `powershell -ExecutionPolicy Bypass -File ./scripts/pre-push-check.ps1` を実行する。
+- DB、effect registry、manifest、fingerprint 算出ロジックに関係する変更がある場合、この script は `python scripts/card-db-manifest.py verify` を実行する。
+- 純粋な frontend / CSS / document 変更では card DB manifest check は不要なので、この script は明示的に skip する。
+- `data/loveca.sqlite3` または `data_sources/effect-registry.v0.json` を変更した場合は、必要に応じて `python scripts/card-db-manifest.py generate` で `data/loveca-db-manifest.json` を更新してから push する。
+- GitHub Pages preview の build は frontend 配布物用に manifest を生成してよいが、API image / API deploy は locked manifest verification を通す。
+
+### 简体中文
+
+- 常规 push 前运行 `powershell -ExecutionPolicy Bypass -File ./scripts/pre-push-check.ps1`。
+- 如果改动涉及 DB、effect registry、manifest 或 fingerprint 计算逻辑，该脚本会执行 `python scripts/card-db-manifest.py verify`。
+- 纯前端 / CSS / 文档改动不需要 card DB manifest 检查，脚本会明确跳过。
+- 如果修改了 `data/loveca.sqlite3` 或 `data_sources/effect-registry.v0.json`，应视情况先运行 `python scripts/card-db-manifest.py generate` 更新 `data/loveca-db-manifest.json` 再 push。
+- GitHub Pages preview 构建可以为前端发布产物生成 manifest；API image / API deploy 必须继续通过 locked manifest verification。
+
 ## Documentation Language
 
 ### 日本語
