@@ -117,7 +117,7 @@ def run_api_play_comparison(
         deterministic_api_attempts,
     )
     api_summary = summarize_policy_run(api_matches, api_attempts, api_play_attempts)
-    return {
+    report = {
         "schema_version": COMPARISON_SCHEMA_VERSION,
         "database": str(database),
         "deck_count": deck_count,
@@ -148,6 +148,8 @@ def run_api_play_comparison(
         },
         "deltas": comparison_deltas(deterministic_summary, api_summary),
     }
+    report["actionable_findings"] = build_actionable_findings(report)
+    return report
 
 
 def summarize_policy_run(
@@ -200,8 +202,137 @@ def comparison_deltas(
     }
 
 
+def build_actionable_findings(report: dict[str, Any]) -> list[dict[str, Any]]:
+    """Turn comparison statistics into next-step recommendations."""
+
+    deterministic = report["runs"]["deterministic"]["summary"]
+    api = report["runs"]["api"]["summary"]
+    providers = report.get("providers", {})
+    deltas = report.get("deltas", {})
+    match_count = int(report.get("match_count") or api.get("matches_attempted") or 0)
+    findings: list[dict[str, Any]] = []
+
+    def add(
+        severity: str,
+        finding: str,
+        detail: str,
+        evidence: dict[str, Any] | None = None,
+    ) -> None:
+        findings.append(
+            {
+                "severity": severity,
+                "finding": finding,
+                "detail": detail,
+                "evidence": evidence or {},
+            }
+        )
+
+    if providers.get("api") == "mock":
+        add(
+            "info",
+            "api_provider_is_mock",
+            "API Play is using the mock provider, so ordinary actions are expected to fall back unless scripted decisions are supplied.",
+            {"provider": providers.get("api")},
+        )
+
+    api_failures = int(api.get("api_play_failure_count") or 0)
+    fallback_count = int(api.get("deterministic_fallback_count") or 0)
+    if api_failures and fallback_count >= api_failures:
+        add(
+            "warning",
+            "api_play_fell_back_to_deterministic",
+            "Every failed API Play decision used deterministic fallback; use a real provider or improve the API Play prompt before judging play quality.",
+            {
+                "api_play_failure_count": api_failures,
+                "deterministic_fallback_count": fallback_count,
+            },
+        )
+
+    completed_delta = int(deltas.get("completed_delta") or 0)
+    if completed_delta < 0:
+        add(
+            "warning",
+            "api_policy_regressed_completion",
+            "API Play completed fewer matches than the deterministic policy on the same deck pool.",
+            {
+                "deterministic_completed": deterministic.get("matches_completed"),
+                "api_completed": api.get("matches_completed"),
+                "completed_delta": completed_delta,
+            },
+        )
+    elif completed_delta > 0:
+        add(
+            "info",
+            "api_policy_improved_completion",
+            "API Play completed more matches than the deterministic policy; inspect the selected actions before using this as a new sandbox baseline.",
+            {
+                "deterministic_completed": deterministic.get("matches_completed"),
+                "api_completed": api.get("matches_completed"),
+                "completed_delta": completed_delta,
+            },
+        )
+    elif match_count and int(api.get("matches_completed") or 0) < match_count:
+        add(
+            "info",
+            "same_completion_blockers_remain",
+            "API Play did not change completion count; prioritize the shared blocker list or schema gaps.",
+            {
+                "matches_completed": api.get("matches_completed"),
+                "match_count": match_count,
+            },
+        )
+
+    schema_gaps = api.get("schema_gaps") or {}
+    top_gap = _top_counter_item(schema_gaps)
+    if top_gap:
+        gap, count = top_gap
+        add(
+            "warning",
+            "api_play_schema_gap",
+            "API Play reported schema gaps; these are candidates for prompt/schema changes before new rule automation.",
+            {"top_schema_gap": gap, "count": count},
+        )
+
+    unresolved_statuses = {
+        status: count
+        for status, count in (api.get("api_play_attempt_statuses") or {}).items()
+        if status != "api_play_selected"
+    }
+    top_status = _top_counter_item(unresolved_statuses)
+    if top_status:
+        status, count = top_status
+        add(
+            "warning",
+            "api_play_unresolved_decisions",
+            "API Play returned non-selected decisions; inspect attempts before using API Play as the default sandbox policy.",
+            {"top_status": status, "count": count},
+        )
+
+    deterministic_blocker = _top_counter_item(
+        deterministic.get("blockers") or {},
+        exclude={"none"},
+    )
+    if deterministic_blocker:
+        blocker, count = deterministic_blocker
+        add(
+            "info",
+            "deterministic_blockers_observed",
+            "The deterministic baseline still has blockers; compare whether API Play changes these before adding new registry entries.",
+            {"top_blocker": blocker, "count": count},
+        )
+
+    if not findings:
+        add(
+            "info",
+            "no_actionable_difference",
+            "No actionable difference was found between deterministic and API Play runs.",
+        )
+    return findings
+
+
 def write_comparison_outputs(output: Path, report: dict[str, Any]) -> None:
     output.mkdir(parents=True, exist_ok=True)
+    report.setdefault("actionable_findings", build_actionable_findings(report))
     (output / "api-play-comparison.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
@@ -250,6 +381,22 @@ def write_comparison_outputs(output: Path, report: dict[str, Any]) -> None:
             )
             + " |"
         )
+    findings = report.get("actionable_findings") or []
+    if findings:
+        lines.extend(
+            [
+                "",
+                "## Actionable Findings",
+                "",
+                "| Severity | Finding | Detail | Evidence |",
+                "|---|---|---|---|",
+            ]
+        )
+        for finding in findings:
+            evidence = json.dumps(finding.get("evidence", {}), ensure_ascii=False)
+            lines.append(
+                f"| {finding['severity']} | `{finding['finding']}` | {_markdown_cell(finding['detail'])} | {_markdown_cell(evidence)} |"
+            )
     lines.extend(
         [
             "",
@@ -274,6 +421,18 @@ def write_comparison_outputs(output: Path, report: dict[str, Any]) -> None:
 def _counter_delta(left: dict[str, int], right: dict[str, int]) -> dict[str, int]:
     keys = set(left) | set(right)
     return {key: right.get(key, 0) - left.get(key, 0) for key in sorted(keys)}
+
+
+def _top_counter_item(
+    value: dict[str, int],
+    *,
+    exclude: set[str] | None = None,
+) -> tuple[str, int] | None:
+    exclude = exclude or set()
+    candidates = [(key, count) for key, count in value.items() if key not in exclude and count]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda item: (item[1], item[0]))
 
 
 def _markdown_cell(value: object) -> str:

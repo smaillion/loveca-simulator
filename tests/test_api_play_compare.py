@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 from tools.ai_sandbox.api_play_compare import (
+    build_actionable_findings,
     comparison_deltas,
     summarize_policy_run,
     write_comparison_outputs,
@@ -84,6 +85,54 @@ def test_summarize_policy_run_counts_completion_and_api_play_statuses():
     assert summary["schema_gaps"] == {"needs_strategy": 1}
 
 
+def test_build_actionable_findings_flags_mock_fallback_and_regression():
+    deterministic = {
+        "matches_attempted": 2,
+        "matches_completed": 2,
+        "completion_rate": 1.0,
+        "blockers": {"none": 2},
+        "total_actions": 120,
+        "average_actions": 60.0,
+        "max_actions": 80,
+        "manual_effect_count": 0,
+        "agent_success_count": 0,
+        "agent_failure_count": 0,
+        "api_play_count": 0,
+        "api_play_failure_count": 0,
+        "deterministic_fallback_count": 0,
+        "semantic_attempt_statuses": {},
+        "api_play_attempt_statuses": {},
+        "schema_gaps": {},
+    }
+    api = {
+        **deterministic,
+        "matches_completed": 1,
+        "completion_rate": 0.5,
+        "blockers": {"api_play_unresolved": 1, "none": 1},
+        "api_play_failure_count": 2,
+        "deterministic_fallback_count": 2,
+        "api_play_attempt_statuses": {"api_play_cannot_resolve": 2},
+        "schema_gaps": {"mock_provider:api_play": 2},
+    }
+    report = {
+        "match_count": 2,
+        "providers": {"deterministic": "mock", "api": "mock"},
+        "runs": {
+            "deterministic": {"summary": deterministic},
+            "api": {"summary": api},
+        },
+        "deltas": comparison_deltas(deterministic, api),
+    }
+
+    findings = build_actionable_findings(report)
+    finding_names = {item["finding"] for item in findings}
+
+    assert "api_provider_is_mock" in finding_names
+    assert "api_play_fell_back_to_deterministic" in finding_names
+    assert "api_policy_regressed_completion" in finding_names
+    assert "api_play_schema_gap" in finding_names
+
+
 def test_comparison_outputs_write_machine_and_human_reports(tmp_path):
     deterministic = {
         "matches_attempted": 2,
@@ -150,5 +199,8 @@ def test_comparison_outputs_write_machine_and_human_reports(tmp_path):
     markdown = (tmp_path / "api-play-comparison.md").read_text(encoding="utf-8")
     assert payload["schema_version"] == "api_play_comparison_v0.1"
     assert payload["deltas"]["completed_delta"] == -1
+    assert payload["actionable_findings"]
     assert "API Play Comparison Report" in markdown
+    assert "Actionable Findings" in markdown
+    assert "api_provider_is_mock" in markdown
     assert "mock_provider:api_play" in markdown
