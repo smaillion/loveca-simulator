@@ -202,7 +202,7 @@ def main() -> int:
     parser.add_argument("--output", type=Path, default=Path("logs/semantic_sandbox"))
     parser.add_argument("--decks", type=int, default=30)
     parser.add_argument("--matches", type=int, default=20)
-    parser.add_argument("--max-actions", type=int, default=260)
+    parser.add_argument("--max-actions", type=int, default=320)
     parser.add_argument(
         "--manual-fallback",
         choices=("block", "skip"),

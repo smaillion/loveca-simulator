@@ -763,11 +763,12 @@ def _choose_live_cards_for_progress(state: MatchState, player_id: str) -> list[s
         default=0,
     )
     success_gap = opponent_success - own_success
+    late_game_pressure = state.turn_number >= 5
     if own_success >= 2:
-        target_size = 3 if state.turn_number >= 8 or opponent_success >= 2 else 1
+        target_size = 3 if late_game_pressure or opponent_success >= 2 else 1
     elif success_gap >= 2:
         target_size = 3
-    elif success_gap == 1 or state.turn_number >= 8:
+    elif success_gap == 1 or late_game_pressure:
         target_size = 3
     else:
         target_size = 1
