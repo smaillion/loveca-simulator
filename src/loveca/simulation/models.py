@@ -44,6 +44,7 @@ ModifierType = Literal[
     "base_heart_replacement",
     "base_blade_replacement",
     "yell_blade_heart_replacement",
+    "yell_count_modifier",
     "flag",
 ]
 

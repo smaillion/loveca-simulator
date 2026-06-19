@@ -381,13 +381,15 @@ export default function App() {
     return sources;
   }, [draftDeck, locale, savedDecks]);
 
-  async function run<T>(operation: () => Promise<T>, apply: (value: T) => void) {
+  async function run<T>(operation: () => Promise<T>, apply: (value: T) => void): Promise<boolean> {
     setLoading(true);
     setError(null);
     try {
       apply(await operation());
+      return true;
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
+      return false;
     } finally {
       setLoading(false);
     }
@@ -399,7 +401,7 @@ export default function App() {
     payload: Record<string, unknown> = {},
   ) {
     if (!match) return;
-    await run(
+    const succeeded = await run(
       () =>
         onlineSession
           ? submitRoomAction(onlineSession.roomCode, onlineSession.playerToken, {
@@ -420,6 +422,9 @@ export default function App() {
           events: [...match.events, ...next.events],
         }),
     );
+    if (succeeded && actionType === "start_next_turn") {
+      setMobileMatchPanel(null);
+    }
   }
 
   async function resolveDeckSource(sourceId: string): Promise<DeckList> {
@@ -853,9 +858,6 @@ export default function App() {
           opponentRole={playerRoleLabel(match.state, topPlayerId, locale)}
           onCard={setDetails}
           onAction={(actionType, playerId, payload) => {
-            if (actionType === "start_next_turn") {
-              setMobileMatchPanel(null);
-            }
             void handleAction(actionType, playerId, payload);
           }}
           onManual={(source) => {
@@ -2848,6 +2850,7 @@ function ActionDock({
                 mobileHint={tr("手牌下方的「调度候选」用于选择要换掉的手牌。", "手札下の「引き直し候補」で戻すカードを選びます。")}
                 mobileConfirmLabel={tr("确认调度", "引き直し確定")}
                 mobileSummary={tr("可选择任意张", "任意の枚数を選択可能")}
+                mobileEmptyLabel={tr("不调度手牌", "引き直すカードなし")}
                 onToggle={(id) => {
                   if (mobileMulliganEnabled) {
                     toggleSelected(
@@ -2884,6 +2887,7 @@ function ActionDock({
                 mobileHint={tr("手牌下方的「セット候補」で选择 Live 卡。", "手札下の「セット候補」でライブカードを選びます。")}
                 mobileConfirmLabel={tr("确认设置", "セット確定")}
                 mobileSummary={tr("可设置 0 到 3 张", "0〜3枚までセット可能")}
+                mobileEmptyLabel={tr("未选择 Live 卡", "ライブカード未選択")}
                 onToggle={(id) => {
                   if (mobileLiveSetEnabled) {
                     toggleSelected(
@@ -3372,6 +3376,7 @@ export function EffectResolutionAction({
     energy_required?: number;
     branch_ids?: string[];
     selected_branch?: string;
+    position_change_slots_by_candidate?: Record<string, string[]>;
     choice_groups?: Array<{
       group_id: string;
       label_ja?: string | null;
@@ -3391,6 +3396,7 @@ export function EffectResolutionAction({
   const [selectedColor, setSelectedColor] = useState("");
   const [selectedCount, setSelectedCount] = useState<number | null>(null);
   const [selectedBranch, setSelectedBranch] = useState("");
+  const [selectedPositionSlot, setSelectedPositionSlot] = useState("");
   const [selectedGroups, setSelectedGroups] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
@@ -3399,6 +3405,7 @@ export function EffectResolutionAction({
     setSelectedColor("");
     setSelectedCount(null);
     setSelectedBranch("");
+    setSelectedPositionSlot("");
     setSelectedGroups({});
   }, [current?.invocation_id]);
 
@@ -3425,6 +3432,18 @@ export function EffectResolutionAction({
   const choiceGroups = current.choice_groups ?? [];
   const resolvedBranch = current.selected_branch || selectedBranch;
   const requiresBranch = isBranchChoice && !current.selected_branch;
+  const positionSlotsByCandidate = current.position_change_slots_by_candidate ?? {};
+  const selectedPositionCandidates = selectedCards.filter((instanceId) =>
+    Object.prototype.hasOwnProperty.call(positionSlotsByCandidate, instanceId),
+  );
+  const positionSlotOptions =
+    selectedPositionCandidates.length === 1
+      ? (positionSlotsByCandidate[selectedPositionCandidates[0]] ?? [])
+      : [];
+  const requiresPositionSlot = positionSlotOptions.length > 0;
+  const resolvedPositionSlot = selectedPositionSlot || positionSlotOptions[0] || "";
+  const positionSlotValid =
+    !requiresPositionSlot || positionSlotOptions.includes(resolvedPositionSlot);
   const minimumCount = current.card_selection_minimum ?? 0;
   const maximumCount = current.card_selection_maximum ?? 0;
   const resolvedSelectedCount = selectedCount ?? minimumCount;
@@ -3529,6 +3548,21 @@ export function EffectResolutionAction({
             {selectedCards.length} / {maximumCards}
             {minimumCards > 0 ? ` · ${tr("至少", "最低")} ${minimumCards}` : ""}
           </span>
+        </div>
+      )}
+      {requiresPositionSlot && (
+        <div className="effect-candidates effect-position-choices">
+          <span>{tr("移动到", "移動先")}</span>
+          {positionSlotOptions.map((slot) => (
+            <button
+              className={resolvedPositionSlot === slot ? "selected" : ""}
+              key={slot}
+              type="button"
+              onClick={() => setSelectedPositionSlot(slot)}
+            >
+              {memberSlotLabel(slot, locale)}
+            </button>
+          ))}
         </div>
       )}
       {isGroupedStageChoice && choiceGroups.length > 0 && (
@@ -3662,7 +3696,8 @@ export function EffectResolutionAction({
                 requiresBranch,
                 Boolean(resolvedBranch),
               ) ||
-              !groupSelectionsValid
+              !groupSelectionsValid ||
+              !positionSlotValid
             }
             onClick={() => {
               const payload: Record<string, unknown> = {
@@ -3682,6 +3717,9 @@ export function EffectResolutionAction({
               }
               if (isBranchChoice) {
                 payload.selected_branch = resolvedBranch;
+              }
+              if (requiresPositionSlot) {
+                payload.to_slot = resolvedPositionSlot;
               }
               onAction(action.action_type, action.player_id, payload);
             }}
@@ -4090,7 +4128,7 @@ export function MemberPlayAction({
   );
 }
 
-function SelectionAction({
+export function SelectionAction({
   title,
   ids,
   selected,
@@ -4100,6 +4138,7 @@ function SelectionAction({
   mobileHint,
   mobileConfirmLabel,
   mobileSummary,
+  mobileEmptyLabel,
   onToggle,
   onSubmit,
 }: {
@@ -4112,6 +4151,7 @@ function SelectionAction({
   mobileHint?: string;
   mobileConfirmLabel?: string;
   mobileSummary?: string;
+  mobileEmptyLabel?: string;
   onToggle: (id: string) => void;
   onSubmit: () => void;
 }) {
@@ -4145,7 +4185,7 @@ function SelectionAction({
             <strong>
               {selectedNames.length > 0
                 ? selectedNames.join("、")
-                : tr("未选择 Live 卡", "ライブカード未選択")}
+                : mobileEmptyLabel ?? tr("未选择卡牌", "カード未選択")}
             </strong>
             <span>
               {mobileSummary ?? tr("已选择", "選択済み")} · {selected.length}

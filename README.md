@@ -18,8 +18,8 @@
 - FastAPI + React SPA の可視化ルール検証 UI
 - Replay 可能な Action-only GameState
 - 925 件の effect registry entry
-  - 628 件は `test_validated_executable`
-  - 297 件は timing prompt / 未対応処理用の `manual_resolution`
+  - 713 件は `test_validated_executable`
+  - 212 件は timing prompt / 未対応処理用の `manual_resolution`
 - 将来の低コスト online 同期に向けた state hash / compatibility metadata の基礎
 - Hosted Online MVP の room API
   - room code による host / guest 参加
@@ -54,7 +54,9 @@
 - 双方が選択する一部の効果は multi-player pending choice で順番に処理可能
 - 複数 group に分けて Stage Member を選び、それぞれに同じ一時 modifier を適用する効果に対応
 - 分岐ごとに異なる Stage Member 候補を持つ効果選択に対応
-- registry entry ベースの `test_validated_executable` coverage は 67.89% まで拡張済み
+- registry entry ベースの `test_validated_executable` coverage は 77.08% まで拡張済み
+- Phase 5 black-box sandbox は `30 decks x 100 matches` の block mode で `100/100` 完走、blocker 0 を確認済み
+- trigger 時に条件を満たした pending effect が、同一タイミング中の別効果で条件失効した場合は、明示的な `effect_not_activatable` event を残して進行可能
 - 自動実行できない効果は `ManualAdjustmentAction` で補完
 - 処理不能な効果は、デバッグ用に `effect_skipped_due_to_error` として明示記録しながらスキップ可能
 
@@ -84,7 +86,7 @@ Deck Builder の現在の到達点:
 
 - これは開発中の alpha 版です。公式アプリではなく、ルール検証とプレイテスト feedback を集めるためのツールです。
 - 全カード効果の自動実行 coverage はまだありません。未対応効果は `ManualAdjustmentAction`、構造化 pending choice、またはデバッグ用 skip で進行する場合があります。
-- Phase 5 sandbox では `illegal_action` は大きく減っていますが、長局では `mandatory_manual_resolution` や `max_actions` が残っています。最新の詳細は `CHANGELOG.md` と `TODO.md` を確認してください。
+- 最新の Phase 5 sandbox 長期回帰では `30 decks x 100 matches` が blocker 0 で完走しています。ただし、これは現在の sandbox deck pool に対する可用性確認であり、全カード効果の自動化完了を意味しません。最新の詳細は `CHANGELOG.md` と `TODO.md` を確認してください。
 - FAQ / 個別裁定に依存する効果はまだ仕様化していません。
 - `data/loveca.sqlite3` は repository 内の locked authoritative card DB です。公式カード追加や parser / schema / effect registry の互換性変更後は、maintainer が DB と `data/loveca-db-manifest.json` を再生成して commit します。ユーザーや CI が online 用に別 DB を import してはいけません。保存済みデッキは `decklist.v0` のユーザーデータなので、カード DB とは分けて保持できます。
 - Web/API テストには `httpx2` が必要です。環境に未導入の場合、`tests/test_catalog_api.py` と `tests/test_webapp.py` は収集段階で停止します。
@@ -122,6 +124,8 @@ Deck Builder の現在の到達点:
 
 - Match 画面では、双方のステージ、手札・山札・控え室などの zone count、Live / Energy / Heart 状態、現在 phase、turn number を同じ画面で追跡できます。
 - モバイルでは自分の手札カードを大きめに表示し、Member 登場はカード下の登場候補ボタン、エリア選択、確認ボタンで送信できます。カード本体のタップは詳細確認に使えます。成功 Live 進捗、Live 判定、相手エリアは必要に応じて pop-up で確認できます。
+- Live 判定 pop-up からそのまま次の処理へ進めます。次ターン開始時は pop-up を閉じ、無意味な完了画面を残さないようにしています。
+- 初期 mulligan は Member 登場と同じく、カード選択と確認を分けた操作として扱います。
 - Action Dock には現在実行可能な action が表示され、Member 登場、Baton Touch、Live Set、mulligan、Heart 割り当て、pending effect 解決などを UI から送信できます。
 - 一部の効果は構造化 prompt として表示され、対象カード選択、choice branch、inspection / reveal の並べ替えや移動先選択を UI 上で処理できます。
 - 自動実行できない効果は `ManualAdjustmentAction` drawer で、カード移動、Heart 補正、Live success 補正、任意メモを入力して検証を継続できます。

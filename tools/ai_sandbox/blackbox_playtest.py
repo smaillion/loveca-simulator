@@ -62,7 +62,7 @@ def main() -> int:
     parser.add_argument("--output", type=Path, default=Path("logs/ai_sandbox"))
     parser.add_argument("--decks", type=int, default=20)
     parser.add_argument("--matches", type=int, default=20)
-    parser.add_argument("--max-actions", type=int, default=220)
+    parser.add_argument("--max-actions", type=int, default=450)
     parser.add_argument(
         "--manual-policy",
         choices=("block", "noop", "skip"),
@@ -113,21 +113,41 @@ def build_decks(database: Path, count: int) -> list[DeckList]:
         if compatible_work_keys:
             work_key = compatible_work_keys[index % len(compatible_work_keys)]
             work_cycle = index // len(compatible_work_keys)
-            live_source = live_by_work[work_key]
-            live_codes = _window(live_source, work_cycle * 12, 12)
-            required_colors = _required_color_profile(live_codes)
-            member_source = sorted(
-                member_by_work[work_key],
+            live_source = sorted(
+                live_by_work[work_key],
                 key=lambda item: (
-                    -_member_heart_fit_score(item, required_colors),
+                    _live_progress_cost(item),
+                    -int(item.get("score", 0)),
                     -effect_priority.get(item["card_code"], 0),
                     item["card_code"],
                 ),
             )
-            member_codes = _window(member_source, work_cycle * 12, 12)
+            live_codes = _window(live_source, work_cycle * 3, 3)
+            required_colors = _required_color_profile(live_codes)
+            member_codes = _select_member_cards_for_progress(
+                member_by_work[work_key],
+                required_colors,
+                effect_priority,
+                work_cycle,
+            )
         else:
-            member_codes = _window(members, index * 12, 12)
-            live_codes = _window(lives, index * 12, 12)
+            required_colors = Counter()
+            member_codes = _select_member_cards_for_progress(
+                members,
+                required_colors,
+                effect_priority,
+                index,
+            )
+            live_source = sorted(
+                lives,
+                key=lambda item: (
+                    _live_progress_cost(item),
+                    -int(item.get("score", 0)),
+                    -effect_priority.get(item["card_code"], 0),
+                    item["card_code"],
+                ),
+            )
+            live_codes = _window(live_source, index * 3, 3)
         energy_codes = _window(energies, index * 12, 12)
         decks.append(
             DeckList(
@@ -146,7 +166,7 @@ def build_decks(database: Path, count: int) -> list[DeckList]:
                         *(
                             DeckEntry(
                                 card_code=item["card_code"],
-                                quantity=1,
+                                quantity=4,
                                 preferred_printing_id=item["card_id"],
                             )
                             for item in live_codes
@@ -164,6 +184,50 @@ def build_decks(database: Path, count: int) -> list[DeckList]:
             )
         )
     return decks
+
+
+def _select_member_cards_for_progress(
+    source: list[dict[str, Any]],
+    required_colors: Counter[str],
+    effect_priority: dict[str, int],
+    offset: int,
+) -> list[dict[str, Any]]:
+    low_cost_source = sorted(
+        source,
+        key=lambda item: (
+            int(item.get("cost") if item.get("cost") is not None else 99),
+            -_member_heart_fit_score(item, required_colors),
+            -effect_priority.get(item["card_code"], 0),
+            item["card_code"],
+        ),
+    )
+    skill_source = sorted(
+        source,
+        key=lambda item: (
+            -effect_priority.get(item["card_code"], 0),
+            -_member_heart_fit_score(item, required_colors),
+            int(item.get("cost") if item.get("cost") is not None else 99),
+            item["card_code"],
+        ),
+    )
+    selected: list[dict[str, Any]] = []
+    seen: set[str] = set()
+
+    def add(items: list[dict[str, Any]], limit: int) -> None:
+        for item in items:
+            if len(selected) >= limit:
+                return
+            card_code = str(item["card_code"])
+            if card_code in seen:
+                continue
+            selected.append(item)
+            seen.add(card_code)
+
+    add(_window(low_cost_source, offset * 3, 6), 6)
+    add(_window(skill_source, offset * 6, 12), 12)
+    add(low_cost_source, 12)
+    add(skill_source, 12)
+    return selected[:12]
 
 
 def summarize_deck(database: Path, deck: DeckList) -> SandboxDeckSummary:
@@ -290,7 +354,8 @@ def choose_action(
         return action.action_type, action.player_id, {"first_player_id": "player_1"}
     if "submit_mulligan" in by_type:
         action = by_type["submit_mulligan"]
-        return action.action_type, action.player_id, {"card_instance_ids": []}
+        selected = _choose_mulligan_cards_for_progress(state, action.player_id or "")
+        return action.action_type, action.player_id, {"card_instance_ids": selected}
     if "resolve_effect_choice" in by_type:
         action = by_type["resolve_effect_choice"]
         options = action.options
@@ -389,6 +454,7 @@ def choose_action(
         payload: dict[str, Any] = {"invocation_id": invocation["invocation_id"]}
         candidates = list(invocation.get("candidate_card_instance_ids", []))
         choice = invocation.get("choice") or {}
+        cost_choice = invocation.get("cost_choice") or {}
         choice_type = invocation.get("choice_type") or choice.get("choice_type")
         card_minimum = int(
             invocation.get(
@@ -459,9 +525,21 @@ def choose_action(
                     )
                 )
                 if candidates:
-                    payload["selected_card_instance_ids"] = candidates[
+                    selected_cards = candidates[
                         : max(minimum, min(maximum, len(candidates)))
                     ]
+                    payload["selected_card_instance_ids"] = selected_cards
+                    position_slots_by_candidate = invocation.get(
+                        "position_change_slots_by_candidate",
+                        {},
+                    )
+                    if (
+                        len(selected_cards) == 1
+                        and isinstance(position_slots_by_candidate, dict)
+                    ):
+                        slots = position_slots_by_candidate.get(selected_cards[0], [])
+                        if slots:
+                            payload["to_slot"] = slots[0]
             else:
                 branches = (
                     list(invocation.get("available_branch_ids", []))
@@ -496,9 +574,20 @@ def choose_action(
                     choice.get("maximum", len(candidates)),
                 )
             )
-            payload["selected_card_instance_ids"] = candidates[
-                : max(minimum, min(maximum, len(candidates)))
-            ]
+            selected_cards = _select_candidate_cards(
+                state,
+                candidates,
+                minimum=minimum,
+                maximum=maximum,
+                choice=choice or cost_choice,
+            )
+            if len(selected_cards) < minimum and invocation.get("is_optional"):
+                return (
+                    action.action_type,
+                    action.player_id,
+                    {"invocation_id": invocation["invocation_id"], "accepted": False},
+                )
+            payload["selected_card_instance_ids"] = selected_cards
         destinations = list(
             invocation.get("destination_options", [])
             or choice.get("destination_options", [])
@@ -524,14 +613,31 @@ def choose_action(
         action = by_type["play_member"]
         player = state.players[action.player_id or ""]
         stage_count = sum(item is not None for item in player.member_area.values())
-        if stage_count >= 3 and "end_main_phase" in by_type:
-            end_action = by_type["end_main_phase"]
-            return end_action.action_type, end_action.player_id, {}
+        stage_target = 3
+        placements = list(action.options.get("placements", []))
+        if stage_count >= stage_target:
+            improving_replacements: list[dict[str, Any]] = []
+            for item in placements:
+                replaced_id = item.get("replaced_card_instance_id")
+                new_id = item.get("card_instance_id")
+                if not isinstance(replaced_id, str) or not isinstance(new_id, str):
+                    continue
+                improvement = _member_progress_value(state, new_id) - _member_progress_value(
+                    state, replaced_id
+                )
+                if improvement > 0:
+                    improving_replacements.append({**item, "_progress_improvement": improvement})
+            if not improving_replacements and "end_main_phase" in by_type:
+                end_action = by_type["end_main_phase"]
+                return end_action.action_type, end_action.player_id, {}
+            placements = improving_replacements or placements
         placements = sorted(
-            action.options.get("placements", []),
+            placements,
             key=lambda item: (
+                -int(item.get("_progress_improvement", 0)),
                 1 if item.get("replaced_card_instance_id") else 0,
                 1 if item.get("use_baton_touch") else 0,
+                -_member_progress_value(state, item.get("card_instance_id", "")),
                 item.get("payment_cost", 99),
                 {"center": 0, "left": 1, "right": 2}.get(item.get("slot"), 9),
                 item.get("card_instance_id", ""),
@@ -620,28 +726,154 @@ def _choose_live_cards_for_progress(state: MatchState, player_id: str) -> list[s
                 flexible = 0
         return missing
 
-    pool = sorted(
+    high_score_lives = sorted(
         live_ids,
         key=lambda instance_id: (
             -(state.cards[instance_id].card.score or 0),
             sum(state.cards[instance_id].card.required_hearts.values()),
             state.cards[instance_id].card.card_code,
         ),
-    )[:8]
+    )
+    reachable_lives = sorted(
+        live_ids,
+        key=lambda instance_id: (
+            unmet_requirement((instance_id,)),
+            requirement_total((instance_id,)),
+            -(state.cards[instance_id].card.score or 0),
+            state.cards[instance_id].card.card_code,
+        ),
+    )
+    pool: list[str] = []
+    for instance_id in [*reachable_lives[:8], *high_score_lives[:6]]:
+        if instance_id not in pool:
+            pool.append(instance_id)
+        if len(pool) >= 10:
+            break
     combinations: list[tuple[str, ...]] = []
     for size in range(1, min(3, len(pool)) + 1):
         combinations.extend(itertools.combinations(pool, size))
-    best = min(
-        combinations,
-        key=lambda combo: (
-            unmet_requirement(combo),
+    own_success = len(player.success_live_area)
+    opponent_success = max(
+        (
+            len(other.success_live_area)
+            for other_id, other in state.players.items()
+            if other_id != player_id
+        ),
+        default=0,
+    )
+    success_gap = opponent_success - own_success
+    if own_success >= 2:
+        target_size = 3 if state.turn_number >= 8 or opponent_success >= 2 else 1
+    elif success_gap >= 2:
+        target_size = 3
+    elif success_gap == 1 or state.turn_number >= 8:
+        target_size = 3
+    else:
+        target_size = 1
+
+    def combo_key(combo: tuple[str, ...]) -> tuple[object, ...]:
+        missing = unmet_requirement(combo)
+        size = len(combo)
+        if missing:
+            size_penalty = size
+        else:
+            size_penalty = abs(size - target_size)
+        pressure_score = total_score(combo) if success_gap > 0 else 0
+        return (
+            missing,
+            size_penalty,
+            -pressure_score,
             -total_score(combo),
-            -len(combo),
             requirement_total(combo),
             tuple(state.cards[instance_id].card.card_code for instance_id in combo),
+        )
+
+    best = min(
+        combinations,
+        key=combo_key,
+    )
+    best_missing = unmet_requirement(best)
+    if (
+        best_missing > 0
+        and success_gap <= 0
+        and own_success == 0
+        and state.turn_number <= 4
+    ):
+        return []
+    return list(best)
+
+
+def _choose_mulligan_cards_for_progress(state: MatchState, player_id: str) -> list[str]:
+    player = state.players[player_id]
+    hand = list(player.hand)
+    members = [
+        instance_id
+        for instance_id in hand
+        if state.cards[instance_id].card.card_type == "member"
+    ]
+    lives = [
+        instance_id
+        for instance_id in hand
+        if state.cards[instance_id].card.card_type == "live"
+    ]
+    sorted_members = sorted(
+        members,
+        key=lambda item: (
+            -_member_progress_value(state, item),
+            state.cards[item].card.card_code,
         ),
     )
-    return list(best)
+    sorted_lives = sorted(
+        lives,
+        key=lambda item: (
+            sum(state.cards[item].card.required_hearts.values()),
+            -(state.cards[item].card.score or 0),
+            state.cards[item].card.card_code,
+        ),
+    )
+    keep: set[str] = set()
+    keep.update(sorted_members[: (2 if lives else 1)])
+    keep.update(sorted_lives[:2])
+    if len(keep) >= 4 and members and lives:
+        return []
+    return [
+        instance_id
+        for instance_id in hand
+        if instance_id not in keep
+    ]
+
+
+def _member_progress_value(state: MatchState, instance_id: object) -> int:
+    if not isinstance(instance_id, str) or instance_id not in state.cards:
+        return 0
+    card = state.cards[instance_id].card
+    heart_total = sum(int(amount) for amount in card.basic_hearts.values())
+    return heart_total * 4 + int(card.blade or 0) * 3 + int(card.cost or 0)
+
+
+def _select_candidate_cards(
+    state: MatchState,
+    candidates: list[str],
+    *,
+    minimum: int,
+    maximum: int,
+    choice: dict[str, Any],
+) -> list[str]:
+    target_count = max(minimum, min(maximum, len(candidates)))
+    if target_count <= 0:
+        return []
+    condition = choice.get("condition") if isinstance(choice, dict) else None
+    if isinstance(condition, dict) and condition.get("selected_share_unit_key"):
+        for count in range(target_count, minimum - 1, -1):
+            for selected in itertools.combinations(candidates, count):
+                shared_units: set[str] | None = None
+                for instance_id in selected:
+                    units = set(state.cards[instance_id].card.unit_keys)
+                    shared_units = units if shared_units is None else shared_units & units
+                if shared_units:
+                    return list(selected)
+        return []
+    return candidates[:target_count]
 
 
 def classify_blocker(state: MatchState, legal_actions: list[LegalAction]) -> str:
@@ -713,8 +945,8 @@ def write_outputs(
         "",
         "## Scope",
         "",
-        "* 20 generated legal decklists from the local card DB.",
-        "* 20 match attempts driven only through LegalAction output.",
+        f"* {len(deck_summaries)} generated legal decklists from the local card DB.",
+        f"* {len(match_summaries)} match attempts driven only through LegalAction output.",
         "* In `block` mode, unsupported mandatory manual effects are recorded as blockers.",
         "* In `noop` mode, unsupported mandatory manual effects are advanced with a marked no-op flag for plumbing-only testing.",
         "* In `skip` mode, unsupported mandatory manual effects produce `effect_skipped_due_to_error` events and continue.",
@@ -836,6 +1068,7 @@ def _load_card_pool(
                 card.id AS gameplay_card_id,
                 card.card_code,
                 MIN(printing.card_id) AS card_id,
+                member.cost AS cost,
                 member.blade AS blade,
                 live.score AS score,
                 (
@@ -877,6 +1110,7 @@ def _load_card_pool(
         {
             "card_code": str(row["card_code"]),
             "card_id": str(row["card_id"]),
+            "cost": int(row["cost"] or 0),
             "blade": int(row["blade"] or 0),
             "score": int(row["score"] or 0),
             "basic_hearts": _split_heart_values(row["basic_hearts"]),
@@ -923,6 +1157,18 @@ def _member_heart_fit_score(
     )
     total_hearts = sum(int(value) for value in hearts.values())
     return matched * 10 + total_hearts * 2 + int(member_item.get("blade", 0))
+
+
+def _live_progress_cost(live_item: dict[str, Any]) -> int:
+    required: dict[str, int] = live_item.get("required_hearts", {})
+    colored = sum(
+        int(amount)
+        for color, amount in required.items()
+        if color != "heart0"
+    )
+    flexible = int(required.get("heart0", 0))
+    color_count = sum(1 for color, amount in required.items() if color != "heart0" and amount)
+    return colored * 3 + flexible + color_count
 
 
 def _split_heart_values(value: object) -> dict[str, int]:

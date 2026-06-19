@@ -34,6 +34,7 @@ SUPPORTED_EFFECT_ACTIONS = {
     "manual_resolution",
     "modify_score",
     "modify_required_heart",
+    "modify_yell_count",
     "move_remaining_cards",
     "move_waiting_room_members_to_deck_bottom",
     "move_selected_to_deck_bottom",
@@ -43,15 +44,20 @@ SUPPORTED_EFFECT_ACTIONS = {
     "pay_energy",
     "place_energy_from_deck",
     "position_change_source",
+    "position_change_selected",
+    "prevent_equal_score_success_live_placement",
     "ready_energy",
     "ready_member",
     "reorder_deck_top",
     "replace_score",
     "replace_yell_blade_hearts",
+    "rotate_stage_members",
     "draw_if_selected_card_type",
     "draw_if_selected_none_card_type",
     "reveal_cards",
     "reveal_top_cards",
+    "reveal_top_matching_to_hand_else_deck_top",
+    "reveal_top_matching_to_hand_else_waiting",
     "reveal_top_to_hand",
     "reveal_selected_cards",
     "return_from_waiting_room",
@@ -66,6 +72,7 @@ SUPPORTED_EFFECT_ACTIONS = {
     "draw_if_milled_all_card_type",
     "draw_if_milled_any_card_type",
     "gain_heart_if_milled_all_have_heart",
+    "gain_heart_from_selected_card_colors",
     "gain_blade_if_milled_any_card_type",
 }
 
@@ -109,6 +116,7 @@ class EffectOperation(BaseModel):
         "own_stage_member_work_distinct_name_count",
         "waiting_room_live_work_distinct_name_threshold_bonus",
         "source_attached_energy_count_plus",
+        "source_attached_member_count",
     ] | None = None
     branch: str | None = None
     multiplier: int | None = None
@@ -156,6 +164,8 @@ class EffectOperation(BaseModel):
             "draw_if_selected_none_card_type",
             "gain_blade_if_milled_all_card_type",
             "gain_blade_if_milled_any_card_type",
+            "reveal_top_matching_to_hand_else_deck_top",
+            "reveal_top_matching_to_hand_else_waiting",
         }:
             raise ValueError(
                 f"card_type is not supported for effect operation {self.action_type}"
@@ -197,7 +207,15 @@ class EffectChoice(BaseModel):
     minimum: int = 0
     maximum: int = 1
     amount: int | None = None
-    amount_source: Literal["own_stage_member_count_plus_2"] | None = None
+    amount_source: Literal[
+        "own_stage_member_count",
+        "own_stage_member_work_count",
+        "own_stage_member_unit_count",
+        "own_stage_member_count_plus_2",
+        "opponent_stage_wait_member_count",
+    ] | None = None
+    amount_source_work_key: str | None = None
+    amount_source_unit_key: str | None = None
     target_hand_size: int | None = None
     discard_amount: int | None = None
     condition: dict[str, Any] = Field(default_factory=dict)
