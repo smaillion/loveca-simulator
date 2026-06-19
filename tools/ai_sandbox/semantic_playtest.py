@@ -987,6 +987,7 @@ def build_api_play_context(
         "strategy": api_play_strategy_summary(state, legal_actions, acting_player_id),
         "deterministic_baseline_action": decision_context(baseline_decision),
         "legal_action_summary": summarize_legal_actions(legal_actions),
+        "legal_action_hints": [legal_action_hint(action) for action in legal_actions],
         "players": {
             player_id: player_context(
                 state,
@@ -1129,6 +1130,188 @@ def summarize_legal_actions(legal_actions: list[LegalAction]) -> dict[str, Any]:
             for player_id, counter in sorted(by_player.items())
         },
     }
+
+
+def legal_action_hint(action: LegalAction) -> dict[str, Any]:
+    option_keys = sorted(action.options)
+    return {
+        "action_type": action.action_type,
+        "player_id": action.player_id,
+        "label_ja": action.label_ja,
+        "option_keys": option_keys,
+        "option_counts": option_counts(action.options),
+        "payload_hint": payload_hint_for_action(action),
+        "payload_example": payload_example_for_action(action),
+    }
+
+
+def option_counts(options: dict[str, Any]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for key, value in options.items():
+        if isinstance(value, (list, dict)):
+            counts[key] = len(value)
+    return counts
+
+
+def payload_hint_for_action(action: LegalAction) -> dict[str, Any]:
+    action_type = action.action_type
+    if action_type == "choose_first_player":
+        return {"first_player_id": "one id from options.player_ids"}
+    if action_type == "submit_mulligan":
+        return {"card_instance_ids": "zero or more ids from options.card_instance_ids"}
+    if action_type == "play_member":
+        return {
+            "card_instance_id": "one options.placements[].card_instance_id",
+            "slot": "the same placement.slot",
+            "energy_instance_ids": "first placement.payment_cost ids from options.active_energy_instance_ids",
+            "use_baton_touch": "the same placement.use_baton_touch boolean",
+        }
+    if action_type == "set_live_cards":
+        return {"card_instance_ids": "0..options.maximum ids from options.hand_instance_ids"}
+    if action_type == "activate_effect":
+        return {
+            "effect_id": "one options.activations[].effect_id",
+            "source_card_instance_id": "the same activation.source_card_instance_id",
+        }
+    if action_type == "resolve_effect":
+        return {
+            "invocation_id": "one options.invocations[].invocation_id",
+            "accepted": "false only for optional effects you decline; otherwise true",
+            "selected_card_instance_ids": "only when the invocation choice requires card ids",
+            "energy_instance_ids": "only when the invocation cost requires Energy ids",
+            "selected_branch": "only when the invocation offers branch choices",
+            "selected_color_slot": "only when the invocation asks for a Heart color",
+            "selected_count": "only when the invocation asks for a count",
+        }
+    if action_type == "resolve_effect_choice":
+        return {
+            "selected_card_instance_ids": "ids from options.candidate_card_instance_ids",
+            "ordered_card_instance_ids": "selected ids in chosen order when options.requires_order is true",
+            "selected_card_instance_ids_by_group": "only for grouped selections; map group_id to ids",
+        }
+    if action_type == "resolve_manual_inspection":
+        return {
+            "selected_card_instance_ids": "ids from options.inspected_card_instance_ids",
+        }
+    if action_type == "resolve_live_requirements":
+        return {
+            "live_instance_ids": "all offered Live ids in desired resolution order when present",
+            "success_live_instance_id": "one offered success Live id when success_live choices are present",
+        }
+    if action_type == "skip_effect":
+        return {
+            "invocation_id": "one unresolved invocation id from options.invocations when present",
+            "reason": "short debug reason",
+            "error_message": "short error text for logs",
+        }
+    return {}
+
+
+def payload_example_for_action(action: LegalAction) -> dict[str, Any]:
+    options = action.options
+    action_type = action.action_type
+    if action_type == "choose_first_player":
+        player_ids = options.get("player_ids")
+        return (
+            {"first_player_id": player_ids[0]}
+            if isinstance(player_ids, list) and player_ids
+            else {}
+        )
+    if action_type == "submit_mulligan":
+        card_ids = options.get("card_instance_ids")
+        return {"card_instance_ids": [] if isinstance(card_ids, list) else []}
+    if action_type == "play_member":
+        placements = options.get("placements")
+        active_energy = options.get("active_energy_instance_ids")
+        if isinstance(placements, list) and placements and isinstance(placements[0], dict):
+            placement = placements[0]
+            payment_cost = placement.get("payment_cost", 0)
+            if not isinstance(payment_cost, int) or payment_cost < 0:
+                payment_cost = 0
+            energy_ids = active_energy[:payment_cost] if isinstance(active_energy, list) else []
+            return {
+                "card_instance_id": placement.get("card_instance_id"),
+                "slot": placement.get("slot"),
+                "energy_instance_ids": energy_ids,
+                "use_baton_touch": bool(placement.get("use_baton_touch", False)),
+            }
+        return {}
+    if action_type == "set_live_cards":
+        return {"card_instance_ids": []}
+    if action_type == "activate_effect":
+        activations = options.get("activations")
+        if isinstance(activations, list) and activations and isinstance(activations[0], dict):
+            activation = activations[0]
+            return {
+                "effect_id": activation.get("effect_id"),
+                "source_card_instance_id": activation.get("source_card_instance_id"),
+            }
+        return {}
+    if action_type == "resolve_effect":
+        invocations = options.get("invocations")
+        if isinstance(invocations, list) and invocations and isinstance(invocations[0], dict):
+            invocation = invocations[0]
+            return {"invocation_id": invocation.get("invocation_id"), "accepted": True}
+        return {}
+    if action_type == "resolve_effect_choice":
+        selected = first_n_strings(
+            options.get("candidate_card_instance_ids"),
+            int(options.get("minimum", 0))
+            if isinstance(options.get("minimum", 0), int)
+            else 0,
+        )
+        example: dict[str, Any] = {"selected_card_instance_ids": selected}
+        if options.get("requires_order"):
+            example["ordered_card_instance_ids"] = list(selected)
+        groups = options.get("choice_groups") or options.get("selection_groups")
+        if isinstance(groups, list) and groups:
+            by_group: dict[str, list[str]] = {}
+            for group in groups:
+                if not isinstance(group, dict):
+                    continue
+                group_id = group.get("group_id")
+                candidates = group.get("candidate_card_instance_ids") or group.get(
+                    "candidate_ids"
+                )
+                minimum = group.get("minimum", 0)
+                if isinstance(group_id, str):
+                    by_group[group_id] = first_n_strings(
+                        candidates,
+                        minimum if isinstance(minimum, int) else 0,
+                    )
+            if by_group:
+                example = {"selected_card_instance_ids_by_group": by_group}
+        return example
+    if action_type == "resolve_manual_inspection":
+        return {"selected_card_instance_ids": []}
+    if action_type == "resolve_live_requirements":
+        if isinstance(options.get("live_instance_ids"), list):
+            return {"live_instance_ids": list(options["live_instance_ids"])}
+        choices = options.get("choices")
+        if isinstance(choices, list) and choices:
+            first = choices[0]
+            if isinstance(first, dict):
+                return {"success_live_instance_id": first.get("live_instance_id")}
+            if isinstance(first, str):
+                return {"success_live_instance_id": first}
+        return {}
+    if action_type == "skip_effect":
+        invocations = options.get("invocations")
+        invocation_id = None
+        if isinstance(invocations, list) and invocations and isinstance(invocations[0], dict):
+            invocation_id = invocations[0].get("invocation_id")
+        return {
+            "invocation_id": invocation_id,
+            "reason": "API Play could not resolve this effect",
+            "error_message": "api_play_skip",
+        }
+    return {}
+
+
+def first_n_strings(value: Any, count: int) -> list[str]:
+    if not isinstance(value, list) or count <= 0:
+        return []
+    return [item for item in value if isinstance(item, str)][:count]
 
 
 def count_active_energy(state: MatchState, player_id: str) -> int:

@@ -191,6 +191,7 @@ def test_api_play_context_contains_ordinary_legal_actions():
     assert context["players"]["player_1"]["hand"] == []
     assert context["legal_actions"][0]["action_type"] == "advance_phase"
     assert context["legal_action_summary"]["action_type_counts"] == {"advance_phase": 1}
+    assert context["legal_action_hints"][0]["payload_example"] == {}
     assert context["strategy"]["recommended_action_order"] == ["advance_phase"]
     assert context["strategy"]["progress"]["acting_player_hand_count"] == 0
     assert context["deterministic_baseline_action"] == {
@@ -198,6 +199,39 @@ def test_api_play_context_contains_ordinary_legal_actions():
         "player_id": "player_1",
         "payload": {"phase": "first_energy"},
         "note": "scripted deterministic sandbox would choose this legal action",
+    }
+
+
+def test_api_play_context_provides_play_member_payload_examples():
+    state = _state()
+    action = LegalAction(
+        action_type="play_member",
+        player_id="player_1",
+        label_zh="登场",
+        label_ja="登場",
+        options={
+            "placements": [
+                {
+                    "card_instance_id": "p1-card-1",
+                    "slot": "center",
+                    "payment_cost": 2,
+                    "use_baton_touch": False,
+                }
+            ],
+            "active_energy_instance_ids": ["energy-1", "energy-2", "energy-3"],
+        },
+    )
+
+    context = build_api_play_context(state, [action])
+    hint = context["legal_action_hints"][0]
+
+    assert hint["option_counts"] == {"active_energy_instance_ids": 3, "placements": 1}
+    assert hint["payload_hint"]["card_instance_id"] == "one options.placements[].card_instance_id"
+    assert hint["payload_example"] == {
+        "card_instance_id": "p1-card-1",
+        "slot": "center",
+        "energy_instance_ids": ["energy-1", "energy-2"],
+        "use_baton_touch": False,
     }
 
 
