@@ -67,6 +67,24 @@ class SemanticAttempt:
 
 
 @dataclass
+class ApiPlayAttempt:
+    match_index: int
+    action_index: int
+    status: str
+    phase: str
+    legal_action_types: list[str]
+    agent_reason: str
+    decision: str
+    action_type: str | None
+    player_id: str | None
+    confidence: str
+    schema_gap: str | None = None
+    submitted_payload: dict[str, Any] = field(default_factory=dict)
+    fallback_used: bool = False
+    error: str | None = None
+
+
+@dataclass
 class SemanticMatchSummary:
     match_index: int
     first_deck: str
@@ -79,6 +97,9 @@ class SemanticMatchSummary:
     agent_success_count: int = 0
     agent_failure_count: int = 0
     agent_skip_count: int = 0
+    api_play_count: int = 0
+    api_play_failure_count: int = 0
+    deterministic_fallback_count: int = 0
     schema_gap_count: int = 0
     blocker: str | None = None
     blocker_detail: dict[str, Any] = field(default_factory=dict)
@@ -106,6 +127,13 @@ class MockSemanticAgentProvider:
     def decide(self, context: dict[str, Any]) -> SemanticDecision:
         if self._scripted_decisions:
             return parse_agent_decision(self._scripted_decisions.pop(0))
+        if context.get("mode") == "api_play":
+            return SemanticDecision(
+                decision="cannot_resolve",
+                reason_ja_or_zh="mock provider does not choose ordinary actions",
+                confidence="low",
+                schema_gap="mock_provider:api_play",
+            )
         invocation = context.get("manual_invocation") or {}
         return SemanticDecision(
             decision="cannot_resolve",
@@ -181,6 +209,21 @@ def main() -> int:
         default="skip",
         help="What to do when the semantic agent cannot resolve a mandatory manual effect.",
     )
+    parser.add_argument(
+        "--play-policy",
+        choices=("deterministic", "api"),
+        default="deterministic",
+        help=(
+            "deterministic keeps the existing scripted sandbox ordinary-action policy; "
+            "api asks the semantic provider to choose ordinary LegalActions too."
+        ),
+    )
+    parser.add_argument(
+        "--play-fallback",
+        choices=("deterministic", "block"),
+        default="deterministic",
+        help="What to do when API Play cannot produce a valid ordinary action.",
+    )
     parser.add_argument("--agent-provider", choices=("mock", "openai_compatible"), default=None)
     args = parser.parse_args()
 
@@ -188,13 +231,15 @@ def main() -> int:
     args.output.mkdir(parents=True, exist_ok=True)
     decks = build_decks(args.database, args.decks)
     deck_summaries = [summarize_deck(args.database, deck) for deck in decks]
-    match_summaries, attempts = run_semantic_matches(
+    match_summaries, attempts, api_play_attempts = run_semantic_matches(
         args.database,
         decks,
         provider=provider,
         match_count=args.matches,
         max_actions=args.max_actions,
         manual_fallback=args.manual_fallback,
+        play_policy=args.play_policy,
+        play_fallback=args.play_fallback,
     )
     write_semantic_outputs(
         args.output,
@@ -202,6 +247,7 @@ def main() -> int:
         deck_summaries=deck_summaries,
         match_summaries=match_summaries,
         attempts=attempts,
+        api_play_attempts=api_play_attempts,
     )
     print(f"Wrote semantic sandbox report to {args.output / 'semantic-report.md'}")
     return 0
@@ -244,9 +290,12 @@ def run_semantic_matches(
     match_count: int,
     max_actions: int,
     manual_fallback: str,
-) -> tuple[list[SemanticMatchSummary], list[SemanticAttempt]]:
+    play_policy: str = "deterministic",
+    play_fallback: str = "deterministic",
+) -> tuple[list[SemanticMatchSummary], list[SemanticAttempt], list[ApiPlayAttempt]]:
     results: list[SemanticMatchSummary] = []
     attempts: list[SemanticAttempt] = []
+    api_play_attempts: list[ApiPlayAttempt] = []
     with tempfile.TemporaryDirectory(prefix="loveca-semantic-sandbox-") as tmp:
         runtime = Path(tmp) / "matches.sqlite3"
         service = MatchService(database, runtime)
@@ -270,6 +319,9 @@ def run_semantic_matches(
             agent_success_count = 0
             agent_failure_count = 0
             agent_skip_count = 0
+            api_play_count = 0
+            api_play_failure_count = 0
+            deterministic_fallback_count = 0
             schema_gap_count = 0
             while action_count < max_actions and state.phase != "complete":
                 legal_actions = generate_legal_actions(state)
@@ -304,6 +356,31 @@ def run_semantic_matches(
                     blocker = classify_semantic_blocker(state, legal_actions)
                     blocker_detail = describe_state(state, legal_actions)
                     break
+                if play_policy == "api":
+                    api_result = try_api_play_action(
+                        state,
+                        legal_actions,
+                        provider=provider,
+                        match_index=index + 1,
+                        action_index=action_count + 1,
+                    )
+                    api_play_attempts.append(api_result.attempt)
+                    if api_result.decision is not None:
+                        decision = api_result.decision
+                        api_play_count += 1
+                    else:
+                        api_play_failure_count += 1
+                        if play_fallback == "deterministic":
+                            deterministic_fallback_count += 1
+                            api_result.attempt.fallback_used = True
+                        else:
+                            blocker = "api_play_unresolved"
+                            blocker_detail = {
+                                **describe_state(state, legal_actions),
+                                "api_play_error": api_result.attempt.error,
+                                "api_play_schema_gap": api_result.attempt.schema_gap,
+                            }
+                            break
                 action_type, player_id, payload = decision
                 try:
                     applied = service.apply(
@@ -343,6 +420,9 @@ def run_semantic_matches(
                     agent_success_count=agent_success_count,
                     agent_failure_count=agent_failure_count,
                     agent_skip_count=agent_skip_count,
+                    api_play_count=api_play_count,
+                    api_play_failure_count=api_play_failure_count,
+                    deterministic_fallback_count=deterministic_fallback_count,
                     schema_gap_count=schema_gap_count,
                     blocker=blocker,
                     blocker_detail=blocker_detail,
@@ -353,7 +433,7 @@ def run_semantic_matches(
                     events=dict(sorted(event_counts.items())),
                 )
             )
-    return results, attempts
+    return results, attempts, api_play_attempts
 
 
 @dataclass
@@ -368,6 +448,67 @@ class SemanticResolutionResult:
     schema_gap_count: int = 0
     blocker: str | None = None
     blocker_detail: dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class ApiPlayResult:
+    decision: tuple[str, str | None, dict[str, Any]] | None
+    attempt: ApiPlayAttempt
+
+
+def try_api_play_action(
+    state: MatchState,
+    legal_actions: list[LegalAction],
+    *,
+    provider: SemanticAgentProvider,
+    match_index: int,
+    action_index: int,
+) -> ApiPlayResult:
+    context = build_api_play_context(state, legal_actions)
+    try:
+        decision = provider.decide(context)
+        validate_api_play_decision(decision, legal_actions)
+    except (SemanticAgentError, ValueError) as exc:
+        return ApiPlayResult(
+            decision=None,
+            attempt=api_play_attempt_from_decision(
+                match_index,
+                action_index,
+                state,
+                legal_actions,
+                SemanticDecision(
+                    decision="cannot_resolve",
+                    reason_ja_or_zh=str(exc),
+                    schema_gap=str(exc),
+                ),
+                status="api_play_invalid",
+                error=str(exc),
+            ),
+        )
+    if decision.decision != "submit_action":
+        return ApiPlayResult(
+            decision=None,
+            attempt=api_play_attempt_from_decision(
+                match_index,
+                action_index,
+                state,
+                legal_actions,
+                decision,
+                status="api_play_unresolved",
+                error=decision.schema_gap or decision.reason_ja_or_zh,
+            ),
+        )
+    return ApiPlayResult(
+        decision=(str(decision.action_type), decision.player_id, decision.payload),
+        attempt=api_play_attempt_from_decision(
+            match_index,
+            action_index,
+            state,
+            legal_actions,
+            decision,
+            status="api_play_selected",
+        ),
+    )
 
 
 def try_semantic_manual_resolution(
@@ -744,6 +885,29 @@ def validate_agent_decision(
         )
 
 
+def validate_api_play_decision(
+    decision: SemanticDecision,
+    legal_actions: list[LegalAction],
+) -> None:
+    if decision.decision == "cannot_resolve":
+        return
+    if decision.decision == "skip_effect":
+        if not any(action.action_type == "skip_effect" for action in legal_actions):
+            raise ValueError("skip_effect is not currently legal")
+        return
+    if decision.decision != "submit_action":
+        raise ValueError("API Play decision must submit or decline")
+    if decision.action_type == "manual_adjustment":
+        raise ValueError("API Play must not handle manual_adjustment")
+    matching = [
+        action
+        for action in legal_actions
+        if action.action_type == decision.action_type and action.player_id == decision.player_id
+    ]
+    if not matching:
+        raise ValueError(f"API Play action is not legal: {decision.action_type}")
+
+
 def validate_manual_adjustment_payload(payload: dict[str, Any], invocation: dict[str, Any]) -> None:
     required = {
         "source_invocation_id": invocation.get("invocation_id"),
@@ -758,6 +922,53 @@ def validate_manual_adjustment_payload(payload: dict[str, Any], invocation: dict
         raise ValueError("manual_adjustment payload requires adjustments")
     if payload.get("requires_confirmation") and not payload.get("confirmed_by"):
         raise ValueError("confirmed manual_adjustment requires confirmed_by")
+
+
+def build_api_play_context(state: MatchState, legal_actions: list[LegalAction]) -> dict[str, Any]:
+    acting_player_id = next(
+        (action.player_id for action in legal_actions if action.player_id),
+        state.active_player_id,
+    )
+    return {
+        "schema_version": SEMANTIC_SCHEMA_VERSION,
+        "mode": "api_play",
+        "rules": [
+            "Choose one action from legal_actions, or return cannot_resolve.",
+            "Return only strict JSON.",
+            "Do not invent card ids or mutate GameState directly.",
+            "The engine will validate the submitted payload.",
+            "Prefer actions that progress the game toward successful Live resolution.",
+            "Do not choose manual_adjustment in API Play; manual effects use the dedicated semantic flow.",
+        ],
+        "allowed_response_schema": {
+            "decision": "submit_action | cannot_resolve",
+            "reason_ja_or_zh": "short explanation",
+            "action_type": "one action_type from legal_actions",
+            "player_id": "matching legal action player_id",
+            "payload": "payload matching the selected legal action options",
+            "confidence": "low | medium | high",
+            "schema_gap": "optional reason when cannot_resolve",
+        },
+        "state": {
+            "match_id": state.match_id,
+            "phase": state.phase,
+            "turn_number": state.turn_number,
+            "active_player_id": state.active_player_id,
+            "acting_player_id": acting_player_id,
+            "revision": state.revision,
+            "pending_choice": state.pending_choice.model_dump() if state.pending_choice else None,
+            "pending_effects": [effect.model_dump() for effect in state.pending_effects],
+        },
+        "players": {
+            player_id: player_context(
+                state,
+                player_id,
+                include_private=player_id == acting_player_id,
+            )
+            for player_id in sorted(state.players)
+        },
+        "legal_actions": [action.model_dump() for action in legal_actions],
+    }
 
 
 def build_agent_context(state: MatchState, legal_actions: list[LegalAction]) -> dict[str, Any]:
@@ -1040,6 +1251,33 @@ def attempt_from_decision(
     )
 
 
+def api_play_attempt_from_decision(
+    match_index: int,
+    action_index: int,
+    state: MatchState,
+    legal_actions: list[LegalAction],
+    decision: SemanticDecision,
+    *,
+    status: str,
+    error: str | None = None,
+) -> ApiPlayAttempt:
+    return ApiPlayAttempt(
+        match_index=match_index,
+        action_index=action_index,
+        status=status,
+        phase=state.phase,
+        legal_action_types=sorted({action.action_type for action in legal_actions}),
+        agent_reason=decision.reason_ja_or_zh,
+        decision=decision.decision,
+        action_type=decision.action_type,
+        player_id=decision.player_id,
+        confidence=decision.confidence,
+        schema_gap=decision.schema_gap,
+        submitted_payload=decision.payload,
+        error=error,
+    )
+
+
 def classify_semantic_blocker(state: MatchState, legal_actions: list[LegalAction]) -> str:
     if has_manual_resolution_action(legal_actions):
         return "mandatory_manual_resolution"
@@ -1057,18 +1295,23 @@ def write_semantic_outputs(
     deck_summaries: list[SandboxDeckSummary],
     match_summaries: list[SemanticMatchSummary],
     attempts: list[SemanticAttempt],
+    api_play_attempts: list[ApiPlayAttempt] | None = None,
 ) -> None:
+    api_play_attempts = api_play_attempts or []
     output.mkdir(parents=True, exist_ok=True)
     completed = sum(item.status == "completed" for item in match_summaries)
     blockers = Counter(item.blocker or "none" for item in match_summaries)
     attempt_statuses = Counter(item.status for item in attempts)
+    api_play_statuses = Counter(item.status for item in api_play_attempts)
     schema_gaps = Counter(item.schema_gap for item in attempts if item.schema_gap)
+    api_play_schema_gaps = Counter(item.schema_gap for item in api_play_attempts if item.schema_gap)
     payload = {
         "schema_version": SEMANTIC_SCHEMA_VERSION,
         "provider": provider.provider_name,
         "deck_summaries": [asdict(item) for item in deck_summaries],
         "match_summaries": [asdict(item) for item in match_summaries],
         "semantic_attempts": [asdict(item) for item in attempts],
+        "api_play_attempts": [asdict(item) for item in api_play_attempts],
     }
     (output / "semantic-summary.json").write_text(
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
@@ -1079,8 +1322,9 @@ def write_semantic_outputs(
         "",
         "## Scope",
         "",
-        "* Drives ordinary actions with the deterministic sandbox policy.",
-        "* Calls a semantic provider only for mandatory manual-resolution effects.",
+        "* Default mode drives ordinary actions with the deterministic sandbox policy.",
+        "* Optional API Play mode asks the same provider to choose ordinary LegalActions.",
+        "* Mandatory manual-resolution effects still use the dedicated semantic flow.",
         "* All submitted changes still go through LegalAction and engine validation.",
         "* Agent success is a manual-playability signal, not effect-registry coverage.",
         "",
@@ -1092,15 +1336,17 @@ def write_semantic_outputs(
         f"* Matches completed: {completed}",
         f"* Blockers: {dict(sorted(blockers.items()))}",
         f"* Semantic attempt statuses: {dict(sorted(attempt_statuses.items()))}",
+        f"* API Play attempt statuses: {dict(sorted(api_play_statuses.items()))}",
         f"* Schema gaps: {dict(schema_gaps.most_common(20))}",
+        f"* API Play schema gaps: {dict(api_play_schema_gaps.most_common(20))}",
         "",
         "## Match Results",
         "",
         (
             "| # | Status | Decks | Phase | Turn | Actions | Manual | Agent OK | "
-            "Agent Fail | Skips | Gaps | Blocker |"
+            "Agent Fail | Skips | API Play | API Fail | Fallback | Gaps | Blocker |"
         ),
-        "|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|",
+        "|---:|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|",
     ]
     for item in match_summaries:
         lines.append(
@@ -1108,8 +1354,28 @@ def write_semantic_outputs(
             f"{item.final_phase} | {item.turn_number} | {item.action_count} | "
             f"{item.manual_effect_count} | {item.agent_success_count} | "
             f"{item.agent_failure_count} | {item.agent_skip_count} | "
+            f"{item.api_play_count} | {item.api_play_failure_count} | "
+            f"{item.deterministic_fallback_count} | "
             f"{item.schema_gap_count} | {item.blocker or ''} |"
         )
+    if api_play_attempts:
+        lines.extend(
+            [
+                "",
+                "## API Play Attempts",
+                "",
+                "| Match | Action | Status | Phase | Action | Confidence | Fallback | Gap | Reason / Error |",
+                "|---:|---:|---|---|---|---|---|---|---|",
+            ]
+        )
+        for item in api_play_attempts:
+            reason = item.error or item.agent_reason
+            lines.append(
+                f"| {item.match_index} | {item.action_index} | {item.status} | "
+                f"{item.phase} | {item.action_type or ''} | {item.confidence} | "
+                f"{'yes' if item.fallback_used else ''} | "
+                f"{_markdown_cell(item.schema_gap or '')} | {_markdown_cell(reason)} |"
+            )
     if attempts:
         lines.extend(
             [

@@ -18,8 +18,11 @@ from tools.ai_sandbox.semantic_playtest import (
     SemanticAgentError,
     SemanticDecision,
     build_agent_context,
+    build_api_play_context,
     parse_agent_decision,
     run_semantic_matches,
+    try_api_play_action,
+    validate_api_play_decision,
     validate_agent_decision,
     validate_manual_adjustment_payload,
     write_semantic_outputs,
@@ -153,6 +156,72 @@ def test_agent_cannot_submit_unknown_action():
         )
 
 
+def test_api_play_rejects_manual_adjustment_actions():
+    with pytest.raises(ValueError, match="manual_adjustment"):
+        validate_api_play_decision(
+            SemanticDecision(
+                decision="submit_action",
+                action_type="manual_adjustment",
+                player_id="player_1",
+                payload={},
+            ),
+            [_manual_action()],
+        )
+
+
+def test_api_play_context_contains_ordinary_legal_actions():
+    state = _state()
+    action = LegalAction(
+        action_type="advance_phase",
+        player_id="player_1",
+        label_zh="推进",
+        label_ja="進行",
+        options={"phase": "first_energy"},
+    )
+
+    context = build_api_play_context(state, [action])
+
+    assert context["mode"] == "api_play"
+    assert context["state"]["phase"] == "first_main"
+    assert context["players"]["player_1"]["hand"] == []
+    assert context["legal_actions"][0]["action_type"] == "advance_phase"
+
+
+def test_api_play_scripted_provider_selects_ordinary_action():
+    state = _state()
+    action = LegalAction(
+        action_type="advance_phase",
+        player_id="player_1",
+        label_zh="推进",
+        label_ja="進行",
+        options={"phase": "first_energy"},
+    )
+    provider = MockSemanticAgentProvider(
+        [
+            {
+                "decision": "submit_action",
+                "reason_ja_or_zh": "メインを終了して進行する",
+                "action_type": "advance_phase",
+                "player_id": "player_1",
+                "payload": {},
+                "confidence": "high",
+            }
+        ]
+    )
+
+    result = try_api_play_action(
+        state,
+        [action],
+        provider=provider,
+        match_index=1,
+        action_index=1,
+    )
+
+    assert result.decision == ("advance_phase", "player_1", {})
+    assert result.attempt.status == "api_play_selected"
+    assert result.attempt.confidence == "high"
+
+
 def test_agent_context_contains_source_text_and_manual_schema():
     state = _state()
     context = build_agent_context(state, [_manual_action()])
@@ -170,7 +239,7 @@ def test_semantic_sandbox_mock_mode_writes_reports(tmp_path):
 
     decks = build_decks(CARD_DATABASE, 2)
     provider = MockSemanticAgentProvider()
-    match_summaries, attempts = run_semantic_matches(
+    match_summaries, attempts, api_play_attempts = run_semantic_matches(
         CARD_DATABASE,
         decks,
         provider=provider,
@@ -185,6 +254,7 @@ def test_semantic_sandbox_mock_mode_writes_reports(tmp_path):
         deck_summaries=deck_summaries,
         match_summaries=match_summaries,
         attempts=attempts,
+        api_play_attempts=api_play_attempts,
     )
 
     assert len(match_summaries) == 1
@@ -192,3 +262,4 @@ def test_semantic_sandbox_mock_mode_writes_reports(tmp_path):
     summary = json.loads((tmp_path / "semantic-summary.json").read_text(encoding="utf-8"))
     assert summary["schema_version"] == "semantic_sandbox_v0.1"
     assert summary["provider"] == "mock"
+    assert "api_play_attempts" in summary
