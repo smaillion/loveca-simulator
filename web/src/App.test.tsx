@@ -5,6 +5,7 @@ import App, {
   InspectionChoiceAction,
   ManualDrawer,
   MemberPlayAction,
+  SelectionAction,
   StageAttachments,
   availableValue,
   canResolveEffect,
@@ -477,6 +478,7 @@ function createFetchMock(overrides: {
   matches?: unknown;
   savedDecks?: unknown;
   matchCreate?: unknown;
+  matchAction?: unknown;
   runtimeConfig?: unknown;
   roomCreate?: unknown;
   roomPoll?: unknown;
@@ -511,6 +513,9 @@ function createFetchMock(overrides: {
     }
     if (path === "/api/matches" && method === "POST") {
       return jsonResponse(overrides.matchCreate ?? MATCH_PAYLOAD);
+    }
+    if (path.startsWith("/api/matches/") && path.endsWith("/actions") && method === "POST") {
+      return jsonResponse(overrides.matchAction ?? MATCH_PAYLOAD);
     }
     if (path === "/api/rooms" && method === "POST") {
       return jsonResponse(overrides.roomCreate ?? roomPayload("waiting_for_guest"));
@@ -625,9 +630,26 @@ function seedSavedDecks(decks: Array<{ path: string; deck: DeckList }>): void {
   );
 }
 
+function stubMobileViewport(): void {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn().mockImplementation((query: string) => ({
+      matches: query.includes("max-width"),
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  );
+}
+
 describe("App", () => {
   beforeEach(() => {
     cleanup();
+    vi.unstubAllGlobals();
     resetRuntimeConfigForTests();
     localStorage.clear();
     localStorage.setItem("loveca-ui-locale", "zh");
@@ -938,6 +960,97 @@ describe("App", () => {
         ],
       ),
     ).toBe("player_2");
+  });
+
+  it("uses a member-play style mobile confirm row for mulligan selection", () => {
+    const onSubmit = vi.fn();
+    render(
+      <SelectionAction
+        title="选择需要调度的手牌"
+        ids={["player_1-M002"]}
+        selected={[]}
+        state={{
+          ...MATCH_PAYLOAD.state,
+          cards: INSPECTION_CARDS,
+        } as never}
+        mobileMode
+        mobileHint="手牌下方的「调度候选」用于选择要换掉的手牌。"
+        mobileConfirmLabel="确认调度"
+        mobileSummary="可选择任意张"
+        mobileEmptyLabel="不调度手牌"
+        onToggle={vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    expect(screen.getByText("不调度手牌")).toBeInTheDocument();
+    expect(screen.getByText("可选择任意张 · 0")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "确认调度" }));
+    expect(onSubmit).toHaveBeenCalledOnce();
+  });
+
+  it("closes the mobile live dialog after starting the next turn", async () => {
+    stubMobileViewport();
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const turnCompletePayload = {
+      ...MATCH_PAYLOAD,
+      state: {
+        ...MATCH_PAYLOAD.state,
+        phase: "turn_complete",
+        active_player_id: null,
+        first_player_id: "player_1",
+        second_player_id: "player_2",
+        turn_number: 1,
+      },
+      legal_actions: [
+        {
+          action_type: "start_next_turn",
+          player_id: null,
+          label_zh: "开始下一回合",
+          label_ja: "次のターンを開始",
+          options: {},
+        },
+      ],
+    };
+    const nextTurnPayload = {
+      ...MATCH_PAYLOAD,
+      state: {
+        ...MATCH_PAYLOAD.state,
+        phase: "first_active",
+        active_player_id: "player_1",
+        first_player_id: "player_1",
+        second_player_id: "player_2",
+        turn_number: 2,
+        revision: 1,
+      },
+      legal_actions: [],
+    };
+    const fetchMock = createFetchMock({
+      matchCreate: turnCompletePayload,
+      matchAction: nextTurnPayload,
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { container } = render(<App />);
+    await waitFor(() => expect(screen.getByLabelText("玩家 1 牌组")).toBeInTheDocument());
+    const createButton = screen.getByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+
+    await waitFor(() => expect(container.querySelector(".mobile-match-dialog")).not.toBeNull());
+    const dialogNextTurnButton = container.querySelector(
+      ".mobile-match-dialog .primary-button",
+    ) as HTMLButtonElement | null;
+    expect(dialogNextTurnButton).not.toBeNull();
+    fireEvent.click(dialogNextTurnButton!);
+
+    await waitFor(() => expect(container.querySelector(".mobile-match-dialog")).toBeNull());
+    expect(
+      fetchMock.mock.calls.some(([input, init]) =>
+        input.toString().includes("/api/matches/match-1/actions")
+        && init?.method === "POST"
+      ),
+    ).toBe(true);
   });
 
   it("shows readable prompts for automatic effects and special yell results in the event log", async () => {
@@ -1418,7 +1531,8 @@ describe("App", () => {
 
     await waitFor(() => expect(screen.getByText("牌组编辑与保存")).toBeInTheDocument());
     expect(screen.getByText("Deck Builder 使用说明")).toBeInTheDocument();
-    expect(screen.getByText("4. 保存、分享、进入对战")).toBeInTheDocument();
+    expect(screen.getByText("4. 查看分析结果")).toBeInTheDocument();
+    expect(screen.getByText("6. 分享并进入对战")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText("テストカード")).toBeInTheDocument());
     fireEvent.click(screen.getByRole("button", { name: "加入主牌组" }));
     await waitFor(() => expect(screen.getAllByText("LL-TEST-001").length).toBeGreaterThan(0));
@@ -1864,6 +1978,8 @@ describe("App", () => {
     );
 
     expect(screen.getByText("技能检查结果")).toBeInTheDocument();
+    expect(screen.getByText("確認メンバー · PL!-bp6-002:1")).toBeInTheDocument();
+    expect(screen.getByText("【登場】自分のデッキの上からカードを2枚見る。")).toBeInTheDocument();
     expect(screen.getByText("候補カード")).toBeInTheDocument();
     expect(screen.getByText("条件外カード")).toBeInTheDocument();
     expect(screen.getByText("不符合条件")).toBeInTheDocument();

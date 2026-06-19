@@ -12,6 +12,7 @@ const manifestPath = path.join(repoRoot, "data", "loveca-db-manifest.json");
 const outputDir = path.join(distDir, "preview-data");
 const runtimeConfigPath = path.join(distDir, "runtime-config.json");
 const python = process.env.PYTHON ?? "python";
+const includeOfficialText = process.env.INCLUDE_OFFICIAL_TEXT === "true";
 
 if (!existsSync(databasePath)) {
   throw new Error(`Card database not found: ${databasePath}`);
@@ -22,17 +23,22 @@ const env = {
   PYTHONPATH: [path.join(repoRoot, "src"), process.env.PYTHONPATH].filter(Boolean).join(path.delimiter),
 };
 
+const exportArgs = [
+  path.join(repoRoot, "scripts", "export-preview-data.py"),
+  "--database",
+  databasePath,
+  "--output-dir",
+  outputDir,
+  "--effect-registry",
+  path.join(repoRoot, "data_sources", "effect-registry.v0.json"),
+];
+if (includeOfficialText) {
+  exportArgs.push("--include-official-text");
+}
+
 const exportResult = spawnSync(
   python,
-  [
-    path.join(repoRoot, "scripts", "export-preview-data.py"),
-    "--database",
-    databasePath,
-    "--output-dir",
-    outputDir,
-    "--effect-registry",
-    path.join(repoRoot, "data_sources", "effect-registry.v0.json"),
-  ],
+  exportArgs,
   {
     cwd: repoRoot,
     env,

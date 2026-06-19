@@ -1,5 +1,31 @@
 # 変更履歴 / 变更记录
 
+## 未リリース / 未发布
+
+### 追加 / 新增
+
+- Phase 5 effect registry を 925 件中 713 件の `test_validated_executable` まで拡張し、registry entry ベースの coverage を 77.08% に更新。
+- `30 decks x 100 matches` の black-box sandbox を block mode で実行し、100 局すべて完走、blocker 0 を確認。
+- trigger 時点では条件を満たした pending effect が、同一タイミング中の別効果で後から条件失効した場合、限定的に `effect_not_activatable` event を記録して進行できるようにした。
+- Live 判定の mobile pop-up から次の処理へ直接進めるようにし、次ターン開始時は pop-up を閉じるようにした。
+- 初期 mulligan を Member 登場と同じカード選択 + 確認型の操作へ寄せた。
+- browser preview / Pages build の静的 data export は既存 SQLite と cache を優先して使う方針に合わせ、不要な再取得を避ける構成を維持。
+
+### 修正 / 修复
+
+- `PL!-bp4-005:3` など、Live 開始時に queue された強制 position-change 効果が他の効果で条件失効した場合に、ユーザー操作が `illegal_action` で止まる問題を修正。
+- 条件失効の soft handling を安全な理由に限定し、Energy Deck 空など本来 rollback すべき不整合は引き続き illegal action として扱うようにした。
+
+中文:
+
+- 将 Phase 5 effect registry 扩展到 925 条中的 713 条 `test_validated_executable`，按 registry entry 计算覆盖率更新为 77.08%。
+- 执行 `30 decks x 100 matches` block mode black-box sandbox，100 局全部完走，blocker 为 0。
+- 对触发时条件满足、但同一时点中被其他效果改变条件导致失效的 pending effect，限定性记录 `effect_not_activatable` 并继续推进。
+- 手机端 Live 判定弹窗内可以直接进入下一步，开始下一回合时会关闭弹窗。
+- 初始调度改为接近 Member 登场的卡牌选择 + 确认操作。
+- 修复 `PL!-bp4-005:3` 等 Live 开始时强制 position-change 效果因条件后续失效而卡成 `illegal_action` 的问题。
+- 条件失效的 soft handling 只用于安全原因；Energy Deck 为空等需要 rollback 的不整合仍保持 illegal action。
+
 ## v0.76 - 2026-06-18
 
 ### 修正 / 修复
@@ -10,9 +36,12 @@
 - 自分の控え室を確認できる UI を追加し、Online room の離脱 cleanup と mobile layout を改善した。
 - README と起動時 Alpha 告知を更新し、最新版の修正内容、残っている制限、Discord での bug 報告 / 対戦相手募集導線を明記した。
 - モバイル対戦画面を再構成し、成功 Live 進捗、Live 判定、相手エリアを小さい画面でも確認しやすくした。相手操作中は下部 dock に待機表示を出す。
+- モバイル対戦画面の手札カードを大きめにし、カード画像を切り抜かず表示するようにした。Member 登場操作はカード本体の詳細表示と分離し、手札下の登場候補ボタン、エリア選択、底部 dock の短い費用要約と確認ボタンで送信する形に調整した。
 - Deck Builder の mobile layout を改善し、保存済み deck list の折りたたみ、カード検索 pop-up、Deck 画面内の使い方 manual を追加した。
 - Deck 共有用 UUID upload / download を追加し、通常の deck list はローカル保存のまま、必要な時だけ server 経由で decklist.v0 を交換できるようにした。
-- Deck 画面の Alpha / manual 表記を更新し、JSON import/export、構築合法性、Member / Live / Energy の枚数目標、共有 UUID の扱いを画面内で確認できるようにした。
+- Deck 画面の Alpha / manual 表記を更新し、JSON import/export、構築合法性、Member / Live / Energy の枚数目標、分析 dashboard、共有 UUID の扱いを画面内で確認できるようにした。
+- Deck Builder の使い方 manual を検索、投入、構築条件、分析、保存、共有、対戦利用の 6 項目に整理し、画面幅に合わせて折り返す layout にした。
+- 起動時 Alpha 告知に Deck UI の更新内容を追加し、JSON import/export、UUID 共有、Deck 分析 dashboard の現在の対応範囲が画面内で分かるようにした。
 
 ### 既知の制限 / 已知限制
 

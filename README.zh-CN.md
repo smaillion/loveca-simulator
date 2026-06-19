@@ -18,8 +18,8 @@
 - FastAPI + React SPA 可视化规则验证器
 - 可回放的 Action-only GameState
 - 925 条 effect registry entry
-  - 628 条为 `test_validated_executable`
-  - 297 条为 timing prompt / 未支持处理用 `manual_resolution`
+  - 713 条为 `test_validated_executable`
+  - 212 条为 timing prompt / 未支持处理用 `manual_resolution`
 - 面向未来低成本 online 同步的 state hash / compatibility metadata 基础
 - Hosted Online MVP 房间 API
   - 通过 room code 创建 / 加入房间
@@ -54,13 +54,16 @@
 - 部分双方都需要选择的效果已可通过 multi-player pending choice 顺序处理
 - 支持把 Stage Member 目标拆成多个选择组，并对各组选中目标应用相同的临时 modifier
 - 支持每个分支使用不同 Stage Member 候选池的技能选择
-- 按 registry entry 计算的 `test_validated_executable` 覆盖率已达到 67.89%
+- 按 registry entry 计算的 `test_validated_executable` 覆盖率已达到 77.08%
+- Phase 5 black-box sandbox 已在 `30 decks x 100 matches` block mode 中达到 `100/100` 完走，blocker 为 0
+- 触发时条件满足的 pending effect 如果在同一时点中被其他效果改变条件导致失效，会记录明确的 `effect_not_activatable` event 并继续推进
 - 暂不能自动执行的技能通过 `ManualAdjustmentAction` 补充
 - 无法处理的技能可以用调试用 `effect_skipped_due_to_error` 显式记录后跳过
 
 Deck Builder 当前状态:
 
 - 创建、读取、更新、删除本地保存牌组
+- 画面内折叠式 manual 可说明搜索、加入牌组、构筑条件、分析、保存、分享和进入对战的流程
 - 按 `Member` / `Live` / `Energy` 分区显示已组牌组
 - 检查 `Member 48` / `Live 12` / `Energy 12` 的构筑数量
 - 按作品、组合、Heart 颜色、Blade、Live 所需 Heart、Score、Blade Heart 筛选
@@ -83,7 +86,7 @@ Bug 报告、规则行为讨论和 online 对战伙伴寻找请前往 [Discord](
 
 - 这是开发中的 alpha 版本，不是官方数字客户端。当前目标是规则验证和收集 playtest feedback。
 - 还没有覆盖全卡技能自动执行。未支持技能可能需要 `ManualAdjustmentAction`、结构化 pending choice，或用调试 skip 继续推进。
-- Phase 5 sandbox 中 `illegal_action` 已显著减少，但长局仍会遇到 `mandatory_manual_resolution` 和 `max_actions`。最新详细数字请看 `CHANGELOG.md` 与 `TODO.md`。
+- 最新 Phase 5 sandbox 长回归中，`30 decks x 100 matches` 已经以 blocker 0 完走。但这只是当前 sandbox deck pool 下的可用性确认，不代表全卡技能自动化已经完成。最新详细数字请看 `CHANGELOG.md` 与 `TODO.md`。
 - 依赖 FAQ 或个别裁定的效果尚未规格化。
 - `data/loveca.sqlite3` 是仓库内锁版本权威卡牌 DB。官方补充包或 parser/schema/effect registry 变化后，由维护者重建并提交新的 DB 与 `data/loveca-db-manifest.json`；普通用户和 CI 不应自行 import 产生不同线上 DB。保存牌组是 `decklist.v0` 用户数据，可以和卡牌数据库分开保留。
 - Web/API 测试依赖 `httpx2`。环境缺少该依赖时，`tests/test_catalog_api.py` 和 `tests/test_webapp.py` 会在收集阶段停止。
@@ -108,16 +111,21 @@ Bug 报告、规则行为讨论和 online 对战伙伴寻找请前往 [Discord](
 ### Deck Builder
 
 - 可以创建、读取、覆盖保存、重命名和删除本地保存牌组。
+- 画面顶部的“Deck Builder 使用说明”会说明搜索、加入牌组、构筑条件、分析、保存、分享和进入对战的流程。
 - 支持 decklist.v0 JSON 导入 / 导出，方便在 browser preview 和本地环境之间迁移牌组。
 - 已组牌组按 `Member` / `Live` / `Energy` 分区显示，编辑时会检查 `Member 48` / `Live 12` / `Energy 12` 和同名卡上限。
 - 卡牌搜索支持按卡名 / 卡号、卡牌种类、作品、组合、Member 基本 Heart / Cost / Blade / Blade Heart、Live 所需 Heart / Score / Blade Heart 筛选。搜索结果可以按卡号、卡名、卡牌种类、Member cost、Blade、Live 所需 Heart、Live score 和当前投入枚数排序。
 - 搜索结果中的卡牌可以打开详情 dialog 查看图片和主要 stat，也可以直接用添加按钮投入牌组。
 - 右侧分析 dashboard 会自动刷新，展示构筑合法性、枚数问题、Member cost curve、基本 Heart、Live 所需 Heart、Score、特殊 Blade Heart、技能 timing / execution summary。
+- 分享 UUID 只会把当前牌组临时上传到 server；别人用 UUID 下载后才会写入自己的本地保存列表。普通保存牌组仍然保存在各自浏览器或本地环境中。
 - 在 Deck Builder 里选择的牌组可以通过“用于对战”回到首页，并作为本地对局或 online room 的 deck source。
 
 ### 规则验证器
 
 - Match 画面同屏展示双方舞台、手牌 / 牌库 / 控室等 zone count、Live / Energy / Heart 状态、当前 phase 和 turn number。
+- 手机端会放大显示己方手牌卡面；Member 登场通过卡牌下方的登场候选按钮、区域选择和确认按钮提交。点击卡牌本体仍用于查看详情。成功 Live 进度、Live 判定和对手区域可通过弹窗查看。
+- Live 判定弹窗内可以直接继续下一步。开始下一回合时会关闭弹窗，不再停留在无意义的结束画面。
+- 初始调度使用和 Member 登场相同风格的卡牌选择 + 确认操作，减少误触。
 - Action Dock 会列出当前可执行 action，可从 UI 发送 Member 登场、Baton Touch、Live Set、调度、Heart 分配和 pending effect 结算等操作。
 - 部分技能以结构化 prompt 显示，可在 UI 中处理目标卡选择、choice branch、inspection / reveal 的排序和移动目标。
 - 暂不能自动执行的技能可用 `ManualAdjustmentAction` drawer 手动输入卡牌移动、Heart 修正、Live success 修正和备注，继续推进验证。

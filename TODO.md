@@ -41,8 +41,9 @@
 ### Phase 5 Sandbox Follow-Up
 
 - Continue tuning `tools/ai_sandbox/blackbox_playtest.py` action caps and strategies.
-- Run 50-match and 100-match regression loops after the next executor-pattern expansion.
-- Raise rough executable coverage toward 40% only by adding supported executor patterns and tests.
+- Keep `30 decks x 100 matches --manual-policy block` as the standard long-run regression after each executor-pattern expansion.
+- Latest Phase 5 long run: `100/100` completed with blocker 0 after the stale-trigger-condition fix.
+- Static registry coverage is still `713 / 925 = 77.08%`; raising it toward 90% requires real executor patterns for remaining `manual_resolution` families.
 - Do not mark registry entries executable only to improve coverage numbers.
 
 ## Low Priority
@@ -56,20 +57,19 @@
 
 ### Effect Prompt UI Known Issues
 
-- Branch-choice effects are not yet rendered as a clear choice control in the
-  match UI.
-- Example pattern:
-  `【登場】以下から1つを選ぶ。 ・カードを1枚引き、手札を1枚控え室に置く。 ・相手のステージにいるすべてのコスト2以下のメンバーをウェイトにする。`
-- Backend effect definitions can represent `choose_effect_branch`, but the UI
-  must expose branch selection before asking for branch-specific card choices.
-- Keep this as a high-value Phase 5 UI task because it blocks realistic manual
-  validation for registered dual-choice skills.
+- Branch-choice effects now have a basic UI path, including branch-specific
+  card candidates and position-change slot selection.
+- Remaining UI work should focus on clarity, not baseline availability:
+  - make branch labels shorter and more readable on mobile
+  - keep selected branch context visible while resolving follow-up choices
+  - improve error copy when a branch becomes unavailable after earlier choices
+  - add compact visual hints for auto-resolved effects and special Yell effects
 
 ### Phase 5 Effect Coverage Follow-Up
 
 - Continue Live-start and Live-success exact-text coverage for effects that can
   be fully represented without FAQ-sensitive interpretation.
-- Current high-frequency unresolved families include:
+- Current unresolved registry families include:
   - Yell-count modifiers such as reducing the number of cards revealed by Yell
   - base Heart rewrites such as "元々持つハートをすべて..."
   - base Blade rewrites such as "元々持つ【ブレード】の数は3つになる"
@@ -86,16 +86,19 @@
     pay-or-discard pattern
   - Live-start inspect / reveal effects that derive temporary Heart colors from
     revealed cards
+- Because the long-run sandbox currently completes without blockers, prioritize
+  repeated static/manual families only when they are likely to appear in real
+  decks or improve manual-play usability.
 - Keep `manual_resolution` for these families until the missing semantic slot is
   explicitly modeled; do not mark partial branches as `test_validated_executable`.
 
 ### AI Sandbox Strategy Follow-Up
 
-- Improve the sandbox controller so `skip` mode can finish more games instead of
-  reaching `max_actions`.
-- Current issue: `skip` mode avoids `illegal_action`, but the latest
-  `30 decks x 50 matches` regression still completed only 12 matches and left
-  38 matches at `max_actions`.
+- Keep improving the sandbox controller so it continues to expose deeper rule
+  blockers instead of overfitting to the current deck pool.
+- Latest long-run baseline: block mode can complete 100/100 matches with no
+  blocker. The next useful sandbox work is broader deck diversity and semantic
+  user-agent comparison, not only increasing `max_actions`.
 - Next strategy work:
   - tune the current work/Heart-synergy deck generator so generated decks become
     closer to practical deck construction without hiding real rule blockers
