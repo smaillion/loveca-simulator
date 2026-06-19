@@ -1978,6 +1978,8 @@ describe("App", () => {
     );
 
     expect(screen.getByText("技能检查结果")).toBeInTheDocument();
+    expect(screen.getByText("確認メンバー · PL!-bp6-002:1")).toBeInTheDocument();
+    expect(screen.getByText("【登場】自分のデッキの上からカードを2枚見る。")).toBeInTheDocument();
     expect(screen.getByText("候補カード")).toBeInTheDocument();
     expect(screen.getByText("条件外カード")).toBeInTheDocument();
     expect(screen.getByText("不符合条件")).toBeInTheDocument();

@@ -19,6 +19,7 @@ import {
 import {
   createContext,
   type DragEvent,
+  Fragment,
   type ReactNode,
   useCallback,
   useContext,
@@ -1053,7 +1054,9 @@ function MobileMatchDialog({
           />
         ) : (
           <>
-            <LiveCenter state={state} onCard={onCard} compact />
+            <div className="mobile-live-review">
+              <LiveAnalysisPanel state={state} onCard={onCard} />
+            </div>
             {actions.length > 0 && (
               <div className="mobile-live-dialog-actions">
                 <ActionDock
@@ -2721,6 +2724,9 @@ function ActionDock({
   const { locale, tr } = useUiLanguage();
   const [selected, setSelected] = useState<string[]>([]);
   const [liveOrder, setLiveOrder] = useState<string[]>([]);
+  const mobileMainPhaseSkipAction = mobileMemberPlayEnabled
+    ? actions.find((action) => action.action_type === "end_main_phase")
+    : undefined;
 
   useEffect(() => {
     setSelected([]);
@@ -2735,6 +2741,9 @@ function ActionDock({
       </div>
       <div className="action-controls">
         {actions.map((action) => {
+          if (mobileMemberPlayEnabled && action.action_type === "end_main_phase") {
+            return null;
+          }
           if (action.action_type === "manual_adjustment") {
             const sources = (action.options.source_invocations ?? []) as Array<{
               invocation_id: string;
@@ -2910,16 +2919,34 @@ function ActionDock({
           }
           if (action.action_type === "play_member") {
             return (
-              <MemberPlayAction
-                key={`${action.action_type}-${state.revision}`}
-                action={action}
-                state={state}
-                externalDraft={memberPlayDraft}
-                onExternalDraftChange={onMemberPlayDraftChange}
-                mobileMode={mobileMemberPlayEnabled}
-                loading={loading}
-                onAction={onAction}
-              />
+              <Fragment key={`${action.action_type}-${state.revision}`}>
+                <MemberPlayAction
+                  action={action}
+                  state={state}
+                  externalDraft={memberPlayDraft}
+                  onExternalDraftChange={onMemberPlayDraftChange}
+                  mobileMode={mobileMemberPlayEnabled}
+                  loading={loading}
+                  onAction={onAction}
+                />
+                {mobileMainPhaseSkipAction && (
+                  <button
+                    className="secondary-button mobile-main-skip-button"
+                    disabled={loading}
+                    type="button"
+                    onClick={() =>
+                      onAction(
+                        mobileMainPhaseSkipAction.action_type,
+                        mobileMainPhaseSkipAction.player_id,
+                      )
+                    }
+                  >
+                    {locale === "zh"
+                      ? "不登场，结束主要阶段"
+                      : "登場せずメインを終了"}
+                  </button>
+                )}
+              </Fragment>
             );
           }
           if (action.action_type === "resolve_live_requirements") {
@@ -3777,6 +3804,12 @@ export function InspectionChoiceAction({
   const maximum = Number(action.options.maximum ?? 0);
   const requiresOrder = Boolean(action.options.requires_order);
   const selectedDestination = String(action.options.selected_destination ?? "");
+  const effectId = typeof action.options.effect_id === "string" ? action.options.effect_id : "";
+  const sourceCardId = typeof action.options.source_card_instance_id === "string"
+    ? action.options.source_card_instance_id
+    : "";
+  const effectDefinition = effectId ? state.effect_definitions[effectId] : undefined;
+  const sourceCard = sourceCardId ? state.cards[sourceCardId] : undefined;
   const [selected, setSelected] = useState<string[]>([]);
 
   useEffect(() => {
@@ -3791,6 +3824,16 @@ export function InspectionChoiceAction({
   return (
     <div className="effect-resolution">
       <strong>{title}</strong>
+      {effectDefinition && (
+        <div className="effect-source-text">
+          <small>
+            {sourceCard?.card.name_ja
+              ? `${sourceCard.card.name_ja} · ${effectId}`
+              : effectId}
+          </small>
+          <p>{formatEffectText(effectDefinition.label_ja, locale)}</p>
+        </div>
+      )}
       <span>
         {tr("选择", "選択")} {minimum}–{maximum} {tr("张", "枚")}
         {action.options.reveal_selected_to_opponent
@@ -4766,7 +4809,7 @@ function CardDialog({
     .map((effectId) => state.effect_definitions[effectId])
     .filter(Boolean);
   return (
-    <div className="dialog-backdrop" onMouseDown={onClose}>
+    <div className="dialog-backdrop card-dialog-backdrop" onMouseDown={onClose}>
       <article className="card-dialog" onMouseDown={(event) => event.stopPropagation()}>
         <button className="icon-button close-dialog" onClick={onClose}>
           <X size={18} />
