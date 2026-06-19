@@ -568,14 +568,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "web" and args.web_command == "serve":
         import uvicorn
 
-        from loveca.webapp import ApiSettings, create_app
+        from loveca.webapp import create_app, default_settings
 
         application = create_app(
-            ApiSettings(
-                card_database_path=args.database,
-                runtime_database_path=args.matches,
-                image_cache_dir=args.image_cache,
-                web_dist_dir=Path("web/dist"),
+            default_settings().model_copy(
+                update={
+                    "card_database_path": args.database,
+                    "runtime_database_path": args.matches,
+                    "image_cache_dir": args.image_cache,
+                }
             )
         )
         uvicorn.run(application, host=args.host, port=args.port)

@@ -245,3 +245,43 @@ def test_cards_import_official_incremental_mode_requires_card_set(capsys):
     captured = capsys.readouterr()
     assert exit_code == 1
     assert "--mode incremental-set requires at least one --card-set" in captured.err
+
+
+def test_web_serve_preserves_environment_backed_settings(tmp_path, monkeypatch):
+    captured = {}
+
+    def fake_run(application, *, host, port):
+        captured["application"] = application
+        captured["host"] = host
+        captured["port"] = port
+
+    monkeypatch.setattr("uvicorn.run", fake_run)
+    monkeypatch.setenv("LOVECA_ADMIN_KEY", "secret")
+    monkeypatch.setenv("LOVECA_ROOM_TTL_HOURS", "7")
+
+    exit_code = main(
+        [
+            "web",
+            "serve",
+            "--database",
+            str(tmp_path / "cards.sqlite3"),
+            "--matches",
+            str(tmp_path / "matches.sqlite3"),
+            "--image-cache",
+            str(tmp_path / "images"),
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "9001",
+        ]
+    )
+
+    assert exit_code == 0
+    settings = captured["application"].state.settings
+    assert settings.admin_key == "secret"
+    assert settings.room_ttl_hours == 7
+    assert settings.card_database_path == tmp_path / "cards.sqlite3"
+    assert settings.runtime_database_path == tmp_path / "matches.sqlite3"
+    assert settings.image_cache_dir == tmp_path / "images"
+    assert captured["host"] == "127.0.0.1"
+    assert captured["port"] == 9001
