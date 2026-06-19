@@ -746,6 +746,123 @@ def test_admin_deck_shares_show_uploaded_decks_and_winrate(tmp_path):
     assert item["last_played_at"] == "2026-06-16T04:00:00+00:00"
 
 
+def test_admin_runtime_progress_report_summarizes_pending_effects(tmp_path):
+    client = _client(tmp_path, admin_key="secret")
+    runtime_path = tmp_path / "matches.sqlite3"
+    effect_id = "PL!SP-bp4-025:1"
+    state = {
+        "phase": "performance_first",
+        "turn_number": 4,
+        "pending_choice": {
+            "choice_type": "effect_inspection_selection",
+            "player_id": "player_1",
+        },
+        "pending_effects": [
+            {
+                "invocation_id": "invocation-1",
+                "effect_id": effect_id,
+                "source_card_instance_id": "source-card-1",
+                "player_id": "player_1",
+                "trigger_event": "live_start",
+            }
+        ],
+        "effect_definitions": {
+            effect_id: {
+                "card_code": "PL!SP-bp4-025",
+                "label_ja": "??????????????",
+                "simulation_support": "manual_resolution",
+                "trigger": "live_start",
+            }
+        },
+        "cards": {
+            "source-card-1": {
+                "card": {
+                    "card_code": "PL!SP-bp4-025",
+                    "card_id": "PL!SP-bp4-025-R",
+                    "name_ja": "??????",
+                }
+            }
+        },
+    }
+    event = {
+        "event_type": "effect_skipped_due_to_error",
+        "player_id": "player_1",
+        "data": {
+            "effect_id": effect_id,
+            "source_card_instance_id": "source-card-1",
+            "error": "manual blocker",
+        },
+    }
+    with sqlite3.connect(runtime_path) as connection:
+        connection.execute(
+            """
+            INSERT INTO matches (
+                match_id,
+                card_database_path,
+                rule_version,
+                seed,
+                status,
+                revision,
+                initial_state_json,
+                current_state_json,
+                created_at,
+                updated_at
+            )
+            VALUES (?, 'cards.sqlite3', 'test', 1, 'active', 12, '{}', ?, ?, ?)
+            """,
+            (
+                "progress-match-1",
+                json.dumps(state, ensure_ascii=False),
+                "2026-06-17T01:00:00+00:00",
+                "2026-06-17T01:05:00+00:00",
+            ),
+        )
+        connection.execute(
+            """
+            INSERT INTO match_events (
+                match_id,
+                action_sequence,
+                event_index,
+                event_type,
+                event_json
+            )
+            VALUES (?, 12, 0, ?, ?)
+            """,
+            (
+                "progress-match-1",
+                "effect_skipped_due_to_error",
+                json.dumps(event, ensure_ascii=False),
+            ),
+        )
+
+    assert client.get("/api/admin/runtime/progress").status_code == 403
+    response = client.get(
+        "/api/admin/runtime/progress",
+        headers={"X-LoveCA-Admin-Key": "secret"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert {item["value"]: item["count"] for item in payload["phase_distribution"]}[
+        "performance_first"
+    ] == 1
+    assert payload["stuck_matches"][0]["pending_choice_type"] == "effect_inspection_selection"
+    top_effect = payload["top_stuck_effects"][0]
+    assert top_effect["effect_id"] == effect_id
+    assert top_effect["card_code"] == "PL!SP-bp4-025"
+    reasons = {item["value"]: item["count"] for item in top_effect["reasons"]}
+    assert reasons["pending_manual_resolution"] == 1
+    assert reasons["effect_skipped_due_to_error"] == 1
+
+    report = client.get(
+        "/api/admin/runtime/progress-report",
+        headers={"X-LoveCA-Admin-Key": "secret"},
+    )
+    assert report.status_code == 200
+    assert "text/markdown" in report.headers["content-type"]
+    assert "PL!SP-bp4-025" in report.text
+    assert "effect_skipped_due_to_error" in report.text
+
+
 def test_catalog_api_exposes_card_review_data(tmp_path):
     client = _client(tmp_path)
 

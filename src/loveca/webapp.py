@@ -13,7 +13,7 @@ from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -548,6 +548,37 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         _require_admin(resolved, x_loveca_admin_key)
         return _shared_deck_admin_summary(resolved.runtime_database_path, limit=limit)
 
+    @app.get("/api/admin/runtime/progress")
+    def admin_runtime_progress(
+        x_loveca_admin_key: str | None = Header(default=None),
+        limit: int = Query(default=500, ge=1, le=5000),
+        top: int = Query(default=20, ge=1, le=100),
+    ) -> dict[str, Any]:
+        _require_admin(resolved, x_loveca_admin_key)
+        return _runtime_progress_diagnostics(
+            resolved.runtime_database_path,
+            limit=limit,
+            top_limit=top,
+        )
+
+    @app.get("/api/admin/runtime/progress-report")
+    def admin_runtime_progress_report(
+        x_loveca_admin_key: str | None = Header(default=None),
+        limit: int = Query(default=500, ge=1, le=5000),
+        top: int = Query(default=20, ge=1, le=100),
+    ) -> Response:
+        _require_admin(resolved, x_loveca_admin_key)
+        diagnostics = _runtime_progress_diagnostics(
+            resolved.runtime_database_path,
+            limit=limit,
+            top_limit=top,
+        )
+        return Response(
+            _runtime_progress_markdown(diagnostics),
+            media_type="text/markdown; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="loveca-runtime-progress.md"'},
+        )
+
     @app.get("/admin", response_class=HTMLResponse)
     def admin_page() -> str:
         return _admin_page_html()
@@ -943,6 +974,8 @@ def _admin_page_html() -> str:
       .muted { color: #6b7280; font-size: .85rem; }
       .mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .82rem; }
       .deck-json { max-height: 16rem; }
+      .report-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+      .compact-list { margin: .5rem 0 0; padding-left: 1.25rem; }
     </style>
   </head>
   <body>
@@ -969,6 +1002,15 @@ def _admin_page_html() -> str:
         <div id="deckOutput" class="muted">Not loaded.</div>
       </section>
       <section>
+        <h2>Progress diagnostics</h2>
+        <p class="muted">Shows match phase distribution and effect cards that frequently remain pending or emit error/skip events.</p>
+        <div class="report-actions">
+          <button id="loadProgress">Load progress summary</button>
+          <button id="downloadProgress">Download markdown report</button>
+        </div>
+        <div id="progressOutput" class="muted">Not loaded.</div>
+      </section>
+      <section>
         <h2>Result</h2>
         <pre id="output">Not loaded.</pre>
       </section>
@@ -976,6 +1018,7 @@ def _admin_page_html() -> str:
     <script>
       const output = document.getElementById("output");
       const deckOutput = document.getElementById("deckOutput");
+      const progressOutput = document.getElementById("progressOutput");
       const key = () => document.getElementById("adminKey").value;
       const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;",
@@ -1015,6 +1058,42 @@ def _admin_page_html() -> str:
             </tbody>
           </table>`;
       }
+      function renderProgress(payload) {
+        const phaseItems = (payload.phase_distribution || []).slice(0, 8);
+        const stuckItems = (payload.top_stuck_effects || []).slice(0, 8);
+        progressOutput.innerHTML = `
+          <p class="muted">matches: ${payload.match_count} / generated: ${escapeHtml(payload.generated_at)}</p>
+          <h3>Top phases</h3>
+          <ul class="compact-list">${phaseItems.map((item) => `<li>${escapeHtml(item.value)}: ${item.count}</li>`).join("") || "<li>-</li>"}</ul>
+          <h3>Top effects</h3>
+          <table>
+            <thead><tr><th>Effect</th><th>Card</th><th>Count</th><th>Reasons</th></tr></thead>
+            <tbody>${stuckItems.map((item) => `
+              <tr>
+                <td class="mono">${escapeHtml(item.effect_id)}</td>
+                <td class="mono">${escapeHtml(item.card_code || "-")}</td>
+                <td>${item.count}</td>
+                <td>${escapeHtml((item.reasons || []).map((reason) => `${reason.value}:${reason.count}`).join(", ") || "-")}</td>
+              </tr>
+            `).join("") || '<tr><td colspan="4">No stuck effects.</td></tr>'}</tbody>
+          </table>`;
+      }
+      async function downloadProgressReport() {
+        const response = await fetch("/api/admin/runtime/progress-report", {
+          headers: { "X-LoveCA-Admin-Key": key() },
+        });
+        const text = await response.text();
+        if (!response.ok) throw new Error(text || response.statusText);
+        const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "loveca-runtime-progress.md";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
       async function adminFetch(url, options = {}) {
         const response = await fetch(url, {
           ...options,
@@ -1040,6 +1119,20 @@ def _admin_page_html() -> str:
           renderDeckShares(await adminFetch("/api/admin/deck-shares"));
         } catch (error) {
           deckOutput.textContent = String(error);
+        }
+      };
+      document.getElementById("loadProgress").onclick = async () => {
+        try {
+          renderProgress(await adminFetch("/api/admin/runtime/progress"));
+        } catch (error) {
+          progressOutput.textContent = String(error);
+        }
+      };
+      document.getElementById("downloadProgress").onclick = async () => {
+        try {
+          await downloadProgressReport();
+        } catch (error) {
+          progressOutput.textContent = String(error);
         }
       };
       document.getElementById("cleanup").onclick = async () => {
@@ -1138,6 +1231,395 @@ def _load_deck_share(runtime_database_path: Path, share_id: str) -> dict[str, An
         "deck": json.loads(row[1]),
         "created_at": row[2],
     }
+
+
+def _runtime_progress_diagnostics(
+    runtime_database_path: Path,
+    *,
+    limit: int,
+    top_limit: int,
+) -> dict[str, Any]:
+    generated_at = datetime.now(UTC).isoformat(timespec="seconds")
+    diagnostics: dict[str, Any] = {
+        "generated_at": generated_at,
+        "source_limit": limit,
+        "match_count": 0,
+        "status_distribution": [],
+        "phase_distribution": [],
+        "turn_distribution": [],
+        "pending_choice_distribution": [],
+        "pending_effect_count_distribution": [],
+        "stuck_matches": [],
+        "top_stuck_effects": [],
+        "effect_event_distribution": [],
+        "event_sample_limit": 0,
+    }
+    if not runtime_database_path.exists():
+        return diagnostics
+    status_counts: dict[str, int] = {}
+    phase_counts: dict[str, int] = {}
+    turn_counts: dict[str, int] = {}
+    pending_choice_counts: dict[str, int] = {}
+    pending_effect_count_counts: dict[str, int] = {}
+    effect_stats: dict[str, dict[str, Any]] = {}
+    with sqlite3.connect(runtime_database_path) as connection:
+        connection.row_factory = sqlite3.Row
+        if not _table_exists(connection, "matches"):
+            return diagnostics
+        rows = connection.execute(
+            """
+            SELECT match_id, status, revision, current_state_json, created_at, updated_at
+            FROM matches
+            ORDER BY updated_at DESC, created_at DESC, match_id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+        diagnostics["match_count"] = len(rows)
+        for row in rows:
+            status = _string_or_unknown(row["status"])
+            _counter_add(status_counts, status)
+            state = _json_object(row["current_state_json"])
+            phase = _string_or_unknown(state.get("phase")) if state else "unparseable_state"
+            turn_number = state.get("turn_number") if state else None
+            _counter_add(phase_counts, phase)
+            _counter_add(turn_counts, _turn_bucket(turn_number))
+            pending_choice = state.get("pending_choice") if state else None
+            pending_choice_type = None
+            if isinstance(pending_choice, dict):
+                pending_choice_type = _string_or_unknown(pending_choice.get("choice_type"))
+                _counter_add(pending_choice_counts, pending_choice_type)
+            pending_effects = state.get("pending_effects") if state else None
+            if not isinstance(pending_effects, list):
+                pending_effects = []
+            _counter_add(pending_effect_count_counts, str(len(pending_effects)))
+            pending_effect_ids: list[str] = []
+            for invocation in pending_effects:
+                if not isinstance(invocation, dict):
+                    continue
+                effect = _effect_summary_from_state(state, invocation)
+                pending_effect_ids.append(effect["effect_id"])
+                reason = (
+                    "pending_manual_resolution"
+                    if effect.get("simulation_support") == "manual_resolution"
+                    else "pending_effect"
+                )
+                _record_effect_stat(
+                    effect_stats,
+                    effect=effect,
+                    reason=reason,
+                    match_id=str(row["match_id"]),
+                )
+            if (pending_choice_type or pending_effects) and len(diagnostics["stuck_matches"]) < top_limit:
+                diagnostics["stuck_matches"].append(
+                    {
+                        "match_id": row["match_id"],
+                        "status": status,
+                        "phase": phase,
+                        "turn_number": turn_number,
+                        "revision": row["revision"],
+                        "updated_at": row["updated_at"],
+                        "pending_choice_type": pending_choice_type,
+                        "pending_effect_count": len(pending_effects),
+                        "pending_effect_ids": pending_effect_ids,
+                    }
+                )
+        if _table_exists(connection, "match_events"):
+            event_limit = min(max(limit * 50, top_limit * 10), 20000)
+            diagnostics["event_sample_limit"] = event_limit
+            _accumulate_effect_event_stats(connection, effect_stats, event_limit=event_limit)
+    diagnostics["status_distribution"] = _counter_items(status_counts)
+    diagnostics["phase_distribution"] = _counter_items(phase_counts)
+    diagnostics["turn_distribution"] = _counter_items(turn_counts)
+    diagnostics["pending_choice_distribution"] = _counter_items(pending_choice_counts)
+    diagnostics["pending_effect_count_distribution"] = _counter_items(
+        pending_effect_count_counts,
+        sort_numeric=True,
+    )
+    diagnostics["top_stuck_effects"] = _effect_stat_items(effect_stats, top_limit)
+    diagnostics["effect_event_distribution"] = _effect_event_distribution(effect_stats)
+    return diagnostics
+
+
+def _accumulate_effect_event_stats(
+    connection: sqlite3.Connection,
+    effect_stats: dict[str, dict[str, Any]],
+    *,
+    event_limit: int,
+) -> None:
+    tracked_event_types = (
+        "effect_not_activatable",
+        "effect_skipped_due_to_error",
+        "effect_multi_player_choice_skipped",
+        "effect_manual_resolution_completed",
+        "manual_card_inspection_started",
+        "manual_adjustment_applied",
+    )
+    placeholders = ", ".join("?" for _ in tracked_event_types)
+    rows = connection.execute(
+        f"""
+        SELECT match_id, event_type, event_json
+        FROM match_events
+        WHERE event_type IN ({placeholders})
+        ORDER BY rowid DESC
+        LIMIT ?
+        """,
+        (*tracked_event_types, event_limit),
+    ).fetchall()
+    for row in rows:
+        event = _json_object(row["event_json"])
+        data = event.get("data") if event else None
+        if not isinstance(data, dict):
+            data = {}
+        effect_id = data.get("effect_id")
+        if not isinstance(effect_id, str) or not effect_id:
+            continue
+        effect = {
+            "effect_id": effect_id,
+            "card_code": _card_code_from_effect_id(effect_id),
+            "card_id": None,
+            "card_name_ja": None,
+            "label_ja": None,
+            "simulation_support": None,
+            "trigger": None,
+        }
+        _record_effect_stat(
+            effect_stats,
+            effect=effect,
+            reason=str(row["event_type"]),
+            match_id=str(row["match_id"]),
+        )
+
+
+def _effect_summary_from_state(
+    state: dict[str, Any],
+    invocation: dict[str, Any],
+) -> dict[str, Any]:
+    effect_id = _string_or_unknown(invocation.get("effect_id"))
+    source_instance_id = invocation.get("source_card_instance_id")
+    effect_definitions = state.get("effect_definitions")
+    effect = effect_definitions.get(effect_id) if isinstance(effect_definitions, dict) else None
+    if not isinstance(effect, dict):
+        effect = {}
+    cards = state.get("cards")
+    source_card = None
+    if isinstance(cards, dict) and isinstance(source_instance_id, str):
+        source_instance = cards.get(source_instance_id)
+        if isinstance(source_instance, dict):
+            source_card = source_instance.get("card")
+    if not isinstance(source_card, dict):
+        source_card = {}
+    return {
+        "effect_id": effect_id,
+        "card_code": _first_string(effect.get("card_code"), source_card.get("card_code"), _card_code_from_effect_id(effect_id)),
+        "card_id": _first_string(source_card.get("card_id"), source_instance_id),
+        "card_name_ja": _first_string(source_card.get("name_ja")),
+        "label_ja": _first_string(effect.get("label_ja")),
+        "simulation_support": _first_string(effect.get("simulation_support")),
+        "trigger": _first_string(effect.get("trigger"), invocation.get("trigger_event")),
+    }
+
+
+def _record_effect_stat(
+    stats: dict[str, dict[str, Any]],
+    *,
+    effect: dict[str, Any],
+    reason: str,
+    match_id: str,
+) -> None:
+    effect_id = _string_or_unknown(effect.get("effect_id"))
+    item = stats.setdefault(
+        effect_id,
+        {
+            "effect_id": effect_id,
+            "card_code": effect.get("card_code"),
+            "card_id": effect.get("card_id"),
+            "card_name_ja": effect.get("card_name_ja"),
+            "label_ja": effect.get("label_ja"),
+            "simulation_support": effect.get("simulation_support"),
+            "trigger": effect.get("trigger"),
+            "count": 0,
+            "reasons": {},
+            "example_match_ids": [],
+        },
+    )
+    for field in ("card_code", "card_id", "card_name_ja", "label_ja", "simulation_support", "trigger"):
+        if item.get(field) in {None, "unknown"} and effect.get(field):
+            item[field] = effect[field]
+    item["count"] += 1
+    _counter_add(item["reasons"], reason)
+    if match_id not in item["example_match_ids"] and len(item["example_match_ids"]) < 5:
+        item["example_match_ids"].append(match_id)
+
+
+def _effect_stat_items(stats: dict[str, dict[str, Any]], limit: int) -> list[dict[str, Any]]:
+    items = sorted(
+        stats.values(),
+        key=lambda item: (-int(item["count"]), str(item["effect_id"])),
+    )[:limit]
+    return [
+        {
+            **item,
+            "reasons": _counter_items(item["reasons"]),
+        }
+        for item in items
+    ]
+
+
+def _effect_event_distribution(stats: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    counts: dict[str, int] = {}
+    for item in stats.values():
+        reasons = item.get("reasons")
+        if not isinstance(reasons, dict):
+            continue
+        for reason, count in reasons.items():
+            if str(reason).startswith("pending_"):
+                continue
+            _counter_add(counts, str(reason), int(count))
+    return _counter_items(counts)
+
+
+def _runtime_progress_markdown(diagnostics: dict[str, Any]) -> str:
+    lines = [
+        "# LoveCA Runtime Progress Report",
+        "",
+        f"Generated at: `{_md(diagnostics.get('generated_at'))}`",
+        f"Matches sampled: `{diagnostics.get('match_count', 0)}` / source limit `{diagnostics.get('source_limit')}`",
+        f"Event sample limit: `{diagnostics.get('event_sample_limit', 0)}`",
+        "",
+        "## Match Progress",
+        "",
+    ]
+    lines.extend(_markdown_distribution("Status", diagnostics.get("status_distribution", [])))
+    lines.extend(_markdown_distribution("Phase", diagnostics.get("phase_distribution", [])))
+    lines.extend(_markdown_distribution("Turn", diagnostics.get("turn_distribution", [])))
+    lines.extend(_markdown_distribution("Pending choice", diagnostics.get("pending_choice_distribution", [])))
+    lines.extend(_markdown_distribution("Pending effect count", diagnostics.get("pending_effect_count_distribution", [])))
+    lines.extend([
+        "## Top Stuck Effects",
+        "",
+        "| Count | Effect | Card | Support | Trigger | Reasons | Examples |",
+        "| ---: | --- | --- | --- | --- | --- | --- |",
+    ])
+    for item in diagnostics.get("top_stuck_effects", []):
+        reasons = ", ".join(
+            f"{_md(reason['value'])}:{reason['count']}" for reason in item.get("reasons", [])
+        )
+        examples = ", ".join(_md(match_id) for match_id in item.get("example_match_ids", []))
+        lines.append(
+            "| {count} | `{effect}` | `{card}` {name} | {support} | {trigger} | {reasons} | {examples} |".format(
+                count=item.get("count", 0),
+                effect=_md(item.get("effect_id")),
+                card=_md(item.get("card_code")),
+                name=_md(item.get("card_name_ja") or ""),
+                support=_md(item.get("simulation_support")),
+                trigger=_md(item.get("trigger")),
+                reasons=reasons or "-",
+                examples=examples or "-",
+            )
+        )
+    lines.extend([
+        "",
+        "## Currently Blocked Matches",
+        "",
+        "| Match | Status | Phase | Turn | Revision | Pending choice | Pending effects | Updated |",
+        "| --- | --- | --- | ---: | ---: | --- | --- | --- |",
+    ])
+    for item in diagnostics.get("stuck_matches", []):
+        lines.append(
+            "| `{match}` | {status} | {phase} | {turn} | {revision} | {choice} | {effects} | {updated} |".format(
+                match=_md(item.get("match_id")),
+                status=_md(item.get("status")),
+                phase=_md(item.get("phase")),
+                turn=_md(item.get("turn_number")),
+                revision=_md(item.get("revision")),
+                choice=_md(item.get("pending_choice_type") or "-"),
+                effects=_md(", ".join(item.get("pending_effect_ids", [])) or "-"),
+                updated=_md(item.get("updated_at")),
+            )
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _markdown_distribution(title: str, items: list[dict[str, Any]]) -> list[str]:
+    lines = [f"### {title}", "", "| Value | Count |", "| --- | ---: |"]
+    if not items:
+        lines.append("| - | 0 |")
+    else:
+        for item in items:
+            lines.append(f"| {_md(item.get('value'))} | {item.get('count', 0)} |")
+    lines.append("")
+    return lines
+
+
+def _counter_add(counter: dict[str, int], key: str, amount: int = 1) -> None:
+    counter[key] = counter.get(key, 0) + amount
+
+
+def _counter_items(
+    counter: dict[str, int],
+    *,
+    sort_numeric: bool = False,
+) -> list[dict[str, Any]]:
+    def sort_key(item: tuple[str, int]) -> tuple[int, int | str]:
+        value, count = item
+        if sort_numeric:
+            try:
+                return (-count, int(value))
+            except ValueError:
+                return (-count, value)
+        return (-count, value)
+
+    return [
+        {"value": value, "count": count}
+        for value, count in sorted(counter.items(), key=sort_key)
+    ]
+
+
+def _json_object(raw: Any) -> dict[str, Any]:
+    if not isinstance(raw, str) or not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except ValueError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _turn_bucket(value: Any) -> str:
+    try:
+        turn = int(value)
+    except (TypeError, ValueError):
+        return "unknown"
+    if turn <= 1:
+        return "1"
+    if turn <= 3:
+        return "2-3"
+    if turn <= 6:
+        return "4-6"
+    return "7+"
+
+
+def _card_code_from_effect_id(effect_id: Any) -> str:
+    if not isinstance(effect_id, str) or not effect_id:
+        return "unknown"
+    return effect_id.rsplit(":", 1)[0]
+
+
+def _first_string(*values: Any) -> str | None:
+    for value in values:
+        if isinstance(value, str) and value:
+            return value
+    return None
+
+
+def _string_or_unknown(value: Any) -> str:
+    return value if isinstance(value, str) and value else "unknown"
+
+
+def _md(value: Any) -> str:
+    return str(value if value is not None else "-").replace("|", "\\|").replace("\n", " ")
 
 
 def _shared_deck_admin_summary(
