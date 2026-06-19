@@ -242,6 +242,7 @@ class EffectChoice(BaseModel):
     maximum_score: int | None = None
     excluded_position_slots: list[str] = Field(default_factory=list)
     heart_color_slot: str | None = None
+    heart_color_slots_any: list[str] = Field(default_factory=list)
     minimum_heart_count: int | None = None
     required_heart_color_slot: str | None = None
     minimum_required_heart: int | None = None

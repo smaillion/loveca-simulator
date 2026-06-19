@@ -3647,25 +3647,57 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "inspect_top_cards",
+          "amount": 4
+        },
+        {
+          "action_type": "select_to_hand_from_inspected"
+        },
+        {
+          "action_type": "move_remaining_cards"
         }
       ],
       "card_code": "PL!-bp5-014",
-      "choice": null,
+      "choice": {
+        "amount": 4,
+        "card_type": "member",
+        "choice_type": "inspect_top_select",
+        "heart_color_slots_any": [
+          "heart05",
+          "heart06"
+        ],
+        "maximum": 1,
+        "minimum": 0,
+        "minimum_heart_count": 1,
+        "requires_order": false,
+        "reveal_selected_to_opponent": true,
+        "selected_destination": "hand",
+        "unselected_destination": "waiting_room"
+      },
       "condition": {},
-      "cost": [],
+      "cost": [
+        {
+          "action_type": "discard_from_hand"
+        }
+      ],
+      "cost_choice": {
+        "choice_type": "card_from_zone",
+        "maximum": 1,
+        "minimum": 1,
+        "zone": "hand"
+      },
       "duration": null,
       "effect_id": "PL!-bp5-014:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "none",
       "is_optional": true,
       "label_ja": "【登場】手札を1枚控え室に置いてもよい：自分のデッキの上からカードを4枚見る。その中からハートに【heart05】か【heart06】を持つメンバーカードを1枚公開して手札に加えてもよい。残りを控え室に置く。",
       "raw_text_hash": "687f32f7dd1e49c2a7178142a0f4ae3c81b154dec7a114188c65d8552320538d",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; structured exact-text pattern for optional discard then inspect-top Heart member search",
       "text_revision_id": 161,
       "timing": "on_play",
       "trigger": "member_played"

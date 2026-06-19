@@ -4926,6 +4926,7 @@ def _effect_candidates_for_choice(
             if _card_score(state, invocation.player_id, item) <= choice.maximum_score
         ]
     heart_color_slot = getattr(choice, "heart_color_slot", None)
+    heart_color_slots_any = getattr(choice, "heart_color_slots_any", [])
     minimum_heart_count = getattr(choice, "minimum_heart_count", None)
     if heart_color_slot is not None and minimum_heart_count is not None:
         candidates = [
@@ -4936,6 +4937,22 @@ def _effect_candidates_for_choice(
                 heart_color_slot,
             )
             >= minimum_heart_count
+        ]
+    if heart_color_slots_any and minimum_heart_count is not None:
+        allowed_colors = {
+            color for color in heart_color_slots_any if isinstance(color, str)
+        }
+        candidates = [
+            item
+            for item in candidates
+            if any(
+                _card_heart_or_required_heart_count(
+                    state.cards[item].card,
+                    color_slot,
+                )
+                >= minimum_heart_count
+                for color_slot in allowed_colors
+            )
         ]
     required_heart_color_slot = getattr(choice, "required_heart_color_slot", None)
     minimum_required_heart = getattr(choice, "minimum_required_heart", None)
@@ -5434,6 +5451,7 @@ def _inspection_choice_candidates(
             if (state.cards[item].card.cost or 0) <= choice.maximum_cost
         ]
     heart_color_slot = getattr(choice, "heart_color_slot", None)
+    heart_color_slots_any = getattr(choice, "heart_color_slots_any", [])
     minimum_heart_count = getattr(choice, "minimum_heart_count", None)
     if heart_color_slot is not None and minimum_heart_count is not None:
         candidates = [
@@ -5444,6 +5462,22 @@ def _inspection_choice_candidates(
                 heart_color_slot,
             )
             >= minimum_heart_count
+        ]
+    if heart_color_slots_any and minimum_heart_count is not None:
+        allowed_colors = {
+            color for color in heart_color_slots_any if isinstance(color, str)
+        }
+        candidates = [
+            item
+            for item in candidates
+            if any(
+                _card_heart_or_required_heart_count(
+                    state.cards[item].card,
+                    color_slot,
+                )
+                >= minimum_heart_count
+                for color_slot in allowed_colors
+            )
         ]
     if choice.ability_bucket:
         allowed = set(choice.ability_bucket)

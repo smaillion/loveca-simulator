@@ -21,6 +21,7 @@ from loveca.simulation.effects import (
 )
 from loveca.simulation.engine import (
     IllegalActionError,
+    _inspection_choice_candidates,
     _queue_live_success_effects,
     _run_current_yell,
     _static_heart_bonus,
@@ -220,6 +221,121 @@ def test_registry_contains_expanded_exact_text_reorder_effects():
     assert registered["PL!S-PR-028"].simulation_support == "test_validated_executable"
     assert registered["PL!S-PR-028"].choice.amount == 3
     assert registered["PL!N-bp1-002"].choice.maximum == 3
+
+
+def test_registry_structures_optional_heart_member_inspection_search():
+    registry = EffectRegistry.model_validate_json(REGISTRY.read_text(encoding="utf-8"))
+    effect = next(item for item in registry.effects if item.effect_id == "PL!-bp5-014:1")
+
+    assert effect.simulation_support == "test_validated_executable"
+    assert effect.execution_mode == "prompt_then_resolve"
+    assert effect.is_optional is True
+    assert [operation.action_type for operation in effect.cost] == ["discard_from_hand"]
+    assert effect.cost_choice is not None
+    assert effect.cost_choice.zone == "hand"
+    assert effect.cost_choice.minimum == effect.cost_choice.maximum == 1
+    assert effect.choice is not None
+    assert effect.choice.choice_type == "inspect_top_select"
+    assert effect.choice.amount == 4
+    assert effect.choice.card_type == "member"
+    assert effect.choice.heart_color_slots_any == ["heart05", "heart06"]
+    assert effect.choice.minimum_heart_count == 1
+    assert effect.choice.minimum == 0
+    assert effect.choice.maximum == 1
+    assert effect.choice.reveal_selected_to_opponent is True
+    assert [operation.action_type for operation in effect.actions] == [
+        "inspect_top_cards",
+        "select_to_hand_from_inspected",
+        "move_remaining_cards",
+    ]
+
+
+def test_inspection_choice_accepts_any_configured_heart_color_slot():
+    registry = EffectRegistry.model_validate_json(REGISTRY.read_text(encoding="utf-8"))
+    effect = next(item for item in registry.effects if item.effect_id == "PL!-bp5-014:1")
+    cards = {
+        "source": CardInstance(
+            instance_id="source",
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code="PL!-bp5-014",
+                card_id="PL!-bp5-014-R",
+                name_ja="検索メンバー",
+                card_type="member",
+            ),
+        ),
+        "heart5": CardInstance(
+            instance_id="heart5",
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code="M-heart5",
+                card_id="M-heart5-R",
+                name_ja="ハート5",
+                card_type="member",
+                basic_hearts={"heart05": 1},
+            ),
+        ),
+        "heart6": CardInstance(
+            instance_id="heart6",
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code="M-heart6",
+                card_id="M-heart6-R",
+                name_ja="ハート6",
+                card_type="member",
+                basic_hearts={"heart06": 1},
+            ),
+        ),
+        "heart1": CardInstance(
+            instance_id="heart1",
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code="M-heart1",
+                card_id="M-heart1-R",
+                name_ja="ハート1",
+                card_type="member",
+                basic_hearts={"heart01": 1},
+            ),
+        ),
+        "live-heart5": CardInstance(
+            instance_id="live-heart5",
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code="L-heart5",
+                card_id="L-heart5-R",
+                name_ja="ライブ",
+                card_type="live",
+                required_hearts={"heart05": 1},
+            ),
+        ),
+    }
+    state = MatchState(
+        match_id="heart-any-inspection",
+        seed=1,
+        phase="first_main",
+        active_player_id="player_1",
+        first_player_id="player_1",
+        second_player_id="player_2",
+        cards=cards,
+        players={
+            "player_1": PlayerState(player_id="player_1", name="P1"),
+            "player_2": PlayerState(player_id="player_2", name="P2"),
+        },
+        effect_definitions={effect.effect_id: effect},
+    )
+    invocation = EffectInvocation(
+        invocation_id="invoke-1",
+        effect_id=effect.effect_id,
+        player_id="player_1",
+        source_card_instance_id="source",
+        trigger_event="member_played",
+    )
+
+    assert _inspection_choice_candidates(
+        state,
+        invocation,
+        ["heart5", "heart6", "heart1", "live-heart5"],
+    ) == ["heart5", "heart6"]
 
 
 def test_effect_candidate_discovery_is_review_only_after_registry_update():
