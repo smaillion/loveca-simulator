@@ -19,6 +19,7 @@ from tools.ai_sandbox.semantic_playtest import (
     SemanticDecision,
     build_agent_context,
     build_api_play_context,
+    mark_api_play_engine_illegal,
     parse_agent_decision,
     run_semantic_matches,
     try_api_play_action,
@@ -236,6 +237,45 @@ def test_api_play_scripted_provider_selects_ordinary_action():
     assert result.attempt.confidence == "high"
     assert result.attempt.baseline_action_type == "advance_phase"
     assert result.attempt.matches_deterministic_baseline is True
+
+
+def test_api_play_engine_illegal_marks_attempt_for_reporting():
+    state = _state()
+    action = LegalAction(
+        action_type="advance_phase",
+        player_id="player_1",
+        label_zh="推进",
+        label_ja="進行",
+        options={},
+    )
+    provider = MockSemanticAgentProvider(
+        [
+            {
+                "decision": "submit_action",
+                "reason_ja_or_zh": "invalid payload test",
+                "action_type": "advance_phase",
+                "player_id": "player_1",
+                "payload": {"bad": True},
+                "confidence": "medium",
+            }
+        ]
+    )
+    result = try_api_play_action(
+        state,
+        [action],
+        provider=provider,
+        match_index=1,
+        action_index=1,
+        baseline_decision=("advance_phase", "player_1", {}),
+    )
+
+    payload = mark_api_play_engine_illegal(result.attempt, "engine rejected payload")
+
+    assert result.attempt.status == "api_play_engine_illegal"
+    assert result.attempt.error == "engine rejected payload"
+    assert payload["submitted_payload"] == {"bad": True}
+    assert payload["baseline_action_type"] == "advance_phase"
+    assert payload["matches_deterministic_baseline"] is False
 
 
 def test_agent_context_contains_source_text_and_manual_schema():

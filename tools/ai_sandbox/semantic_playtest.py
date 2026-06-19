@@ -329,6 +329,7 @@ def run_semantic_matches(
             while action_count < max_actions and state.phase != "complete":
                 legal_actions = generate_legal_actions(state)
                 decision = choose_action(state, legal_actions, manual_policy="block")
+                selected_api_attempt: ApiPlayAttempt | None = None
                 if decision is None and has_manual_resolution_action(legal_actions):
                     manual_effect_count += 1
                     semantic_result = try_semantic_manual_resolution(
@@ -371,6 +372,7 @@ def run_semantic_matches(
                     api_play_attempts.append(api_result.attempt)
                     if api_result.decision is not None:
                         decision = api_result.decision
+                        selected_api_attempt = api_result.attempt
                         api_play_count += 1
                     else:
                         api_play_failure_count += 1
@@ -401,8 +403,16 @@ def run_semantic_matches(
                     blocker_detail = {
                         **describe_state(state, legal_actions),
                         "attempted_action": action_type,
+                        "attempted_player_id": player_id,
+                        "attempted_payload": payload,
                         "error": str(exc),
                     }
+                    if selected_api_attempt is not None:
+                        blocker_detail["api_play_attempt"] = mark_api_play_engine_illegal(
+                            selected_api_attempt,
+                            str(exc),
+                        )
+                        api_play_failure_count += 1
                     break
                 state = applied.state
                 action_count += 1
@@ -1450,6 +1460,15 @@ def api_play_attempt_from_decision(
         matches_deterministic_baseline=matches_baseline,
         error=error,
     )
+
+
+def mark_api_play_engine_illegal(
+    attempt: ApiPlayAttempt,
+    error: str,
+) -> dict[str, Any]:
+    attempt.status = "api_play_engine_illegal"
+    attempt.error = error
+    return asdict(attempt)
 
 
 def classify_semantic_blocker(state: MatchState, legal_actions: list[LegalAction]) -> str:
