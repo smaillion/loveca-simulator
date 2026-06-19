@@ -2427,9 +2427,22 @@ label {
     display: none;
   }
 
-  .topbar .phase-status,
-  .topbar .language-toggle {
+  .topbar .phase-status {
     display: none;
+  }
+
+  .topbar .language-toggle,
+  .start-header .language-toggle {
+    grid-template-columns: repeat(2, 28px);
+    flex: 0 0 auto;
+  }
+
+  .topbar .language-toggle button,
+  .start-header .language-toggle button {
+    min-height: 32px;
+    padding: 3px 0;
+    font-size: 11px;
+    font-weight: 800;
   }
 
   .top-actions {
@@ -5077,10 +5090,23 @@ label {
   .topbar .brand-lockup span,
   .start-header .brand-lockup span,
   .topbar .phase-status,
-  .topbar .language-toggle,
-  .start-header .language-toggle,
   .revision {
     display: none;
+  }
+
+  .topbar .language-toggle,
+  .start-header .language-toggle {
+    display: inline-grid;
+    grid-template-columns: repeat(2, 28px);
+    flex: 0 0 auto;
+  }
+
+  .topbar .language-toggle button,
+  .start-header .language-toggle button {
+    min-height: 32px;
+    padding: 3px 0;
+    font-size: 11px;
+    font-weight: 800;
   }
 
   .start-actions,
