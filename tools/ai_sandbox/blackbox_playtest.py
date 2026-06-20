@@ -925,6 +925,7 @@ def write_outputs(
             {
                 "deck_summaries": [asdict(item) for item in deck_summaries],
                 "match_summaries": [asdict(item) for item in match_summaries],
+                "diagnostics": sandbox_diagnostics(match_summaries),
             },
             ensure_ascii=False,
             indent=2,
@@ -942,6 +943,7 @@ def write_outputs(
     total_success_lives = Counter(
         sum(item.success_live_counts.values()) for item in match_summaries
     )
+    diagnostics = sandbox_diagnostics(match_summaries)
     lines = [
         "# AI Sandbox Black-Box Playtest Report",
         "",
@@ -961,6 +963,14 @@ def write_outputs(
         f"* Blockers: {dict(sorted(blockers.items()))}",
         f"* Skipped effects: {dict(skipped_effect_counts.most_common(20))}",
         f"* Total success Live counts per match: {dict(sorted(total_success_lives.items()))}",
+        f"* Primary follow-up: `{diagnostics['primary_follow_up']}`",
+        "",
+        "## Diagnostics",
+        "",
+        f"* Completed: {diagnostics['completed']} / {diagnostics['attempted']}",
+        f"* Blockers: {diagnostics['blockers']}",
+        f"* Suggested next command profile: `{diagnostics['suggested_profile']}`",
+        *[f"* {note}" for note in diagnostics["notes"]],
         "",
         "## Deck Coverage",
         "",
@@ -1010,17 +1020,76 @@ def write_outputs(
                 f"{metadata.get('simulation_support', '')} | "
                 f"{_markdown_cell(metadata.get('label_ja', ''))} |"
             )
-    lines.extend(
-        [
-            "",
-            "## Rule / Engine Follow-Up Themes",
-            "",
-            "* Mandatory `manual_resolution` effects still block automated black-box play.",
-            "* LegalAction payloads are sufficient for many core phases, but a richer test controller needs effect-specific policies.",
-            "* Deck diversity is easy to generate from the local DB, but meaningful AI play requires strategy heuristics beyond this smoke harness.",
-        ]
-    )
+    lines.extend(["", "## Rule / Engine Follow-Up Themes", ""])
+    for theme in diagnostics["follow_up_themes"]:
+        lines.append(f"* {theme}")
     (output / "sandbox-report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def sandbox_diagnostics(match_summaries: list[SandboxMatchSummary]) -> dict[str, Any]:
+    attempted = len(match_summaries)
+    completed = sum(item.status == "completed" for item in match_summaries)
+    blockers = Counter(item.blocker or "none" for item in match_summaries)
+    manual_count = blockers.get("mandatory_manual_resolution", 0)
+    max_actions_count = blockers.get("max_actions", 0)
+    illegal_count = blockers.get("illegal_action", 0)
+    pending_count = sum(
+        count
+        for blocker, count in blockers.items()
+        if blocker.startswith("pending_effect")
+        or blocker.startswith("unhandled_pending_choice")
+    )
+    notes: list[str] = []
+    follow_up_themes: list[str] = []
+    primary_follow_up = "inspect_blockers"
+    suggested_profile = "block --max-actions 320"
+    if illegal_count:
+        primary_follow_up = "fix_illegal_action_before_expanding_coverage"
+        follow_up_themes.append(
+            "Sandbox selected an illegal LegalAction payload; fix controller or engine validation before adding registry entries."
+        )
+    if manual_count:
+        primary_follow_up = "register_or_structure_manual_effects"
+        suggested_profile = "block --max-actions 320 plus semantic/API Play comparison"
+        follow_up_themes.append(
+            "Mandatory `manual_resolution` effects still block automated black-box play."
+        )
+        notes.append(
+            "Treat top manual effect IDs as candidates for exact-text registry expansion or structured manual tooling."
+        )
+    elif max_actions_count:
+        primary_follow_up = "raise_action_cap_or_compare_api_play_strategy"
+        suggested_profile = "block --max-actions 320, then api_play_compare with context samples"
+        follow_up_themes.append(
+            "No mandatory manual blockers were observed; remaining blocked matches hit the action cap."
+        )
+        notes.append(
+            "Do not count max-actions-only runs as effect coverage failures without a higher-cap or API Play comparison run."
+        )
+    if pending_count:
+        primary_follow_up = "add_pending_choice_policy"
+        follow_up_themes.append(
+            "A pending effect or pending choice had no controller policy; add a structured choice policy before registry expansion."
+        )
+    if completed == attempted and attempted:
+        primary_follow_up = "increase_deck_diversity_or_run_longer_regression"
+        follow_up_themes.append(
+            "All smoke matches completed; broaden deck diversity or run more matches before selecting new effect patterns."
+        )
+    if not follow_up_themes:
+        follow_up_themes.append(
+            "LegalAction payloads are sufficient for this run; use semantic/API Play reports to find deeper strategy issues."
+        )
+    return {
+        "attempted": attempted,
+        "completed": completed,
+        "completion_rate": completed / attempted if attempted else 0.0,
+        "blockers": dict(sorted(blockers.items())),
+        "primary_follow_up": primary_follow_up,
+        "suggested_profile": suggested_profile,
+        "notes": notes,
+        "follow_up_themes": follow_up_themes,
+    }
 
 
 def _load_effect_priority(registry_path: Path) -> dict[str, int]:

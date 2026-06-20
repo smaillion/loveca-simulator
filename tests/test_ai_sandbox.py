@@ -6,9 +6,11 @@ from pathlib import Path
 import pytest
 
 from tools.ai_sandbox.blackbox_playtest import (
+    SandboxMatchSummary,
     _choose_live_cards_for_progress,
     build_decks,
     run_matches,
+    sandbox_diagnostics,
     summarize_deck,
     write_outputs,
 )
@@ -80,6 +82,36 @@ def test_live_selection_pushes_three_lives_from_midgame():
 
     assert len(early) == 1
     assert len(midgame) == 3
+
+
+def test_sandbox_diagnostics_separates_max_actions_from_manual_blockers():
+    diagnostics = sandbox_diagnostics(
+        [
+            SandboxMatchSummary(
+                match_index=1,
+                first_deck="A",
+                second_deck="B",
+                status="completed",
+                final_phase="complete",
+                turn_number=3,
+                action_count=50,
+            ),
+            SandboxMatchSummary(
+                match_index=2,
+                first_deck="C",
+                second_deck="D",
+                status="blocked",
+                final_phase="live_judgment",
+                turn_number=12,
+                action_count=260,
+                blocker="max_actions",
+            ),
+        ]
+    )
+
+    assert diagnostics["primary_follow_up"] == "raise_action_cap_or_compare_api_play_strategy"
+    assert diagnostics["suggested_profile"] == "block --max-actions 320, then api_play_compare with context samples"
+    assert "max_actions" in diagnostics["blockers"]
 
 
 @pytest.mark.sandbox
