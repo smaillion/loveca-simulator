@@ -3684,6 +3684,14 @@ def _effect_unavailable_reason(
     if isinstance(source_slot, str):
         if _top_member_slot(player, invocation.source_card_instance_id) != source_slot:
             return "source_slot_mismatch"
+    source_slots_any = effect.condition.get("source_slots_any")
+    if isinstance(source_slots_any, list):
+        actual_source_slot = _top_member_slot(player, invocation.source_card_instance_id)
+        allowed_source_slots = {
+            slot for slot in source_slots_any if isinstance(slot, str)
+        }
+        if actual_source_slot not in allowed_source_slots:
+            return "source_slot_mismatch"
     if effect.condition.get("any_stage_member_cost_at_least"):
         minimum_cost = effect.condition["any_stage_member_cost_at_least"]
         if isinstance(minimum_cost, int) and not any(

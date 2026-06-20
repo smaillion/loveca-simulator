@@ -5416,6 +5416,24 @@ def _onplay_more_simple_effects(row: sqlite3.Row) -> EffectCandidate | None:
                 {"action_type": "discard_from_hand"},
             ],
         },
+        (
+            "【登場】【左サイド】【右サイド】カードを2枚引き、"
+            "手札を2枚控え室に置く。"
+            "（この能力は左サイドエリアか右サイドエリアに登場した場合のみ発動する。）"
+        ): {
+            "suffix": "side_draw2_discard2",
+            "condition": {"source_slots_any": ["left", "right"]},
+            "choice": {
+                "choice_type": "post_action_card_from_zone",
+                "zone": "hand",
+                "minimum": 2,
+                "maximum": 2,
+            },
+            "actions": [
+                {"action_type": "draw_card", "amount": 2},
+                {"action_type": "discard_from_hand"},
+            ],
+        },
         "【登場】自分の控え室にあるカード1枚をデッキの一番上に置いてもよい。": {
             "suffix": "optional_waiting_card_to_deck_top",
             "is_optional": True,

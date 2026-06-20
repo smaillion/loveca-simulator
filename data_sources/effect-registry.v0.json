@@ -28906,30 +28906,46 @@
       "trigger": "member_played"
     },
     {
-      "actions": [
-        {
-          "action_type": "manual_resolution"
-        }
-      ],
-      "card_code": "PL!SP-bp4-003",
-      "choice": null,
-      "condition": {},
-      "cost": [],
-      "duration": null,
       "effect_id": "PL!SP-bp4-003:1",
+      "card_code": "PL!SP-bp4-003",
+      "text_revision_id": 378,
+      "raw_text_hash": "6d4fbb523d8743575d49640ae8fa98c31b3acbc39a9260c940b82627f2570efd",
       "effect_index": 1,
+      "label_ja": "【登場】【左サイド】【右サイド】カードを2枚引き、手札を2枚控え室に置く。（この能力は左サイドエリアか右サイドエリアに登場した場合のみ発動する。）",
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "timing": "on_play",
+      "trigger": "member_played",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "none",
       "is_optional": false,
-      "label_ja": "【登場】【左サイド】【右サイド】カードを2枚引き、手札を2枚控え室に置く。（この能力は左サイドエリアか右サイドエリアに登場した場合のみ発動する。） 【常時】【センター】【ブレード】【ブレード】を得る。",
-      "raw_text_hash": "6d4fbb523d8743575d49640ae8fa98c31b3acbc39a9260c940b82627f2570efd",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
-      "text_revision_id": 378,
-      "timing": "on_play",
-      "trigger": "member_played"
+      "condition": {
+        "source_slots_any": [
+          "left",
+          "right"
+        ]
+      },
+      "cost": [],
+      "choice": {
+        "choice_type": "post_action_card_from_zone",
+        "zone": "hand",
+        "minimum": 2,
+        "maximum": 2
+      },
+      "actions": [
+        {
+          "action_type": "draw_card",
+          "amount": 2
+        },
+        {
+          "action_type": "discard_from_hand"
+        }
+      ],
+      "duration": null,
+      "simulation_support": "test_validated_executable",
+      "review_status": "test_validated",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
+      "cost_choice": null,
+      "follow_up_choice": null
     },
     {
       "actions": [

@@ -979,6 +979,25 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
         {"action_type": "draw_card", "amount": 2},
         {"action_type": "discard_from_hand"},
     ]
+    side_draw_discard_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "PL!SP-bp4-003:1"
+    )
+    assert side_draw_discard_candidate.pattern_id == "onplay_side_draw2_discard2"
+    assert side_draw_discard_candidate.condition == {
+        "source_slots_any": ["left", "right"]
+    }
+    assert side_draw_discard_candidate.choice == {
+        "choice_type": "post_action_card_from_zone",
+        "zone": "hand",
+        "minimum": 2,
+        "maximum": 2,
+    }
+    assert side_draw_discard_candidate.actions == [
+        {"action_type": "draw_card", "amount": 2},
+        {"action_type": "discard_from_hand"},
+    ]
     branch_ready_candidate = next(
         candidate
         for candidate in all_candidates
@@ -6395,6 +6414,63 @@ def test_onplay_pay_energy_draw_requires_left_source_slot():
     assert result.cards["energy-2"].orientation == "wait"
     assert len(player.hand) == 2
     assert len(player.main_deck) == 1
+    assert not result.pending_effects
+
+
+def test_effect_condition_source_slots_any_allows_only_listed_slots():
+    effect = EffectDefinition(
+        effect_id="test-onplay-side-draw:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="v" * 64,
+        effect_index=1,
+        label_ja="on-play side draw test",
+        effect_type="triggered",
+        timing="on_play",
+        trigger="member_played",
+        execution_mode="auto_resolve",
+        frequency_limit="none",
+        is_optional=False,
+        condition={"source_slots_any": ["left", "right"]},
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "draw_card", "amount": 1}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    source_member = CardDefinition(
+        card_code="TEST-SOURCE-MEMBER",
+        card_id="TEST-SOURCE-MEMBER",
+        name_ja="source member",
+        card_type="member",
+        blade=1,
+        basic_hearts={"heart01": 1},
+    )
+    state.cards["source-live"].card = source_member
+    player = state.players["player_1"]
+    player.member_area["center"] = "source-live"
+
+    with pytest.raises(Exception, match="source_slot_mismatch"):
+        _apply_direct(
+            state.model_copy(deep=True),
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+    player.member_area["center"] = None
+    player.member_area["right"] = "source-live"
+    result = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    assert len(result.players["player_1"].hand) == 1
     assert not result.pending_effects
 
 
