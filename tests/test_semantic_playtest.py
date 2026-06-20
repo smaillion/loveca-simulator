@@ -270,6 +270,7 @@ def test_api_play_scripted_provider_selects_ordinary_action():
         match_index=1,
         action_index=1,
         baseline_decision=("advance_phase", "player_1", {}),
+        capture_context=True,
     )
 
     assert result.decision == ("advance_phase", "player_1", {})
@@ -277,6 +278,9 @@ def test_api_play_scripted_provider_selects_ordinary_action():
     assert result.attempt.confidence == "high"
     assert result.attempt.baseline_action_type == "advance_phase"
     assert result.attempt.matches_deterministic_baseline is True
+    assert result.attempt.context_sample is not None
+    assert result.attempt.context_sample["mode"] == "api_play"
+    assert result.attempt.context_sample["legal_action_hints"][0]["action_type"] == "advance_phase"
 
 
 def test_api_play_engine_illegal_marks_attempt_for_reporting():

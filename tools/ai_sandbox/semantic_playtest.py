@@ -89,6 +89,7 @@ class ApiPlayAttempt:
     baseline_action_type: str | None = None
     baseline_player_id: str | None = None
     matches_deterministic_baseline: bool | None = None
+    context_sample: dict[str, Any] | None = None
     fallback_used: bool = False
     error: str | None = None
 
@@ -241,6 +242,12 @@ def main() -> int:
             "Use this for real API Play runs so mock/CI output is not mistaken for model testing."
         ),
     )
+    parser.add_argument(
+        "--api-context-samples",
+        type=int,
+        default=5,
+        help="Maximum number of API Play model-input contexts to preserve in the JSON report.",
+    )
     parser.add_argument("--agent-provider", choices=("mock", "openai_compatible"), default=None)
     args = parser.parse_args()
 
@@ -259,6 +266,7 @@ def main() -> int:
         manual_fallback=args.manual_fallback,
         play_policy=args.play_policy,
         play_fallback=args.play_fallback,
+        api_context_sample_limit=max(0, args.api_context_samples),
     )
     write_semantic_outputs(
         args.output,
@@ -316,6 +324,7 @@ def run_semantic_matches(
     manual_fallback: str,
     play_policy: str = "deterministic",
     play_fallback: str = "deterministic",
+    api_context_sample_limit: int = 0,
 ) -> tuple[list[SemanticMatchSummary], list[SemanticAttempt], list[ApiPlayAttempt]]:
     results: list[SemanticMatchSummary] = []
     attempts: list[SemanticAttempt] = []
@@ -323,6 +332,7 @@ def run_semantic_matches(
     with tempfile.TemporaryDirectory(prefix="loveca-semantic-sandbox-") as tmp:
         runtime = Path(tmp) / "matches.sqlite3"
         service = MatchService(database, runtime)
+        api_context_samples_captured = 0
         for index in range(match_count):
             first = decks[index % len(decks)]
             second = decks[(index * 7 + 3) % len(decks)]
@@ -389,7 +399,10 @@ def run_semantic_matches(
                         match_index=index + 1,
                         action_index=action_count + 1,
                         baseline_decision=decision,
+                        capture_context=api_context_samples_captured < api_context_sample_limit,
                     )
+                    if api_result.attempt.context_sample is not None:
+                        api_context_samples_captured += 1
                     api_play_attempts.append(api_result.attempt)
                     if api_result.decision is not None:
                         decision = api_result.decision
@@ -499,6 +512,7 @@ def try_api_play_action(
     match_index: int,
     action_index: int,
     baseline_decision: tuple[str, str | None, dict[str, Any]] | None = None,
+    capture_context: bool = False,
 ) -> ApiPlayResult:
     context = build_api_play_context(state, legal_actions, baseline_decision=baseline_decision)
     try:
@@ -519,6 +533,7 @@ def try_api_play_action(
                 ),
                 status="api_play_invalid",
                 baseline_decision=baseline_decision,
+                context_sample=context if capture_context else None,
                 error=str(exc),
             ),
         )
@@ -533,6 +548,7 @@ def try_api_play_action(
                 decision,
                 status="api_play_unresolved",
                 baseline_decision=baseline_decision,
+                context_sample=context if capture_context else None,
                 error=decision.schema_gap or decision.reason_ja_or_zh,
             ),
         )
@@ -546,6 +562,7 @@ def try_api_play_action(
             decision,
             status="api_play_selected",
             baseline_decision=baseline_decision,
+            context_sample=context if capture_context else None,
         ),
     )
 
@@ -1635,6 +1652,7 @@ def api_play_attempt_from_decision(
     *,
     status: str,
     baseline_decision: tuple[str, str | None, dict[str, Any]] | None = None,
+    context_sample: dict[str, Any] | None = None,
     error: str | None = None,
 ) -> ApiPlayAttempt:
     baseline_action_type = baseline_decision[0] if baseline_decision else None
@@ -1662,6 +1680,7 @@ def api_play_attempt_from_decision(
         baseline_action_type=baseline_action_type,
         baseline_player_id=baseline_player_id,
         matches_deterministic_baseline=matches_baseline,
+        context_sample=context_sample,
         error=error,
     )
 
@@ -1709,6 +1728,9 @@ def write_semantic_outputs(
         "match_summaries": [asdict(item) for item in match_summaries],
         "semantic_attempts": [asdict(item) for item in attempts],
         "api_play_attempts": [asdict(item) for item in api_play_attempts],
+        "api_play_context_sample_count": sum(
+            item.context_sample is not None for item in api_play_attempts
+        ),
     }
     (output / "semantic-summary.json").write_text(
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
@@ -1738,6 +1760,7 @@ def write_semantic_outputs(
         f"* API Play schema gaps: {dict(api_play_schema_gaps.most_common(20))}",
         f"* API Play baseline matches: {sum(item.matches_deterministic_baseline is True for item in api_play_attempts)}",
         f"* API Play baseline divergences: {sum(item.matches_deterministic_baseline is False for item in api_play_attempts)}",
+        f"* API Play context samples: {sum(item.context_sample is not None for item in api_play_attempts)}",
         "",
         "## Match Results",
         "",

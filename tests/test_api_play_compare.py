@@ -61,6 +61,7 @@ def test_summarize_policy_run_counts_completion_and_api_play_statuses():
             baseline_action_type="advance_phase",
             baseline_player_id="player_1",
             matches_deterministic_baseline=True,
+            context_sample={"mode": "api_play"},
         ),
         ApiPlayAttempt(
             match_index=2,
@@ -95,6 +96,7 @@ def test_summarize_policy_run_counts_completion_and_api_play_statuses():
     }
     assert summary["api_play_baseline_match_count"] == 1
     assert summary["api_play_baseline_divergence_count"] == 1
+    assert summary["api_play_context_sample_count"] == 1
     assert summary["schema_gaps"] == {"needs_strategy": 1}
 
 
@@ -117,6 +119,7 @@ def test_build_actionable_findings_flags_mock_fallback_and_regression():
         "api_play_attempt_statuses": {},
         "api_play_baseline_match_count": 0,
         "api_play_baseline_divergence_count": 0,
+        "api_play_context_sample_count": 0,
         "schema_gaps": {},
     }
     api = {
@@ -205,6 +208,7 @@ def test_comparison_outputs_write_machine_and_human_reports(tmp_path):
         "max_actions": 320,
         "manual_fallback": "block",
         "play_fallback": "deterministic",
+        "api_context_sample_limit": 5,
         "providers": {"deterministic": "mock", "api": "mock"},
         "deck_summaries": [],
         "runs": {
@@ -233,7 +237,9 @@ def test_comparison_outputs_write_machine_and_human_reports(tmp_path):
     assert payload["schema_version"] == "api_play_comparison_v0.1"
     assert payload["deltas"]["completed_delta"] == -1
     assert payload["actionable_findings"]
+    assert payload["api_context_sample_limit"] == 5
     assert "API Play Comparison Report" in markdown
     assert "Actionable Findings" in markdown
+    assert "API context sample limit" in markdown
     assert "api_provider_is_mock" in markdown
     assert "mock_provider:api_play" in markdown

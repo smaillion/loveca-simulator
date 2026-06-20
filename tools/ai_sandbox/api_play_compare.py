@@ -66,6 +66,12 @@ def main() -> int:
             "Use this for real API Play comparison runs."
         ),
     )
+    parser.add_argument(
+        "--api-context-samples",
+        type=int,
+        default=5,
+        help="Maximum number of API Play model-input contexts to preserve in the JSON report.",
+    )
     args = parser.parse_args()
 
     report = run_api_play_comparison(
@@ -77,6 +83,7 @@ def main() -> int:
         manual_fallback=args.manual_fallback,
         play_fallback=args.play_fallback,
         require_real_provider=args.require_real_provider,
+        api_context_sample_limit=max(0, args.api_context_samples),
     )
     write_comparison_outputs(args.output, report)
     print(f"Wrote API Play comparison report to {args.output / 'api-play-comparison.md'}")
@@ -93,6 +100,7 @@ def run_api_play_comparison(
     manual_fallback: str,
     play_fallback: str,
     require_real_provider: bool = False,
+    api_context_sample_limit: int = 5,
 ) -> dict[str, Any]:
     deterministic_provider = provider_factory()
     if require_real_provider:
@@ -114,6 +122,7 @@ def run_api_play_comparison(
             manual_fallback=manual_fallback,
             play_policy="deterministic",
             play_fallback=play_fallback,
+            api_context_sample_limit=0,
         )
     )
     api_matches, api_attempts, api_play_attempts = run_semantic_matches(
@@ -125,6 +134,7 @@ def run_api_play_comparison(
         manual_fallback=manual_fallback,
         play_policy="api",
         play_fallback=play_fallback,
+        api_context_sample_limit=max(0, api_context_sample_limit),
     )
 
     deterministic_summary = summarize_policy_run(
@@ -141,6 +151,7 @@ def run_api_play_comparison(
         "max_actions": max_actions,
         "manual_fallback": manual_fallback,
         "play_fallback": play_fallback,
+        "api_context_sample_limit": max(0, api_context_sample_limit),
         "providers": {
             "deterministic": deterministic_provider.provider_name,
             "api": api_provider.provider_name,
@@ -181,6 +192,7 @@ def summarize_policy_run(
     api_statuses = Counter(item.status for item in api_play_attempts)
     api_baseline_matches = sum(item.matches_deterministic_baseline is True for item in api_play_attempts)
     api_baseline_divergences = sum(item.matches_deterministic_baseline is False for item in api_play_attempts)
+    api_context_samples = sum(item.context_sample is not None for item in api_play_attempts)
     schema_gaps = Counter(
         item.schema_gap for item in [*semantic_attempts, *api_play_attempts] if item.schema_gap
     )
@@ -204,6 +216,7 @@ def summarize_policy_run(
         "api_play_attempt_statuses": dict(sorted(api_statuses.items())),
         "api_play_baseline_match_count": api_baseline_matches,
         "api_play_baseline_divergence_count": api_baseline_divergences,
+        "api_play_context_sample_count": api_context_samples,
         "schema_gaps": dict(schema_gaps.most_common(20)),
     }
 
@@ -383,12 +396,13 @@ def write_comparison_outputs(output: Path, report: dict[str, Any]) -> None:
         f"* Max actions: `{report['max_actions']}`",
         f"* Manual fallback: `{report['manual_fallback']}`",
         f"* API Play fallback: `{report['play_fallback']}`",
+        f"* API context sample limit: `{report.get('api_context_sample_limit', 0)}`",
         f"* Providers: `{report['providers']}`",
         "",
         "## Summary",
         "",
-        "| Policy | Completed | Completion | Avg Actions | Max Actions | Manual | API OK | API Fail | Fallback | Baseline Match | Baseline Diff | Blockers |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|",
+        "| Policy | Completed | Completion | Avg Actions | Max Actions | Manual | API OK | API Fail | Fallback | Baseline Match | Baseline Diff | Contexts | Blockers |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|",
     ]
     for policy in ("deterministic", "api"):
         summary = report["runs"][policy]["summary"]
@@ -407,6 +421,7 @@ def write_comparison_outputs(output: Path, report: dict[str, Any]) -> None:
                     str(summary["deterministic_fallback_count"]),
                     str(summary.get("api_play_baseline_match_count", 0)),
                     str(summary.get("api_play_baseline_divergence_count", 0)),
+                    str(summary.get("api_play_context_sample_count", 0)),
                     _markdown_cell(summary["blockers"]),
                 ]
             )
