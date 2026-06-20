@@ -27,6 +27,7 @@ from tools.ai_sandbox.semantic_playtest import (
     SemanticAttempt,
     SemanticMatchSummary,
     provider_from_environment,
+    require_real_semantic_provider,
     run_semantic_matches,
 )
 
@@ -57,6 +58,14 @@ def main() -> int:
         choices=("mock", "openai_compatible"),
         default=None,
     )
+    parser.add_argument(
+        "--require-real-provider",
+        action="store_true",
+        help=(
+            "Fail fast when the selected semantic provider is mock. "
+            "Use this for real API Play comparison runs."
+        ),
+    )
     args = parser.parse_args()
 
     report = run_api_play_comparison(
@@ -67,6 +76,7 @@ def main() -> int:
         max_actions=args.max_actions,
         manual_fallback=args.manual_fallback,
         play_fallback=args.play_fallback,
+        require_real_provider=args.require_real_provider,
     )
     write_comparison_outputs(args.output, report)
     print(f"Wrote API Play comparison report to {args.output / 'api-play-comparison.md'}")
@@ -82,11 +92,18 @@ def run_api_play_comparison(
     max_actions: int,
     manual_fallback: str,
     play_fallback: str,
+    require_real_provider: bool = False,
 ) -> dict[str, Any]:
+    deterministic_provider = provider_factory()
+    if require_real_provider:
+        require_real_semantic_provider(deterministic_provider)
+    api_provider = provider_factory()
+    if require_real_provider:
+        require_real_semantic_provider(api_provider)
+
     decks = build_decks(database, deck_count)
     deck_summaries = [summarize_deck(database, deck) for deck in decks]
 
-    deterministic_provider = provider_factory()
     deterministic_matches, deterministic_attempts, deterministic_api_attempts = (
         run_semantic_matches(
             database,
@@ -99,7 +116,6 @@ def run_api_play_comparison(
             play_fallback=play_fallback,
         )
     )
-    api_provider = provider_factory()
     api_matches, api_attempts, api_play_attempts = run_semantic_matches(
         database,
         decks,

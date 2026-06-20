@@ -2,14 +2,19 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from tools.ai_sandbox.api_play_compare import (
     build_actionable_findings,
     comparison_deltas,
+    run_api_play_comparison,
     summarize_policy_run,
     write_comparison_outputs,
 )
 from tools.ai_sandbox.semantic_playtest import (
     ApiPlayAttempt,
+    MockSemanticAgentProvider,
+    SemanticAgentError,
     SemanticMatchSummary,
 )
 
@@ -143,6 +148,20 @@ def test_build_actionable_findings_flags_mock_fallback_and_regression():
     assert "api_play_fell_back_to_deterministic" in finding_names
     assert "api_policy_regressed_completion" in finding_names
     assert "api_play_schema_gap" in finding_names
+
+
+def test_api_play_comparison_real_provider_preflight_rejects_mock(tmp_path):
+    with pytest.raises(SemanticAgentError, match="requires a real semantic provider"):
+        run_api_play_comparison(
+            database=tmp_path / "missing.sqlite3",
+            provider_factory=MockSemanticAgentProvider,
+            deck_count=1,
+            match_count=1,
+            max_actions=1,
+            manual_fallback="skip",
+            play_fallback="deterministic",
+            require_real_provider=True,
+        )
 
 
 def test_comparison_outputs_write_machine_and_human_reports(tmp_path):

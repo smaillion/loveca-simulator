@@ -21,6 +21,7 @@ from tools.ai_sandbox.semantic_playtest import (
     build_api_play_context,
     mark_api_play_engine_illegal,
     parse_agent_decision,
+    require_real_semantic_provider,
     run_semantic_matches,
     try_api_play_action,
     validate_api_play_decision,
@@ -106,6 +107,11 @@ def test_mock_provider_round_trip_with_scripted_decision():
     assert decision.decision == "cannot_resolve"
     assert decision.confidence == "medium"
     assert decision.schema_gap == "needs custom choice"
+
+
+def test_real_provider_preflight_rejects_mock_provider():
+    with pytest.raises(SemanticAgentError, match="requires a real semantic provider"):
+        require_real_semantic_provider(MockSemanticAgentProvider())
 
 
 def test_parse_agent_decision_rejects_invalid_json():

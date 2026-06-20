@@ -32,6 +32,12 @@ from tools.ai_sandbox.blackbox_playtest import (
 )
 
 SEMANTIC_SCHEMA_VERSION = "semantic_sandbox_v0.1"
+REAL_PROVIDER_ERROR = (
+    "API Play requires a real semantic provider. Set "
+    "LOVECA_SEMANTIC_AGENT_PROVIDER=openai_compatible, "
+    "LOVECA_SEMANTIC_AGENT_API_BASE, LOVECA_SEMANTIC_AGENT_API_KEY, and "
+    "LOVECA_SEMANTIC_AGENT_MODEL, or omit --require-real-provider for mock/CI runs."
+)
 
 
 @dataclass
@@ -227,10 +233,20 @@ def main() -> int:
         default="deterministic",
         help="What to do when API Play cannot produce a valid ordinary action.",
     )
+    parser.add_argument(
+        "--require-real-provider",
+        action="store_true",
+        help=(
+            "Fail fast when the selected semantic provider is mock. "
+            "Use this for real API Play runs so mock/CI output is not mistaken for model testing."
+        ),
+    )
     parser.add_argument("--agent-provider", choices=("mock", "openai_compatible"), default=None)
     args = parser.parse_args()
 
     provider = provider_from_environment(args.agent_provider)
+    if args.require_real_provider:
+        require_real_semantic_provider(provider)
     args.output.mkdir(parents=True, exist_ok=True)
     decks = build_decks(args.database, args.decks)
     deck_summaries = [summarize_deck(args.database, deck) for deck in decks]
@@ -283,6 +299,11 @@ def provider_from_environment(provider_name: str | None = None) -> SemanticAgent
             model=str(model),
         )
     raise SemanticAgentError(f"unsupported semantic agent provider: {provider_name}")
+
+
+def require_real_semantic_provider(provider: SemanticAgentProvider) -> None:
+    if provider.provider_name == "mock":
+        raise SemanticAgentError(REAL_PROVIDER_ERROR)
 
 
 def run_semantic_matches(
