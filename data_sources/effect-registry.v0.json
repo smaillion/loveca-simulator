@@ -1040,30 +1040,42 @@
       "trigger": "member_played"
     },
     {
-      "actions": [
-        {
-          "action_type": "manual_resolution"
-        }
-      ],
-      "card_code": "PL!-PR-015",
-      "choice": null,
-      "condition": {},
-      "cost": [],
-      "duration": null,
       "effect_id": "PL!-PR-015:1",
+      "card_code": "PL!-PR-015",
+      "text_revision_id": 723,
+      "raw_text_hash": "33aa98797222c47c047413845271fdc26a493ceab414094984e4b97c39cd4a6d",
       "effect_index": 1,
+      "label_ja": "【登場】このメンバーよりコストが低いメンバーからバトンタッチして登場した場合、自分の手札からコスト4以下のメンバーカードを1枚ステージに登場させてもよい。",
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "timing": "on_play",
+      "trigger": "member_played",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "none",
       "is_optional": true,
-      "label_ja": "【登場】このメンバーよりコストが低いメンバーからバトンタッチして登場した場合、自分の手札からコスト4以下のメンバーカードを1枚ステージに登場させてもよい。",
-      "raw_text_hash": "33aa98797222c47c047413845271fdc26a493ceab414094984e4b97c39cd4a6d",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
-      "text_revision_id": 723,
-      "timing": "on_play",
-      "trigger": "member_played"
+      "condition": {
+        "requires_baton_touch": true,
+        "replacement_member_cost_less_than_source": true
+      },
+      "cost": [],
+      "choice": {
+        "choice_type": "deploy_member_from_hand",
+        "zone": "hand",
+        "card_type": "member",
+        "maximum_cost": 4,
+        "minimum": 1,
+        "maximum": 1
+      },
+      "actions": [
+        {
+          "action_type": "deploy_selected_to_empty_stage"
+        }
+      ],
+      "duration": null,
+      "simulation_support": "test_validated_executable",
+      "review_status": "test_validated",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
+      "cost_choice": null,
+      "follow_up_choice": null
     },
     {
       "actions": [
@@ -27182,30 +27194,42 @@
       "trigger": "live_succeeded"
     },
     {
-      "actions": [
-        {
-          "action_type": "manual_resolution"
-        }
-      ],
-      "card_code": "PL!SP-PR-020",
-      "choice": null,
-      "condition": {},
-      "cost": [],
-      "duration": null,
       "effect_id": "PL!SP-PR-020:1",
+      "card_code": "PL!SP-PR-020",
+      "text_revision_id": 775,
+      "raw_text_hash": "33aa98797222c47c047413845271fdc26a493ceab414094984e4b97c39cd4a6d",
       "effect_index": 1,
+      "label_ja": "【登場】このメンバーよりコストが低いメンバーからバトンタッチして登場した場合、自分の手札からコスト4以下のメンバーカードを1枚ステージに登場させてもよい。",
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "timing": "on_play",
+      "trigger": "member_played",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "none",
       "is_optional": true,
-      "label_ja": "【登場】このメンバーよりコストが低いメンバーからバトンタッチして登場した場合、自分の手札からコスト4以下のメンバーカードを1枚ステージに登場させてもよい。",
-      "raw_text_hash": "33aa98797222c47c047413845271fdc26a493ceab414094984e4b97c39cd4a6d",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
-      "text_revision_id": 775,
-      "timing": "on_play",
-      "trigger": "member_played"
+      "condition": {
+        "requires_baton_touch": true,
+        "replacement_member_cost_less_than_source": true
+      },
+      "cost": [],
+      "choice": {
+        "choice_type": "deploy_member_from_hand",
+        "zone": "hand",
+        "card_type": "member",
+        "maximum_cost": 4,
+        "minimum": 1,
+        "maximum": 1
+      },
+      "actions": [
+        {
+          "action_type": "deploy_selected_to_empty_stage"
+        }
+      ],
+      "duration": null,
+      "simulation_support": "test_validated_executable",
+      "review_status": "test_validated",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
+      "cost_choice": null,
+      "follow_up_choice": null
     },
     {
       "actions": [

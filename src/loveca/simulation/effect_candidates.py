@@ -2264,6 +2264,48 @@ def _onplay_baton_lower_cost_gain_blade2(row: sqlite3.Row) -> EffectCandidate | 
     )
 
 
+def _onplay_baton_lower_deploy_hand_member_cost4(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    label = (
+        "【登場】このメンバーよりコストが低いメンバーからバトンタッチして"
+        "登場した場合、自分の手札からコスト4以下のメンバーカードを1枚"
+        "ステージに登場させてもよい。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base(
+            row,
+            pattern_id="onplay_baton_lower_deploy_hand_member_cost4",
+            effect_index=effect_index,
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="on_play",
+        trigger="member_played",
+        frequency_limit="none",
+        is_optional=True,
+        condition={
+            "requires_baton_touch": True,
+            "replacement_member_cost_less_than_source": True,
+        },
+        cost=[],
+        choice={
+            "choice_type": "deploy_member_from_hand",
+            "zone": "hand",
+            "card_type": "member",
+            "maximum_cost": 4,
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[{"action_type": "deploy_selected_to_empty_stage"}],
+        duration=None,
+    )
+
+
 def _onplay_return_baton_replaced_member(row: sqlite3.Row) -> EffectCandidate | None:
     label = "【登場】バトンタッチして登場した場合、このバトンタッチで控え室に置かれた『Liella!』のメンバーカードを1枚手札に加える。"
     matched = _matching_segment(row, label)
@@ -11366,6 +11408,7 @@ _PATTERNS = (
     _onplay_opponent_active_member_wait,
     _onplay_wait_opponent_member_blade1,
     _onplay_baton_lower_cost_gain_blade2,
+    _onplay_baton_lower_deploy_hand_member_cost4,
     _onplay_return_baton_replaced_member,
     _onplay_baton_liella_energy7_place_two_wait_energy,
     _onplay_draw_then_discard_one,

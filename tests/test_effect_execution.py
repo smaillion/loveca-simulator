@@ -99,6 +99,34 @@ def test_effect_candidate_discovery_structures_pl_hs_bp6_014_hand_activation():
     ]
 
 
+def test_effect_candidate_discovery_structures_baton_deploy_from_hand():
+    database = _require_full_card_database()
+    candidates = discover_effect_candidates(database, include_registered=True)
+    matching = {
+        item.effect_id: item
+        for item in candidates
+        if item.pattern_id == "onplay_baton_lower_deploy_hand_member_cost4"
+    }
+
+    assert set(matching) == {"PL!-PR-015:1", "PL!SP-PR-020:1"}
+    for candidate in matching.values():
+        assert candidate.execution_mode == "prompt_then_resolve"
+        assert candidate.is_optional is True
+        assert candidate.condition == {
+            "requires_baton_touch": True,
+            "replacement_member_cost_less_than_source": True,
+        }
+        assert candidate.choice == {
+            "choice_type": "deploy_member_from_hand",
+            "zone": "hand",
+            "card_type": "member",
+            "maximum_cost": 4,
+            "minimum": 1,
+            "maximum": 1,
+        }
+        assert candidate.actions == [{"action_type": "deploy_selected_to_empty_stage"}]
+
+
 def test_registry_contains_all_matching_wait_energy_effects():
     registry = EffectRegistry.model_validate_json(REGISTRY.read_text(encoding="utf-8"))
     expected = {
