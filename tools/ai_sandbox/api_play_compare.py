@@ -375,10 +375,12 @@ def build_actionable_findings(report: dict[str, Any]) -> list[dict[str, Any]]:
 def write_comparison_outputs(output: Path, report: dict[str, Any]) -> None:
     output.mkdir(parents=True, exist_ok=True)
     report.setdefault("actionable_findings", build_actionable_findings(report))
+    context_samples = extract_api_play_context_samples(report)
     (output / "api-play-comparison.json").write_text(
         json.dumps(report, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+    write_context_sample_outputs(output, context_samples)
     lines = [
         "# API Play Comparison Report",
         "",
@@ -398,6 +400,7 @@ def write_comparison_outputs(output: Path, report: dict[str, Any]) -> None:
         f"* API Play fallback: `{report['play_fallback']}`",
         f"* API context sample limit: `{report.get('api_context_sample_limit', 0)}`",
         f"* Providers: `{report['providers']}`",
+        f"* Context sample review pack: `{len(context_samples)}` sample(s)",
         "",
         "## Summary",
         "",
@@ -458,7 +461,101 @@ def write_comparison_outputs(output: Path, report: dict[str, Any]) -> None:
         lines.extend(["", "## API Play Schema Gaps", ""])
         for gap, count in api_gaps.items():
             lines.append(f"* `{gap}`: {count}")
+    if context_samples:
+        lines.extend(
+            [
+                "",
+                "## Context Review Pack",
+                "",
+                "* Machine-readable samples: `api-play-context-samples.jsonl`",
+                "* Human-readable samples: `api-play-context-samples.md`",
+            ]
+        )
     (output / "api-play-comparison.md").write_text(
+        "\n".join(lines) + "\n",
+        encoding="utf-8",
+    )
+
+
+def extract_api_play_context_samples(report: dict[str, Any]) -> list[dict[str, Any]]:
+    attempts = report.get("runs", {}).get("api", {}).get("api_play_attempts", [])
+    samples: list[dict[str, Any]] = []
+    if not isinstance(attempts, list):
+        return samples
+    for attempt in attempts:
+        if not isinstance(attempt, dict):
+            continue
+        context = attempt.get("context_sample")
+        if not isinstance(context, dict):
+            continue
+        samples.append(
+            {
+                "match_index": attempt.get("match_index"),
+                "action_index": attempt.get("action_index"),
+                "status": attempt.get("status"),
+                "phase": attempt.get("phase"),
+                "decision": {
+                    "decision": attempt.get("decision"),
+                    "action_type": attempt.get("action_type"),
+                    "player_id": attempt.get("player_id"),
+                    "payload": attempt.get("submitted_payload"),
+                    "confidence": attempt.get("confidence"),
+                    "reason": attempt.get("agent_reason"),
+                    "schema_gap": attempt.get("schema_gap"),
+                },
+                "baseline": {
+                    "action_type": attempt.get("baseline_action_type"),
+                    "player_id": attempt.get("baseline_player_id"),
+                    "matches": attempt.get("matches_deterministic_baseline"),
+                },
+                "legal_action_summary": context.get("legal_action_summary"),
+                "strategy": context.get("strategy"),
+                "context": context,
+            }
+        )
+    return samples
+
+
+def write_context_sample_outputs(output: Path, samples: list[dict[str, Any]]) -> None:
+    jsonl = "\n".join(
+        json.dumps(sample, ensure_ascii=False, sort_keys=True) for sample in samples
+    )
+    (output / "api-play-context-samples.jsonl").write_text(
+        (jsonl + "\n") if jsonl else "",
+        encoding="utf-8",
+    )
+    lines = [
+        "# API Play Context Samples",
+        "",
+        "These samples are the exact model-input contexts captured from the API Play run.",
+        "Use them to review prompt quality, legal action hints, and deterministic baseline guidance before treating API Play output as useful.",
+        "",
+        f"* Samples: {len(samples)}",
+    ]
+    for index, sample in enumerate(samples, start=1):
+        decision = sample.get("decision", {})
+        baseline = sample.get("baseline", {})
+        strategy = sample.get("strategy", {}) or {}
+        legal_summary = sample.get("legal_action_summary", {}) or {}
+        lines.extend(
+            [
+                "",
+                f"## Sample {index}",
+                "",
+                f"* Match/action: `{sample.get('match_index')}` / `{sample.get('action_index')}`",
+                f"* Status: `{sample.get('status')}`",
+                f"* Phase: `{sample.get('phase')}`",
+                f"* Decision: `{decision.get('action_type')}` by `{decision.get('player_id')}`",
+                f"* Baseline: `{baseline.get('action_type')}` by `{baseline.get('player_id')}`, match=`{baseline.get('matches')}`",
+                f"* Legal actions: `{legal_summary}`",
+                f"* Strategy guidance: {_markdown_cell(strategy.get('phase_guidance', ''))}",
+                "",
+                "```json",
+                json.dumps(sample.get("context", {}), ensure_ascii=False, indent=2),
+                "```",
+            ]
+        )
+    (output / "api-play-context-samples.md").write_text(
         "\n".join(lines) + "\n",
         encoding="utf-8",
     )

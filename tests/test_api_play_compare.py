@@ -7,6 +7,7 @@ import pytest
 from tools.ai_sandbox.api_play_compare import (
     build_actionable_findings,
     comparison_deltas,
+    extract_api_play_context_samples,
     run_api_play_comparison,
     summarize_policy_run,
     write_comparison_outputs,
@@ -167,6 +168,46 @@ def test_api_play_comparison_real_provider_preflight_rejects_mock(tmp_path):
         )
 
 
+def test_extract_api_play_context_samples_for_prompt_review():
+    report = {
+        "runs": {
+            "api": {
+                "api_play_attempts": [
+                    {
+                        "match_index": 1,
+                        "action_index": 2,
+                        "status": "api_play_selected",
+                        "phase": "first_main",
+                        "decision": "submit_action",
+                        "action_type": "play_member",
+                        "player_id": "player_1",
+                        "submitted_payload": {"slot": "center"},
+                        "confidence": "medium",
+                        "agent_reason": "play a member",
+                        "baseline_action_type": "end_main_phase",
+                        "baseline_player_id": "player_1",
+                        "matches_deterministic_baseline": False,
+                        "context_sample": {
+                            "mode": "api_play",
+                            "legal_action_summary": {"count": 2},
+                            "strategy": {"phase_guidance": "play useful Members"},
+                        },
+                    },
+                    {"match_index": 1, "action_index": 3},
+                ]
+            }
+        }
+    }
+
+    samples = extract_api_play_context_samples(report)
+
+    assert len(samples) == 1
+    assert samples[0]["decision"]["action_type"] == "play_member"
+    assert samples[0]["baseline"]["action_type"] == "end_main_phase"
+    assert samples[0]["legal_action_summary"] == {"count": 2}
+    assert samples[0]["context"]["mode"] == "api_play"
+
+
 def test_comparison_outputs_write_machine_and_human_reports(tmp_path):
     deterministic = {
         "matches_attempted": 2,
@@ -198,6 +239,7 @@ def test_comparison_outputs_write_machine_and_human_reports(tmp_path):
         "api_play_count": 30,
         "api_play_failure_count": 2,
         "deterministic_fallback_count": 2,
+        "api_play_context_sample_count": 1,
         "schema_gaps": {"mock_provider:api_play": 2},
     }
     report = {
@@ -222,7 +264,28 @@ def test_comparison_outputs_write_machine_and_human_reports(tmp_path):
                 "summary": api,
                 "match_summaries": [],
                 "semantic_attempts": [],
-                "api_play_attempts": [],
+                "api_play_attempts": [
+                    {
+                        "match_index": 1,
+                        "action_index": 1,
+                        "status": "api_play_selected",
+                        "phase": "first_main",
+                        "decision": "submit_action",
+                        "action_type": "advance_phase",
+                        "player_id": "player_1",
+                        "submitted_payload": {},
+                        "confidence": "high",
+                        "agent_reason": "advance",
+                        "baseline_action_type": "advance_phase",
+                        "baseline_player_id": "player_1",
+                        "matches_deterministic_baseline": True,
+                        "context_sample": {
+                            "mode": "api_play",
+                            "legal_action_summary": {"count": 1},
+                            "strategy": {"phase_guidance": "advance"},
+                        },
+                    }
+                ],
             },
         },
         "deltas": comparison_deltas(deterministic, api),
@@ -238,8 +301,16 @@ def test_comparison_outputs_write_machine_and_human_reports(tmp_path):
     assert payload["deltas"]["completed_delta"] == -1
     assert payload["actionable_findings"]
     assert payload["api_context_sample_limit"] == 5
+    samples_jsonl = tmp_path / "api-play-context-samples.jsonl"
+    samples_markdown = tmp_path / "api-play-context-samples.md"
+    assert samples_jsonl.exists()
+    assert samples_markdown.exists()
+    sample_payload = json.loads(samples_jsonl.read_text(encoding="utf-8").splitlines()[0])
+    assert sample_payload["context"]["mode"] == "api_play"
     assert "API Play Comparison Report" in markdown
     assert "Actionable Findings" in markdown
     assert "API context sample limit" in markdown
+    assert "Context Review Pack" in markdown
     assert "api_provider_is_mock" in markdown
     assert "mock_provider:api_play" in markdown
+    assert "API Play Context Samples" in samples_markdown.read_text(encoding="utf-8")
