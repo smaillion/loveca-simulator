@@ -51,6 +51,8 @@ SUPPORTED_EFFECT_ACTIONS = {
     "reorder_deck_top",
     "replace_score",
     "replace_yell_blade_hearts",
+    "reduce_play_cost",
+    "restrict_baton_replacement_unit",
     "rotate_stage_members",
     "draw_if_selected_card_type",
     "draw_if_selected_none_card_type",

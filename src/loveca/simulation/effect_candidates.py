@@ -1043,7 +1043,7 @@ def _activated_hand_source_draw_blade_named_member(
             "zone": "stage",
             "card_type": "member",
             "name_ja_any": ["藤島 慈", "大沢瑠璃乃"],
-            "minimum": 1,
+            "minimum": 0,
             "maximum": 1,
         },
         actions=[

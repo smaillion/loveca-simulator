@@ -288,6 +288,47 @@ def test_player_specific_payload_keeps_revealed_card_snapshot_when_hand_is_hidde
     )
 
 
+def test_player_specific_payload_hides_opponent_face_down_live_cards():
+    card = CardDefinition(
+        card_code="TEST-LIVE-001",
+        card_id="TEST-LIVE-001-R",
+        name_ja="伏せられたライブ",
+        card_type="live",
+        score=1,
+    )
+    state = MatchState(
+        match_id="match-live-redaction",
+        seed=1,
+        phase="live_set_second",
+        players={
+            "player_1": PlayerState(
+                player_id="player_1",
+                name="Host",
+                live_area=["live-1"],
+            ),
+            "player_2": PlayerState(player_id="player_2", name="Guest"),
+        },
+        cards={
+            "live-1": CardInstance(
+                instance_id="live-1",
+                owner_id="player_1",
+                card=card,
+                face_up=False,
+            )
+        },
+    )
+
+    payload = _match_state_payload(
+        state,
+        events=[],
+        legal_actions=[],
+        player_id="player_2",
+    )
+
+    assert payload["state"]["players"]["player_1"]["live_area"] == ["live-1"]
+    assert "live-1" not in payload["state"]["cards"]
+
+
 def test_match_history_paginates_without_purging_active_room_match(tmp_path):
     client = _client(tmp_path)
     deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))

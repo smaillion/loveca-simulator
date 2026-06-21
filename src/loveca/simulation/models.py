@@ -151,6 +151,7 @@ class PlayerState(BaseModel):
     member_areas_moved_this_turn: list[str] = Field(default_factory=list)
     member_entered_count_this_turn: int = 0
     member_areas_baton_entered_this_turn: list[str] = Field(default_factory=list)
+    member_instance_ids_baton_entered_this_turn: list[str] = Field(default_factory=list)
     energy_area: list[str] = Field(default_factory=list)
     live_area: list[str] = Field(default_factory=list)
     waiting_room: list[str] = Field(default_factory=list)

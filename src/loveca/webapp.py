@@ -1934,7 +1934,7 @@ def _match_state_payload(
     state_payload = state.model_dump()
     visible_actions = legal_actions
     if player_id is not None:
-        _redact_opponent_hands(state_payload, player_id)
+        _redact_opponent_private_cards(state_payload, player_id)
         visible_actions = [
             action
             for action in legal_actions
@@ -1947,7 +1947,7 @@ def _match_state_payload(
     }
 
 
-def _redact_opponent_hands(state_payload: dict[str, Any], player_id: str) -> None:
+def _redact_opponent_private_cards(state_payload: dict[str, Any], player_id: str) -> None:
     players = state_payload.get("players")
     cards = state_payload.get("cards")
     if not isinstance(players, dict) or not isinstance(cards, dict):
@@ -1955,10 +1955,19 @@ def _redact_opponent_hands(state_payload: dict[str, Any], player_id: str) -> Non
     for opponent_id, player in players.items():
         if opponent_id == player_id or not isinstance(player, dict):
             continue
+        private_ids: list[str] = []
         hand = player.get("hand")
-        if not isinstance(hand, list):
-            continue
-        for instance_id in hand:
+        if isinstance(hand, list):
+            private_ids.extend(instance_id for instance_id in hand if isinstance(instance_id, str))
+        live_area = player.get("live_area")
+        if isinstance(live_area, list):
+            for instance_id in live_area:
+                if not isinstance(instance_id, str):
+                    continue
+                card = cards.get(instance_id)
+                if isinstance(card, dict) and card.get("face_up") is False:
+                    private_ids.append(instance_id)
+        for instance_id in private_ids:
             if isinstance(instance_id, str):
                 cards.pop(instance_id, None)
 

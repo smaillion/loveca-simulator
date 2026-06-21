@@ -492,6 +492,10 @@ function createFetchMock(overrides: {
   deckSaveResponse?: unknown;
   deckShareUpload?: unknown;
   deckShareDownload?: unknown;
+  adminStorage?: unknown;
+  adminCleanup?: unknown;
+  adminDeckShares?: unknown;
+  adminProgress?: unknown;
 }) {
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = input.toString();
@@ -544,6 +548,23 @@ function createFetchMock(overrides: {
           created_at: "2026-06-19T00:00:00+00:00",
         },
       );
+    }
+    if (path === "/api/admin/runtime/storage" && method === "GET") {
+      return jsonResponse(overrides.adminStorage ?? { file_bytes: 123, matches: { rows: 1 } });
+    }
+    if (path === "/api/admin/runtime/cleanup" && method === "POST") {
+      return jsonResponse(
+        overrides.adminCleanup ?? {
+          deleted_count: 0,
+          storage: overrides.adminStorage ?? { file_bytes: 100, matches: { rows: 0 } },
+        },
+      );
+    }
+    if (path === "/api/admin/deck-shares" && method === "GET") {
+      return jsonResponse(overrides.adminDeckShares ?? { items: [], total: 0 });
+    }
+    if (path === "/api/admin/runtime/progress" && method === "GET") {
+      return jsonResponse(overrides.adminProgress ?? { total_matches: 0, phase_distribution: [] });
     }
     if (path === "/api/decks" && method === "GET") {
       return jsonResponse(
@@ -653,6 +674,7 @@ describe("App", () => {
     vi.unstubAllGlobals();
     resetRuntimeConfigForTests();
     localStorage.clear();
+    window.history.pushState({}, "", "/");
     localStorage.setItem("loveca-ui-locale", "zh");
     vi.stubGlobal("fetch", createFetchMock({}));
   });
@@ -753,6 +775,117 @@ describe("App", () => {
         ([input]) => input.toString().startsWith("/api/matches"),
       ),
     ).toBe(false);
+  });
+
+  it("opens the SPA admin console and calls the hosted admin API from runtime config", async () => {
+    const runtimeConfig = {
+      mode: "release",
+      browserPreview: false,
+      apiBaseUrl: "https://api.test",
+      publicMatchHistory: false,
+      cardDatabaseFingerprint: "test",
+    };
+    const fetchMock = createFetchMock({
+      runtimeConfig,
+      adminStorage: { file_bytes: 456, matches: { rows: 2 } },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "管理" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "管理" }));
+    expect(screen.getByText("管理者认证")).toBeInTheDocument();
+    expect(screen.getByLabelText("Admin API URL")).toHaveValue("https://api.test");
+    fireEvent.change(screen.getByLabelText("Admin key"), { target: { value: "secret-key" } });
+    fireEvent.click(screen.getByRole("button", { name: "认证并打开" }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://api.test/api/admin/runtime/storage",
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            "X-LoveCA-Admin-Key": "secret-key",
+          }),
+        }),
+      ),
+    );
+    expect(await screen.findByText(/file_bytes/)).toBeInTheDocument();
+  });
+
+  it("allows the Pages admin console to override the hosted API URL", async () => {
+    const fetchMock = createFetchMock({
+      runtimeConfig: {
+        mode: "preview",
+        browserPreview: true,
+        apiBaseUrl: "",
+        publicMatchHistory: false,
+        cardDatabaseFingerprint: "test",
+      },
+      adminStorage: { file_bytes: 789, matches: { rows: 3 } },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "管理" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "管理" }));
+    fireEvent.change(screen.getByLabelText("Admin API URL"), {
+      target: { value: "https://api.test/" },
+    });
+    fireEvent.change(screen.getByLabelText("Admin key"), { target: { value: "secret-key" } });
+    fireEvent.click(screen.getByRole("button", { name: "认证并打开" }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://api.test/api/admin/runtime/storage",
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            "X-LoveCA-Admin-Key": "secret-key",
+          }),
+        }),
+      ),
+    );
+    expect(localStorage.getItem("loveca-api-base-url-override.v0")).toBe("https://api.test");
+  });
+
+  it("opens the Pages admin console from query parameters", async () => {
+    window.history.pushState(
+      {},
+      "",
+      "/?admin=1&adminApiBaseUrl=https%3A%2F%2Fapi.test",
+    );
+    const fetchMock = createFetchMock({
+      runtimeConfig: {
+        mode: "preview",
+        browserPreview: true,
+        apiBaseUrl: "",
+        publicMatchHistory: false,
+        cardDatabaseFingerprint: "test",
+      },
+      adminStorage: { file_bytes: 901, matches: { rows: 4 } },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+
+    expect(await screen.findByText("管理者认证")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByLabelText("Admin API URL")).toHaveValue("https://api.test"),
+    );
+    fireEvent.change(screen.getByLabelText("Admin key"), { target: { value: "secret-key" } });
+    fireEvent.click(screen.getByRole("button", { name: "认证并打开" }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://api.test/api/admin/runtime/storage",
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            "X-LoveCA-Admin-Key": "secret-key",
+          }),
+        }),
+      ),
+    );
   });
 
   it("creates a match with inline deck payloads instead of a hardcoded deck path", async () => {
@@ -905,12 +1038,51 @@ describe("App", () => {
     await waitFor(() => expect(createButton).not.toBeDisabled());
     fireEvent.click(createButton);
 
-    await waitFor(() => expect(screen.getByText("查看己方控室")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText("查看控室").length).toBeGreaterThan(0));
     const viewer = container.querySelector(".waiting-room-viewer") as HTMLDetailsElement;
     expect(viewer.open).toBe(false);
-    fireEvent.click(screen.getByText("查看己方控室"));
+    fireEvent.click(screen.getAllByText("查看控室")[0]);
     expect(viewer.open).toBe(true);
     expect(screen.getAllByText("控室確認カード").length).toBeGreaterThan(0);
+  });
+
+  it("lets the local player inspect the opponent waiting room from the mobile opponent panel", async () => {
+    stubMobileViewport();
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const waitingId = "player_2-W001";
+    const matchCreate = {
+      ...MATCH_PAYLOAD,
+      state: {
+        ...MATCH_PAYLOAD.state,
+        players: {
+          player_1: createPlayerState("player_1", "Player 1"),
+          player_2: {
+            ...createPlayerState("player_2", "Player 2"),
+            waiting_room: [waitingId],
+          },
+        },
+        cards: {
+          [waitingId]: {
+            instance_id: waitingId,
+            owner_id: "player_2",
+            orientation: "active",
+            face_up: true,
+            card: { ...CATALOG_DETAIL.card, name_ja: "相手控室カード" },
+          },
+        },
+      },
+    };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByLabelText("玩家 1 牌组")).toBeInTheDocument());
+    const createButton = screen.getByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "对手区域" })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "对手区域" }));
+    await waitFor(() => expect(screen.getAllByText("相手控室カード").length).toBeGreaterThan(0));
   });
 
   it("switches the local visible hand to the current local operator", async () => {
@@ -1291,6 +1463,7 @@ describe("App", () => {
     expect(container.querySelector(".mobile-skill-entry-floating")).toBeNull();
     expect(screen.getAllByRole("button", { name: "确认登场" }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: "登场候选" }).length).toBeGreaterThan(1);
+    expect(container.querySelector(".mobile-hand-candidate-bar")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "起动" }));
 

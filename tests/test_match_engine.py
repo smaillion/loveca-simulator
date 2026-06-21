@@ -1512,6 +1512,22 @@ def test_simultaneous_third_success_live_is_a_draw(tmp_path):
     assert state.game_result.winner_player_ids == []
 
 
+def test_equal_score_at_one_sided_match_point_only_counts_non_match_point_player(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=1442)
+    state = _reach_first_main(service, match_id)
+    match_point_id = state.first_player_id or ""
+    challenger_id = state.second_player_id or ""
+    state = _preload_success_lives(service, match_id, state, [match_point_id], count=2)
+    state = _complete_turn(service, match_id, state, {match_point_id, challenger_id})
+
+    assert state.phase == "turn_complete"
+    assert len(state.players[match_point_id].success_live_area) == 2
+    assert len(state.players[challenger_id].success_live_area) == 1
+    assert state.success_live_moved_player_ids == [challenger_id]
+    assert state.next_first_player_id == challenger_id
+    assert state.game_result is None
+
+
 def test_manual_modifier_durations_expire_at_live_turn_and_game_boundaries(tmp_path):
     service, match_id = _create_match(tmp_path, seed=1551)
     state = _reach_first_main(service, match_id)

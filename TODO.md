@@ -44,7 +44,7 @@
 - Keep `30 decks x 100 matches --manual-policy block` as the standard long-run regression after each executor-pattern expansion.
 - Latest broad Phase 5 long run: `100/100` completed with blocker 0 after the stale-trigger-condition fix.
 - Latest targeted problem-card smoke: `block` completed 9/15 with 6 `mandatory_manual_resolution`; `skip` completed 14/15 with `illegal_action = 0`. Main remaining blockers are `PL!S-bp6-001:1` and `PL!S-pb1-001:1`.
-- Static registry coverage is now `714 / 925 = 77.19%`; raising it toward 90% requires real executor patterns for remaining `manual_resolution` families.
+- Static registry coverage is now `717 / 925 = 77.51%`; raising it toward 90% requires real executor patterns for remaining `manual_resolution` families.
 - Do not mark registry entries executable only to improve coverage numbers.
 
 ## Low Priority

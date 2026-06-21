@@ -18,8 +18,8 @@
 - FastAPI + React SPA の可視化ルール検証 UI
 - Replay 可能な Action-only GameState
 - 925 件の effect registry entry
-  - 714 件は `test_validated_executable`
-  - 211 件は timing prompt / 未対応処理用の `manual_resolution`
+  - 717 件は `test_validated_executable`
+  - 208 件は timing prompt / 未対応処理用の `manual_resolution`
 - 将来の低コスト online 同期に向けた state hash / compatibility metadata の基礎
 - Hosted Online MVP の room API
   - room code による host / guest 参加
@@ -55,13 +55,15 @@
 - 双方が選択する一部の効果は multi-player pending choice で順番に処理可能
 - 複数 group に分けて Stage Member を選び、それぞれに同じ一時 modifier を適用する効果に対応
 - 分岐ごとに異なる Stage Member 候補を持つ効果選択に対応
-- registry entry ベースの `test_validated_executable` coverage は 77.19% まで拡張済み
+- registry entry ベースの `test_validated_executable` coverage は 77.51% まで拡張済み
 - Phase 5 broad black-box sandbox は `30 decks x 100 matches` の block mode で `100/100` 完走、blocker 0 を確認済み
 - 問題カードを含む targeted sandbox では、最新 block smoke が `15 matches` 中 9 完走、6 件 `mandatory_manual_resolution` まで改善
 - trigger 時に条件を満たした pending effect が、同一タイミング中の別効果で条件失効した場合は、明示的な `effect_not_activatable` event を残して進行可能
 - 公開して手札に加える効果は、相手側の履歴にも公開カード名が残るようにしています
 - `amount_source=selected_count` を使う効果は、選んだ枚数分の抽牌に対応しています
-- 手札から起動する効果は、必要な Stage target がない場合に起動候補を出さないようにしています
+- `PL!HS-bp6-006` は手札中の cost reduction、みらくらぱーく！以外との Baton replacement 制限、Live 成功時の Wait + 次 Active Phase 非アクティブ化を構造化しています
+- `PL!HS-bp6-014:1` など手札から起動する効果は、対象 Stage Member がいない場合でもコスト支払いと抽牌を処理し、対象 modifier だけを空解決できます
+- 二段階効果は follow-up choice 開始時に `effect_choice_started` event を出し、UI / replay / sandbox report で「続きの選択待ち」を確認できます
 - 自動実行できない効果は `ManualAdjustmentAction` で補完
 - 処理不能な効果は、デバッグ用に `effect_skipped_due_to_error` として明示記録しながらスキップ可能
 
@@ -392,6 +394,41 @@ python -m tools.ai_sandbox.semantic_playtest `
   --matches 20 `
   --max-actions 260 `
   --manual-fallback skip
+```
+
+二人の semantic agent に通常行動も選ばせたい場合は、`--two-agent` を使います。
+このモードでは `raw_doc/LoveLiveTCG_cr_1.06_260428.pdf` を `pypdf` で抽出し、
+現在操作するプレイヤーの非公開情報だけを含めた context を provider に渡します。
+未設定の `mock` provider では普通行動を選ばず、deterministic fallback で配管だけを検証します。
+
+```powershell
+$env:PYTHONPATH="src;."
+$env:LOVECA_SEMANTIC_AGENT_PROVIDER="openai_compatible"
+$env:LOVECA_SEMANTIC_AGENT_MODEL="..."
+$env:LOVECA_SEMANTIC_AGENT_API_BASE="..."
+$env:LOVECA_SEMANTIC_AGENT_API_KEY="..."
+python -m tools.ai_sandbox.semantic_playtest `
+  --database data/loveca.sqlite3 `
+  --output logs/semantic_sandbox/two-agent-large `
+  --decks 30 `
+  --matches 100 `
+  --max-actions 360 `
+  --manual-fallback skip `
+  --two-agent `
+  --play-fallback deterministic
+```
+
+個別 effect の挙動を人間が読みやすい形で確認したい場合は、effect verification report を
+生成できます。日文主レポート、中文レポート、JSON summary を出力し、ローカルカード DB から
+取得できる公式画像 URL も Markdown に埋め込みます。現在は本分支で重点修正した
+`PL!HS-bp6-014` の手札起動、`PL!HS-bp6-006` の登場 cost / Live 成功時処理、
+`PL!HS-bp2-026` の score modifier、Baton Touch 二重防止、`PL!HS-sd1-005`
+の同名 Baton 条件を固定検証します。
+
+```powershell
+$env:PYTHONPATH="src;."
+python -m tools.ai_sandbox.effect_verification_report `
+  --output logs/effect_verification/manual-run
 ```
 
 OpenAI-compatible provider を使う場合は以下を設定します。

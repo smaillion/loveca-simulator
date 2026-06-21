@@ -1,0 +1,93 @@
+{
+  "version": "decklist.v0",
+  "name": "Hasunosora Online Fix Regression",
+  "main_deck": [
+    {
+      "card_code": "PL!HS-sd1-005",
+      "quantity": 4,
+      "preferred_printing_id": "PL!HS-sd1-005-SD"
+    },
+    {
+      "card_code": "PL!HS-sd1-013",
+      "quantity": 4,
+      "preferred_printing_id": "PL!HS-sd1-013-SD"
+    },
+    {
+      "card_code": "PL!HS-sd1-010",
+      "quantity": 4,
+      "preferred_printing_id": "PL!HS-sd1-010-SD"
+    },
+    {
+      "card_code": "PL!HS-bp2-004",
+      "quantity": 4,
+      "preferred_printing_id": "PL!HS-bp2-004-R"
+    },
+    {
+      "card_code": "PL!HS-bp6-014",
+      "quantity": 4,
+      "preferred_printing_id": "PL!HS-bp6-014-R"
+    },
+    {
+      "card_code": "PL!HS-PR-006",
+      "quantity": 4,
+      "preferred_printing_id": "PL!HS-PR-006-PR"
+    },
+    {
+      "card_code": "PL!HS-bp6-011",
+      "quantity": 4,
+      "preferred_printing_id": "PL!HS-bp6-011-R"
+    },
+    {
+      "card_code": "PL!HS-bp6-006",
+      "quantity": 4,
+      "preferred_printing_id": "PL!HS-bp6-006-R+"
+    },
+    {
+      "card_code": "PL!HS-bp2-015",
+      "quantity": 4,
+      "preferred_printing_id": "PL!HS-bp2-015-N"
+    },
+    {
+      "card_code": "PL!HS-bp5-003",
+      "quantity": 4,
+      "preferred_printing_id": "PL!HS-bp5-003-R+"
+    },
+    {
+      "card_code": "PL!HS-bp6-010",
+      "quantity": 4,
+      "preferred_printing_id": "PL!HS-bp6-010-R"
+    },
+    {
+      "card_code": "PL!HS-bp2-008",
+      "quantity": 4,
+      "preferred_printing_id": "PL!HS-bp2-008-R"
+    },
+    {
+      "card_code": "PL!HS-bp2-026",
+      "quantity": 4,
+      "preferred_printing_id": "PL!HS-bp2-026-L+"
+    },
+    {
+      "card_code": "PL!HS-bp1-019",
+      "quantity": 4,
+      "preferred_printing_id": "PL!HS-bp1-019-L"
+    },
+    {
+      "card_code": "PL!HS-bp1-023",
+      "quantity": 2,
+      "preferred_printing_id": "PL!HS-bp1-023-L"
+    },
+    {
+      "card_code": "PL!HS-bp2-020",
+      "quantity": 2,
+      "preferred_printing_id": "PL!HS-bp2-020-L"
+    }
+  ],
+  "energy_deck": [
+    {
+      "card_code": "LL-E-001",
+      "quantity": 12,
+      "preferred_printing_id": "LL-E-001-SD"
+    }
+  ]
+}
