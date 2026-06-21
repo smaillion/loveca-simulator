@@ -31,7 +31,12 @@ import {
 import {
   createMatch,
   createRoom,
+  cleanupAdminRuntime,
   cardImageUrl,
+  downloadAdminRuntimeProgressReport,
+  getAdminDeckShares,
+  getAdminRuntimeProgress,
+  getAdminRuntimeStorage,
   getRuntimeConfigSnapshot,
   getMatch,
   getRoom,
@@ -44,8 +49,10 @@ import {
   matchReplayUrl,
   roomReplayUrl,
   roomStreamUrl,
+  setRuntimeApiBaseUrlOverride,
   submitAction,
   submitRoomAction,
+  type RuntimeConfig,
 } from "./api";
 import { CatalogBrowser } from "./catalog-browser";
 import { DeckBuilder } from "./deck-builder";
@@ -107,6 +114,25 @@ function matchHistoryAvailable(config: {
   publicMatchHistory: boolean;
 }): boolean {
   return config.publicMatchHistory && (!config.browserPreview || config.apiBaseUrl.length > 0);
+}
+
+type AppScreen = "home" | "match" | "catalog" | "decks" | "admin";
+
+function initialAppScreen(): AppScreen {
+  if (typeof window === "undefined") return "home";
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (
+      params.get("admin") === "1"
+      || params.get("screen") === "admin"
+      || window.location.hash === "#admin"
+    ) {
+      return "admin";
+    }
+  } catch {
+    return "home";
+  }
+  return "home";
 }
 
 type UiLocale = "zh" | "ja";
@@ -253,7 +279,7 @@ export default function App() {
     if (stored === "ja" || stored === "zh") return stored;
     return "ja";
   });
-  const [screen, setScreen] = useState<"home" | "match" | "catalog" | "decks">("home");
+  const [screen, setScreen] = useState<AppScreen>(() => initialAppScreen());
   const [match, setMatch] = useState<MatchPayload | null>(null);
   const matchShellRef = useRef<HTMLDivElement | null>(null);
   const [matchHistory, setMatchHistory] = useState<MatchListResponse>(emptyMatchHistory);
@@ -702,6 +728,15 @@ export default function App() {
           />,
       );
     }
+    if (screen === "admin") {
+      return renderShell(
+        <AdminConsole
+          runtimeConfig={runtimeConfig}
+          onRuntimeConfigChange={setRuntimeConfig}
+          onBack={() => setScreen("home")}
+        />,
+      );
+    }
     return renderShell(
         <StartScreen
           matches={visibleMatchHistory.items}
@@ -720,6 +755,11 @@ export default function App() {
             : "ブラウザプレビュー版にはローカルルールエンジンが含まれていません。ローカル版で対戦を開始するか、リモートサービスに接続してオンライン検証ルームを作成してください。"}
           onBrowse={() => setScreen("catalog")}
           onDeckBuilder={() => setScreen("decks")}
+          onAdmin={() => {
+            setShowPreviewNotice(false);
+            setShowUsageGuide(false);
+            setScreen("admin");
+          }}
           onHelp={() => {
             setUsageGuideLocale(locale);
             setShowUsageGuide(true);
@@ -1962,10 +2002,10 @@ function PreviewNotice({
             <h3>{locale === "zh" ? "本版更新" : "今回の更新"}</h3>
             <ul>
               <li>{locale === "zh" ? "对战中会隐藏对手手牌；公开后加入手牌的卡会在对手履历中保留卡名。" : "対戦中は相手の手札を非公開にし、公開して手札に加えたカードは相手側の履歴にもカード名を残します。"}</li>
-              <li>{locale === "zh" ? "修复按弃牌张数抽牌的技能，以及没有合法 Stage 目标时仍显示手牌起动按钮的问题。" : "捨てた枚数分ドローする効果と、合法な Stage 目標がない手札起動ボタン表示を修正しました。"}</li>
+              <li>{locale === "zh" ? "修复按弃牌张数抽牌、PL!HS-bp6-006、PL!HS-bp6-014 等重点技能处理。" : "捨てた枚数分ドロー、PL!HS-bp6-006、PL!HS-bp6-014 などの重点効果処理を修正しました。"}</li>
               <li>{locale === "zh" ? "手机对战的登场、Live 判定、能力处理和手动入口继续压缩，减少误触和滚动。" : "スマホ対戦の登場、ライブ判定、能力処理、手動入口をさらに圧縮し、誤操作とスクロールを減らしました。"}</li>
               <li>{locale === "zh" ? "Deck 画面保留说明、JSON 导入导出、UUID 分享和自动分析。" : "Deck 画面では使い方、JSON 読み込み / 書き出し、UUID 共有、自動分析を利用できます。"}</li>
-              <li>{locale === "zh" ? "Phase 5 技能覆盖继续推进，并用 targeted sandbox 追踪剩余 blocker。" : "Phase 5 の効果対応を進め、targeted sandbox で残り blocker を追跡しています。"}</li>
+              <li>{locale === "zh" ? "Phase 5 技能覆盖已到 717/925，并用 sandbox / 审计报告追踪剩余 blocker。" : "Phase 5 効果対応は 717/925 まで進み、sandbox / 監査 report で残り blocker を追跡しています。"}</li>
             </ul>
           </section>
           <section>
@@ -2302,6 +2342,7 @@ function StartScreen({
   matchCreationDisabledMessage,
   onBrowse,
   onDeckBuilder,
+  onAdmin,
   onHelp,
   onlineAvailable,
   onlineRoom,
@@ -2327,6 +2368,7 @@ function StartScreen({
   matchCreationDisabledMessage: string;
   onBrowse: () => void;
   onDeckBuilder: () => void;
+  onAdmin: () => void;
   onHelp: () => void;
   onlineAvailable: boolean;
   onlineRoom: RoomPayload | null;
@@ -2618,6 +2660,10 @@ function StartScreen({
             <ClipboardList size={18} />
             {tr("牌组编辑器", "デッキ編集")}
           </button>
+          <button className="secondary-button" disabled={loading} onClick={onAdmin}>
+            <Database size={18} />
+            {tr("管理", "管理")}
+          </button>
         </section>
 
         <section className="history-panel">
@@ -2711,6 +2757,327 @@ function StartScreen({
   );
 }
 
+function AdminConsole({
+  runtimeConfig,
+  onRuntimeConfigChange,
+  onBack,
+}: {
+  runtimeConfig: RuntimeConfig;
+  onRuntimeConfigChange: (config: RuntimeConfig) => void;
+  onBack: () => void;
+}) {
+  const { tr } = useUiLanguage();
+  const [apiBaseUrl, setApiBaseUrl] = useState(runtimeConfig.apiBaseUrl);
+  const [adminKey, setAdminKey] = useState("");
+  const [authenticated, setAuthenticated] = useState(false);
+  const [busy, setBusy] = useState("");
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [storage, setStorage] = useState<Record<string, unknown> | null>(null);
+  const [deckShares, setDeckShares] = useState<Record<string, unknown> | null>(null);
+  const [progress, setProgress] = useState<Record<string, unknown> | null>(null);
+  const [retainMatches, setRetainMatches] = useState("25");
+  const [maxSnapshots, setMaxSnapshots] = useState("3");
+  const [olderThanHours, setOlderThanHours] = useState("");
+  const [includeActive, setIncludeActive] = useState(false);
+  const [vacuum, setVacuum] = useState(false);
+
+  useEffect(() => {
+    setApiBaseUrl(runtimeConfig.apiBaseUrl);
+  }, [runtimeConfig.apiBaseUrl]);
+
+  const apiLabel = apiBaseUrl.trim() || tr("同源 API", "同一オリジン API");
+  const keyReady = adminKey.trim().length > 0;
+
+  function applyApiBaseUrlOverride(): boolean {
+    try {
+      const updated = setRuntimeApiBaseUrlOverride(apiBaseUrl);
+      onRuntimeConfigChange(updated);
+      return true;
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+      return false;
+    }
+  }
+
+  async function runAdmin<T>(
+    label: string,
+    operation: (key: string) => Promise<T>,
+    apply: (payload: T) => void,
+  ) {
+    if (!keyReady) {
+      setError(tr("请输入管理者 key。", "管理者キーを入力してください。"));
+      return;
+    }
+    if (!applyApiBaseUrlOverride()) return;
+    setBusy(label);
+    setError("");
+    setMessage("");
+    try {
+      const payload = await operation(adminKey.trim());
+      apply(payload);
+      setAuthenticated(true);
+      setMessage(label);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setBusy("");
+    }
+  }
+
+  function verifyAdminKey() {
+    void runAdmin(
+      tr("认证完成", "認証しました"),
+      getAdminRuntimeStorage,
+      (payload) => setStorage(payload),
+    );
+  }
+
+  function refreshStorage() {
+    void runAdmin(
+      tr("容量已刷新", "容量を更新しました"),
+      getAdminRuntimeStorage,
+      (payload) => setStorage(payload),
+    );
+  }
+
+  function executeCleanup() {
+    const payload = {
+      retain_matches: Number(retainMatches || 25),
+      max_snapshots_per_match: Number(maxSnapshots || 3),
+      older_than_hours: olderThanHours ? Number(olderThanHours) : null,
+      include_active_matches: includeActive,
+      vacuum,
+    };
+    void runAdmin(
+      tr("清理完成", "Cleanup が完了しました"),
+      (key) => cleanupAdminRuntime(key, payload),
+      (result) => {
+        setStorage(
+          typeof result.storage === "object" && result.storage !== null
+            ? result.storage as Record<string, unknown>
+            : result,
+        );
+        setProgress(null);
+      },
+    );
+  }
+
+  function loadDeckShares() {
+    void runAdmin(
+      tr("共享牌组已读取", "共有デッキを読み込みました"),
+      getAdminDeckShares,
+      (payload) => setDeckShares(payload),
+    );
+  }
+
+  function loadProgress() {
+    void runAdmin(
+      tr("进度诊断已读取", "進捗診断を読み込みました"),
+      getAdminRuntimeProgress,
+      (payload) => setProgress(payload),
+    );
+  }
+
+  function downloadProgressReport() {
+    void runAdmin(
+      tr("报告已生成", "レポートを生成しました"),
+      downloadAdminRuntimeProgressReport,
+      (text) => {
+        if (typeof URL.createObjectURL !== "function") {
+          setProgress({ report: text });
+          return;
+        }
+        const blob = new Blob([text], { type: "text/markdown;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "loveca-runtime-progress-report.md";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      },
+    );
+  }
+
+  return (
+    <div className="admin-page">
+      <header className="start-header">
+        <div className="brand-lockup">
+          <Database size={24} />
+          <div>
+            <strong>{tr("LoveCA 管理", "LoveCA 管理")}</strong>
+            <span>{tr("通过 Hosted API 查看和清理运行数据", "Hosted API 経由で runtime データを確認・清理します")}</span>
+          </div>
+        </div>
+        <div className="start-actions">
+          <LanguageToggle />
+          <button className="secondary-button" onClick={onBack}>
+            <X size={16} />
+            {tr("返回", "戻る")}
+          </button>
+        </div>
+      </header>
+
+      <main className="admin-console">
+        <section className="admin-panel">
+          <div className="section-heading compact-heading">
+            <Database size={18} />
+            <div>
+              <h1>{tr("管理者认证", "管理者認証")}</h1>
+              <p>
+                {tr(
+                  "GitHub Pages 版会优先使用这里填写的 API URL；留空时使用 runtime-config 或同源 API。",
+                  "GitHub Pages 版はここで入力した API URL を優先します。空欄の場合は runtime-config または同一オリジン API を使います。",
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="admin-api-target">
+            <span>{tr("API", "API")}</span>
+            <code>{apiLabel}</code>
+          </div>
+          <label className="admin-key-field">
+            {tr("Hosted API URL", "Hosted API URL")}
+            <input
+              aria-label="Admin API URL"
+              type="url"
+              value={apiBaseUrl}
+              onChange={(event) => setApiBaseUrl(event.target.value)}
+              placeholder="https://api.example.com"
+              autoComplete="url"
+            />
+          </label>
+          <label className="admin-key-field">
+            {tr("管理者 key", "管理者キー")}
+            <input
+              aria-label="Admin key"
+              type="password"
+              value={adminKey}
+              onChange={(event) => setAdminKey(event.target.value)}
+              autoComplete="off"
+            />
+          </label>
+          <button
+            className="primary-button"
+            disabled={!keyReady || Boolean(busy)}
+            onClick={verifyAdminKey}
+          >
+            {busy ? <RefreshCw className="spin" size={18} /> : <Database size={18} />}
+            {tr("认证并打开", "認証して開く")}
+          </button>
+          {error && <div className="error-banner">{error}</div>}
+          {message && <div className="info-banner">{message}</div>}
+        </section>
+
+        {authenticated && (
+          <div className="admin-grid">
+            <section className="admin-panel">
+              <div className="section-heading compact-heading">
+                <Database size={18} />
+                <div>
+                  <h2>{tr("Runtime 容量", "Runtime 容量")}</h2>
+                  <p>{tr("检查 match、snapshot、room 与共享牌组的增长。", "match、snapshot、room、共有デッキの増加を確認します。")}</p>
+                </div>
+              </div>
+              <div className="admin-actions">
+                <button className="secondary-button" disabled={Boolean(busy)} onClick={refreshStorage}>
+                  <RefreshCw size={16} />
+                  {tr("刷新容量", "容量を更新")}
+                </button>
+              </div>
+              <JsonOutput payload={storage} empty={tr("暂无容量数据", "容量データはまだありません")} />
+            </section>
+
+            <section className="admin-panel">
+              <div className="section-heading compact-heading">
+                <Settings2 size={18} />
+                <div>
+                  <h2>{tr("清理", "Cleanup")}</h2>
+                  <p>{tr("保留最近记录，删除过旧运行数据。VACUUM 可能较慢。", "最近の記録を残して古い runtime データを削除します。VACUUM は重い処理です。")}</p>
+                </div>
+              </div>
+              <div className="admin-form-grid">
+                <label>
+                  {tr("保留 match 数", "保持 match 数")}
+                  <input value={retainMatches} inputMode="numeric" onChange={(event) => setRetainMatches(event.target.value)} />
+                </label>
+                <label>
+                  {tr("每局 snapshot 数", "match ごとの snapshot 数")}
+                  <input value={maxSnapshots} inputMode="numeric" onChange={(event) => setMaxSnapshots(event.target.value)} />
+                </label>
+                <label>
+                  {tr("删除早于 N 小时", "N 時間より古い完了 match")}
+                  <input value={olderThanHours} inputMode="numeric" placeholder={tr("留空禁用", "空欄で無効")} onChange={(event) => setOlderThanHours(event.target.value)} />
+                </label>
+                <label className="checkbox-label">
+                  <input type="checkbox" checked={includeActive} onChange={(event) => setIncludeActive(event.target.checked)} />
+                  {tr("也删除 active match", "active match も対象")}
+                </label>
+                <label className="checkbox-label">
+                  <input type="checkbox" checked={vacuum} onChange={(event) => setVacuum(event.target.checked)} />
+                  VACUUM
+                </label>
+              </div>
+              <button className="primary-button danger-button" disabled={Boolean(busy)} onClick={executeCleanup}>
+                {tr("执行清理", "Cleanup 実行")}
+              </button>
+            </section>
+
+            <section className="admin-panel">
+              <div className="section-heading compact-heading">
+                <ClipboardList size={18} />
+                <div>
+                  <h2>{tr("共享牌组", "共有デッキ")}</h2>
+                  <p>{tr("查看用户上传到服务器的牌组条目。", "サーバーにアップロードされたデッキを確認します。")}</p>
+                </div>
+              </div>
+              <button className="secondary-button" disabled={Boolean(busy)} onClick={loadDeckShares}>
+                {tr("读取共享牌组", "共有デッキを読み込む")}
+              </button>
+              <JsonOutput payload={deckShares} empty={tr("暂无共享牌组数据", "共有デッキデータはまだありません")} />
+            </section>
+
+            <section className="admin-panel">
+              <div className="section-heading compact-heading">
+                <Activity size={18} />
+                <div>
+                  <h2>{tr("对局进度诊断", "対戦進捗診断")}</h2>
+                  <p>{tr("统计卡住阶段和高频技能 blocker，方便后续修规则。", "詰まりやすいフェイズと高頻度 skill blocker を集計します。")}</p>
+                </div>
+              </div>
+              <div className="admin-actions">
+                <button className="secondary-button" disabled={Boolean(busy)} onClick={loadProgress}>
+                  {tr("读取诊断", "診断を読み込む")}
+                </button>
+                <button className="secondary-button" disabled={Boolean(busy)} onClick={downloadProgressReport}>
+                  <Download size={16} />
+                  {tr("下载报告", "レポートを保存")}
+                </button>
+              </div>
+              <JsonOutput payload={progress} empty={tr("暂无诊断数据", "診断データはまだありません")} />
+            </section>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
+
+function JsonOutput({
+  payload,
+  empty,
+}: {
+  payload: Record<string, unknown> | null;
+  empty: string;
+}) {
+  if (!payload) {
+    return <div className="empty-state">{empty}</div>;
+  }
+  return <pre className="admin-json">{JSON.stringify(payload, null, 2)}</pre>;
+}
+
 function PlayerBoard({
   player,
   state,
@@ -2736,7 +3103,7 @@ function PlayerBoard({
 }) {
   const { locale, tr } = useUiLanguage();
   const activeEnergy = player.energy_area.filter(
-    (instanceId) => state.cards[instanceId].orientation === "active",
+    (instanceId) => state.cards[instanceId]?.orientation === "active",
   ).length;
   return (
     <section className={`player-board ${compact ? "compact" : ""}`}>
@@ -2779,7 +3146,7 @@ function PlayerBoard({
               }}
             >
               <span>{memberSlotLabel(slot, locale)}</span>
-              {player.member_area[slot] ? (
+              {player.member_area[slot] && state.cards[player.member_area[slot]!] ? (
                 <CardTile instance={state.cards[player.member_area[slot]!]} onClick={onCard} />
               ) : (
                 <div className="slot-empty">{tr("角色", "メンバー")}</div>
@@ -2794,9 +3161,7 @@ function PlayerBoard({
         </div>
         <Zone label={tr("能量", "エネルギー")} ids={player.energy_area} state={state} onCard={onCard} small />
       </div>
-      {!compact && (
-        <WaitingRoomViewer player={player} state={state} onCard={onCard} />
-      )}
+      <WaitingRoomViewer player={player} state={state} onCard={onCard} />
       <Zone
         label={`${tr("手牌", "手札")} ${player.hand.length}`}
         ids={player.hand}
@@ -2826,16 +3191,27 @@ function WaitingRoomViewer({
   return (
     <details className="waiting-room-viewer">
       <summary>
-        <span>{tr("查看己方控室", "自分の控え室を見る")}</span>
+        <span>{tr("查看控室", "控え室を見る")}</span>
         <strong>{player.waiting_room.length}</strong>
       </summary>
       <div className="waiting-room-strip">
         {player.waiting_room.length === 0 && (
           <span className="zone-empty">{tr("控室为空", "控え室は空です")}</span>
         )}
-        {player.waiting_room.map((id) => (
-          <CardTile key={id} instance={state.cards[id]} onClick={onCard} />
-        ))}
+        {player.waiting_room.map((id) => {
+          const instance = state.cards[id];
+          return instance ? (
+            <CardTile key={id} instance={instance} onClick={onCard} />
+          ) : (
+            <div
+              className="hidden-hand-card"
+              aria-label={tr("非公开卡牌", "非公開カード")}
+              key={id}
+            >
+              <span>?</span>
+            </div>
+          );
+        })}
       </div>
     </details>
   );
@@ -3260,8 +3636,20 @@ function Zone({
               <span>{index + 1}</span>
             </div>
           ))
-          : ids.map((id) => (
-            hand && mobileMemberPlay?.legalMemberIds.has(id) ? (
+          : ids.map((id) => {
+            const instance = state.cards[id];
+            if (!instance) {
+              return (
+                <div
+                  className="hidden-hand-card"
+                  aria-label={tr("非公开卡牌", "非公開カード")}
+                  key={id}
+                >
+                  <span>?</span>
+                </div>
+              );
+            }
+            return hand && mobileMemberPlay?.legalMemberIds.has(id) ? (
               <div
                 className={`hand-card-play-wrapper ${
                   mobileMemberPlay.selectedMemberId === id ? "selected" : ""
@@ -3278,7 +3666,7 @@ function Zone({
                 }}
               >
                 <CardTile
-                  instance={state.cards[id]}
+                  instance={instance}
                   selected={mobileMemberPlay.selectedMemberId === id}
                   onClick={onCard}
                 />
@@ -3314,7 +3702,7 @@ function Zone({
                 key={id}
               >
                 <CardTile
-                  instance={state.cards[id]}
+                  instance={instance}
                   selected={mobileLiveSet.selectedCardIds.includes(id)}
                   onClick={onCard}
                 />
@@ -3334,7 +3722,7 @@ function Zone({
                 key={id}
               >
                 <CardTile
-                  instance={state.cards[id]}
+                  instance={instance}
                   selected={mobileMulligan.selectedCardIds.includes(id)}
                   onClick={onCard}
                 />
@@ -3348,7 +3736,7 @@ function Zone({
               </div>
             ) : hand && mobileHandActivation?.legalCardIds.has(id) ? (
               <div className="hand-card-play-wrapper activation-wrapper" key={id}>
-                <CardTile instance={state.cards[id]} onClick={onCard} />
+                <CardTile instance={instance} onClick={onCard} />
                 <button
                   className="hand-play-select-button activation-select-button"
                   type="button"
@@ -3359,15 +3747,15 @@ function Zone({
               </div>
             ) : hand && mobileHandActivation?.candidateCardIds.has(id) ? (
               <div className="hand-card-play-wrapper activation-wrapper unavailable" key={id}>
-                <CardTile instance={state.cards[id]} onClick={onCard} />
+                <CardTile instance={instance} onClick={onCard} />
                 <span className="hand-activation-chip unavailable">
                   {tr("不可", "不可")}
                 </span>
               </div>
             ) : (
-              <CardTile key={id} instance={state.cards[id]} onClick={onCard} />
-            )
-          ))}
+              <CardTile key={id} instance={instance} onClick={onCard} />
+            );
+          })}
       </div>
     </div>
   );
@@ -3417,10 +3805,13 @@ export function StageAttachments({
   if (ids.length === 0) {
     return <span className="stage-attachments-empty">{tr("下方 0", "下 0")}</span>;
   }
-  const memberCount = ids.filter(
-    (id) => state.cards[id].card.card_type === "member",
+  const visibleCards = ids
+    .map((id) => state.cards[id])
+    .filter((card): card is CardInstance => Boolean(card));
+  const memberCount = visibleCards.filter(
+    (card) => card.card.card_type === "member",
   ).length;
-  const energyCount = ids.length - memberCount;
+  const energyCount = visibleCards.length - memberCount;
   return (
     <details className="stage-attachments">
       <summary>
@@ -3430,10 +3821,10 @@ export function StageAttachments({
         </small>
       </summary>
       <div className="stage-attachment-list">
-        {ids.map((id) => (
-          <button key={id} onClick={() => onCard(state.cards[id])}>
-            <strong>{state.cards[id].card.name_ja}</strong>
-            <span>{cardTypeLabel(state.cards[id].card.card_type, locale)}</span>
+        {visibleCards.map((card) => (
+          <button key={card.instance_id} onClick={() => onCard(card)}>
+            <strong>{card.card.name_ja}</strong>
+            <span>{cardTypeLabel(card.card.card_type, locale)}</span>
           </button>
         ))}
       </div>
@@ -4818,7 +5209,7 @@ export function MemberPlayAction({
   const player = state.players[action.player_id ?? ""];
   const placement = selection.placement;
   const newCost = placement
-    ? state.cards[placement.card_instance_id].card.cost ?? 0
+    ? placement.new_member_cost ?? state.cards[placement.card_instance_id].card.cost ?? 0
     : 0;
   const reduction = placement?.use_baton_touch
     ? Math.min(newCost, placement.replaced_member_cost)
@@ -5187,24 +5578,29 @@ export function ManualDrawer({
   const [toSlot, setToSlot] = useState<"left" | "center" | "right">("left");
   const [energyOrientation, setEnergyOrientation] = useState<"active" | "wait">("active");
   const player = state.players[playerId];
+  const visibleCards = (ids: string[]) =>
+    ids
+      .map((id) => state.cards[id])
+      .filter((card): card is CardInstance => Boolean(card));
   const attachedIds = Object.values(player.member_area_attachments ?? {}).flat();
   const genericCards = Object.values(state.cards).filter(
     (card) => card.owner_id === playerId && !attachedIds.includes(card.instance_id),
   );
   const attachableCards = [
     ...player.hand
-      .filter((id) => state.cards[id].card.card_type === "member")
+      .filter((id) => state.cards[id]?.card.card_type === "member")
       .map((id) => state.cards[id]),
     ...player.energy_area
-      .filter((id) => state.cards[id].card.card_type === "energy")
+      .filter((id) => state.cards[id]?.card.card_type === "energy")
       .map((id) => state.cards[id]),
-  ];
-  const attachedCards = attachedIds.map((id) => state.cards[id]);
+  ].filter((card): card is CardInstance => Boolean(card));
+  const attachedCards = visibleCards(attachedIds);
   const stageCards = MEMBER_SLOT_DISPLAY_ORDER
     .map((slot) => player.member_area[slot])
     .filter((id): id is string => id !== null)
-    .map((id) => state.cards[id]);
-  const handCards = player.hand.map((id) => state.cards[id]);
+    .map((id) => state.cards[id])
+    .filter((card): card is CardInstance => Boolean(card));
+  const handCards = visibleCards(player.hand);
   const selectableCards =
     type === "attach_card_under_member"
       ? attachableCards
@@ -5215,11 +5611,11 @@ export function ManualDrawer({
           : type === "discard_card"
             ? handCards
           : type === "return_from_waiting_room"
-            ? player.waiting_room.map((id) => state.cards[id])
+            ? visibleCards(player.waiting_room)
           : ["ready_energy", "pay_energy"].includes(type)
-            ? player.energy_area.map((id) => state.cards[id])
+            ? visibleCards(player.energy_area)
           : genericCards;
-  const selectedCard = cardId ? state.cards[cardId] : null;
+  const selectedCard = cardId ? state.cards[cardId] ?? null : null;
   const stageMemberIds = Object.values(player.member_area).filter(
     (id): id is string => id !== null,
   );
@@ -5289,7 +5685,7 @@ export function ManualDrawer({
             <span>{tr("结构化人工规则调整", "構造化手動ルール調整")}</span>
             {source && (
               <span>
-                {state.cards[source.source_card_instance_id].card.name_ja} · {source.effect_id}
+                {state.cards[source.source_card_instance_id]?.card.name_ja ?? source.source_card_instance_id} · {source.effect_id}
               </span>
             )}
           </div>
@@ -5403,7 +5799,7 @@ export function ManualDrawer({
                 <option disabled={slot === selectedMemberSlot} key={slot} value={slot}>
                   {memberSlotLabel(slot, locale)} ·{" "}
                   {player.member_area[slot]
-                    ? state.cards[player.member_area[slot]!].card.name_ja
+                    ? state.cards[player.member_area[slot]!]?.card.name_ja ?? player.member_area[slot]
                     : tr("空", "空き")}
                 </option>
               ))}
@@ -5448,7 +5844,7 @@ export function ManualDrawer({
                 >
                   {memberSlotLabel(slot, locale)} ·{" "}
                   {player.member_area[slot]
-                    ? state.cards[player.member_area[slot]!].card.name_ja
+                    ? state.cards[player.member_area[slot]!]?.card.name_ja ?? player.member_area[slot]
                     : tr("空", "空き")}
                 </option>
               ))}
@@ -5546,7 +5942,7 @@ export function ManualDrawer({
                   <option value="">{tr("空", "空き")}</option>
                   {stageMemberIds.map((id) => (
                     <option key={id} value={id}>
-                      {state.cards[id].card.name_ja}
+                      {state.cards[id]?.card.name_ja ?? id}
                     </option>
                   ))}
                 </select>
@@ -5888,6 +6284,8 @@ interface MemberPlacement {
   card_instance_id: string;
   slot: string;
   payment_cost: number;
+  new_member_cost?: number;
+  printed_member_cost?: number;
   use_baton_touch: boolean;
   replaced_card_instance_id: string | null;
   replaced_member_cost: number;

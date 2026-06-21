@@ -121,12 +121,30 @@ jobs:
         run: ssh ${SSH_OPTS} "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" 'true'
 
       - name: Write remote compose file
+        env:
+          LOVECA_ALLOWED_ORIGINS: ${{ vars.LOVECA_ALLOWED_ORIGINS }}
+          LOVECA_ADMIN_KEY: ${{ secrets.LOVECA_ADMIN_KEY }}
         run: |
+          test -n "$LOVECA_ADMIN_KEY" || {
+            echo "LOVECA_ADMIN_KEY secret is required for hosted admin API deployment." >&2
+            exit 1
+          }
           ssh ${SSH_OPTS} "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" 'mkdir -p "${{ secrets.DEPLOY_PATH }}/runtime" "${{ secrets.DEPLOY_PATH }}/logs"'
-          cat > compose.api.remote.yml <<'YAML'
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          def yq(value: str) -> str:
+              return json.dumps(value)
+
+          image = f"{os.environ['IMAGE_NAME']}:{os.environ['IMAGE_TAG']}"
+          origins = os.environ.get("LOVECA_ALLOWED_ORIGINS", "")
+          admin_key = os.environ["LOVECA_ADMIN_KEY"]
+          content = f"""\
           services:
             loveca-api:
-              image: IMAGE_PLACEHOLDER
+              image: {yq(image)}
               restart: unless-stopped
               ports:
                 - "127.0.0.1:8765:8765"
@@ -135,21 +153,20 @@ jobs:
                 LOVECA_MATCH_DB: /app/runtime/matches.sqlite3
                 LOVECA_IMAGE_CACHE: /app/data/card_images
                 LOVECA_WEB_DIST: /app/web/dist
-                LOVECA_ALLOWED_ORIGINS: "ORIGINS_PLACEHOLDER"
+                LOVECA_ALLOWED_ORIGINS: {yq(origins)}
                 LOVECA_ROOM_TTL_HOURS: "24"
                 LOVECA_ROOM_DELETE_GRACE_HOURS: "1"
                 LOVECA_MATCH_HISTORY_LIMIT: "25"
                 LOVECA_MAX_SNAPSHOTS_PER_MATCH: "3"
                 LOVECA_ACTIVE_MATCH_TTL_HOURS: "48"
                 LOVECA_PUBLIC_MATCH_ENDPOINTS: "false"
-                LOVECA_ADMIN_KEY: "ADMIN_KEY_PLACEHOLDER"
+                LOVECA_ADMIN_KEY: {yq(admin_key)}
               volumes:
                 - ./runtime:/app/runtime
                 - ./logs:/app/logs
-          YAML
-          sed -i "s#IMAGE_PLACEHOLDER#${IMAGE_NAME}:${IMAGE_TAG}#g" compose.api.remote.yml
-          sed -i "s#ORIGINS_PLACEHOLDER#${{ vars.LOVECA_ALLOWED_ORIGINS }}#g" compose.api.remote.yml
-          sed -i "s#ADMIN_KEY_PLACEHOLDER#${{ secrets.LOVECA_ADMIN_KEY }}#g" compose.api.remote.yml
+          """
+          Path("compose.api.remote.yml").write_text(content, encoding="utf-8")
+          PY
           scp ${SSH_OPTS} compose.api.remote.yml "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}/compose.api.yml"
 
       - name: Install daily API restart cron
@@ -221,6 +238,17 @@ jobs:
             sleep 5
           done
           curl --fail --show-error --silent --max-time 20 "$origin_base_url/api/health"
+
+      - name: Admin API smoke check through Caddy origin URL
+        env:
+          LOVECA_ADMIN_KEY: ${{ secrets.LOVECA_ADMIN_KEY }}
+        run: |
+          origin_base_url="$(printf '%s' "$ORIGIN_BASE_URL" | sed 's#/*$##')"
+          test -n "$origin_base_url"
+          test -n "$LOVECA_ADMIN_KEY"
+          curl --fail --show-error --silent --max-time 20 \
+            -H "X-LoveCA-Admin-Key: $LOVECA_ADMIN_KEY" \
+            "$origin_base_url/api/admin/runtime/storage" >/dev/null
 
       - name: Health check through Worker gateway URL
         run: |

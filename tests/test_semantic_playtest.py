@@ -15,11 +15,15 @@ from loveca.simulation.models import (
 from tools.ai_sandbox.blackbox_playtest import build_decks, summarize_deck
 from tools.ai_sandbox.semantic_playtest import (
     MockSemanticAgentProvider,
+    RuleContext,
     SemanticAgentError,
     SemanticDecision,
+    build_api_play_context,
     build_agent_context,
+    load_rule_context,
     parse_agent_decision,
     run_semantic_matches,
+    validate_api_play_decision,
     validate_agent_decision,
     validate_manual_adjustment_payload,
     write_semantic_outputs,
@@ -163,6 +167,70 @@ def test_agent_context_contains_source_text_and_manual_schema():
     assert context["players"]["player_1"]["hand"] == []
 
 
+def test_rule_context_from_text_file_is_loaded(tmp_path):
+    rules = tmp_path / "rules.txt"
+    rules.write_text("先攻\nメインフェイズ\nライブ判定\n" * 5, encoding="utf-8")
+
+    context = load_rule_context(rules, max_chars=24)
+
+    assert context.loaded is True
+    assert context.extractor == "text"
+    assert context.char_count <= 24
+    assert "先攻" in context.excerpts[0]
+
+
+def test_api_play_context_contains_rule_context_and_private_view():
+    state = _state()
+    state.players["player_1"].hand = ["p1-card-1"]
+    legal = [
+        LegalAction(
+            action_type="advance_phase",
+            player_id="player_1",
+            label_zh="推进",
+            label_ja="進行",
+            options={},
+        )
+    ]
+    rule_context = RuleContext(
+        source_path="rules.txt",
+        loaded=True,
+        extractor="text",
+        char_count=12,
+        excerpts=["ルール抜粋"],
+    )
+
+    context = build_api_play_context(state, legal, rule_context=rule_context)
+
+    assert context["mode"] == "api_play"
+    assert context["you_are_player_id"] == "player_1"
+    assert context["rule_context"]["loaded"] is True
+    assert context["players"]["player_1"]["hand"][0]["instance_id"] == "p1-card-1"
+    assert context["players"]["player_2"]["hand"] == {"count": 0}
+
+
+def test_validate_api_play_decision_rejects_wrong_player():
+    legal = [
+        LegalAction(
+            action_type="advance_phase",
+            player_id="player_1",
+            label_zh="推进",
+            label_ja="進行",
+            options={},
+        )
+    ]
+
+    with pytest.raises(ValueError, match="player_id"):
+        validate_api_play_decision(
+            SemanticDecision(
+                decision="submit_action",
+                action_type="advance_phase",
+                player_id="player_2",
+                payload={},
+            ),
+            legal,
+        )
+
+
 @pytest.mark.sandbox
 def test_semantic_sandbox_mock_mode_writes_reports(tmp_path):
     if not CARD_DATABASE.exists():
@@ -170,7 +238,7 @@ def test_semantic_sandbox_mock_mode_writes_reports(tmp_path):
 
     decks = build_decks(CARD_DATABASE, 2)
     provider = MockSemanticAgentProvider()
-    match_summaries, attempts = run_semantic_matches(
+    match_summaries, attempts, api_play_attempts = run_semantic_matches(
         CARD_DATABASE,
         decks,
         provider=provider,
@@ -185,6 +253,7 @@ def test_semantic_sandbox_mock_mode_writes_reports(tmp_path):
         deck_summaries=deck_summaries,
         match_summaries=match_summaries,
         attempts=attempts,
+        api_play_attempts=api_play_attempts,
     )
 
     assert len(match_summaries) == 1
@@ -192,3 +261,45 @@ def test_semantic_sandbox_mock_mode_writes_reports(tmp_path):
     summary = json.loads((tmp_path / "semantic-summary.json").read_text(encoding="utf-8"))
     assert summary["schema_version"] == "semantic_sandbox_v0.1"
     assert summary["provider"] == "mock"
+
+
+@pytest.mark.sandbox
+def test_semantic_two_agent_mock_mode_writes_rule_context_report(tmp_path):
+    if not CARD_DATABASE.exists():
+        pytest.skip("local full card database is required for semantic sandbox flow")
+
+    rules = tmp_path / "rules.txt"
+    rules.write_text("先攻 メインフェイズ ライブ判定", encoding="utf-8")
+    rule_context = load_rule_context(rules, max_chars=100)
+    decks = build_decks(CARD_DATABASE, 2)
+    provider = MockSemanticAgentProvider()
+    match_summaries, attempts, api_play_attempts = run_semantic_matches(
+        CARD_DATABASE,
+        decks,
+        provider=provider,
+        match_count=1,
+        max_actions=3,
+        manual_fallback="skip",
+        play_policy="api",
+        play_fallback="deterministic",
+        rule_context=rule_context,
+    )
+    deck_summaries = [summarize_deck(CARD_DATABASE, deck) for deck in decks]
+    write_semantic_outputs(
+        tmp_path,
+        provider=provider,
+        play_policy="api",
+        rule_context=rule_context,
+        deck_summaries=deck_summaries,
+        match_summaries=match_summaries,
+        attempts=attempts,
+        api_play_attempts=api_play_attempts,
+    )
+
+    assert len(match_summaries) == 1
+    assert api_play_attempts
+    summary = json.loads((tmp_path / "semantic-summary.json").read_text(encoding="utf-8"))
+    report = (tmp_path / "semantic-report.md").read_text(encoding="utf-8")
+    assert summary["play_policy"] == "api"
+    assert summary["rule_context"]["loaded"] is True
+    assert "Rule context" in report

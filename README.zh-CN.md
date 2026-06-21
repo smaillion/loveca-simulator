@@ -18,8 +18,8 @@
 - FastAPI + React SPA 可视化规则验证器
 - 可回放的 Action-only GameState
 - 925 条 effect registry entry
-  - 714 条为 `test_validated_executable`
-  - 211 条为 timing prompt / 未支持处理用 `manual_resolution`
+  - 717 条为 `test_validated_executable`
+  - 208 条为 timing prompt / 未支持处理用 `manual_resolution`
 - 面向未来低成本 online 同步的 state hash / compatibility metadata 基础
 - Hosted Online MVP 房间 API
   - 通过 room code 创建 / 加入房间
@@ -55,13 +55,15 @@
 - 部分双方都需要选择的效果已可通过 multi-player pending choice 顺序处理
 - 支持把 Stage Member 目标拆成多个选择组，并对各组选中目标应用相同的临时 modifier
 - 支持每个分支使用不同 Stage Member 候选池的技能选择
-- 按 registry entry 计算的 `test_validated_executable` 覆盖率已达到 77.19%
+- 按 registry entry 计算的 `test_validated_executable` 覆盖率已达到 77.51%
 - Phase 5 broad black-box sandbox 已在 `30 decks x 100 matches` block mode 中达到 `100/100` 完走，blocker 为 0
 - 包含问题卡的 targeted sandbox 最新 block smoke 改善到 `15 matches` 中 9 局完走、6 件 `mandatory_manual_resolution`
 - 触发时条件满足的 pending effect 如果在同一时点中被其他效果改变条件导致失效，会记录明确的 `effect_not_activatable` event 并继续推进
 - 公开并加入手牌的效果会在对手侧履历中保留公开卡名，方便联机复盘
 - 使用 `amount_source=selected_count` 的效果已支持按选中张数抽牌
-- 从手牌起动且需要 Stage target 的效果，会在没有合法目标时隐藏发动候选
+- `PL!HS-bp6-006` 已结构化支持手牌中 cost reduction、非みらくらぱーく！Baton replacement 限制、Live 成功时 Wait + 下一 Active Phase 不转 Active
+- `PL!HS-bp6-014:1` 等从手牌发动的效果，在没有目标 Stage Member 时也会处理成本和抽牌，只把目标 modifier 空结算
+- 两段式技能会在进入后续选择时记录 `effect_choice_started` event，方便 UI、Replay 和 sandbox report 确认当前是在等待技能后续选择
 - 暂不能自动执行的技能通过 `ManualAdjustmentAction` 补充
 - 无法处理的技能可以用调试用 `effect_skipped_due_to_error` 显式记录后跳过
 
@@ -391,6 +393,40 @@ python -m tools.ai_sandbox.semantic_playtest `
   --matches 20 `
   --max-actions 260 `
   --manual-fallback skip
+```
+
+如果希望让两个 semantic agent 连普通行动也一起选择，可以使用 `--two-agent`。
+该模式会用 `pypdf` 抽取 `raw_doc/LoveLiveTCG_cr_1.06_260428.pdf`，并且只把当前操作玩家
+能看到的非公开信息放进 provider context。未配置真实 provider 时，`mock` 不会选择普通行动，
+只会通过 deterministic fallback 验证流程和报告格式。
+
+```powershell
+$env:PYTHONPATH="src;."
+$env:LOVECA_SEMANTIC_AGENT_PROVIDER="openai_compatible"
+$env:LOVECA_SEMANTIC_AGENT_MODEL="..."
+$env:LOVECA_SEMANTIC_AGENT_API_BASE="..."
+$env:LOVECA_SEMANTIC_AGENT_API_KEY="..."
+python -m tools.ai_sandbox.semantic_playtest `
+  --database data/loveca.sqlite3 `
+  --output logs/semantic_sandbox/two-agent-large `
+  --decks 30 `
+  --matches 100 `
+  --max-actions 360 `
+  --manual-fallback skip `
+  --two-agent `
+  --play-fallback deterministic
+```
+
+如果想用更接近人工审查的形式确认单个 effect，可以生成 effect verification report。
+它会输出日文主报告、中文报告和 JSON summary，并把本地卡库中能查到的官方图片 URL
+嵌入 Markdown。当前固定验证本分支重点修正的 `PL!HS-bp6-014` 手牌发动、
+`PL!HS-bp6-006` 登场 cost / Live 成功时处理、`PL!HS-bp2-026` score modifier、
+Baton Touch 二次登场阻止，以及 `PL!HS-sd1-005` 同名 Baton 条件。
+
+```powershell
+$env:PYTHONPATH="src;."
+python -m tools.ai_sandbox.effect_verification_report `
+  --output logs/effect_verification/manual-run
 ```
 
 使用 OpenAI-compatible provider 时设置:

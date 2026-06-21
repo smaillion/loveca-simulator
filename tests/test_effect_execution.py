@@ -22,6 +22,7 @@ from loveca.simulation.effects import (
 from loveca.simulation.engine import (
     IllegalActionError,
     _queue_live_success_effects,
+    _resolve_automatic_effects,
     _run_current_yell,
     _static_heart_bonus,
     _static_numeric_bonus,
@@ -89,7 +90,7 @@ def test_effect_candidate_discovery_structures_pl_hs_bp6_014_hand_activation():
         "zone": "stage",
         "card_type": "member",
         "name_ja_any": ["藤島 慈", "大沢瑠璃乃"],
-        "minimum": 1,
+        "minimum": 0,
         "maximum": 1,
     }
     assert candidate.actions == [
@@ -3116,6 +3117,16 @@ def test_named_baton_condition_controls_draw_then_discard_prompt():
 
     assert result.state.pending_choice is None
     assert result.state.pending_effects[0].resolution_stage == "after_cost"
+    assert [event.event_type for event in result.events] == [
+        "cards_drawn",
+        "effect_choice_started",
+    ]
+    choice_event = result.events[-1]
+    assert choice_event.data["effect_id"] == "test-named-baton-draw:1"
+    assert choice_event.data["reason"] == "post_action_card_choice"
+    assert choice_event.data["choice_type"] == "post_action_card_from_zone"
+    assert choice_event.data["card_selection_minimum"] == 1
+    assert choice_event.data["card_selection_maximum"] == 1
     assert len(result.state.players["player_1"].hand) == 2
     selected = result.state.players["player_1"].hand[:1]
     resolved = apply_action(
@@ -5617,7 +5628,7 @@ def test_pl_hs_bp6_014_activates_from_hand_and_grants_blade():
     assert not state.pending_effects
 
 
-def test_pl_hs_bp6_014_requires_named_stage_target_before_hand_activation():
+def test_pl_hs_bp6_014_resolves_from_hand_without_named_stage_target():
     registry = EffectRegistry.model_validate_json(REGISTRY.read_text(encoding="utf-8"))
     effect = {effect.effect_id: effect for effect in registry.effects}["PL!HS-bp6-014:1"]
     state = _minimal_effect_state(effect)
@@ -5652,23 +5663,49 @@ def test_pl_hs_bp6_014_requires_named_stage_target_before_hand_activation():
     player.hand = ["hand-source"]
     player.member_area = {"left": None, "center": "other-member", "right": None}
 
-    assert not any(
-        entry["effect_id"] == effect.effect_id
+    activation = next(
+        entry
         for action in generate_legal_actions(state)
         if action.action_type == "activate_effect"
         for entry in action.options["activations"]
+        if entry["effect_id"] == effect.effect_id
+    )
+    assert activation["source_card_instance_id"] == "hand-source"
+
+    state = _apply_direct(
+        state,
+        "activate_effect",
+        player_id="player_1",
+        payload={
+            "effect_id": effect.effect_id,
+            "source_card_instance_id": "hand-source",
+        },
     )
 
-    with pytest.raises(IllegalActionError, match="not legal"):
-        _apply_direct(
-            state,
-            "activate_effect",
-            player_id="player_1",
-            payload={
-                "effect_id": effect.effect_id,
-                "source_card_instance_id": "hand-source",
-            },
-        )
+    player = state.players["player_1"]
+    assert "hand-source" not in player.hand
+    assert "hand-source" in player.waiting_room
+    assert "deck-live-1" in player.hand
+
+    invocation = state.pending_effects[0]
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["choice_type"] == "member_from_stage"
+    assert options["candidate_card_instance_ids"] == []
+    assert options["card_selection_minimum"] == 0
+    assert options["card_selection_maximum"] == 1
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": invocation.invocation_id,
+            "selected_card_instance_ids": [],
+        },
+    )
+
+    assert not state.players["player_1"].manual_modifiers
+    assert not state.pending_effects
 
 
 def test_onplay_discard_up_to_three_draws_same_number_of_cards():
@@ -16136,7 +16173,7 @@ def test_onplay_baton_non_kachimachi_hasunosora_returns_live():
     forbidden.cards["replaced-member"] = CardInstance(
         instance_id="replaced-member",
         owner_id="player_1",
-        card=replaced_member.model_copy(update={"name_ja": "徒町小鈴"}),
+        card=replaced_member.model_copy(update={"name_ja": "徒町 小鈴"}),
     )
     forbidden.cards["waiting-live"] = CardInstance(
         instance_id="waiting-live",
@@ -16153,6 +16190,465 @@ def test_onplay_baton_non_kachimachi_hasunosora_returns_live():
                 "invocation_id": "inv-1",
                 "selected_card_instance_ids": ["waiting-live"],
             },
+        )
+
+
+def test_live_start_slot_name_condition_ignores_name_spacing_for_score_modifier():
+    effect = EffectDefinition(
+        effect_id="test-miracreation-score:1",
+        card_code="PL!HS-bp2-026",
+        text_revision_id=1,
+        raw_text_hash="m" * 64,
+        effect_index=1,
+        label_ja=(
+            "【ライブ開始時】自分のステージの左に「安養寺姫芽」、中央に"
+            "「藤島慈」、右に「大沢瑠璃乃」がいる場合、このカードのスコアを＋２する。"
+        ),
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={
+            "own_stage_slot_names": {
+                "left": "安養寺 姫芽",
+                "center": "藤島 慈",
+                "right": "大沢 瑠璃乃",
+            }
+        },
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "modify_score", "amount": 2}],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test fixture",
+    )
+    state = _minimal_effect_state(effect)
+    for slot, name_ja in {
+        "left": "安養寺姫芽",
+        "center": "藤島慈",
+        "right": "大沢瑠璃乃",
+    }.items():
+        instance_id = f"stage-{slot}"
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code=f"TEST-{slot}",
+                card_id=f"TEST-{slot}",
+                name_ja=name_ja,
+                card_type="member",
+            ),
+        )
+        state.players["player_1"].member_area[slot] = instance_id
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    score_modifier = next(
+        modifier
+        for modifier in state.players["player_1"].manual_modifiers
+        if modifier.modifier_type == "score"
+    )
+    assert score_modifier.amount == 2
+    assert score_modifier.duration == "live"
+
+
+def test_hime_cost_reduction_uses_miracra_stage_members():
+    cost_effect = EffectDefinition(
+        effect_id="test-hime-cost:1",
+        card_code="PL!HS-bp6-006",
+        text_revision_id=43,
+        raw_text_hash="a" * 64,
+        effect_index=1,
+        label_ja=(
+            "【常時】手札にあるこのメンバーカードのコストは、"
+            "自分のステージにいる『みらくらぱーく！』のメンバー1人につき、"
+            "2少なくなる。"
+        ),
+        effect_type="static",
+        trigger="static_always",
+        timing="static_always",
+        execution_mode="auto_resolve",
+        frequency_limit="none",
+        is_optional=False,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+        actions=[
+            {
+                "action_type": "reduce_play_cost",
+                "amount_source": "own_stage_member_unit_count",
+                "multiplier": 2,
+                "value": {"unit_key": "miracra_park"},
+            }
+        ],
+    )
+    hime = CardDefinition(
+        card_code="PL!HS-bp6-006",
+        card_id="PL!HS-bp6-006",
+        name_ja="安養寺姫芽",
+        card_type="member",
+        cost=20,
+        unit_keys=["miracra_park"],
+        effect_ids=[cost_effect.effect_id],
+    )
+    miracra = CardDefinition(
+        card_code="TEST-MIRACRA",
+        card_id="TEST-MIRACRA",
+        name_ja="みらくらぱーく！テスト",
+        card_type="member",
+        cost=2,
+        unit_keys=["miracra_park"],
+    )
+    energy = CardDefinition(
+        card_code="TEST-ENERGY",
+        card_id="TEST-ENERGY",
+        name_ja="エネルギー",
+        card_type="energy",
+    )
+    cards = {
+        "hime-hand": CardInstance(
+            instance_id="hime-hand",
+            owner_id="player_1",
+            card=hime,
+        ),
+        **{
+            f"stage-{slot}": CardInstance(
+                instance_id=f"stage-{slot}",
+                owner_id="player_1",
+                card=miracra.model_copy(
+                    update={
+                        "card_code": f"TEST-MIRACRA-{slot}",
+                        "card_id": f"TEST-MIRACRA-{slot}",
+                    }
+                ),
+            )
+            for slot in ("left", "center", "right")
+        },
+        **{
+            f"energy-{index}": CardInstance(
+                instance_id=f"energy-{index}",
+                owner_id="player_1",
+                card=energy,
+                orientation="active",
+            )
+            for index in range(14)
+        },
+    }
+    state = MatchState(
+        match_id="hime-cost",
+        seed=1,
+        phase="first_main",
+        first_player_id="player_1",
+        second_player_id="player_2",
+        active_player_id="player_1",
+        players={
+            "player_1": PlayerState(
+                player_id="player_1",
+                name="Player 1",
+                hand=["hime-hand"],
+                member_area={
+                    "left": "stage-left",
+                    "center": "stage-center",
+                    "right": "stage-right",
+                },
+                energy_area=[f"energy-{index}" for index in range(14)],
+            ),
+            "player_2": PlayerState(player_id="player_2", name="Player 2"),
+        },
+        cards=cards,
+        effect_definitions={cost_effect.effect_id: cost_effect},
+    )
+
+    play_action = next(
+        action
+        for action in generate_legal_actions(state)
+        if action.action_type == "play_member"
+    )
+    placement = next(
+        item
+        for item in play_action.options["placements"]
+        if item["card_instance_id"] == "hime-hand"
+        and item["slot"] == "center"
+        and not item["use_baton_touch"]
+    )
+    assert placement["printed_member_cost"] == 20
+    assert placement["new_member_cost"] == 14
+    assert placement["payment_cost"] == 14
+
+    result = apply_action(
+        state,
+        ActionRequest(
+            action_type="play_member",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={
+                "card_instance_id": "hime-hand",
+                "slot": "center",
+                "use_baton_touch": False,
+                "energy_instance_ids": [f"energy-{index}" for index in range(14)],
+            },
+        ),
+    )
+
+    assert result.state.players["player_1"].member_area["center"] == "hime-hand"
+    assert sum(
+        result.state.cards[f"energy-{index}"].orientation == "wait"
+        for index in range(14)
+    ) == 14
+
+
+def test_hime_live_success_waits_and_skips_next_active_ready():
+    effect = EffectDefinition(
+        effect_id="test-hime-live-success:3",
+        card_code="PL!HS-bp6-006",
+        text_revision_id=43,
+        raw_text_hash="a" * 64,
+        effect_index=3,
+        label_ja="【ライブ成功時】このメンバーをウェイトにし、次のターンのアクティブフェイズにアクティブしない。",
+        effect_type="triggered",
+        trigger="live_succeeded",
+        timing="live_success",
+        execution_mode="auto_resolve",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        is_optional=False,
+        source_reference="test",
+        duration="game",
+        frequency_limit="once_per_live",
+        actions=[
+            {"action_type": "apply_wait_member", "target": "source"},
+            {
+                "action_type": "set_flag",
+                "target": "source",
+                "flag": "skip_next_active_phase_ready",
+                "value": {"reason": "PL!HS-bp6-006 live success"},
+            },
+        ],
+    )
+    hime = CardDefinition(
+        card_code="PL!HS-bp6-006",
+        card_id="PL!HS-bp6-006",
+        name_ja="安養寺姫芽",
+        card_type="member",
+        effect_ids=[effect.effect_id],
+    )
+    live = CardDefinition(
+        card_code="TEST-LIVE",
+        card_id="TEST-LIVE",
+        name_ja="ライブ",
+        card_type="live",
+        score=1,
+    )
+    state = MatchState(
+        match_id="hime-live-success",
+        seed=1,
+        phase="live_judgment",
+        first_player_id="player_1",
+        second_player_id="player_2",
+        active_player_id="player_1",
+        players={
+            "player_1": PlayerState(
+                player_id="player_1",
+                name="Player 1",
+                member_area={"left": None, "center": "hime-stage", "right": None},
+                success_live_area=["successful-live"],
+            ),
+            "player_2": PlayerState(player_id="player_2", name="Player 2"),
+        },
+        cards={
+            "hime-stage": CardInstance(
+                instance_id="hime-stage",
+                owner_id="player_1",
+                card=hime,
+                orientation="active",
+            ),
+            "successful-live": CardInstance(
+                instance_id="successful-live",
+                owner_id="player_1",
+                card=live,
+            ),
+        },
+        effect_definitions={effect.effect_id: effect},
+        success_live_moved_instance_ids={"player_1": ["successful-live"]},
+    )
+    events: list[GameEvent] = []
+
+    _queue_live_success_effects(state, events)
+    _resolve_automatic_effects(state, events)
+
+    assert state.pending_effects == []
+    assert state.cards["hime-stage"].orientation == "wait"
+    assert any(
+        modifier.modifier_type == "flag"
+        and modifier.flag == "skip_next_active_phase_ready"
+        and modifier.target_card_instance_id == "hime-stage"
+        for modifier in state.players["player_1"].manual_modifiers
+    )
+
+    state.phase = "first_active"
+    ready_result = apply_action(
+        state,
+        ActionRequest(
+            action_type="advance_phase",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={},
+        ),
+    )
+
+    assert ready_result.state.cards["hime-stage"].orientation == "wait"
+    assert not ready_result.state.players["player_1"].manual_modifiers
+    ready_event = next(
+        event for event in ready_result.events if event.event_type == "cards_readied"
+    )
+    assert ready_event.data["skipped_instance_ids"] == ["hime-stage"]
+
+
+def test_member_played_by_baton_cannot_baton_touch_again_after_position_change():
+    member = CardDefinition(
+        card_code="TEST-MEMBER",
+        card_id="TEST-MEMBER",
+        name_ja="元メンバー",
+        card_type="member",
+        cost=1,
+    )
+    first_baton = CardDefinition(
+        card_code="TEST-FIRST-BATON",
+        card_id="TEST-FIRST-BATON",
+        name_ja="一度目バトン",
+        card_type="member",
+        cost=2,
+    )
+    second_baton = CardDefinition(
+        card_code="TEST-SECOND-BATON",
+        card_id="TEST-SECOND-BATON",
+        name_ja="二度目バトン",
+        card_type="member",
+        cost=3,
+    )
+    energy = CardDefinition(
+        card_code="TEST-ENERGY",
+        card_id="TEST-ENERGY",
+        name_ja="エネルギー",
+        card_type="energy",
+    )
+    state = MatchState(
+        match_id="baton-repeat",
+        seed=1,
+        phase="first_main",
+        first_player_id="player_1",
+        second_player_id="player_2",
+        active_player_id="player_1",
+        players={
+            "player_1": PlayerState(
+                player_id="player_1",
+                name="Player 1",
+                hand=["first-baton", "second-baton"],
+                member_area={"left": None, "center": "old-member", "right": None},
+                energy_area=["energy-0", "energy-1", "energy-2"],
+            ),
+            "player_2": PlayerState(player_id="player_2", name="Player 2"),
+        },
+        cards={
+            "old-member": CardInstance(
+                instance_id="old-member",
+                owner_id="player_1",
+                card=member,
+            ),
+            "first-baton": CardInstance(
+                instance_id="first-baton",
+                owner_id="player_1",
+                card=first_baton,
+            ),
+            "second-baton": CardInstance(
+                instance_id="second-baton",
+                owner_id="player_1",
+                card=second_baton,
+            ),
+            **{
+                f"energy-{index}": CardInstance(
+                    instance_id=f"energy-{index}",
+                    owner_id="player_1",
+                    card=energy,
+                    orientation="active",
+                )
+                for index in range(3)
+            },
+        },
+    )
+
+    result = apply_action(
+        state,
+        ActionRequest(
+            action_type="play_member",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={
+                "card_instance_id": "first-baton",
+                "slot": "center",
+                "use_baton_touch": True,
+                "energy_instance_ids": ["energy-0"],
+            },
+        ),
+    )
+    state = result.state
+    assert state.players["player_1"].member_instance_ids_baton_entered_this_turn == [
+        "first-baton"
+    ]
+
+    state = apply_action(
+        state,
+        ActionRequest(
+            action_type="manual_adjustment",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={
+                "reason": "move Baton-entered member to reproduce repeat Baton",
+                "adjustments": [
+                    {
+                        "adjustment_type": "position_change",
+                        "target_player_id": "player_1",
+                        "from_slot": "center",
+                        "to_slot": "left",
+                    }
+                ],
+            },
+        ),
+    ).state
+    placements = next(
+        (
+            action.options["placements"]
+            for action in generate_legal_actions(state)
+            if action.action_type == "play_member"
+        ),
+        [],
+    )
+    assert not any(
+        item["slot"] == "left" and item["use_baton_touch"] for item in placements
+    )
+
+    with pytest.raises(IllegalActionError, match="cannot Baton Touch again"):
+        apply_action(
+            state,
+            ActionRequest(
+                action_type="play_member",
+                expected_revision=state.revision,
+                player_id="player_1",
+                payload={
+                    "card_instance_id": "second-baton",
+                    "slot": "left",
+                    "use_baton_touch": True,
+                    "energy_instance_ids": ["energy-1"],
+                },
+            ),
         )
 
 

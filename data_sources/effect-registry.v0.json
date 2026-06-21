@@ -10521,7 +10521,12 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "reduce_play_cost",
+          "amount_source": "own_stage_member_unit_count",
+          "multiplier": 2,
+          "value": {
+            "unit_key": "miracra_park"
+          }
         }
       ],
       "card_code": "PL!HS-bp6-006",
@@ -10533,14 +10538,14 @@
       "effect_id": "PL!HS-bp6-006:1",
       "effect_index": 1,
       "effect_type": "static",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【常時】手札にあるこのメンバーカードのコストは、自分のステージにいる『みらくらぱーく！』のメンバー1人につき、2少なくなる。",
       "raw_text_hash": "a0a0be49594c45990d3eda35cd0ad792a3a11abb96c08f18ce51c785ada189d4",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 43,
       "timing": "static_always",
       "trigger": "static_always"
@@ -10548,7 +10553,10 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "restrict_baton_replacement_unit",
+          "value": {
+            "unit_key": "miracra_park"
+          }
         }
       ],
       "card_code": "PL!HS-bp6-006",
@@ -10560,14 +10568,14 @@
       "effect_id": "PL!HS-bp6-006:2",
       "effect_index": 2,
       "effect_type": "static",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【常時】このメンバーは『みらくらぱーく！』以外のメンバーカードとのバトンタッチで控え室に置けない。",
       "raw_text_hash": "a0a0be49594c45990d3eda35cd0ad792a3a11abb96c08f18ce51c785ada189d4",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 43,
       "timing": "static_always",
       "trigger": "static_always"
@@ -10575,7 +10583,16 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "apply_wait_member",
+          "target": "source"
+        },
+        {
+          "action_type": "set_flag",
+          "flag": "skip_next_active_phase_ready",
+          "target": "source",
+          "value": {
+            "reason": "PL!HS-bp6-006 live success"
+          }
         }
       ],
       "card_code": "PL!HS-bp6-006",
@@ -10583,18 +10600,18 @@
       "condition": {},
       "cost": [],
       "cost_choice": null,
-      "duration": "live",
+      "duration": "game",
       "effect_id": "PL!HS-bp6-006:3",
       "effect_index": 3,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "frequency_limit": "once_per_live",
       "is_optional": false,
       "label_ja": "【ライブ成功時】このメンバーをウェイトにし、次のターンのアクティブフェイズにアクティブしない。",
       "raw_text_hash": "a0a0be49594c45990d3eda35cd0ad792a3a11abb96c08f18ce51c785ada189d4",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 43,
       "timing": "live_success",
       "trigger": "live_succeeded"
@@ -10940,7 +10957,7 @@
         "card_type": "member",
         "choice_type": "member_from_stage",
         "maximum": 1,
-        "minimum": 1,
+        "minimum": 0,
         "name_ja_any": [
           "藤島 慈",
           "大沢瑠璃乃"

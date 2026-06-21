@@ -27,11 +27,13 @@ from tools.ai_sandbox.blackbox_playtest import (
     SandboxDeckSummary,
     build_decks,
     choose_action,
+    diagnose_max_actions,
     describe_state,
     summarize_deck,
 )
 
 SEMANTIC_SCHEMA_VERSION = "semantic_sandbox_v0.1"
+DEFAULT_RULES_PDF = Path("raw_doc/LoveLiveTCG_cr_1.06_260428.pdf")
 
 
 @dataclass
@@ -67,6 +69,29 @@ class SemanticAttempt:
 
 
 @dataclass
+class ApiPlayAttempt:
+    match_index: int
+    action_index: int
+    status: str
+    action_type: str | None
+    player_id: str | None
+    confidence: str
+    reason_ja_or_zh: str
+    submitted_payload: dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
+
+
+@dataclass
+class RuleContext:
+    source_path: str
+    loaded: bool
+    extractor: str
+    char_count: int
+    excerpts: list[str] = field(default_factory=list)
+    error: str | None = None
+
+
+@dataclass
 class SemanticMatchSummary:
     match_index: int
     first_deck: str
@@ -80,6 +105,9 @@ class SemanticMatchSummary:
     agent_failure_count: int = 0
     agent_skip_count: int = 0
     schema_gap_count: int = 0
+    api_play_count: int = 0
+    api_play_failure_count: int = 0
+    deterministic_fallback_count: int = 0
     blocker: str | None = None
     blocker_detail: dict[str, Any] = field(default_factory=dict)
     success_live_counts: dict[str, int] = field(default_factory=dict)
@@ -106,6 +134,13 @@ class MockSemanticAgentProvider:
     def decide(self, context: dict[str, Any]) -> SemanticDecision:
         if self._scripted_decisions:
             return parse_agent_decision(self._scripted_decisions.pop(0))
+        if context.get("mode") == "api_play":
+            return SemanticDecision(
+                decision="cannot_resolve",
+                reason_ja_or_zh="mock provider does not choose ordinary actions",
+                confidence="low",
+                schema_gap="mock_provider:api_play",
+            )
         invocation = context.get("manual_invocation") or {}
         return SemanticDecision(
             decision="cannot_resolve",
@@ -136,6 +171,7 @@ class OpenAICompatibleSemanticAgentProvider:
                     "role": "system",
                     "content": (
                         "You are a Love Live Card Game rules debugging user. "
+                        "Read the provided rule_context before choosing. "
                         "Return only strict JSON matching the requested schema. "
                         "Choose only legal actions from the provided list. "
                         "Never mutate state directly."
@@ -181,27 +217,71 @@ def main() -> int:
         default="skip",
         help="What to do when the semantic agent cannot resolve a mandatory manual effect.",
     )
+    parser.add_argument(
+        "--play-policy",
+        choices=("deterministic", "api"),
+        default="deterministic",
+        help=(
+            "deterministic uses the legacy scripted LegalAction selector; "
+            "api asks the semantic provider to choose ordinary LegalActions too."
+        ),
+    )
+    parser.add_argument(
+        "--two-agent",
+        action="store_true",
+        help=(
+            "Alias for --play-policy api. The provider receives only the acting "
+            "player's private information for each ordinary action."
+        ),
+    )
+    parser.add_argument(
+        "--play-fallback",
+        choices=("deterministic", "block"),
+        default="deterministic",
+        help="What to do when API Play cannot choose a valid ordinary action.",
+    )
+    parser.add_argument(
+        "--rules-pdf",
+        type=Path,
+        default=DEFAULT_RULES_PDF,
+        help="Official comprehensive rules PDF or extracted text file for agent context.",
+    )
+    parser.add_argument(
+        "--rule-context-chars",
+        type=int,
+        default=20000,
+        help="Maximum extracted rule-context characters to include in agent prompts.",
+    )
     parser.add_argument("--agent-provider", choices=("mock", "openai_compatible"), default=None)
     args = parser.parse_args()
 
+    if args.two_agent:
+        args.play_policy = "api"
     provider = provider_from_environment(args.agent_provider)
+    rule_context = load_rule_context(args.rules_pdf, max_chars=args.rule_context_chars)
     args.output.mkdir(parents=True, exist_ok=True)
     decks = build_decks(args.database, args.decks)
     deck_summaries = [summarize_deck(args.database, deck) for deck in decks]
-    match_summaries, attempts = run_semantic_matches(
+    match_summaries, attempts, api_play_attempts = run_semantic_matches(
         args.database,
         decks,
         provider=provider,
         match_count=args.matches,
         max_actions=args.max_actions,
         manual_fallback=args.manual_fallback,
+        play_policy=args.play_policy,
+        play_fallback=args.play_fallback,
+        rule_context=rule_context,
     )
     write_semantic_outputs(
         args.output,
         provider=provider,
+        play_policy=args.play_policy,
+        rule_context=rule_context,
         deck_summaries=deck_summaries,
         match_summaries=match_summaries,
         attempts=attempts,
+        api_play_attempts=api_play_attempts,
     )
     print(f"Wrote semantic sandbox report to {args.output / 'semantic-report.md'}")
     return 0
@@ -236,6 +316,58 @@ def provider_from_environment(provider_name: str | None = None) -> SemanticAgent
     raise SemanticAgentError(f"unsupported semantic agent provider: {provider_name}")
 
 
+def load_rule_context(source_path: Path, *, max_chars: int) -> RuleContext:
+    if max_chars <= 0:
+        return RuleContext(
+            source_path=str(source_path),
+            loaded=False,
+            extractor="disabled",
+            char_count=0,
+            error="rule context disabled by --rule-context-chars",
+        )
+    if not source_path.exists():
+        return RuleContext(
+            source_path=str(source_path),
+            loaded=False,
+            extractor="missing",
+            char_count=0,
+            error="rule source file does not exist",
+        )
+    try:
+        if source_path.suffix.lower() == ".pdf":
+            text, extractor = _extract_pdf_text(source_path)
+        else:
+            text = source_path.read_text(encoding="utf-8")
+            extractor = "text"
+    except Exception as exc:  # pragma: no cover - environment dependent fallback
+        return RuleContext(
+            source_path=str(source_path),
+            loaded=False,
+            extractor="failed",
+            char_count=0,
+            error=f"{type(exc).__name__}: {exc}",
+        )
+    normalized = "\n".join(line.strip() for line in text.splitlines() if line.strip())
+    excerpt = normalized[:max_chars]
+    return RuleContext(
+        source_path=str(source_path),
+        loaded=bool(excerpt),
+        extractor=extractor,
+        char_count=len(excerpt),
+        excerpts=[excerpt] if excerpt else [],
+        error=None if excerpt else "no extractable rule text",
+    )
+
+
+def _extract_pdf_text(source_path: Path) -> tuple[str, str]:
+    try:
+        from pypdf import PdfReader
+    except ImportError as exc:  # pragma: no cover - depends on local env
+        raise RuntimeError("pypdf is required to extract PDF rule context") from exc
+    reader = PdfReader(str(source_path))
+    return "\n".join(page.extract_text() or "" for page in reader.pages), "pypdf"
+
+
 def run_semantic_matches(
     database: Path,
     decks: list[DeckList],
@@ -244,9 +376,13 @@ def run_semantic_matches(
     match_count: int,
     max_actions: int,
     manual_fallback: str,
-) -> tuple[list[SemanticMatchSummary], list[SemanticAttempt]]:
+    play_policy: str = "deterministic",
+    play_fallback: str = "deterministic",
+    rule_context: RuleContext | None = None,
+) -> tuple[list[SemanticMatchSummary], list[SemanticAttempt], list[ApiPlayAttempt]]:
     results: list[SemanticMatchSummary] = []
     attempts: list[SemanticAttempt] = []
+    api_play_attempts: list[ApiPlayAttempt] = []
     with tempfile.TemporaryDirectory(prefix="loveca-semantic-sandbox-") as tmp:
         runtime = Path(tmp) / "matches.sqlite3"
         service = MatchService(database, runtime)
@@ -271,6 +407,9 @@ def run_semantic_matches(
             agent_failure_count = 0
             agent_skip_count = 0
             schema_gap_count = 0
+            api_play_count = 0
+            api_play_failure_count = 0
+            deterministic_fallback_count = 0
             while action_count < max_actions and state.phase != "complete":
                 legal_actions = generate_legal_actions(state)
                 decision = choose_action(state, legal_actions, manual_policy="block")
@@ -284,6 +423,7 @@ def run_semantic_matches(
                         match_index=index + 1,
                         action_index=action_count + 1,
                         manual_fallback=manual_fallback,
+                        rule_context=rule_context,
                     )
                     attempts.extend(semantic_result.attempts)
                     if semantic_result.state is None:
@@ -300,6 +440,30 @@ def run_semantic_matches(
                     agent_skip_count += semantic_result.skip_count
                     schema_gap_count += semantic_result.schema_gap_count
                     continue
+                if decision is not None and play_policy == "api":
+                    api_result = try_api_play_action(
+                        provider,
+                        state,
+                        legal_actions,
+                        match_index=index + 1,
+                        action_index=action_count + 1,
+                        rule_context=rule_context,
+                    )
+                    api_play_attempts.extend(api_result.attempts)
+                    api_play_count += api_result.success_count
+                    api_play_failure_count += api_result.failure_count
+                    if api_result.decision is not None:
+                        decision = api_result.decision
+                    elif play_fallback == "deterministic":
+                        deterministic_fallback_count += 1
+                    else:
+                        blocker = "api_play_no_valid_action"
+                        blocker_detail = {
+                            **describe_state(state, legal_actions),
+                            "play_policy": play_policy,
+                            "play_fallback": play_fallback,
+                        }
+                        break
                 if decision is None:
                     blocker = classify_semantic_blocker(state, legal_actions)
                     blocker_detail = describe_state(state, legal_actions)
@@ -328,8 +492,13 @@ def run_semantic_matches(
                 event_counts.update(event.event_type for event in applied.events)
             status = "completed" if state.phase == "complete" else "blocked"
             if action_count >= max_actions and state.phase != "complete":
-                blocker = "max_actions"
-                blocker_detail = describe_state(state, generate_legal_actions(state))
+                legal_actions = generate_legal_actions(state)
+                diagnosis = diagnose_max_actions(state, legal_actions)
+                blocker = f"max_actions:{diagnosis['reason']}"
+                blocker_detail = {
+                    **describe_state(state, legal_actions),
+                    "max_action_diagnosis": diagnosis,
+                }
             results.append(
                 SemanticMatchSummary(
                     match_index=index + 1,
@@ -344,6 +513,9 @@ def run_semantic_matches(
                     agent_failure_count=agent_failure_count,
                     agent_skip_count=agent_skip_count,
                     schema_gap_count=schema_gap_count,
+                    api_play_count=api_play_count,
+                    api_play_failure_count=api_play_failure_count,
+                    deterministic_fallback_count=deterministic_fallback_count,
                     blocker=blocker,
                     blocker_detail=blocker_detail,
                     success_live_counts={
@@ -353,7 +525,7 @@ def run_semantic_matches(
                     events=dict(sorted(event_counts.items())),
                 )
             )
-    return results, attempts
+    return results, attempts, api_play_attempts
 
 
 @dataclass
@@ -370,6 +542,79 @@ class SemanticResolutionResult:
     blocker_detail: dict[str, Any] = field(default_factory=dict)
 
 
+@dataclass
+class ApiPlayResult:
+    decision: tuple[str, str | None, dict[str, Any]] | None
+    attempts: list[ApiPlayAttempt] = field(default_factory=list)
+    success_count: int = 0
+    failure_count: int = 0
+
+
+def try_api_play_action(
+    provider: SemanticAgentProvider,
+    state: MatchState,
+    legal_actions: list[LegalAction],
+    *,
+    match_index: int,
+    action_index: int,
+    rule_context: RuleContext | None = None,
+) -> ApiPlayResult:
+    context = build_api_play_context(state, legal_actions, rule_context=rule_context)
+    try:
+        decision = provider.decide(context)
+        validate_api_play_decision(decision, legal_actions)
+    except (SemanticAgentError, ValueError) as exc:
+        return ApiPlayResult(
+            decision=None,
+            attempts=[
+                ApiPlayAttempt(
+                    match_index=match_index,
+                    action_index=action_index,
+                    status="api_play_invalid",
+                    action_type=None,
+                    player_id=None,
+                    confidence="low",
+                    reason_ja_or_zh=str(exc),
+                    error=str(exc),
+                )
+            ],
+            failure_count=1,
+        )
+    if decision.decision == "cannot_resolve":
+        return ApiPlayResult(
+            decision=None,
+            attempts=[
+                ApiPlayAttempt(
+                    match_index=match_index,
+                    action_index=action_index,
+                    status="api_play_cannot_resolve",
+                    action_type=None,
+                    player_id=None,
+                    confidence=decision.confidence,
+                    reason_ja_or_zh=decision.reason_ja_or_zh,
+                    error=decision.schema_gap,
+                )
+            ],
+            failure_count=1,
+        )
+    return ApiPlayResult(
+        decision=(str(decision.action_type), decision.player_id, decision.payload),
+        attempts=[
+            ApiPlayAttempt(
+                match_index=match_index,
+                action_index=action_index,
+                status="api_play_selected",
+                action_type=decision.action_type,
+                player_id=decision.player_id,
+                confidence=decision.confidence,
+                reason_ja_or_zh=decision.reason_ja_or_zh,
+                submitted_payload=decision.payload,
+            )
+        ],
+        success_count=1,
+    )
+
+
 def try_semantic_manual_resolution(
     service: MatchService,
     state: MatchState,
@@ -379,6 +624,7 @@ def try_semantic_manual_resolution(
     match_index: int,
     action_index: int,
     manual_fallback: str,
+    rule_context: RuleContext | None = None,
 ) -> SemanticResolutionResult:
     attempts: list[SemanticAttempt] = []
     current_state = state
@@ -386,7 +632,11 @@ def try_semantic_manual_resolution(
     events: list[Any] = []
     schema_gap_count = 0
     for attempt_index in range(1, 3):
-        context = build_agent_context(current_state, current_legal)
+        context = build_agent_context(
+            current_state,
+            current_legal,
+            rule_context=rule_context,
+        )
         invocation = context.get("manual_invocation") or {}
         try:
             decision = provider.decide(context)
@@ -493,6 +743,7 @@ def try_semantic_manual_resolution(
                 provider=provider,
                 match_index=match_index,
                 action_index=action_index + applied_count,
+                rule_context=rule_context,
             )
             attempts.extend(follow_up.attempts)
             if follow_up.state is None:
@@ -522,7 +773,7 @@ def try_semantic_manual_resolution(
     if manual_fallback == "skip":
         skip = fallback_skip_decision(
             current_legal,
-            build_agent_context(current_state, current_legal),
+            build_agent_context(current_state, current_legal, rule_context=rule_context),
         )
         if skip is not None:
             try:
@@ -572,9 +823,10 @@ def try_semantic_manual_inspection(
     provider: SemanticAgentProvider,
     match_index: int,
     action_index: int,
+    rule_context: RuleContext | None = None,
 ) -> SemanticResolutionResult:
     legal_actions = generate_legal_actions(state)
-    context = build_agent_context(state, legal_actions)
+    context = build_agent_context(state, legal_actions, rule_context=rule_context)
     invocation = context.get("manual_invocation") or {}
     attempts: list[SemanticAttempt] = []
     schema_gap_count = 0
@@ -708,6 +960,22 @@ def parse_agent_decision(payload: str | dict[str, Any]) -> SemanticDecision:
     )
 
 
+def validate_api_play_decision(
+    decision: SemanticDecision,
+    legal_actions: list[LegalAction],
+) -> None:
+    if decision.decision == "cannot_resolve":
+        return
+    if decision.decision != "submit_action":
+        raise ValueError("API Play must submit an action or return cannot_resolve")
+    legal_by_type = {action.action_type: action for action in legal_actions}
+    if decision.action_type not in legal_by_type:
+        raise ValueError(f"agent action is not legal: {decision.action_type}")
+    legal_action = legal_by_type[str(decision.action_type)]
+    if decision.player_id != legal_action.player_id:
+        raise ValueError("agent player_id does not match the legal action")
+
+
 def validate_agent_decision(
     decision: SemanticDecision,
     state: MatchState,
@@ -760,7 +1028,69 @@ def validate_manual_adjustment_payload(payload: dict[str, Any], invocation: dict
         raise ValueError("confirmed manual_adjustment requires confirmed_by")
 
 
-def build_agent_context(state: MatchState, legal_actions: list[LegalAction]) -> dict[str, Any]:
+def build_api_play_context(
+    state: MatchState,
+    legal_actions: list[LegalAction],
+    *,
+    rule_context: RuleContext | None = None,
+) -> dict[str, Any]:
+    acting_player_id = _acting_player_id(state, legal_actions)
+    return {
+        "schema_version": SEMANTIC_SCHEMA_VERSION,
+        "mode": "api_play",
+        "rule_context": asdict(rule_context) if rule_context is not None else None,
+        "rules": [
+            "You are one player in a two-agent sandbox match.",
+            "Read rule_context before choosing.",
+            "Choose exactly one currently legal action, or return cannot_resolve.",
+            "Do not invent payload fields that are not supported by legal_actions.",
+            "Do not mutate GameState directly.",
+        ],
+        "allowed_response_schema": {
+            "decision": "submit_action | cannot_resolve",
+            "reason_ja_or_zh": "short explanation",
+            "action_type": "one action_type from legal_actions",
+            "player_id": "must match the chosen legal action player_id",
+            "payload": "action payload object",
+            "confidence": "low | medium | high",
+            "schema_gap": "optional gap reason when cannot_resolve",
+        },
+        "you_are_player_id": acting_player_id,
+        "state": {
+            "match_id": state.match_id,
+            "phase": state.phase,
+            "turn_number": state.turn_number,
+            "active_player_id": state.active_player_id,
+            "revision": state.revision,
+            "pending_choice": state.pending_choice.model_dump() if state.pending_choice else None,
+        },
+        "players": {
+            player_id: player_context(
+                state,
+                player_id,
+                include_private=player_id == acting_player_id,
+            )
+            for player_id in sorted(state.players)
+        },
+        "legal_actions": [action.model_dump() for action in legal_actions],
+    }
+
+
+def _acting_player_id(state: MatchState, legal_actions: list[LegalAction]) -> str:
+    for action in legal_actions:
+        if action.player_id is not None:
+            return action.player_id
+    if state.pending_choice is not None:
+        return state.pending_choice.player_id
+    return state.active_player_id
+
+
+def build_agent_context(
+    state: MatchState,
+    legal_actions: list[LegalAction],
+    *,
+    rule_context: RuleContext | None = None,
+) -> dict[str, Any]:
     manual_action = next(
         (action for action in legal_actions if action.action_type == "manual_adjustment"),
         None,
@@ -791,8 +1121,11 @@ def build_agent_context(state: MatchState, legal_actions: list[LegalAction]) -> 
     )
     return {
         "schema_version": SEMANTIC_SCHEMA_VERSION,
+        "mode": "manual_resolution",
+        "rule_context": asdict(rule_context) if rule_context is not None else None,
         "rules": [
             "Choose only from legal_actions.",
+            "Read rule_context before choosing.",
             "Do not mutate GameState directly.",
             "Manual effects must use replay-safe manual_adjustment or resolve_manual_inspection.",
             (
@@ -810,6 +1143,7 @@ def build_agent_context(state: MatchState, legal_actions: list[LegalAction]) -> 
             "schema_gap": "optional gap reason",
         },
         "manual_adjustment_schema_reference": manual_adjustment_schema_reference(),
+        "you_are_player_id": acting_player_id,
         "state": {
             "match_id": state.match_id,
             "phase": state.phase,
@@ -1057,18 +1391,26 @@ def write_semantic_outputs(
     deck_summaries: list[SandboxDeckSummary],
     match_summaries: list[SemanticMatchSummary],
     attempts: list[SemanticAttempt],
+    api_play_attempts: list[ApiPlayAttempt] | None = None,
+    play_policy: str = "deterministic",
+    rule_context: RuleContext | None = None,
 ) -> None:
     output.mkdir(parents=True, exist_ok=True)
+    api_play_attempts = api_play_attempts or []
     completed = sum(item.status == "completed" for item in match_summaries)
     blockers = Counter(item.blocker or "none" for item in match_summaries)
     attempt_statuses = Counter(item.status for item in attempts)
+    api_play_statuses = Counter(item.status for item in api_play_attempts)
     schema_gaps = Counter(item.schema_gap for item in attempts if item.schema_gap)
     payload = {
         "schema_version": SEMANTIC_SCHEMA_VERSION,
         "provider": provider.provider_name,
+        "play_policy": play_policy,
+        "rule_context": asdict(rule_context) if rule_context is not None else None,
         "deck_summaries": [asdict(item) for item in deck_summaries],
         "match_summaries": [asdict(item) for item in match_summaries],
         "semantic_attempts": [asdict(item) for item in attempts],
+        "api_play_attempts": [asdict(item) for item in api_play_attempts],
     }
     (output / "semantic-summary.json").write_text(
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
@@ -1079,19 +1421,36 @@ def write_semantic_outputs(
         "",
         "## Scope",
         "",
-        "* Drives ordinary actions with the deterministic sandbox policy.",
-        "* Calls a semantic provider only for mandatory manual-resolution effects.",
+        (
+            "* Drives ordinary actions through the semantic provider in two-agent API Play mode."
+            if play_policy == "api"
+            else "* Drives ordinary actions with the deterministic sandbox policy."
+        ),
+        (
+            "* Mandatory manual-resolution effects are also passed to the semantic provider."
+            if play_policy == "api"
+            else "* Calls a semantic provider only for mandatory manual-resolution effects."
+        ),
         "* All submitted changes still go through LegalAction and engine validation.",
         "* Agent success is a manual-playability signal, not effect-registry coverage.",
         "",
         "## Summary",
         "",
         f"* Provider: `{provider.provider_name}`",
+        f"* Play policy: `{play_policy}`",
+        (
+            f"* Rule context: `{rule_context.source_path}` "
+            f"loaded={rule_context.loaded} extractor={rule_context.extractor} "
+            f"chars={rule_context.char_count}"
+            if rule_context is not None
+            else "* Rule context: not provided"
+        ),
         f"* Decks summarized: {len(deck_summaries)}",
         f"* Matches attempted: {len(match_summaries)}",
         f"* Matches completed: {completed}",
         f"* Blockers: {dict(sorted(blockers.items()))}",
         f"* Semantic attempt statuses: {dict(sorted(attempt_statuses.items()))}",
+        f"* API Play attempt statuses: {dict(sorted(api_play_statuses.items()))}",
         f"* Schema gaps: {dict(schema_gaps.most_common(20))}",
         "",
         "## Match Results",
@@ -1128,6 +1487,23 @@ def write_semantic_outputs(
                 f"{_markdown_cell(item.source_card_name_ja or '')} | "
                 f"{item.confidence} | {_markdown_cell(item.schema_gap or '')} | "
                 f"{_markdown_cell(reason)} |"
+            )
+    if api_play_attempts:
+        lines.extend(
+            [
+                "",
+                "## API Play Attempts",
+                "",
+                "| Match | Action | Status | Action | Player | Confidence | Reason / Error |",
+                "|---:|---:|---|---|---|---|---|",
+            ]
+        )
+        for item in api_play_attempts:
+            reason = item.error or item.reason_ja_or_zh
+            lines.append(
+                f"| {item.match_index} | {item.action_index} | {item.status} | "
+                f"{item.action_type or ''} | {item.player_id or ''} | "
+                f"{item.confidence} | {_markdown_cell(reason)} |"
             )
     (output / "semantic-report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 

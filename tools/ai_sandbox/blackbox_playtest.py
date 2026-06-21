@@ -316,8 +316,13 @@ def run_matches(
                         skipped_effects.append(dict(event.data))
             status = "completed" if state.phase == "complete" else "blocked"
             if actions >= max_actions and state.phase != "complete":
-                blocker = "max_actions"
-                blocker_detail = describe_state(state, generate_legal_actions(state))
+                legal_actions = generate_legal_actions(state)
+                diagnosis = diagnose_max_actions(state, legal_actions)
+                blocker = f"max_actions:{diagnosis['reason']}"
+                blocker_detail = {
+                    **describe_state(state, legal_actions),
+                    "max_action_diagnosis": diagnosis,
+                }
             results.append(
                 SandboxMatchSummary(
                     match_index=index + 1,
@@ -793,14 +798,6 @@ def _choose_live_cards_for_progress(state: MatchState, player_id: str) -> list[s
         combinations,
         key=combo_key,
     )
-    best_missing = unmet_requirement(best)
-    if (
-        best_missing > 0
-        and success_gap <= 0
-        and own_success == 0
-        and state.turn_number <= 4
-    ):
-        return []
     return list(best)
 
 
@@ -890,6 +887,52 @@ def classify_blocker(state: MatchState, legal_actions: list[LegalAction]) -> str
     return "no_legal_action"
 
 
+def diagnose_max_actions(
+    state: MatchState,
+    legal_actions: list[LegalAction],
+) -> dict[str, Any]:
+    hand_type_counts = {
+        player_id: _zone_type_counts(state, player.hand)
+        for player_id, player in state.players.items()
+    }
+    success_live_counts = {
+        player_id: len(player.success_live_area)
+        for player_id, player in state.players.items()
+    }
+    live_hand_counts = {
+        player_id: counts.get("live", 0)
+        for player_id, counts in hand_type_counts.items()
+    }
+    reason = "action_cap_reached"
+    if state.pending_effects:
+        reason = "pending_effect_at_cap"
+    elif state.pending_choice is not None:
+        reason = f"pending_choice_at_cap:{state.pending_choice.choice_type}"
+    elif all(count == 0 for count in live_hand_counts.values()):
+        if any(count >= 2 for count in success_live_counts.values()):
+            reason = "match_point_players_have_no_live_in_hand"
+        else:
+            reason = "no_live_cards_in_hand"
+    elif any(
+        action.action_type == "play_member"
+        and (action.options.get("placements") or [])
+        for action in legal_actions
+    ):
+        reason = "member_development_at_cap"
+    elif any(action.action_type == "set_live_cards" for action in legal_actions):
+        reason = "live_set_available_at_cap"
+    elif any(action.action_type == "advance_phase" for action in legal_actions):
+        reason = "phase_progression_at_cap"
+    return {
+        "reason": reason,
+        "phase": state.phase,
+        "turn_number": state.turn_number,
+        "success_live_counts": success_live_counts,
+        "hand_type_counts": hand_type_counts,
+        "legal_action_types": [action.action_type for action in legal_actions],
+    }
+
+
 def describe_state(state: MatchState, legal_actions: list[LegalAction]) -> dict[str, Any]:
     return {
         "phase": state.phase,
@@ -898,6 +941,14 @@ def describe_state(state: MatchState, legal_actions: list[LegalAction]) -> dict[
         "pending_effects": [item.model_dump() for item in state.pending_effects[:3]],
         "legal_actions": [action.model_dump() for action in legal_actions],
     }
+
+
+def _zone_type_counts(state: MatchState, instance_ids: list[str]) -> dict[str, int]:
+    counts: Counter[str] = Counter()
+    for instance_id in instance_ids:
+        if instance_id in state.cards:
+            counts[state.cards[instance_id].card.card_type] += 1
+    return dict(sorted(counts.items()))
 
 
 def write_outputs(

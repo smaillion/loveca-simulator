@@ -8,8 +8,9 @@
 - VPS deploy workflow に JST 04:00 の daily API restart cron を追加し、restart 時に runtime cleanup が走る運用へ寄せた。
 - 公開 Hosted API では global match history を表示せず、solo match は作成時の access token で復帰 / 操作 / replay export できるようにした。
 - 管理者キー付きの runtime storage / cleanup API と簡易 admin page を追加し、snapshot pruning、時間範囲 cleanup、任意 VACUUM を実行できるようにした。
-- Phase 5 effect registry を 925 件中 714 件の `test_validated_executable` まで拡張し、registry entry ベースの coverage を 77.19% に更新。
+- Phase 5 effect registry を 925 件中 717 件の `test_validated_executable` まで拡張し、registry entry ベースの coverage を 77.51% に更新。
 - `30 decks x 100 matches` の black-box sandbox を block mode で実行し、100 局すべて完走、blocker 0 を確認。
+- semantic user-agent sandbox に `--two-agent` API Play mode と公式総合ルール PDF context 注入を追加し、二人の agent が LegalAction から通常行動を選ぶ大規模テストを実行できるようにした。
 - trigger 時点では条件を満たした pending effect が、同一タイミング中の別効果で後から条件失効した場合、限定的に `effect_not_activatable` event を記録して進行できるようにした。
 - Live 判定の mobile pop-up から次の処理へ直接進めるようにし、次ターン開始時は pop-up を閉じるようにした。
 - 初期 mulligan を Member 登場と同じカード選択 + 確認型の操作へ寄せた。
@@ -20,7 +21,10 @@
 - `PL!-bp4-005:3` など、Live 開始時に queue された強制 position-change 効果が他の効果で条件失効した場合に、ユーザー操作が `illegal_action` で止まる問題を修正。
 - 条件失効の soft handling を安全な理由に限定し、Energy Deck 空など本来 rollback すべき不整合は引き続き illegal action として扱うようにした。
 - `amount_source=selected_count` を使う効果で、選択したカード枚数が実行コンテキストに渡らず、`PL!HS-bp1-005:1` の「置いた枚数分カードを引く」が抽牌 0 になる問題を修正。
-- `PL!HS-bp6-014:1` など、手札から起動して後続で Stage Member を必ず選ぶ効果は、合法な選択対象がない場合に起動ボタンを出さないようにした。
+- `PL!HS-bp6-014:1` は、対象の「藤島 慈」または「大沢瑠璃乃」が Stage にいない場合でも、手札から控室へ置くコストと 1 枚抽牌を処理し、Blade 付与だけを空解決できるようにした。
+- `PL!HS-bp6-006` は、手札中の cost reduction、みらくらぱーく！以外との Baton replacement 制限、Live 成功時の Wait + 次 Active Phase 非アクティブ化を構造化した。
+- 二段階効果が cost / branch / auto action 後の follow-up choice に入る時、`effect_choice_started` event を生成し、UI / replay / sandbox report で「続きの選択待ち」を確認できるようにした。
+- effect-focused な human-readable verification report を追加し、`PL!HS-bp6-014:1`、`PL!HS-bp6-006`、`PL!HS-bp2-026`、Baton Touch 二重防止、`PL!HS-sd1-005` の重点修正シナリオを日文 / 中文 Markdown と公式画像付きで確認できるようにした。
 - 公開して手札に加える効果が相手側の非公開手札表示に埋もれないよう、event に公開カード snapshot を残して履歴で確認できるようにした。
 - `multi_player_draw_then_discard` の sandbox payload を通常の multi-player first-step choice と同じように処理し、問題カード入り targeted sandbox を再実行した。
 - selected-count 修正後の semantic mock sandbox は `20 decks x 10 matches` で 10/10 完走、deterministic block smoke は 6/10 完走、残り 4 件は `max_actions` で manual blocker / illegal action はなし。
@@ -32,15 +36,19 @@
 - VPS deploy workflow 增加 JST 04:00 的每日 API 自动重启 cron，重启时会触发 runtime cleanup。
 - 公开 Hosted API 不再展示全局 match history；单人模拟 match 会在创建时返回 access token，之后恢复、操作和 replay export 都需要该 token。
 - 新增带管理员密钥的 runtime storage / cleanup API 和简易 admin page，可执行 snapshot 裁剪、按时间范围清理以及可选 VACUUM。
-- 将 Phase 5 effect registry 扩展到 925 条中的 714 条 `test_validated_executable`，按 registry entry 计算覆盖率更新为 77.19%。
+- 将 Phase 5 effect registry 扩展到 925 条中的 717 条 `test_validated_executable`，按 registry entry 计算覆盖率更新为 77.51%。
 - 执行 `30 decks x 100 matches` block mode black-box sandbox，100 局全部完走，blocker 为 0。
+- semantic user-agent sandbox 新增 `--two-agent` API Play mode 和官方综合规则 PDF context 注入，可用于让两个 agent 从 LegalAction 中选择普通行动的大规模测试。
 - 对触发时条件满足、但同一时点中被其他效果改变条件导致失效的 pending effect，限定性记录 `effect_not_activatable` 并继续推进。
 - 手机端 Live 判定弹窗内可以直接进入下一步，开始下一回合时会关闭弹窗。
 - 初始调度改为接近 Member 登场的卡牌选择 + 确认操作。
 - 修复 `PL!-bp4-005:3` 等 Live 开始时强制 position-change 效果因条件后续失效而卡成 `illegal_action` 的问题。
 - 条件失效的 soft handling 只用于安全原因；Energy Deck 为空等需要 rollback 的不整合仍保持 illegal action。
 - 修复使用 `amount_source=selected_count` 的技能没有把选卡数量传给执行上下文，导致 `PL!HS-bp1-005:1` 的“放入控室几张就抽几张”实际抽 0 张的问题。
-- `PL!HS-bp6-014:1` 等从手牌发动且后续必须选择 Stage Member 的技能，在没有合法目标时不再显示发动按钮。
+- `PL!HS-bp6-014:1` 在场上没有「藤島 慈」或「大沢瑠璃乃」时也能从手牌发动，正常把自身放入控室并抽 1 张，Blade 赋予目标为空时只跳过该 modifier。
+- `PL!HS-bp6-006` 已结构化支持手牌中 cost reduction、非みらくらぱーく！Baton replacement 限制、Live 成功时 Wait + 下一 Active Phase 不转 Active。
+- 两段式技能在 cost / branch / auto action 后进入后续选择时，会生成 `effect_choice_started` event，方便 UI、Replay 和 sandbox report 确认技能正在等待后续选择。
+- 新增 effect-focused 的人类可读 verification report，可用日文 / 中文 Markdown 加官方图片检查 `PL!HS-bp6-014:1`、`PL!HS-bp6-006`、`PL!HS-bp2-026`、Baton Touch 二次登场阻止、`PL!HS-sd1-005` 等重点修正场景。
 - 公开并加入手牌的效果会在 event 中保留公开卡 snapshot，避免对手侧因为手牌隐藏而无法从履历确认公开结果。
 - 修正 sandbox 对 `multi_player_draw_then_discard` 的 payload 处理，并用包含问题卡的 targeted deck pool 重新执行 smoke。
 - selected-count 修复后的 semantic mock sandbox 为 `20 decks x 10 matches` 10/10 完走；deterministic block smoke 为 6/10 完走，剩余 4 个为 `max_actions`，没有 manual blocker / illegal action。

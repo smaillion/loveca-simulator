@@ -61,7 +61,9 @@ const fallbackRuntimeConfig: RuntimeConfig = {
   cardDatabaseFingerprint: "",
 };
 
-let runtimeConfig = fallbackRuntimeConfig;
+const API_BASE_URL_OVERRIDE_STORAGE_KEY = "loveca-api-base-url-override.v0";
+
+let runtimeConfig = applyRuntimeConfigOverrides(fallbackRuntimeConfig);
 let runtimeConfigPromise: Promise<RuntimeConfig> | null = null;
 
 export function getRuntimeConfigSnapshot(): RuntimeConfig {
@@ -71,6 +73,25 @@ export function getRuntimeConfigSnapshot(): RuntimeConfig {
 export function resetRuntimeConfigForTests(config: RuntimeConfig = fallbackRuntimeConfig): void {
   runtimeConfig = config;
   runtimeConfigPromise = null;
+}
+
+export function setRuntimeApiBaseUrlOverride(value: string): RuntimeConfig {
+  const normalized = normalizeBaseUrl(value);
+  if (normalized && !/^https?:\/\//.test(normalized)) {
+    throw new Error("Hosted API URL must start with http:// or https://.");
+  }
+  if (typeof window !== "undefined") {
+    if (normalized) {
+      window.localStorage.setItem(API_BASE_URL_OVERRIDE_STORAGE_KEY, normalized);
+    } else {
+      window.localStorage.removeItem(API_BASE_URL_OVERRIDE_STORAGE_KEY);
+    }
+  }
+  runtimeConfig = {
+    ...runtimeConfig,
+    apiBaseUrl: normalized,
+  };
+  return runtimeConfig;
 }
 
 export function browserPreviewEnabled(): boolean {
@@ -88,6 +109,7 @@ export function loadRuntimeConfig(): Promise<RuntimeConfig> {
       return normalizeRuntimeConfig(payload);
     })
     .catch(() => fallbackRuntimeConfig)
+    .then((config) => applyRuntimeConfigOverrides(config))
     .then((config) => {
       runtimeConfig = config;
       return config;
@@ -97,9 +119,10 @@ export function loadRuntimeConfig(): Promise<RuntimeConfig> {
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const resolvedUrl = apiResourceUrl(url);
+  const headers = { "Content-Type": "application/json", ...init?.headers };
   const response = await fetch(resolvedUrl, {
-    headers: { "Content-Type": "application/json", ...init?.headers },
     ...init,
+    headers,
   });
   if (!response.ok) {
     const body = await response.json().catch(() => ({ detail: response.statusText }));
@@ -137,6 +160,45 @@ function normalizeRuntimeConfig(payload: unknown): RuntimeConfig {
         ? value.cardDatabaseFingerprint
         : "",
   };
+}
+
+function applyRuntimeConfigOverrides(config: RuntimeConfig): RuntimeConfig {
+  const override = runtimeApiBaseUrlOverride();
+  if (!override) return config;
+  return {
+    ...config,
+    apiBaseUrl: override,
+  };
+}
+
+function runtimeApiBaseUrlOverride(): string {
+  const urlOverride = runtimeApiBaseUrlOverrideFromLocation();
+  if (urlOverride) {
+    try {
+      window.localStorage.setItem(API_BASE_URL_OVERRIDE_STORAGE_KEY, urlOverride);
+    } catch {
+      // Ignore storage failures; the current page can still use the URL value.
+    }
+    return urlOverride;
+  }
+  if (typeof window === "undefined") return "";
+  try {
+    return normalizeBaseUrl(window.localStorage.getItem(API_BASE_URL_OVERRIDE_STORAGE_KEY) ?? "");
+  } catch {
+    return "";
+  }
+}
+
+function runtimeApiBaseUrlOverrideFromLocation(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const value = params.get("apiBaseUrl") ?? params.get("adminApiBaseUrl") ?? "";
+    const normalized = normalizeBaseUrl(value);
+    return /^https?:\/\//.test(normalized) ? normalized : "";
+  } catch {
+    return "";
+  }
 }
 
 export function apiResourceUrl(path: string): string {
@@ -498,4 +560,59 @@ export function analyzeDeck(
       body: JSON.stringify({ deck }),
     });
   });
+}
+
+function adminHeaders(adminKey: string): Record<string, string> {
+  return { "X-LoveCA-Admin-Key": adminKey };
+}
+
+export function getAdminRuntimeStorage(adminKey: string): Promise<Record<string, unknown>> {
+  requireHostedApi();
+  return request("/api/admin/runtime/storage", {
+    headers: adminHeaders(adminKey),
+  });
+}
+
+export function cleanupAdminRuntime(
+  adminKey: string,
+  input: {
+    retain_matches: number;
+    max_snapshots_per_match: number;
+    older_than_hours: number | null;
+    include_active_matches: boolean;
+    vacuum: boolean;
+  },
+): Promise<Record<string, unknown>> {
+  requireHostedApi();
+  return request("/api/admin/runtime/cleanup", {
+    method: "POST",
+    headers: adminHeaders(adminKey),
+    body: JSON.stringify(input),
+  });
+}
+
+export function getAdminDeckShares(adminKey: string): Promise<Record<string, unknown>> {
+  requireHostedApi();
+  return request("/api/admin/deck-shares", {
+    headers: adminHeaders(adminKey),
+  });
+}
+
+export function getAdminRuntimeProgress(adminKey: string): Promise<Record<string, unknown>> {
+  requireHostedApi();
+  return request("/api/admin/runtime/progress", {
+    headers: adminHeaders(adminKey),
+  });
+}
+
+export async function downloadAdminRuntimeProgressReport(adminKey: string): Promise<string> {
+  requireHostedApi();
+  const response = await fetch(apiResourceUrl("/api/admin/runtime/progress-report"), {
+    headers: adminHeaders(adminKey),
+  });
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(text || response.statusText);
+  }
+  return text;
 }
