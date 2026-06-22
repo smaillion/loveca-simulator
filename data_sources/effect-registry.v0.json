@@ -106,26 +106,34 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "reduce_play_cost",
+          "amount_source": "own_other_hand_count",
+          "value": {
+            "target_filter": {
+              "card_code": "LL-bp2-001"
+            }
+          }
         }
       ],
       "card_code": "LL-bp2-001",
       "choice": null,
-      "condition": {},
+      "condition": {
+        "source_zone": "hand"
+      },
       "cost": [],
       "cost_choice": null,
       "duration": null,
       "effect_id": "LL-bp2-001:1",
       "effect_index": 1,
       "effect_type": "static",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【常時】手札にあるこのメンバーカードのコストは、このカード以外の自分の手札1枚につき、1少なくなる。",
       "raw_text_hash": "dfe7ad5c2413211c958b11e6f7ef92a11245426e036193a2acc8cb9a48d236ba",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted static play-cost reducer",
       "text_revision_id": 592,
       "timing": "static_always",
       "trigger": "static_always"
@@ -4772,26 +4780,41 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "reduce_play_cost",
+          "amount": 2,
+          "value": {
+            "non_stackable_key": "pl_bp6_019_muse_cost17_play_cost",
+            "target_filter": {
+              "card_code_prefixes": [
+                "PL!-"
+              ],
+              "card_type": "member",
+              "exclude_unit_key": "a_rise",
+              "minimum_original_cost": 17,
+              "work_key": "love_live"
+            }
+          }
         }
       ],
       "card_code": "PL!-bp6-019",
       "choice": null,
-      "condition": {},
+      "condition": {
+        "source_zone": "success_live_area"
+      },
       "cost": [],
       "cost_choice": null,
       "duration": null,
       "effect_id": "PL!-bp6-019:1",
       "effect_index": 1,
       "effect_type": "static",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【常時】このカードが自分の成功ライブカード置き場にあるかぎり、元々のコストが17以上の『μ's』のメンバーカードを自分の手札から登場させるためのコストは2減る。この効果は重複しない。",
       "raw_text_hash": "8e55b7ca25975ca9d35b7cc355abc2cf9ba58564bfdda17a0888ad7c5dc32f91",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted static play-cost reducer",
       "text_revision_id": 61,
       "timing": "static_always",
       "trigger": "static_always"
@@ -5502,26 +5525,38 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "reduce_play_cost",
+          "amount": 2,
+          "value": {
+            "target_filter": {
+              "card_code": "PL!-pb1-014"
+            }
+          }
         }
       ],
       "card_code": "PL!-pb1-014",
       "choice": null,
-      "condition": {},
+      "condition": {
+        "source_zone": "hand",
+        "success_live_unit_count_at_least": {
+          "count": 1,
+          "unit_key": "lily_white"
+        }
+      },
       "cost": [],
       "cost_choice": null,
       "duration": null,
       "effect_id": "PL!-pb1-014:1",
       "effect_index": 1,
       "effect_type": "static",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【常時】自分の成功ライブカード置き場に『lily white』のカードがある場合、手札にあるこのメンバーカードのコストは2減る。",
       "raw_text_hash": "e0ad681ed5803622b811a202c28e6d34235c9a3bde8f9abb4f54b55f12090136",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted static play-cost reducer",
       "text_revision_id": 429,
       "timing": "static_always",
       "trigger": "static_always"
@@ -23578,26 +23613,35 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "reduce_play_cost",
+          "amount": 1,
+          "value": {
+            "target_filter": {
+              "ability_bucket": "none",
+              "card_type": "member"
+            }
+          }
         }
       ],
       "card_code": "PL!S-bp5-001",
       "choice": null,
-      "condition": {},
+      "condition": {
+        "source_zone": "stage"
+      },
       "cost": [],
       "cost_choice": null,
       "duration": null,
       "effect_id": "PL!S-bp5-001:2",
       "effect_index": 2,
       "effect_type": "static",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【常時】能力を持たないメンバーカードを自分の手札から登場させるためのコストは1減る。",
       "raw_text_hash": "60fe35f486186fc6c60d49d2dbb253efd008a94f280db2e26b7dfa3bfac18395",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted static play-cost reducer",
       "text_revision_id": 164,
       "timing": "static_always",
       "trigger": "static_always"
@@ -30248,26 +30292,36 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "reduce_play_cost",
+          "amount": 2,
+          "value": {
+            "target_filter": {
+              "card_type": "member",
+              "original_cost": 10,
+              "work_key": "love_live_superstar"
+            }
+          }
         }
       ],
       "card_code": "PL!SP-bp5-003",
       "choice": null,
-      "condition": {},
+      "condition": {
+        "source_zone": "stage"
+      },
       "cost": [],
       "cost_choice": null,
       "duration": null,
       "effect_id": "PL!SP-bp5-003:1",
       "effect_index": 1,
       "effect_type": "static",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【常時】コスト10の『Liella!』のメンバーカードを自分の手札から登場させるためのコストは2減る。",
       "raw_text_hash": "130d2c72abb46a0047c047808d12ed55601f67521c13ed8d18e044d05aee263b",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted static play-cost reducer",
       "text_revision_id": 208,
       "timing": "static_always",
       "trigger": "static_always"
@@ -30838,26 +30892,38 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "reduce_play_cost",
+          "amount": 2,
+          "value": {
+            "target_filter": {
+              "card_code": "PL!SP-bp5-017"
+            }
+          }
         }
       ],
       "card_code": "PL!SP-bp5-017",
       "choice": null,
-      "condition": {},
+      "condition": {
+        "own_stage_member_moved_this_turn": {
+          "card_type": "member",
+          "work_key": "love_live_superstar"
+        },
+        "source_zone": "hand"
+      },
       "cost": [],
       "cost_choice": null,
       "duration": null,
       "effect_id": "PL!SP-bp5-017:1",
       "effect_index": 1,
       "effect_type": "static",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【常時】自分のステージにいる『Liella!』のメンバーがこのターンにエリアを移動しているかぎり、手札にあるこのメンバーカードのコストは2減る。",
       "raw_text_hash": "b0de991edc21991262759189231311f025cd71a058d936fa8d7e2e90a3b05263",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted static play-cost reducer",
       "text_revision_id": 222,
       "timing": "static_always",
       "trigger": "static_always"
