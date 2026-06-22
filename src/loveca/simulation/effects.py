@@ -112,6 +112,7 @@ class EffectOperation(BaseModel):
         "opponent_success_live_count_difference",
         "stage_member_heart_color_variety_count",
         "own_hand_count_divided_by",
+        "own_other_hand_count",
         "own_energy_count_divided_by",
         "milled_member_work_count",
         "revealed_live_count",

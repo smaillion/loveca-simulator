@@ -1296,6 +1296,76 @@ describe("App", () => {
     ).toBe(true);
   });
 
+  it("confirms success Live choices inside the mobile live dialog", async () => {
+    stubMobileViewport();
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const liveId = "player_1-LIVE-SUCCESS";
+    const liveJudgmentPayload = {
+      ...MATCH_PAYLOAD,
+      state: {
+        ...MATCH_PAYLOAD.state,
+        phase: "live_judgment",
+        active_player_id: null,
+        first_player_id: "player_1",
+        second_player_id: "player_2",
+        cards: {
+          [liveId]: {
+            instance_id: liveId,
+            owner_id: "player_1",
+            orientation: "active",
+            face_up: true,
+            card: { ...LIVE_SUMMARY, name_ja: "成功確認ライブ" },
+          },
+        },
+        pending_choice: {
+          choice_type: "success_live",
+          player_id: "player_1",
+          message_zh: "选择成功 Live",
+          message_ja: "成功ライブを選択",
+          options: { card_instance_ids: [liveId] },
+        },
+      },
+      legal_actions: [
+        {
+          action_type: "resolve_live_requirements",
+          player_id: "player_1",
+          label_zh: "选择成功 Live",
+          label_ja: "成功ライブを選択",
+          options: { card_instance_ids: [liveId] },
+        },
+      ],
+    };
+    const fetchMock = createFetchMock({
+      matchCreate: liveJudgmentPayload,
+      matchAction: {
+        ...liveJudgmentPayload,
+        state: { ...liveJudgmentPayload.state, revision: 1 },
+        legal_actions: [],
+      },
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { container } = render(<App />);
+    await waitFor(() => expect(screen.getByLabelText("玩家 1 牌组")).toBeInTheDocument());
+    const createButton = screen.getByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+
+    await waitFor(() => expect(container.querySelector(".mobile-match-dialog")).not.toBeNull());
+    expect(screen.getAllByText("成功確認ライブ").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "确认成功 Live" }));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/matches/match-1/actions",
+        expect.objectContaining({
+          method: "POST",
+          body: expect.stringContaining(`"success_live_instance_id":"${liveId}"`),
+        }),
+      ),
+    );
+  });
+
   it("keeps hand activated effects visible on mobile when member play is also legal", async () => {
     stubMobileViewport();
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
