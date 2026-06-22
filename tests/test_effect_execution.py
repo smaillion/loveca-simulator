@@ -16405,6 +16405,531 @@ def test_hime_cost_reduction_uses_miracra_stage_members():
     ) == 14
 
 
+def test_success_live_music_start_reduces_cost17_muse_member_baton_cost():
+    cost_effect = EffectDefinition(
+        effect_id="test-music-start-cost:1",
+        card_code="PL!-bp6-019",
+        text_revision_id=61,
+        raw_text_hash="8e55b7ca25975ca9d35b7cc355abc2cf9ba58564bfdda17a0888ad7c5dc32f91",
+        effect_index=1,
+        label_ja=(
+            "【常時】このカードが自分の成功ライブカード置き場にあるかぎり、"
+            "元々のコストが17以上の『μ's』のメンバーカードを"
+            "自分の手札から登場させるためのコストは2減る。"
+            "この効果は重複しない。"
+        ),
+        effect_type="static",
+        trigger="static_always",
+        timing="static_always",
+        execution_mode="auto_resolve",
+        frequency_limit="none",
+        is_optional=False,
+        condition={"source_zone": "success_live_area"},
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+        actions=[
+            {
+                "action_type": "reduce_play_cost",
+                "amount": 2,
+                "value": {
+                    "non_stackable_key": "pl_bp6_019_muse_cost17_play_cost",
+                    "target_filter": {
+                        "card_code_prefixes": ["PL!-"],
+                        "card_type": "member",
+                        "exclude_unit_key": "a_rise",
+                        "minimum_original_cost": 17,
+                        "work_key": "love_live",
+                    },
+                },
+            }
+        ],
+    )
+    music_start = CardDefinition(
+        card_code="PL!-bp6-019",
+        card_id="PL!-bp6-019-L",
+        name_ja="Music S.T.A.R.T!!",
+        card_type="live",
+        score=2,
+        work_keys=["love_live"],
+        effect_ids=[cost_effect.effect_id],
+    )
+    maki = CardDefinition(
+        card_code="PL!-bp6-006",
+        card_id="PL!-bp6-006-R",
+        name_ja="西木野真姫",
+        card_type="member",
+        cost=17,
+        work_keys=["love_live"],
+        unit_keys=["bibi"],
+    )
+    cross_title_member = CardDefinition(
+        card_code="LL-bp3-001",
+        card_id="LL-bp3-001",
+        name_ja="園田海未&津島善子&天王寺璃奈",
+        card_type="member",
+        cost=17,
+        work_keys=["love_live"],
+    )
+    replaced = CardDefinition(
+        card_code="TEST-REPLACED",
+        card_id="TEST-REPLACED",
+        name_ja="交代元",
+        card_type="member",
+        cost=13,
+    )
+    energy = CardDefinition(
+        card_code="TEST-ENERGY",
+        card_id="TEST-ENERGY",
+        name_ja="エネルギー",
+        card_type="energy",
+    )
+    cards = {
+        "music-start-1": CardInstance(
+            instance_id="music-start-1",
+            owner_id="player_1",
+            card=music_start,
+        ),
+        "music-start-2": CardInstance(
+            instance_id="music-start-2",
+            owner_id="player_1",
+            card=music_start.model_copy(update={"card_id": "PL!-bp6-019-L-2"}),
+        ),
+        "maki-hand": CardInstance(
+            instance_id="maki-hand",
+            owner_id="player_1",
+            card=maki,
+        ),
+        "cross-title-hand": CardInstance(
+            instance_id="cross-title-hand",
+            owner_id="player_1",
+            card=cross_title_member,
+        ),
+        "stage-center": CardInstance(
+            instance_id="stage-center",
+            owner_id="player_1",
+            card=replaced,
+        ),
+        **{
+            f"energy-{index}": CardInstance(
+                instance_id=f"energy-{index}",
+                owner_id="player_1",
+                card=energy,
+                orientation="active",
+            )
+            for index in range(2)
+        },
+    }
+    state = MatchState(
+        match_id="music-start-cost",
+        seed=1,
+        phase="first_main",
+        first_player_id="player_1",
+        second_player_id="player_2",
+        active_player_id="player_1",
+        players={
+            "player_1": PlayerState(
+                player_id="player_1",
+                name="Player 1",
+                hand=["maki-hand", "cross-title-hand"],
+                member_area={"left": None, "center": "stage-center", "right": None},
+                energy_area=["energy-0", "energy-1"],
+                success_live_area=["music-start-1", "music-start-2"],
+            ),
+            "player_2": PlayerState(player_id="player_2", name="Player 2"),
+        },
+        cards=cards,
+        effect_definitions={cost_effect.effect_id: cost_effect},
+    )
+
+    play_action = next(
+        action
+        for action in generate_legal_actions(state)
+        if action.action_type == "play_member"
+    )
+    maki_baton = next(
+        item
+        for item in play_action.options["placements"]
+        if item["card_instance_id"] == "maki-hand"
+        and item["slot"] == "center"
+        and item["use_baton_touch"]
+    )
+    assert maki_baton["printed_member_cost"] == 17
+    assert maki_baton["new_member_cost"] == 15
+    assert maki_baton["replaced_member_cost"] == 13
+    assert maki_baton["payment_cost"] == 2
+    assert not any(
+        item["card_instance_id"] == "cross-title-hand" and item["use_baton_touch"]
+        for item in play_action.options["placements"]
+    )
+
+    result = apply_action(
+        state,
+        ActionRequest(
+            action_type="play_member",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={
+                "card_instance_id": "maki-hand",
+                "slot": "center",
+                "use_baton_touch": True,
+                "energy_instance_ids": ["energy-0", "energy-1"],
+            },
+        ),
+    )
+
+    assert result.state.players["player_1"].member_area["center"] == "maki-hand"
+    assert sum(
+        result.state.cards[f"energy-{index}"].orientation == "wait"
+        for index in range(2)
+    ) == 2
+
+
+def test_static_play_cost_reducers_cover_hand_success_stage_and_moved_conditions():
+    effects = [
+        EffectDefinition(
+            effect_id="test-ll-hand-count-cost:1",
+            card_code="LL-bp2-001",
+            text_revision_id=592,
+            raw_text_hash="d" * 64,
+            effect_index=1,
+            label_ja="【常時】手札にあるこのメンバーカードのコストは、このカード以外の自分の手札1枚につき、1少なくなる。",
+            effect_type="static",
+            trigger="static_always",
+            timing="static_always",
+            execution_mode="auto_resolve",
+            frequency_limit="none",
+            is_optional=False,
+            condition={"source_zone": "hand"},
+            actions=[
+                {
+                    "action_type": "reduce_play_cost",
+                    "amount_source": "own_other_hand_count",
+                    "value": {"target_filter": {"card_code": "LL-bp2-001"}},
+                }
+            ],
+            simulation_support="test_validated_executable",
+            review_status="test_validated",
+            source_reference="test",
+        ),
+        EffectDefinition(
+            effect_id="test-lily-white-success-cost:1",
+            card_code="PL!-pb1-014",
+            text_revision_id=429,
+            raw_text_hash="e" * 64,
+            effect_index=1,
+            label_ja="【常時】自分の成功ライブカード置き場に『lily white』のカードがある場合、手札にあるこのメンバーカードのコストは2減る。",
+            effect_type="static",
+            trigger="static_always",
+            timing="static_always",
+            execution_mode="auto_resolve",
+            frequency_limit="none",
+            is_optional=False,
+            condition={
+                "source_zone": "hand",
+                "success_live_unit_count_at_least": {
+                    "unit_key": "lily_white",
+                    "count": 1,
+                },
+            },
+            actions=[
+                {
+                    "action_type": "reduce_play_cost",
+                    "amount": 2,
+                    "value": {"target_filter": {"card_code": "PL!-pb1-014"}},
+                }
+            ],
+            simulation_support="test_validated_executable",
+            review_status="test_validated",
+            source_reference="test",
+        ),
+        EffectDefinition(
+            effect_id="test-no-ability-play-cost:2",
+            card_code="PL!S-bp5-001",
+            text_revision_id=164,
+            raw_text_hash="f" * 64,
+            effect_index=2,
+            label_ja="【常時】能力を持たないメンバーカードを自分の手札から登場させるためのコストは1減る。",
+            effect_type="static",
+            trigger="static_always",
+            timing="static_always",
+            execution_mode="auto_resolve",
+            frequency_limit="none",
+            is_optional=False,
+            condition={"source_zone": "stage"},
+            actions=[
+                {
+                    "action_type": "reduce_play_cost",
+                    "amount": 1,
+                    "value": {
+                        "target_filter": {
+                            "card_type": "member",
+                            "ability_bucket": "none",
+                        }
+                    },
+                }
+            ],
+            simulation_support="test_validated_executable",
+            review_status="test_validated",
+            source_reference="test",
+        ),
+        EffectDefinition(
+            effect_id="test-liella-cost10-play-cost:1",
+            card_code="PL!SP-bp5-003",
+            text_revision_id=208,
+            raw_text_hash="1" * 64,
+            effect_index=1,
+            label_ja="【常時】コスト10の『Liella!』のメンバーカードを自分の手札から登場させるためのコストは2減る。",
+            effect_type="static",
+            trigger="static_always",
+            timing="static_always",
+            execution_mode="auto_resolve",
+            frequency_limit="none",
+            is_optional=False,
+            condition={"source_zone": "stage"},
+            actions=[
+                {
+                    "action_type": "reduce_play_cost",
+                    "amount": 2,
+                    "value": {
+                        "target_filter": {
+                            "card_type": "member",
+                            "original_cost": 10,
+                            "work_key": "love_live_superstar",
+                        }
+                    },
+                }
+            ],
+            simulation_support="test_validated_executable",
+            review_status="test_validated",
+            source_reference="test",
+        ),
+        EffectDefinition(
+            effect_id="test-moved-liella-cost:1",
+            card_code="PL!SP-bp5-017",
+            text_revision_id=222,
+            raw_text_hash="2" * 64,
+            effect_index=1,
+            label_ja="【常時】自分のステージにいる『Liella!』のメンバーがこのターンにエリアを移動しているかぎり、手札にあるこのメンバーカードのコストは2減る。",
+            effect_type="static",
+            trigger="static_always",
+            timing="static_always",
+            execution_mode="auto_resolve",
+            frequency_limit="none",
+            is_optional=False,
+            condition={
+                "source_zone": "hand",
+                "own_stage_member_moved_this_turn": {
+                    "card_type": "member",
+                    "work_key": "love_live_superstar",
+                },
+            },
+            actions=[
+                {
+                    "action_type": "reduce_play_cost",
+                    "amount": 2,
+                    "value": {"target_filter": {"card_code": "PL!SP-bp5-017"}},
+                }
+            ],
+            simulation_support="test_validated_executable",
+            review_status="test_validated",
+            source_reference="test",
+        ),
+    ]
+    effect_map = {effect.effect_id: effect for effect in effects}
+    cards = {
+        "ll-hand": CardInstance(
+            instance_id="ll-hand",
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code="LL-bp2-001",
+                card_id="LL-bp2-001",
+                name_ja="渡辺 曜&鬼塚夏美&大沢瑠璃乃",
+                card_type="member",
+                cost=20,
+                ability_bucket="other",
+                effect_ids=["test-ll-hand-count-cost:1"],
+            ),
+        ),
+        "lily-hand": CardInstance(
+            instance_id="lily-hand",
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code="PL!-pb1-014",
+                card_id="PL!-pb1-014",
+                name_ja="星空 凛",
+                card_type="member",
+                cost=15,
+                ability_bucket="other",
+                effect_ids=["test-lily-white-success-cost:1"],
+            ),
+        ),
+        "no-ability-hand": CardInstance(
+            instance_id="no-ability-hand",
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code="TEST-NO-ABILITY",
+                card_id="TEST-NO-ABILITY",
+                name_ja="能力なし",
+                card_type="member",
+                cost=4,
+                ability_bucket="none",
+            ),
+        ),
+        "liella-cost10-hand": CardInstance(
+            instance_id="liella-cost10-hand",
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code="TEST-LIELLA-10",
+                card_id="TEST-LIELLA-10",
+                name_ja="Liella! cost10",
+                card_type="member",
+                cost=10,
+                work_keys=["love_live_superstar"],
+                ability_bucket="other",
+            ),
+        ),
+        "moved-cost-hand": CardInstance(
+            instance_id="moved-cost-hand",
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code="PL!SP-bp5-017",
+                card_id="PL!SP-bp5-017",
+                name_ja="桜小路きな子",
+                card_type="member",
+                cost=9,
+                work_keys=["love_live_superstar"],
+                ability_bucket="other",
+                effect_ids=["test-moved-liella-cost:1"],
+            ),
+        ),
+        "stage-no-ability-source": CardInstance(
+            instance_id="stage-no-ability-source",
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code="PL!S-bp5-001",
+                card_id="PL!S-bp5-001",
+                name_ja="高海千歌",
+                card_type="member",
+                cost=10,
+                work_keys=["love_live_sunshine"],
+                effect_ids=["test-no-ability-play-cost:2"],
+            ),
+        ),
+        "stage-liella-source": CardInstance(
+            instance_id="stage-liella-source",
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code="PL!SP-bp5-003",
+                card_id="PL!SP-bp5-003",
+                name_ja="嵐 千砂都",
+                card_type="member",
+                cost=17,
+                work_keys=["love_live_superstar"],
+                effect_ids=["test-liella-cost10-play-cost:1"],
+            ),
+        ),
+        "success-lily-live": CardInstance(
+            instance_id="success-lily-live",
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code="TEST-LILY-LIVE",
+                card_id="TEST-LILY-LIVE",
+                name_ja="lily white Live",
+                card_type="live",
+                score=1,
+                unit_keys=["lily_white"],
+            ),
+        ),
+        "filler-live-1": CardInstance(
+            instance_id="filler-live-1",
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code="TEST-FILLER-LIVE-1",
+                card_id="TEST-FILLER-LIVE-1",
+                name_ja="フィラー1",
+                card_type="live",
+            ),
+        ),
+        "filler-live-2": CardInstance(
+            instance_id="filler-live-2",
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code="TEST-FILLER-LIVE-2",
+                card_id="TEST-FILLER-LIVE-2",
+                name_ja="フィラー2",
+                card_type="live",
+            ),
+        ),
+        **{
+            f"energy-{index}": CardInstance(
+                instance_id=f"energy-{index}",
+                owner_id="player_1",
+                card=CardDefinition(
+                    card_code="TEST-ENERGY",
+                    card_id="TEST-ENERGY",
+                    name_ja="エネルギー",
+                    card_type="energy",
+                ),
+                orientation="active",
+            )
+            for index in range(20)
+        },
+    }
+    player = PlayerState(
+        player_id="player_1",
+        name="Player 1",
+        hand=[
+            "ll-hand",
+            "lily-hand",
+            "no-ability-hand",
+            "liella-cost10-hand",
+            "moved-cost-hand",
+            "filler-live-1",
+            "filler-live-2",
+        ],
+        member_area={
+            "left": None,
+            "center": "stage-no-ability-source",
+            "right": "stage-liella-source",
+        },
+        energy_area=[f"energy-{index}" for index in range(20)],
+        success_live_area=["success-lily-live"],
+        member_areas_moved_this_turn=["right"],
+    )
+    state = MatchState(
+        match_id="static-cost-reducers",
+        seed=1,
+        phase="first_main",
+        first_player_id="player_1",
+        second_player_id="player_2",
+        active_player_id="player_1",
+        players={
+            "player_1": player,
+            "player_2": PlayerState(player_id="player_2", name="Player 2"),
+        },
+        cards=cards,
+        effect_definitions=effect_map,
+    )
+
+    play_action = next(
+        action
+        for action in generate_legal_actions(state)
+        if action.action_type == "play_member"
+    )
+    costs = {
+        item["card_instance_id"]: item["new_member_cost"]
+        for item in play_action.options["placements"]
+        if item["slot"] == "left" and not item["use_baton_touch"]
+    }
+
+    assert costs["ll-hand"] == 14
+    assert costs["lily-hand"] == 13
+    assert costs["no-ability-hand"] == 3
+    assert costs["liella-cost10-hand"] == 8
+    assert costs["moved-cost-hand"] == 7
+
+
 def test_hime_live_success_waits_and_skips_next_active_ready():
     effect = EffectDefinition(
         effect_id="test-hime-live-success:3",

@@ -3344,6 +3344,120 @@ label {
     box-shadow: 0 -7px 18px rgba(18, 25, 30, 0.12);
   }
 
+  .mobile-success-live-choice {
+    display: grid;
+    gap: 8px;
+  }
+
+  .mobile-success-live-copy {
+    display: grid;
+    gap: 2px;
+  }
+
+  .mobile-success-live-copy strong {
+    color: var(--accent-dark);
+    font-size: 13px;
+    font-weight: 900;
+  }
+
+  .mobile-success-live-copy span {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .mobile-success-live-cards {
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .mobile-success-live-card {
+    position: relative;
+    flex: 0 0 92px;
+    border: 2px solid var(--line);
+    border-radius: 7px;
+    background: white;
+    overflow: hidden;
+  }
+
+  .mobile-success-live-card.selected {
+    border-color: var(--accent-dark);
+    box-shadow: 0 0 0 2px rgba(0, 128, 116, 0.16);
+  }
+
+  .mobile-success-live-card-main {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    padding: 4px;
+    text-align: left;
+  }
+
+  .mobile-success-live-card-main img,
+  .mobile-success-live-card-main .card-fallback {
+    display: block;
+    width: 100%;
+    aspect-ratio: 63 / 88;
+    object-fit: contain;
+    border-radius: 5px;
+  }
+
+  .mobile-success-live-card-main span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-top: 3px;
+    font-size: 10px;
+    font-weight: 800;
+  }
+
+  .mobile-success-live-card .mini-icon {
+    position: absolute;
+    right: 4px;
+    top: 4px;
+    width: 24px;
+    height: 24px;
+    min-height: 24px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.9);
+  }
+
+  .mobile-success-live-submit {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .mobile-success-live-submit div {
+    min-width: 0;
+    display: grid;
+    gap: 1px;
+  }
+
+  .mobile-success-live-submit span {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 800;
+  }
+
+  .mobile-success-live-submit strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+  }
+
+  .mobile-success-live-submit .primary-button {
+    min-height: 42px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 900;
+  }
+
   .mobile-match-dialog .live-analysis {
     border-radius: 8px;
     padding: 8px;

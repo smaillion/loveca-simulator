@@ -3226,6 +3226,32 @@ def _effect_unavailable_reason(
         _top_member_slot(player, invocation.source_card_instance_id) is None
     ):
         return "source_zone_mismatch"
+    if (
+        source_zone == "hand"
+        and invocation.source_card_instance_id not in player.hand
+    ):
+        return "source_zone_mismatch"
+    if (
+        source_zone == "success_live_area"
+        and invocation.source_card_instance_id not in player.success_live_area
+    ):
+        return "source_zone_mismatch"
+    moved_stage_member = effect.condition.get("own_stage_member_moved_this_turn")
+    if isinstance(moved_stage_member, dict):
+        matching_moved_member = False
+        for slot in player.member_areas_moved_this_turn:
+            moved_id = player.member_area.get(slot)
+            if moved_id is None:
+                continue
+            if _card_matches_filter_value(
+                state,
+                moved_id,
+                moved_stage_member,
+            ):
+                matching_moved_member = True
+                break
+        if not matching_moved_member:
+            return "stage_member_not_moved_this_turn"
     source_score_exact = effect.condition.get("source_score_exact")
     if isinstance(source_score_exact, int):
         if (
@@ -6876,6 +6902,14 @@ def _operation_amount(
             if isinstance(raw_divisor, int) and raw_divisor > 0:
                 divisor = raw_divisor
         return (len(player.hand) // divisor) * multiplier
+    if operation.amount_source == "own_other_hand_count" and player is not None:
+        target_id = None
+        if isinstance(operation_context, dict):
+            target_id = operation_context.get("target_card_instance_id")
+        return (
+            max(0, len(player.hand) - (1 if target_id in player.hand else 0))
+            * multiplier
+        )
     if operation.amount_source == "own_energy_count_divided_by" and player is not None:
         divisor = 1
         if isinstance(operation.value, dict):
@@ -9087,11 +9121,126 @@ def _effective_member_play_cost(
     cost = card.cost or 0
     reduction = 0
     player = state.players[player_id]
-    for effect in _static_test_validated_effects(state, player_id, instance_id):
-        for operation in effect.actions:
-            if operation.action_type == "reduce_play_cost":
-                reduction += _operation_amount(operation, player=player, state=state)
+    seen_non_stackable: set[str] = set()
+    static_source_ids = [
+        instance_id,
+        *player.success_live_area,
+        *[item for item in player.member_area.values() if item is not None],
+    ]
+    seen_static_sources: set[str] = set()
+    for source_instance_id in static_source_ids:
+        if source_instance_id in seen_static_sources:
+            continue
+        seen_static_sources.add(source_instance_id)
+        for effect in _static_test_validated_effects(
+            state,
+            player_id,
+            source_instance_id,
+        ):
+            for operation in effect.actions:
+                if operation.action_type != "reduce_play_cost":
+                    continue
+                if not _play_cost_reduction_applies(
+                    state,
+                    source_instance_id,
+                    instance_id,
+                    operation,
+                ):
+                    continue
+                non_stackable_key = None
+                if isinstance(operation.value, dict) and isinstance(
+                    operation.value.get("non_stackable_key"),
+                    str,
+                ):
+                    non_stackable_key = operation.value["non_stackable_key"]
+                if non_stackable_key is not None:
+                    if non_stackable_key in seen_non_stackable:
+                        continue
+                    seen_non_stackable.add(non_stackable_key)
+                reduction += _operation_amount(
+                    operation,
+                    player=player,
+                    state=state,
+                    operation_context={
+                        "source_card_instance_id": source_instance_id,
+                        "target_card_instance_id": instance_id,
+                    },
+                )
     return max(0, cost - reduction)
+
+
+def _play_cost_reduction_applies(
+    state: MatchState,
+    source_instance_id: str,
+    target_instance_id: str,
+    operation: Any,
+) -> bool:
+    if not isinstance(operation.value, dict):
+        return source_instance_id == target_instance_id
+    raw_filter = operation.value.get("target_filter")
+    if not isinstance(raw_filter, dict):
+        return source_instance_id == target_instance_id
+    return _card_matches_filter_value(state, target_instance_id, raw_filter)
+
+
+def _card_matches_filter_value(
+    state: MatchState,
+    instance_id: str,
+    filter_value: dict[str, Any],
+) -> bool:
+    card = state.cards[instance_id].card
+    card_code = filter_value.get("card_code")
+    if isinstance(card_code, str) and card.card_code != card_code:
+        return False
+    card_type = filter_value.get("card_type")
+    if isinstance(card_type, str) and card.card_type != card_type:
+        return False
+    card_code_prefixes = filter_value.get("card_code_prefixes")
+    if isinstance(card_code_prefixes, list) and card_code_prefixes:
+        allowed_prefixes = tuple(item for item in card_code_prefixes if isinstance(item, str))
+        if allowed_prefixes and not card.card_code.startswith(allowed_prefixes):
+            return False
+    ability_bucket = filter_value.get("ability_bucket")
+    if isinstance(ability_bucket, str) and card.ability_bucket != ability_bucket:
+        return False
+    minimum_original_cost = filter_value.get("minimum_original_cost")
+    if (
+        isinstance(minimum_original_cost, int)
+        and (card.cost or 0) < minimum_original_cost
+    ):
+        return False
+    maximum_original_cost = filter_value.get("maximum_original_cost")
+    if (
+        isinstance(maximum_original_cost, int)
+        and (card.cost or 0) > maximum_original_cost
+    ):
+        return False
+    exact_original_cost = filter_value.get("original_cost")
+    if isinstance(exact_original_cost, int) and (card.cost or 0) != exact_original_cost:
+        return False
+    work_key = filter_value.get("work_key")
+    if isinstance(work_key, str) and work_key not in card.work_keys:
+        return False
+    unit_key = filter_value.get("unit_key")
+    if isinstance(unit_key, str) and unit_key not in card.unit_keys:
+        return False
+    exclude_unit_key = filter_value.get("exclude_unit_key")
+    if isinstance(exclude_unit_key, str) and exclude_unit_key in card.unit_keys:
+        return False
+    unit_keys_any = filter_value.get("unit_keys_any")
+    if isinstance(unit_keys_any, list) and unit_keys_any:
+        allowed_units = {item for item in unit_keys_any if isinstance(item, str)}
+        if allowed_units and not allowed_units.intersection(card.unit_keys):
+            return False
+    name_ja = filter_value.get("name_ja")
+    if isinstance(name_ja, str) and not _card_name_matches(card.name_ja, name_ja):
+        return False
+    name_ja_any = filter_value.get("name_ja_any")
+    if isinstance(name_ja_any, list) and name_ja_any:
+        allowed_names = {item for item in name_ja_any if isinstance(item, str)}
+        if not _card_name_in(card.name_ja, allowed_names):
+            return False
+    return True
 
 
 def _baton_replacement_static_restrictions_allow(

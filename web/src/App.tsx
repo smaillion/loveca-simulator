@@ -10,6 +10,7 @@ import {
   Download,
   HelpCircle,
   History,
+  Maximize2,
   Play,
   RefreshCw,
   Settings2,
@@ -923,7 +924,8 @@ export default function App() {
     ? visibleActions.filter(
       (action) =>
         !mobileDialogActionTypes.has(action.action_type) &&
-        action.action_type !== "manual_adjustment",
+        action.action_type !== "manual_adjustment" &&
+        !isSuccessLiveChoiceAction(action),
     )
     : visibleActions;
   const mobileMemberPlayContext = isMobileLayout && mobilePlayMemberAction
@@ -1487,6 +1489,10 @@ function MobileMatchDialog({
   onClose: () => void;
 }) {
   const { tr } = useUiLanguage();
+  const successLiveAction = actions.find(isSuccessLiveChoiceAction);
+  const remainingActions = successLiveAction
+    ? actions.filter((action) => action !== successLiveAction)
+    : actions;
   return (
     <div className="dialog-backdrop mobile-match-dialog-backdrop" onMouseDown={onClose}>
       <section className="mobile-match-dialog" onMouseDown={(event) => event.stopPropagation()}>
@@ -1514,28 +1520,138 @@ function MobileMatchDialog({
             <div className="mobile-live-review">
               <LiveAnalysisPanel state={state} onCard={onCard} />
             </div>
-            {actions.length > 0 && (
+            {(successLiveAction || remainingActions.length > 0) && (
               <div className="mobile-live-dialog-actions">
-                <ActionDock
-                  state={state}
-                  actions={actions}
-                  memberPlayDraft={{ selectedMemberId: "", selectedSlot: "", selectedPlayMode: "" }}
-                  onMemberPlayDraftChange={() => undefined}
-                  liveSetDraft={{ selectedCardIds: [] }}
-                  onLiveSetDraftChange={() => undefined}
-                  mulliganDraft={{ selectedCardIds: [] }}
-                  onMulliganDraftChange={() => undefined}
-                  loading={loading}
-                  onAction={onAction}
-                  onManual={onManual}
-                  embedded
-                />
+                {successLiveAction && (
+                  <MobileSuccessLiveChoice
+                    action={successLiveAction}
+                    state={state}
+                    loading={loading}
+                    onCard={onCard}
+                    onAction={onAction}
+                  />
+                )}
+                {remainingActions.length > 0 && (
+                  <ActionDock
+                    state={state}
+                    actions={remainingActions}
+                    memberPlayDraft={{ selectedMemberId: "", selectedSlot: "", selectedPlayMode: "" }}
+                    onMemberPlayDraftChange={() => undefined}
+                    liveSetDraft={{ selectedCardIds: [] }}
+                    onLiveSetDraftChange={() => undefined}
+                    mulliganDraft={{ selectedCardIds: [] }}
+                    onMulliganDraftChange={() => undefined}
+                    loading={loading}
+                    onAction={onAction}
+                    onManual={onManual}
+                    embedded
+                  />
+                )}
               </div>
             )}
           </>
         )}
       </section>
     </div>
+  );
+}
+
+function isSuccessLiveChoiceAction(action: LegalAction): boolean {
+  return (
+    action.action_type === "resolve_live_requirements" &&
+    Array.isArray(action.options.card_instance_ids)
+  );
+}
+
+function MobileSuccessLiveChoice({
+  action,
+  state,
+  loading,
+  onCard,
+  onAction,
+}: {
+  action: LegalAction;
+  state: MatchState;
+  loading: boolean;
+  onCard: (card: CardInstance) => void;
+  onAction: (
+    actionType: string,
+    playerId?: string | null,
+    payload?: Record<string, unknown>,
+  ) => void;
+}) {
+  const { tr } = useUiLanguage();
+  const candidateIds = ((action.options.card_instance_ids as string[] | undefined) ?? []).filter(
+    (id) => Boolean(state.cards[id]),
+  );
+  const [selectedId, setSelectedId] = useState(candidateIds[0] ?? "");
+
+  useEffect(() => {
+    setSelectedId((current) =>
+      current && candidateIds.includes(current) ? current : candidateIds[0] ?? "",
+    );
+  }, [candidateIds.join("|")]);
+
+  const selectedCard = selectedId ? state.cards[selectedId] : null;
+  return (
+    <section className="mobile-success-live-choice" aria-label={tr("成功 Live 确认", "成功ライブ確認")}>
+      <div className="mobile-success-live-copy">
+        <strong>{tr("确认成功 Live", "成功ライブを確認")}</strong>
+        <span>
+          {candidateIds.length > 1
+            ? tr("选择要放入成功 Live 区的 Live。", "成功ライブエリアへ置くライブを選びます。")
+            : tr("将这张 Live 放入成功 Live 区。", "このライブを成功ライブエリアへ置きます。")}
+        </span>
+      </div>
+      <div className="mobile-success-live-cards">
+        {candidateIds.map((id) => {
+          const instance = state.cards[id];
+          return (
+            <div
+              className={`mobile-success-live-card ${
+                id === selectedId ? "selected" : ""
+              }`}
+              key={id}
+            >
+              <button
+                type="button"
+                className="mobile-success-live-card-main"
+                onClick={() => setSelectedId(id)}
+              >
+                <LocalCardArt card={instance.card} />
+                <span>{instance.card.name_ja}</span>
+              </button>
+              <button
+                className="mini-icon"
+                type="button"
+                onClick={() => onCard(instance)}
+                aria-label={`${instance.card.name_ja} ${tr("详情", "詳細")}`}
+              >
+                <Maximize2 size={13} />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mobile-success-live-submit">
+        <div>
+          <span>{tr("选择中", "選択中")}</span>
+          <strong>{selectedCard?.card.name_ja ?? tr("未选择", "未選択")}</strong>
+        </div>
+        <button
+          className="primary-button"
+          type="button"
+          disabled={loading || !selectedId}
+          onClick={() =>
+            onAction(action.action_type, action.player_id, {
+              success_live_instance_id: selectedId,
+            })
+          }
+        >
+          {tr("确认成功 Live", "成功ライブ確定")}
+        </button>
+      </div>
+    </section>
   );
 }
 
