@@ -99,6 +99,75 @@ def test_effect_candidate_discovery_structures_pl_hs_bp6_014_hand_activation():
     ]
 
 
+def test_effect_candidate_discovery_structures_pl_bp6_003_source_attachment():
+    database = _require_full_card_database()
+    candidates = discover_effect_candidates(database, include_registered=True)
+    by_id = {item.effect_id: item for item in candidates}
+
+    live_start = by_id["PL!-bp6-003:1"]
+    assert (
+        live_start.pattern_id
+        == "pl_bp6_003_live_start_center_attach_hand_muse_cost2_gain_chosen_heart"
+    )
+    assert live_start.condition == {"source_slot": "center"}
+    assert live_start.choice == {
+        "choice_type": "card_from_zone",
+        "zone": "hand",
+        "card_type": "member",
+        "work_key": "love_live",
+        "maximum_cost": 2,
+        "minimum": 1,
+        "maximum": 1,
+        "color_slots": [
+            "heart01",
+            "heart02",
+            "heart03",
+            "heart04",
+            "heart05",
+            "heart06",
+        ],
+    }
+    assert live_start.actions == [
+        {"action_type": "attach_selected_under_source"},
+        {"action_type": "gain_heart", "target": "source", "amount": 1},
+    ]
+
+    live_success = by_id["PL!-bp6-003:2"]
+    assert live_success.pattern_id == "pl_bp6_003_live_success_deploy_attached_muse_cost2_member"
+    assert live_success.choice == {
+        "choice_type": "deploy_member_from_waiting_room",
+        "zone": "source_attachments",
+        "card_type": "member",
+        "work_key": "love_live",
+        "maximum_cost": 2,
+        "minimum": 1,
+        "maximum": 1,
+    }
+    assert live_success.actions == [{"action_type": "deploy_selected_to_empty_stage"}]
+
+
+def test_effect_candidate_discovery_structures_attached_energy_family():
+    database = _require_full_card_database()
+    candidates = discover_effect_candidates(database, include_registered=True)
+    by_id = {item.effect_id: item for item in candidates}
+
+    expected_patterns = {
+        "PL!N-bp3-001:1": "live_start_attach_energy_draw1_stage_members_blade2",
+        "PL!N-bp3-013:1": "onplay_attach_energy_draw2",
+        "PL!N-pb1-002:1": "onplay_attach_two_energy",
+        "PL!N-pb1-002:2": "static_attached_energy2_score1",
+        "PL!HS-pb1-002:1": "activated_reveal_hand_sayaka_attach_under_source",
+        "PL!N-bp5-008:1": "activated_attach_energy_ready2",
+        "PL!N-bp5-012:1": "activated_attach_energy_draw1_gain_heart01",
+        "PL!N-bp5-012:2": "live_success_source_attached_energy_plus1_place_wait_energy",
+        "PL!N-pb1-011:1": "static_source_attached_energy_count_blade",
+        "PL!N-pb1-011:2": "activated_attach_energy_return_nijigasaki_live",
+    }
+    for effect_id, pattern_id in expected_patterns.items():
+        assert by_id[effect_id].pattern_id == pattern_id
+        assert by_id[effect_id].simulation_support == "test_validated_executable"
+
+
 def test_registry_contains_all_matching_wait_energy_effects():
     registry = EffectRegistry.model_validate_json(REGISTRY.read_text(encoding="utf-8"))
     expected = {
@@ -5705,6 +5774,487 @@ def test_pl_hs_bp6_014_resolves_from_hand_without_named_stage_target():
     )
 
     assert not state.players["player_1"].manual_modifiers
+    assert not state.pending_effects
+
+
+def test_pl_bp6_003_live_start_attaches_hand_member_and_gains_chosen_heart():
+    registry = EffectRegistry.model_validate_json(REGISTRY.read_text(encoding="utf-8"))
+    effect = {effect.effect_id: effect for effect in registry.effects}["PL!-bp6-003:1"]
+    state = _minimal_effect_state(effect)
+    source_member = CardDefinition(
+        card_code="PL!-bp6-003",
+        card_id="PL!-bp6-003-R+",
+        name_ja="南ことり",
+        card_type="member",
+        cost=15,
+        blade=7,
+        basic_hearts={"heart01": 1},
+    )
+    low_muse = CardDefinition(
+        card_code="PL!-bp6-017",
+        card_id="PL!-bp6-017-N",
+        name_ja="小泉花陽",
+        card_type="member",
+        cost=2,
+        blade=0,
+        basic_hearts={"heart01": 1},
+        work_keys=["love_live"],
+    )
+    high_muse = low_muse.model_copy(
+        update={"card_code": "PL!-bp6-008", "card_id": "PL!-bp6-008-P", "cost": 7}
+    )
+    other_work = low_muse.model_copy(
+        update={
+            "card_code": "PL!SP-bp6-001",
+            "card_id": "PL!SP-bp6-001-R",
+            "work_keys": ["love_live_superstar"],
+        }
+    )
+    state.cards["source-live"].card = source_member
+    state.cards["low-muse"] = CardInstance(
+        instance_id="low-muse",
+        owner_id="player_1",
+        card=low_muse,
+    )
+    state.cards["high-muse"] = CardInstance(
+        instance_id="high-muse",
+        owner_id="player_1",
+        card=high_muse,
+    )
+    state.cards["other-work"] = CardInstance(
+        instance_id="other-work",
+        owner_id="player_1",
+        card=other_work,
+    )
+    player = state.players["player_1"]
+    player.member_area = {"left": None, "center": "source-live", "right": None}
+    player.hand = ["low-muse", "high-muse", "other-work"]
+
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["candidate_card_instance_ids"] == ["low-muse"]
+    assert set(options["color_slots"]) == {
+        "heart01",
+        "heart02",
+        "heart03",
+        "heart04",
+        "heart05",
+        "heart06",
+    }
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["low-muse"],
+            "selected_color_slot": "heart03",
+        },
+    )
+
+    player = state.players["player_1"]
+    assert "low-muse" not in player.hand
+    assert player.member_area_attachments["center"] == ["low-muse"]
+    assert state.cards["low-muse"].face_up is True
+    assert any(
+        modifier.modifier_type == "heart"
+        and modifier.color_slot == "heart03"
+        and modifier.amount == 1
+        and modifier.target_card_instance_id == "source-live"
+        for modifier in player.manual_modifiers
+    )
+    assert not state.pending_effects
+
+
+def test_pl_bp6_003_live_success_deploys_attached_member_to_empty_center():
+    registry = EffectRegistry.model_validate_json(REGISTRY.read_text(encoding="utf-8"))
+    effect = {effect.effect_id: effect for effect in registry.effects}["PL!-bp6-003:2"]
+    state = _minimal_effect_state(effect)
+    source_member = CardDefinition(
+        card_code="PL!-bp6-003",
+        card_id="PL!-bp6-003-R+",
+        name_ja="南ことり",
+        card_type="member",
+        cost=15,
+        blade=7,
+        basic_hearts={"heart01": 1},
+    )
+    attached_member = CardDefinition(
+        card_code="PL!-bp6-017",
+        card_id="PL!-bp6-017-N",
+        name_ja="小泉花陽",
+        card_type="member",
+        cost=2,
+        blade=0,
+        basic_hearts={"heart01": 1},
+        work_keys=["love_live"],
+    )
+    high_attached = attached_member.model_copy(
+        update={"card_code": "PL!-bp6-008", "card_id": "PL!-bp6-008-P", "cost": 7}
+    )
+    state.cards["source-live"].card = source_member
+    state.cards["attached-low"] = CardInstance(
+        instance_id="attached-low",
+        owner_id="player_1",
+        card=attached_member,
+    )
+    state.cards["attached-high"] = CardInstance(
+        instance_id="attached-high",
+        owner_id="player_1",
+        card=high_attached,
+    )
+    player = state.players["player_1"]
+    player.member_area = {"left": "source-live", "center": None, "right": None}
+    player.member_area_attachments["left"] = ["attached-low", "attached-high"]
+
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["candidate_card_instance_ids"] == ["attached-low"]
+    assert options["available_slots"] == ["center", "right"]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["attached-low"],
+            "to_slot": "center",
+        },
+    )
+
+    player = state.players["player_1"]
+    assert player.member_area["center"] == "attached-low"
+    assert player.member_area_attachments["left"] == ["attached-high"]
+    assert "center" in player.member_areas_entered_this_turn
+    assert state.cards["attached-low"].orientation == "wait"
+    assert not state.pending_effects
+
+
+def test_onplay_energy_attachment_draws_cards():
+    registry = EffectRegistry.model_validate_json(REGISTRY.read_text(encoding="utf-8"))
+    effect = {effect.effect_id: effect for effect in registry.effects}["PL!N-bp3-013:1"]
+    state = _minimal_effect_state(effect)
+    source_member = CardDefinition(
+        card_code="PL!N-bp3-013",
+        card_id="PL!N-bp3-013-R",
+        name_ja="上原歩夢",
+        card_type="member",
+        cost=4,
+        blade=1,
+        basic_hearts={"heart01": 1},
+    )
+    energy_card = CardDefinition(
+        card_code="TEST-ENERGY",
+        card_id="TEST-ENERGY",
+        name_ja="エネルギー",
+        card_type="energy",
+    )
+    state.cards["source-live"].card = source_member
+    state.players["player_1"].member_area["center"] = "source-live"
+    state.cards["energy-1"] = CardInstance(
+        instance_id="energy-1",
+        owner_id="player_1",
+        card=energy_card,
+    )
+    state.players["player_1"].energy_area = ["energy-1"]
+
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["candidate_card_instance_ids"] == ["energy-1"]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["energy-1"],
+        },
+    )
+
+    player = state.players["player_1"]
+    assert player.energy_area == []
+    assert player.member_area_attachments["center"] == ["energy-1"]
+    assert "deck-live-1" in player.hand
+    assert "deck-member-1" in player.hand
+    assert not state.pending_effects
+
+
+def test_activated_energy_attachment_can_continue_to_waiting_room_live_choice():
+    registry = EffectRegistry.model_validate_json(REGISTRY.read_text(encoding="utf-8"))
+    effect = {effect.effect_id: effect for effect in registry.effects}["PL!N-pb1-011:2"]
+    state = _minimal_effect_state(effect)
+    state.phase = "first_main"
+    state.pending_effects = []
+    source_member = CardDefinition(
+        card_code="PL!N-pb1-011",
+        card_id="PL!N-pb1-011-R",
+        name_ja="優木せつ菜",
+        card_type="member",
+        cost=4,
+        blade=1,
+        basic_hearts={"heart01": 1},
+        effect_ids=[effect.effect_id],
+    )
+    energy_card = CardDefinition(
+        card_code="TEST-ENERGY",
+        card_id="TEST-ENERGY",
+        name_ja="エネルギー",
+        card_type="energy",
+    )
+    nijigasaki_live = CardDefinition(
+        card_code="PL!N-LIVE-TEST",
+        card_id="PL!N-LIVE-TEST",
+        name_ja="虹ヶ咲ライブ",
+        card_type="live",
+        score=1,
+        required_hearts={"heart01": 1},
+        work_keys=["nijigasaki"],
+    )
+    other_live = nijigasaki_live.model_copy(
+        update={"card_code": "OTHER-LIVE", "card_id": "OTHER-LIVE", "work_keys": []}
+    )
+    state.cards["source-live"].card = source_member
+    state.players["player_1"].member_area["center"] = "source-live"
+    state.cards["energy-1"] = CardInstance(
+        instance_id="energy-1",
+        owner_id="player_1",
+        card=energy_card,
+    )
+    state.cards["niji-live"] = CardInstance(
+        instance_id="niji-live",
+        owner_id="player_1",
+        card=nijigasaki_live,
+    )
+    state.cards["other-live"] = CardInstance(
+        instance_id="other-live",
+        owner_id="player_1",
+        card=other_live,
+    )
+    player = state.players["player_1"]
+    player.energy_area = ["energy-1"]
+    player.waiting_room = ["niji-live", "other-live"]
+
+    state = _apply_direct(
+        state,
+        "activate_effect",
+        player_id="player_1",
+        payload={
+            "effect_id": effect.effect_id,
+            "source_card_instance_id": "source-live",
+            "selected_card_instance_ids": ["energy-1"],
+        },
+    )
+
+    player = state.players["player_1"]
+    assert player.energy_area == []
+    assert player.member_area_attachments["center"] == ["energy-1"]
+    assert state.pending_effects[0].resolution_stage == "after_cost"
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["candidate_card_instance_ids"] == ["niji-live"]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": state.pending_effects[0].invocation_id,
+            "selected_card_instance_ids": ["niji-live"],
+        },
+    )
+
+    player = state.players["player_1"]
+    assert "niji-live" in player.hand
+    assert "niji-live" not in player.waiting_room
+    assert not state.pending_effects
+
+
+def test_activated_energy_attachment_hidden_when_energy_cost_unavailable():
+    registry = EffectRegistry.model_validate_json(REGISTRY.read_text(encoding="utf-8"))
+    effect = {effect.effect_id: effect for effect in registry.effects}["PL!N-pb1-011:2"]
+    state = _minimal_effect_state(effect)
+    state.phase = "first_main"
+    state.pending_effects = []
+    source_member = CardDefinition(
+        card_code="PL!N-pb1-011",
+        card_id="PL!N-pb1-011-R",
+        name_ja="優木せつ菜",
+        card_type="member",
+        cost=4,
+        blade=1,
+        basic_hearts={"heart01": 1},
+        effect_ids=[effect.effect_id],
+    )
+    nijigasaki_live = CardDefinition(
+        card_code="PL!N-LIVE-TEST",
+        card_id="PL!N-LIVE-TEST",
+        name_ja="虹ヶ咲ライブ",
+        card_type="live",
+        score=1,
+        required_hearts={"heart01": 1},
+        work_keys=["nijigasaki"],
+    )
+    state.cards["source-live"].card = source_member
+    state.players["player_1"].member_area["center"] = "source-live"
+    state.cards["niji-live"] = CardInstance(
+        instance_id="niji-live",
+        owner_id="player_1",
+        card=nijigasaki_live,
+    )
+    player = state.players["player_1"]
+    player.energy_area = []
+    player.waiting_room = ["niji-live"]
+
+    activation = next(
+        (action for action in generate_legal_actions(state) if action.action_type == "activate_effect"),
+        None,
+    )
+
+    assert activation is None or all(
+        invocation["effect_id"] != effect.effect_id
+        for invocation in activation.options["invocations"]
+    )
+
+
+def test_activated_energy_attachment_hidden_when_post_cost_target_unavailable():
+    registry = EffectRegistry.model_validate_json(REGISTRY.read_text(encoding="utf-8"))
+    effect = {effect.effect_id: effect for effect in registry.effects}["PL!N-pb1-011:2"]
+    state = _minimal_effect_state(effect)
+    state.phase = "first_main"
+    state.pending_effects = []
+    source_member = CardDefinition(
+        card_code="PL!N-pb1-011",
+        card_id="PL!N-pb1-011-R",
+        name_ja="優木せつ菜",
+        card_type="member",
+        cost=4,
+        blade=1,
+        basic_hearts={"heart01": 1},
+        effect_ids=[effect.effect_id],
+    )
+    energy_card = CardDefinition(
+        card_code="TEST-ENERGY",
+        card_id="TEST-ENERGY",
+        name_ja="エネルギー",
+        card_type="energy",
+    )
+    other_live = CardDefinition(
+        card_code="OTHER-LIVE",
+        card_id="OTHER-LIVE",
+        name_ja="別作品ライブ",
+        card_type="live",
+        score=1,
+        required_hearts={"heart01": 1},
+        work_keys=[],
+    )
+    state.cards["source-live"].card = source_member
+    state.players["player_1"].member_area["center"] = "source-live"
+    state.cards["energy-1"] = CardInstance(
+        instance_id="energy-1",
+        owner_id="player_1",
+        card=energy_card,
+    )
+    state.cards["other-live"] = CardInstance(
+        instance_id="other-live",
+        owner_id="player_1",
+        card=other_live,
+    )
+    player = state.players["player_1"]
+    player.energy_area = ["energy-1"]
+    player.waiting_room = ["other-live"]
+
+    activation = next(
+        (action for action in generate_legal_actions(state) if action.action_type == "activate_effect"),
+        None,
+    )
+    assert activation is None or all(
+        invocation["effect_id"] != effect.effect_id
+        for invocation in activation.options["invocations"]
+    )
+
+    with pytest.raises(IllegalActionError, match="not legal"):
+        _apply_direct(
+            state,
+            "activate_effect",
+            player_id="player_1",
+            payload={
+                "effect_id": effect.effect_id,
+                "source_card_instance_id": "source-live",
+                "selected_card_instance_ids": ["energy-1"],
+            },
+        )
+
+    player = state.players["player_1"]
+    assert player.energy_area == ["energy-1"]
+    assert player.member_area_attachments["center"] == []
+    assert not state.pending_effects
+
+
+def test_activated_hand_member_attachment_reveals_and_attaches_named_card():
+    registry = EffectRegistry.model_validate_json(REGISTRY.read_text(encoding="utf-8"))
+    effect = {effect.effect_id: effect for effect in registry.effects}["PL!HS-pb1-002:1"]
+    state = _minimal_effect_state(effect)
+    state.phase = "first_main"
+    state.pending_effects = []
+    source_member = CardDefinition(
+        card_code="PL!HS-pb1-002",
+        card_id="PL!HS-pb1-002-R",
+        name_ja="村野さやか",
+        card_type="member",
+        cost=4,
+        blade=1,
+        basic_hearts={"heart05": 1},
+        effect_ids=[effect.effect_id],
+    )
+    sayaka = source_member.model_copy(
+        update={"card_code": "PL!HS-bp1-001", "card_id": "PL!HS-bp1-001"}
+    )
+    other_member = source_member.model_copy(
+        update={
+            "card_code": "PL!HS-bp1-002",
+            "card_id": "PL!HS-bp1-002",
+            "name_ja": "夕霧綴理",
+        }
+    )
+    state.cards["source-live"].card = source_member
+    state.players["player_1"].member_area["center"] = "source-live"
+    state.cards["sayaka"] = CardInstance(
+        instance_id="sayaka",
+        owner_id="player_1",
+        card=sayaka,
+    )
+    state.cards["other-member"] = CardInstance(
+        instance_id="other-member",
+        owner_id="player_1",
+        card=other_member,
+    )
+    state.players["player_1"].hand = ["sayaka", "other-member"]
+
+    state = _apply_direct(
+        state,
+        "activate_effect",
+        player_id="player_1",
+        payload={
+            "effect_id": effect.effect_id,
+            "source_card_instance_id": "source-live",
+        },
+    )
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["candidate_card_instance_ids"] == ["sayaka"]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": state.pending_effects[0].invocation_id,
+            "selected_card_instance_ids": ["sayaka"],
+        },
+    )
+
+    player = state.players["player_1"]
+    assert player.hand == ["other-member"]
+    assert player.member_area_attachments["center"] == ["sayaka"]
+    assert state.cards["sayaka"].face_up is True
     assert not state.pending_effects
 
 

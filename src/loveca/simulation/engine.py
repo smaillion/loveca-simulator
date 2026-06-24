@@ -1214,26 +1214,32 @@ def _activated_effect_required_choice_available(
     effect: Any,
     source_card_instance_id: str,
 ) -> bool:
-    if effect.choice is None or not _effect_uses_card_choice(effect):
-        return True
-    if _effect_uses_post_action_card_choice(effect):
-        return True
-    choice_zone = _resolved_choice_zone(effect.choice)
-    source_zone = effect.condition.get("source_zone")
-    if _effect_uses_post_cost_card_choice(effect) and not (
-        source_zone == "hand" and choice_zone == "stage"
-    ):
-        return True
     invocation = EffectInvocation(
         invocation_id="activation-check",
         effect_id=effect.effect_id,
         source_card_instance_id=source_card_instance_id,
         player_id=player_id,
         trigger_event="player_activation",
-        resolution_stage=(
-            "after_cost" if _effect_uses_post_cost_card_choice(effect) else "initial"
-        ),
+        resolution_stage="initial",
     )
+    if not _required_cost_choice_available(state, invocation, effect):
+        return False
+    if not _required_post_cost_choice_available_before_cost(
+        state,
+        invocation,
+        effect,
+    ):
+        return False
+    if effect.choice is None or not _effect_uses_card_choice(effect):
+        return True
+    if _effect_uses_post_action_card_choice(effect):
+        return True
+    if _effect_uses_post_cost_card_choice(effect):
+        choice_zone = _resolved_choice_zone(effect.choice)
+        source_zone = effect.condition.get("source_zone")
+        if not (source_zone == "hand" and choice_zone == "stage"):
+            return True
+        invocation.resolution_stage = "after_cost"
     if not _choice_condition_met(state, invocation, effect.choice):
         return True
     minimum, _ = _effect_choice_bounds(state, invocation, effect.choice)
@@ -1369,6 +1375,15 @@ def _activate_effect(
             or any(item not in cost_candidates for item in selected_ids)
         ):
             raise IllegalActionError("effect cost card selection is not legal")
+        post_cost_unavailable_reason = _post_cost_choice_unavailable_reason(
+            state,
+            invocation,
+            effect,
+        )
+        if post_cost_unavailable_reason is not None:
+            raise IllegalActionError(
+                f"effect is no longer activatable: {post_cost_unavailable_reason}"
+            )
     elif selected_ids:
         raise IllegalActionError("this activated effect does not accept cost cards")
     energy_ids = _activation_energy_ids(
@@ -4038,6 +4053,13 @@ def _effect_unavailable_reason(
             )
         ):
             return "cost_choice_candidates_unavailable"
+        post_cost_unavailable_reason = _post_cost_choice_unavailable_reason(
+            state,
+            invocation,
+            effect,
+        )
+        if post_cost_unavailable_reason is not None:
+            return post_cost_unavailable_reason
         return None
     if (
         _effect_uses_card_choice(effect)
@@ -4909,6 +4931,11 @@ def _effect_candidates_for_choice(
         candidates = list(player.energy_area)
     elif zone == "resolution_area":
         candidates = list(player.resolution_area)
+    elif zone == "source_attachments":
+        source_slot = _top_member_slot(player, invocation.source_card_instance_id)
+        if source_slot is None:
+            return []
+        candidates = list(player.member_area_attachments[source_slot])
     else:
         return []
     if choice.card_type:
@@ -5085,6 +5112,8 @@ def _card_heart_or_required_heart_count(card: Any, color_slot: str) -> int:
 def _operation_requires_selected_choice(operation: Any) -> bool:
     if operation.action_type == "ready_energy" and operation.target == "auto":
         return False
+    if operation.action_type == "attach_selected_under_source":
+        return True
     if operation.target == "selected" and operation.action_type in {
         "apply_wait_member",
         "gain_blade",
@@ -5182,7 +5211,13 @@ def _effect_uses_card_choice(effect: Any) -> bool:
         "post_action_card_from_zone",
     }:
         return True
-    return effect.choice.zone in {"waiting_room", "hand", "stage", "energy_area"}
+    return effect.choice.zone in {
+        "waiting_room",
+        "hand",
+        "stage",
+        "energy_area",
+        "source_attachments",
+    }
 
 
 def _effect_uses_post_action_card_choice(effect: Any) -> bool:
@@ -5224,7 +5259,28 @@ def _post_action_choice_should_continue(
 
 
 def _effect_uses_cost_card_choice(effect: Any) -> bool:
-    return bool(effect.cost_choice and effect.cost_choice.zone in {"hand"})
+    return bool(effect.cost_choice and effect.cost_choice.zone in {"hand", "energy_area"})
+
+
+def _required_cost_choice_available(
+    state: MatchState,
+    invocation: EffectInvocation,
+    effect: Any,
+) -> bool:
+    if not _effect_uses_cost_card_choice(effect):
+        return True
+    if effect.cost_choice is None:
+        return True
+    cost_candidates = _effect_cost_choice_candidates(state, invocation)
+    if effect.cost_choice.minimum <= 0:
+        return True
+    return len(cost_candidates) >= effect.cost_choice.minimum and (
+        _choice_candidates_can_satisfy_condition(
+            state,
+            cost_candidates,
+            effect.cost_choice,
+        )
+    )
 
 
 def _effect_uses_post_cost_card_choice(effect: Any) -> bool:
@@ -5242,6 +5298,63 @@ def _effect_uses_post_cost_card_choice(effect: Any) -> bool:
             )
         )
     )
+
+
+def _post_cost_choice_can_be_checked_before_cost(effect: Any) -> bool:
+    if not _effect_uses_post_cost_card_choice(effect):
+        return False
+    if effect.cost_choice is None or effect.choice is None:
+        return False
+    cost_zone = _resolved_choice_zone(effect.cost_choice)
+    choice_zone = _resolved_choice_zone(effect.choice)
+    # Energy attachment costs do not create Waiting Room / Stage candidates.
+    # Hand discard costs can create Waiting Room candidates, so they must not be
+    # prechecked here.
+    return cost_zone == "energy_area" and choice_zone not in {
+        "energy_area",
+        "source_attachments",
+    }
+
+
+def _post_cost_choice_unavailable_reason(
+    state: MatchState,
+    invocation: EffectInvocation,
+    effect: Any,
+) -> str | None:
+    if not _post_cost_choice_can_be_checked_before_cost(effect):
+        return None
+    if effect.choice is None:
+        return None
+    post_cost_invocation = EffectInvocation(
+        invocation_id=invocation.invocation_id,
+        effect_id=invocation.effect_id,
+        source_card_instance_id=invocation.source_card_instance_id,
+        player_id=invocation.player_id,
+        trigger_event=invocation.trigger_event,
+        trigger_data=dict(invocation.trigger_data),
+        resolution_stage="after_cost",
+    )
+    if not _choice_condition_met(state, post_cost_invocation, effect.choice):
+        return None
+    minimum, _ = _effect_choice_bounds(state, post_cost_invocation, effect.choice)
+    if minimum <= 0:
+        return None
+    candidates = _effect_choice_candidates(state, post_cost_invocation)
+    if len(candidates) < minimum or not _choice_candidates_can_satisfy_condition(
+        state,
+        candidates,
+        effect.choice,
+    ):
+        return "post_cost_choice_candidates_unavailable"
+    return None
+
+
+def _required_post_cost_choice_available_before_cost(
+    state: MatchState,
+    invocation: EffectInvocation,
+    effect: Any,
+) -> bool:
+    return _post_cost_choice_unavailable_reason(state, invocation, effect) is None
 
 
 def _stage_member_targets_for_operation(
@@ -6043,6 +6156,56 @@ def _execute_operations(
                 player.waiting_room.remove(instance_id)
                 player.hand.append(instance_id)
                 state.cards[instance_id].face_up = True
+        elif operation_type == "attach_selected_under_source":
+            source_slot = _top_member_slot(player, invocation.source_card_instance_id)
+            if source_slot is None:
+                raise IllegalActionError("effect source must be on Stage")
+            source_zone = "hand"
+            if isinstance(operation.value, dict) and isinstance(
+                operation.value.get("source_zone"), str
+            ):
+                source_zone = operation.value["source_zone"]
+            elif effect.choice is not None and effect.choice.zone is not None:
+                source_zone = effect.choice.zone
+            elif effect.cost_choice is not None and effect.cost_choice.zone is not None:
+                source_zone = effect.cost_choice.zone
+            for instance_id in operation_selected_ids:
+                if source_zone == "hand":
+                    if instance_id not in player.hand:
+                        raise IllegalActionError("effect attach target must be in hand")
+                    if state.cards[instance_id].card.card_type != "member":
+                        raise IllegalActionError("effect attach target must be a Member")
+                    player.hand.remove(instance_id)
+                elif source_zone == "energy_area":
+                    if instance_id not in player.energy_area:
+                        raise IllegalActionError(
+                            "effect attach target must be in the Energy Area"
+                        )
+                    if state.cards[instance_id].card.card_type != "energy":
+                        raise IllegalActionError("effect attach target must be Energy")
+                    player.energy_area.remove(instance_id)
+                else:
+                    raise IllegalActionError(
+                        "effect attach target source zone is not supported"
+                    )
+                player.member_area_attachments[source_slot].append(instance_id)
+                state.cards[instance_id].face_up = True
+                events.append(
+                    GameEvent(
+                        event_type="card_attached_under_member",
+                        player_id=invocation.player_id,
+                        data={
+                            "invocation_id": invocation.invocation_id,
+                            "effect_id": invocation.effect_id,
+                            "card_instance_id": instance_id,
+                            "target_slot": source_slot,
+                            "target_member_instance_id": invocation.source_card_instance_id,
+                            "source_zone": source_zone,
+                            "revealed_to_opponent": source_zone == "hand",
+                        },
+                        source="system",
+                    )
+                )
         elif operation_type == "return_baton_replaced_member_to_hand":
             instance_id = invocation.trigger_data.get("replacement_card_instance_id")
             if not isinstance(instance_id, str):
@@ -6106,6 +6269,16 @@ def _execute_operations(
                 if instance_id not in player.hand:
                     raise IllegalActionError("effect deploy target must be in hand")
                 player.hand.remove(instance_id)
+            elif source_zone == "source_attachments":
+                source_slot = _top_member_slot(player, invocation.source_card_instance_id)
+                if (
+                    source_slot is None
+                    or instance_id not in player.member_area_attachments[source_slot]
+                ):
+                    raise IllegalActionError(
+                        "effect deploy target must be attached under the source"
+                    )
+                player.member_area_attachments[source_slot].remove(instance_id)
             elif source_zone in {None, "waiting_room"}:
                 if instance_id not in player.waiting_room:
                     raise IllegalActionError(
@@ -6401,11 +6574,12 @@ def _execute_operations(
             color_slot = operation.color_slot or selected_color_slot
             if not isinstance(color_slot, str):
                 raise IllegalActionError("effect requires a selected Heart color")
-            target_ids = (
-                operation_selected_ids
-                if operation.target == "selected"
-                else operation_selected_ids or [invocation.source_card_instance_id]
-            )
+            if operation.target == "source":
+                target_ids = [invocation.source_card_instance_id]
+            elif operation.target == "selected":
+                target_ids = operation_selected_ids
+            else:
+                target_ids = operation_selected_ids or [invocation.source_card_instance_id]
             amount = _operation_amount(
                 operation,
                 selected_count,
@@ -7409,7 +7583,8 @@ def _operation_amount(
             * multiplier
         )
     if (
-        operation.amount_source == "source_attached_energy_count_plus"
+        operation.amount_source
+        in {"source_attached_energy_count", "source_attached_energy_count_plus"}
         and operation_context is not None
         and state is not None
         and player is not None
@@ -7421,7 +7596,11 @@ def _operation_amount(
         if source_slot is None:
             return 0
         addend = 0
-        if isinstance(operation.value, dict) and isinstance(operation.value.get("add"), int):
+        if (
+            operation.amount_source == "source_attached_energy_count_plus"
+            and isinstance(operation.value, dict)
+            and isinstance(operation.value.get("add"), int)
+        ):
             addend = int(operation.value["add"])
         return (
             sum(
@@ -7965,7 +8144,9 @@ def _begin_live_judgment(
     else:
         first_at_match_point = len(first.success_live_area) >= 2
         second_at_match_point = len(second.success_live_area) >= 2
-        if first_at_match_point and not second_at_match_point:
+        if first_at_match_point and second_at_match_point:
+            winners = []
+        elif first_at_match_point and not second_at_match_point:
             winners = [second_id]
         elif second_at_match_point and not first_at_match_point:
             winners = [first_id]
@@ -8076,11 +8257,6 @@ def _finish_judgment_choices(
     while remaining_winners:
         player_id = remaining_winners.pop(0)
         player = state.players[player_id]
-        if (
-            len(state.live_winner_ids) == 2
-            and len(player.live_area) == 2
-        ):
-            continue
         if len(player.live_area) == 1:
             selected = player.live_area.pop()
             player.success_live_area.append(selected)

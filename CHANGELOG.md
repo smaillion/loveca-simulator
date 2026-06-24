@@ -29,6 +29,10 @@
 - `multi_player_draw_then_discard` の sandbox payload を通常の multi-player first-step choice と同じように処理し、問題カード入り targeted sandbox を再実行した。
 - selected-count 修正後の semantic mock sandbox は `20 decks x 10 matches` で 10/10 完走、deterministic block smoke は 6/10 完走、残り 4 件は `max_actions` で manual blocker / illegal action はなし。
 - 問題カードを含む targeted sandbox は、`block` が 15 局中 9 完走 / 6 `mandatory_manual_resolution`、`skip` が 15 局中 14 完走 / 1 `max_actions` / `illegal_action = 0`。残る主な blocker は `PL!S-bp6-001:1` と `PL!S-pb1-001:1`。
+- 双方がマッチポイントの状態で Live score が同点になった場合、双方成功 / 双方勝利ではなく、公式ルールどおり双方失敗として対戦を継続するようにした。
+- 同点 Live 判定で片方が複数枚の Live を成功させている場合も、成功 Live 選択が正しく表示されるようにした。
+- Online 手動調整で相手の公開 Stage を対象にした position / formation change ができるよう、操作プレイヤーと調整対象プレイヤーを分離した。
+- Energy を下に置く起動効果は、支払う Energy や支払い後の必須対象がない場合、操作候補に出さないようにした。
 
 中文:
 
@@ -53,6 +57,10 @@
 - 修正 sandbox 对 `multi_player_draw_then_discard` 的 payload 处理，并用包含问题卡的 targeted deck pool 重新执行 smoke。
 - selected-count 修复后的 semantic mock sandbox 为 `20 decks x 10 matches` 10/10 完走；deterministic block smoke 为 6/10 完走，剩余 4 个为 `max_actions`，没有 manual blocker / illegal action。
 - 包含问题卡的 targeted sandbox 中，`block` 为 15 局中 9 局完走 / 6 个 `mandatory_manual_resolution`，`skip` 为 15 局中 14 局完走 / 1 个 `max_actions` / `illegal_action = 0`。当前主要剩余 blocker 是 `PL!S-bp6-001:1` 和 `PL!S-pb1-001:1`。
+- 修复双方都处于 match point 时 Live score 同分会被判成双方成功 / 双方胜利的问题；现在按官方规则双方失败并继续对局。
+- 修复同分 Live 判定中，一方使用多张 Live 且双方都成功时，该方没有出现成功 Live 选择的问题。
+- Online 手动调整中将“提交操作玩家”和“调整对象玩家”分离，可对对手公开 Stage 执行 position / formation change。
+- 对把 Energy 放到成员下方作为成本的起动效果，若没有可支付 Energy 或支付后没有必选目标，现在不会显示为可发动。
 
 ## v0.76 - 2026-06-18
 

@@ -17,6 +17,7 @@ SUPPORTED_EFFECT_ACTIONS = {
     "apply_wait",
     "apply_wait_energy",
     "apply_wait_member",
+    "attach_selected_under_source",
     "clear_excess_hearts",
     "discard_from_hand",
     "draw_card",
@@ -118,6 +119,7 @@ class EffectOperation(BaseModel):
         "revealed_live_count",
         "own_stage_member_work_distinct_name_count",
         "waiting_room_live_work_distinct_name_threshold_bonus",
+        "source_attached_energy_count",
         "source_attached_energy_count_plus",
         "source_attached_member_count",
     ] | None = None
