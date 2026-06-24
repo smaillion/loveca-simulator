@@ -2859,6 +2859,86 @@ describe("App", () => {
     );
   });
 
+  it("can target the opponent's public stage for formation manual adjustments", async () => {
+    const onSubmit = vi.fn();
+    const opponentLeft = {
+      ...INSPECTION_CARDS["player_1-M002"],
+      instance_id: "player_2-M101",
+      owner_id: "player_2",
+      card: {
+        ...INSPECTION_CARDS["player_1-M002"].card,
+        name_ja: "相手左メンバー",
+      },
+    };
+    const opponentCenter = {
+      ...INSPECTION_CARDS["player_1-M003"],
+      instance_id: "player_2-M102",
+      owner_id: "player_2",
+      card: {
+        ...INSPECTION_CARDS["player_1-M003"].card,
+        name_ja: "相手中央メンバー",
+      },
+    };
+    const state = {
+      ...MATCH_PAYLOAD.state,
+      active_player_id: "player_1",
+      cards: {
+        ...INSPECTION_CARDS,
+        "player_2-M101": opponentLeft,
+        "player_2-M102": opponentCenter,
+      },
+      players: {
+        ...MATCH_PAYLOAD.state.players,
+        player_2: {
+          ...MATCH_PAYLOAD.state.players.player_2,
+          member_area: {
+            left: "player_2-M101",
+            center: "player_2-M102",
+            right: null,
+          },
+        },
+      },
+    };
+
+    render(
+      <ManualDrawer
+        state={state as never}
+        source={null}
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText("调整类型"), {
+      target: { value: "formation_change" },
+    });
+    fireEvent.change(screen.getByLabelText("调整对象玩家"), {
+      target: { value: "player_2" },
+    });
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "提交结构化调整" })).toBeEnabled(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "提交结构化调整" }));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      "player_1",
+      expect.objectContaining({
+        adjustments: [
+          expect.objectContaining({
+            adjustment_type: "formation_change",
+            target_player_id: "player_2",
+            slot_assignments: {
+              left: "player_2-M101",
+              center: "player_2-M102",
+              right: null,
+            },
+          }),
+        ],
+      }),
+    );
+  });
+
   it("resolves optional discard-to-Wait-Energy effects without manual adjustment", () => {
     const onAction = vi.fn();
     const onManual = vi.fn();

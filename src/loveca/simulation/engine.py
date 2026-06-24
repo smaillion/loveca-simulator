@@ -8044,7 +8044,9 @@ def _begin_live_judgment(
     else:
         first_at_match_point = len(first.success_live_area) >= 2
         second_at_match_point = len(second.success_live_area) >= 2
-        if first_at_match_point and not second_at_match_point:
+        if first_at_match_point and second_at_match_point:
+            winners = []
+        elif first_at_match_point and not second_at_match_point:
             winners = [second_id]
         elif second_at_match_point and not first_at_match_point:
             winners = [first_id]
@@ -8155,11 +8157,6 @@ def _finish_judgment_choices(
     while remaining_winners:
         player_id = remaining_winners.pop(0)
         player = state.players[player_id]
-        if (
-            len(state.live_winner_ids) == 2
-            and len(player.live_area) == 2
-        ):
-            continue
         if len(player.live_area) == 1:
             selected = player.live_area.pop()
             player.success_live_area.append(selected)

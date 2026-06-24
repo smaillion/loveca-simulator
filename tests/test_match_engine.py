@@ -1493,8 +1493,36 @@ def test_third_success_live_wins_and_match_rejects_further_actions(tmp_path):
         _apply(service, match_id, state, "start_next_turn")
 
 
-def test_simultaneous_third_success_live_is_a_draw(tmp_path):
+def test_higher_score_at_both_match_point_wins(tmp_path):
     service, match_id = _create_match(tmp_path, seed=1441)
+    state = _reach_first_main(service, match_id)
+    first_id = state.first_player_id or ""
+    second_id = state.second_player_id or ""
+    players = {first_id, second_id}
+    state = _preload_success_lives(
+        service,
+        match_id,
+        state,
+        list(players),
+        count=2,
+    )
+    state = _complete_turn(
+        service,
+        match_id,
+        state,
+        players,
+        equalize_scores=False,
+        score_bonus_by_player={first_id: 20},
+    )
+
+    assert state.phase == "complete"
+    assert state.game_result is not None
+    assert state.game_result.outcome == "win"
+    assert state.game_result.winner_player_ids == [first_id]
+
+
+def test_equal_score_at_both_match_point_counts_no_success_live(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=1443)
     state = _reach_first_main(service, match_id)
     players = {state.first_player_id or "", state.second_player_id or ""}
     state = _preload_success_lives(
@@ -1506,10 +1534,16 @@ def test_simultaneous_third_success_live_is_a_draw(tmp_path):
     )
     state = _complete_turn(service, match_id, state, players)
 
-    assert state.phase == "complete"
-    assert state.game_result is not None
-    assert state.game_result.outcome == "draw"
-    assert state.game_result.winner_player_ids == []
+    assert state.phase == "turn_complete"
+    assert state.live_judgment_summary is not None
+    assert state.live_judgment_summary["basis"] == "equal_total_score"
+    assert state.live_winner_ids == []
+    assert state.success_live_moved_player_ids == []
+    assert {
+        player_id: len(state.players[player_id].success_live_area)
+        for player_id in players
+    } == {player_id: 2 for player_id in players}
+    assert state.game_result is None
 
 
 def test_equal_score_at_one_sided_match_point_only_counts_non_match_point_player(tmp_path):
@@ -1526,6 +1560,114 @@ def test_equal_score_at_one_sided_match_point_only_counts_non_match_point_player
     assert state.success_live_moved_player_ids == [challenger_id]
     assert state.next_first_player_id == challenger_id
     assert state.game_result is None
+
+
+def test_equal_score_with_multiple_live_cards_still_prompts_success_choice(tmp_path):
+    service, match_id = _create_match(tmp_path, seed=1444)
+    state = _reach_first_main(service, match_id)
+    first_id = state.first_player_id or ""
+    second_id = state.second_player_id or ""
+    state = _preload_success_lives(service, match_id, state, [second_id], count=1)
+    first_live_ids = _flow_test_live_cards(state, first_id, count=2)
+    second_live_id = _flow_test_live_cards(state, second_id, count=1)[0]
+    first_total = sum(state.cards[item].card.score or 0 for item in first_live_ids)
+    second_score = state.cards[second_live_id].card.score or 0
+    adjustments = []
+    for player_id, live_ids in (
+        (first_id, first_live_ids),
+        (second_id, [second_live_id]),
+    ):
+        for live_id in live_ids:
+            adjustments.append(
+                {
+                    "adjustment_type": "move_card",
+                    "target_player_id": player_id,
+                    "target_card_instance_id": live_id,
+                    "to_zone": "hand",
+                }
+            )
+            for color in state.cards[live_id].card.required_hearts:
+                adjustments.append(
+                    {
+                        "adjustment_type": "modify_heart",
+                        "target_player_id": player_id,
+                        "color_slot": color,
+                        "amount": 20,
+                        "duration": "live",
+                    }
+                )
+    score_delta = first_total - second_score
+    if score_delta:
+        adjustments.append(
+            {
+                "adjustment_type": "modify_score",
+                "target_player_id": second_id,
+                "amount": score_delta,
+                "duration": "live",
+            }
+        )
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "manual_adjustment",
+        player_id=state.active_player_id,
+        payload={"reason": "prepare tied multiple Live success", "adjustments": adjustments},
+    )
+
+    state = _reach_live_set_from_first_main(service, match_id, state)
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "set_live_cards",
+        player_id=first_id,
+        payload={"card_instance_ids": first_live_ids},
+    )
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "set_live_cards",
+        player_id=second_id,
+        payload={"card_instance_ids": [second_live_id]},
+    )
+    for player_id in (first_id, second_id):
+        state = _apply(service, match_id, state, "advance_phase", player_id=player_id)
+        state = _apply(service, match_id, state, "advance_phase", player_id=player_id)
+        if state.pending_choice is not None:
+            state = _apply(
+                service,
+                match_id,
+                state,
+                "resolve_live_requirements",
+                player_id=player_id,
+                payload={
+                    "live_instance_ids": list(
+                        state.pending_choice.options["live_instance_ids"]
+                    )
+                },
+            )
+    assert state.phase == "live_judgment"
+    state = _apply(service, match_id, state, "advance_phase")
+
+    assert state.pending_choice is not None
+    assert state.pending_choice.choice_type == "success_live"
+    assert state.pending_choice.player_id == first_id
+    assert state.live_winner_ids == [first_id, second_id]
+    selected = first_live_ids[0]
+    state = _apply(
+        service,
+        match_id,
+        state,
+        "resolve_live_requirements",
+        player_id=first_id,
+        payload={"success_live_instance_id": selected},
+    )
+
+    assert selected in state.players[first_id].success_live_area
+    assert second_live_id in state.players[second_id].success_live_area
+    assert state.success_live_moved_player_ids == [first_id, second_id]
 
 
 def test_manual_modifier_durations_expire_at_live_turn_and_game_boundaries(tmp_path):
@@ -2000,7 +2142,11 @@ def _complete_turn(
     match_id: str,
     state,
     successful_player_ids: set[str],
+    *,
+    equalize_scores: bool = True,
+    score_bonus_by_player: dict[str, int] | None = None,
 ):
+    score_bonus_by_player = score_bonus_by_player or {}
     live_by_player: dict[str, str] = {}
     adjustments = []
     for player_id in successful_player_ids:
@@ -2022,15 +2168,30 @@ def _complete_turn(
                     "color_slot": color,
                     "amount": 20,
                     "duration": "live",
+                    }
+                )
+        score_bonus = score_bonus_by_player.get(player_id, 0)
+        if score_bonus:
+            adjustments.append(
+                {
+                    "adjustment_type": "modify_score",
+                    "target_player_id": player_id,
+                    "amount": score_bonus,
+                    "duration": "live",
                 }
             )
-    if len(live_by_player) == 2:
+    if equalize_scores and len(live_by_player) == 2:
         target_score = max(
-            state.cards[live_id].card.score or 0
-            for live_id in live_by_player.values()
+            (state.cards[live_id].card.score or 0)
+            + score_bonus_by_player.get(player_id, 0)
+            for player_id, live_id in live_by_player.items()
         )
         for player_id, live_id in live_by_player.items():
-            score_delta = target_score - (state.cards[live_id].card.score or 0)
+            current_score = (
+                (state.cards[live_id].card.score or 0)
+                + score_bonus_by_player.get(player_id, 0)
+            )
+            score_delta = target_score - current_score
             if score_delta:
                 adjustments.append(
                     {

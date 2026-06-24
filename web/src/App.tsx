@@ -5678,6 +5678,9 @@ export function ManualDrawer({
   const [playerId, setPlayerId] = useState(
     source?.player_id ?? state.active_player_id ?? "player_1",
   );
+  const [targetPlayerId, setTargetPlayerId] = useState(
+    source?.player_id ?? state.active_player_id ?? "player_1",
+  );
   const [type, setType] = useState("modify_score");
   const [amount, setAmount] = useState("1");
   const [cardId, setCardId] = useState("");
@@ -5694,6 +5697,11 @@ export function ManualDrawer({
   const [toSlot, setToSlot] = useState<"left" | "center" | "right">("left");
   const [energyOrientation, setEnergyOrientation] = useState<"active" | "wait">("active");
   const player = state.players[playerId];
+  const targetPlayer = state.players[targetPlayerId] ?? player;
+  const publicStageTargetTypes = ["move_member", "position_change", "formation_change"];
+  const usesPublicStageTarget = publicStageTargetTypes.includes(type);
+  const adjustmentTargetPlayerId = usesPublicStageTarget ? targetPlayerId : playerId;
+  const stagePlayer = usesPublicStageTarget ? targetPlayer : player;
   const visibleCards = (ids: string[]) =>
     ids
       .map((id) => state.cards[id])
@@ -5712,7 +5720,7 @@ export function ManualDrawer({
   ].filter((card): card is CardInstance => Boolean(card));
   const attachedCards = visibleCards(attachedIds);
   const stageCards = MEMBER_SLOT_DISPLAY_ORDER
-    .map((slot) => player.member_area[slot])
+    .map((slot) => stagePlayer.member_area[slot])
     .filter((id): id is string => id !== null)
     .map((id) => state.cards[id])
     .filter((card): card is CardInstance => Boolean(card));
@@ -5732,22 +5740,22 @@ export function ManualDrawer({
             ? visibleCards(player.energy_area)
           : genericCards;
   const selectedCard = cardId ? state.cards[cardId] ?? null : null;
-  const stageMemberIds = Object.values(player.member_area).filter(
+  const stageMemberIds = Object.values(stagePlayer.member_area).filter(
     (id): id is string => id !== null,
   );
   const selectedMemberSlot = cardId
-    ? MEMBER_SLOT_DISPLAY_ORDER.find((slot) => player.member_area[slot] === cardId)
+    ? MEMBER_SLOT_DISPLAY_ORDER.find((slot) => stagePlayer.member_area[slot] === cardId)
     : undefined;
   const [formation, setFormation] = useState<Record<"left" | "center" | "right", string>>({
-    left: player.member_area.left ?? "",
-    center: player.member_area.center ?? "",
-    right: player.member_area.right ?? "",
+    left: stagePlayer.member_area.left ?? "",
+    center: stagePlayer.member_area.center ?? "",
+    right: stagePlayer.member_area.right ?? "",
   });
   useEffect(() => {
     setCardId("");
     setCardIds([]);
     const occupied = MEMBER_SLOT_SELECTION_PRIORITY.filter(
-      (slot) => player.member_area[slot],
+      (slot) => stagePlayer.member_area[slot],
     );
     const firstOccupied = occupied[0] ?? "center";
     setTargetSlot(firstOccupied);
@@ -5757,11 +5765,11 @@ export function ManualDrawer({
         ?? "left",
     );
     setFormation({
-      left: player.member_area.left ?? "",
-      center: player.member_area.center ?? "",
-      right: player.member_area.right ?? "",
+      left: stagePlayer.member_area.left ?? "",
+      center: stagePlayer.member_area.center ?? "",
+      right: stagePlayer.member_area.right ?? "",
     });
-  }, [playerId, state.revision]);
+  }, [playerId, targetPlayerId, state.revision]);
   useEffect(() => {
     if (type !== "move_attached_card") {
       return;
@@ -5779,7 +5787,7 @@ export function ManualDrawer({
         : type === "move_member"
           ? Boolean(cardId && selectedMemberSlot && selectedMemberSlot !== toSlot)
           : type === "position_change"
-            ? Boolean(player.member_area[fromSlot] && fromSlot !== toSlot)
+            ? Boolean(stagePlayer.member_area[fromSlot] && fromSlot !== toSlot)
           : type === "formation_change"
             ? formationIds.length === stageMemberIds.length
               && new Set(formationIds).size === stageMemberIds.length
@@ -5810,7 +5818,7 @@ export function ManualDrawer({
           </button>
         </header>
         <label>
-          {tr("目标玩家", "対象プレイヤー")}
+          {tr("提交操作玩家", "操作プレイヤー")}
           <select value={playerId} onChange={(e) => setPlayerId(e.target.value)}>
             {Object.values(state.players).map((player) => (
               <option key={player.player_id} value={player.player_id}>
@@ -5819,6 +5827,18 @@ export function ManualDrawer({
             ))}
           </select>
         </label>
+        {usesPublicStageTarget && (
+          <label>
+            {tr("调整对象玩家", "調整対象プレイヤー")}
+            <select value={targetPlayerId} onChange={(e) => setTargetPlayerId(e.target.value)}>
+              {Object.values(state.players).map((player) => (
+                <option key={player.player_id} value={player.player_id}>
+                  {player.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <label>
           {tr("调整类型", "調整タイプ")}
           <select
@@ -5871,7 +5891,7 @@ export function ManualDrawer({
                   {type === "move_member"
                     ? ` · ${memberSlotLabel(
                         MEMBER_SLOT_DISPLAY_ORDER.find(
-                          (slot) => player.member_area[slot] === card.instance_id,
+                          (slot) => stagePlayer.member_area[slot] === card.instance_id,
                         ) ?? "",
                         locale,
                       )}`
@@ -5914,8 +5934,8 @@ export function ManualDrawer({
               {MEMBER_SLOT_DISPLAY_ORDER.map((slot) => (
                 <option disabled={slot === selectedMemberSlot} key={slot} value={slot}>
                   {memberSlotLabel(slot, locale)} ·{" "}
-                  {player.member_area[slot]
-                    ? state.cards[player.member_area[slot]!]?.card.name_ja ?? player.member_area[slot]
+                  {stagePlayer.member_area[slot]
+                    ? state.cards[stagePlayer.member_area[slot]!]?.card.name_ja ?? stagePlayer.member_area[slot]
                     : tr("空", "空き")}
                 </option>
               ))}
@@ -6018,7 +6038,7 @@ export function ManualDrawer({
                 }
               >
                 {MEMBER_SLOT_DISPLAY_ORDER.map((slot) => (
-                  <option disabled={!player.member_area[slot]} key={slot} value={slot}>
+                  <option disabled={!stagePlayer.member_area[slot]} key={slot} value={slot}>
                     {memberSlotLabel(slot)}
                   </option>
                 ))}
@@ -6153,7 +6173,7 @@ export function ManualDrawer({
               adjustments: [
                 {
                   adjustment_type: type,
-                  target_player_id: playerId,
+                  target_player_id: adjustmentTargetPlayerId,
                   target_card_instance_id:
                     ["ready_energy", "pay_energy"].includes(type)
                       ? undefined
