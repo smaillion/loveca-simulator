@@ -99,6 +99,53 @@ def test_effect_candidate_discovery_structures_pl_hs_bp6_014_hand_activation():
     ]
 
 
+def test_effect_candidate_discovery_structures_pl_bp6_003_source_attachment():
+    database = _require_full_card_database()
+    candidates = discover_effect_candidates(database, include_registered=True)
+    by_id = {item.effect_id: item for item in candidates}
+
+    live_start = by_id["PL!-bp6-003:1"]
+    assert (
+        live_start.pattern_id
+        == "pl_bp6_003_live_start_center_attach_hand_muse_cost2_gain_chosen_heart"
+    )
+    assert live_start.condition == {"source_slot": "center"}
+    assert live_start.choice == {
+        "choice_type": "card_from_zone",
+        "zone": "hand",
+        "card_type": "member",
+        "work_key": "love_live",
+        "maximum_cost": 2,
+        "minimum": 1,
+        "maximum": 1,
+        "color_slots": [
+            "heart01",
+            "heart02",
+            "heart03",
+            "heart04",
+            "heart05",
+            "heart06",
+        ],
+    }
+    assert live_start.actions == [
+        {"action_type": "attach_selected_under_source"},
+        {"action_type": "gain_heart", "target": "source", "amount": 1},
+    ]
+
+    live_success = by_id["PL!-bp6-003:2"]
+    assert live_success.pattern_id == "pl_bp6_003_live_success_deploy_attached_muse_cost2_member"
+    assert live_success.choice == {
+        "choice_type": "deploy_member_from_waiting_room",
+        "zone": "source_attachments",
+        "card_type": "member",
+        "work_key": "love_live",
+        "maximum_cost": 2,
+        "minimum": 1,
+        "maximum": 1,
+    }
+    assert live_success.actions == [{"action_type": "deploy_selected_to_empty_stage"}]
+
+
 def test_registry_contains_all_matching_wait_energy_effects():
     registry = EffectRegistry.model_validate_json(REGISTRY.read_text(encoding="utf-8"))
     expected = {
@@ -5705,6 +5752,159 @@ def test_pl_hs_bp6_014_resolves_from_hand_without_named_stage_target():
     )
 
     assert not state.players["player_1"].manual_modifiers
+    assert not state.pending_effects
+
+
+def test_pl_bp6_003_live_start_attaches_hand_member_and_gains_chosen_heart():
+    registry = EffectRegistry.model_validate_json(REGISTRY.read_text(encoding="utf-8"))
+    effect = {effect.effect_id: effect for effect in registry.effects}["PL!-bp6-003:1"]
+    state = _minimal_effect_state(effect)
+    source_member = CardDefinition(
+        card_code="PL!-bp6-003",
+        card_id="PL!-bp6-003-R+",
+        name_ja="南ことり",
+        card_type="member",
+        cost=15,
+        blade=7,
+        basic_hearts={"heart01": 1},
+    )
+    low_muse = CardDefinition(
+        card_code="PL!-bp6-017",
+        card_id="PL!-bp6-017-N",
+        name_ja="小泉花陽",
+        card_type="member",
+        cost=2,
+        blade=0,
+        basic_hearts={"heart01": 1},
+        work_keys=["love_live"],
+    )
+    high_muse = low_muse.model_copy(
+        update={"card_code": "PL!-bp6-008", "card_id": "PL!-bp6-008-P", "cost": 7}
+    )
+    other_work = low_muse.model_copy(
+        update={
+            "card_code": "PL!SP-bp6-001",
+            "card_id": "PL!SP-bp6-001-R",
+            "work_keys": ["love_live_superstar"],
+        }
+    )
+    state.cards["source-live"].card = source_member
+    state.cards["low-muse"] = CardInstance(
+        instance_id="low-muse",
+        owner_id="player_1",
+        card=low_muse,
+    )
+    state.cards["high-muse"] = CardInstance(
+        instance_id="high-muse",
+        owner_id="player_1",
+        card=high_muse,
+    )
+    state.cards["other-work"] = CardInstance(
+        instance_id="other-work",
+        owner_id="player_1",
+        card=other_work,
+    )
+    player = state.players["player_1"]
+    player.member_area = {"left": None, "center": "source-live", "right": None}
+    player.hand = ["low-muse", "high-muse", "other-work"]
+
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["candidate_card_instance_ids"] == ["low-muse"]
+    assert set(options["color_slots"]) == {
+        "heart01",
+        "heart02",
+        "heart03",
+        "heart04",
+        "heart05",
+        "heart06",
+    }
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["low-muse"],
+            "selected_color_slot": "heart03",
+        },
+    )
+
+    player = state.players["player_1"]
+    assert "low-muse" not in player.hand
+    assert player.member_area_attachments["center"] == ["low-muse"]
+    assert state.cards["low-muse"].face_up is True
+    assert any(
+        modifier.modifier_type == "heart"
+        and modifier.color_slot == "heart03"
+        and modifier.amount == 1
+        and modifier.target_card_instance_id == "source-live"
+        for modifier in player.manual_modifiers
+    )
+    assert not state.pending_effects
+
+
+def test_pl_bp6_003_live_success_deploys_attached_member_to_empty_center():
+    registry = EffectRegistry.model_validate_json(REGISTRY.read_text(encoding="utf-8"))
+    effect = {effect.effect_id: effect for effect in registry.effects}["PL!-bp6-003:2"]
+    state = _minimal_effect_state(effect)
+    source_member = CardDefinition(
+        card_code="PL!-bp6-003",
+        card_id="PL!-bp6-003-R+",
+        name_ja="南ことり",
+        card_type="member",
+        cost=15,
+        blade=7,
+        basic_hearts={"heart01": 1},
+    )
+    attached_member = CardDefinition(
+        card_code="PL!-bp6-017",
+        card_id="PL!-bp6-017-N",
+        name_ja="小泉花陽",
+        card_type="member",
+        cost=2,
+        blade=0,
+        basic_hearts={"heart01": 1},
+        work_keys=["love_live"],
+    )
+    high_attached = attached_member.model_copy(
+        update={"card_code": "PL!-bp6-008", "card_id": "PL!-bp6-008-P", "cost": 7}
+    )
+    state.cards["source-live"].card = source_member
+    state.cards["attached-low"] = CardInstance(
+        instance_id="attached-low",
+        owner_id="player_1",
+        card=attached_member,
+    )
+    state.cards["attached-high"] = CardInstance(
+        instance_id="attached-high",
+        owner_id="player_1",
+        card=high_attached,
+    )
+    player = state.players["player_1"]
+    player.member_area = {"left": "source-live", "center": None, "right": None}
+    player.member_area_attachments["left"] = ["attached-low", "attached-high"]
+
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["candidate_card_instance_ids"] == ["attached-low"]
+    assert options["available_slots"] == ["center", "right"]
+
+    state = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": ["attached-low"],
+            "to_slot": "center",
+        },
+    )
+
+    player = state.players["player_1"]
+    assert player.member_area["center"] == "attached-low"
+    assert player.member_area_attachments["left"] == ["attached-high"]
+    assert "center" in player.member_areas_entered_this_turn
+    assert state.cards["attached-low"].orientation == "wait"
     assert not state.pending_effects
 
 

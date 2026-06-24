@@ -4247,26 +4247,49 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "attach_selected_under_source"
+        },
+        {
+          "action_type": "gain_heart",
+          "amount": 1,
+          "target": "source"
         }
       ],
       "card_code": "PL!-bp6-003",
-      "choice": null,
-      "condition": {},
+      "choice": {
+        "card_type": "member",
+        "choice_type": "card_from_zone",
+        "color_slots": [
+          "heart01",
+          "heart02",
+          "heart03",
+          "heart04",
+          "heart05",
+          "heart06"
+        ],
+        "maximum": 1,
+        "maximum_cost": 2,
+        "minimum": 1,
+        "work_key": "love_live",
+        "zone": "hand"
+      },
+      "condition": {
+        "source_slot": "center"
+      },
       "cost": [],
       "cost_choice": null,
       "duration": "live",
       "effect_id": "PL!-bp6-003:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "once_per_live",
       "is_optional": true,
       "label_ja": "【ライブ開始時】【センター】手札にあるコスト2以下の『μ's』のメンバーカードを1枚公開し、このメンバーの下に置いてもよい。そうした場合、好きなハートの色を1つ指定する。ライブ終了時まで、そのハートを1つ得る。",
       "raw_text_hash": "a97fbfd44a384f8217e07218649736855af4a6fd725dd9de9c7242520f6ed06e",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 4,
       "timing": "live_start",
       "trigger": "live_started"
@@ -4274,11 +4297,19 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "deploy_selected_to_empty_stage"
         }
       ],
       "card_code": "PL!-bp6-003",
-      "choice": null,
+      "choice": {
+        "card_type": "member",
+        "choice_type": "deploy_member_from_waiting_room",
+        "maximum": 1,
+        "maximum_cost": 2,
+        "minimum": 1,
+        "work_key": "love_live",
+        "zone": "source_attachments"
+      },
       "condition": {},
       "cost": [],
       "cost_choice": null,
@@ -4286,14 +4317,14 @@
       "effect_id": "PL!-bp6-003:2",
       "effect_index": 2,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "once_per_live",
       "is_optional": true,
       "label_ja": "【ライブ成功時】このメンバーの下にあるコスト2以下の『μ's』のメンバーカードを1枚、メンバーのいないエリアに登場させてもよい。",
       "raw_text_hash": "a97fbfd44a384f8217e07218649736855af4a6fd725dd9de9c7242520f6ed06e",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 4,
       "timing": "live_success",
       "trigger": "live_succeeded"

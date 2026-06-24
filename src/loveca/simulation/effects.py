@@ -17,6 +17,7 @@ SUPPORTED_EFFECT_ACTIONS = {
     "apply_wait",
     "apply_wait_energy",
     "apply_wait_member",
+    "attach_selected_under_source",
     "clear_excess_hearts",
     "discard_from_hand",
     "draw_card",

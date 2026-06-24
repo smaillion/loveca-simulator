@@ -10157,6 +10157,99 @@ def _live_start_source_attached_member_heart05(
     )
 
 
+def _pl_bp6_003_live_start_attach_hand_muse_member(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    label = (
+        "【ライブ開始時】【センター】手札にあるコスト2以下の『μ's』の"
+        "メンバーカードを1枚公開し、このメンバーの下に置いてもよい。"
+        "そうした場合、好きなハートの色を1つ指定する。ライブ終了時まで、"
+        "そのハートを1つ得る。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base_with_execution_mode(
+            row,
+            pattern_id="pl_bp6_003_live_start_center_attach_hand_muse_cost2_gain_chosen_heart",
+            effect_index=effect_index,
+            execution_mode="prompt_then_resolve",
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        frequency_limit="once_per_live",
+        is_optional=True,
+        condition={"source_slot": "center"},
+        cost=[],
+        choice={
+            "choice_type": "card_from_zone",
+            "zone": "hand",
+            "card_type": "member",
+            "work_key": "love_live",
+            "maximum_cost": 2,
+            "minimum": 1,
+            "maximum": 1,
+            "color_slots": [
+                "heart01",
+                "heart02",
+                "heart03",
+                "heart04",
+                "heart05",
+                "heart06",
+            ],
+        },
+        actions=[
+            {"action_type": "attach_selected_under_source"},
+            {"action_type": "gain_heart", "target": "source", "amount": 1},
+        ],
+        duration="live",
+    )
+
+
+def _pl_bp6_003_live_success_deploy_attached_muse_member(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    label = (
+        "【ライブ成功時】このメンバーの下にあるコスト2以下の『μ's』の"
+        "メンバーカードを1枚、メンバーのいないエリアに登場させてもよい。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base_with_execution_mode(
+            row,
+            pattern_id="pl_bp6_003_live_success_deploy_attached_muse_cost2_member",
+            effect_index=effect_index,
+            execution_mode="prompt_then_resolve",
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        frequency_limit="once_per_live",
+        is_optional=True,
+        condition={},
+        cost=[],
+        choice={
+            "choice_type": "deploy_member_from_waiting_room",
+            "zone": "source_attachments",
+            "card_type": "member",
+            "work_key": "love_live",
+            "maximum_cost": 2,
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[{"action_type": "deploy_selected_to_empty_stage"}],
+        duration="live",
+    )
+
+
 def _live_success_aqours_heart05_opponent_no_excess_score2(
     row: sqlite3.Row,
 ) -> EffectCandidate | None:
@@ -11433,6 +11526,8 @@ _PATTERNS = (
     _live_success_stage2_return_score3_live,
     _live_start_nijigasaki_ready_history_score,
     _live_start_source_attached_member_heart05,
+    _pl_bp6_003_live_start_attach_hand_muse_member,
+    _pl_bp6_003_live_success_deploy_attached_muse_member,
     _live_success_aqours_heart05_opponent_no_excess_score2,
     _live_start_opponent_wait_count_return_nijigasaki_members_to_deck_top,
     _live_start_named_superstar_members_gain_heart_and_blade,

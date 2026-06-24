@@ -4909,6 +4909,11 @@ def _effect_candidates_for_choice(
         candidates = list(player.energy_area)
     elif zone == "resolution_area":
         candidates = list(player.resolution_area)
+    elif zone == "source_attachments":
+        source_slot = _top_member_slot(player, invocation.source_card_instance_id)
+        if source_slot is None:
+            return []
+        candidates = list(player.member_area_attachments[source_slot])
     else:
         return []
     if choice.card_type:
@@ -5085,6 +5090,8 @@ def _card_heart_or_required_heart_count(card: Any, color_slot: str) -> int:
 def _operation_requires_selected_choice(operation: Any) -> bool:
     if operation.action_type == "ready_energy" and operation.target == "auto":
         return False
+    if operation.action_type == "attach_selected_under_source":
+        return True
     if operation.target == "selected" and operation.action_type in {
         "apply_wait_member",
         "gain_blade",
@@ -5182,7 +5189,13 @@ def _effect_uses_card_choice(effect: Any) -> bool:
         "post_action_card_from_zone",
     }:
         return True
-    return effect.choice.zone in {"waiting_room", "hand", "stage", "energy_area"}
+    return effect.choice.zone in {
+        "waiting_room",
+        "hand",
+        "stage",
+        "energy_area",
+        "source_attachments",
+    }
 
 
 def _effect_uses_post_action_card_choice(effect: Any) -> bool:
@@ -6043,6 +6056,34 @@ def _execute_operations(
                 player.waiting_room.remove(instance_id)
                 player.hand.append(instance_id)
                 state.cards[instance_id].face_up = True
+        elif operation_type == "attach_selected_under_source":
+            source_slot = _top_member_slot(player, invocation.source_card_instance_id)
+            if source_slot is None:
+                raise IllegalActionError("effect source must be on Stage")
+            for instance_id in operation_selected_ids:
+                if instance_id not in player.hand:
+                    raise IllegalActionError("effect attach target must be in hand")
+                if state.cards[instance_id].card.card_type != "member":
+                    raise IllegalActionError("effect attach target must be a Member")
+                player.hand.remove(instance_id)
+                player.member_area_attachments[source_slot].append(instance_id)
+                state.cards[instance_id].face_up = True
+                events.append(
+                    GameEvent(
+                        event_type="card_attached_under_member",
+                        player_id=invocation.player_id,
+                        data={
+                            "invocation_id": invocation.invocation_id,
+                            "effect_id": invocation.effect_id,
+                            "card_instance_id": instance_id,
+                            "target_slot": source_slot,
+                            "target_member_instance_id": invocation.source_card_instance_id,
+                            "source_zone": "hand",
+                            "revealed_to_opponent": True,
+                        },
+                        source="system",
+                    )
+                )
         elif operation_type == "return_baton_replaced_member_to_hand":
             instance_id = invocation.trigger_data.get("replacement_card_instance_id")
             if not isinstance(instance_id, str):
@@ -6106,6 +6147,16 @@ def _execute_operations(
                 if instance_id not in player.hand:
                     raise IllegalActionError("effect deploy target must be in hand")
                 player.hand.remove(instance_id)
+            elif source_zone == "source_attachments":
+                source_slot = _top_member_slot(player, invocation.source_card_instance_id)
+                if (
+                    source_slot is None
+                    or instance_id not in player.member_area_attachments[source_slot]
+                ):
+                    raise IllegalActionError(
+                        "effect deploy target must be attached under the source"
+                    )
+                player.member_area_attachments[source_slot].remove(instance_id)
             elif source_zone in {None, "waiting_room"}:
                 if instance_id not in player.waiting_room:
                     raise IllegalActionError(
@@ -6401,11 +6452,12 @@ def _execute_operations(
             color_slot = operation.color_slot or selected_color_slot
             if not isinstance(color_slot, str):
                 raise IllegalActionError("effect requires a selected Heart color")
-            target_ids = (
-                operation_selected_ids
-                if operation.target == "selected"
-                else operation_selected_ids or [invocation.source_card_instance_id]
-            )
+            if operation.target == "source":
+                target_ids = [invocation.source_card_instance_id]
+            elif operation.target == "selected":
+                target_ids = operation_selected_ids
+            else:
+                target_ids = operation_selected_ids or [invocation.source_card_instance_id]
             amount = _operation_amount(
                 operation,
                 selected_count,
