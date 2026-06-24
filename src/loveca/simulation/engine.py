@@ -5237,7 +5237,7 @@ def _post_action_choice_should_continue(
 
 
 def _effect_uses_cost_card_choice(effect: Any) -> bool:
-    return bool(effect.cost_choice and effect.cost_choice.zone in {"hand"})
+    return bool(effect.cost_choice and effect.cost_choice.zone in {"hand", "energy_area"})
 
 
 def _effect_uses_post_cost_card_choice(effect: Any) -> bool:
@@ -6060,12 +6060,34 @@ def _execute_operations(
             source_slot = _top_member_slot(player, invocation.source_card_instance_id)
             if source_slot is None:
                 raise IllegalActionError("effect source must be on Stage")
+            source_zone = "hand"
+            if isinstance(operation.value, dict) and isinstance(
+                operation.value.get("source_zone"), str
+            ):
+                source_zone = operation.value["source_zone"]
+            elif effect.choice is not None and effect.choice.zone is not None:
+                source_zone = effect.choice.zone
+            elif effect.cost_choice is not None and effect.cost_choice.zone is not None:
+                source_zone = effect.cost_choice.zone
             for instance_id in operation_selected_ids:
-                if instance_id not in player.hand:
-                    raise IllegalActionError("effect attach target must be in hand")
-                if state.cards[instance_id].card.card_type != "member":
-                    raise IllegalActionError("effect attach target must be a Member")
-                player.hand.remove(instance_id)
+                if source_zone == "hand":
+                    if instance_id not in player.hand:
+                        raise IllegalActionError("effect attach target must be in hand")
+                    if state.cards[instance_id].card.card_type != "member":
+                        raise IllegalActionError("effect attach target must be a Member")
+                    player.hand.remove(instance_id)
+                elif source_zone == "energy_area":
+                    if instance_id not in player.energy_area:
+                        raise IllegalActionError(
+                            "effect attach target must be in the Energy Area"
+                        )
+                    if state.cards[instance_id].card.card_type != "energy":
+                        raise IllegalActionError("effect attach target must be Energy")
+                    player.energy_area.remove(instance_id)
+                else:
+                    raise IllegalActionError(
+                        "effect attach target source zone is not supported"
+                    )
                 player.member_area_attachments[source_slot].append(instance_id)
                 state.cards[instance_id].face_up = True
                 events.append(
@@ -6078,8 +6100,8 @@ def _execute_operations(
                             "card_instance_id": instance_id,
                             "target_slot": source_slot,
                             "target_member_instance_id": invocation.source_card_instance_id,
-                            "source_zone": "hand",
-                            "revealed_to_opponent": True,
+                            "source_zone": source_zone,
+                            "revealed_to_opponent": source_zone == "hand",
                         },
                         source="system",
                     )
@@ -7461,7 +7483,8 @@ def _operation_amount(
             * multiplier
         )
     if (
-        operation.amount_source == "source_attached_energy_count_plus"
+        operation.amount_source
+        in {"source_attached_energy_count", "source_attached_energy_count_plus"}
         and operation_context is not None
         and state is not None
         and player is not None
@@ -7473,7 +7496,11 @@ def _operation_amount(
         if source_slot is None:
             return 0
         addend = 0
-        if isinstance(operation.value, dict) and isinstance(operation.value.get("add"), int):
+        if (
+            operation.amount_source == "source_attached_energy_count_plus"
+            and isinstance(operation.value, dict)
+            and isinstance(operation.value.get("add"), int)
+        ):
             addend = int(operation.value["add"])
         return (
             sum(

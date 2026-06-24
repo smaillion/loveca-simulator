@@ -10250,6 +10250,364 @@ def _pl_bp6_003_live_success_deploy_attached_muse_member(
     )
 
 
+def _pl_n_bp3_001_live_start_attach_energy_draw_stage_blade(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    label = (
+        "【ライブ開始時】自分のエネルギー置き場にあるエネルギー1枚を"
+        "このメンバーの下に置いてもよい。そうした場合、カードを1枚引き、"
+        "ライブ終了時まで、自分のステージにいるメンバーは【ブレード】"
+        "【ブレード】を得る。（メンバーの下に置かれているエネルギーカードでは"
+        "コストを支払えない。メンバーがステージから離れたとき、"
+        "下に置かれているエネルギーカードはエネルギーデッキに置く。）"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base_with_execution_mode(
+            row,
+            pattern_id="live_start_attach_energy_draw1_stage_members_blade2",
+            effect_index=effect_index,
+            execution_mode="prompt_then_resolve",
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        frequency_limit="once_per_live",
+        is_optional=True,
+        condition={"source_zone": "stage"},
+        cost=[],
+        choice={
+            "choice_type": "energy_from_area",
+            "zone": "energy_area",
+            "card_type": "energy",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[
+            {"action_type": "attach_selected_under_source"},
+            {"action_type": "draw_card", "amount": 1},
+            {"action_type": "gain_blade_to_stage_members", "amount": 2},
+        ],
+        duration="live",
+    )
+
+
+def _pl_n_bp3_013_onplay_attach_energy_draw2(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    label = (
+        "【登場】自分のエネルギー置き場にあるエネルギー1枚を"
+        "このメンバーの下に置いてもよい。そうした場合、カードを2枚引く。"
+        "（メンバーの下に置かれているエネルギーカードではコストを支払えない。"
+        "メンバーがステージから離れたとき、下に置かれているエネルギーカードは"
+        "エネルギーデッキに置く。）"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base_with_execution_mode(
+            row,
+            pattern_id="onplay_attach_energy_draw2",
+            effect_index=effect_index,
+            execution_mode="prompt_then_resolve",
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="on_play",
+        trigger="member_played",
+        frequency_limit="once_per_play",
+        is_optional=True,
+        condition={},
+        cost=[],
+        choice={
+            "choice_type": "energy_from_area",
+            "zone": "energy_area",
+            "card_type": "energy",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[
+            {"action_type": "attach_selected_under_source"},
+            {"action_type": "draw_card", "amount": 2},
+        ],
+        duration=None,
+    )
+
+
+def _pl_n_pb1_002_onplay_attach_two_energy(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    label = (
+        "【登場】自分のエネルギー置き場にあるエネルギー2枚を"
+        "このメンバーの下に置いてもよい。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base_with_execution_mode(
+            row,
+            pattern_id="onplay_attach_two_energy",
+            effect_index=effect_index,
+            execution_mode="prompt_then_resolve",
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="on_play",
+        trigger="member_played",
+        frequency_limit="once_per_play",
+        is_optional=True,
+        condition={},
+        cost=[],
+        choice={
+            "choice_type": "energy_from_area",
+            "zone": "energy_area",
+            "card_type": "energy",
+            "minimum": 2,
+            "maximum": 2,
+        },
+        actions=[{"action_type": "attach_selected_under_source"}],
+        duration=None,
+    )
+
+
+def _pl_hs_pb1_002_activated_attach_hand_sayaka(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    label = (
+        "【起動】【ターン1回】手札の「村野さやか」のメンバーカードを1枚公開する："
+        "これにより公開したカードをこのメンバーの下に置く。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base_with_execution_mode(
+            row,
+            pattern_id="activated_reveal_hand_sayaka_attach_under_source",
+            effect_index=effect_index,
+            execution_mode="prompt_then_resolve",
+        ),
+        label_ja=exact_label,
+        effect_type="activated",
+        timing="activated_main",
+        trigger="player_activation",
+        frequency_limit="once_per_turn",
+        is_optional=False,
+        condition={"source_zone": "stage"},
+        cost=[
+            {
+                "action_type": "attach_selected_under_source",
+                "value": {"source_zone": "hand"},
+            }
+        ],
+        cost_choice={
+            "choice_type": "card_from_zone",
+            "zone": "hand",
+            "card_type": "member",
+            "name_ja_any": ["村野さやか"],
+            "minimum": 1,
+            "maximum": 1,
+        },
+        choice=None,
+        actions=[],
+        duration=None,
+    )
+
+
+def _pl_n_bp5_008_activated_attach_energy_ready2(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    label = (
+        "【起動】【ターン1回】エネルギー置き場にあるエネルギー1枚を"
+        "このメンバーの下に置く：エネルギーを2枚アクティブにする。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base_with_execution_mode(
+            row,
+            pattern_id="activated_attach_energy_ready2",
+            effect_index=effect_index,
+            execution_mode="prompt_then_resolve",
+        ),
+        label_ja=exact_label,
+        effect_type="activated",
+        timing="activated_main",
+        trigger="player_activation",
+        frequency_limit="once_per_turn",
+        is_optional=False,
+        condition={"source_zone": "stage"},
+        cost=[
+            {
+                "action_type": "attach_selected_under_source",
+                "value": {"source_zone": "energy_area"},
+            }
+        ],
+        cost_choice={
+            "choice_type": "energy_from_area",
+            "zone": "energy_area",
+            "card_type": "energy",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        choice=None,
+        actions=[{"action_type": "ready_energy", "target": "auto", "amount": 2}],
+        duration=None,
+    )
+
+
+def _pl_n_bp5_012_activated_attach_energy_draw_heart01(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    label = (
+        "【起動】【ターン1回】エネルギー置き場にあるエネルギー1枚を"
+        "このメンバーの下に置く：カードを1枚引き、ライブ終了時まで、"
+        "【heart01】を得る。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base_with_execution_mode(
+            row,
+            pattern_id="activated_attach_energy_draw1_gain_heart01",
+            effect_index=effect_index,
+            execution_mode="prompt_then_resolve",
+        ),
+        label_ja=exact_label,
+        effect_type="activated",
+        timing="activated_main",
+        trigger="player_activation",
+        frequency_limit="once_per_turn",
+        is_optional=False,
+        condition={"source_zone": "stage"},
+        cost=[
+            {
+                "action_type": "attach_selected_under_source",
+                "value": {"source_zone": "energy_area"},
+            }
+        ],
+        cost_choice={
+            "choice_type": "energy_from_area",
+            "zone": "energy_area",
+            "card_type": "energy",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        choice=None,
+        actions=[
+            {"action_type": "draw_card", "amount": 1},
+            {
+                "action_type": "gain_heart",
+                "target": "source",
+                "amount": 1,
+                "color_slot": "heart01",
+            },
+        ],
+        duration="live",
+    )
+
+
+def _pl_n_pb1_011_activated_attach_energy_return_nijigasaki_live(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    label = (
+        "【起動】【ターン1回】自分のエネルギー置き場にあるエネルギー1枚を"
+        "このメンバーの下に置く：自分の控え室から『虹ヶ咲』のライブカードを"
+        "1枚手札に加える。 "
+        "(メンバーがステージから離れたとき、下に置かれているエネルギーカードは"
+        "エネルギーデッキに戻す。)"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base_with_execution_mode(
+            row,
+            pattern_id="activated_attach_energy_return_nijigasaki_live",
+            effect_index=effect_index,
+            execution_mode="prompt_then_resolve",
+        ),
+        label_ja=exact_label,
+        effect_type="activated",
+        timing="activated_main",
+        trigger="player_activation",
+        frequency_limit="once_per_turn",
+        is_optional=False,
+        condition={"source_zone": "stage"},
+        cost=[
+            {
+                "action_type": "attach_selected_under_source",
+                "value": {"source_zone": "energy_area"},
+            }
+        ],
+        cost_choice={
+            "choice_type": "energy_from_area",
+            "zone": "energy_area",
+            "card_type": "energy",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        choice={
+            "choice_type": "card_from_zone",
+            "zone": "waiting_room",
+            "card_type": "live",
+            "work_key": "nijigasaki",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[{"action_type": "return_from_waiting_room"}],
+        duration=None,
+    )
+
+
+def _pl_n_pb1_011_static_attached_energy_blade(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    label = "【常時】このメンバーの下にあるエネルギーカード1枚につき、【ブレード】を得る。"
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base_with_execution_mode(
+            row,
+            pattern_id="static_source_attached_energy_count_blade",
+            effect_index=effect_index,
+            execution_mode="auto_resolve",
+        ),
+        label_ja=exact_label,
+        effect_type="static",
+        timing="static_always",
+        trigger="static_always",
+        frequency_limit="none",
+        is_optional=False,
+        condition={"source_zone": "stage"},
+        cost=[],
+        choice=None,
+        actions=[
+            {
+                "action_type": "gain_blade",
+                "amount_source": "source_attached_energy_count",
+            }
+        ],
+        duration="live",
+    )
+
+
 def _live_success_aqours_heart05_opponent_no_excess_score2(
     row: sqlite3.Row,
 ) -> EffectCandidate | None:
@@ -11528,6 +11886,14 @@ _PATTERNS = (
     _live_start_source_attached_member_heart05,
     _pl_bp6_003_live_start_attach_hand_muse_member,
     _pl_bp6_003_live_success_deploy_attached_muse_member,
+    _pl_n_bp3_001_live_start_attach_energy_draw_stage_blade,
+    _pl_n_bp3_013_onplay_attach_energy_draw2,
+    _pl_n_pb1_002_onplay_attach_two_energy,
+    _pl_hs_pb1_002_activated_attach_hand_sayaka,
+    _pl_n_bp5_008_activated_attach_energy_ready2,
+    _pl_n_bp5_012_activated_attach_energy_draw_heart01,
+    _pl_n_pb1_011_static_attached_energy_blade,
+    _pl_n_pb1_011_activated_attach_energy_return_nijigasaki_live,
     _live_success_aqours_heart05_opponent_no_excess_score2,
     _live_start_opponent_wait_count_return_nijigasaki_members_to_deck_top,
     _live_start_named_superstar_members_gain_heart_and_blade,

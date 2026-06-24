@@ -119,6 +119,7 @@ class EffectOperation(BaseModel):
         "revealed_live_count",
         "own_stage_member_work_distinct_name_count",
         "waiting_room_live_work_distinct_name_threshold_bonus",
+        "source_attached_energy_count",
         "source_attached_energy_count_plus",
         "source_attached_member_count",
     ] | None = None
