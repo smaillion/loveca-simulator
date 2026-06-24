@@ -1214,26 +1214,32 @@ def _activated_effect_required_choice_available(
     effect: Any,
     source_card_instance_id: str,
 ) -> bool:
-    if effect.choice is None or not _effect_uses_card_choice(effect):
-        return True
-    if _effect_uses_post_action_card_choice(effect):
-        return True
-    choice_zone = _resolved_choice_zone(effect.choice)
-    source_zone = effect.condition.get("source_zone")
-    if _effect_uses_post_cost_card_choice(effect) and not (
-        source_zone == "hand" and choice_zone == "stage"
-    ):
-        return True
     invocation = EffectInvocation(
         invocation_id="activation-check",
         effect_id=effect.effect_id,
         source_card_instance_id=source_card_instance_id,
         player_id=player_id,
         trigger_event="player_activation",
-        resolution_stage=(
-            "after_cost" if _effect_uses_post_cost_card_choice(effect) else "initial"
-        ),
+        resolution_stage="initial",
     )
+    if not _required_cost_choice_available(state, invocation, effect):
+        return False
+    if not _required_post_cost_choice_available_before_cost(
+        state,
+        invocation,
+        effect,
+    ):
+        return False
+    if effect.choice is None or not _effect_uses_card_choice(effect):
+        return True
+    if _effect_uses_post_action_card_choice(effect):
+        return True
+    if _effect_uses_post_cost_card_choice(effect):
+        choice_zone = _resolved_choice_zone(effect.choice)
+        source_zone = effect.condition.get("source_zone")
+        if not (source_zone == "hand" and choice_zone == "stage"):
+            return True
+        invocation.resolution_stage = "after_cost"
     if not _choice_condition_met(state, invocation, effect.choice):
         return True
     minimum, _ = _effect_choice_bounds(state, invocation, effect.choice)
@@ -1369,6 +1375,15 @@ def _activate_effect(
             or any(item not in cost_candidates for item in selected_ids)
         ):
             raise IllegalActionError("effect cost card selection is not legal")
+        post_cost_unavailable_reason = _post_cost_choice_unavailable_reason(
+            state,
+            invocation,
+            effect,
+        )
+        if post_cost_unavailable_reason is not None:
+            raise IllegalActionError(
+                f"effect is no longer activatable: {post_cost_unavailable_reason}"
+            )
     elif selected_ids:
         raise IllegalActionError("this activated effect does not accept cost cards")
     energy_ids = _activation_energy_ids(
@@ -4038,6 +4053,13 @@ def _effect_unavailable_reason(
             )
         ):
             return "cost_choice_candidates_unavailable"
+        post_cost_unavailable_reason = _post_cost_choice_unavailable_reason(
+            state,
+            invocation,
+            effect,
+        )
+        if post_cost_unavailable_reason is not None:
+            return post_cost_unavailable_reason
         return None
     if (
         _effect_uses_card_choice(effect)
@@ -5240,6 +5262,27 @@ def _effect_uses_cost_card_choice(effect: Any) -> bool:
     return bool(effect.cost_choice and effect.cost_choice.zone in {"hand", "energy_area"})
 
 
+def _required_cost_choice_available(
+    state: MatchState,
+    invocation: EffectInvocation,
+    effect: Any,
+) -> bool:
+    if not _effect_uses_cost_card_choice(effect):
+        return True
+    if effect.cost_choice is None:
+        return True
+    cost_candidates = _effect_cost_choice_candidates(state, invocation)
+    if effect.cost_choice.minimum <= 0:
+        return True
+    return len(cost_candidates) >= effect.cost_choice.minimum and (
+        _choice_candidates_can_satisfy_condition(
+            state,
+            cost_candidates,
+            effect.cost_choice,
+        )
+    )
+
+
 def _effect_uses_post_cost_card_choice(effect: Any) -> bool:
     return bool(
         effect.choice
@@ -5255,6 +5298,63 @@ def _effect_uses_post_cost_card_choice(effect: Any) -> bool:
             )
         )
     )
+
+
+def _post_cost_choice_can_be_checked_before_cost(effect: Any) -> bool:
+    if not _effect_uses_post_cost_card_choice(effect):
+        return False
+    if effect.cost_choice is None or effect.choice is None:
+        return False
+    cost_zone = _resolved_choice_zone(effect.cost_choice)
+    choice_zone = _resolved_choice_zone(effect.choice)
+    # Energy attachment costs do not create Waiting Room / Stage candidates.
+    # Hand discard costs can create Waiting Room candidates, so they must not be
+    # prechecked here.
+    return cost_zone == "energy_area" and choice_zone not in {
+        "energy_area",
+        "source_attachments",
+    }
+
+
+def _post_cost_choice_unavailable_reason(
+    state: MatchState,
+    invocation: EffectInvocation,
+    effect: Any,
+) -> str | None:
+    if not _post_cost_choice_can_be_checked_before_cost(effect):
+        return None
+    if effect.choice is None:
+        return None
+    post_cost_invocation = EffectInvocation(
+        invocation_id=invocation.invocation_id,
+        effect_id=invocation.effect_id,
+        source_card_instance_id=invocation.source_card_instance_id,
+        player_id=invocation.player_id,
+        trigger_event=invocation.trigger_event,
+        trigger_data=dict(invocation.trigger_data),
+        resolution_stage="after_cost",
+    )
+    if not _choice_condition_met(state, post_cost_invocation, effect.choice):
+        return None
+    minimum, _ = _effect_choice_bounds(state, post_cost_invocation, effect.choice)
+    if minimum <= 0:
+        return None
+    candidates = _effect_choice_candidates(state, post_cost_invocation)
+    if len(candidates) < minimum or not _choice_candidates_can_satisfy_condition(
+        state,
+        candidates,
+        effect.choice,
+    ):
+        return "post_cost_choice_candidates_unavailable"
+    return None
+
+
+def _required_post_cost_choice_available_before_cost(
+    state: MatchState,
+    invocation: EffectInvocation,
+    effect: Any,
+) -> bool:
+    return _post_cost_choice_unavailable_reason(state, invocation, effect) is None
 
 
 def _stage_member_targets_for_operation(

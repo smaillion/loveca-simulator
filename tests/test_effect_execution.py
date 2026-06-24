@@ -6068,6 +6068,127 @@ def test_activated_energy_attachment_can_continue_to_waiting_room_live_choice():
     assert not state.pending_effects
 
 
+def test_activated_energy_attachment_hidden_when_energy_cost_unavailable():
+    registry = EffectRegistry.model_validate_json(REGISTRY.read_text(encoding="utf-8"))
+    effect = {effect.effect_id: effect for effect in registry.effects}["PL!N-pb1-011:2"]
+    state = _minimal_effect_state(effect)
+    state.phase = "first_main"
+    state.pending_effects = []
+    source_member = CardDefinition(
+        card_code="PL!N-pb1-011",
+        card_id="PL!N-pb1-011-R",
+        name_ja="優木せつ菜",
+        card_type="member",
+        cost=4,
+        blade=1,
+        basic_hearts={"heart01": 1},
+        effect_ids=[effect.effect_id],
+    )
+    nijigasaki_live = CardDefinition(
+        card_code="PL!N-LIVE-TEST",
+        card_id="PL!N-LIVE-TEST",
+        name_ja="虹ヶ咲ライブ",
+        card_type="live",
+        score=1,
+        required_hearts={"heart01": 1},
+        work_keys=["nijigasaki"],
+    )
+    state.cards["source-live"].card = source_member
+    state.players["player_1"].member_area["center"] = "source-live"
+    state.cards["niji-live"] = CardInstance(
+        instance_id="niji-live",
+        owner_id="player_1",
+        card=nijigasaki_live,
+    )
+    player = state.players["player_1"]
+    player.energy_area = []
+    player.waiting_room = ["niji-live"]
+
+    activation = next(
+        (action for action in generate_legal_actions(state) if action.action_type == "activate_effect"),
+        None,
+    )
+
+    assert activation is None or all(
+        invocation["effect_id"] != effect.effect_id
+        for invocation in activation.options["invocations"]
+    )
+
+
+def test_activated_energy_attachment_hidden_when_post_cost_target_unavailable():
+    registry = EffectRegistry.model_validate_json(REGISTRY.read_text(encoding="utf-8"))
+    effect = {effect.effect_id: effect for effect in registry.effects}["PL!N-pb1-011:2"]
+    state = _minimal_effect_state(effect)
+    state.phase = "first_main"
+    state.pending_effects = []
+    source_member = CardDefinition(
+        card_code="PL!N-pb1-011",
+        card_id="PL!N-pb1-011-R",
+        name_ja="優木せつ菜",
+        card_type="member",
+        cost=4,
+        blade=1,
+        basic_hearts={"heart01": 1},
+        effect_ids=[effect.effect_id],
+    )
+    energy_card = CardDefinition(
+        card_code="TEST-ENERGY",
+        card_id="TEST-ENERGY",
+        name_ja="エネルギー",
+        card_type="energy",
+    )
+    other_live = CardDefinition(
+        card_code="OTHER-LIVE",
+        card_id="OTHER-LIVE",
+        name_ja="別作品ライブ",
+        card_type="live",
+        score=1,
+        required_hearts={"heart01": 1},
+        work_keys=[],
+    )
+    state.cards["source-live"].card = source_member
+    state.players["player_1"].member_area["center"] = "source-live"
+    state.cards["energy-1"] = CardInstance(
+        instance_id="energy-1",
+        owner_id="player_1",
+        card=energy_card,
+    )
+    state.cards["other-live"] = CardInstance(
+        instance_id="other-live",
+        owner_id="player_1",
+        card=other_live,
+    )
+    player = state.players["player_1"]
+    player.energy_area = ["energy-1"]
+    player.waiting_room = ["other-live"]
+
+    activation = next(
+        (action for action in generate_legal_actions(state) if action.action_type == "activate_effect"),
+        None,
+    )
+    assert activation is None or all(
+        invocation["effect_id"] != effect.effect_id
+        for invocation in activation.options["invocations"]
+    )
+
+    with pytest.raises(IllegalActionError, match="not legal"):
+        _apply_direct(
+            state,
+            "activate_effect",
+            player_id="player_1",
+            payload={
+                "effect_id": effect.effect_id,
+                "source_card_instance_id": "source-live",
+                "selected_card_instance_ids": ["energy-1"],
+            },
+        )
+
+    player = state.players["player_1"]
+    assert player.energy_area == ["energy-1"]
+    assert player.member_area_attachments["center"] == []
+    assert not state.pending_effects
+
+
 def test_activated_hand_member_attachment_reveals_and_attaches_named_card():
     registry = EffectRegistry.model_validate_json(REGISTRY.read_text(encoding="utf-8"))
     effect = {effect.effect_id: effect for effect in registry.effects}["PL!HS-pb1-002:1"]
