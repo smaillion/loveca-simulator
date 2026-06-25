@@ -2117,11 +2117,11 @@ function PreviewNotice({
           <section>
             <h3>{locale === "zh" ? "本版更新" : "今回の更新"}</h3>
             <ul>
+              <li>{locale === "zh" ? "新增官方 PBSP02 卡牌数据：122 个印刷版本 / 96 个规则卡身份。" : "公式 PBSP02 を追加しました: 122 printings / 96 gameplay card identities。"}</li>
+              <li>{locale === "zh" ? "PBSP02 相关技能 63/74 可结构化执行，新补充包覆盖率 85.14%。" : "PBSP02 関連効果は 63/74 が構造化済みで、新パック coverage は 85.14% です。"}</li>
+              <li>{locale === "zh" ? "PBSP02 集中 sandbox 为 19/20 完走，强制手动 blocker 为 0。" : "PBSP02 集中 sandbox は 19/20 完走、強制手動 blocker 0 です。"}</li>
               <li>{locale === "zh" ? "对战中会隐藏对手手牌；公开后加入手牌的卡会在对手履历中保留卡名。" : "対戦中は相手の手札を非公開にし、公開して手札に加えたカードは相手側の履歴にもカード名を残します。"}</li>
-              <li>{locale === "zh" ? "修复按弃牌张数抽牌、PL!HS-bp6-006、PL!HS-bp6-014 等重点技能处理。" : "捨てた枚数分ドロー、PL!HS-bp6-006、PL!HS-bp6-014 などの重点効果処理を修正しました。"}</li>
               <li>{locale === "zh" ? "手机对战的登场、Live 判定、能力处理和手动入口继续压缩，减少误触和滚动。" : "スマホ対戦の登場、ライブ判定、能力処理、手動入口をさらに圧縮し、誤操作とスクロールを減らしました。"}</li>
-              <li>{locale === "zh" ? "Deck 画面保留说明、JSON 导入导出、UUID 分享和自动分析。" : "Deck 画面では使い方、JSON 読み込み / 書き出し、UUID 共有、自動分析を利用できます。"}</li>
-              <li>{locale === "zh" ? "Phase 5 技能覆盖已到 717/925，并用 sandbox / 审计报告追踪剩余 blocker。" : "Phase 5 効果対応は 717/925 まで進み、sandbox / 監査 report で残り blocker を追跡しています。"}</li>
             </ul>
           </section>
           <section>

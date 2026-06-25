@@ -1,6 +1,6 @@
 # 変更履歴 / 变更记录
 
-## 未リリース / 未发布
+## v0.77 - 2026-06-25
 
 ### 追加 / 新增
 
@@ -8,13 +8,17 @@
 - VPS deploy workflow に JST 04:00 の daily API restart cron を追加し、restart 時に runtime cleanup が走る運用へ寄せた。
 - 公開 Hosted API では global match history を表示せず、solo match は作成時の access token で復帰 / 操作 / replay export できるようにした。
 - 管理者キー付きの runtime storage / cleanup API と簡易 admin page を追加し、snapshot pruning、時間範囲 cleanup、任意 VACUUM を実行できるようにした。
-- Phase 5 effect registry を 925 件中 717 件の `test_validated_executable` まで拡張し、registry entry ベースの coverage を 77.51% に更新。
+- Phase 5 effect registry を 977 件中 775 件の `test_validated_executable` まで拡張し、registry entry ベースの coverage を 79.32% に更新。
 - `30 decks x 100 matches` の black-box sandbox を block mode で実行し、100 局すべて完走、blocker 0 を確認。
 - semantic user-agent sandbox に `--two-agent` API Play mode と公式総合ルール PDF context 注入を追加し、二人の agent が LegalAction から通常行動を選ぶ大規模テストを実行できるようにした。
 - trigger 時点では条件を満たした pending effect が、同一タイミング中の別効果で後から条件失効した場合、限定的に `effect_not_activatable` event を記録して進行できるようにした。
 - Live 判定の mobile pop-up から次の処理へ直接進めるようにし、次ターン開始時は pop-up を閉じるようにした。
 - 初期 mulligan を Member 登場と同じカード選択 + 確認型の操作へ寄せた。
 - browser preview / Pages build の静的 data export は既存 SQLite と cache を優先して使う方針に合わせ、不要な再取得を避ける構成を維持。
+- 公式 `PBSP02` 補充パックを正式 importer で取り込み、locked card database を 1,679 Gameplay Cards / 2,252 Card Printings / 20 Card Sets に更新。
+- `PBSP02` は 122 printings / 96 gameplay card identities を収録し、importer 報告上は 70 件の新規 Gameplay Card と 50 件の新規 text revision を追加。
+- `PBSP02` 関連 effect は 74 件中 63 件を `test_validated_executable` として登録し、新パック coverage 85.14% を確認。
+- effect registry 全体は 977 件中 775 件の `test_validated_executable`、202 件の `manual_resolution` となり、registry entry ベースの coverage は 79.32% に更新。
 
 ### 修正 / 修复
 
@@ -33,6 +37,7 @@
 - 同点 Live 判定で片方が複数枚の Live を成功させている場合も、成功 Live 選択が正しく表示されるようにした。
 - Online 手動調整で相手の公開 Stage を対象にした position / formation change ができるよう、操作プレイヤーと調整対象プレイヤーを分離した。
 - Energy を下に置く起動効果は、支払う Energy や支払い後の必須対象がない場合、操作候補に出さないようにした。
+- `PBSP02` 集中 block sandbox を `30 decks x 20 matches --manual-policy block --max-actions 260` で実行し、19 完走 / 1 `max_actions:match_point_players_have_no_live_in_hand` / `mandatory_manual_resolution = 0` / skipped effects 0 を確認。
 
 中文:
 
@@ -40,12 +45,16 @@
 - VPS deploy workflow 增加 JST 04:00 的每日 API 自动重启 cron，重启时会触发 runtime cleanup。
 - 公开 Hosted API 不再展示全局 match history；单人模拟 match 会在创建时返回 access token，之后恢复、操作和 replay export 都需要该 token。
 - 新增带管理员密钥的 runtime storage / cleanup API 和简易 admin page，可执行 snapshot 裁剪、按时间范围清理以及可选 VACUUM。
-- 将 Phase 5 effect registry 扩展到 925 条中的 717 条 `test_validated_executable`，按 registry entry 计算覆盖率更新为 77.51%。
+- 将 Phase 5 effect registry 扩展到 977 条中的 775 条 `test_validated_executable`，按 registry entry 计算覆盖率更新为 79.32%。
 - 执行 `30 decks x 100 matches` block mode black-box sandbox，100 局全部完走，blocker 为 0。
 - semantic user-agent sandbox 新增 `--two-agent` API Play mode 和官方综合规则 PDF context 注入，可用于让两个 agent 从 LegalAction 中选择普通行动的大规模测试。
 - 对触发时条件满足、但同一时点中被其他效果改变条件导致失效的 pending effect，限定性记录 `effect_not_activatable` 并继续推进。
 - 手机端 Live 判定弹窗内可以直接进入下一步，开始下一回合时会关闭弹窗。
 - 初始调度改为接近 Member 登场的卡牌选择 + 确认操作。
+- 使用正式 importer 导入官方 `PBSP02` 补充包，将锁版本卡牌数据库更新到 1,679 条 Gameplay Cards / 2,252 条 Card Printings / 20 个 Card Sets。
+- `PBSP02` 收录 122 个印刷版本 / 96 个规则卡身份；importer 报告中新增 70 条 Gameplay Card 和 50 条 text revision。
+- `PBSP02` 相关技能 74 条中 63 条登记为 `test_validated_executable`，新补充包覆盖率确认达到 85.14%。
+- effect registry 全体更新到 977 条，其中 775 条 `test_validated_executable`、202 条 `manual_resolution`，按 registry entry 计算的覆盖率为 79.32%。
 - 修复 `PL!-bp4-005:3` 等 Live 开始时强制 position-change 效果因条件后续失效而卡成 `illegal_action` 的问题。
 - 条件失效的 soft handling 只用于安全原因；Energy Deck 为空等需要 rollback 的不整合仍保持 illegal action。
 - 修复使用 `amount_source=selected_count` 的技能没有把选卡数量传给执行上下文，导致 `PL!HS-bp1-005:1` 的“放入控室几张就抽几张”实际抽 0 张的问题。
@@ -61,6 +70,7 @@
 - 修复同分 Live 判定中，一方使用多张 Live 且双方都成功时，该方没有出现成功 Live 选择的问题。
 - Online 手动调整中将“提交操作玩家”和“调整对象玩家”分离，可对对手公开 Stage 执行 position / formation change。
 - 对把 Energy 放到成员下方作为成本的起动效果，若没有可支付 Energy 或支付后没有必选目标，现在不会显示为可发动。
+- 针对 `PBSP02` 执行 `30 decks x 20 matches --manual-policy block --max-actions 260` 集中 sandbox，结果为 19 局完走 / 1 局 `max_actions:match_point_players_have_no_live_in_hand` / `mandatory_manual_resolution = 0` / skipped effects 0。
 
 ## v0.76 - 2026-06-18
 

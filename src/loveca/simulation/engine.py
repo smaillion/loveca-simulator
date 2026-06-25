@@ -1696,6 +1696,9 @@ def _resolve_effect(
             selected_position_slot=selected_position_slot,
         )
         if effect.cost:
+            invocation.trigger_data["cost_selected_card_instance_ids"] = list(
+                selected_ids
+            )
             events.append(
                 GameEvent(
                     event_type="effect_cost_paid",
@@ -2609,6 +2612,25 @@ def _queue_member_moved_effects(
             "moved_member_instance_ids": list(moved_ids),
         },
     )
+    stage_sources = [
+        instance_id
+        for instance_id in state.players[player_id].member_area.values()
+        if instance_id is not None
+    ]
+    for moved_id in moved_ids:
+        _queue_triggered_effects(
+            state,
+            "own_stage_member_moved",
+            events,
+            source_instance_ids=stage_sources,
+            trigger_data={
+                "turn_number": state.turn_number,
+                "from_slot": from_slot,
+                "to_slot": to_slot,
+                "card_instance_id": moved_id,
+                "moved_member_instance_ids": list(moved_ids),
+            },
+        )
 
 
 def _record_member_area_moved(player: Any, slot: str) -> None:
@@ -2663,6 +2685,10 @@ def _effect_unavailable_reason(
 ) -> str | None:
     effect = state.effect_definitions[invocation.effect_id]
     player = state.players[invocation.player_id]
+    phase_in = effect.condition.get("phase_in")
+    if isinstance(phase_in, list) and all(isinstance(item, str) for item in phase_in):
+        if state.phase not in set(phase_in):
+            return "phase_mismatch"
     minimum_energy_deck_cards = effect.condition.get("minimum_energy_deck_cards")
     if isinstance(minimum_energy_deck_cards, int):
         if len(player.energy_deck) < minimum_energy_deck_cards:
@@ -2752,10 +2778,18 @@ def _effect_unavailable_reason(
     yell_revealed_work = effect.condition.get("own_yell_revealed_work_count_at_least")
     if isinstance(yell_revealed_work, dict):
         work_key = yell_revealed_work.get("work_key")
+        unit_key = yell_revealed_work.get("unit_key")
         count = yell_revealed_work.get("count")
-        if isinstance(work_key, str) and isinstance(count, int):
+        if isinstance(count, int):
             actual = sum(
-                work_key in state.cards[item].card.work_keys
+                (
+                    not isinstance(work_key, str)
+                    or work_key in state.cards[item].card.work_keys
+                )
+                and (
+                    not isinstance(unit_key, str)
+                    or unit_key in state.cards[item].card.unit_keys
+                )
                 for item in player.live_result.revealed_instance_ids
             )
             if actual < count:
@@ -2779,6 +2813,25 @@ def _effect_unavailable_reason(
             and not player.member_areas_entered_this_turn
         ):
             return "live_success_complex_score_condition_not_met"
+    if effect.condition.get(
+        "live_success_live_area_score_above_original_or_yell_score_live"
+    ):
+        live_area_score_bonus = any(
+            state.cards[item].card.card_type == "live"
+            and _card_score(state, player.player_id, item)
+            > (state.cards[item].card.score or 0)
+            for item in player.live_area
+        )
+        yelled_score_live = any(
+            state.cards[item].card.card_type == "live"
+            and any(
+                special.effect_type == "score"
+                for special in state.cards[item].card.special_blade_hearts
+            )
+            for item in player.live_result.revealed_instance_ids
+        )
+        if not (live_area_score_bonus or yelled_score_live):
+            return "live_score_bonus_or_yell_score_live_missing"
     yell_revealed_more = effect.condition.get(
         "yell_revealed_card_type_more_than_opponent"
     )
@@ -2841,6 +2894,27 @@ def _effect_unavailable_reason(
             )
             if actual < count:
                 return "yell_revealed_member_work_count_too_low"
+    yell_revealed_work_count = effect.condition.get(
+        "own_yell_revealed_work_count_at_least"
+    )
+    if isinstance(yell_revealed_work_count, dict):
+        work_key = yell_revealed_work_count.get("work_key")
+        unit_key = yell_revealed_work_count.get("unit_key")
+        count = yell_revealed_work_count.get("count")
+        if isinstance(count, int):
+            actual = sum(
+                (
+                    not isinstance(work_key, str)
+                    or work_key in state.cards[item].card.work_keys
+                )
+                and (
+                    not isinstance(unit_key, str)
+                    or unit_key in state.cards[item].card.unit_keys
+                )
+                for item in player.live_result.revealed_instance_ids
+            )
+            if actual < count:
+                return "yell_revealed_work_count_too_low"
     yell_revealed_member_without_blade_heart = effect.condition.get(
         "own_yell_revealed_member_without_blade_heart_count_at_least"
     )
@@ -3232,6 +3306,14 @@ def _effect_unavailable_reason(
             or trigger_member_unit not in state.cards[trigger_member_id].card.unit_keys
         ):
             return "trigger_member_unit_mismatch"
+    trigger_from_slot = effect.condition.get("trigger_from_slot")
+    if isinstance(trigger_from_slot, str):
+        if invocation.trigger_data.get("from_slot") != trigger_from_slot:
+            return "trigger_from_slot_mismatch"
+    trigger_to_slot = effect.condition.get("trigger_to_slot")
+    if isinstance(trigger_to_slot, str):
+        if invocation.trigger_data.get("to_slot") != trigger_to_slot:
+            return "trigger_to_slot_mismatch"
     source_orientation = effect.condition.get("source_orientation")
     if isinstance(source_orientation, str):
         if state.cards[invocation.source_card_instance_id].orientation != source_orientation:
@@ -3885,6 +3967,14 @@ def _effect_unavailable_reason(
             {"live_start", "live_success"},
         ):
             return "live_card_without_start_or_success_effect_missing"
+    stage_effect_timing = effect.condition.get("own_stage_member_effect_timing_exists")
+    if isinstance(stage_effect_timing, str):
+        if not any(
+            item is not None
+            and _card_has_effect_timing(state, item, stage_effect_timing)
+            for item in player.member_area.values()
+        ):
+            return "stage_member_effect_timing_missing"
     required_units = effect.condition.get("own_stage_member_unit_keys_present")
     if isinstance(required_units, list) and all(
         isinstance(unit_key, str) for unit_key in required_units
@@ -4450,6 +4540,10 @@ def _effect_operation_condition_met(
             matched = list(operation_context.get("matched_card_instance_ids", []))
         if not matched:
             return False
+    energy_count = condition.get("own_energy_count_at_least")
+    if isinstance(energy_count, int):
+        if len(player.energy_area) < energy_count:
+            return False
     if condition.get("last_revealed_top_member_cost_at_most_selected_count"):
         revealed = []
         selected_count = None
@@ -4497,6 +4591,18 @@ def _effect_operation_condition_met(
         names = {state.cards[item].card.name_ja for item in stage_members}
         if len(names) < distinct_names:
             return False
+    distinct_unit_names = condition.get("own_stage_member_unit_distinct_name_count_at_least")
+    if isinstance(distinct_unit_names, dict):
+        unit_key = distinct_unit_names.get("unit_key")
+        count = distinct_unit_names.get("count")
+        if isinstance(unit_key, str) and isinstance(count, int):
+            names = {
+                state.cards[item].card.name_ja
+                for item in stage_members
+                if unit_key in state.cards[item].card.unit_keys
+            }
+            if len(names) < count:
+                return False
     success_score = condition.get("success_live_score_at_least")
     if isinstance(success_score, int):
         total = sum(
@@ -5126,6 +5232,7 @@ def _operation_requires_selected_choice(operation: Any) -> bool:
         "deploy_selected_to_empty_stage",
         "discard_from_hand",
         "move_selected_to_deck_bottom",
+        "move_selected_energy_to_energy_deck",
         "move_selected_to_hand",
         "move_selected_to_deck_top",
         "move_selected_to_deck_top_or_bottom",
@@ -5744,6 +5851,7 @@ def _execute_operations(
         "source_card_instance_id": invocation.source_card_instance_id,
         "selected_card_instance_ids": list(selected_ids),
         "selected_count": selected_count,
+        "trigger_data": dict(invocation.trigger_data),
     }
     for operation in operations:
         if not _operation_condition_met(state, invocation, operation, operation_context):
@@ -6131,6 +6239,21 @@ def _execute_operations(
                     events,
                     reason=f"effect:{invocation.effect_id}",
                 )
+        elif operation_type == "draw_if_selected_without_blade_heart":
+            selected = operation_selected_ids or list(
+                invocation.trigger_data.get("cost_selected_card_instance_ids", [])
+            )
+            if any(
+                item in state.cards and not _card_has_blade_heart(state.cards[item].card)
+                for item in selected
+            ):
+                _draw(
+                    state,
+                    invocation.player_id,
+                    operation.amount or 0,
+                    events,
+                    reason=f"effect:{invocation.effect_id}",
+                )
         elif operation_type == "draw_if_selected_card_type":
             if any(
                 state.cards[item].card.card_type == operation.card_type
@@ -6184,6 +6307,14 @@ def _execute_operations(
                     if state.cards[instance_id].card.card_type != "energy":
                         raise IllegalActionError("effect attach target must be Energy")
                     player.energy_area.remove(instance_id)
+                elif source_zone == "waiting_room":
+                    if instance_id not in player.waiting_room:
+                        raise IllegalActionError(
+                            "effect attach target must be in Waiting Room"
+                        )
+                    if state.cards[instance_id].card.card_type != "member":
+                        raise IllegalActionError("effect attach target must be a Member")
+                    player.waiting_room.remove(instance_id)
                 else:
                     raise IllegalActionError(
                         "effect attach target source zone is not supported"
@@ -6201,7 +6332,8 @@ def _execute_operations(
                             "target_slot": source_slot,
                             "target_member_instance_id": invocation.source_card_instance_id,
                             "source_zone": source_zone,
-                            "revealed_to_opponent": source_zone == "hand",
+                            "revealed_to_opponent": source_zone
+                            in {"hand", "waiting_room"},
                         },
                         source="system",
                     )
@@ -6215,6 +6347,36 @@ def _execute_operations(
             player.waiting_room.remove(instance_id)
             player.hand.append(instance_id)
             state.cards[instance_id].face_up = True
+        elif operation_type == "attach_baton_replaced_member_under_source":
+            source_slot = _top_member_slot(player, invocation.source_card_instance_id)
+            if source_slot is None:
+                raise IllegalActionError("effect source must be on Stage")
+            instance_id = invocation.trigger_data.get("replacement_card_instance_id")
+            if not isinstance(instance_id, str):
+                raise IllegalActionError("baton replaced member is unavailable")
+            if instance_id not in player.waiting_room:
+                raise IllegalActionError("baton replaced member must be in Waiting Room")
+            if state.cards[instance_id].card.card_type != "member":
+                raise IllegalActionError("baton replaced card must be a Member")
+            player.waiting_room.remove(instance_id)
+            player.member_area_attachments[source_slot].append(instance_id)
+            state.cards[instance_id].face_up = True
+            events.append(
+                GameEvent(
+                    event_type="card_attached_under_member",
+                    player_id=invocation.player_id,
+                    data={
+                        "invocation_id": invocation.invocation_id,
+                        "effect_id": invocation.effect_id,
+                        "card_instance_id": instance_id,
+                        "target_slot": source_slot,
+                        "target_member_instance_id": invocation.source_card_instance_id,
+                        "source_zone": "waiting_room",
+                        "revealed_to_opponent": True,
+                    },
+                    source="system",
+                )
+            )
         elif operation_type == "move_selected_to_hand":
             for instance_id in operation_selected_ids:
                 if instance_id in player.resolution_area:
@@ -6239,6 +6401,18 @@ def _execute_operations(
                     )
                 player.main_deck.append(instance_id)
                 state.cards[instance_id].face_up = False
+        elif operation_type == "move_selected_energy_to_energy_deck":
+            for instance_id in operation_selected_ids:
+                if instance_id not in player.energy_area:
+                    raise IllegalActionError(
+                        "effect Energy target must be in the Energy Area"
+                    )
+                if state.cards[instance_id].card.card_type != "energy":
+                    raise IllegalActionError("effect Energy target must be Energy")
+                player.energy_area.remove(instance_id)
+                player.energy_deck.append(instance_id)
+                state.cards[instance_id].face_up = False
+                state.cards[instance_id].orientation = None
         elif operation_type == "move_selected_to_deck_top_or_bottom":
             if selected_destination not in {
                 "main_deck_top",
@@ -6858,7 +7032,13 @@ def _execute_operations(
                     for item in player.energy_area
                     if state.cards[item].orientation == "wait"
                 ]
-                amount = _operation_amount(operation, selected_count, player, state=state)
+                amount = _operation_amount(
+                    operation,
+                    selected_count,
+                    player,
+                    state=state,
+                    operation_context=operation_context,
+                )
                 for instance_id in waiting[:amount]:
                     previous = state.cards[instance_id].orientation
                     state.cards[instance_id].orientation = "active"
@@ -7435,12 +7615,18 @@ def _operation_amount(
         and state is not None
     ):
         minimum_cost = None
+        minimum_heart_count = None
+        work_key = None
         unit_key = None
         exclude_unit_key = None
         if isinstance(operation.value, dict):
             raw_minimum_cost = operation.value.get("minimum_cost")
             if isinstance(raw_minimum_cost, int):
                 minimum_cost = raw_minimum_cost
+            raw_minimum_heart = operation.value.get("minimum_heart_count")
+            if isinstance(raw_minimum_heart, int):
+                minimum_heart_count = raw_minimum_heart
+            work_key = operation.value.get("work_key")
             unit_key = operation.value.get("unit_key")
             exclude_unit_key = operation.value.get("exclude_unit_key")
         return (
@@ -7451,12 +7637,25 @@ def _operation_amount(
                     or (state.cards[item].card.cost or 0) >= minimum_cost
                 )
                 and (
+                    not isinstance(work_key, str)
+                    or work_key in state.cards[item].card.work_keys
+                )
+                and (
                     not isinstance(unit_key, str)
                     or unit_key in state.cards[item].card.unit_keys
                 )
                 and (
                     not isinstance(exclude_unit_key, str)
                     or exclude_unit_key not in state.cards[item].card.unit_keys
+                )
+                and (
+                    minimum_heart_count is None
+                    or _member_nonstatic_heart_total(
+                        state,
+                        player.player_id,
+                        item,
+                    )
+                    >= minimum_heart_count
                 )
                 for item in player.member_area.values()
             )
@@ -7468,8 +7667,10 @@ def _operation_amount(
         and state is not None
     ):
         work_key = None
+        unit_key = None
         if isinstance(operation.value, dict):
             work_key = operation.value.get("work_key")
+            unit_key = operation.value.get("unit_key")
         names = {
             state.cards[item].card.name_ja
             for item in player.member_area.values()
@@ -7478,8 +7679,38 @@ def _operation_amount(
                 not isinstance(work_key, str)
                 or work_key in state.cards[item].card.work_keys
             )
+            and (
+                not isinstance(unit_key, str)
+                or unit_key in state.cards[item].card.unit_keys
+            )
         }
         return len(names) * multiplier
+    if (
+        operation.amount_source == "own_yell_revealed_member_without_blade_heart_count"
+        and player is not None
+        and state is not None
+    ):
+        work_key = None
+        divisor = 1
+        cap = None
+        if isinstance(operation.value, dict):
+            work_key = operation.value.get("work_key")
+            raw_divisor = operation.value.get("divisor")
+            raw_cap = operation.value.get("cap")
+            if isinstance(raw_divisor, int) and raw_divisor > 0:
+                divisor = raw_divisor
+            if isinstance(raw_cap, int) and raw_cap >= 0:
+                cap = raw_cap
+        count = sum(
+            state.cards[item].card.card_type == "member"
+            and (not isinstance(work_key, str) or work_key in state.cards[item].card.work_keys)
+            and not _card_has_blade_heart(state.cards[item].card)
+            for item in player.live_result.revealed_instance_ids
+        )
+        amount = count // divisor
+        if cap is not None:
+            amount = min(amount, cap)
+        return amount * multiplier
     if (
         operation.amount_source == "stage_member_heart_color_variety_count"
         and player is not None
@@ -7655,6 +7886,39 @@ def _operation_amount(
         if isinstance(selected_count, int) and not isinstance(selected_count, bool):
             return selected_count
         return 0
+    if (
+        operation.amount_source
+        in {
+            "baton_replaced_member_work_count",
+            "baton_replaced_member_without_blade_heart_count",
+        }
+        and operation_context is not None
+        and state is not None
+    ):
+        work_key = None
+        if isinstance(operation.value, dict):
+            work_key = operation.value.get("work_key")
+        ids: list[str] = []
+        trigger_data = operation_context.get("trigger_data")
+        if isinstance(trigger_data, dict):
+            raw_many = trigger_data.get("replacement_card_instance_ids")
+            if isinstance(raw_many, list):
+                ids.extend(item for item in raw_many if isinstance(item, str))
+            raw_one = trigger_data.get("replacement_card_instance_id")
+            if isinstance(raw_one, str):
+                ids.append(raw_one)
+        count = 0
+        for instance_id in dict.fromkeys(ids):
+            card_instance = state.cards.get(instance_id)
+            if card_instance is None or card_instance.card.card_type != "member":
+                continue
+            if isinstance(work_key, str) and work_key not in card_instance.card.work_keys:
+                continue
+            if operation.amount_source == "baton_replaced_member_without_blade_heart_count":
+                if card_instance.card.blade_heart_color_slot is not None:
+                    continue
+            count += 1
+        return count * multiplier
     if isinstance(selected_count, int) and not isinstance(selected_count, bool):
         return selected_count
     return 0
@@ -9069,6 +9333,19 @@ def _live_area_has_card_without_effect_timings(
         if not has_excluded_timing:
             return True
     return False
+
+
+def _card_has_effect_timing(
+    state: MatchState,
+    instance_id: str,
+    timing: str,
+) -> bool:
+    card = state.cards[instance_id].card
+    return any(
+        (effect := state.effect_definitions.get(effect_id)) is not None
+        and effect.timing == timing
+        for effect_id in card.effect_ids
+    )
 
 
 def _attached_slot(player: Any, instance_id: str) -> str | None:

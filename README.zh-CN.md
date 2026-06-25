@@ -8,7 +8,7 @@
 
 ## 当前状态
 
-`v0.76` 当前已收录:
+`v0.77` 当前已收录:
 
 - 正式官方 `card_list` 卡牌 importer
 - 避免 `＋` / `+` 混用的卡号正规化
@@ -17,9 +17,13 @@
 - 基于 `decklist.v0` 的 Deck Analyzer
 - FastAPI + React SPA 可视化规则验证器
 - 可回放的 Action-only GameState
-- 925 条 effect registry entry
-  - 717 条为 `test_validated_executable`
-  - 208 条为 timing prompt / 未支持处理用 `manual_resolution`
+- 包含官方 `PBSP02` 新补充包的锁版本卡牌数据库
+  - `PBSP02` 收录 122 个印刷版本 / 96 个规则卡身份
+  - importer 报告中新增 Gameplay Card 70 条
+- 977 条 effect registry entry
+  - 775 条为 `test_validated_executable`
+  - 202 条为 timing prompt / 未支持处理用 `manual_resolution`
+  - `PBSP02` 相关技能 74 条中 63 条为 `test_validated_executable`，新补充包覆盖率为 85.14%
 - 面向未来低成本 online 同步的 state hash / compatibility metadata 基础
 - Hosted Online MVP 房间 API
   - 通过 room code 创建 / 加入房间
@@ -55,7 +59,9 @@
 - 部分双方都需要选择的效果已可通过 multi-player pending choice 顺序处理
 - 支持把 Stage Member 目标拆成多个选择组，并对各组选中目标应用相同的临时 modifier
 - 支持每个分支使用不同 Stage Member 候选池的技能选择
-- 按 registry entry 计算的 `test_validated_executable` 覆盖率已达到 77.51%
+- 按 registry entry 计算的 `test_validated_executable` 覆盖率已达到 79.32%
+- `PBSP02` 相关技能 74 条中 63 条已结构化，新补充包覆盖率确认达到 85.14%
+- `PBSP02` 集中 block sandbox 为 `30 decks x 20 matches` 中 19 局完走，`mandatory_manual_resolution = 0`，剩余 1 局为 `max_actions:match_point_players_have_no_live_in_hand`
 - Phase 5 broad black-box sandbox 已在 `30 decks x 100 matches` block mode 中达到 `100/100` 完走，blocker 为 0
 - 包含问题卡的 targeted sandbox 最新 block smoke 改善到 `15 matches` 中 9 局完走、6 件 `mandatory_manual_resolution`
 - 触发时条件满足的 pending effect 如果在同一时点中被其他效果改变条件导致失效，会记录明确的 `effect_not_activatable` event 并继续推进

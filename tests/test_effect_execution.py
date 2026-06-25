@@ -183,6 +183,7 @@ def test_registry_contains_all_matching_wait_energy_effects():
         "PL!SP-bp4-001": 376,
         "PL!SP-bp4-005": 380,
     }
+    optional_discard_expected = {"PL!SP-pb2-013": 809}
     matching = {
         effect.card_code: effect
         for effect in registry.effects
@@ -194,7 +195,7 @@ def test_registry_contains_all_matching_wait_energy_effects():
         and effect.trigger == "member_played"
     }
 
-    assert set(matching) == set(expected) | set(direct_expected)
+    assert set(matching) == set(expected) | set(direct_expected) | set(optional_discard_expected)
     for card_code, revision_id in expected.items():
         effect = matching[card_code]
         assert effect.text_revision_id == revision_id
@@ -231,6 +232,20 @@ def test_registry_contains_all_matching_wait_energy_effects():
     }
     assert liella_baton_energy_effect.actions[0].amount == 2
     assert liella_baton_energy_effect.actions[0].orientation == "wait"
+    kaleidoscore_energy_effect = matching["PL!SP-pb2-013"]
+    assert (
+        kaleidoscore_energy_effect.text_revision_id
+        == optional_discard_expected["PL!SP-pb2-013"]
+    )
+    assert kaleidoscore_energy_effect.condition == {"minimum_energy_deck_cards": 1}
+    assert kaleidoscore_energy_effect.cost_choice is not None
+    assert kaleidoscore_energy_effect.cost_choice.zone == "hand"
+    assert kaleidoscore_energy_effect.cost_choice.unit_key == "kaleidoscore"
+    assert kaleidoscore_energy_effect.actions[0].orientation == "wait"
+    assert (
+        kaleidoscore_energy_effect.actions[1].action_type
+        == "draw_if_selected_without_blade_heart"
+    )
     live_start = {
         effect.card_code: effect
         for effect in registry.effects
