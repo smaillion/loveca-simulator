@@ -2775,6 +2775,16 @@ def _effect_unavailable_reason(
             )
             if actual < count:
                 return "yell_revealed_card_type_count_too_low"
+    yell_blade_heart_at_most = effect.condition.get(
+        "yell_revealed_blade_heart_count_at_most"
+    )
+    if isinstance(yell_blade_heart_at_most, int):
+        actual = sum(
+            _card_has_blade_heart(state.cards[item].card)
+            for item in player.live_result.revealed_instance_ids
+        )
+        if actual > yell_blade_heart_at_most:
+            return "yell_revealed_blade_heart_count_too_high"
     yell_revealed_work = effect.condition.get("own_yell_revealed_work_count_at_least")
     if isinstance(yell_revealed_work, dict):
         work_key = yell_revealed_work.get("work_key")
@@ -2894,6 +2904,19 @@ def _effect_unavailable_reason(
             )
             if actual < count:
                 return "yell_revealed_member_work_count_too_low"
+    shared_unit_revealed_member_count = effect.condition.get(
+        "own_yell_revealed_member_shared_unit_count_at_least"
+    )
+    if isinstance(shared_unit_revealed_member_count, int):
+        unit_counts: dict[str, int] = {}
+        for item in player.live_result.revealed_instance_ids:
+            card = state.cards[item].card
+            if card.card_type != "member":
+                continue
+            for unit_key in card.unit_keys:
+                unit_counts[unit_key] = unit_counts.get(unit_key, 0) + 1
+        if max(unit_counts.values(), default=0) < shared_unit_revealed_member_count:
+            return "yell_revealed_member_shared_unit_count_too_low"
     yell_revealed_work_count = effect.condition.get(
         "own_yell_revealed_work_count_at_least"
     )
@@ -2991,6 +3014,10 @@ def _effect_unavailable_reason(
     if effect.condition.get("own_hand_more_than_opponent"):
         if len(player.hand) <= len(opponent.hand):
             return "hand_count_not_higher"
+    opponent_hand_plus = effect.condition.get("opponent_hand_count_at_least_own_plus")
+    if isinstance(opponent_hand_plus, int):
+        if len(opponent.hand) < len(player.hand) + opponent_hand_plus:
+            return "opponent_hand_count_too_low"
     maximum_hand_count = effect.condition.get("own_hand_count_at_most")
     if isinstance(maximum_hand_count, int):
         if len(player.hand) > maximum_hand_count:
@@ -3930,11 +3957,18 @@ def _effect_unavailable_reason(
     if isinstance(own_stage_unit, dict):
         unit_key = own_stage_unit.get("unit_key")
         count = own_stage_unit.get("count")
+        minimum_cost = own_stage_unit.get("minimum_cost")
         if isinstance(unit_key, str) and isinstance(count, int):
-            actual = sum(
-                item is not None and unit_key in state.cards[item].card.unit_keys
-                for item in player.member_area.values()
-            )
+            actual = 0
+            for item in player.member_area.values():
+                if item is None:
+                    continue
+                card = state.cards[item].card
+                if unit_key not in card.unit_keys:
+                    continue
+                if isinstance(minimum_cost, int) and (card.cost or 0) < minimum_cost:
+                    continue
+                actual += 1
             if actual < count:
                 return "stage_member_unit_count_too_low"
     own_other_stage_unit = effect.condition.get(
@@ -4550,6 +4584,10 @@ def _effect_operation_condition_met(
     if isinstance(energy_count, int):
         if len(player.energy_area) < energy_count:
             return False
+    live_area_count = condition.get("live_area_count_at_least")
+    if isinstance(live_area_count, int):
+        if len(player.live_area) < live_area_count:
+            return False
     if condition.get("last_revealed_top_member_cost_at_most_selected_count"):
         revealed = []
         selected_count = None
@@ -4634,6 +4672,51 @@ def _effect_operation_condition_met(
             selected = list(operation_context.get("selected_card_instance_ids", []))
         if len(selected) < selected_count:
             return False
+    selected_ids: list[str] = []
+    if operation_context is not None:
+        raw_selected = operation_context.get("selected_card_instance_ids", [])
+        if isinstance(raw_selected, list):
+            selected_ids = [item for item in raw_selected if isinstance(item, str)]
+    selected_minimum_score = condition.get("selected_card_minimum_score")
+    if isinstance(selected_minimum_score, int):
+        if not selected_ids or any(
+            (state.cards[item].card.score or 0) < selected_minimum_score
+            for item in selected_ids
+            if item in state.cards
+        ):
+            return False
+    selected_work_key = condition.get("selected_card_work_key")
+    if isinstance(selected_work_key, str):
+        if not selected_ids or any(
+            selected_work_key not in state.cards[item].card.work_keys
+            for item in selected_ids
+            if item in state.cards
+        ):
+            return False
+    trigger_data = {}
+    if operation_context is not None:
+        raw_trigger_data = operation_context.get("trigger_data", {})
+        if isinstance(raw_trigger_data, dict):
+            trigger_data = raw_trigger_data
+    cost_selected_ids = [
+        item
+        for item in trigger_data.get("cost_selected_card_instance_ids", [])
+        if isinstance(item, str) and item in state.cards
+    ]
+    cost_selected_names = condition.get("cost_selected_card_name_ja_any")
+    if isinstance(cost_selected_names, list):
+        if not cost_selected_ids or not any(
+            _card_name_in(state.cards[item].card.name_ja, cost_selected_names)
+            for item in cost_selected_ids
+        ):
+            return False
+    cost_selected_type = condition.get("cost_selected_card_type")
+    if isinstance(cost_selected_type, str):
+        if not cost_selected_ids or not any(
+            state.cards[item].card.card_type == cost_selected_type
+            for item in cost_selected_ids
+        ):
+            return False
     return True
 
 
@@ -4714,6 +4797,8 @@ def _branch_unavailable_reason(
         source = state.cards.get(invocation.source_card_instance_id)
         if source is None or source.orientation != source_orientation:
             return "source_orientation_mismatch"
+    if not _effect_operation_condition_met(state, invocation, conditions):
+        return "branch_condition_unavailable"
     minimum = effect.choice.branch_selection_minimum.get(branch, 0)
     if minimum > 0:
         branch_choice = _branch_choice_filter(effect, branch)
@@ -7812,13 +7897,19 @@ def _operation_amount(
         and operation_context is not None
         and state is not None
     ):
-        return (
-            sum(
-                state.cards[item].card.card_type == "live"
-                for item in operation_context.get("revealed_card_instance_ids", [])
-            )
-            * multiplier
+        revealed_ids = operation_context.get("revealed_card_instance_ids", [])
+        if not revealed_ids and player is not None:
+            revealed_ids = player.live_result.revealed_instance_ids
+        amount = sum(
+            state.cards[item].card.card_type == "live"
+            for item in revealed_ids
+            if item in state.cards
         )
+        if isinstance(operation.value, dict):
+            cap = operation.value.get("cap")
+            if isinstance(cap, int):
+                amount = min(amount, cap)
+        return amount * multiplier
     if (
         operation.amount_source
         in {"source_attached_energy_count", "source_attached_energy_count_plus"}

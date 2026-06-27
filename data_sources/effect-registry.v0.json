@@ -2298,30 +2298,48 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "return_from_waiting_room"
         }
       ],
       "card_code": "PL!-bp4-002",
-      "choice": null,
-      "condition": {
-        "source_zone": "stage"
+      "choice": {
+        "choice_type": "card_from_zone",
+        "zone": "waiting_room",
+        "card_type": "live",
+        "work_key": "love_live",
+        "minimum": 1,
+        "maximum": 1
       },
-      "cost": [],
+      "condition": {
+        "source_zone": "stage",
+        "success_live_score_at_least": 6
+      },
+      "cost": [
+        {
+          "action_type": "discard_from_hand"
+        }
+      ],
       "duration": null,
       "effect_id": "PL!-bp4-002:1",
       "effect_index": 1,
       "effect_type": "activated",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "once_per_turn",
       "is_optional": false,
       "label_ja": "【起動】【ターン1回】手札を2枚控え室に置く：自分の控え室から『μ's』のライブカードを1枚手札に加える。この能力は、自分の成功ライブカード置き場にあるカードのスコアの合計が６以上の場合のみ起動できる。",
       "raw_text_hash": "c25d983c59303c7b1cff15d9df7a3202b3fc1ea560224594b741191ca149c36a",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 341,
       "timing": "activated_main",
-      "trigger": "player_activation"
+      "trigger": "player_activation",
+      "cost_choice": {
+        "choice_type": "card_from_zone",
+        "zone": "hand",
+        "minimum": 2,
+        "maximum": 2
+      }
     },
     {
       "actions": [
@@ -3900,26 +3918,73 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "ready_member",
+          "branch": "ready_member",
+          "target": "selected"
+        },
+        {
+          "action_type": "gain_blade",
+          "amount": 1,
+          "branch": "ready_member",
+          "target": "selected"
+        },
+        {
+          "action_type": "apply_wait_member",
+          "branch": "wait_opponent_blade3",
+          "target": "selected"
         }
       ],
       "card_code": "PL!-bp5-024",
-      "choice": null,
-      "condition": {},
+      "choice": {
+        "choice_type": "choose_effect_branch",
+        "branch_ids": [
+          "ready_member",
+          "wait_opponent_blade3"
+        ],
+        "branch_selection_minimum": {
+          "ready_member": 1,
+          "wait_opponent_blade3": 1
+        },
+        "branch_selection_maximum": {
+          "ready_member": 1,
+          "wait_opponent_blade3": 1
+        },
+        "branch_choice_filters": {
+          "ready_member": {
+            "choice_type": "member_from_stage",
+            "zone": "stage",
+            "card_type": "member",
+            "orientation": "wait",
+            "target_player": "self"
+          },
+          "wait_opponent_blade3": {
+            "choice_type": "member_from_stage",
+            "zone": "stage",
+            "card_type": "member",
+            "maximum_original_blade": 3,
+            "target_player": "opponent"
+          }
+        }
+      },
+      "condition": {
+        "own_stage_member_unit_count_at_least": {
+          "unit_key": "a_rise",
+          "count": 1
+        }
+      },
       "cost": [],
-      "cost_choice": null,
       "duration": "live",
       "effect_id": "PL!-bp5-024:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "once_per_live",
       "is_optional": false,
       "label_ja": "【ライブ開始時】自分のステージに『A-RISE』のメンバーがいる場合、以下から1つを選ぶ。 ・ウェイト状態のメンバー1人をアクティブにし、ライブ終了時まで、そのメンバーは【ブレード】を得る。 ・相手のステージにいる元々持つ【ブレード】が3つ以下のメンバー1人をウェイトにする。",
       "raw_text_hash": "6b75530ceb65eff4aecb11d0fa547111040d601456d068d4621b8c188c2a79d0",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 274,
       "timing": "live_start",
       "trigger": "live_started"
@@ -5648,26 +5713,25 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "draw_card",
+          "amount": 1
         }
       ],
       "card_code": "PL!-pb1-015",
-      "choice": null,
       "condition": {},
       "cost": [],
-      "cost_choice": null,
       "duration": null,
       "effect_id": "PL!-pb1-015:3",
       "effect_index": 3,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【自動】【ターン1回】自分のカードの効果によって、相手のステージにいるアクティブ状態のコスト4以下のメンバーがウェイト状態になったとき、カードを1枚引く。",
       "raw_text_hash": "6d2469984bde0010519e6d51177fb0114164f5c4002f776cf760d238c44a7116",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 430,
       "timing": "auto_triggered_event",
       "trigger": "auto_triggered_event"
@@ -10221,26 +10285,67 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "deploy_selected_to_empty_stage",
+          "branch": "deploy_edel"
+        },
+        {
+          "action_type": "modify_required_heart",
+          "amount": -1,
+          "branch": "reduce_heart06",
+          "color_slot": "heart06"
         }
       ],
       "card_code": "PL!HS-bp5-022",
-      "choice": null,
-      "condition": {},
-      "cost": [],
-      "cost_choice": null,
+      "choice": {
+        "choice_type": "choose_effect_branch",
+        "branch_ids": [
+          "deploy_edel",
+          "reduce_heart06"
+        ],
+        "branch_selection_minimum": {
+          "deploy_edel": 1
+        },
+        "branch_selection_maximum": {
+          "deploy_edel": 1
+        },
+        "branch_choice_filters": {
+          "deploy_edel": {
+            "choice_type": "deploy_member_from_waiting_room",
+            "zone": "waiting_room",
+            "card_type": "member",
+            "unit_key": "edel_note",
+            "maximum_cost": 4,
+            "minimum": 1,
+            "maximum": 1
+          }
+        }
+      },
+      "condition": {
+        "minimum_active_energy": 2,
+        "own_stage_member_unit_count_at_least": {
+          "unit_key": "edel_note",
+          "count": 1,
+          "minimum_cost": 9
+        }
+      },
+      "cost": [
+        {
+          "action_type": "pay_energy",
+          "amount": 2
+        }
+      ],
       "duration": "live",
       "effect_id": "PL!HS-bp5-022:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "once_per_live",
       "is_optional": true,
       "label_ja": "【ライブ開始時】【E】【E】支払ってもよい：自分のステージにコスト9以上の『Edel Note』のメンバーがいる場合、以下から1つを選ぶ。 ・自分の控え室からコスト4以下の『Edel Note』のメンバーカードを1枚、メンバーのいないエリアに登場させる。 ・このカードの必要ハートを【heart06】減らす。",
       "raw_text_hash": "9d2289273e381f4bb3ccd2b114f33f37c09fe2b1f63c471751e6c696f49a5852",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 271,
       "timing": "live_start",
       "trigger": "live_started"
@@ -10499,26 +10604,47 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "gain_blade",
+          "amount": 1
+        },
+        {
+          "action_type": "gain_blade",
+          "amount": 1,
+          "value": {
+            "condition": {
+              "cost_selected_card_name_ja_any": [
+                "????"
+              ],
+              "cost_selected_card_type": "member"
+            }
+          }
         }
       ],
       "card_code": "PL!HS-bp6-004",
-      "choice": null,
       "condition": {},
-      "cost": [],
-      "cost_choice": null,
+      "cost": [
+        {
+          "action_type": "discard_from_hand"
+        }
+      ],
+      "cost_choice": {
+        "choice_type": "card_from_zone",
+        "zone": "hand",
+        "minimum": 1,
+        "maximum": 1
+      },
       "duration": "live",
       "effect_id": "PL!HS-bp6-004:3",
       "effect_index": 3,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "once_per_live",
       "is_optional": true,
       "label_ja": "【ライブ開始時】手札を1枚控え室に置いてもよい：ライブ終了時まで、【ブレード】を得る。これにより「百生吟子」のメンバーカードを控え室に置いた場合、さらに【ブレード】を得る。",
       "raw_text_hash": "82c39a8d41d436c4fb58d9c760747f0dc06e9971b458c85fb4dab2d03da2dc50",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 41,
       "timing": "live_start",
       "trigger": "live_started"
@@ -12061,26 +12187,73 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "return_from_waiting_room",
+          "branch": "return_member"
+        },
+        {
+          "action_type": "return_from_waiting_room",
+          "branch": "return_hasu_live"
         }
       ],
       "card_code": "PL!HS-cl1-011",
-      "choice": null,
-      "condition": {},
-      "cost": [],
-      "cost_choice": null,
+      "choice": {
+        "choice_type": "choose_effect_branch",
+        "branch_ids": [
+          "return_member",
+          "return_hasu_live"
+        ],
+        "branch_conditions": {
+          "return_hasu_live": {
+            "live_area_count_at_least": 2
+          }
+        },
+        "branch_selection_minimum": {
+          "return_member": 1,
+          "return_hasu_live": 1
+        },
+        "branch_selection_maximum": {
+          "return_member": 1,
+          "return_hasu_live": 1
+        },
+        "branch_choice_filters": {
+          "return_member": {
+            "choice_type": "card_from_zone",
+            "zone": "waiting_room",
+            "card_type": "member",
+            "minimum": 1,
+            "maximum": 1
+          },
+          "return_hasu_live": {
+            "choice_type": "card_from_zone",
+            "zone": "waiting_room",
+            "card_type": "live",
+            "work_key": "hasunosora",
+            "minimum": 1,
+            "maximum": 1
+          }
+        }
+      },
+      "condition": {
+        "minimum_active_energy": 1
+      },
+      "cost": [
+        {
+          "action_type": "pay_energy",
+          "amount": 1
+        }
+      ],
       "duration": "live",
       "effect_id": "PL!HS-cl1-011:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "once_per_live",
       "is_optional": true,
       "label_ja": "【ライブ成功時】【E】支払ってもよい：以下から1つを選ぶ。 ・自分の控え室からメンバーカードを1枚手札に加える。 ・自分のライブカード置き場にカードが2枚以上ある場合、自分の控え室から『蓮ノ空』のライブカードを1枚手札に加える。",
       "raw_text_hash": "3667ed809cc2e76f696921e6e5640d1a3d5b4095261b635fd6abb1f3ef44ed55",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 92,
       "timing": "live_success",
       "trigger": "live_succeeded"
@@ -12297,26 +12470,30 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "gain_heart",
+          "amount": 1,
+          "color_slot": "heart01"
+        },
+        {
+          "action_type": "gain_blade",
+          "amount": 1
         }
       ],
       "card_code": "PL!HS-pb1-003",
-      "choice": null,
       "condition": {},
       "cost": [],
-      "cost_choice": null,
       "duration": "live",
       "effect_id": "PL!HS-pb1-003:2",
       "effect_index": 2,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【自動】【ターン2回】自分の手札からカードが1枚以上控え室に置かれるたび、ライブ終了時まで、【heart01】【ブレード】を得る。",
       "raw_text_hash": "ae9f5d6ae0819c82725690ad486ce8e4fbe378eae71a016c16a60228fb0c83cb",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 119,
       "timing": "auto_triggered_event",
       "trigger": "auto_triggered_event"
@@ -14951,26 +15128,33 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "gain_heart",
+          "amount": 1,
+          "color_slot": "heart01"
+        },
+        {
+          "action_type": "gain_heart",
+          "amount": 1,
+          "color_slot": "heart04"
         }
       ],
       "card_code": "PL!N-PR-023",
-      "choice": null,
-      "condition": {},
+      "condition": {
+        "own_yell_revealed_member_shared_unit_count_at_least": 3
+      },
       "cost": [],
-      "cost_choice": null,
       "duration": "live",
       "effect_id": "PL!N-PR-023:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【自動】【ターン1回】自分がエールしたとき、エールにより公開された自分のカードの中に同じグループ名を持つメンバーカードが3枚以上ある場合、ライブ終了時まで、【heart01】【heart04】を得る。",
       "raw_text_hash": "cfa61dc60507968e94d40530b8763f3902f2f9166b44de8223aa2dbde634b778",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 757,
       "timing": "auto_triggered_event",
       "trigger": "auto_triggered_event"
@@ -15008,26 +15192,25 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "draw_card",
+          "amount": 1
         }
       ],
       "card_code": "PL!N-PR-025",
-      "choice": null,
       "condition": {},
       "cost": [],
-      "cost_choice": null,
       "duration": null,
       "effect_id": "PL!N-PR-025:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【自動】【ターン2回】自分のステージに、このメンバーか、ほかのメンバーがバトンタッチして登場したとき、カードを1枚引く。",
       "raw_text_hash": "0f2251bb3c2d14a5745a3929f99d05bf75ef3e3bbc0b9a2e977e7de05bbaae3b",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 759,
       "timing": "auto_triggered_event",
       "trigger": "auto_triggered_event"
@@ -17806,26 +17989,34 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "draw_card",
+          "amount": 1
+        },
+        {
+          "action_type": "discard_from_hand"
         }
       ],
       "card_code": "PL!N-bp4-018",
-      "choice": null,
+      "choice": {
+        "choice_type": "post_action_card_from_zone",
+        "zone": "hand",
+        "minimum": 1,
+        "maximum": 1
+      },
       "condition": {},
       "cost": [],
-      "cost_choice": null,
       "duration": null,
       "effect_id": "PL!N-bp4-018:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【自動】【ターン1回】自分のメインフェイズの間、このメンバーがアクティブ状態からウェイト状態になったとき、カードを1枚引き、手札を1枚控え室に置く。",
       "raw_text_hash": "1230dc1ae3066d1f6c8c662259c19df603dbbd2afe382e934366faafa46835a5",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 372,
       "timing": "auto_triggered_event",
       "trigger": "auto_triggered_event"
@@ -19408,26 +19599,25 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "draw_card",
+          "amount": 1
         }
       ],
       "card_code": "PL!N-bp5-030",
-      "choice": null,
       "condition": {},
       "cost": [],
-      "cost_choice": null,
       "duration": null,
       "effect_id": "PL!N-bp5-030:2",
       "effect_index": 2,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【自動】自分のステージにいるメンバーの【ライブ成功時】能力が解決するたび、カードを1枚引く。",
       "raw_text_hash": "f1fc456c2d1a8b39582d22e0f1b03ada68616ae8104c5a361def7f3506f4720b",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 260,
       "timing": "auto_triggered_event",
       "trigger": "auto_triggered_event"
@@ -19560,27 +19750,49 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "draw_card",
+          "amount": 1
+        },
+        {
+          "action_type": "gain_blade",
+          "amount": 1,
+          "target": "selected"
         }
       ],
       "card_code": "PL!N-pb1-003",
-      "choice": null,
-      "condition": {
-        "source_zone": "stage"
+      "choice": {
+        "choice_type": "member_from_stage",
+        "zone": "stage",
+        "card_type": "member",
+        "work_key": "nijigasaki",
+        "minimum": 1,
+        "maximum": 1
       },
-      "cost": [],
+      "condition": {
+        "source_zone": "hand",
+        "minimum_active_energy": 2
+      },
+      "cost": [
+        {
+          "action_type": "pay_energy",
+          "amount": 2
+        },
+        {
+          "action_type": "source_to_waiting_room"
+        }
+      ],
       "duration": "live",
       "effect_id": "PL!N-pb1-003:1",
       "effect_index": 1,
       "effect_type": "activated",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【起動】【E】【E】このカードを手札から控え室に置く：カードを1枚引き、ライブ終了時まで、自分のステージにいる『虹ヶ咲』のメンバー1人は【ブレード】を得る。この能力は、このカードが手札にある場合のみ起動できる。",
       "raw_text_hash": "4218d6ffed21f8ea7c445a19ec87a4464c6b89dcb8c031adb272a1c68a6a49e0",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 310,
       "timing": "activated_main",
       "trigger": "player_activation"
@@ -19859,25 +20071,54 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "ready_energy",
+          "amount": 1,
+          "branch": "ready_energy",
+          "target": "auto"
+        },
+        {
+          "action_type": "move_selected_to_deck_top",
+          "branch": "deck_top"
         }
       ],
       "card_code": "PL!N-pb1-010",
-      "choice": null,
+      "choice": {
+        "choice_type": "choose_effect_branch",
+        "branch_ids": [
+          "ready_energy",
+          "deck_top"
+        ],
+        "branch_selection_minimum": {
+          "deck_top": 0
+        },
+        "branch_selection_maximum": {
+          "deck_top": 2
+        },
+        "branch_choice_filters": {
+          "deck_top": {
+            "choice_type": "card_from_zone",
+            "zone": "waiting_room",
+            "card_type": "live",
+            "work_key": "nijigasaki",
+            "minimum": 0,
+            "maximum": 2
+          }
+        }
+      },
       "condition": {},
       "cost": [],
       "duration": null,
       "effect_id": "PL!N-pb1-010:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【登場】以下から1つを選ぶ。 ・エネルギーを1枚アクティブにする。 ・自分の控え室にある『虹ヶ咲』のライブカードを2枚まで好きな順番でデッキの上に置く。",
       "raw_text_hash": "2d9aa5d153e864746f9fba06773d140695ff8feaafd69e93474a07f5993fed28",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 317,
       "timing": "on_play",
       "trigger": "member_played"
@@ -22256,26 +22497,33 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "gain_heart",
+          "amount": 1,
+          "color_slot": "heart01"
+        },
+        {
+          "action_type": "gain_heart",
+          "amount": 1,
+          "color_slot": "heart04"
         }
       ],
       "card_code": "PL!S-PR-040",
-      "choice": null,
-      "condition": {},
+      "condition": {
+        "own_yell_revealed_member_shared_unit_count_at_least": 3
+      },
       "cost": [],
-      "cost_choice": null,
       "duration": "live",
       "effect_id": "PL!S-PR-040:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【自動】【ターン1回】自分がエールしたとき、エールにより公開された自分のカードの中に同じグループ名を持つメンバーカードが3枚以上ある場合、ライブ終了時まで、【heart01】【heart04】を得る。",
       "raw_text_hash": "cfa61dc60507968e94d40530b8763f3902f2f9166b44de8223aa2dbde634b778",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 741,
       "timing": "auto_triggered_event",
       "trigger": "auto_triggered_event"
@@ -22420,26 +22668,31 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "gain_heart",
+          "amount": 1,
+          "color_slot": "heart05"
         }
       ],
       "card_code": "PL!S-bp2-003",
-      "choice": null,
-      "condition": {},
+      "condition": {
+        "yell_revealed_card_type_count_at_least": {
+          "card_type": "live",
+          "count": 1
+        }
+      },
       "cost": [],
-      "cost_choice": null,
       "duration": "live",
       "effect_id": "PL!S-bp2-003:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【自動】［ターン1回］エールにより公開された自分のカードの中にライブカードが1枚以上あるとき、ライブ終了時まで、［緑ハート］を得る。",
       "raw_text_hash": "218bf007b92d4db80bd29b50c9f73d78cbb36d2f61c508c1873be261795c098c",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 546,
       "timing": "auto_triggered_event",
       "trigger": "auto_triggered_event"
@@ -22526,26 +22779,31 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "draw_card",
+          "amount": 1
         }
       ],
       "card_code": "PL!S-bp2-007",
-      "choice": null,
-      "condition": {},
+      "condition": {
+        "yell_revealed_card_type_count_at_least": {
+          "card_type": "live",
+          "count": 1
+        },
+        "own_hand_count_at_most": 7
+      },
       "cost": [],
-      "cost_choice": null,
       "duration": null,
       "effect_id": "PL!S-bp2-007:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【自動】［ターン1回］エールにより公開された自分のカードの中にライブカードが1枚以上あるとき、自分の手札が7枚以下の場合、カードを1枚引く。",
       "raw_text_hash": "6393eeea4809bb829ed219cee2ae485c0b3e37e2735fc2c2ad15d11fe0b70406",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 550,
       "timing": "auto_triggered_event",
       "trigger": "auto_triggered_event"
@@ -23216,27 +23474,48 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "return_from_waiting_room"
+        },
+        {
+          "action_type": "ready_energy",
+          "amount": 4,
+          "target": "auto",
+          "value": {
+            "condition": {
+              "selected_card_minimum_score": 6,
+              "selected_card_work_key": "love_live_sunshine"
+            }
+          }
         }
       ],
       "card_code": "PL!S-bp3-008",
-      "choice": null,
+      "choice": {
+        "choice_type": "card_from_zone",
+        "zone": "waiting_room",
+        "card_type": "live",
+        "minimum": 1,
+        "maximum": 1
+      },
       "condition": {
         "source_zone": "stage"
       },
-      "cost": [],
+      "cost": [
+        {
+          "action_type": "source_to_waiting_room"
+        }
+      ],
       "duration": null,
       "effect_id": "PL!S-bp3-008:1",
       "effect_index": 1,
       "effect_type": "activated",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【起動】このメンバーをステージから控え室に置く：自分の控え室からライブカードを1枚手札に加える。それがスコア6以上の『Aqours』のライブカードの場合、エネルギーを4枚アクティブにする。",
       "raw_text_hash": "5b2dcd0ed3f1595e2f2161c8bde456425ea474a8937d5e12d6d831daba995bb6",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 466,
       "timing": "activated_main",
       "trigger": "player_activation"
@@ -24099,25 +24378,42 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "return_from_waiting_room"
+        },
+        {
+          "action_type": "gain_blade",
+          "amount": 2
         }
       ],
       "card_code": "PL!S-bp5-009",
-      "choice": null,
-      "condition": {},
-      "cost": [],
+      "choice": {
+        "choice_type": "card_from_zone",
+        "zone": "waiting_room",
+        "unit_key": "saint_snow",
+        "minimum": 1,
+        "maximum": 1
+      },
+      "condition": {
+        "minimum_active_energy": 1
+      },
+      "cost": [
+        {
+          "action_type": "pay_energy",
+          "amount": 1
+        }
+      ],
       "duration": "live",
       "effect_id": "PL!S-bp5-009:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "none",
       "is_optional": true,
       "label_ja": "【登場】【E】支払ってもよい：自分の控え室から『Saint Snow』のカードを1枚手札に加える。そうした場合、ライブ終了時まで、【ブレード】【ブレード】を得る。",
       "raw_text_hash": "cd5a065921ed403666fbc4ed61ebfa8072a2d5bf8cc762aaafd527ce4b275e93",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 172,
       "timing": "on_play",
       "trigger": "member_played"
@@ -25167,25 +25463,43 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "inspect_top_cards",
+          "amount": 3
+        },
+        {
+          "action_type": "select_to_hand_from_inspected"
+        },
+        {
+          "action_type": "move_remaining_cards"
         }
       ],
       "card_code": "PL!S-bp6-016",
-      "choice": null,
-      "condition": {},
+      "choice": {
+        "choice_type": "inspect_top_select",
+        "amount": 3,
+        "minimum": 1,
+        "maximum": 1,
+        "selected_destination": "hand",
+        "unselected_destination": "waiting_room",
+        "requires_order": false,
+        "reveal_selected_to_opponent": false
+      },
+      "condition": {
+        "played_from_zone": "waiting_room"
+      },
       "cost": [],
       "duration": null,
       "effect_id": "PL!S-bp6-016:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【登場】控え室から登場している場合、自分のデッキの上からカードを3枚見る。その中から1枚を手札に加え、残りを控え室に置く。",
       "raw_text_hash": "6ee2bd9de4491997b9639e428406c499753fbace861effdd03bb27a27e8cfa91",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 35,
       "timing": "on_play",
       "trigger": "member_played"
@@ -25511,25 +25825,33 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "return_from_waiting_room"
         }
       ],
       "card_code": "PL!S-pb1-001",
-      "choice": null,
-      "condition": {},
+      "choice": {
+        "choice_type": "card_from_zone",
+        "zone": "waiting_room",
+        "card_type": "live",
+        "minimum": 1,
+        "maximum": 1
+      },
+      "condition": {
+        "opponent_hand_count_at_least_own_plus": 2
+      },
       "cost": [],
       "duration": null,
       "effect_id": "PL!S-pb1-001:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【登場】相手の手札の枚数が自分より2枚以上多い場合、自分の控え室からライブカードを1枚手札に加える。",
       "raw_text_hash": "0f3f88e37eacbf11dda0bea1f659ca5d8506da6cae66ae129d8df9cb547b6bd3",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 524,
       "timing": "on_play",
       "trigger": "member_played"
@@ -26293,26 +26615,29 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "gain_heart",
+          "amount_source": "revealed_live_count",
+          "color_slot": "heart02",
+          "value": {
+            "cap": 3
+          }
         }
       ],
       "card_code": "PL!S-sd1-001",
-      "choice": null,
       "condition": {},
       "cost": [],
-      "cost_choice": null,
       "duration": "live",
       "effect_id": "PL!S-sd1-001:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【自動】【ターン1回】自分がエールしたとき、ライブ終了時まで、エールにより公開された自分のカードの中のライブカード1枚につき、【heart02】を得る。この能力では【heart02】は3つまでしか得られない。",
       "raw_text_hash": "ff73501f2a68e70a5f67e49f2b34ec59e448221b29a4255d55ac8e9eed095542",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 291,
       "timing": "auto_triggered_event",
       "trigger": "auto_triggered_event"
@@ -26320,28 +26645,44 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "return_from_waiting_room"
         }
       ],
       "card_code": "PL!S-sd1-002",
-      "choice": null,
+      "choice": {
+        "choice_type": "card_from_zone",
+        "zone": "waiting_room",
+        "work_key": "love_live_sunshine",
+        "minimum": 1,
+        "maximum": 1
+      },
       "condition": {},
-      "cost": [],
+      "cost": [
+        {
+          "action_type": "discard_from_hand"
+        }
+      ],
       "duration": null,
       "effect_id": "PL!S-sd1-002:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "none",
       "is_optional": true,
       "label_ja": "【登場】手札を1枚控え室に置いてもよい：自分の控え室から『Aqours』のカードを1枚手札に加える。",
       "raw_text_hash": "45d2b1a69b9d30ce15da46098618cebda86c2adadfb65786a60c25fea78c8137",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 292,
       "timing": "on_play",
-      "trigger": "member_played"
+      "trigger": "member_played",
+      "cost_choice": {
+        "choice_type": "card_from_zone",
+        "zone": "hand",
+        "minimum": 1,
+        "maximum": 1
+      }
     },
     {
       "actions": [
@@ -28730,26 +29071,28 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "gain_heart",
+          "amount": 1,
+          "color_slot": "heart06"
         }
       ],
       "card_code": "PL!SP-bp2-015",
-      "choice": null,
-      "condition": {},
+      "condition": {
+        "yell_revealed_blade_heart_count_at_most": 0
+      },
       "cost": [],
-      "cost_choice": null,
       "duration": "live",
       "effect_id": "PL!SP-bp2-015:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【自動】【ターン1回】エールにより公開された自分のカードの中にブレードハートを持つカードがないとき、ライブ終了時まで、【heart06】を得る。",
       "raw_text_hash": "658146471ad4aced23d6721393f752930742978a7c79d57384828925ecf36302",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 568,
       "timing": "auto_triggered_event",
       "trigger": "auto_triggered_event"
@@ -28825,26 +29168,28 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "gain_heart",
+          "amount": 1,
+          "color_slot": "heart02"
         }
       ],
       "card_code": "PL!SP-bp2-020",
-      "choice": null,
-      "condition": {},
+      "condition": {
+        "yell_revealed_blade_heart_count_at_most": 0
+      },
       "cost": [],
-      "cost_choice": null,
       "duration": "live",
       "effect_id": "PL!SP-bp2-020:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【自動】【ターン1回】エールにより公開された自分のカードの中にブレードハートを持つカードがないとき、ライブ終了時まで、【heart02】を得る。",
       "raw_text_hash": "e58d4634b7f4d30f243378c7e08d3bdca71525a1adb5f3336461ebff816ffb25",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 571,
       "timing": "auto_triggered_event",
       "trigger": "auto_triggered_event"
@@ -28852,26 +29197,28 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "gain_heart",
+          "amount": 1,
+          "color_slot": "heart03"
         }
       ],
       "card_code": "PL!SP-bp2-021",
-      "choice": null,
-      "condition": {},
+      "condition": {
+        "yell_revealed_blade_heart_count_at_most": 0
+      },
       "cost": [],
-      "cost_choice": null,
       "duration": "live",
       "effect_id": "PL!SP-bp2-021:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【自動】【ターン1回】エールにより公開された自分のカードの中にブレードハートを持つカードがないとき、ライブ終了時まで、【heart03】を得る。",
       "raw_text_hash": "571d681d87845ccd20f48340887101d80f99f2cf854c7f89e4305b44d8a368cc",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 572,
       "timing": "auto_triggered_event",
       "trigger": "auto_triggered_event"
@@ -30337,11 +30684,47 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "apply_wait",
+          "branch": "wait_source",
+          "target": "source"
+        },
+        {
+          "action_type": "ready_energy",
+          "amount": 1,
+          "branch": "wait_source",
+          "target": "auto"
+        },
+        {
+          "action_type": "ready_energy",
+          "amount": 1,
+          "branch": "discard_hand",
+          "target": "auto"
+        },
+        {
+          "action_type": "discard_from_hand",
+          "branch": "discard_hand"
         }
       ],
       "card_code": "PL!SP-bp5-001",
-      "choice": null,
+      "choice": {
+        "choice_type": "choose_effect_branch",
+        "zone": "hand",
+        "branch_ids": [
+          "wait_source",
+          "discard_hand"
+        ],
+        "branch_conditions": {
+          "wait_source": {
+            "source_orientation": "active"
+          }
+        },
+        "branch_selection_minimum": {
+          "discard_hand": 1
+        },
+        "branch_selection_maximum": {
+          "discard_hand": 1
+        }
+      },
       "condition": {
         "source_zone": "stage"
       },
@@ -30350,14 +30733,14 @@
       "effect_id": "PL!SP-bp5-001:2",
       "effect_index": 2,
       "effect_type": "activated",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "once_per_turn",
       "is_optional": false,
       "label_ja": "【起動】【ターン1回】このメンバーをウェイトにするか、手札を1枚控え室に置く：エネルギーを1枚アクティブにする。",
       "raw_text_hash": "08b03a454c76c29581507cb29221aebddb890b1ac3bc6d58af3ab31fa05be39b",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 206,
       "timing": "activated_main",
       "trigger": "player_activation"
@@ -31408,28 +31791,44 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "return_from_waiting_room"
         }
       ],
       "card_code": "PL!SP-bp5-111",
-      "choice": null,
+      "choice": {
+        "choice_type": "card_from_zone",
+        "zone": "waiting_room",
+        "card_type": "live",
+        "minimum": 1,
+        "maximum": 1
+      },
       "condition": {
         "source_zone": "stage"
       },
-      "cost": [],
-      "cost_choice": null,
+      "cost": [
+        {
+          "action_type": "move_selected_energy_to_energy_deck"
+        }
+      ],
+      "cost_choice": {
+        "choice_type": "energy_from_area",
+        "zone": "energy_area",
+        "card_type": "energy",
+        "minimum": 2,
+        "maximum": 2
+      },
       "duration": null,
       "effect_id": "PL!SP-bp5-111:2",
       "effect_index": 2,
       "effect_type": "activated",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "prompt_then_resolve",
       "frequency_limit": "once_per_turn",
       "is_optional": false,
       "label_ja": "【起動】【ターン1回】エネルギー2枚をエネルギーデッキに置く：自分の控え室にあるライブカードを1枚手札に加える。",
       "raw_text_hash": "f69337d2929c4dfb13861b26d321b9ccc7ed88319d81023215cb69e28c6db712",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 247,
       "timing": "activated_main",
       "trigger": "player_activation"

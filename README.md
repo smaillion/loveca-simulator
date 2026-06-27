@@ -21,8 +21,8 @@
   - `PBSP02` は 122 printings / 96 gameplay card identities を収録
   - importer 報告上の新規 Gameplay Card は 70 件
 - 977 件の effect registry entry
-  - 775 件は `test_validated_executable`
-  - 202 件は timing prompt / 未対応処理用の `manual_resolution`
+  - 802 件は `test_validated_executable`
+  - 175 件は timing prompt / 未対応処理用の `manual_resolution`
   - `PBSP02` 関連 effect は 74 件中 63 件が `test_validated_executable`、新パック coverage は 85.14%
 - 将来の低コスト online 同期に向けた state hash / compatibility metadata の基礎
 - Hosted Online MVP の room API
@@ -59,8 +59,10 @@
 - 双方が選択する一部の効果は multi-player pending choice で順番に処理可能
 - 複数 group に分けて Stage Member を選び、それぞれに同じ一時 modifier を適用する効果に対応
 - 分岐ごとに異なる Stage Member 候補を持つ効果選択に対応
-- registry entry ベースの `test_validated_executable` coverage は 79.32% まで拡張済み
+- registry entry ベースの `test_validated_executable` coverage は 82.09% まで拡張済み
 - `PBSP02` 関連 effect は 74 件中 63 件を構造化し、新パック内 coverage 85.14% を確認済み
+- μ's / Aqours / Saint Snow / Nijigasaki / Hasunosora / Edel Note の一部控室回収、Energy ready、山札上確認、Yell 公開条件、手札コスト付き Live 開始時効果を追加で構造化
+- static Heart / Blade などの常時効果は、operation 側の条件を満たす場合だけ加算するようにしています
 - `PBSP02` 集中 block sandbox は `30 decks x 20 matches` で 19 完走、`mandatory_manual_resolution = 0`、残り 1 件は `max_actions:match_point_players_have_no_live_in_hand`
 - Phase 5 broad black-box sandbox は `30 decks x 100 matches` の block mode で `100/100` 完走、blocker 0 を確認済み
 - 問題カードを含む targeted sandbox では、最新 block smoke が `15 matches` 中 9 完走、6 件 `mandatory_manual_resolution` まで改善

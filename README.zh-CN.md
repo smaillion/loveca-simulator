@@ -21,8 +21,8 @@
   - `PBSP02` 收录 122 个印刷版本 / 96 个规则卡身份
   - importer 报告中新增 Gameplay Card 70 条
 - 977 条 effect registry entry
-  - 775 条为 `test_validated_executable`
-  - 202 条为 timing prompt / 未支持处理用 `manual_resolution`
+  - 802 条为 `test_validated_executable`
+  - 175 条为 timing prompt / 未支持处理用 `manual_resolution`
   - `PBSP02` 相关技能 74 条中 63 条为 `test_validated_executable`，新补充包覆盖率为 85.14%
 - 面向未来低成本 online 同步的 state hash / compatibility metadata 基础
 - Hosted Online MVP 房间 API
@@ -59,8 +59,10 @@
 - 部分双方都需要选择的效果已可通过 multi-player pending choice 顺序处理
 - 支持把 Stage Member 目标拆成多个选择组，并对各组选中目标应用相同的临时 modifier
 - 支持每个分支使用不同 Stage Member 候选池的技能选择
-- 按 registry entry 计算的 `test_validated_executable` 覆盖率已达到 79.32%
+- 按 registry entry 计算的 `test_validated_executable` 覆盖率已达到 82.09%
 - `PBSP02` 相关技能 74 条中 63 条已结构化，新补充包覆盖率确认达到 85.14%
+- 追加结构化支持 μ's / Aqours / Saint Snow / Nijigasaki / Hasunosora / Edel Note 的部分控室回收、Energy ready、牌堆顶检查、应援公开条件和带手牌成本的 Live 开始时效果
+- static Heart / Blade 等常时效果现在只会在 operation 侧条件满足时计入
 - `PBSP02` 集中 block sandbox 为 `30 decks x 20 matches` 中 19 局完走，`mandatory_manual_resolution = 0`，剩余 1 局为 `max_actions:match_point_players_have_no_live_in_hand`
 - Phase 5 broad black-box sandbox 已在 `30 decks x 100 matches` block mode 中达到 `100/100` 完走，blocker 为 0
 - 包含问题卡的 targeted sandbox 最新 block smoke 改善到 `15 matches` 中 9 局完走、6 件 `mandatory_manual_resolution`
