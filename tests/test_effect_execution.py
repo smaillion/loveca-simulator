@@ -7545,6 +7545,63 @@ def test_source_moved_this_turn_operation_condition_draws_extra_card():
     assert resolved.players["player_1"].hand == ["deck-live-1", "deck-member-1"]
 
 
+def test_source_moved_this_turn_top_level_condition_gates_auto_effect():
+    effect = EffectDefinition(
+        effect_id="test-source-moved-top-level-score:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="h" * 64,
+        effect_index=1,
+        label_ja="test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={"source_moved_this_turn": True},
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "draw_card", "amount": 1}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="unit test",
+    )
+    state = _minimal_effect_state(effect)
+    state.cards["source-member"] = CardInstance(
+        instance_id="source-member",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="TEST-MEMBER",
+            card_id="TEST-MEMBER",
+            name_ja="source",
+            card_type="member",
+        ),
+    )
+    state.players["player_1"].member_area["center"] = "source-member"
+    state.pending_effects[0].source_card_instance_id = "source-member"
+
+    with pytest.raises(IllegalActionError, match="source_not_moved_this_turn"):
+        _apply_direct(
+            state,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+    moved = state.model_copy(deep=True)
+    moved.players["player_1"].member_areas_moved_this_turn = ["center"]
+    resolved = _apply_direct(
+        moved,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    assert resolved.players["player_1"].hand == ["deck-live-1"]
+
+
 def test_live_success_or_condition_modifies_score():
     effect = EffectDefinition(
         effect_id="test-live-success-or-score:1",
@@ -12875,6 +12932,81 @@ def test_static_position_heart_and_live_area_conditions_gate_modifiers():
     assert _static_heart_bonus(no_liella_live, "player_1", "source-member")[
         "heart03"
     ] == 1
+
+
+def test_static_heart_bonus_honors_operation_conditions():
+    effect = EffectDefinition(
+        effect_id="test-static-energy-6-8-heart:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="h" * 64,
+        effect_index=1,
+        label_ja="energy threshold hearts",
+        effect_type="static",
+        timing="static_always",
+        trigger="static_always",
+        execution_mode="auto_resolve",
+        frequency_limit="none",
+        is_optional=False,
+        condition={"own_energy_count_at_least": 6},
+        cost=[],
+        choice=None,
+        actions=[
+            {"action_type": "gain_heart", "amount": 1, "color_slot": "heart03"},
+            {
+                "action_type": "gain_heart",
+                "amount": 1,
+                "color_slot": "heart03",
+                "value": {"condition": {"own_energy_count_at_least": 8}},
+            },
+        ],
+        duration="game",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test fixture",
+    )
+    source_member = CardDefinition(
+        card_code="TEST-SOURCE",
+        card_id="TEST-SOURCE",
+        name_ja="Source",
+        card_type="member",
+        effect_ids=[effect.effect_id],
+    )
+    state = _minimal_effect_state(effect)
+    state.cards["source-member"] = CardInstance(
+        instance_id="source-member",
+        owner_id="player_1",
+        card=source_member,
+    )
+    state.players["player_1"].member_area["center"] = "source-member"
+
+    from loveca.simulation.engine import _member_heart_count
+
+    for energy_count, expected in [(6, 1), (7, 1), (8, 2)]:
+        current = state.model_copy(deep=True)
+        current.players["player_1"].energy_area = []
+        for index in range(energy_count):
+            instance_id = f"energy-{index}"
+            current.cards[instance_id] = CardInstance(
+                instance_id=instance_id,
+                owner_id="player_1",
+                card=CardDefinition(
+                    card_code=f"ENERGY-{index}",
+                    card_id=f"ENERGY-{index}",
+                    name_ja="Energy",
+                    card_type="energy",
+                ),
+            )
+            current.players["player_1"].energy_area.append(instance_id)
+
+        assert (
+            _static_heart_bonus(current, "player_1", "source-member")["heart03"]
+            == expected
+        )
+        assert (
+            _member_heart_count(current, "player_1", "source-member", "heart03")
+            == expected
+        )
 
 
 def test_static_opposing_movement_and_attachment_conditions_gate_modifiers():

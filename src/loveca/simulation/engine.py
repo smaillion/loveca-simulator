@@ -3379,6 +3379,12 @@ def _effect_unavailable_reason(
             return "source_slot_mismatch"
         if source_slot in player.member_areas_moved_this_turn:
             return "source_moved_this_turn"
+    if effect.condition.get("source_moved_this_turn"):
+        source_slot = _top_member_slot(player, invocation.source_card_instance_id)
+        if source_slot is None:
+            return "source_slot_mismatch"
+        if source_slot not in player.member_areas_moved_this_turn:
+            return "source_not_moved_this_turn"
     moved_slot_member = effect.condition.get("own_stage_slot_member_moved_this_turn")
     if isinstance(moved_slot_member, dict):
         slot = moved_slot_member.get("slot")
@@ -9886,6 +9892,14 @@ def _static_heart_bonus(
         for operation in effect.actions:
             if operation.action_type != "gain_heart":
                 continue
+            if not _static_operation_condition_met(
+                state,
+                player_id,
+                source_instance_id,
+                effect,
+                operation,
+            ):
+                continue
             color_slot = operation.color_slot
             if color_slot:
                 hearts[color_slot] += _operation_amount(
@@ -9907,6 +9921,14 @@ def _static_numeric_bonus(
     for effect in _active_static_effects(state, player_id, source_instance_id):
         for operation in effect.actions:
             if operation.action_type == action_type:
+                if not _static_operation_condition_met(
+                    state,
+                    player_id,
+                    source_instance_id,
+                    effect,
+                    operation,
+                ):
+                    continue
                 total += _operation_amount(
                     operation,
                     player=state.players[player_id],
@@ -9952,6 +9974,34 @@ def _active_static_effects(
         if _effect_condition_met(state, invocation):
             effects.append(effect)
     return effects
+
+
+def _static_operation_condition_met(
+    state: MatchState,
+    player_id: str,
+    source_instance_id: str,
+    effect: Any,
+    operation: Any,
+) -> bool:
+    value = getattr(operation, "value", None)
+    if not isinstance(value, dict):
+        return True
+    condition = value.get("condition")
+    if not isinstance(condition, dict):
+        return True
+    invocation = EffectInvocation(
+        invocation_id=f"static:{source_instance_id}:{effect.effect_id}:operation",
+        effect_id=effect.effect_id,
+        source_card_instance_id=source_instance_id,
+        player_id=player_id,
+        trigger_event="static_always",
+    )
+    return _effect_operation_condition_met(
+        state,
+        invocation,
+        condition,
+        operation_context={"source_card_instance_id": source_instance_id},
+    )
 
 
 def _modifier_total(player: Any, modifier_type: str) -> int:
@@ -10137,7 +10187,17 @@ def _member_heart_count(
     )
     for effect in _active_static_effects(state, player_id, instance_id):
         for operation in effect.actions:
-            if operation.action_type == "gain_heart" and operation.color_slot == color_slot:
+            if (
+                operation.action_type == "gain_heart"
+                and operation.color_slot == color_slot
+                and _static_operation_condition_met(
+                    state,
+                    player_id,
+                    instance_id,
+                    effect,
+                    operation,
+                )
+            ):
                 total += _operation_amount(operation, player=player)
     return total
 
@@ -10167,6 +10227,13 @@ def _member_heart_color_slots(
             if (
                 operation.action_type == "gain_heart"
                 and operation.color_slot
+                and _static_operation_condition_met(
+                    state,
+                    player_id,
+                    instance_id,
+                    effect,
+                    operation,
+                )
                 and _operation_amount(
                     operation,
                     player=state.players[player_id],
@@ -10267,7 +10334,17 @@ def _stage_total_heart_count(
         )
         for effect in _active_static_effects(state, player_id, instance_id):
             for operation in effect.actions:
-                if operation.action_type == "gain_heart" and operation.color_slot:
+                if (
+                    operation.action_type == "gain_heart"
+                    and operation.color_slot
+                    and _static_operation_condition_met(
+                        state,
+                        player_id,
+                        instance_id,
+                        effect,
+                        operation,
+                    )
+                ):
                     colors.add(operation.color_slot)
         total += sum(
             _member_heart_count(state, player_id, instance_id, color)
