@@ -79,7 +79,9 @@ def discover_effect_candidates(
                     candidate.raw_text_hash,
                     candidate.effect_index,
                 )
-                already_registered = identity in registered
+                already_registered = (
+                    identity in registered or candidate.effect_id in registered_ids
+                )
                 if (
                     (include_registered or not already_registered)
                     and candidate.effect_id not in emitted_ids
@@ -10648,6 +10650,961 @@ def _live_success_aqours_heart05_opponent_no_excess_score2(
     )
 
 
+def _pbsp02_structured_exact_effects(row: sqlite3.Row) -> EffectCandidate | None:
+    optional_discard_return_unit: dict[str, tuple[str, str]] = {
+        "【登場】手札を1枚控え室に置いてもよい：自分の控え室から『CatChu!』のカードを1枚手札に加える。": (
+            "catchu",
+            "catchu_card",
+        ),
+        "【登場】手札を1枚控え室に置いてもよい：自分の控え室から『5yncri5e!』のカードを1枚手札に加える。": (
+            "5yncri5e",
+            "5yncri5e_card",
+        ),
+        "【登場】手札を1枚控え室に置いてもよい：自分の控え室から『KALEIDOSCORE』のカードを1枚手札に加える。": (
+            "kaleidoscore",
+            "kaleidoscore_card",
+        ),
+    }
+    for label, (unit_key, suffix) in optional_discard_return_unit.items():
+        matched = _matching_segment(row, label)
+        if matched is None:
+            continue
+        effect_index, exact_label = matched
+        return EffectCandidate(
+            **_base(
+                row,
+                pattern_id=f"pbsp02_onplay_discard1_return_{suffix}",
+                effect_index=effect_index,
+            ),
+            label_ja=exact_label,
+            effect_type="triggered",
+            timing="on_play",
+            trigger="member_played",
+            frequency_limit="none",
+            is_optional=True,
+            condition={},
+            cost=[{"action_type": "discard_from_hand"}],
+            cost_choice={
+                "choice_type": "card_from_zone",
+                "zone": "hand",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            choice={
+                "choice_type": "card_from_zone",
+                "zone": "waiting_room",
+                "unit_key": unit_key,
+                "minimum": 1,
+                "maximum": 1,
+            },
+            actions=[{"action_type": "return_from_waiting_room"}],
+            duration=None,
+        )
+
+    optional_discard_unit_place_energy: dict[str, tuple[str, str]] = {
+        "【登場】手札の『KALEIDOSCORE』のカードを1枚控え室に置いてもよい：自分のエネルギーデッキから、エネルギーカードを1枚ウェイト状態で置く。これにより控え室に置いたカードがブレードハートを持たない場合、カードを1枚引く。": (
+            "kaleidoscore",
+            "kaleidoscore",
+        ),
+    }
+    for label, (unit_key, suffix) in optional_discard_unit_place_energy.items():
+        matched = _matching_segment(row, label)
+        if matched is None:
+            continue
+        effect_index, exact_label = matched
+        return EffectCandidate(
+            **_base(
+                row,
+                pattern_id=f"pbsp02_onplay_discard1_{suffix}_place_wait_energy_draw_if_no_bh",
+                effect_index=effect_index,
+            ),
+            label_ja=exact_label,
+            effect_type="triggered",
+            timing="on_play",
+            trigger="member_played",
+            frequency_limit="none",
+            is_optional=True,
+            condition={"minimum_energy_deck_cards": 1},
+            cost=[{"action_type": "discard_from_hand"}],
+            cost_choice={
+                "choice_type": "card_from_zone",
+                "zone": "hand",
+                "unit_key": unit_key,
+                "minimum": 1,
+                "maximum": 1,
+            },
+            choice=None,
+            actions=[
+                {
+                    "action_type": "place_energy_from_deck",
+                    "target": "self",
+                    "amount": 1,
+                    "orientation": "wait",
+                },
+                {"action_type": "draw_if_selected_without_blade_heart", "amount": 1},
+            ],
+            duration=None,
+        )
+
+    simple_patterns: dict[str, dict[str, Any]] = {
+        "【ライブ成功時】このターン、自分の『Liella!』のカードの効果によってこのメンバーがエリアを移動していた場合、ライブの合計スコアを＋１する。": {
+            "suffix": "live_success_source_moved_score1",
+            "effect_type": "triggered",
+            "timing": "live_success",
+            "trigger": "live_succeeded",
+            "execution_mode": "auto_resolve",
+            "frequency_limit": "once_per_live",
+            "condition": {"source_moved_this_turn": True},
+            "actions": [{"action_type": "modify_score", "amount": 1}],
+            "duration": "live",
+        },
+        "【ライブ成功時】自分のライブカード置き場の中に元々のスコアより高いスコアのライブカードがあるか、エールにより公開された自分のカードの中に【スコア】を持つライブカードがある場合、カードを1枚引く。": {
+            "suffix": "live_success_live_bonus_or_yell_score_live_draw1",
+            "effect_type": "triggered",
+            "timing": "live_success",
+            "trigger": "live_succeeded",
+            "execution_mode": "auto_resolve",
+            "frequency_limit": "once_per_live",
+            "condition": {
+                "live_success_live_area_score_above_original_or_yell_score_live": True
+            },
+            "actions": [{"action_type": "draw_card", "amount": 1}],
+        },
+        "【ライブ成功時】【E】【E】【E】支払ってもよい：自分の控え室から『Liella!』のライブカードを1枚手札に加える。": {
+            "suffix": "live_success_pay3_return_liella_live",
+            "effect_type": "triggered",
+            "timing": "live_success",
+            "trigger": "live_succeeded",
+            "frequency_limit": "once_per_live",
+            "is_optional": True,
+            "condition": {"minimum_active_energy": 3},
+            "cost": [{"action_type": "pay_energy", "amount": 3}],
+            "choice": {
+                "choice_type": "card_from_zone",
+                "zone": "waiting_room",
+                "card_type": "live",
+                "work_key": "love_live_superstar",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [{"action_type": "return_from_waiting_room"}],
+        },
+        "【ライブ成功時】エールにより公開された自分のカードの中にあるブレードハートを持たない『Liella!』のメンバーカード2枚につき、ライブの合計スコアを＋１する。この能力では合計スコアは２までしか増えない。": {
+            "suffix": "live_success_yell_liella_no_bh_member_pair_score_cap2",
+            "effect_type": "triggered",
+            "timing": "live_success",
+            "trigger": "live_succeeded",
+            "execution_mode": "auto_resolve",
+            "frequency_limit": "once_per_live",
+            "condition": {
+                "own_yell_revealed_member_without_blade_heart_count_at_least": {
+                    "work_key": "love_live_superstar",
+                    "count": 2,
+                }
+            },
+            "actions": [
+                {
+                    "action_type": "modify_score",
+                    "amount_source": "own_yell_revealed_member_without_blade_heart_count",
+                    "value": {
+                        "work_key": "love_live_superstar",
+                        "divisor": 2,
+                        "cap": 2,
+                    },
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】このメンバーをポジションチェンジしてもよい。": {
+            "suffix": "live_start_optional_source_position_change",
+            "effect_type": "triggered",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "frequency_limit": "once_per_live",
+            "is_optional": True,
+            "choice": {
+                "choice_type": "position_change_source",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [{"action_type": "position_change_source"}],
+        },
+        "【自動】【ターン1回】自分のメインフェイズの間、このメンバーがエリアを移動したとき、エネルギーを2枚アクティブにする。": {
+            "suffix": "auto_main_source_moved_ready_energy2",
+            "effect_type": "triggered",
+            "timing": "auto_triggered_event",
+            "trigger": "member_moved",
+            "execution_mode": "auto_resolve",
+            "frequency_limit": "once_per_turn",
+            "condition": {
+                "source_zone": "stage",
+                "phase_in": ["first_main", "second_main"],
+                "trigger_member_is_source": True,
+            },
+            "actions": [{"action_type": "ready_energy", "target": "auto", "amount": 2}],
+        },
+        "【ライブ開始時】自分のステージにいるこのメンバーと名前の異なる『CatChu!』のメンバー1人につき、エネルギーを1枚アクティブにする。": {
+            "suffix": "live_start_other_catchu_ready_energy",
+            "effect_type": "triggered",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "execution_mode": "auto_resolve",
+            "frequency_limit": "once_per_live",
+            "condition": {
+                "own_stage_other_member_unit_count_at_least": {
+                    "unit_key": "catchu",
+                    "count": 1,
+                }
+            },
+            "actions": [
+                {
+                    "action_type": "ready_energy",
+                    "target": "auto",
+                    "amount_source": "own_stage_member_unit_count",
+                    "value": {"unit_key": "catchu", "exclude_source": True},
+                }
+            ],
+        },
+        "【ライブ開始時】相手のステージにいるコスト2以下のメンバー1人をウェイトにする。": {
+            "suffix": "live_start_wait_opponent_cost2_member",
+            "effect_type": "triggered",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "frequency_limit": "once_per_live",
+            "choice": {
+                "choice_type": "member_from_stage",
+                "zone": "stage",
+                "target_player": "opponent",
+                "card_type": "member",
+                "maximum_cost": 2,
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [{"action_type": "apply_wait_member", "target": "selected"}],
+        },
+        "【ライブ開始時】手札を1枚控え室に置いてもよい：自分のステージにいるメンバーが『Liella!』のみの場合、相手のステージにいるコスト2以下のメンバー1人をウェイトにする。": {
+            "suffix": "live_start_discard1_only_liella_wait_opponent_cost2",
+            "effect_type": "triggered",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "frequency_limit": "once_per_live",
+            "is_optional": True,
+            "condition": {"own_stage_members_only_work_key": "love_live_superstar"},
+            "cost": [{"action_type": "discard_from_hand"}],
+            "cost_choice": {
+                "choice_type": "card_from_zone",
+                "zone": "hand",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "choice": {
+                "choice_type": "member_from_stage",
+                "zone": "stage",
+                "target_player": "opponent",
+                "card_type": "member",
+                "maximum_cost": 2,
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [{"action_type": "apply_wait_member", "target": "selected"}],
+        },
+        "【ライブ成功時】エールにより公開された自分のカードの中に『KALEIDOSCORE』のカードが5枚以上ある場合、自分のエネルギーデッキから、エネルギーカードを1枚ウェイト状態で置く。": {
+            "suffix": "live_success_yell_kaleidoscore5_place_wait_energy",
+            "effect_type": "triggered",
+            "timing": "live_success",
+            "trigger": "live_succeeded",
+            "execution_mode": "auto_resolve",
+            "frequency_limit": "once_per_live",
+            "condition": {
+                "own_yell_revealed_work_count_at_least": {
+                    "unit_key": "kaleidoscore",
+                    "count": 5,
+                },
+                "minimum_energy_deck_cards": 1,
+            },
+            "actions": [
+                {
+                    "action_type": "place_energy_from_deck",
+                    "target": "self",
+                    "amount": 1,
+                    "orientation": "wait",
+                }
+            ],
+        },
+        "【ライブ開始時】自分のステージにいるハートを4つ以上持つ『Liella!』のメンバー1人につき、このカードのスコアを＋１する。": {
+            "suffix": "live_start_liella_heart4_member_count_score",
+            "effect_type": "triggered",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "execution_mode": "auto_resolve",
+            "frequency_limit": "once_per_live",
+            "actions": [
+                {
+                    "action_type": "modify_score",
+                    "amount_source": "own_stage_member_filter_count",
+                    "value": {
+                        "work_key": "love_live_superstar",
+                        "minimum_heart_count": 4,
+                    },
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ成功時】自分のステージに【ライブ開始時】能力を持つメンバーがいる場合、このカードのスコアを＋１する。": {
+            "suffix": "live_success_stage_live_start_member_score1",
+            "effect_type": "triggered",
+            "timing": "live_success",
+            "trigger": "live_succeeded",
+            "execution_mode": "auto_resolve",
+            "frequency_limit": "once_per_live",
+            "condition": {"own_stage_member_effect_timing_exists": "live_start"},
+            "actions": [{"action_type": "modify_score", "amount": 1}],
+            "duration": "live",
+        },
+        "【常時】【左サイド】【ブレード】【ブレード】を得る。": {
+            "suffix": "static_left_blade2",
+            "effect_type": "static",
+            "timing": "static_always",
+            "trigger": "static_always",
+            "execution_mode": "auto_resolve",
+            "frequency_limit": "none",
+            "condition": {"source_slot": "left"},
+            "actions": [{"action_type": "gain_blade", "amount": 2}],
+            "duration": "game",
+        },
+        "【常時】【右サイド】【ブレード】【ブレード】を得る。": {
+            "suffix": "static_right_blade2",
+            "effect_type": "static",
+            "timing": "static_always",
+            "trigger": "static_always",
+            "execution_mode": "auto_resolve",
+            "frequency_limit": "none",
+            "condition": {"source_slot": "right"},
+            "actions": [{"action_type": "gain_blade", "amount": 2}],
+            "duration": "game",
+        },
+    }
+    for label, values in simple_patterns.items():
+        matched = _matching_segment(row, label)
+        if matched is None:
+            continue
+        effect_index, exact_label = matched
+        execution_mode = values.get("execution_mode", "prompt_then_resolve")
+        return EffectCandidate(
+            **_base_with_execution_mode(
+                row,
+                pattern_id=f"pbsp02_{values['suffix']}",
+                effect_index=effect_index,
+                execution_mode=execution_mode,
+            ),
+            label_ja=exact_label,
+            effect_type=values["effect_type"],
+            timing=values["timing"],
+            trigger=values["trigger"],
+            frequency_limit=values["frequency_limit"],
+            is_optional=bool(values.get("is_optional", False)),
+            condition=values.get("condition", {}),
+            cost=values.get("cost", []),
+            cost_choice=values.get("cost_choice"),
+            choice=values.get("choice"),
+            actions=values["actions"],
+            duration=values.get("duration"),
+        )
+
+    side_draw_patterns: dict[str, tuple[str, str]] = {
+        "【登場】【右サイド】カードを2枚引き、手札を2枚控え室に置く。": (
+            "right",
+            "right_draw2_discard2",
+        ),
+        "【登場】【左サイド】カードを2枚引き、手札を2枚控え室に置く。": (
+            "left",
+            "left_draw2_discard2",
+        ),
+    }
+    for label, (slot, suffix) in side_draw_patterns.items():
+        matched = _matching_segment(row, label)
+        if matched is None:
+            continue
+        effect_index, exact_label = matched
+        return EffectCandidate(
+            **_base(
+                row,
+                pattern_id=f"pbsp02_onplay_{suffix}",
+                effect_index=effect_index,
+            ),
+            label_ja=exact_label,
+            effect_type="triggered",
+            timing="on_play",
+            trigger="member_played",
+            frequency_limit="none",
+            is_optional=False,
+            condition={"source_slot": slot},
+            cost=[],
+            choice={
+                "choice_type": "post_action_card_from_zone",
+                "zone": "hand",
+                "minimum": 2,
+                "maximum": 2,
+            },
+            actions=[
+                {"action_type": "draw_card", "amount": 2},
+                {"action_type": "discard_from_hand"},
+            ],
+            duration=None,
+        )
+
+    branch_patterns: dict[str, dict[str, Any]] = {
+        "【ライブ開始時】手札を1枚控え室に置かないかぎり、自分のエネルギー1枚をエネルギーデッキに置く。": {
+            "suffix": "live_start_discard1_or_return_energy",
+            "effect_type": "triggered",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "frequency_limit": "once_per_live",
+            "branches": ["discard_hand", "return_energy"],
+            "branch_selection_minimum": {"discard_hand": 1, "return_energy": 1},
+            "branch_selection_maximum": {"discard_hand": 1, "return_energy": 1},
+            "branch_choice_filters": {
+                "discard_hand": {
+                    "choice_type": "card_from_zone",
+                    "zone": "hand",
+                },
+                "return_energy": {
+                    "choice_type": "energy_from_area",
+                    "zone": "energy_area",
+                    "card_type": "energy",
+                },
+            },
+            "actions": [
+                {"action_type": "discard_from_hand", "branch": "discard_hand"},
+                {
+                    "action_type": "move_selected_energy_to_energy_deck",
+                    "branch": "return_energy",
+                },
+            ],
+        },
+        "【自動】【ターン1回】自分のステージのセンターエリアにいるメンバーがエリアを移動したとき、以下から1つを選ぶ。 ・ライブ終了時まで、【ブレード】【ブレード】を得る。 ・相手のステージにいる元々持つ【ブレード】の数が2つ以下のメンバー1人をウェイトにする。 ・カードを1枚引く。": {
+            "suffix": "auto_center_moved_choose_blade2_wait_opponent_blade2_or_draw1",
+            "effect_type": "triggered",
+            "timing": "auto_triggered_event",
+            "trigger": "member_moved",
+            "frequency_limit": "once_per_turn",
+            "condition": {
+                "source_zone": "stage",
+                "trigger_member_is_source": True,
+                "trigger_from_slot": "center",
+            },
+            "branches": ["gain_blade2", "wait_opponent_blade2", "draw1"],
+            "branch_selection_minimum": {"wait_opponent_blade2": 1},
+            "branch_selection_maximum": {"wait_opponent_blade2": 1},
+            "branch_choice_filters": {
+                "wait_opponent_blade2": {
+                    "choice_type": "member_from_stage",
+                    "zone": "stage",
+                    "target_player": "opponent",
+                    "card_type": "member",
+                    "maximum_blade": 2,
+                }
+            },
+            "actions": [
+                {
+                    "action_type": "gain_blade",
+                    "amount": 2,
+                    "branch": "gain_blade2",
+                },
+                {
+                    "action_type": "apply_wait_member",
+                    "target": "selected",
+                    "branch": "wait_opponent_blade2",
+                },
+                {"action_type": "draw_card", "amount": 1, "branch": "draw1"},
+            ],
+            "duration": "live",
+        },
+        "【ライブ成功時】以下から1つを選ぶ。 ・カードを2枚引く。 ・自分のエネルギーデッキから、エネルギーカードを1枚ウェイト状態で置く。": {
+            "suffix": "live_success_choose_draw2_or_place_wait_energy",
+            "effect_type": "triggered",
+            "timing": "live_success",
+            "trigger": "live_succeeded",
+            "frequency_limit": "once_per_live",
+            "branches": ["draw2", "place_wait_energy"],
+            "actions": [
+                {"action_type": "draw_card", "amount": 2, "branch": "draw2"},
+                {
+                    "action_type": "place_energy_from_deck",
+                    "target": "self",
+                    "amount": 1,
+                    "orientation": "wait",
+                    "branch": "place_wait_energy",
+                },
+            ],
+        },
+    }
+    for label, values in branch_patterns.items():
+        matched = _matching_segment(row, label)
+        if matched is None:
+            continue
+        effect_index, exact_label = matched
+        return EffectCandidate(
+            **_base(
+                row,
+                pattern_id=f"pbsp02_{values['suffix']}",
+                effect_index=effect_index,
+            ),
+            label_ja=exact_label,
+            effect_type=values["effect_type"],
+            timing=values["timing"],
+            trigger=values["trigger"],
+            frequency_limit=values["frequency_limit"],
+            is_optional=False,
+            condition={},
+            cost=[],
+            choice={
+                "choice_type": "choose_effect_branch",
+                "branch_ids": values["branches"],
+                **(
+                    {
+                        "branch_selection_minimum": values[
+                            "branch_selection_minimum"
+                        ],
+                        "branch_selection_maximum": values[
+                            "branch_selection_maximum"
+                        ],
+                    }
+                    if "branch_selection_minimum" in values
+                    else {}
+                ),
+                **(
+                    {"branch_choice_filters": values["branch_choice_filters"]}
+                    if "branch_choice_filters" in values
+                    else {}
+                ),
+            },
+            actions=values["actions"],
+            duration=None,
+        )
+
+    energy_heart_patterns: dict[str, tuple[str, str]] = {
+        "【常時】自分のエネルギーが6枚以上あるかぎり、【heart02】を得る。8枚以上あるかぎり、さらに【heart02】を得る。": (
+            "heart02",
+            "energy6_8_heart02",
+        ),
+        "【常時】自分のエネルギーが6枚以上あるかぎり、【heart03】を得る。8枚以上あるかぎり、さらに【heart03】を得る。": (
+            "heart03",
+            "energy6_8_heart03",
+        ),
+        "【常時】自分のエネルギーが6枚以上あるかぎり、【heart06】を得る。8枚以上あるかぎり、さらに【heart06】を得る。": (
+            "heart06",
+            "energy6_8_heart06",
+        ),
+    }
+    for label, (color_slot, suffix) in energy_heart_patterns.items():
+        matched = _matching_segment(row, label)
+        if matched is None:
+            continue
+        effect_index, exact_label = matched
+        return EffectCandidate(
+            **_base_with_execution_mode(
+                row,
+                pattern_id=f"pbsp02_static_{suffix}",
+                effect_index=effect_index,
+                execution_mode="auto_resolve",
+            ),
+            label_ja=exact_label,
+            effect_type="static",
+            timing="static_always",
+            trigger="static_always",
+            frequency_limit="none",
+            is_optional=False,
+            condition={"own_energy_count_at_least": 6},
+            cost=[],
+            choice=None,
+            actions=[
+                {"action_type": "gain_heart", "amount": 1, "color_slot": color_slot},
+                {
+                    "action_type": "gain_heart",
+                    "amount": 1,
+                    "color_slot": color_slot,
+                    "value": {"condition": {"own_energy_count_at_least": 8}},
+                },
+            ],
+            duration="game",
+        )
+
+    active_energy_heart = "【常時】自分のアクティブ状態のエネルギーがあるかぎり、【heart02】【heart02】を得る。"
+    matched = _matching_segment(row, active_energy_heart)
+    if matched is not None:
+        effect_index, exact_label = matched
+        return EffectCandidate(
+            **_base_with_execution_mode(
+                row,
+                pattern_id="pbsp02_static_active_energy_heart02_2",
+                effect_index=effect_index,
+                execution_mode="auto_resolve",
+            ),
+            label_ja=exact_label,
+            effect_type="static",
+            timing="static_always",
+            trigger="static_always",
+            frequency_limit="none",
+            is_optional=False,
+            condition={"minimum_active_energy": 1},
+            cost=[],
+            choice=None,
+            actions=[
+                {"action_type": "gain_heart", "amount": 2, "color_slot": "heart02"}
+            ],
+            duration="game",
+        )
+
+    return None
+
+
+def _pbsp02_auto_center_moved_choice(row: sqlite3.Row) -> EffectCandidate | None:
+    label = (
+        "【自動】【ターン1回】自分のステージのセンターエリアにいるメンバーがエリアを移動したとき、以下から1つを選ぶ。 "
+        "・ライブ終了時まで、【ブレード】【ブレード】を得る。 "
+        "・相手のステージにいる元々持つ【ブレード】の数が2つ以下のメンバー1人をウェイトにする。 "
+        "・カードを1枚引く。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base(
+            row,
+            pattern_id="pbsp02_auto_center_moved_choose_blade2_wait_opponent_blade2_or_draw1",
+            effect_index=effect_index,
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="auto_triggered_event",
+        trigger="member_moved",
+        frequency_limit="once_per_turn",
+        is_optional=False,
+        condition={
+            "source_zone": "stage",
+            "trigger_member_is_source": True,
+            "trigger_from_slot": "center",
+        },
+        cost=[],
+        choice={
+            "choice_type": "choose_effect_branch",
+            "branch_ids": ["gain_blade2", "wait_opponent_blade2", "draw1"],
+            "branch_selection_minimum": {"wait_opponent_blade2": 1},
+            "branch_selection_maximum": {"wait_opponent_blade2": 1},
+            "branch_choice_filters": {
+                "wait_opponent_blade2": {
+                    "choice_type": "member_from_stage",
+                    "zone": "stage",
+                    "target_player": "opponent",
+                    "card_type": "member",
+                    "maximum_blade": 2,
+                }
+            },
+        },
+        actions=[
+            {"action_type": "gain_blade", "amount": 2, "branch": "gain_blade2"},
+            {
+                "action_type": "apply_wait_member",
+                "target": "selected",
+                "branch": "wait_opponent_blade2",
+            },
+            {"action_type": "draw_card", "amount": 1, "branch": "draw1"},
+        ],
+        duration="live",
+    )
+
+
+def _pbsp02_live_success_choose_draw_or_energy(row: sqlite3.Row) -> EffectCandidate | None:
+    label = (
+        "【ライブ成功時】以下から1つを選ぶ。 "
+        "・カードを2枚引く。 "
+        "・自分のエネルギーデッキから、エネルギーカードを1枚ウェイト状態で置く。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base(
+            row,
+            pattern_id="pbsp02_live_success_choose_draw2_or_place_wait_energy",
+            effect_index=effect_index,
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice={
+            "choice_type": "choose_effect_branch",
+            "branch_ids": ["draw2", "place_wait_energy"],
+        },
+        actions=[
+            {"action_type": "draw_card", "amount": 2, "branch": "draw2"},
+            {
+                "action_type": "place_energy_from_deck",
+                "target": "self",
+                "amount": 1,
+                "orientation": "wait",
+                "branch": "place_wait_energy",
+            },
+        ],
+        duration=None,
+    )
+
+
+def _pbsp02_auto_attach_waiting_room_liella_member(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    label = (
+        "【自動】【ターン1回】自分のライブが成功するか、このメンバーがエリアを移動したとき、"
+        "自分の控え室にある『Liella!』のメンバーカードを1枚、このメンバーの下に置く。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base(
+            row,
+            pattern_id="pbsp02_auto_live_success_or_moved_attach_waiting_liella_member",
+            effect_index=effect_index,
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="auto_triggered_event",
+        trigger="live_succeeded|member_moved",
+        frequency_limit="once_per_turn",
+        is_optional=False,
+        condition={"source_zone": "stage"},
+        cost=[],
+        choice={
+            "choice_type": "card_from_zone",
+            "zone": "waiting_room",
+            "card_type": "member",
+            "work_key": "love_live_superstar",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[
+            {
+                "action_type": "attach_selected_under_source",
+                "value": {"source_zone": "waiting_room"},
+            }
+        ],
+        duration=None,
+    )
+
+
+def _pbsp02_onplay_baton_attach_replaced_liella_member(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    label = (
+        "【登場】バトンタッチして登場した場合、このバトンタッチで控え室に置かれた"
+        "『Liella!』のメンバーカードを1枚、このメンバーの下に置く。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base_with_execution_mode(
+            row,
+            pattern_id="pbsp02_onplay_baton_attach_replaced_liella_member",
+            effect_index=effect_index,
+            execution_mode="auto_resolve",
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="on_play",
+        trigger="member_played",
+        frequency_limit="none",
+        is_optional=False,
+        condition={
+            "requires_baton_touch": True,
+            "replacement_member_work_key": "love_live_superstar",
+        },
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "attach_baton_replaced_member_under_source"}],
+        duration=None,
+    )
+
+
+def _pbsp02_onplay_baton_draw_and_blade_from_replaced_liella(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    label = (
+        "【登場】バトンタッチして登場した場合、このバトンタッチによって控え室に置かれた"
+        "『Liella!』のメンバーカード1枚につき、カードを1枚引く。"
+        "ブレードハートを持たない『Liella!』のメンバーカード1枚につき、"
+        "ライブ終了時まで、【ブレード】【ブレード】を得る。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base_with_execution_mode(
+            row,
+            pattern_id="pbsp02_onplay_baton_draw_and_blade_from_replaced_liella",
+            effect_index=effect_index,
+            execution_mode="auto_resolve",
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="on_play",
+        trigger="member_played",
+        frequency_limit="none",
+        is_optional=False,
+        condition={"requires_baton_touch": True},
+        cost=[],
+        choice=None,
+        actions=[
+            {
+                "action_type": "draw_card",
+                "amount_source": "baton_replaced_member_work_count",
+                "value": {"work_key": "love_live_superstar"},
+            },
+            {
+                "action_type": "gain_blade",
+                "amount_source": "baton_replaced_member_without_blade_heart_count",
+                "multiplier": 2,
+                "value": {"work_key": "love_live_superstar"},
+            },
+        ],
+        duration="live",
+    )
+
+
+def _pbsp02_auto_5yncri5e_moved_to_center_gain_blade4(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    label = (
+        "【自動】【ターン1回】自分のステージにいる『5yncri5e!』のメンバーがセンターエリアに移動したとき、"
+        "ライブ終了時まで、【ブレード】【ブレード】【ブレード】【ブレード】を得る。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base_with_execution_mode(
+            row,
+            pattern_id="pbsp02_auto_5yncri5e_moved_to_center_gain_blade4",
+            effect_index=effect_index,
+            execution_mode="auto_resolve",
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="auto_triggered_event",
+        trigger="own_stage_member_moved",
+        frequency_limit="once_per_turn",
+        is_optional=False,
+        condition={
+            "source_zone": "stage",
+            "trigger_member_unit_key": "5yncri5e",
+            "trigger_to_slot": "center",
+        },
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "gain_blade", "amount": 4}],
+        duration="live",
+    )
+
+
+def _pbsp02_live_start_catchu_distinct_required_heart_and_score(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    label = (
+        "【ライブ開始時】自分のステージにいる名前の異なる『CatChu!』のメンバー1人につき、"
+        "このカードの必要ハートを【heart0】【heart0】減らし、【heart02】増やす。"
+        "その後、このカードの必要ハートに含まれる【heart02】が9以上の場合、このカードのスコアを＋１する。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    amount_source = "own_stage_member_work_distinct_name_count"
+    return EffectCandidate(
+        **_base_with_execution_mode(
+            row,
+            pattern_id="pbsp02_live_start_catchu_distinct_required_heart_and_score",
+            effect_index=effect_index,
+            execution_mode="auto_resolve",
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice=None,
+        actions=[
+            {
+                "action_type": "modify_required_heart",
+                "color_slot": "heart0",
+                "amount_source": amount_source,
+                "multiplier": -2,
+                "value": {"unit_key": "catchu"},
+            },
+            {
+                "action_type": "modify_required_heart",
+                "color_slot": "heart02",
+                "amount_source": amount_source,
+                "value": {"unit_key": "catchu"},
+            },
+            {
+                "action_type": "modify_score",
+                "amount": 1,
+                "value": {
+                    "condition": {
+                        "own_stage_member_unit_distinct_name_count_at_least": {
+                            "unit_key": "catchu",
+                            "count": 3,
+                        }
+                    }
+                },
+            },
+        ],
+        duration="live",
+    )
+
+
+def _pbsp02_live_success_energy11_score(row: sqlite3.Row) -> EffectCandidate | None:
+    label = "【ライブ成功時】自分のエネルギーが11枚以上ある場合、このカードのスコアを＋１する。"
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base_with_execution_mode(
+            row,
+            pattern_id="pbsp02_live_success_energy11_score1",
+            effect_index=effect_index,
+            execution_mode="auto_resolve",
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={"own_energy_count_at_least": 11},
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "modify_score", "amount": 1}],
+        duration="live",
+    )
+
+
 def _live_start_opponent_wait_count_return_nijigasaki_members_to_deck_top(
     row: sqlite3.Row,
 ) -> EffectCandidate | None:
@@ -10708,6 +11665,10 @@ def _live_start_choose_color_replace_source_base_hearts(
         "【ライブ開始時】【heart01】か【heart02】か【heart06】のうち1つを選ぶ。ライブ終了時まで、このメンバーが元々持つハートは選んだハートになる。": (
             "heart01_02_06",
             ["heart01", "heart02", "heart06"],
+        ),
+        "【ライブ開始時】【heart02】か【heart03】か【heart06】のうち1つを選ぶ。ライブ終了時まで、このメンバーが元々持つハートは選んだハートになる。": (
+            "heart02_03_06",
+            ["heart02", "heart03", "heart06"],
         ),
     }
     for label, (suffix, color_slots) in patterns.items():
@@ -11894,6 +12855,15 @@ _PATTERNS = (
     _pl_n_bp5_012_activated_attach_energy_draw_heart01,
     _pl_n_pb1_011_static_attached_energy_blade,
     _pl_n_pb1_011_activated_attach_energy_return_nijigasaki_live,
+    _pbsp02_live_success_energy11_score,
+    _pbsp02_auto_center_moved_choice,
+    _pbsp02_live_success_choose_draw_or_energy,
+    _pbsp02_auto_attach_waiting_room_liella_member,
+    _pbsp02_onplay_baton_attach_replaced_liella_member,
+    _pbsp02_onplay_baton_draw_and_blade_from_replaced_liella,
+    _pbsp02_auto_5yncri5e_moved_to_center_gain_blade4,
+    _pbsp02_live_start_catchu_distinct_required_heart_and_score,
+    _pbsp02_structured_exact_effects,
     _live_success_aqours_heart05_opponent_no_excess_score2,
     _live_start_opponent_wait_count_return_nijigasaki_members_to_deck_top,
     _live_start_named_superstar_members_gain_heart_and_blade,

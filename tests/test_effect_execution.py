@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from pydantic import ValidationError
@@ -21,6 +22,9 @@ from loveca.simulation.effects import (
 )
 from loveca.simulation.engine import (
     IllegalActionError,
+    _effect_condition_met,
+    _effect_operation_condition_met,
+    _operation_amount,
     _queue_live_success_effects,
     _resolve_automatic_effects,
     _run_current_yell,
@@ -73,6 +77,276 @@ def test_registry_rejects_unknown_operations():
 
     with pytest.raises(ValidationError, match="unsupported effect operations"):
         EffectRegistry.model_validate(payload)
+
+
+def test_effect_registry_executable_coverage_exceeds_phase5_target():
+    registry = EffectRegistry.model_validate_json(REGISTRY.read_text(encoding="utf-8"))
+
+    executable = sum(
+        effect.simulation_support == "test_validated_executable"
+        for effect in registry.effects
+    )
+
+    assert executable / len(registry.effects) >= 0.82
+
+
+def test_yell_revealed_conditions_support_new_executable_patterns():
+    same_unit_cards = {
+        f"member-{index}": CardInstance(
+            instance_id=f"member-{index}",
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code=f"member-{index}",
+                card_id=f"member-{index}",
+                name_ja=f"Member {index}",
+                card_type="member",
+                unit_keys=["shared_unit"],
+            ),
+        )
+        for index in range(3)
+    }
+    state = MatchState(
+        match_id="yell-condition-test",
+        seed=1,
+        players={
+            "player_1": PlayerState(
+                player_id="player_1",
+                name="Player 1",
+                live_result={"revealed_instance_ids": list(same_unit_cards)},
+            ),
+            "player_2": PlayerState(player_id="player_2", name="Player 2"),
+        },
+        cards=same_unit_cards,
+        effect_definitions={
+            "same-unit": EffectDefinition(
+                effect_id="same-unit",
+                card_code="source",
+                text_revision_id=1,
+                raw_text_hash="hash",
+                effect_index=1,
+                label_ja="same unit test",
+                effect_type="auto",
+                timing="auto",
+                trigger="auto_triggered_event",
+                execution_mode="auto_resolve",
+                frequency_limit="turn_once",
+                is_optional=False,
+                condition={"own_yell_revealed_member_shared_unit_count_at_least": 3},
+                actions=[{"action_type": "gain_heart", "amount": 1, "color_slot": "heart01"}],
+                simulation_support="test_validated_executable",
+                review_status="test_validated",
+                source_reference="test",
+            ),
+            "no-blade-heart": EffectDefinition(
+                effect_id="no-blade-heart",
+                card_code="source",
+                text_revision_id=1,
+                raw_text_hash="hash2",
+                effect_index=2,
+                label_ja="no blade heart test",
+                effect_type="auto",
+                timing="auto",
+                trigger="auto_triggered_event",
+                execution_mode="auto_resolve",
+                frequency_limit="turn_once",
+                is_optional=False,
+                condition={"yell_revealed_blade_heart_count_at_most": 0},
+                actions=[{"action_type": "gain_heart", "amount": 1, "color_slot": "heart02"}],
+                simulation_support="test_validated_executable",
+                review_status="test_validated",
+                source_reference="test",
+            ),
+        },
+    )
+
+    assert _effect_condition_met(
+        state,
+        EffectInvocation(
+            invocation_id="same-unit",
+            effect_id="same-unit",
+            source_card_instance_id="member-0",
+            player_id="player_1",
+            trigger_event="auto_triggered_event",
+        ),
+    )
+    assert _effect_condition_met(
+        state,
+        EffectInvocation(
+            invocation_id="no-blade-heart",
+            effect_id="no-blade-heart",
+            source_card_instance_id="member-0",
+            player_id="player_1",
+            trigger_event="auto_triggered_event",
+        ),
+    )
+
+    state.cards["member-2"].card.unit_keys = ["other_unit"]
+    assert not _effect_condition_met(
+        state,
+        EffectInvocation(
+            invocation_id="same-unit-missing",
+            effect_id="same-unit",
+            source_card_instance_id="member-0",
+            player_id="player_1",
+            trigger_event="auto_triggered_event",
+        ),
+    )
+
+    state.cards["member-2"].card.special_blade_hearts = [
+        SpecialBladeHeart(effect_type="all_color", value=1, source_alt="ALL1")
+    ]
+    assert not _effect_condition_met(
+        state,
+        EffectInvocation(
+            invocation_id="blade-heart-present",
+            effect_id="no-blade-heart",
+            source_card_instance_id="member-0",
+            player_id="player_1",
+            trigger_event="auto_triggered_event",
+        ),
+    )
+
+
+def test_selected_and_cost_card_operation_conditions_are_honored():
+    source = CardInstance(
+        instance_id="source",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="source",
+            card_id="source",
+            name_ja="Source",
+            card_type="member",
+        ),
+    )
+    selected_live = CardInstance(
+        instance_id="selected-live",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="selected-live",
+            card_id="selected-live",
+            name_ja="Selected Live",
+            card_type="live",
+            score=6,
+            work_keys=["love_live_sunshine"],
+        ),
+    )
+    cost_member = CardInstance(
+        instance_id="cost-member",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="cost-member",
+            card_id="cost-member",
+            name_ja="百生吟子",
+            card_type="member",
+        ),
+    )
+    state = MatchState(
+        match_id="operation-condition-test",
+        seed=1,
+        players={
+            "player_1": PlayerState(player_id="player_1", name="Player 1"),
+            "player_2": PlayerState(player_id="player_2", name="Player 2"),
+        },
+        cards={
+            "source": source,
+            "selected-live": selected_live,
+            "cost-member": cost_member,
+        },
+    )
+    invocation = EffectInvocation(
+        invocation_id="condition-test",
+        effect_id="condition-test",
+        source_card_instance_id="source",
+        player_id="player_1",
+        trigger_event="test",
+    )
+
+    assert _effect_operation_condition_met(
+        state,
+        invocation,
+        {
+            "selected_card_minimum_score": 6,
+            "selected_card_work_key": "love_live_sunshine",
+            "cost_selected_card_name_ja_any": ["百生吟子"],
+            "cost_selected_card_type": "member",
+        },
+        {
+            "selected_card_instance_ids": ["selected-live"],
+            "trigger_data": {"cost_selected_card_instance_ids": ["cost-member"]},
+        },
+    )
+
+    state.cards["selected-live"].card.score = 5
+    assert not _effect_operation_condition_met(
+        state,
+        invocation,
+        {"selected_card_minimum_score": 6},
+        {"selected_card_instance_ids": ["selected-live"]},
+    )
+
+
+def test_revealed_live_count_amount_source_can_be_capped():
+    cards = {
+        "live-1": CardInstance(
+            instance_id="live-1",
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code="live-1",
+                card_id="live-1",
+                name_ja="Live 1",
+                card_type="live",
+            ),
+        ),
+        "live-2": CardInstance(
+            instance_id="live-2",
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code="live-2",
+                card_id="live-2",
+                name_ja="Live 2",
+                card_type="live",
+            ),
+        ),
+        "member-1": CardInstance(
+            instance_id="member-1",
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code="member-1",
+                card_id="member-1",
+                name_ja="Member",
+                card_type="member",
+            ),
+        ),
+    }
+    player = PlayerState(
+        player_id="player_1",
+        name="Player 1",
+        live_result={"revealed_instance_ids": list(cards)},
+    )
+    state = MatchState(
+        match_id="amount-cap-test",
+        seed=1,
+        players={
+            "player_1": player,
+            "player_2": PlayerState(player_id="player_2", name="Player 2"),
+        },
+        cards=cards,
+    )
+
+    assert (
+        _operation_amount(
+            SimpleNamespace(
+                amount=None,
+                amount_source="revealed_live_count",
+                multiplier=None,
+                value={"cap": 1},
+            ),
+            player=player,
+            state=state,
+            operation_context={},
+        )
+        == 1
+    )
 
 
 def test_effect_candidate_discovery_structures_pl_hs_bp6_014_hand_activation():
@@ -183,6 +457,7 @@ def test_registry_contains_all_matching_wait_energy_effects():
         "PL!SP-bp4-001": 376,
         "PL!SP-bp4-005": 380,
     }
+    optional_discard_expected = {"PL!SP-pb2-013": 809}
     matching = {
         effect.card_code: effect
         for effect in registry.effects
@@ -194,7 +469,7 @@ def test_registry_contains_all_matching_wait_energy_effects():
         and effect.trigger == "member_played"
     }
 
-    assert set(matching) == set(expected) | set(direct_expected)
+    assert set(matching) == set(expected) | set(direct_expected) | set(optional_discard_expected)
     for card_code, revision_id in expected.items():
         effect = matching[card_code]
         assert effect.text_revision_id == revision_id
@@ -231,6 +506,20 @@ def test_registry_contains_all_matching_wait_energy_effects():
     }
     assert liella_baton_energy_effect.actions[0].amount == 2
     assert liella_baton_energy_effect.actions[0].orientation == "wait"
+    kaleidoscore_energy_effect = matching["PL!SP-pb2-013"]
+    assert (
+        kaleidoscore_energy_effect.text_revision_id
+        == optional_discard_expected["PL!SP-pb2-013"]
+    )
+    assert kaleidoscore_energy_effect.condition == {"minimum_energy_deck_cards": 1}
+    assert kaleidoscore_energy_effect.cost_choice is not None
+    assert kaleidoscore_energy_effect.cost_choice.zone == "hand"
+    assert kaleidoscore_energy_effect.cost_choice.unit_key == "kaleidoscore"
+    assert kaleidoscore_energy_effect.actions[0].orientation == "wait"
+    assert (
+        kaleidoscore_energy_effect.actions[1].action_type
+        == "draw_if_selected_without_blade_heart"
+    )
     live_start = {
         effect.card_code: effect
         for effect in registry.effects
@@ -7530,6 +7819,63 @@ def test_source_moved_this_turn_operation_condition_draws_extra_card():
     assert resolved.players["player_1"].hand == ["deck-live-1", "deck-member-1"]
 
 
+def test_source_moved_this_turn_top_level_condition_gates_auto_effect():
+    effect = EffectDefinition(
+        effect_id="test-source-moved-top-level-score:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="h" * 64,
+        effect_index=1,
+        label_ja="test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={"source_moved_this_turn": True},
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "draw_card", "amount": 1}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="unit test",
+    )
+    state = _minimal_effect_state(effect)
+    state.cards["source-member"] = CardInstance(
+        instance_id="source-member",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="TEST-MEMBER",
+            card_id="TEST-MEMBER",
+            name_ja="source",
+            card_type="member",
+        ),
+    )
+    state.players["player_1"].member_area["center"] = "source-member"
+    state.pending_effects[0].source_card_instance_id = "source-member"
+
+    with pytest.raises(IllegalActionError, match="source_not_moved_this_turn"):
+        _apply_direct(
+            state,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+    moved = state.model_copy(deep=True)
+    moved.players["player_1"].member_areas_moved_this_turn = ["center"]
+    resolved = _apply_direct(
+        moved,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    assert resolved.players["player_1"].hand == ["deck-live-1"]
+
+
 def test_live_success_or_condition_modifies_score():
     effect = EffectDefinition(
         effect_id="test-live-success-or-score:1",
@@ -12860,6 +13206,81 @@ def test_static_position_heart_and_live_area_conditions_gate_modifiers():
     assert _static_heart_bonus(no_liella_live, "player_1", "source-member")[
         "heart03"
     ] == 1
+
+
+def test_static_heart_bonus_honors_operation_conditions():
+    effect = EffectDefinition(
+        effect_id="test-static-energy-6-8-heart:1",
+        card_code="TEST-MEMBER",
+        text_revision_id=1,
+        raw_text_hash="h" * 64,
+        effect_index=1,
+        label_ja="energy threshold hearts",
+        effect_type="static",
+        timing="static_always",
+        trigger="static_always",
+        execution_mode="auto_resolve",
+        frequency_limit="none",
+        is_optional=False,
+        condition={"own_energy_count_at_least": 6},
+        cost=[],
+        choice=None,
+        actions=[
+            {"action_type": "gain_heart", "amount": 1, "color_slot": "heart03"},
+            {
+                "action_type": "gain_heart",
+                "amount": 1,
+                "color_slot": "heart03",
+                "value": {"condition": {"own_energy_count_at_least": 8}},
+            },
+        ],
+        duration="game",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test fixture",
+    )
+    source_member = CardDefinition(
+        card_code="TEST-SOURCE",
+        card_id="TEST-SOURCE",
+        name_ja="Source",
+        card_type="member",
+        effect_ids=[effect.effect_id],
+    )
+    state = _minimal_effect_state(effect)
+    state.cards["source-member"] = CardInstance(
+        instance_id="source-member",
+        owner_id="player_1",
+        card=source_member,
+    )
+    state.players["player_1"].member_area["center"] = "source-member"
+
+    from loveca.simulation.engine import _member_heart_count
+
+    for energy_count, expected in [(6, 1), (7, 1), (8, 2)]:
+        current = state.model_copy(deep=True)
+        current.players["player_1"].energy_area = []
+        for index in range(energy_count):
+            instance_id = f"energy-{index}"
+            current.cards[instance_id] = CardInstance(
+                instance_id=instance_id,
+                owner_id="player_1",
+                card=CardDefinition(
+                    card_code=f"ENERGY-{index}",
+                    card_id=f"ENERGY-{index}",
+                    name_ja="Energy",
+                    card_type="energy",
+                ),
+            )
+            current.players["player_1"].energy_area.append(instance_id)
+
+        assert (
+            _static_heart_bonus(current, "player_1", "source-member")["heart03"]
+            == expected
+        )
+        assert (
+            _member_heart_count(current, "player_1", "source-member", "heart03")
+            == expected
+        )
 
 
 def test_static_opposing_movement_and_attachment_conditions_gate_modifiers():

@@ -20,21 +20,41 @@ This audit does not incorporate FAQ, Q&A, or individual ruling clarifications.
 
 Local card data observed during this review:
 
-* about 1,609 Gameplay Cards
-* about 795 Card Text Revisions
-* about 787 Gameplay Cards with at least one text revision
+* about 1,679 Gameplay Cards
+* about 845 Card Text Revisions
+* about 832 Gameplay Cards with at least one text revision
   * current registry coverage has split into two separate layers:
-  * 925 effect definitions
-  * 717 `test_validated_executable` definitions
-  * 208 timing-only `manual_resolution` definitions
-  * registry-entry executable coverage is currently about 77.51%
+  * 977 effect definitions
+  * 802 `test_validated_executable` definitions
+  * 175 timing-only `manual_resolution` definitions
+  * registry-entry executable coverage is currently about 82.09%
   * the latest Phase 5 sandbox block run still records mandatory manual-resolution blockers in generated matches, but the current 10-match smoke no longer blocks on the newly structured base-Blade, source position-change, Baton replacement return, distinct-name Yell, no-excess-Heart, minimum-Blade choice, branch-specific Stage Member choice, branch-conditioned Waiting Room Live choice, activated Waiting Room Member deploy, activated cost-choice Live recovery, on-play pay-Energy, simple on-play, live-start pay / discard modifier, activated wait-or-discard ready Energy branch, on-play branch, moved-source modifier, success-count-equal Live-start Heart, opponent wait count static, multi-segment static Heart / Blade, Live-success Energy placement / pay draw, moved-source draw / Energy / opponent wait, Yell-revealed special Blade Heart / Stage name Live-success, static count modifier, static position / Heart / Live-area condition, static opposing-cost / movement / attachment condition, Yell / Live-success condition, Yell-revealed recovery, Live-success conditional score / Energy, hand deploy / source-wait Blade, or source-wait opponent original-Blade wait patterns
   * `skip` mode currently avoids illegal actions in the latest 50-match run, but long sandbox games still frequently reach the action cap before a formal result
-  * the latest testing loop added Live-specific temporary score / required-Heart modifiers, reveal-top scoring, Live Area condition checks, grouped Stage Member choice, base Blade replacement, source Member position change, Baton replacement return, distinct-name Yell conditions, no-excess-Heart conditions, minimum-Blade target filtering, branch-specific Stage Member choice filters, branch-specific conditions, both-player Waiting Room Member bulk deck-bottom movement, single-player Waiting Room Member deployment to empty Stage slots, activated cost-choice handling, on-play pay-Energy handling, simple on-play effects, activated source-orientation branch handling, on-play branch filters, moved-source auto modifiers, success-count-equal Live-start Heart modifiers, opponent wait-count amount sources, opponent Energy placement, additional exact-text Live timing patterns, Yell-revealed Member recovery, source Live-success disabling, original-Blade bulk wait, source score replacement, deck-refresh turn history, Yell-revealed special Blade Heart conditions, all-required Stage name conditions, static Stage / success / opponent-excess count modifiers, static position / Heart / Live-area condition modifiers, static opposing-cost / movement / attachment condition modifiers, Yell-revealed Heart-color / non-Blade-Heart conditions, member-entered count conditions, Yell-revealed deck placement / recovery, source-moved operation conditions, Live-success conditional score / Energy amount conditions, hand-zone Member deployment, source-wait center Member Blade modifiers, source-wait opponent original-Blade choice filters, and unit-exclusion opponent wait filters
+  * the latest testing loop added Live-specific temporary score / required-Heart modifiers, reveal-top scoring, Live Area condition checks, grouped Stage Member choice, base Blade replacement, source Member position change, Baton replacement return, distinct-name Yell conditions, no-excess-Heart conditions, minimum-Blade target filtering, branch-specific Stage Member choice filters, branch-specific conditions, both-player Waiting Room Member bulk deck-bottom movement, single-player Waiting Room Member deployment to empty Stage slots, activated cost-choice handling, on-play pay-Energy handling, simple on-play effects, activated source-orientation branch handling, on-play branch filters, moved-source auto modifiers, success-count-equal Live-start Heart modifiers, opponent wait-count amount sources, opponent Energy placement, additional exact-text Live timing patterns, Yell-revealed Member recovery, source Live-success disabling, original-Blade bulk wait, source score replacement, deck-refresh turn history, Yell-revealed special Blade Heart conditions, all-required Stage name conditions, static Stage / success / opponent-excess count modifiers, static position / Heart / Live-area condition modifiers, static opposing-cost / movement / attachment condition modifiers, Yell-revealed Heart-color / non-Blade-Heart conditions, member-entered count conditions, Yell-revealed deck placement / recovery, source-moved operation conditions, Live-success conditional score / Energy amount conditions, hand-zone Member deployment, source-wait center Member Blade modifiers, source-wait opponent original-Blade choice filters, unit-exclusion opponent wait filters, top-level moved-source gating, operation-conditioned static bonus calculation, selected/cost-card operation conditions, capped Yell-revealed Live counts, shared-unit Yell conditions, and additional exact-text Waiting Room recovery / Energy ready / inspect-top patterns
 
 Therefore, the current repository has broad timing-prompt coverage but is still in a pattern-expansion phase rather than a broad full-card executable-effects phase. The new manual fallback entries are not proof of automated semantic support.
 
 The broad fallback set originally focused on `登場` and `起動` effects. `ライブ開始時` and `ライブ成功時` now have a larger tested subset, but they still contain the highest-risk unresolved families because many effects combine conditional scoring, required-Heart replacement, temporary base-stat rewrites, answer-based choices, and FAQ-sensitive state.
+
+## PBSP02 Pack Update Baseline
+
+The `v0.77` update imported the official `PBSP02` card-set slice into the locked local database.
+
+Observed data and effect-registration scope:
+
+* `PBSP02` contains 122 observed printings and 96 gameplay card identities in the current database
+* the formal importer report recorded 70 newly created Gameplay Cards and 50 newly created Card Text Revisions
+* `PBSP02`-related registry entries: 74
+  * 63 `test_validated_executable`
+  * 11 `manual_resolution`
+  * new-pack registry-entry executable coverage: 85.14%
+* focused block sandbox:
+  * command shape: `30 decks x 20 matches --manual-policy block --max-actions 260`
+  * result: 19 completed matches, 1 `max_actions:match_point_players_have_no_live_in_hand`
+  * `mandatory_manual_resolution = 0`
+  * skipped effects = 0
+
+The remaining `PBSP02` manual entries are kept as explicit manual-resolution boundaries. They primarily cover effects whose safe automation would require broader handling for inherited activated abilities, attachment-derived costs or static effects, dual Baton semantics, formation-change dependent follow-up, extra Yell handling, or opponent-original-Blade / ability-disabling semantics.
 
 ## Latest Sandbox Baseline
 
@@ -131,7 +151,14 @@ Observed runs:
 * after structuring opponent Stage cost-filtered Member wait patterns, including draw-then-optional opponent wait, registry-entry executable coverage reached 533/925 entries (57.62%)
 * after structuring optional discard-cost Yell-revealed recovery for cost 2 or lower Members and score 2 or lower Lives, registry-entry executable coverage reached 536/925 entries (57.95%)
 * after the current safe-pattern expansion, including activated Energy-2 source position change support, auto-triggered moved-source `heart06`, activated Waiting Room Member deployment to empty Stage slots, activated cost-choice Live recovery, right-side on-play Energy ready, left-side on-play pay-Energy draw, Liella! Member recovery, simple on-play effects, live-start pay / discard modifiers, activated wait-or-discard ready Energy branch handling, on-play branch effects, moved-source auto modifiers, success-count-equal Live-start Heart handling, opponent wait-count static modifiers, multi-segment static Heart / Blade, Live-success Energy placement / pay draw effects, moved-source draw / Energy / opponent wait effects, Yell-revealed special Blade Heart / Stage name Live-success effects, static count modifiers, static position / Heart / Live-area condition modifiers, static opposing-cost / movement / attachment condition modifiers, Yell-revealed Heart-color / non-Blade-Heart conditions, member-entered count conditions, Yell-revealed deck placement / recovery, source-moved operation conditions, Live-success conditional score / Energy amount conditions, hand-zone Member deployment, source-wait center Member Blade modifiers, source-wait opponent original-Blade wait patterns, and unit-exclusion opponent wait filters, registry-entry executable coverage reached 628/925 entries (67.89%)
-* after the current Phase 5 registry expansion and executor fixes, registry-entry executable coverage is 717/925 entries (77.51%); `manual_resolution` entries are 208/925
+* after the pre-PBSP02 Phase 5 registry expansion and executor fixes, registry-entry executable coverage was 717/925 entries (77.51%); the current PBSP02-inclusive snapshot is recorded above
+* after the post-PBSP02 safe-pattern expansion, registry-entry executable coverage reached 802/977 entries (82.09%). This pass converted exact-text effects already covered by existing executor families plus small reusable condition additions:
+  * Waiting Room recovery for μ's / Aqours / Saint Snow / Nijigasaki / Hasunosora / Edel Note patterns
+  * Yell-revealed no-Blade-Heart, Live-count, shared-unit, and capped revealed-Live-count Heart modifiers
+  * selected-card score / work checks and cost-selected-card checks for conditional follow-up operations
+  * top-level `source_moved_this_turn` gating and operation-conditioned static Heart / Blade / numeric bonus evaluation
+  * branch-conditioned Live Area checks and unit-count minimum-cost checks
+  * a follow-up `10 decks x 5 matches --manual-policy block --max-actions 220` smoke completed 4/5 games; the remaining blocker was `max_actions:member_development_at_cap`, with no mandatory manual-resolution, skipped-effect, or illegal-action blockers
 * the selected-count executor fix applies to all five registered `amount_source=selected_count` effects, including `PL!HS-bp1-005:1`; the current registry has one structured hand-zone activated effect, `PL!HS-bp6-014:1`, whose Stage Member target is optional for execution: when neither 「藤島 慈」 nor 「大沢瑠璃乃」 is on Stage, the source still moves from hand to Waiting Room, one card is drawn, and the Blade modifier resolves with no target
 * `PL!HS-bp6-006` now has three structured tested effects: hand-zone cost reduction by own みらくらぱーく！ Stage Members, Baton replacement restriction to みらくらぱーく！ Members, and Live-success source Wait plus skip-next-active-phase-ready flag
 * two-step effects now emit `effect_choice_started` when they enter a follow-up choice after cost, branch, or automatic operation handling; this is a diagnostic event for UI, replay, and sandbox audit reports, not a separate gameplay action
