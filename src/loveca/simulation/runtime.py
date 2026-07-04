@@ -467,7 +467,9 @@ class MatchRepository:
                         now,
                     ),
                 )
-                for event_index, event in enumerate(result.events):
+                recorded_events = _events_for_persisted_action(persisted_action, result.events)
+                result = result.model_copy(update={"events": recorded_events})
+                for event_index, event in enumerate(recorded_events):
                     connection.execute(
                         """
                         INSERT INTO match_events (
@@ -751,6 +753,29 @@ def _table_exists(connection: sqlite3.Connection, table_name: str) -> bool:
         ).fetchone()
         is not None
     )
+
+
+def _events_for_persisted_action(
+    action: ActionRequest,
+    events: list[GameEvent],
+) -> list[GameEvent]:
+    decision = action.payload.get("ai_decision")
+    if not isinstance(decision, dict):
+        return events
+    return [
+        GameEvent(
+            event_type="ai_action_selected",
+            player_id=action.player_id,
+            data={
+                "action_type": action.action_type,
+                "reason": decision.get("reason"),
+                "controller": decision.get("controller", "simple_ai"),
+                "policy": decision.get("policy", "skip"),
+            },
+            source="system",
+        ),
+        *events,
+    ]
 
 
 def _json(value: Any) -> str:

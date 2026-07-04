@@ -8,9 +8,16 @@ import uuid
 from pathlib import Path
 
 from loveca.decks.analyzer import DeckList, analyze_deck, load_deck
+from loveca.simulation.ai import SimpleAIBlocker, SimpleAIController, SimpleAIPolicy
 from loveca.simulation.catalog import MatchPlayerInput, build_match_cards
 from loveca.simulation.effects import DEFAULT_EFFECT_REGISTRY
-from loveca.simulation.models import ActionRequest, ActionResult, MatchState
+from loveca.simulation.models import (
+    ActionRequest,
+    ActionResult,
+    ControllerType,
+    GameEvent,
+    MatchState,
+)
 from loveca.simulation.runtime import (
     DEFAULT_ACTIVE_MATCH_TTL_HOURS,
     MAX_RETAINED_MATCHES,
@@ -53,6 +60,7 @@ class MatchService:
         seed: int | None = None,
         match_id: str | None = None,
         first_player_id: str | None = None,
+        controllers: dict[str, ControllerType] | None = None,
     ) -> ActionResult:
         for label, deck in (("player_1", first_deck), ("player_2", second_deck)):
             analysis = analyze_deck(self.card_database_path, deck)
@@ -75,6 +83,7 @@ class MatchService:
             seed=resolved_seed,
             players=player_states,
             cards=cards,
+            controllers=_normalize_controllers(controllers),
             effect_registry_version=registry_version,
             effect_definitions=effects,
         )
@@ -85,7 +94,7 @@ class MatchService:
             state,
             card_database_path=self.card_database_path,
         )
-        return self.repository.apply(
+        created_result = self.repository.apply(
             created.state.match_id,
             ActionRequest(
                 action_type="choose_first_player",
@@ -99,6 +108,7 @@ class MatchService:
                 },
             ),
         )
+        return self.advance_ai(created.state.match_id, created_result)
 
     def create_match_from_paths(
         self,
@@ -118,8 +128,88 @@ class MatchService:
         )
 
     def apply(self, match_id: str, action: ActionRequest) -> ActionResult:
-        return self.repository.apply(match_id, action)
+        return self.advance_ai(match_id, self.repository.apply(match_id, action))
+
+    def advance_ai(
+        self,
+        match_id: str,
+        result: ActionResult,
+        *,
+        max_ai_actions: int = 256,
+    ) -> ActionResult:
+        state = result.state
+        controllers = _normalize_controllers(state.controllers)
+        ai_player_ids = {
+            player_id
+            for player_id, controller in controllers.items()
+            if controller == "simple_ai"
+        }
+        if not ai_player_ids:
+            return result
+
+        events = list(result.events)
+        legal_actions = result.legal_actions
+        controller = SimpleAIController(SimpleAIPolicy(manual_effect_policy="skip"))
+        for _index in range(max_ai_actions):
+            if state.phase == "complete":
+                break
+            decision = controller.choose_action(
+                state,
+                legal_actions,
+                controlled_player_ids=ai_player_ids,
+            )
+            if decision is None:
+                break
+            if isinstance(decision, SimpleAIBlocker):
+                events.append(
+                    GameEvent(
+                        event_type="ai_blocked",
+                        player_id=decision.player_ids[0]
+                        if decision.player_ids
+                        and isinstance(decision.player_ids[0], str)
+                        else None,
+                        data={
+                            "reason": decision.reason,
+                            "legal_action_types": decision.legal_action_types,
+                            "player_ids": decision.player_ids,
+                        },
+                        source="system",
+                    )
+                )
+                break
+            applied = self.repository.apply(match_id, decision.action)
+            state = applied.state
+            legal_actions = applied.legal_actions
+            events.extend(applied.events)
+        else:
+            events.append(
+                GameEvent(
+                    event_type="ai_blocked",
+                    player_id=None,
+                    data={
+                        "reason": "ai_action_cap_reached",
+                        "max_ai_actions": max_ai_actions,
+                    },
+                    source="system",
+                )
+            )
+        return ActionResult(state=state, events=events, legal_actions=legal_actions)
 
 
 def _random_first_player_id(seed: int) -> str:
     return ("player_1", "player_2")[random.Random(f"{seed}:first_player").randrange(2)]
+
+
+def _normalize_controllers(
+    controllers: dict[str, ControllerType] | None,
+) -> dict[str, ControllerType]:
+    normalized: dict[str, ControllerType] = {
+        "player_1": "human",
+        "player_2": "human",
+    }
+    if controllers:
+        for player_id in ("player_1", "player_2"):
+            value = controllers.get(player_id)
+            if value in {"human", "simple_ai"}:
+                normalized[player_id] = value
+    return normalized

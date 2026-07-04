@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from loveca.decks.analyzer import DECKLIST_VERSION, DeckEntry, DeckList, analyze_deck
+from loveca.simulation.ai import choose_simple_ai_action
 from loveca.simulation.effects import load_effect_registry
 from loveca.simulation.engine import IllegalActionError, generate_legal_actions
 from loveca.simulation.models import ActionRequest, LegalAction, MatchState
@@ -351,6 +352,15 @@ def choose_action(
     *,
     manual_policy: str,
 ) -> tuple[str, str | None, dict[str, Any]] | None:
+    decision = choose_simple_ai_action(
+        state,
+        legal_actions,
+        manual_policy=manual_policy,  # type: ignore[arg-type]
+    )
+    if decision is None:
+        return None
+    action_type, player_id, payload, _reason = decision
+    return action_type, player_id, payload
     if not legal_actions:
         return None
     by_type = {action.action_type: action for action in legal_actions}

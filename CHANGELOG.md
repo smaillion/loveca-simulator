@@ -12,6 +12,7 @@
 - μ's / Aqours / Saint Snow / Nijigasaki / Hasunosora / Edel Note の一部控室回収、Energy ready、山札上確認、Yell 公開条件、手札コスト付き Live 開始時効果を追加で構造化。
 - `30 decks x 100 matches` の black-box sandbox を block mode で実行し、100 局すべて完走、blocker 0 を確認。
 - semantic user-agent sandbox に `--two-agent` API Play mode と公式総合ルール PDF context 注入を追加し、二人の agent が LegalAction から通常行動を選ぶ大規模テストを実行できるようにした。
+- sandbox の deterministic policy を `SimpleAIController` として共通化し、local / Hosted FastAPI で Player 2 を `simple_ai` にした対コンピューター戦を作成できるようにした。AI は LegalAction だけを選び、判断理由を `ai_action_selected` event と replay に残す。
 - trigger 時点では条件を満たした pending effect が、同一タイミング中の別効果で後から条件失効した場合、限定的に `effect_not_activatable` event を記録して進行できるようにした。
 - Live 判定の mobile pop-up から次の処理へ直接進めるようにし、次ターン開始時は pop-up を閉じるようにした。
 - 初期 mulligan を Member 登場と同じカード選択 + 確認型の操作へ寄せた。
@@ -54,6 +55,7 @@
 - 追加结构化支持 μ's / Aqours / Saint Snow / Nijigasaki / Hasunosora / Edel Note 的部分控室回收、Energy ready、牌堆顶检查、应援公开条件和带手牌成本的 Live 开始时效果。
 - 执行 `30 decks x 100 matches` block mode black-box sandbox，100 局全部完走，blocker 为 0。
 - semantic user-agent sandbox 新增 `--two-agent` API Play mode 和官方综合规则 PDF context 注入，可用于让两个 agent 从 LegalAction 中选择普通行动的大规模测试。
+- 将 sandbox 的 deterministic policy 共通化为 `SimpleAIController`，local / Hosted FastAPI 可以创建 Player 2 为 `simple_ai` 的对电脑战。AI 只会选择 LegalAction，并将判断理由写入 `ai_action_selected` event 与 replay。
 - 对触发时条件满足、但同一时点中被其他效果改变条件导致失效的 pending effect，限定性记录 `effect_not_activatable` 并继续推进。
 - 手机端 Live 判定弹窗内可以直接进入下一步，开始下一回合时会关闭弹窗。
 - 初始调度改为接近 Member 登场的卡牌选择 + 确认操作。

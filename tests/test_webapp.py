@@ -75,6 +75,77 @@ def test_match_api_create_act_resume_and_replay(tmp_path):
     assert replay.json()["final_state"]["revision"] == 2
 
 
+def test_match_api_human_vs_simple_ai_auto_advances(tmp_path):
+    client = _client(tmp_path)
+    deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
+
+    created = client.post(
+        "/api/matches",
+        json={
+            "player_1": {"name": "Human", "deck": deck},
+            "player_2": {"name": "Computer", "deck": deck},
+            "controllers": {"player_1": "human", "player_2": "simple_ai"},
+            "seed": 1,
+        },
+    )
+    assert created.status_code == 200
+    payload = created.json()
+    match_id = payload["state"]["match_id"]
+    assert payload["state"]["controllers"] == {
+        "player_1": "human",
+        "player_2": "simple_ai",
+    }
+    assert payload["state"]["phase"] == "setup_mulligan_first"
+
+    advanced = client.post(
+        f"/api/matches/{match_id}/actions",
+        json={
+            "action_type": "submit_mulligan",
+            "expected_revision": payload["state"]["revision"],
+            "player_id": "player_1",
+            "payload": {"card_instance_ids": []},
+        },
+    )
+    assert advanced.status_code == 200
+    advanced_payload = advanced.json()
+    assert advanced_payload["state"]["phase"] != "setup_mulligan_second"
+    assert advanced_payload["state"]["revision"] >= payload["state"]["revision"] + 2
+    assert any(
+        event["event_type"] == "ai_action_selected"
+        and event["player_id"] == "player_2"
+        for event in advanced_payload["events"]
+    )
+    assert all(
+        action["player_id"] != "player_2"
+        for action in advanced_payload["legal_actions"]
+    )
+
+
+def test_match_api_ai_vs_ai_debug_runs_without_illegal_action(tmp_path):
+    client = _client(tmp_path)
+    deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
+
+    response = client.post(
+        "/api/matches",
+        json={
+            "player_1": {"name": "Computer A", "deck": deck},
+            "player_2": {"name": "Computer B", "deck": deck},
+            "controllers": {"player_1": "simple_ai", "player_2": "simple_ai"},
+            "seed": 1,
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["state"]["controllers"] == {
+        "player_1": "simple_ai",
+        "player_2": "simple_ai",
+    }
+    assert payload["state"]["revision"] > 1
+    assert any(event["event_type"] == "ai_action_selected" for event in payload["events"])
+    assert not any("illegal" in json.dumps(event).lower() for event in payload["events"])
+
+
 def test_hosted_room_api_create_join_act_and_replay(tmp_path):
     client = _client(tmp_path)
     deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
