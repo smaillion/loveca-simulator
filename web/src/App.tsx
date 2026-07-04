@@ -828,6 +828,7 @@ export default function App() {
                   player1Deck: await resolveDeckSource(input.player1SourceId),
                   player2Name: input.player2Name,
                   player2Deck: await resolveDeckSource(input.player2SourceId),
+                  controllers: input.controllers,
                   seed: input.seed,
                 }),
               (next) => {
@@ -950,6 +951,12 @@ export default function App() {
         () => setMobileActionPanelOpen(true),
       )
     : undefined;
+  const simpleAiPlayerNames = Object.entries(match.state.controllers ?? {})
+    .filter(([, controller]) => controller === "simple_ai")
+    .map(([playerId]) => match.state.players[playerId]?.name ?? playerId);
+  const latestAiBlocker = [...match.events]
+    .reverse()
+    .find((event) => event.event_type === "ai_blocked");
   const showOnlineWaitingDock =
     onlineSession !== null &&
     visibleActions.length === 0 &&
@@ -1084,6 +1091,23 @@ export default function App() {
       </header>
 
       {error && <div className="error-banner">{error}</div>}
+      {simpleAiPlayerNames.length > 0 && (
+        <div className={`info-banner ai-status-banner ${latestAiBlocker ? "warning" : ""}`}>
+          <Activity size={16} />
+          <strong>{locale === "zh" ? "电脑对战" : "対コンピューター"}</strong>
+          <span>
+            {latestAiBlocker
+              ? locale === "zh"
+                ? "电脑遇到无法安全自动处理的操作，请手动接管或记录跳过。"
+                : "コンピューターが安全に処理できない操作があります。手動で引き継ぐか、スキップして記録してください。"
+              : loading
+                ? locale === "zh"
+                  ? "电脑正在处理操作..."
+                  : "コンピューターが操作中..."
+                : `${locale === "zh" ? "电脑玩家" : "CPU"}: ${simpleAiPlayerNames.join(" / ")}`}
+          </span>
+        </div>
+      )}
       {revealNotice && (
         <RevealNoticePanel
           notice={revealNotice}
@@ -2504,6 +2528,7 @@ function StartScreen({
     player1SourceId: string;
     player2Name: string;
     player2SourceId: string;
+    controllers: Record<"player_1" | "player_2", "human" | "simple_ai">;
     seed?: number;
   }) => void | Promise<void>;
   onResume: (id: string, token?: string | null) => void;
@@ -2519,6 +2544,7 @@ function StartScreen({
   const [player1SourceId, setPlayer1SourceId] = useState("");
   const [player2SourceId, setPlayer2SourceId] = useState("");
   const [onlineSourceId, setOnlineSourceId] = useState("");
+  const [player2Controller, setPlayer2Controller] = useState<"human" | "simple_ai">("human");
 
   useEffect(() => {
     if (deckSources.length === 0) {
@@ -2599,6 +2625,28 @@ function StartScreen({
               {tr("玩家 2", "プレイヤー 2")}
               <input value={player2Name} onChange={(e) => setPlayer2Name(e.target.value)} />
             </label>
+            <fieldset className="controller-selector">
+              <legend>{tr("对战方式", "対戦モード")}</legend>
+              <button
+                type="button"
+                className={player2Controller === "human" ? "mode-chip selected" : "mode-chip"}
+                onClick={() => setPlayer2Controller("human")}
+              >
+                {tr("双人手动", "2人で操作")}
+              </button>
+              <button
+                type="button"
+                className={player2Controller === "simple_ai" ? "mode-chip selected" : "mode-chip"}
+                onClick={() => {
+                  setPlayer2Controller("simple_ai");
+                  if (!player2Name.trim() || player2Name === "プレイヤー 2" || player2Name === "玩家 2") {
+                    setPlayer2Name(tr("电脑", "コンピューター"));
+                  }
+                }}
+              >
+                {tr("对电脑", "対コンピューター")}
+              </button>
+            </fieldset>
             <label>
               {tr("玩家 1 牌组", "プレイヤー 1 デッキ")}
               <select
@@ -2666,6 +2714,10 @@ function StartScreen({
                 player1SourceId,
                 player2Name,
                 player2SourceId,
+                controllers: {
+                  player_1: "human",
+                  player_2: player2Controller,
+                },
                 seed: seed ? Number(seed) : undefined,
               })
             }
@@ -3983,6 +4035,8 @@ function EventLog({ events, state }: { events: GameEvent[]; state: MatchState })
 }
 
 function eventVisualClass(event: GameEvent): string {
+  if (event.event_type === "ai_blocked") return "event-highlight ai-blocked-highlight";
+  if (event.event_type === "ai_action_selected") return "ai-action-highlight";
   if (event.event_type === "effect_auto_resolved") return "event-highlight effect-highlight";
   if (event.event_type === "yell_completed" && specialYellResults(event).length > 0) {
     return "event-highlight special-yell-highlight";
@@ -3992,6 +4046,8 @@ function eventVisualClass(event: GameEvent): string {
 
 function eventTitle(event: GameEvent, locale: UiLocale): string {
   const labels: Record<string, [string, string]> = {
+    ai_action_selected: ["电脑操作", "CPU操作"],
+    ai_blocked: ["电脑操作受阻", "CPU操作ブロック"],
     effect_auto_resolved: ["技能自动发动", "能力の自動解決"],
     effect_resolved: ["技能结算", "能力解決"],
     effect_triggered: ["技能触发", "能力誘発"],
@@ -4001,6 +4057,18 @@ function eventTitle(event: GameEvent, locale: UiLocale): string {
 }
 
 function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): string | null {
+  if (event.event_type === "ai_action_selected") {
+    const actionType = typeof event.data.action_type === "string" ? event.data.action_type : "";
+    const reason = typeof event.data.reason === "string" ? event.data.reason : "";
+    const prefix = locale === "zh" ? "选择" : "選択";
+    return [prefix, actionType, reason].filter(Boolean).join(" · ");
+  }
+  if (event.event_type === "ai_blocked") {
+    const reason = typeof event.data.reason === "string" ? event.data.reason : "";
+    return reason
+      ? `${locale === "zh" ? "原因" : "理由"}: ${reason}`
+      : null;
+  }
   if (event.event_type === "effect_auto_resolved") {
     const effectId = typeof event.data.effect_id === "string" ? event.data.effect_id : "";
     const sourceId = typeof event.data.source_card_instance_id === "string"

@@ -277,6 +277,7 @@ export function createMatch(input: {
   player1Deck: DeckList;
   player2Name: string;
   player2Deck: DeckList;
+  controllers?: Record<"player_1" | "player_2", "human" | "simple_ai">;
   seed?: number;
 }): Promise<MatchPayload> {
   return request("/api/matches", {
@@ -291,6 +292,7 @@ export function createMatch(input: {
         deck: input.player2Deck,
       },
       seed: input.seed,
+      controllers: input.controllers,
     }),
   });
 }

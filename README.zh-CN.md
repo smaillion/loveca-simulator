@@ -46,7 +46,7 @@
 - Phase 1 / 2 / 3 已基本实现，进入维护和改善阶段。
 - Phase 4 的 Human-vs-Human 验证器和 Phase 7 的 UI 已提前完成大部分。
 - Phase 9 / 10 的低成本 online 验证会和 Phase 5 并行提前推进。
-- Simple AI、AI-vs-AI、Monte Carlo 和胜率引擎已降为最低优先级。
+- Simple AI MVP 已可在 local / Hosted FastAPI 中使用；强 AI、Monte Carlo 和胜率引擎仍然后移。
 
 当前规则验证器已覆盖:
 
@@ -72,6 +72,7 @@
 - `PL!HS-bp6-006` 已结构化支持手牌中 cost reduction、非みらくらぱーく！Baton replacement 限制、Live 成功时 Wait + 下一 Active Phase 不转 Active
 - `PL!HS-bp6-014:1` 等从手牌发动的效果，在没有目标 Stage Member 时也会处理成本和抽牌，只把目标 modifier 空结算
 - 两段式技能会在进入后续选择时记录 `effect_choice_started` event，方便 UI、Replay 和 sandbox report 确认当前是在等待技能后续选择
+- local / Hosted FastAPI 可以把 Player 2 设为 `simple_ai` 创建对电脑战。AI 只从 LegalAction 中选择，并在 event / replay 中记录选择理由
 - 暂不能自动执行的技能通过 `ManualAdjustmentAction` 补充
 - 无法处理的技能可以用调试用 `effect_skipped_due_to_error` 显式记录后跳过
 
@@ -89,7 +90,7 @@ Deck Builder 当前状态:
 
 - 全卡技能自动执行
 - 面向全量卡池的完整技能提示覆盖
-- AI、Monte Carlo、胜率引擎
+- 强 AI、Monte Carlo、胜率引擎
 - 正式在线运营、账户、用户同步和严格防作弊
 - GitHub Pages preview 在打包解析后 data package 时，已经可以不依赖 FastAPI 浏览卡库、使用浏览器本地 deck 保存，并执行 MVP deck 分析。对战只有在 `runtime-config.json` 的 `apiBaseUrl` 指向 Hosted FastAPI 时可用。
 

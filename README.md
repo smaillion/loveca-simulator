@@ -46,7 +46,7 @@
 - Phase 1 / 2 / 3 は基本実装済みで、維持と改善の段階です。
 - Phase 4 の Human-vs-Human 検証器と Phase 7 の UI は先行実装済みです。
 - Phase 9 / 10 の低コスト online 検証は、Phase 5 と並行して早めに進めます。
-- Simple AI、AI-vs-AI、Monte Carlo、勝率エンジンは最低優先度に下げています。
+- Simple AI MVP は local / Hosted FastAPI で利用できます。強い AI、Monte Carlo、勝率エンジンは引き続き後回しです。
 
 現在のルール検証 UI で確認できる範囲:
 
@@ -72,6 +72,7 @@
 - `PL!HS-bp6-006` は手札中の cost reduction、みらくらぱーく！以外との Baton replacement 制限、Live 成功時の Wait + 次 Active Phase 非アクティブ化を構造化しています
 - `PL!HS-bp6-014:1` など手札から起動する効果は、対象 Stage Member がいない場合でもコスト支払いと抽牌を処理し、対象 modifier だけを空解決できます
 - 二段階効果は follow-up choice 開始時に `effect_choice_started` event を出し、UI / replay / sandbox report で「続きの選択待ち」を確認できます
+- local / Hosted FastAPI では Player 2 を `simple_ai` にした対コンピューター戦を作成できます。AI は LegalAction のみから選択し、判断理由を event / replay に残します
 - 自動実行できない効果は `ManualAdjustmentAction` で補完
 - 処理不能な効果は、デバッグ用に `effect_skipped_due_to_error` として明示記録しながらスキップ可能
 
@@ -89,7 +90,7 @@ Deck Builder の現在の到達点:
 
 - 全カード効果の自動化
 - 全量カードプールに対する完全な効果 prompt coverage
-- AI、Monte Carlo、勝率エンジン
+- 強い AI、Monte Carlo、勝率エンジン
 - 本格的な online 運用、アカウント、ユーザー同期、不正対策
 - GitHub Pages preview は解析済み data package を同梱した場合、FastAPI なしでカードカタログ閲覧、browser local deck 保存、MVP deck 分析まで動作します。対戦は runtime config の `apiBaseUrl` を設定した場合のみ Hosted FastAPI に接続できます。
 

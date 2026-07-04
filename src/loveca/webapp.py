@@ -42,6 +42,7 @@ from loveca.simulation.engine import RuleEngineError, generate_legal_actions
 from loveca.simulation.models import (
     ActionRequest,
     ActionResult,
+    ControllerType,
     GameEvent,
     LegalAction,
     MatchState,
@@ -82,6 +83,7 @@ class CreateMatchRequest(BaseModel):
     player_1: PlayerSetup
     player_2: PlayerSetup
     seed: int | None = None
+    controllers: dict[str, ControllerType] | None = None
 
 
 class AnalyzeDeckRequest(BaseModel):
@@ -277,6 +279,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
                 second_name=request.player_2.name,
                 second_deck=second_deck,
                 seed=request.seed,
+                controllers=request.controllers,
             )
             payload = result.model_dump()
             payload["match_token"] = service.repository.issue_match_token(
