@@ -540,9 +540,29 @@ button {
 }
 
 .ai-status-banner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ai-status-copy {
+    display: grid;
+    flex: 1;
+    min-width: 0;
+    gap: 2px;
+}
+
+.ai-status-copy small {
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ai-recovery-button {
+    flex: 0 0 auto;
+    padding: 7px 10px;
+    font-size: 0.82rem;
 }
 
 .ai-status-banner svg {
@@ -550,8 +570,23 @@ button {
 }
 
 .ai-status-banner.warning {
-  border-color: #e29aaa;
-  background: #fff3f5;
+    border-color: #e29aaa;
+    background: #fff3f5;
+}
+
+@media (max-width: 760px) {
+    .ai-status-banner {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .ai-status-copy {
+        width: calc(100% - 28px);
+    }
+
+    .ai-recovery-button {
+        margin-left: 24px;
+    }
 }
 
 .online-room-fields {

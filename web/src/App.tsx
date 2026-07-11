@@ -956,7 +956,14 @@ export default function App() {
     .map(([playerId]) => match.state.players[playerId]?.name ?? playerId);
   const latestAiBlocker = [...match.events]
     .reverse()
-    .find((event) => event.event_type === "ai_blocked");
+    .find(
+      (event) =>
+        event.event_type === "ai_blocked"
+        && event.data.state_revision === match.state.revision,
+    );
+  const latestAiBlockerCopy = latestAiBlocker
+    ? describeAiBlocker(latestAiBlocker, locale)
+    : null;
   const showOnlineWaitingDock =
     onlineSession !== null &&
     visibleActions.length === 0 &&
@@ -1095,17 +1102,36 @@ export default function App() {
         <div className={`info-banner ai-status-banner ${latestAiBlocker ? "warning" : ""}`}>
           <Activity size={16} />
           <strong>{locale === "zh" ? "电脑对战" : "対コンピューター"}</strong>
-          <span>
+          <div className="ai-status-copy">
+            <span>
             {latestAiBlocker
-              ? locale === "zh"
-                ? "电脑遇到无法安全自动处理的操作，请手动接管或记录跳过。"
-                : "コンピューターが安全に処理できない操作があります。手動で引き継ぐか、スキップして記録してください。"
+              ? latestAiBlockerCopy?.summary
               : loading
                 ? locale === "zh"
                   ? "电脑正在处理操作..."
                   : "コンピューターが操作中..."
                 : `${locale === "zh" ? "电脑玩家" : "CPU"}: ${simpleAiPlayerNames.join(" / ")}`}
-          </span>
+            </span>
+            {latestAiBlockerCopy?.detail && <small>{latestAiBlockerCopy.detail}</small>}
+          </div>
+          {latestAiBlocker && visibleActions.length > 0 && (
+            <button
+              className="secondary-button ai-recovery-button"
+              type="button"
+              onClick={() => {
+                if (isMobileLayout && mobileDialogActions.length > 0) {
+                  setMobileActionPanelOpen(true);
+                  return;
+                }
+                document.getElementById("match-action-dock")?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "end",
+                });
+              }}
+            >
+              {locale === "zh" ? "查看可处理操作" : "処理可能な操作を見る"}
+            </button>
+          )}
         </div>
       )}
       {revealNotice && (
@@ -4056,6 +4082,43 @@ function eventTitle(event: GameEvent, locale: UiLocale): string {
   return labels[event.event_type]?.[locale === "zh" ? 0 : 1] ?? event.event_type;
 }
 
+function describeAiBlocker(
+  event: GameEvent,
+  locale: UiLocale,
+): { summary: string; detail: string | null } {
+  const reason = typeof event.data.reason === "string" ? event.data.reason : "";
+  const reasonLabels: Record<string, [string, string]> = {
+    no_safe_ai_action: ["电脑找不到可安全执行的合法操作。", "CPU が安全に実行できる操作を選べません。"],
+    ai_illegal_action: ["电脑生成的操作未通过规则验证。", "CPU の操作がルール検証を通過しませんでした。"],
+    ai_action_error: ["电脑处理操作时发生错误。", "CPU の操作処理中にエラーが発生しました。"],
+    ai_action_cap_reached: ["电脑连续操作达到安全上限。", "CPU の連続操作が安全上限に達しました。"],
+  };
+  const summary = reasonLabels[reason]?.[locale === "zh" ? 0 : 1]
+    ?? (locale === "zh"
+      ? "电脑遇到无法安全自动处理的操作。"
+      : "CPU が安全に自動処理できない操作があります。");
+  const pending = Array.isArray(event.data.pending_effects)
+    ? event.data.pending_effects.find(
+      (item) => typeof item === "object" && item !== null,
+    ) as Record<string, unknown> | undefined
+    : undefined;
+  const sourceName = typeof pending?.source_card_name_ja === "string"
+    ? pending.source_card_name_ja
+    : "";
+  const timing = typeof pending?.timing === "string"
+    ? pending.timing
+    : typeof pending?.trigger === "string"
+      ? pending.trigger
+      : "";
+  const label = typeof pending?.label_ja === "string" ? pending.label_ja : "";
+  const actionType = typeof event.data.action_type === "string" ? event.data.action_type : "";
+  const detailParts = pending
+    ? [sourceName, timing, label]
+    : [actionType];
+  const detail = detailParts.filter(Boolean).join(" · ") || null;
+  return { summary, detail };
+}
+
 function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): string | null {
   if (event.event_type === "ai_action_selected") {
     const actionType = typeof event.data.action_type === "string" ? event.data.action_type : "";
@@ -4186,7 +4249,10 @@ function ActionDock({
   }, [state.revision]);
 
   return (
-    <footer className={`action-dock ${embedded ? "embedded-action-dock" : ""} ${actions.some((action) => action.action_type === "play_member") ? "member-play-dock" : ""} ${actions.some((action) => action.action_type === "set_live_cards") ? "live-set-dock" : ""} ${actions.some((action) => action.action_type === "submit_mulligan") ? "mulligan-dock" : ""}`}>
+    <footer
+      id={embedded ? undefined : "match-action-dock"}
+      className={`action-dock ${embedded ? "embedded-action-dock" : ""} ${actions.some((action) => action.action_type === "play_member") ? "member-play-dock" : ""} ${actions.some((action) => action.action_type === "set_live_cards") ? "live-set-dock" : ""} ${actions.some((action) => action.action_type === "submit_mulligan") ? "mulligan-dock" : ""}`}
+    >
       <div className="action-context">
         <strong>{tr("下一步操作", "次にできる操作")}</strong>
         <span>{state.active_player_id ? state.players[state.active_player_id].name : "System"}</span>

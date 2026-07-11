@@ -916,6 +916,93 @@ describe("App", () => {
     expect(requestBody.player_2.deck_path).toBeUndefined();
   });
 
+  it("passes the simple AI controller when the computer match mode is selected", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const fetchMock = createFetchMock({});
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByLabelText("玩家 1 牌组")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "对电脑" }));
+    const createButton = screen.getByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/matches",
+        expect.objectContaining({ method: "POST" }),
+      ),
+    );
+    const matchCreateCall = fetchMock.mock.calls.find(
+      ([input, init]) => input.toString() === "/api/matches" && init?.method === "POST",
+    );
+    const requestBody = JSON.parse(String(matchCreateCall?.[1]?.body));
+    expect(requestBody.controllers).toEqual({
+      player_1: "human",
+      player_2: "simple_ai",
+    });
+  });
+
+  it("shows persisted simple AI blocker context and a recovery action", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const blockedMatch = {
+      ...MATCH_PAYLOAD,
+      state: {
+        ...MATCH_PAYLOAD.state,
+        revision: 9,
+        phase: "first_main",
+        active_player_id: "player_1",
+        controllers: { player_1: "human", player_2: "simple_ai" },
+      },
+      events: [
+        {
+          event_type: "ai_blocked",
+          player_id: "player_2",
+          source: "system",
+          data: {
+            reason: "no_safe_ai_action",
+            state_revision: 9,
+            phase: "first_main",
+            turn_number: 1,
+            pending_effects: [
+              {
+                source_card_name_ja: "安養寺 姫芽",
+                trigger: "activated",
+                timing: "activated",
+                label_ja: "【起動】テスト能力",
+              },
+            ],
+            pending_choice: null,
+          },
+        },
+      ],
+      legal_actions: [
+        {
+          action_type: "end_main_phase",
+          player_id: "player_1",
+          label_zh: "结束主要阶段",
+          label_ja: "メインフェイズを終了",
+          options: {},
+        },
+      ],
+    };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate: blockedMatch }));
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByLabelText("玩家 1 牌组")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "对电脑" }));
+    const createButton = screen.getByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+
+    expect(
+      await screen.findByText("电脑找不到可安全执行的合法操作。"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("安養寺 姫芽 · activated · 【起動】テスト能力")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "查看可处理操作" })).toBeInTheDocument();
+  });
+
   it("hides the opponent hand on the match board by default", async () => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const ownHandId = "player_1-H001";

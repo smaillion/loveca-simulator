@@ -40,12 +40,14 @@ class SimpleAIController:
         legal_actions: list[LegalAction],
         *,
         controlled_player_ids: set[str],
+        allow_player_neutral_actions: bool = False,
     ) -> SimpleAIDecision | SimpleAIBlocker | None:
         available = [
             action
             for action in legal_actions
             if action.player_id in controlled_player_ids
             or (action.player_id is None and controlled_player_ids == set(state.players))
+            or (action.player_id is None and allow_player_neutral_actions)
         ]
         if not available:
             return None
@@ -61,8 +63,10 @@ class SimpleAIController:
                 player_ids=[action.player_id for action in available],
             )
         action_type, player_id, payload, reason = decision
-        if player_id not in controlled_player_ids and not (
-            player_id is None and controlled_player_ids == set(state.players)
+        if (
+            player_id not in controlled_player_ids
+            and not (player_id is None and controlled_player_ids == set(state.players))
+            and not (player_id is None and allow_player_neutral_actions)
         ):
             return None
         return SimpleAIDecision(

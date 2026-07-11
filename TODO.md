@@ -44,7 +44,7 @@
 - Keep `30 decks x 100 matches --manual-policy block` as the standard long-run regression after each executor-pattern expansion.
 - Latest broad Phase 5 long run: `100/100` completed with blocker 0 after the stale-trigger-condition fix.
 - Latest targeted problem-card smoke: `block` completed 9/15 with 6 `mandatory_manual_resolution`; `skip` completed 14/15 with `illegal_action = 0`. Main remaining blockers are `PL!S-bp6-001:1` and `PL!S-pb1-001:1`.
-- Static registry coverage is now `717 / 925 = 77.51%`; raising it toward 90% requires real executor patterns for remaining `manual_resolution` families.
+- Static registry coverage is now `802 / 977 = 82.09%`; raising it toward 90% requires real executor patterns for remaining `manual_resolution` families.
 - Do not mark registry entries executable only to improve coverage numbers.
 
 ## Low Priority
@@ -121,6 +121,18 @@
     deliberate manual-only rule review items
   - keep CI on the `mock` provider; real OpenAI-compatible providers are manual
     local runs because they depend on external configuration and cost
+
+### Simple AI Follow-Up
+
+- Current local acceptance baseline: 20 Human-vs-AI plus 20 AI-vs-AI matches completed `40/40`, with no blocker, skipped effect, illegal action, or Replay error in the generated deck pool.
+- Keep Simple AI deterministic and LegalAction-only; do not add direct GameState mutation or hidden opponent-hand inspection.
+- Improve strategy only after preserving the current completion baseline:
+  - compare reachable Live requirements before choosing Live cards
+  - avoid low-value Member replacement and repeated Baton Touch loops
+  - rank structured optional effects by resource and board impact
+  - expose a clear human recovery path when a mandatory manual effect blocks CPU progress
+- Add a focused browser smoke that reaches and observes at least one full CPU turn; the long 20x20 acceptance remains a manual release gate rather than normal CI.
+- Browser-only static preview still has no TypeScript rule engine; Simple AI requires local or Hosted FastAPI until that engine is intentionally ported.
 
 ### UI Consistency Pass
 

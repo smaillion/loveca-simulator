@@ -11,6 +11,7 @@ from loveca.decks.analyzer import DeckList, analyze_deck, load_deck
 from loveca.simulation.ai import SimpleAIBlocker, SimpleAIController, SimpleAIPolicy
 from loveca.simulation.catalog import MatchPlayerInput, build_match_cards
 from loveca.simulation.effects import DEFAULT_EFFECT_REGISTRY
+from loveca.simulation.engine import IllegalActionError
 from loveca.simulation.models import (
     ActionRequest,
     ActionResult,
@@ -150,6 +151,7 @@ class MatchService:
         events = list(result.events)
         legal_actions = result.legal_actions
         controller = SimpleAIController(SimpleAIPolicy(manual_effect_policy="skip"))
+        ai_continuation_active = False
         for _index in range(max_ai_actions):
             if state.phase == "complete":
                 break
@@ -157,42 +159,59 @@ class MatchService:
                 state,
                 legal_actions,
                 controlled_player_ids=ai_player_ids,
+                allow_player_neutral_actions=ai_continuation_active,
             )
             if decision is None:
                 break
             if isinstance(decision, SimpleAIBlocker):
-                events.append(
-                    GameEvent(
-                        event_type="ai_blocked",
-                        player_id=decision.player_ids[0]
-                        if decision.player_ids
-                        and isinstance(decision.player_ids[0], str)
-                        else None,
-                        data={
-                            "reason": decision.reason,
-                            "legal_action_types": decision.legal_action_types,
-                            "player_ids": decision.player_ids,
-                        },
-                        source="system",
-                    )
+                blocker = _ai_blocked_event(
+                    state,
+                    reason=decision.reason,
+                    player_id=decision.player_ids[0]
+                    if decision.player_ids and isinstance(decision.player_ids[0], str)
+                    else None,
+                    data={
+                        "legal_action_types": decision.legal_action_types,
+                        "player_ids": decision.player_ids,
+                    },
                 )
+                self.repository.append_system_events(match_id, [blocker])
+                events.append(blocker)
                 break
-            applied = self.repository.apply(match_id, decision.action)
+            try:
+                applied = self.repository.apply(match_id, decision.action)
+            except Exception as exc:  # noqa: BLE001 - isolate controller failures from the match.
+                blocker = _ai_blocked_event(
+                    state,
+                    reason=(
+                        "ai_illegal_action"
+                        if isinstance(exc, IllegalActionError)
+                        else "ai_action_error"
+                    ),
+                    player_id=decision.action.player_id,
+                    data={
+                        "action_type": decision.action.action_type,
+                        "error_type": type(exc).__name__,
+                        "error": str(exc),
+                        "decision_reason": decision.reason,
+                    },
+                )
+                self.repository.append_system_events(match_id, [blocker])
+                events.append(blocker)
+                break
             state = applied.state
             legal_actions = applied.legal_actions
             events.extend(applied.events)
+            ai_continuation_active = True
         else:
-            events.append(
-                GameEvent(
-                    event_type="ai_blocked",
-                    player_id=None,
-                    data={
-                        "reason": "ai_action_cap_reached",
-                        "max_ai_actions": max_ai_actions,
-                    },
-                    source="system",
-                )
+            blocker = _ai_blocked_event(
+                state,
+                reason="ai_action_cap_reached",
+                player_id=None,
+                data={"max_ai_actions": max_ai_actions},
             )
+            self.repository.append_system_events(match_id, [blocker])
+            events.append(blocker)
         return ActionResult(state=state, events=events, legal_actions=legal_actions)
 
 
@@ -213,3 +232,48 @@ def _normalize_controllers(
             if value in {"human", "simple_ai"}:
                 normalized[player_id] = value
     return normalized
+
+
+def _ai_blocked_event(
+    state: MatchState,
+    *,
+    reason: str,
+    player_id: str | None,
+    data: dict[str, object] | None = None,
+) -> GameEvent:
+    return GameEvent(
+        event_type="ai_blocked",
+        player_id=player_id,
+        data={
+            "reason": reason,
+            "state_revision": state.revision,
+            "phase": state.phase,
+            "turn_number": state.turn_number,
+            **(data or {}),
+            "pending_effects": _pending_effect_context(state),
+            "pending_choice": state.pending_choice.model_dump() if state.pending_choice else None,
+        },
+        source="system",
+    )
+
+
+def _pending_effect_context(state: MatchState) -> list[dict[str, object]]:
+    items: list[dict[str, object]] = []
+    for invocation in state.pending_effects[:5]:
+        effect = state.effect_definitions.get(invocation.effect_id)
+        source = state.cards.get(invocation.source_card_instance_id)
+        items.append(
+            {
+                "invocation_id": invocation.invocation_id,
+                "effect_id": invocation.effect_id,
+                "source_card_instance_id": invocation.source_card_instance_id,
+                "source_card_code": source.card.card_code if source else None,
+                "source_card_name_ja": source.card.name_ja if source else None,
+                "label_ja": effect.label_ja if effect else None,
+                "trigger": effect.trigger if effect else None,
+                "timing": effect.timing if effect else None,
+                "simulation_support": effect.simulation_support if effect else None,
+                "is_optional": invocation.is_optional,
+            }
+        )
+    return items

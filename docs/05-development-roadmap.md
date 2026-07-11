@@ -30,14 +30,14 @@ The project now advances through a main phase plus parallel product tracks:
 * Phase 1 Card Database is substantially complete and is now in maintenance, formal importer, and incremental update work.
 * Phase 2 Deck Analyzer MVP is implemented. Probability analysis and deeper deck advice are deferred.
 * Phase 3 Game Engine Foundation is implemented for local, replayable rules validation.
-* Phase 4 Simulator MVP has exceeded the original Human-vs-Human target through the visual rule validator. Simple AI and AI-vs-AI are intentionally deferred.
+* Phase 4 Simulator MVP has exceeded the original Human-vs-Human target through the visual rule validator and now includes baseline Human-vs-Simple-AI plus AI-vs-AI debug execution. Advanced AI remains deferred.
 * Phase 5 Effect DSL and structured effect execution is the current primary development focus.
 * Phase 6 Rule Expansion has not started as a broad phase.
 * Phase 7 Simple UI has been pulled forward to support human rule validation and Deck Builder workflows.
 * Phase 8 Advanced AI is now the lowest-priority major phase and should not block online testing.
 * Phase 9 and Phase 10 should begin earlier as a parallel adoption and feedback track, using low-cost local-engine online play.
 
-This is a planned adjustment, not a project direction change. The current priority is to stabilize effect trigger detection, structured prompts, replay-safe effect resolution, and early online feedback loops before returning to AI, Monte Carlo, or win-rate work.
+This is a planned adjustment, not a project direction change. The current priority is to stabilize effect trigger detection, structured prompts, replay-safe effect resolution, early online feedback loops, and the baseline Simple AI as a legal-action regression consumer before advanced AI, Monte Carlo, or win-rate work.
 
 Parallel infrastructure track:
 
@@ -161,8 +161,8 @@ Goal: Build a playable local simulator.
 Primary deliverables:
 
 * Human vs Human local play
-* Human vs Simple AI, deferred until effect prompts are stable
-* AI vs AI debug runner, deferred until Simple AI is restored
+* Human vs Simple AI baseline, implemented with deterministic LegalAction-only selection
+* AI vs AI debug and acceptance runner, implemented for regression and blocker discovery
 * manual or limited effect handling
 * action logs
 * victory detection
@@ -181,6 +181,7 @@ Key risks:
 * manual effect handling causing ambiguity
 * incomplete action validation
 * unclear user responsibility for unsupported effects
+* baseline AI policy is progress-oriented rather than strategically strong
 
 ## 7. Phase 5: Effect DSL
 

@@ -15,14 +15,14 @@ Current project status:
 * Phase 1 Card Database is substantially complete and has moved into maintenance, formal importer, and incremental update workflows.
 * Phase 2 Deck Analyzer MVP is implemented. Probability analysis and deeper deck advice are deferred.
 * Phase 3 Game Engine Foundation is implemented for local replayable rules validation.
-* Phase 4 Simulator MVP has exceeded the original local Human-vs-Human goal through the visual rule validator. Simple AI and AI-vs-AI are intentionally deferred.
+* Phase 4 Simulator MVP has exceeded the original local Human-vs-Human goal through the visual rule validator and now includes baseline Human-vs-Simple-AI plus AI-vs-AI debug execution. Advanced AI remains deferred.
 * Phase 5 Effect DSL and structured effect execution is the active main phase.
 * Phase 6 Rule Expansion has not started as a broad phase.
 * Phase 7 Simple UI has been pulled forward to support human rule validation and Deck Builder workflows.
 * Phase 8 Advanced AI is now the lowest-priority major phase.
 * Phase 9 and Phase 10 should start earlier as a parallel adoption and feedback track, using low-cost local-engine online play before authoritative competitive infrastructure exists.
 
-This adjustment preserves the original direction. It changes the planning model so the next work can focus on effect trigger detection, structured prompts, replay-safe resolution, and early online human feedback before returning to AI, Monte Carlo, or win-rate simulation.
+This adjustment preserves the original direction. It changes the planning model so the next work can focus on effect trigger detection, structured prompts, replay-safe resolution, early online human feedback, and Simple AI regression use before advanced AI, Monte Carlo, or win-rate simulation.
 
 Current Phase 5 subphases:
 
@@ -195,8 +195,8 @@ Build a playable local simulator.
 ### Deliverables
 
 * Human vs Human local play
-* Human vs Simple AI, deferred until structured effect prompts are stable
-* AI vs AI debug runner, deferred until Simple AI is restored
+* Human vs Simple AI baseline using deterministic LegalAction-only selection
+* AI vs AI debug and acceptance runner for repeatable regression
 * opening hand and mulligan flow
 * Member play
 * Live play
@@ -222,8 +222,8 @@ Build a playable local simulator.
 ### Exit Criteria
 
 * a local match can be completed under MVP rules
-* Simple AI can make legal, deterministic, explainable choices, once AI work resumes
-* AI vs AI debug mode produces action logs and final summaries, once AI work resumes
+* Simple AI makes legal, deterministic, explainable baseline choices
+* AI vs AI debug mode produces action logs, blocker context, replay validation, and final summaries
 * unsupported effect behavior is clearly bounded
 
 ## 7. Phase 5: Effect DSL
