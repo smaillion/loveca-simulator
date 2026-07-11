@@ -73,6 +73,8 @@
 - `PL!HS-bp6-014:1` など手札から起動する効果は、対象 Stage Member がいない場合でもコスト支払いと抽牌を処理し、対象 modifier だけを空解決できます
 - 二段階効果は follow-up choice 開始時に `effect_choice_started` event を出し、UI / replay / sandbox report で「続きの選択待ち」を確認できます
 - local / Hosted FastAPI では Player 2 を `simple_ai` にした対コンピューター戦を作成できます。AI は LegalAction のみから選択し、判断理由を event / replay に残します
+- Simple AI acceptance は 20 decks を使った Human-vs-AI 20 局 + AI-vs-AI 20 局で `40/40` 完走、blocker 0、Replay error 0 を確認済みです
+- CPU が安全に処理できない操作や連続 action 上限に達した場合は、source card / timing を含む `ai_blocked` event を runtime と Replay に保存し、UI から処理可能な操作へ移動できます
 - 自動実行できない効果は `ManualAdjustmentAction` で補完
 - 処理不能な効果は、デバッグ用に `effect_skipped_due_to_error` として明示記録しながらスキップ可能
 
@@ -91,6 +93,7 @@ Deck Builder の現在の到達点:
 - 全カード効果の自動化
 - 全量カードプールに対する完全な効果 prompt coverage
 - 強い AI、Monte Carlo、勝率エンジン
+- Simple AI は合法性と進行を優先する deterministic policy で、対戦強度や最適プレイは保証しません
 - 本格的な online 運用、アカウント、ユーザー同期、不正対策
 - GitHub Pages preview は解析済み data package を同梱した場合、FastAPI なしでカードカタログ閲覧、browser local deck 保存、MVP deck 分析まで動作します。対戦は runtime config の `apiBaseUrl` を設定した場合のみ Hosted FastAPI に接続できます。
 

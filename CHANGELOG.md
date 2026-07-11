@@ -1,5 +1,19 @@
 # 変更履歴 / 变更记录
 
+## 未リリース / 未发布
+
+### 追加 / 新增
+
+- Simple AI の product acceptance runner を追加し、Human-vs-AI / AI-vs-AI の完走率、blocker、Replay serialization を deck pool 単位で検証できるようにした。
+- 新增 Simple AI 产品验收脚本，可按牌组池统计 Human-vs-AI / AI-vs-AI 的完赛率、blocker 与 Replay 序列化结果。
+
+### 修正 / 修复
+
+- CPU action 後に必要な player-neutral rule action も同じ自動進行内で処理し、CPU turn の途中で local Human-vs-AI が停止する問題を修正。
+- 修复电脑行动后未继续处理 player-neutral 规则操作，导致本地人机对战在电脑回合中途停止的问题。
+- `ai_blocked` を runtime event と Replay に保存し、source card、timing、state revision、失敗理由を画面で確認できるようにした。最新の `20 + 20` acceptance は `40/40` 完走、blocker 0、Replay error 0。
+- 将 `ai_blocked` 持久化到 runtime event 与 Replay，并在页面显示来源卡、时点、state revision 和失败原因；最新 `20 + 20` 验收为 `40/40` 完赛、blocker 0、Replay error 0。
+
 ## v0.77 - 2026-06-25
 
 ### 追加 / 新增

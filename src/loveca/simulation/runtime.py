@@ -415,6 +415,81 @@ class MatchRepository:
             ).fetchall()
         return [GameEvent.model_validate_json(row["event_json"]) for row in rows]
 
+    def append_system_events(
+        self,
+        match_id: str,
+        events: list[GameEvent],
+    ) -> list[GameEvent]:
+        """Persist diagnostic events that do not mutate MatchState.
+
+        AI blockers are observations about an attempted controller decision,
+        not game actions. Keeping them in the normal event stream makes the
+        reason survive refreshes and replay export without inventing a state
+        mutation or snapshot.
+        """
+
+        if not events:
+            return []
+        now = _utc_now()
+        with closing(_connect(self.path)) as connection:
+            try:
+                connection.execute("BEGIN IMMEDIATE")
+                exists = connection.execute(
+                    "SELECT 1 FROM matches WHERE match_id = ?",
+                    (match_id,),
+                ).fetchone()
+                if exists is None:
+                    raise MatchNotFoundError(f"match not found: {match_id}")
+                action_sequence = int(
+                    connection.execute(
+                        """
+                        SELECT COALESCE(MAX(sequence), 0)
+                        FROM match_actions
+                        WHERE match_id = ?
+                        """,
+                        (match_id,),
+                    ).fetchone()[0]
+                )
+                event_index = int(
+                    connection.execute(
+                        """
+                        SELECT COALESCE(MAX(event_index), -1) + 1
+                        FROM match_events
+                        WHERE match_id = ? AND action_sequence = ?
+                        """,
+                        (match_id, action_sequence),
+                    ).fetchone()[0]
+                )
+                for offset, event in enumerate(events):
+                    connection.execute(
+                        """
+                        INSERT INTO match_events (
+                            match_id,
+                            action_sequence,
+                            event_index,
+                            event_type,
+                            event_json
+                        )
+                        VALUES (?, ?, ?, ?, ?)
+                        """,
+                        (
+                            match_id,
+                            action_sequence,
+                            event_index + offset,
+                            event.event_type,
+                            event.model_dump_json(),
+                        ),
+                    )
+                connection.execute(
+                    "UPDATE matches SET updated_at = ? WHERE match_id = ?",
+                    (now, match_id),
+                )
+                connection.commit()
+            except Exception:
+                connection.rollback()
+                raise
+        return events
+
     def apply(self, match_id: str, action: ActionRequest) -> ActionResult:
         now = _utc_now()
         action_id = action.action_id or str(uuid.uuid4())

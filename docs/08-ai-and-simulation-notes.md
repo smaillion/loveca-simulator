@@ -4,9 +4,18 @@
 
 This document describes AI and simulation strategy for the platform.
 
-It does not implement AI, simulator logic, APIs, or classes. It defines architectural expectations for future specifications and implementation.
+It defines architectural expectations and records the current baseline implementation boundary. Concrete behavior remains owned by the implementation and executable tests.
 
-Simple AI is required for the Battle Simulator MVP. Advanced AI is a future phase.
+Baseline Simple AI is implemented for the Battle Simulator MVP. Advanced AI remains a future phase.
+
+Current implementation snapshot:
+
+* local and Hosted FastAPI can create Human-vs-Simple-AI matches
+* AI decisions are selected only from LegalActionGenerator output and are applied through MatchService
+* deterministic AI-vs-AI acceptance and replay verification are available outside normal CI
+* unresolved manual effects use explicit skip-and-log behavior under the baseline policy
+* AI blockers are persisted as non-mutating runtime events with state revision and effect context
+* the latest 20-deck acceptance completed 20 Human-vs-AI and 20 AI-vs-AI matches without blockers or replay errors
 
 ## 2. Controller Abstraction
 
@@ -83,6 +92,10 @@ Legal actions should reflect current player, phase, zones, resources, rule versi
 
 ## 7. Simple AI Heuristic Policy
 
+The current baseline policy prioritizes legal progression: setup, pending structured effect choices, Live requirement choices, playable Member placement, phase completion, Live Set, success Live selection, and next-turn progression. It is deterministic and progress-oriented, not strategically strong.
+
+The following order is a target for later policy refinement rather than a claim that every item is already optimized:
+
 Initial Simple AI priority order:
 
 1. If a legal action immediately wins the game, choose it.
@@ -104,7 +117,7 @@ These heuristics are intentionally simple. They should be deterministic and expl
 
 ## 8. AI vs AI Debug Mode
 
-The simulator must support AI vs AI games without UI interaction.
+The simulator supports baseline AI vs AI games without UI interaction through the acceptance runner.
 
 Minimum output:
 
@@ -114,12 +127,11 @@ Minimum output:
 * action log
 * final GameState summary
 
-AI vs AI debug mode will later support:
+AI vs AI debug mode already supports regression testing and replay generation. It may later support:
 
 * Monte Carlo matchup simulation
 * AI policy comparison
-* regression testing
-* replay generation
+* larger policy-strength benchmarks
 
 ## 9. Deterministic AI Decisions
 

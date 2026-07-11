@@ -73,6 +73,8 @@
 - `PL!HS-bp6-014:1` 等从手牌发动的效果，在没有目标 Stage Member 时也会处理成本和抽牌，只把目标 modifier 空结算
 - 两段式技能会在进入后续选择时记录 `effect_choice_started` event，方便 UI、Replay 和 sandbox report 确认当前是在等待技能后续选择
 - local / Hosted FastAPI 可以把 Player 2 设为 `simple_ai` 创建对电脑战。AI 只从 LegalAction 中选择，并在 event / replay 中记录选择理由
+- Simple AI 验收已使用 20 套牌完成 Human-vs-AI 20 局 + AI-vs-AI 20 局，结果为 `40/40` 完整结束、blocker 0、Replay error 0
+- 电脑无法安全处理操作或达到连续 action 上限时，会把来源卡、技能时点等信息作为 `ai_blocked` event 写入 runtime 与 Replay，UI 可引导到当前可处理操作
 - 暂不能自动执行的技能通过 `ManualAdjustmentAction` 补充
 - 无法处理的技能可以用调试用 `effect_skipped_due_to_error` 显式记录后跳过
 
@@ -91,6 +93,7 @@ Deck Builder 当前状态:
 - 全卡技能自动执行
 - 面向全量卡池的完整技能提示覆盖
 - 强 AI、Monte Carlo、胜率引擎
+- Simple AI 当前是优先保证合法性和流程推进的 deterministic policy，不保证对战强度或最优操作
 - 正式在线运营、账户、用户同步和严格防作弊
 - GitHub Pages preview 在打包解析后 data package 时，已经可以不依赖 FastAPI 浏览卡库、使用浏览器本地 deck 保存，并执行 MVP deck 分析。对战只有在 `runtime-config.json` 的 `apiBaseUrl` 指向 Hosted FastAPI 时可用。
 
