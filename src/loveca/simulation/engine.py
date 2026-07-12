@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import random
-from collections.abc import Iterable
 from collections import Counter
+from collections.abc import Iterable
 from types import SimpleNamespace
 from typing import Any
 
@@ -613,6 +613,10 @@ def _play_member(
             "waiting_room",
             events,
             reason="baton_touch",
+            trigger_data={
+                "replacement_card_instance_id": instance_id,
+                "used_baton_touch": True,
+            },
         )
         events.append(
             GameEvent(
@@ -666,6 +670,19 @@ def _play_member(
             reason="member_replaced",
         )
         player.waiting_room.append(replaced_instance_id)
+        _queue_triggered_effects(
+            state,
+            "member_left_stage_to_waiting_room",
+            events,
+            source_instance_ids=[replaced_instance_id],
+            trigger_data={
+                "turn_number": state.turn_number,
+                "from_slot": slot,
+                "to_zone": "waiting_room",
+                "replacement_card_instance_id": instance_id,
+                "used_baton_touch": False,
+            },
+        )
         events.append(
             GameEvent(
                 event_type="duplicate_member_resolved",
@@ -1222,6 +1239,20 @@ def _activated_effect_required_choice_available(
         trigger_event="player_activation",
         resolution_stage="initial",
     )
+    fixed_energy_cost = sum(
+        operation.amount or 0
+        for operation in effect.cost
+        if operation.action_type == "pay_energy"
+        and operation.amount_source is None
+    )
+    if fixed_energy_cost:
+        player = state.players[player_id]
+        active_energy = sum(
+            state.cards[item].orientation == "active"
+            for item in player.energy_area
+        )
+        if active_energy < fixed_energy_cost:
+            return False
     if not _required_cost_choice_available(state, invocation, effect):
         return False
     if not _required_post_cost_choice_available_before_cost(
@@ -1403,7 +1434,7 @@ def _activate_effect(
     pre_choice_operations = [
         operation
         for operation in effect.actions
-        if not _operation_requires_selected_choice(operation)
+        if not _operation_requires_pending_effect_choice(effect, operation)
     ]
     if pre_choice_operations:
         _execute_operations(
@@ -1628,8 +1659,9 @@ def _resolve_effect(
         deploy_slots = _empty_member_area_slots(state.players[invocation.player_id])
         if selected_position_slot not in deploy_slots:
             raise IllegalActionError("effect deploy slot selection is not legal")
-    elif selected_position_slot is not None and not _effect_branch_accepts_position_choice(
-        effect, invocation
+    elif selected_position_slot is not None and not (
+        _effect_branch_accepts_position_choice(effect, invocation)
+        or _effect_accepts_selected_position_choice(effect)
     ):
         raise IllegalActionError("this effect does not accept a position selection")
     destination_choice = _effect_follow_up_choice(effect, invocation) or effect.choice
@@ -2700,6 +2732,13 @@ def _effect_unavailable_reason(
         )
         if active < minimum_energy:
             return "insufficient_active_energy"
+    minimum_wait_energy = effect.condition.get("minimum_wait_energy")
+    if isinstance(minimum_wait_energy, int):
+        waiting = sum(
+            state.cards[item].orientation == "wait" for item in player.energy_area
+        )
+        if waiting < minimum_wait_energy:
+            return "wait_energy_too_low"
     ready_history = effect.condition.get("effect_ready_history")
     if isinstance(ready_history, dict):
         work_key = ready_history.get("work_key")
@@ -3189,6 +3228,35 @@ def _effect_unavailable_reason(
             )
             if actual < count:
                 return "live_area_required_heart_too_low"
+    live_or_success_required_heart = effect.condition.get(
+        "live_or_success_work_required_heart_exact"
+    )
+    if isinstance(live_or_success_required_heart, dict):
+        work_key = live_or_success_required_heart.get("work_key")
+        color_slot = live_or_success_required_heart.get("color_slot")
+        count = live_or_success_required_heart.get("count")
+        if not (
+            isinstance(work_key, str)
+            and isinstance(color_slot, str)
+            and isinstance(count, int)
+        ):
+            return "invalid_live_or_success_required_heart_condition"
+        if not any(
+            work_key in state.cards[item].card.work_keys
+            and state.cards[item].card.required_hearts.get(color_slot, 0) == count
+            for item in [*player.live_area, *player.success_live_area]
+        ):
+            return "live_or_success_required_heart_condition_not_met"
+    if effect.condition.get("live_area_has_same_name_in_success_live"):
+        success_names = {
+            _normalized_card_name(state.cards[item].card.name_ja)
+            for item in player.success_live_area
+        }
+        if not any(
+            _normalized_card_name(state.cards[item].card.name_ja) in success_names
+            for item in player.live_area
+        ):
+            return "live_area_same_name_success_live_missing"
     live_work_required_total = effect.condition.get(
         "live_area_work_required_heart_total_at_least"
     )
@@ -3228,6 +3296,19 @@ def _effect_unavailable_reason(
     if isinstance(waiting_room_count, int):
         if len(player.waiting_room) < waiting_room_count:
             return "waiting_room_count_too_low"
+    waiting_room_card_type = effect.condition.get(
+        "waiting_room_card_type_count_at_least"
+    )
+    if isinstance(waiting_room_card_type, dict):
+        card_type = waiting_room_card_type.get("card_type")
+        count = waiting_room_card_type.get("count")
+        if not isinstance(card_type, str) or not isinstance(count, int):
+            return "invalid_waiting_room_card_type_condition"
+        actual = sum(
+            state.cards[item].card.card_type == card_type for item in player.waiting_room
+        )
+        if actual < count:
+            return "waiting_room_card_type_count_too_low"
     waiting_live_unit = effect.condition.get("waiting_room_live_unit_count_at_least")
     if isinstance(waiting_live_unit, dict):
         unit_key = waiting_live_unit.get("unit_key")
@@ -3664,6 +3745,16 @@ def _effect_unavailable_reason(
             }
             if len(names) < count:
                 return "stage_waiting_unit_distinct_name_count_too_low"
+    distinct_stage_units = effect.condition.get("own_stage_distinct_unit_count_at_least")
+    if isinstance(distinct_stage_units, int):
+        actual_units = {
+            unit_key
+            for item in player.member_area.values()
+            if item is not None
+            for unit_key in state.cards[item].card.unit_keys
+        }
+        if len(actual_units) < distinct_stage_units:
+            return "stage_distinct_unit_count_too_low"
     distinct_stage_waiting_work = effect.condition.get(
         "own_stage_waiting_member_work_distinct_name_count_at_least"
     )
@@ -3926,6 +4017,12 @@ def _effect_unavailable_reason(
     if isinstance(source_slot, str):
         if _top_member_slot(player, invocation.source_card_instance_id) != source_slot:
             return "source_slot_mismatch"
+    source_slots = effect.condition.get("source_slot_any")
+    if isinstance(source_slots, list):
+        actual_slot = _top_member_slot(player, invocation.source_card_instance_id)
+        allowed_slots = {item for item in source_slots if isinstance(item, str)}
+        if actual_slot not in allowed_slots:
+            return "source_slot_mismatch"
     if effect.condition.get("any_stage_member_cost_at_least"):
         minimum_cost = effect.condition["any_stage_member_cost_at_least"]
         if isinstance(minimum_cost, int) and not any(
@@ -4103,6 +4200,15 @@ def _effect_unavailable_reason(
         )
         if actual < opponent_wait_count:
             return "opponent_wait_member_count_too_low"
+    other_member_cost = effect.condition.get("own_stage_other_member_cost_exact")
+    if isinstance(other_member_cost, int):
+        if not any(
+            item is not None
+            and item != invocation.source_card_instance_id
+            and (state.cards[item].card.cost or 0) == other_member_cost
+            for item in player.member_area.values()
+        ):
+            return "other_stage_member_cost_mismatch"
     if effect.condition.get("own_stage_cost_sum_less_than_opponent"):
         own_total = sum(
             state.cards[item].card.cost or 0
@@ -4153,6 +4259,23 @@ def _effect_unavailable_reason(
             return "replacement_member_unavailable"
         if work_key not in state.cards[replacement_id].card.work_keys:
             return "replacement_member_work_mismatch"
+    unit_key = effect.condition.get("replacement_member_unit_key")
+    if isinstance(unit_key, str):
+        if not isinstance(replacement_id, str):
+            return "replacement_member_unavailable"
+        if unit_key not in state.cards[replacement_id].card.unit_keys:
+            return "replacement_member_unit_mismatch"
+    replacement_ability = effect.condition.get("replacement_member_ability_bucket")
+    if isinstance(replacement_ability, str):
+        if not isinstance(replacement_id, str):
+            return "replacement_member_unavailable"
+        if state.cards[replacement_id].card.ability_bucket != replacement_ability:
+            return "replacement_member_ability_mismatch"
+    if effect.condition.get("replacement_member_without_blade_heart"):
+        if not isinstance(replacement_id, str):
+            return "replacement_member_unavailable"
+        if _card_has_blade_heart(state.cards[replacement_id].card):
+            return "replacement_member_has_blade_heart"
     replacement_name = effect.condition.get("replacement_member_name_ja")
     if isinstance(replacement_name, str):
         if not isinstance(replacement_id, str):
@@ -4274,6 +4397,11 @@ def _effect_resolution_options(
         "candidate_card_instance_ids": candidate_ids,
         "resolution_stage": invocation.resolution_stage,
     }
+    if invocation.resolution_stage == "initial" and (
+        _effect_uses_post_action_card_choice(effect)
+        or _effect_uses_post_cost_card_choice(effect)
+    ):
+        options["choice_deferred_until_after_first_step"] = True
     if effect.cost_choice is not None and invocation.resolution_stage == "initial":
         options["choice_type"] = effect.cost_choice.choice_type
         options["choice_zone"] = effect.cost_choice.zone
@@ -4361,6 +4489,14 @@ def _effect_resolution_options(
             options["available_slots"] = _empty_member_area_slots(
                 state.players[invocation.player_id]
             )
+        if _effect_accepts_selected_position_choice(effect):
+            options["position_change_slots_by_candidate"] = (
+                _position_change_slots_by_candidate(
+                    state,
+                    invocation.player_id,
+                    options.get("candidate_card_instance_ids", []),
+                )
+            )
     pay_amount = 0
     if invocation.resolution_stage == "initial":
         pay_amount = sum(
@@ -4438,6 +4574,19 @@ def _effect_choice_bounds(
             for instance_id in opponent.member_area.values()
         )
         return choice.minimum, min(choice.maximum, amount)
+    if choice.amount_source == "own_active_energy_count":
+        player = state.players[invocation.player_id]
+        amount = sum(
+            state.cards[item].orientation == "active" for item in player.energy_area
+        )
+        return choice.minimum, min(choice.maximum, amount)
+    if choice.amount_source == "cost_selected_count":
+        raw_selected = invocation.trigger_data.get(
+            "cost_selected_card_instance_ids",
+            [],
+        )
+        amount = len(raw_selected) if isinstance(raw_selected, list) else 0
+        return min(choice.minimum, amount), min(choice.maximum, amount)
     return choice.minimum, choice.maximum
 
 
@@ -4550,6 +4699,27 @@ def _effect_operation_condition_met(
     stage_members = [
         item for item in player.member_area.values() if item is not None
     ]
+    opponent = state.players[
+        "player_2" if invocation.player_id == "player_1" else "player_1"
+    ]
+    opponent_wait_count = condition.get("opponent_stage_wait_member_count_at_least")
+    if isinstance(opponent_wait_count, int):
+        actual = sum(
+            item is not None and state.cards[item].orientation == "wait"
+            for item in opponent.member_area.values()
+        )
+        if actual < opponent_wait_count:
+            return False
+    waiting_distinct = condition.get(
+        "waiting_room_live_work_distinct_name_count_at_least"
+    )
+    if isinstance(waiting_distinct, dict):
+        work_key = waiting_distinct.get("work_key")
+        count = waiting_distinct.get("count")
+        if not isinstance(work_key, str) or not isinstance(count, int):
+            return False
+        if _waiting_room_live_work_distinct_name_count(state, player, work_key) < count:
+            return False
     cleared_excess = condition.get("last_cleared_excess_heart_count_at_least")
     if isinstance(cleared_excess, int):
         actual = 0
@@ -4693,11 +4863,24 @@ def _effect_operation_condition_met(
             if item in state.cards
         ):
             return False
-    trigger_data = {}
+    trigger_data = dict(invocation.trigger_data)
     if operation_context is not None:
         raw_trigger_data = operation_context.get("trigger_data", {})
         if isinstance(raw_trigger_data, dict):
-            trigger_data = raw_trigger_data
+            trigger_data.update(raw_trigger_data)
+    replacement_id = trigger_data.get("replacement_card_instance_id")
+    replacement_minimum_cost = condition.get("replacement_member_minimum_cost")
+    if isinstance(replacement_minimum_cost, int):
+        if (
+            not isinstance(replacement_id, str)
+            or replacement_id not in state.cards
+            or (state.cards[replacement_id].card.cost or 0) < replacement_minimum_cost
+        ):
+            return False
+    replacement_unit_not = condition.get("not_replacement_member_unit_key")
+    if isinstance(replacement_unit_not, str) and isinstance(replacement_id, str):
+        if replacement_unit_not in state.cards[replacement_id].card.unit_keys:
+            return False
     cost_selected_ids = [
         item
         for item in trigger_data.get("cost_selected_card_instance_ids", [])
@@ -4833,7 +5016,7 @@ def _effect_group_choice_options(
         }
         candidates = [
             item
-            for item in _stage_member_candidates_for_group(state, invocation, group)
+            for item in _choice_candidates_for_group(state, invocation, group)
             if item not in excluded and state.cards[item].card.name_ja not in excluded_names
         ]
         options.append(
@@ -4886,7 +5069,7 @@ def _validate_grouped_stage_member_choice(
         }
         candidates = [
             item
-            for item in _stage_member_candidates_for_group(state, invocation, group)
+            for item in _choice_candidates_for_group(state, invocation, group)
             if item not in excluded and state.cards[item].card.name_ja not in excluded_names
         ]
         if (
@@ -4927,7 +5110,7 @@ def _grouped_stage_member_choice_has_legal_assignment(
         }
         candidates = [
             item
-            for item in _stage_member_candidates_for_group(state, invocation, group)
+            for item in _choice_candidates_for_group(state, invocation, group)
             if item not in excluded
             and state.cards[item].card.name_ja not in excluded_names
             and item not in used
@@ -4952,13 +5135,17 @@ def _grouped_stage_member_choice_has_legal_assignment(
     return backtrack(0, {}, set())
 
 
-def _stage_member_candidates_for_group(
+def _choice_candidates_for_group(
     state: MatchState,
     invocation: EffectInvocation,
     group: Any,
 ) -> list[str]:
     choice = SimpleNamespace(
-        choice_type="member_from_stage",
+        choice_type=(
+            "member_from_stage"
+            if (group.zone or "stage") == "stage"
+            else "card_from_zone"
+        ),
         zone=group.zone or "stage",
         target_player="self",
         card_type=group.card_type,
@@ -4977,6 +5164,16 @@ def _stage_member_candidates_for_group(
         maximum_original_blade=None,
         minimum_score=None,
         maximum_score=None,
+        heart_color_slot=None,
+        heart_color_slots_any=[],
+        heart_color_slots_all=[],
+        minimum_heart_count=None,
+        required_heart_color_slot=None,
+        minimum_required_heart=None,
+        minimum_required_heart_total=None,
+        exclude_blade_heart=False,
+        maximum_cost_less_than_cost_selected=False,
+        exclude_stage_unit_keys=False,
     )
     return _effect_candidates_for_choice(state, invocation, choice)
 
@@ -5190,6 +5387,19 @@ def _effect_candidates_for_choice(
             for item in candidates
             if state.cards[item].orientation == choice.orientation
         ]
+    excluded_position_slots = set(
+        getattr(choice, "excluded_position_slots", [])
+    )
+    if excluded_position_slots and zone == "stage":
+        target_player = player
+        if getattr(choice, "target_player", "self") == "opponent":
+            target_player = state.players[
+                "player_2" if invocation.player_id == "player_1" else "player_1"
+            ]
+        excluded_ids = {
+            target_player.member_area.get(slot) for slot in excluded_position_slots
+        }
+        candidates = [item for item in candidates if item not in excluded_ids]
     if choice.exclude_source:
         candidates = [
             item for item in candidates if item != invocation.source_card_instance_id
@@ -5217,6 +5427,38 @@ def _effect_candidates_for_choice(
             item
             for item in candidates
             if (state.cards[item].card.cost or 0) <= choice.maximum_cost
+        ]
+    if getattr(choice, "maximum_cost_less_than_cost_selected", False):
+        cost_selected_ids = invocation.trigger_data.get(
+            "cost_selected_card_instance_ids",
+            [],
+        )
+        if not isinstance(cost_selected_ids, list) or len(cost_selected_ids) != 1:
+            candidates = []
+        else:
+            selected_cost = state.cards[cost_selected_ids[0]].card.cost or 0
+            candidates = [
+                item
+                for item in candidates
+                if (state.cards[item].card.cost or 0) < selected_cost
+            ]
+    if getattr(choice, "exclude_blade_heart", False):
+        candidates = [
+            item
+            for item in candidates
+            if not _card_has_blade_heart(state.cards[item].card)
+        ]
+    if getattr(choice, "exclude_stage_unit_keys", False):
+        stage_units = {
+            unit_key
+            for member_id in player.member_area.values()
+            if member_id is not None
+            for unit_key in state.cards[member_id].card.unit_keys
+        }
+        candidates = [
+            item
+            for item in candidates
+            if not stage_units.intersection(state.cards[item].card.unit_keys)
         ]
     blade_player_id = invocation.player_id
     if getattr(choice, "target_player", "self") == "opponent":
@@ -5283,6 +5525,26 @@ def _effect_candidates_for_choice(
             )
             >= minimum_heart_count
         ]
+    heart_color_slots_any = set(getattr(choice, "heart_color_slots_any", []))
+    if heart_color_slots_any:
+        candidates = [
+            item
+            for item in candidates
+            if any(
+                _card_heart_or_required_heart_count(state.cards[item].card, color) > 0
+                for color in heart_color_slots_any
+            )
+        ]
+    heart_color_slots_all = set(getattr(choice, "heart_color_slots_all", []))
+    if heart_color_slots_all:
+        candidates = [
+            item
+            for item in candidates
+            if all(
+                _card_heart_or_required_heart_count(state.cards[item].card, color) > 0
+                for color in heart_color_slots_all
+            )
+        ]
     required_heart_color_slot = getattr(choice, "required_heart_color_slot", None)
     minimum_required_heart = getattr(choice, "minimum_required_heart", None)
     if (
@@ -5296,6 +5558,18 @@ def _effect_candidates_for_choice(
                 required_heart_color_slot, 0
             )
             >= minimum_required_heart
+        ]
+    minimum_required_heart_total = getattr(
+        choice,
+        "minimum_required_heart_total",
+        None,
+    )
+    if minimum_required_heart_total is not None:
+        candidates = [
+            item
+            for item in candidates
+            if sum(state.cards[item].card.required_hearts.values())
+            >= minimum_required_heart_total
         ]
     return candidates
 
@@ -5334,6 +5608,29 @@ def _operation_requires_selected_choice(operation: Any) -> bool:
         "replace_member_base_hearts",
         "return_from_waiting_room",
     }
+
+
+def _operation_requires_pending_effect_choice(effect: Any, operation: Any) -> bool:
+    if _operation_requires_selected_choice(operation):
+        return True
+    choice = getattr(effect, "choice", None)
+    if choice is None:
+        return False
+    if choice.choice_type == "choose_effect_branch" and operation.branch is not None:
+        return True
+    if choice.choice_type == "choose_count" and operation.amount_source == "selected_count":
+        return True
+    return bool(
+        choice.choice_type == "choose_color"
+        and operation.color_slot is None
+        and operation.action_type
+        in {
+            "gain_heart",
+            "gain_heart_to_stage_members",
+            "replace_member_base_hearts",
+            "replace_required_hearts",
+        }
+    )
 
 
 def _post_action_initial_operations(effect: Any) -> list[Any]:
@@ -5390,7 +5687,11 @@ def _effect_uses_follow_up_card_choice(
 
 
 def _effect_uses_grouped_stage_member_choice(effect: Any) -> bool:
-    return bool(effect.choice and effect.choice.choice_type == "member_group_from_stage")
+    return bool(
+        effect.choice
+        and effect.choice.choice_type
+        in {"member_group_from_stage", "card_groups_from_zone"}
+    )
 
 
 def _effect_uses_card_choice(effect: Any) -> bool:
@@ -5449,6 +5750,8 @@ def _post_action_choice_should_continue(
     if not _post_action_choice_condition_met(effect, invocation):
         return False
     if effect.choice is None:
+        return False
+    if not _choice_condition_met(state, invocation, effect.choice):
         return False
     minimum, maximum = _effect_choice_bounds(state, invocation, effect.choice)
     if not _post_action_choice_has_condition(effect):
@@ -5519,6 +5822,49 @@ def _post_cost_choice_unavailable_reason(
     invocation: EffectInvocation,
     effect: Any,
 ) -> str | None:
+    if (
+        effect.choice is not None
+        and _resolved_choice_zone(effect.choice) == "waiting_room"
+        and any(
+            operation.action_type == "source_to_waiting_room"
+            for operation in effect.cost
+        )
+    ):
+        post_cost_state = state.model_copy(deep=True)
+        post_cost_player = post_cost_state.players[invocation.player_id]
+        _remove_from_player_zones(
+            post_cost_player,
+            invocation.source_card_instance_id,
+        )
+        post_cost_player.waiting_room.append(invocation.source_card_instance_id)
+        post_cost_invocation = invocation.model_copy(
+            update={"resolution_stage": "after_cost"}
+        )
+        if _choice_condition_met(
+            post_cost_state,
+            post_cost_invocation,
+            effect.choice,
+        ):
+            minimum, _ = _effect_choice_bounds(
+                post_cost_state,
+                post_cost_invocation,
+                effect.choice,
+            )
+            candidates = _effect_candidates_for_choice(
+                post_cost_state,
+                post_cost_invocation,
+                effect.choice,
+            )
+            if minimum > 0 and (
+                len(candidates) < minimum
+                or not _choice_candidates_can_satisfy_condition(
+                    post_cost_state,
+                    candidates,
+                    effect.choice,
+                )
+            ):
+                return "post_cost_choice_candidates_unavailable"
+        return None
     if not _post_cost_choice_can_be_checked_before_cost(effect):
         return None
     if effect.choice is None:
@@ -5565,7 +5911,9 @@ def _stage_member_targets_for_operation(
     unit_key = None
     slot = None
     moved_this_turn = False
+    played_this_turn = False
     exclude_source = False
+    exclude_work_key = None
     name_ja = None
     name_ja_any: set[str] = set()
     maximum = None
@@ -5574,7 +5922,9 @@ def _stage_member_targets_for_operation(
         unit_key = operation.value.get("unit_key")
         slot = operation.value.get("slot")
         moved_this_turn = bool(operation.value.get("moved_this_turn", False))
+        played_this_turn = bool(operation.value.get("played_this_turn", False))
         exclude_source = bool(operation.value.get("exclude_source", False))
+        exclude_work_key = operation.value.get("exclude_work_key")
         name_ja = operation.value.get("name_ja")
         raw_names = operation.value.get("name_ja_any")
         if isinstance(raw_names, list):
@@ -5595,8 +5945,12 @@ def _stage_member_targets_for_operation(
             continue
         if moved_this_turn and target_slot not in player.member_areas_moved_this_turn:
             continue
+        if played_this_turn and target_slot not in player.member_areas_entered_this_turn:
+            continue
         card = state.cards[target_id].card
         if isinstance(work_key, str) and work_key not in card.work_keys:
+            continue
+        if isinstance(exclude_work_key, str) and exclude_work_key in card.work_keys:
             continue
         if isinstance(unit_key, str) and unit_key not in card.unit_keys:
             continue
@@ -5664,6 +6018,13 @@ def _effect_branch_accepts_position_choice(
     return any(
         operation.branch == branch
         and operation.action_type == "position_change_selected"
+        for operation in effect.actions
+    )
+
+
+def _effect_accepts_selected_position_choice(effect: Any) -> bool:
+    return any(
+        operation.action_type == "position_change_selected"
         for operation in effect.actions
     )
 
@@ -5877,6 +6238,38 @@ def _inspection_choice_candidates(
             )
             >= minimum_heart_count
         ]
+    heart_color_slots_any = set(getattr(choice, "heart_color_slots_any", []))
+    if heart_color_slots_any:
+        candidates = [
+            item
+            for item in candidates
+            if any(
+                _card_heart_or_required_heart_count(state.cards[item].card, color) > 0
+                for color in heart_color_slots_any
+            )
+        ]
+    heart_color_slots_all = set(getattr(choice, "heart_color_slots_all", []))
+    if heart_color_slots_all:
+        candidates = [
+            item
+            for item in candidates
+            if all(
+                _card_heart_or_required_heart_count(state.cards[item].card, color) > 0
+                for color in heart_color_slots_all
+            )
+        ]
+    minimum_required_heart_total = getattr(
+        choice,
+        "minimum_required_heart_total",
+        None,
+    )
+    if minimum_required_heart_total is not None:
+        candidates = [
+            item
+            for item in candidates
+            if sum(state.cards[item].card.required_hearts.values())
+            >= minimum_required_heart_total
+        ]
     if choice.ability_bucket:
         allowed = set(choice.ability_bucket)
         candidates = [
@@ -6005,6 +6398,34 @@ def _execute_operations(
                     state.cards[instance_id].orientation = "wait"
             else:
                 state.cards[invocation.source_card_instance_id].orientation = "wait"
+        elif operation_type == "apply_wait_to_stage_members":
+            if operation.target not in {None, "self", "opponent", "both"}:
+                raise IllegalActionError(
+                    "stage Member wait target must be self, opponent, or both"
+                )
+            opponent_id = (
+                "player_2" if invocation.player_id == "player_1" else "player_1"
+            )
+            target_player_ids = {
+                None: [invocation.player_id],
+                "self": [invocation.player_id],
+                "opponent": [opponent_id],
+                "both": [invocation.player_id, opponent_id],
+            }[operation.target]
+            value = operation.value if isinstance(operation.value, dict) else {}
+            maximum_original_blade = value.get("maximum_original_blade")
+            for target_player_id in target_player_ids:
+                target_player = state.players[target_player_id]
+                for instance_id in target_player.member_area.values():
+                    if instance_id is None:
+                        continue
+                    if (
+                        isinstance(maximum_original_blade, int)
+                        and (state.cards[instance_id].card.blade or 0)
+                        > maximum_original_blade
+                    ):
+                        continue
+                    state.cards[instance_id].orientation = "wait"
         elif operation_type == "draw_card":
             target_player_id = invocation.player_id
             if operation.target == "opponent":
@@ -6578,6 +6999,35 @@ def _execute_operations(
                     },
                     source="system",
                 )
+            )
+            _queue_triggered_effects(
+                state,
+                "member_played",
+                events,
+                source_instance_ids=[instance_id],
+                trigger_data={
+                    "card_instance_id": instance_id,
+                    "slot": slot,
+                    "source_zone": source_zone or "waiting_room",
+                    "replacement_card_instance_id": None,
+                    "used_baton_touch": False,
+                },
+            )
+            stage_sources = [
+                source_id
+                for source_id in player.member_area.values()
+                if source_id is not None
+            ]
+            _queue_triggered_effects(
+                state,
+                "own_member_played",
+                events,
+                source_instance_ids=stage_sources,
+                trigger_data={
+                    "card_instance_id": instance_id,
+                    "slot": slot,
+                    "source_zone": source_zone or "waiting_room",
+                },
             )
         elif operation_type == "move_waiting_room_members_to_deck_bottom":
             if operation.target not in {None, "self", "both"}:
@@ -7981,7 +8431,12 @@ def _operation_amount(
         return 0
     if operation.amount_source == "selected_count":
         if isinstance(selected_count, int) and not isinstance(selected_count, bool):
-            return selected_count
+            amount = selected_count
+            if isinstance(operation.value, dict):
+                divisor = operation.value.get("divisor")
+                if isinstance(divisor, int) and divisor > 0:
+                    amount //= divisor
+            return amount * multiplier
         return 0
     if (
         operation.amount_source
@@ -9322,6 +9777,7 @@ def _move_top_member_off_stage(
     events: list[GameEvent],
     *,
     reason: str,
+    trigger_data: dict[str, Any] | None = None,
 ) -> str:
     player = state.players[player_id]
     instance_id = player.member_area[slot]
@@ -9341,6 +9797,7 @@ def _move_top_member_off_stage(
             "turn_number": state.turn_number,
             "from_slot": slot,
             "to_zone": to_zone,
+            **(trigger_data or {}),
         },
     )
     return instance_id
@@ -9806,6 +10263,8 @@ def _baton_replacement_static_restrictions_allow(
         replaced_instance_id,
     ):
         for operation in effect.actions:
+            if operation.action_type == "prevent_baton_replacement":
+                return False
             if operation.action_type != "restrict_baton_replacement_unit":
                 continue
             unit_key = None
@@ -9846,6 +10305,27 @@ def _ready_player_cards(
         and modifier.flag == "skip_next_active_phase_ready"
         and modifier.target_card_instance_id
     }
+    stage_member_ids = {
+        instance_id for instance_id in player.member_area.values() if instance_id
+    }
+    for instance_id in stage_member_ids:
+        for effect in _static_test_validated_effects(state, player_id, instance_id):
+            if any(
+                operation.action_type == "prevent_source_active_phase_ready"
+                for operation in effect.actions
+            ):
+                skip_ready_ids.add(instance_id)
+    opponent_id = "player_2" if player_id == "player_1" else "player_1"
+    opponent = state.players[opponent_id]
+    prevent_opponent_member_ready = any(
+        operation.action_type == "prevent_opponent_active_phase_ready"
+        for source_id in opponent.member_area.values()
+        if source_id is not None
+        for effect in _static_test_validated_effects(state, opponent_id, source_id)
+        for operation in effect.actions
+    )
+    if prevent_opponent_member_ready:
+        skip_ready_ids.update(stage_member_ids)
     ready_ids = [
         *player.energy_area,
         *[instance_id for instance_id in player.member_area.values() if instance_id],

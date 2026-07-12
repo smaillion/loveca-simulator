@@ -14,7 +14,8 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
     _write_report_image_fixture(database)
     results = run_effect_verification_scenarios(database_path=database)
 
-    assert {result.scenario_id for result in results} == {
+    scenario_ids = {result.scenario_id for result in results}
+    assert {
         "baton_repeat_prevention",
         "pl_hs_bp2_026_live_start_score_modifier",
         "pl_hs_bp6_006_cost_reduction",
@@ -22,7 +23,10 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
         "pl_hs_bp6_014_with_target",
         "pl_hs_bp6_014_without_target",
         "pl_hs_sd1_005_same_name_baton_blocked",
-    }
+    }.issubset(scenario_ids)
+    assert "registry_contract_PL!S-sd1-006_1" in scenario_ids
+    assert "registry_contract_PL!N-bp5-005_1" in scenario_ids
+    assert len(results) >= 40
     assert all(result.status == "PASS" for result in results)
 
     write_effect_verification_report(tmp_path, results)
@@ -47,8 +51,8 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
     assert "PL!HS-bp6-006：按みらくらぱーく！人数降低登场 cost" in zh_markdown
     assert "Baton Touch：防止同一回合二次 Baton" in zh_markdown
     assert "发动源在控室: OK" in zh_markdown
-    assert summary["schema_version"] == "effect_verification_report_v0.2"
-    assert summary["passed"] == 7
+    assert summary["schema_version"] == "effect_verification_report_v0.3"
+    assert summary["passed"] == len(results)
 
 
 def _write_report_image_fixture(path):

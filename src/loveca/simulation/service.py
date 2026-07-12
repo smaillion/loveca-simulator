@@ -6,6 +6,7 @@ import random
 import secrets
 import uuid
 from pathlib import Path
+from time import perf_counter
 
 from loveca.decks.analyzer import DeckList, analyze_deck, load_deck
 from loveca.simulation.ai import SimpleAIBlocker, SimpleAIController, SimpleAIPolicy
@@ -15,6 +16,7 @@ from loveca.simulation.engine import IllegalActionError
 from loveca.simulation.models import (
     ActionRequest,
     ActionResult,
+    ControllerPolicyVersion,
     ControllerType,
     GameEvent,
     MatchState,
@@ -62,6 +64,7 @@ class MatchService:
         match_id: str | None = None,
         first_player_id: str | None = None,
         controllers: dict[str, ControllerType] | None = None,
+        controller_policy_versions: dict[str, ControllerPolicyVersion] | None = None,
     ) -> ActionResult:
         for label, deck in (("player_1", first_deck), ("player_2", second_deck)):
             analysis = analyze_deck(self.card_database_path, deck)
@@ -85,6 +88,10 @@ class MatchService:
             players=player_states,
             cards=cards,
             controllers=_normalize_controllers(controllers),
+            controller_policy_versions=_new_match_controller_policy_versions(
+                controllers,
+                controller_policy_versions,
+            ),
             effect_registry_version=registry_version,
             effect_definitions=effects,
         )
@@ -150,17 +157,47 @@ class MatchService:
 
         events = list(result.events)
         legal_actions = result.legal_actions
-        controller = SimpleAIController(SimpleAIPolicy(manual_effect_policy="skip"))
         ai_continuation_active = False
+        last_ai_player_id: str | None = None
         for _index in range(max_ai_actions):
             if state.phase == "complete":
                 break
+            decision_player_ids = {
+                action.player_id
+                for action in legal_actions
+                if action.player_id in ai_player_ids
+            }
+            if decision_player_ids:
+                controlled_player_ids = {sorted(decision_player_ids)[0]}
+            elif ai_continuation_active:
+                fallback_player_id = (
+                    last_ai_player_id
+                    if last_ai_player_id in ai_player_ids
+                    else state.active_player_id
+                    if state.active_player_id in ai_player_ids
+                    else sorted(ai_player_ids)[0]
+                )
+                controlled_player_ids = {fallback_player_id}
+            else:
+                controlled_player_ids = set(ai_player_ids)
+            policy_version = _controller_policy_version(
+                state,
+                controlled_player_ids,
+            )
+            controller = SimpleAIController(
+                SimpleAIPolicy(
+                    manual_effect_policy="skip",
+                    policy_version=policy_version,
+                )
+            )
+            decision_started = perf_counter()
             decision = controller.choose_action(
                 state,
                 legal_actions,
-                controlled_player_ids=ai_player_ids,
+                controlled_player_ids=controlled_player_ids,
                 allow_player_neutral_actions=ai_continuation_active,
             )
+            decision_duration_ms = (perf_counter() - decision_started) * 1000
             if decision is None:
                 break
             if isinstance(decision, SimpleAIBlocker):
@@ -178,6 +215,9 @@ class MatchService:
                 self.repository.append_system_events(match_id, [blocker])
                 events.append(blocker)
                 break
+            ai_metadata = decision.action.payload.get("ai_decision")
+            if isinstance(ai_metadata, dict):
+                ai_metadata["duration_ms"] = round(decision_duration_ms, 3)
             try:
                 applied = self.repository.apply(match_id, decision.action)
             except Exception as exc:  # noqa: BLE001 - isolate controller failures from the match.
@@ -191,6 +231,11 @@ class MatchService:
                     player_id=decision.action.player_id,
                     data={
                         "action_type": decision.action.action_type,
+                        "action_payload": {
+                            key: value
+                            for key, value in decision.action.payload.items()
+                            if key != "ai_decision"
+                        },
                         "error_type": type(exc).__name__,
                         "error": str(exc),
                         "decision_reason": decision.reason,
@@ -203,6 +248,8 @@ class MatchService:
             legal_actions = applied.legal_actions
             events.extend(applied.events)
             ai_continuation_active = True
+            if decision.action.player_id in ai_player_ids:
+                last_ai_player_id = decision.action.player_id
         else:
             blocker = _ai_blocked_event(
                 state,
@@ -232,6 +279,33 @@ def _normalize_controllers(
             if value in {"human", "simple_ai"}:
                 normalized[player_id] = value
     return normalized
+
+
+def _new_match_controller_policy_versions(
+    controllers: dict[str, ControllerType] | None,
+    requested: dict[str, ControllerPolicyVersion] | None = None,
+) -> dict[str, ControllerPolicyVersion]:
+    normalized = _normalize_controllers(controllers)
+    return {
+        player_id: (
+            requested.get(player_id, "simple_ai_v1")
+            if requested
+            else "simple_ai_v1"
+        )
+        for player_id, controller in normalized.items()
+        if controller == "simple_ai"
+    }
+
+
+def _controller_policy_version(
+    state: MatchState,
+    controlled_player_ids: set[str],
+) -> ControllerPolicyVersion:
+    versions = {
+        state.controller_policy_versions.get(player_id, "simple_ai_v0")
+        for player_id in controlled_player_ids
+    }
+    return "simple_ai_v1" if versions == {"simple_ai_v1"} else "simple_ai_v0"
 
 
 def _ai_blocked_event(
@@ -273,7 +347,7 @@ def _pending_effect_context(state: MatchState) -> list[dict[str, object]]:
                 "trigger": effect.trigger if effect else None,
                 "timing": effect.timing if effect else None,
                 "simulation_support": effect.simulation_support if effect else None,
-                "is_optional": invocation.is_optional,
+                "is_optional": effect.is_optional if effect else None,
             }
         )
     return items

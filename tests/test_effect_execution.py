@@ -87,7 +87,7 @@ def test_effect_registry_executable_coverage_exceeds_phase5_target():
         for effect in registry.effects
     )
 
-    assert executable / len(registry.effects) >= 0.82
+    assert executable / len(registry.effects) >= 0.86
 
 
 def test_yell_revealed_conditions_support_new_executable_patterns():

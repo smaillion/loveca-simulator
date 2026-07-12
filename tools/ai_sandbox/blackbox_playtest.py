@@ -22,7 +22,7 @@ from loveca.decks.analyzer import DECKLIST_VERSION, DeckEntry, DeckList, analyze
 from loveca.simulation.ai import choose_simple_ai_action
 from loveca.simulation.effects import load_effect_registry
 from loveca.simulation.engine import IllegalActionError, generate_legal_actions
-from loveca.simulation.models import ActionRequest, LegalAction, MatchState
+from loveca.simulation.models import ActionRequest, GameEvent, LegalAction, MatchState
 from loveca.simulation.service import MatchService
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -55,6 +55,11 @@ class SandboxMatchSummary:
     blocker_detail: dict[str, Any] = field(default_factory=dict)
     events: dict[str, int] = field(default_factory=dict)
     skipped_effects: list[dict[str, Any]] = field(default_factory=list)
+    executable_effects_triggered: int = 0
+    executable_effects_completed: int = 0
+    executable_effect_completion_rate: float = 1.0
+    replay_ok: bool = True
+    replay_error: str | None = None
 
 
 def main() -> int:
@@ -77,6 +82,8 @@ def main() -> int:
     args = parser.parse_args()
 
     args.output.mkdir(parents=True, exist_ok=True)
+    progress_path = args.output / "sandbox-progress.jsonl"
+    progress_path.write_text("", encoding="utf-8")
     decks = build_decks(args.database, args.decks)
     deck_summaries = [
         summarize_deck(args.database, deck)
@@ -88,6 +95,7 @@ def main() -> int:
         match_count=args.matches,
         max_actions=args.max_actions,
         manual_policy=args.manual_policy,
+        progress_path=progress_path,
     )
     write_outputs(args.output, decks, deck_summaries, match_summaries)
     print(f"Wrote sandbox report to {args.output / 'sandbox-report.md'}")
@@ -257,6 +265,7 @@ def run_matches(
     match_count: int,
     max_actions: int,
     manual_policy: str,
+    progress_path: Path | None = None,
 ) -> list[SandboxMatchSummary]:
     results: list[SandboxMatchSummary] = []
     with tempfile.TemporaryDirectory(prefix="loveca-ai-sandbox-") as tmp:
@@ -274,8 +283,6 @@ def run_matches(
                 match_id=f"sandbox-{index + 1:02d}",
             )
             state = result.state
-            event_counts: Counter[str] = Counter(event.event_type for event in result.events)
-            skipped_effects: list[dict[str, Any]] = []
             blocker = None
             blocker_detail: dict[str, Any] = {}
             actions = 0
@@ -311,10 +318,6 @@ def run_matches(
                     break
                 state = applied.state
                 actions += 1
-                event_counts.update(event.event_type for event in applied.events)
-                for event in applied.events:
-                    if event.event_type == "effect_skipped_due_to_error":
-                        skipped_effects.append(dict(event.data))
             status = "completed" if state.phase == "complete" else "blocked"
             if actions >= max_actions and state.phase != "complete":
                 legal_actions = generate_legal_actions(state)
@@ -324,26 +327,85 @@ def run_matches(
                     **describe_state(state, legal_actions),
                     "max_action_diagnosis": diagnosis,
                 }
-            results.append(
-                SandboxMatchSummary(
-                    match_index=index + 1,
-                    first_deck=first.name or "(unnamed)",
-                    second_deck=second.name or "(unnamed)",
-                    status=status,
-                    final_phase=state.phase,
-                    turn_number=state.turn_number,
-                    action_count=actions,
-                    success_live_counts={
-                        player_id: len(player.success_live_area)
-                        for player_id, player in state.players.items()
-                    },
-                    blocker=blocker,
-                    blocker_detail=blocker_detail,
-                    events=dict(sorted(event_counts.items())),
-                    skipped_effects=skipped_effects,
-                )
+            all_events = service.repository.list_events(state.match_id)
+            event_counts: Counter[str] = Counter(
+                event.event_type for event in all_events
             )
+            skipped_effects = [
+                dict(event.data)
+                for event in all_events
+                if event.event_type == "effect_skipped_due_to_error"
+            ]
+            executable_triggered, executable_completed = (
+                _executable_effect_completion(state, all_events)
+            )
+            replay_ok = True
+            replay_error = None
+            try:
+                service.repository.replay(state.match_id)
+            except Exception as exc:  # noqa: BLE001 - report replay failure as data.
+                replay_ok = False
+                replay_error = f"{type(exc).__name__}: {exc}"
+            match_summary = SandboxMatchSummary(
+                match_index=index + 1,
+                first_deck=first.name or "(unnamed)",
+                second_deck=second.name or "(unnamed)",
+                status=status,
+                final_phase=state.phase,
+                turn_number=state.turn_number,
+                action_count=actions,
+                success_live_counts={
+                    player_id: len(player.success_live_area)
+                    for player_id, player in state.players.items()
+                },
+                blocker=blocker,
+                blocker_detail=blocker_detail,
+                events=dict(sorted(event_counts.items())),
+                skipped_effects=skipped_effects,
+                executable_effects_triggered=executable_triggered,
+                executable_effects_completed=executable_completed,
+                executable_effect_completion_rate=(
+                    round(executable_completed / executable_triggered, 4)
+                    if executable_triggered
+                    else 1.0
+                ),
+                replay_ok=replay_ok,
+                replay_error=replay_error,
+            )
+            results.append(match_summary)
+            if progress_path is not None:
+                with progress_path.open("a", encoding="utf-8") as handle:
+                    handle.write(
+                        json.dumps(asdict(match_summary), ensure_ascii=False) + "\n"
+                    )
     return results
+
+
+def _executable_effect_completion(
+    state: MatchState,
+    events: list[GameEvent],
+) -> tuple[int, int]:
+    """Count executable invocations that reached a terminal resolution event."""
+
+    started: set[str] = set()
+    completed: set[str] = set()
+    for event in events:
+        invocation_id = event.data.get("invocation_id")
+        effect_id = event.data.get("effect_id")
+        if not isinstance(invocation_id, str) or not isinstance(effect_id, str):
+            continue
+        effect = state.effect_definitions.get(effect_id)
+        if effect is None or effect.simulation_support == "manual_resolution":
+            continue
+        if event.event_type in {"effect_triggered", "effect_activated"}:
+            started.add(invocation_id)
+        if event.event_type in {
+            "effect_resolved",
+            "effect_auto_resolved",
+            "effect_declined",
+        }:
+            completed.add(invocation_id)
+    return len(started), len(started.intersection(completed))
 
 
 def choose_action(
@@ -980,18 +1042,6 @@ def write_outputs(
             json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
-    (output / "sandbox-summary.json").write_text(
-        json.dumps(
-            {
-                "deck_summaries": [asdict(item) for item in deck_summaries],
-                "match_summaries": [asdict(item) for item in match_summaries],
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
-        + "\n",
-        encoding="utf-8",
-    )
     completed = sum(item.status == "completed" for item in match_summaries)
     blockers = Counter(item.blocker or "none" for item in match_summaries)
     skipped_effect_counts: Counter[str] = Counter(
@@ -1001,6 +1051,40 @@ def write_outputs(
     )
     total_success_lives = Counter(
         sum(item.success_live_counts.values()) for item in match_summaries
+    )
+    executable_triggered = sum(
+        item.executable_effects_triggered for item in match_summaries
+    )
+    executable_completed = sum(
+        item.executable_effects_completed for item in match_summaries
+    )
+    executable_completion_rate = (
+        executable_completed / executable_triggered if executable_triggered else 1.0
+    )
+    replay_errors = sum(not item.replay_ok for item in match_summaries)
+    summary = {
+        "decks": len(deck_summaries),
+        "matches": len(match_summaries),
+        "completed": completed,
+        "blockers": dict(sorted(blockers.items())),
+        "skipped_effects": dict(skipped_effect_counts.most_common(20)),
+        "executable_effects_triggered": executable_triggered,
+        "executable_effects_completed": executable_completed,
+        "executable_effect_completion_rate": round(executable_completion_rate, 4),
+        "replay_errors": replay_errors,
+    }
+    (output / "sandbox-summary.json").write_text(
+        json.dumps(
+            {
+                "summary": summary,
+                "deck_summaries": [asdict(item) for item in deck_summaries],
+                "match_summaries": [asdict(item) for item in match_summaries],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
     )
     lines = [
         "# AI Sandbox Black-Box Playtest Report",
@@ -1020,6 +1104,9 @@ def write_outputs(
         f"* Matches completed: {completed}",
         f"* Blockers: {dict(sorted(blockers.items()))}",
         f"* Skipped effects: {dict(skipped_effect_counts.most_common(20))}",
+        f"* Executable effects completed: {executable_completed}/{executable_triggered} "
+        f"({executable_completion_rate:.2%})",
+        f"* Replay errors: {replay_errors}",
         f"* Total success Live counts per match: {dict(sorted(total_success_lives.items()))}",
         "",
         "## Deck Coverage",
@@ -1037,8 +1124,8 @@ def write_outputs(
             "",
             "## Match Results",
             "",
-            "| # | Status | Decks | Phase | Turn | Actions | Success Lives | Blocker |",
-            "|---:|---|---|---|---:|---:|---|---|",
+            "| # | Status | Decks | Phase | Turn | Actions | Success Lives | Executable | Replay | Blocker |",
+            "|---:|---|---|---|---:|---:|---|---:|---|---|",
         ]
     )
     for item in match_summaries:
@@ -1049,7 +1136,9 @@ def write_outputs(
         lines.append(
             f"| {item.match_index} | {item.status} | {item.first_deck} vs {item.second_deck} | "
             f"{item.final_phase} | {item.turn_number} | {item.action_count} | "
-            f"{success_counts} | {item.blocker or ''} |"
+            f"{success_counts} | {item.executable_effects_completed}/"
+            f"{item.executable_effects_triggered} | "
+            f"{'PASS' if item.replay_ok else 'FAIL'} | {item.blocker or ''} |"
         )
     if skipped_effect_counts:
         lines.extend(

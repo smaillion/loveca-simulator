@@ -1003,6 +1003,44 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "查看可处理操作" })).toBeInTheDocument();
   });
 
+  it("shows a localized concise Simple AI decision reason", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const matchCreate = {
+      ...MATCH_PAYLOAD,
+      state: {
+        ...MATCH_PAYLOAD.state,
+        phase: "first_main",
+        active_player_id: "player_1",
+        controllers: { player_1: "human", player_2: "simple_ai" },
+        controller_policy_versions: { player_2: "simple_ai_v1" },
+      },
+      events: [
+        {
+          event_type: "ai_action_selected",
+          player_id: "player_2",
+          source: "system",
+          data: {
+            action_type: "play_member",
+            reason: "play_member_for_live_plan",
+            policy_version: "simple_ai_v1",
+          },
+        },
+      ],
+    };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByLabelText("玩家 1 牌组")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "对电脑" }));
+    const createButton = screen.getByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+
+    expect(
+      await screen.findByText("选择 · play_member · 按当前 Live 计划登场"),
+    ).toBeInTheDocument();
+  });
+
   it("hides the opponent hand on the match board by default", async () => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const ownHandId = "player_1-H001";

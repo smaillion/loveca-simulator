@@ -70,6 +70,59 @@ class ScenarioResult:
     notes_zh: list[str] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class RegistryContractScenario:
+    effect_id: str
+    family_ja: str
+    family_zh: str
+    trigger: str
+    choice_type: str | None
+    action_types: tuple[str, ...]
+
+
+_PHASE5_V1_CONTRACTS = (
+    RegistryContractScenario("PL!-bp5-014:1", "上から見る・選択", "查看牌堆顶并选择", "member_played", "inspect_top_select", ("inspect_top_cards", "select_to_hand_from_inspected", "move_remaining_cards")),
+    RegistryContractScenario("PL!HS-sd1-002:1", "Live 開始時の上から見る", "Live 开始时查看牌堆顶", "live_started", "inspect_top_select", ("inspect_top_cards", "select_to_hand_from_inspected", "move_remaining_cards", "gain_heart", "gain_blade")),
+    RegistryContractScenario("PL!S-bp2-005:1", "公開して手札へ", "公开后加入手牌", "member_played", "inspect_top_select", ("inspect_top_cards", "select_to_hand_from_inspected", "move_remaining_cards")),
+    RegistryContractScenario("PL!S-bp6-005:1", "条件付き検索", "带条件检索", "member_played", "inspect_top_select", ("inspect_top_cards", "select_to_hand_from_inspected", "move_remaining_cards")),
+    RegistryContractScenario("PL!SP-bp4-002:1", "必要 Heart 検索", "按所需 Heart 检索", "member_played", "inspect_top_select", ("inspect_top_cards", "select_to_hand_from_inspected", "move_remaining_cards")),
+    RegistryContractScenario("PL!SP-sd1-009:1", "上から見る・残り控室", "查看牌堆顶并将其余送控室", "member_played", "inspect_top_select", ("inspect_top_cards", "select_to_hand_from_inspected", "move_remaining_cards")),
+    RegistryContractScenario("PL!HS-bp2-009:1", "登場時 Heart", "登场时 Heart", "member_played", None, ("gain_heart",)),
+    RegistryContractScenario("PL!HS-bp2-019:1", "分岐 required Heart", "分支式所需 Heart", "live_started", "choose_effect_branch", ("replace_required_hearts", "replace_required_hearts", "replace_required_hearts")),
+    RegistryContractScenario("PL!HS-bp5-017:1", "Live score 補正", "Live 分数修正", "live_started", None, ("modify_score",)),
+    RegistryContractScenario("PL!HS-sd1-008:2", "Member 対象 Heart", "选择 Member 获得 Heart", "live_started", "member_from_stage", ("gain_heart",)),
+    RegistryContractScenario("PL!N-bp3-002:1", "選択 Member Heart", "选择 Member 的 Heart", "live_started", "member_from_stage", ("gain_heart",)),
+    RegistryContractScenario("PL!N-bp4-010:2", "自動 Heart", "自动获得 Heart", "live_started", None, ("gain_heart",)),
+    RegistryContractScenario("PL!N-pb1-039:1", "Stage 対象 Heart", "Stage 目标 Heart", "live_started", "member_from_stage", ("gain_heart",)),
+    RegistryContractScenario("PL!S-bp5-005:1", "Heart 色選択", "选择 Heart 颜色", "live_started", "choose_color", ("gain_heart_to_stage_members",)),
+    RegistryContractScenario("LL-bp5-002:2", "控室から回収", "从控室回收", "live_succeeded", "card_from_zone", ("return_from_waiting_room",)),
+    RegistryContractScenario("PL!-pb1-006:1", "控室から山札上", "从控室放回牌堆顶", "member_played", "card_from_zone", ("move_selected_to_deck_top", "draw_card")),
+    RegistryContractScenario("PL!HS-bp6-003:1", "条件付き Live 回収", "按条件回收 Live", "member_played", "card_from_zone", ("return_from_waiting_room",)),
+    RegistryContractScenario("PL!HS-bp6-017:1", "複数グループ回収", "分组回收多张卡", "member_left_stage_to_waiting_room", "card_groups_from_zone", ("return_from_waiting_room",)),
+    RegistryContractScenario("PL!HS-pb1-020:1", "Member と Live 回収", "分别回收 Member 与 Live", "member_played", "card_groups_from_zone", ("return_from_waiting_room",)),
+    RegistryContractScenario("PL!N-bp1-008:1", "起動・低 cost 回収", "起动并回收低费用卡", "player_activation", "card_from_zone", ("return_from_waiting_room",)),
+    RegistryContractScenario("PL!N-bp3-005:1", "手札 5 枚まで draw", "抽到 5 张手牌", "own_member_played", None, ("draw_until_hand_size",)),
+    RegistryContractScenario("PL!N-bp4-011:2", "mill 後 Live 回収", "堆墓后回收 Live", "live_succeeded", "post_action_card_from_zone", ("mill_top_cards", "return_from_waiting_room")),
+    RegistryContractScenario("PL!S-bp3-021:1", "Member 選択 Blade", "选择 Member 获得 Blade", "live_started", "member_from_stage", ("gain_blade",)),
+    RegistryContractScenario("PL!S-bp5-003:1", "異なるグループ回収", "回收不同组合卡", "member_played", "card_from_zone", ("return_from_waiting_room",)),
+    RegistryContractScenario("LL-bp2-001:2", "Baton 禁止", "禁止 Baton", "static_always", None, ("prevent_baton_replacement",)),
+    RegistryContractScenario("PL!-bp4-020:1", "Position Change", "位置移动", "live_started", "member_from_stage", ("position_change_selected",)),
+    RegistryContractScenario("PL!-pb1-017:1", "条件付き二段 discard", "条件式二段弃牌", "member_played", "post_action_card_from_zone", ("draw_card", "discard_from_hand")),
+    RegistryContractScenario("PL!HS-bp5-003:1", "離場時 Position Change", "离场时位置移动", "member_left_stage_to_waiting_room", "member_from_stage", ("position_change_selected",)),
+    RegistryContractScenario("PL!HS-pb1-001:1", "Energy 支払い・Active 化", "支付 Energy 并复原 Energy", "own_member_played", None, ("ready_energy",)),
+    RegistryContractScenario("PL!HS-pb1-008:1", "両 Stage 一括 Wait", "双方 Stage 批量变 Wait", "member_played", None, ("apply_wait_to_stage_members",)),
+    RegistryContractScenario("PL!HS-pb1-008:2", "相手 Active Phase 制限", "限制对手 Active Phase", "static_always", None, ("prevent_opponent_active_phase_ready",)),
+    RegistryContractScenario("PL!N-bp4-023:1", "Member を Wait・draw discard", "Member 变 Wait 后抽弃", "member_played", "post_action_card_from_zone", ("draw_card", "discard_from_hand")),
+    RegistryContractScenario("PL!N-bp5-005:1", "Baton 後 Energy・draw", "Baton 后复原 Energy 并抽牌", "member_left_stage_to_waiting_room", None, ("ready_energy", "draw_card")),
+    RegistryContractScenario("PL!N-bp5-006:1", "自分の Active Phase 制限", "限制自身 Active Phase", "static_always", None, ("prevent_source_active_phase_ready",)),
+    RegistryContractScenario("PL!N-pb1-001:1", "手札 cost・Live 回収", "弃手牌后回收 Live", "member_played", "card_from_zone", ("return_from_waiting_room",)),
+    RegistryContractScenario("PL!S-bp5-001:1", "Baton 条件 draw", "满足 Baton 条件时抽牌", "member_played", None, ("draw_card",)),
+    RegistryContractScenario("PL!S-bp6-001:1", "控室登場・相手 Wait", "从控室登场并令对手 Wait", "member_played", "member_from_stage", ("apply_wait_member",)),
+    RegistryContractScenario("PL!S-sd1-006:1", "控室から登場", "从控室登场", "member_played", "deploy_member_from_waiting_room", ("deploy_selected_to_empty_stage",)),
+    RegistryContractScenario("PL!SP-bp4-003:1", "Side 登場 draw discard", "侧区登场后抽弃", "member_played", "post_action_card_from_zone", ("draw_card", "discard_from_hand")),
+)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -109,7 +162,7 @@ def run_effect_verification_scenarios(
     effects = {effect.effect_id: effect for effect in registry.effects}
     visuals = _load_report_visuals(database_path)
     effect = effects["PL!HS-bp6-014:1"]
-    return [
+    dynamic_results = [
         _verify_pl_hs_bp6_014_with_target(effect, visuals),
         _verify_pl_hs_bp6_014_without_target(effect, visuals),
         _verify_pl_hs_bp2_026_live_start_score_modifier(visuals),
@@ -118,6 +171,114 @@ def run_effect_verification_scenarios(
         _verify_baton_repeat_prevention(visuals),
         _verify_pl_hs_sd1_005_same_name_baton_blocked(visuals),
     ]
+    return [
+        *dynamic_results,
+        *_registry_contract_scenarios(effects, database_path),
+    ]
+
+
+def _registry_contract_scenarios(
+    effects: dict[str, EffectDefinition],
+    database_path: Path,
+) -> list[ScenarioResult]:
+    visual_by_code: dict[str, CardVisual] = {}
+    if database_path.exists():
+        try:
+            with sqlite3.connect(database_path) as connection:
+                connection.row_factory = sqlite3.Row
+                for spec in _PHASE5_V1_CONTRACTS:
+                    card_code = spec.effect_id.rsplit(":", 1)[0]
+                    visual = _visual_by_card_code(
+                        connection,
+                        card_code,
+                        role_ja="検証対象",
+                        role_zh="验证对象",
+                    )
+                    if visual is not None:
+                        visual_by_code[card_code] = visual
+        except sqlite3.Error:
+            visual_by_code = {}
+
+    results: list[ScenarioResult] = []
+    for spec in _PHASE5_V1_CONTRACTS:
+        effect = effects.get(spec.effect_id)
+        card_code = spec.effect_id.rsplit(":", 1)[0]
+        visual = visual_by_code.get(
+            card_code,
+            _fallback_visual("検証対象", "验证对象", card_code, card_code),
+        )
+        actual_actions = (
+            tuple(operation.action_type for operation in effect.actions)
+            if effect is not None
+            else ()
+        )
+        actual_choice = (
+            effect.choice.choice_type
+            if effect is not None and effect.choice is not None
+            else None
+        )
+        checks = {
+            "effect_exists": effect is not None,
+            "test_validated_executable": bool(
+                effect
+                and effect.simulation_support == "test_validated_executable"
+                and effect.review_status == "test_validated"
+            ),
+            "trigger_matches": bool(effect and effect.trigger == spec.trigger),
+            "choice_shape_matches": actual_choice == spec.choice_type,
+            "action_family_matches": actual_actions == spec.action_types,
+        }
+        expected_actions = ", ".join(spec.action_types)
+        actual_trigger = effect.trigger if effect is not None else "missing"
+        actual_label = effect.label_ja if effect is not None else "missing"
+        status = "PASS" if all(checks.values()) else "FAIL"
+        results.append(
+            ScenarioResult(
+                scenario_id=f"registry_contract_{spec.effect_id.replace(':', '_')}",
+                title_ja=f"{card_code}: {spec.family_ja}",
+                title_zh=f"{card_code}：{spec.family_zh}",
+                status=status,
+                effect_id=spec.effect_id,
+                steps_ja=[
+                    "現在の effect registry から対象 effect を読み込む。",
+                    "trigger、choice、operation とレビュー状態を固定契約と比較する。",
+                ],
+                steps_zh=[
+                    "从当前 effect registry 读取目标 effect。",
+                    "将 trigger、choice、operation 和审核状态与固定契约比较。",
+                ],
+                expected_ja=[
+                    f"trigger は `{spec.trigger}`。",
+                    f"choice は `{spec.choice_type or 'none'}`。",
+                    f"operations は `{expected_actions}`。",
+                    "support は `test_validated_executable`、review は `test_validated`。",
+                ],
+                expected_zh=[
+                    f"trigger 为 `{spec.trigger}`。",
+                    f"choice 为 `{spec.choice_type or 'none'}`。",
+                    f"operations 为 `{expected_actions}`。",
+                    "support 为 `test_validated_executable`，review 为 `test_validated`。",
+                ],
+                actual_ja=[
+                    f"effect 登録: {'OK' if checks['effect_exists'] else 'NG'}",
+                    f"support / review: {'OK' if checks['test_validated_executable'] else 'NG'}",
+                    f"trigger: `{actual_trigger}` ({'OK' if checks['trigger_matches'] else 'NG'})",
+                    f"choice: `{actual_choice or 'none'}` ({'OK' if checks['choice_shape_matches'] else 'NG'})",
+                    f"operations: `{', '.join(actual_actions)}` ({'OK' if checks['action_family_matches'] else 'NG'})",
+                ],
+                actual_zh=[
+                    f"effect 登记：{'OK' if checks['effect_exists'] else 'NG'}",
+                    f"support / review：{'OK' if checks['test_validated_executable'] else 'NG'}",
+                    f"trigger：`{actual_trigger}`（{'OK' if checks['trigger_matches'] else 'NG'}）",
+                    f"choice：`{actual_choice or 'none'}`（{'OK' if checks['choice_shape_matches'] else 'NG'}）",
+                    f"operations：`{', '.join(actual_actions)}`（{'OK' if checks['action_family_matches'] else 'NG'}）",
+                ],
+                visuals=[visual],
+                notes_ja=[f"公式日本語テキスト: {actual_label}"],
+                notes_zh=[f"官方日文效果文本：{actual_label}"],
+            )
+        )
+    return results
 
 
 def write_effect_verification_report(
@@ -128,7 +289,7 @@ def write_effect_verification_report(
     (output_dir / "effect-verification-summary.json").write_text(
         json.dumps(
             {
-                "schema_version": "effect_verification_report_v0.2",
+                "schema_version": "effect_verification_report_v0.3",
                 "total": len(results),
                 "passed": sum(1 for result in results if result.status == "PASS"),
                 "failed": sum(1 for result in results if result.status != "PASS"),

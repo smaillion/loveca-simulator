@@ -846,6 +846,16 @@ def _events_for_persisted_action(
                 "reason": decision.get("reason"),
                 "controller": decision.get("controller", "simple_ai"),
                 "policy": decision.get("policy", "skip"),
+                "policy_version": decision.get("policy_version", "simple_ai_v0"),
+                "score": decision.get("score"),
+                "score_summary": decision.get("score_summary", {}),
+                "duration_ms": decision.get("duration_ms"),
+                "effect_id": action.payload.get("effect_id"),
+                "invocation_id": action.payload.get("invocation_id"),
+                "source_card_instance_id": action.payload.get(
+                    "source_card_instance_id"
+                ),
+                "selected_branch": action.payload.get("selected_branch"),
             },
             source="system",
         ),
