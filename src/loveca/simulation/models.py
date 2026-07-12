@@ -36,6 +36,7 @@ Phase = Literal[
 
 ModifierDuration = Literal["live", "turn", "game"]
 ControllerType = Literal["human", "simple_ai"]
+ControllerPolicyVersion = Literal["simple_ai_v0", "simple_ai_v1"]
 ModifierType = Literal[
     "score",
     "blade",
@@ -204,6 +205,9 @@ class MatchState(BaseModel):
     players: dict[str, PlayerState]
     cards: dict[str, CardInstance]
     controllers: dict[str, ControllerType] = Field(default_factory=dict)
+    controller_policy_versions: dict[str, ControllerPolicyVersion] = Field(
+        default_factory=dict
+    )
     effect_registry_version: str | None = None
     effect_definitions: dict[str, EffectDefinition] = Field(default_factory=dict)
     pending_effects: list[EffectInvocation] = Field(default_factory=list)

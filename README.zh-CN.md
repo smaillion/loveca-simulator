@@ -21,8 +21,8 @@
   - `PBSP02` 收录 122 个印刷版本 / 96 个规则卡身份
   - importer 报告中新增 Gameplay Card 70 条
 - 977 条 effect registry entry
-  - 802 条为 `test_validated_executable`
-  - 175 条为 timing prompt / 未支持处理用 `manual_resolution`
+  - 841 条为 `test_validated_executable`
+  - 136 条为 timing prompt / 未支持处理用 `manual_resolution`
   - `PBSP02` 相关技能 74 条中 63 条为 `test_validated_executable`，新补充包覆盖率为 85.14%
 - 面向未来低成本 online 同步的 state hash / compatibility metadata 基础
 - Hosted Online MVP 房间 API
@@ -46,7 +46,7 @@
 - Phase 1 / 2 / 3 已基本实现，进入维护和改善阶段。
 - Phase 4 的 Human-vs-Human 验证器和 Phase 7 的 UI 已提前完成大部分。
 - Phase 9 / 10 的低成本 online 验证会和 Phase 5 并行提前推进。
-- Simple AI MVP 已可在 local / Hosted FastAPI 中使用；强 AI、Monte Carlo 和胜率引擎仍然后移。
+- Simple AI v1 已可在 local / Hosted FastAPI 中使用，会基于 Rule Engine 的评估值对 Member、Live 和结构化技能进行 deterministic 评分。MCTS、Monte Carlo、学习型 AI 和胜率引擎不在本轮范围。
 
 当前规则验证器已覆盖:
 
@@ -59,15 +59,18 @@
 - 部分双方都需要选择的效果已可通过 multi-player pending choice 顺序处理
 - 支持把 Stage Member 目标拆成多个选择组，并对各组选中目标应用相同的临时 modifier
 - 支持每个分支使用不同 Stage Member 候选池的技能选择
-- 按 registry entry 计算的 `test_validated_executable` 覆盖率已达到 82.09%
+- 按 registry entry 计算的 `test_validated_executable` 覆盖率已达到 86.08%（841 / 977）
 - `PBSP02` 相关技能 74 条中 63 条已结构化，新补充包覆盖率确认达到 85.14%
 - 追加结构化支持 μ's / Aqours / Saint Snow / Nijigasaki / Hasunosora / Edel Note 的部分控室回收、Energy ready、牌堆顶检查、应援公开条件和带手牌成本的 Live 开始时效果
 - static Heart / Blade 等常时效果现在只会在 operation 侧条件满足时计入
 - `PBSP02` 集中 block sandbox 为 `30 decks x 20 matches` 中 19 局完走，`mandatory_manual_resolution = 0`，剩余 1 局为 `max_actions:match_point_players_have_no_live_in_hand`
 - Phase 5 broad black-box sandbox 已在 `30 decks x 100 matches` block mode 中达到 `100/100` 完走，blocker 为 0
+- 最新 skill-dense sandbox 为 `30 decks x 100 matches` 中 98 局完赛，剩余 2 局在第 36 / 37 回合达到 action cap；可执行技能 689 / 689 完成结算，illegal action / silent skip / Replay error 均为 0
 - 包含问题卡的 targeted sandbox 最新 block smoke 改善到 `15 matches` 中 9 局完走、6 件 `mandatory_manual_resolution`
 - 触发时条件满足的 pending effect 如果在同一时点中被其他效果改变条件导致失效，会记录明确的 `effect_not_activatable` event 并继续推进
 - 公开并加入手牌的效果会在对手侧履历中保留公开卡名，方便联机复盘
+- 现在提供 46 个日文 / 中文人类可读技能验证场景，用于检查重点技能的状态变化和 registry 契约
+- Simple AI v1 / v0 的 200 局镜像 benchmark 为 200/200 完赛、v1 积分率 65%、illegal action / Replay error 均为 0、平均 9.125 回合、P95 19 回合、v1 单次决策 P95 12.745 ms
 - 使用 `amount_source=selected_count` 的效果已支持按选中张数抽牌
 - `PL!HS-bp6-006` 已结构化支持手牌中 cost reduction、非みらくらぱーく！Baton replacement 限制、Live 成功时 Wait + 下一 Active Phase 不转 Active
 - `PL!HS-bp6-014:1` 等从手牌发动的效果，在没有目标 Stage Member 时也会处理成本和抽牌，只把目标 modifier 空结算

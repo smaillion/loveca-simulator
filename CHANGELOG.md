@@ -6,6 +6,14 @@
 
 - Simple AI の product acceptance runner を追加し、Human-vs-AI / AI-vs-AI の完走率、blocker、Replay serialization を deck pool 単位で検証できるようにした。
 - 新增 Simple AI 产品验收脚本，可按牌组池统计 Human-vs-AI / AI-vs-AI 的完赛率、blocker 与 Replay 序列化结果。
+- `RuleEvaluationSnapshot` / `AIObservation` / versioned `simple_ai_v1` policy を追加し、相手の非公開手札を見ずに Member、Live、構造化能力を deterministic に採点できるようにした。
+- 新增 `RuleEvaluationSnapshot`、`AIObservation` 和版本化 `simple_ai_v1` 策略，在不读取对手隐藏手牌的前提下 deterministic 评分 Member、Live 与结构化技能。
+- v0 / v1 mirrored benchmark と decision duration gate を追加し、同一 deck / seed で先後攻と policy の座席を交換して比較できるようにした。
+- 新增 v0 / v1 镜像 benchmark 与单次决策耗时门禁，可在相同 deck / seed 下交换先后手和策略座位进行比较。
+- effect registry を 841 / 977 `test_validated_executable`（86.08%）まで拡張し、46 件の日中 human-readable verification scenario を追加した。
+- 将 effect registry 扩展到 841 / 977 条 `test_validated_executable`（86.08%），并增加 46 个日中双语人类可读验证场景。
+- skill-dense sandbox は 30 decks x 100 matches で 98 完走、可実行 effect 689 / 689 解決、illegal action / silent skip / Replay error 0。残り 2 件は turn 36 / 37 の action cap。
+- 技能密集 sandbox 使用 30 套牌完成 100 局，其中 98 局完赛、可执行技能 689 / 689 完成结算、illegal action / silent skip / Replay error 均为 0；剩余 2 局在第 36 / 37 回合达到 action cap。
 
 ### 修正 / 修复
 
@@ -13,6 +21,14 @@
 - 修复电脑行动后未继续处理 player-neutral 规则操作，导致本地人机对战在电脑回合中途停止的问题。
 - `ai_blocked` を runtime event と Replay に保存し、source card、timing、state revision、失敗理由を画面で確認できるようにした。最新の `20 + 20` acceptance は `40/40` 完走、blocker 0、Replay error 0。
 - 将 `ai_blocked` 持久化到 runtime event 与 Replay，并在页面显示来源卡、时点、state revision 和失败原因；最新 `20 + 20` 验收为 `40/40` 完赛、blocker 0、Replay error 0。
+- 起動能力に必要な Active Energy がない場合、LegalActionGenerator が候補を出さないようにし、AI が合法表示された能力で支払いエラーになる問題を修正。
+- 修复没有足够 Active Energy 时 LegalActionGenerator 仍暴露起动能力，导致 AI 对“合法候选”支付失败的问题。
+- effect で控室から登場した Member に `member_played` / `own_member_played` trigger を伝播し、Baton で離場した Member effect に replacement 情報を渡すようにした。
+- 修复通过技能从控室登场的 Member 不产生 `member_played` / `own_member_played` 触发，以及 Baton 离场技能缺少 replacement 信息的问题。
+- conditional post-action choice が invocation trigger data を参照できない問題と、`selected_count` の divisor / multiplier が失われる問題を修正。
+- 修复条件式二段选择无法读取 invocation trigger data，以及 `selected_count` 的 divisor / multiplier 丢失问题。
+- AI の Member 登場評価を手札 cost 効率ではなく登場後の Heart / Blade / Live 色適性 / 支払い差分で比較した。200-match mirrored benchmark は 200/200 完走、v1 65%、平均 9.125 turn、P95 19 turn、decision P95 12.745 ms、illegal action / Replay error 0。
+- 将 AI 的 Member 登场评价改为比较登场后的 Heart / Blade / Live 颜色适配与支付差额。200 局镜像 benchmark 为 200/200 完赛、v1 积分率 65%、平均 9.125 回合、P95 19 回合、单次决策 P95 12.745 ms、illegal action / Replay error 均为 0。
 
 ## v0.77 - 2026-06-25
 

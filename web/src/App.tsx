@@ -4124,7 +4124,7 @@ function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): st
     const actionType = typeof event.data.action_type === "string" ? event.data.action_type : "";
     const reason = typeof event.data.reason === "string" ? event.data.reason : "";
     const prefix = locale === "zh" ? "选择" : "選択";
-    return [prefix, actionType, reason].filter(Boolean).join(" · ");
+    return [prefix, actionType, aiDecisionReasonLabel(reason, locale)].filter(Boolean).join(" · ");
   }
   if (event.event_type === "ai_blocked") {
     const reason = typeof event.data.reason === "string" ? event.data.reason : "";
@@ -4155,6 +4155,27 @@ function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): st
     return `${label}: ${revealed.join(" / ")}`;
   }
   return null;
+}
+
+function aiDecisionReasonLabel(reason: string, locale: UiLocale): string {
+  const labels: Record<string, [string, string]> = {
+    setup_choose_first: ["完成初始设置", "初期設定を完了"],
+    mulligan_curve_and_live_fit: ["调整费用曲线与 Live 配合", "コスト曲線と Live 適性で引き直し"],
+    play_member_for_live_plan: ["按当前 Live 计划登场", "現在の Live 計画に合わせて登場"],
+    preserve_resources_end_main: ["保留资源并结束主阶段", "リソースを温存してメイン終了"],
+    set_best_reachable_live_combo: ["设置成功可能性最高的 Live 组合", "成功可能性の高い Live 組合せをセット"],
+    no_live_in_hand: ["手牌中没有 Live", "手札に Live なし"],
+    resolve_best_structured_effect: ["选择估值最高的技能处理", "評価の高い能力処理を選択"],
+    activate_positive_structured_effect: ["发动正收益起动能力", "有利な起動能力を使用"],
+    decline_nonpositive_optional_effect: ["不发动收益不足的可选技能", "利益の少ない任意能力を見送り"],
+    decline_unavailable_optional_effect: ["当前候选不足，不发动可选技能", "現在の候補不足により任意能力を見送り"],
+    decline_optional_manual_effect: ["不发动尚未自动化的可选技能", "未自動化の任意能力を見送り"],
+    effect_follow_up_value_order: ["按卡牌价值处理后续选择", "カード価値順で後続選択"],
+    resolve_colored_live_requirements_first: ["优先分配指定颜色 Heart", "指定色 Heart を優先して割当"],
+    start_next_turn: ["开始下一回合", "次のターンを開始"],
+    advance_phase: ["推进阶段", "フェイズを進行"],
+  };
+  return labels[reason]?.[locale === "zh" ? 0 : 1] ?? reason;
 }
 
 function specialYellResults(event: GameEvent): Array<{
@@ -4956,7 +4977,8 @@ export function EffectResolutionAction({
   const requiresCount = choiceType === "choose_count";
   const branchIds = current.branch_ids ?? [];
   const isBranchChoice = choiceType === "choose_effect_branch";
-  const isGroupedStageChoice = choiceType === "member_group_from_stage";
+  const isGroupedStageChoice =
+    choiceType === "member_group_from_stage" || choiceType === "card_groups_from_zone";
   const choiceGroups = current.choice_groups ?? [];
   const resolvedBranch = current.selected_branch || selectedBranch;
   const requiresBranch = isBranchChoice && !current.selected_branch;

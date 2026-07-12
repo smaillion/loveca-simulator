@@ -17,6 +17,7 @@ SUPPORTED_EFFECT_ACTIONS = {
     "apply_wait",
     "apply_wait_energy",
     "apply_wait_member",
+    "apply_wait_to_stage_members",
     "attach_selected_under_source",
     "attach_baton_replaced_member_under_source",
     "clear_excess_hearts",
@@ -49,6 +50,9 @@ SUPPORTED_EFFECT_ACTIONS = {
     "position_change_source",
     "position_change_selected",
     "prevent_equal_score_success_live_placement",
+    "prevent_baton_replacement",
+    "prevent_opponent_active_phase_ready",
+    "prevent_source_active_phase_ready",
     "ready_energy",
     "ready_member",
     "reorder_deck_top",
@@ -224,6 +228,8 @@ class EffectChoice(BaseModel):
         "own_stage_member_unit_count",
         "own_stage_member_count_plus_2",
         "opponent_stage_wait_member_count",
+        "own_active_energy_count",
+        "cost_selected_count",
     ] | None = None
     amount_source_work_key: str | None = None
     amount_source_unit_key: str | None = None
@@ -253,9 +259,15 @@ class EffectChoice(BaseModel):
     maximum_score: int | None = None
     excluded_position_slots: list[str] = Field(default_factory=list)
     heart_color_slot: str | None = None
+    heart_color_slots_any: list[str] = Field(default_factory=list)
+    heart_color_slots_all: list[str] = Field(default_factory=list)
     minimum_heart_count: int | None = None
     required_heart_color_slot: str | None = None
     minimum_required_heart: int | None = None
+    minimum_required_heart_total: int | None = None
+    exclude_blade_heart: bool = False
+    maximum_cost_less_than_cost_selected: bool = False
+    exclude_stage_unit_keys: bool = False
     branch_ids: list[str] = Field(default_factory=list)
     branch_selection_minimum: dict[str, int] = Field(default_factory=dict)
     branch_selection_maximum: dict[str, int] = Field(default_factory=dict)
