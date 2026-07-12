@@ -15,7 +15,10 @@ Current implementation snapshot:
 * deterministic AI-vs-AI acceptance and replay verification are available outside normal CI
 * unresolved manual effects use explicit skip-and-log behavior under the baseline policy
 * AI blockers are persisted as non-mutating runtime events with state revision and effect context
-* the latest 20-deck acceptance completed 20 Human-vs-AI and 20 AI-vs-AI matches without blockers or replay errors
+* `RuleEvaluationSnapshot` supplies effective Heart, Blade, Live requirement, score, Energy, and match-progress values calculated by the Rule Engine
+* `AIObservation` exposes the AI player's private cards and public game data while hiding opponent hand identities
+* `simple_ai_v0` remains available for old snapshots and policy comparison; new Simple AI matches use `simple_ai_v1`
+* the 200-match mirrored v1-v0 benchmark completed 200/200 matches with v1 scoring 65%, no illegal action or replay error, average 9.125 turns, P95 19 turns, and v1 decision P95 12.745 ms
 
 ## 2. Controller Abstraction
 
@@ -92,7 +95,17 @@ Legal actions should reflect current player, phase, zones, resources, rule versi
 
 ## 7. Simple AI Heuristic Policy
 
-The current baseline policy prioritizes legal progression: setup, pending structured effect choices, Live requirement choices, playable Member placement, phase completion, Live Set, success Live selection, and next-turn progression. It is deterministic and progress-oriented, not strategically strong.
+The v1 policy enumerates legal candidates and scores them deterministically. Effective rule values come from `RuleEvaluationSnapshot`; controller code does not reproduce modifier or required-Heart rules.
+
+Current scoring considers:
+
+* mulligan cost curve and Live Heart fit
+* projected Stage Heart / Blade value, payment, replacement loss, and on-play effect value
+* effective Live requirements, expected Yell, score, and match-point pressure
+* structured effect operations, costs, branch choices, targets, Heart colors, and selected counts
+* resource preservation when no positive Main Phase action remains
+
+The policy remains intentionally shallow and explainable. It does not search future game trees.
 
 The following order is a target for later policy refinement rather than a claim that every item is already optimized:
 
@@ -114,6 +127,8 @@ Initial mulligan policy:
 * prefer keeping at least one Live card if the hand is otherwise playable
 
 These heuristics are intentionally simple. They should be deterministic and explainable rather than strong.
+
+The observation contract excludes opponent hidden-hand identities. Tests must verify that replacing only those hidden identities does not change the selected Action.
 
 ## 8. AI vs AI Debug Mode
 
@@ -154,8 +169,12 @@ Decision logs should capture:
 * selected action
 * selection reason
 * random seed or random context if randomness was used
+* controller policy version and bounded score components
+* measured decision duration
 
 The purpose of decision logging is to support debugging, explainability, replay preparation, regression testing, and future AI comparison.
+
+Runtime logs intentionally omit the full candidate list to control SQLite growth. Offline mirrored benchmark reports may retain detailed policy measurements.
 
 ## 11. Effect Support Awareness
 

@@ -21,8 +21,8 @@
   - `PBSP02` は 122 printings / 96 gameplay card identities を収録
   - importer 報告上の新規 Gameplay Card は 70 件
 - 977 件の effect registry entry
-  - 802 件は `test_validated_executable`
-  - 175 件は timing prompt / 未対応処理用の `manual_resolution`
+  - 841 件は `test_validated_executable`
+  - 136 件は timing prompt / 未対応処理用の `manual_resolution`
   - `PBSP02` 関連 effect は 74 件中 63 件が `test_validated_executable`、新パック coverage は 85.14%
 - 将来の低コスト online 同期に向けた state hash / compatibility metadata の基礎
 - Hosted Online MVP の room API
@@ -46,7 +46,7 @@
 - Phase 1 / 2 / 3 は基本実装済みで、維持と改善の段階です。
 - Phase 4 の Human-vs-Human 検証器と Phase 7 の UI は先行実装済みです。
 - Phase 9 / 10 の低コスト online 検証は、Phase 5 と並行して早めに進めます。
-- Simple AI MVP は local / Hosted FastAPI で利用できます。強い AI、Monte Carlo、勝率エンジンは引き続き後回しです。
+- Simple AI v1 は local / Hosted FastAPI で利用でき、Rule Engine の評価値を使って Member、Live、構造化能力を deterministic に採点します。MCTS、Monte Carlo、学習型 AI、勝率エンジンは対象外です。
 
 現在のルール検証 UI で確認できる範囲:
 
@@ -59,15 +59,18 @@
 - 双方が選択する一部の効果は multi-player pending choice で順番に処理可能
 - 複数 group に分けて Stage Member を選び、それぞれに同じ一時 modifier を適用する効果に対応
 - 分岐ごとに異なる Stage Member 候補を持つ効果選択に対応
-- registry entry ベースの `test_validated_executable` coverage は 82.09% まで拡張済み
+- registry entry ベースの `test_validated_executable` coverage は 86.08%（841 / 977）まで拡張済み
 - `PBSP02` 関連 effect は 74 件中 63 件を構造化し、新パック内 coverage 85.14% を確認済み
 - μ's / Aqours / Saint Snow / Nijigasaki / Hasunosora / Edel Note の一部控室回収、Energy ready、山札上確認、Yell 公開条件、手札コスト付き Live 開始時効果を追加で構造化
 - static Heart / Blade などの常時効果は、operation 側の条件を満たす場合だけ加算するようにしています
 - `PBSP02` 集中 block sandbox は `30 decks x 20 matches` で 19 完走、`mandatory_manual_resolution = 0`、残り 1 件は `max_actions:match_point_players_have_no_live_in_hand`
 - Phase 5 broad black-box sandbox は `30 decks x 100 matches` の block mode で `100/100` 完走、blocker 0 を確認済み
+- 最新の skill-dense sandbox は `30 decks x 100 matches` で 98 完走、残り 2 件は 36 / 37 turn の action cap。可実行 effect は 689 / 689 解決、illegal action / silent skip / Replay error 0
 - 問題カードを含む targeted sandbox では、最新 block smoke が `15 matches` 中 9 完走、6 件 `mandatory_manual_resolution` まで改善
 - trigger 時に条件を満たした pending effect が、同一タイミング中の別効果で条件失効した場合は、明示的な `effect_not_activatable` event を残して進行可能
 - 公開して手札に加える効果は、相手側の履歴にも公開カード名が残るようにしています
+- 46 件の日本語 / 中文 human-readable effect 検証シナリオで、重点効果の状態変化と registry 契約を確認できます
+- Simple AI v1 / v0 の 200-match mirrored benchmark は 200/200 完走、v1 65%、illegal action / Replay error 0、平均 9.125 turn、P95 19 turn、v1 decision P95 12.745 ms です
 - `amount_source=selected_count` を使う効果は、選んだ枚数分の抽牌に対応しています
 - `PL!HS-bp6-006` は手札中の cost reduction、みらくらぱーく！以外との Baton replacement 制限、Live 成功時の Wait + 次 Active Phase 非アクティブ化を構造化しています
 - `PL!HS-bp6-014:1` など手札から起動する効果は、対象 Stage Member がいない場合でもコスト支払いと抽牌を処理し、対象 modifier だけを空解決できます
