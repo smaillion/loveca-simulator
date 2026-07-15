@@ -26,7 +26,13 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
     }.issubset(scenario_ids)
     assert "registry_contract_PL!S-sd1-006_1" in scenario_ids
     assert "registry_contract_PL!N-bp5-005_1" in scenario_ids
-    assert len(results) >= 40
+    assert len(results) >= 60
+    dynamic_results = [
+        result
+        for result in results
+        if not result.scenario_id.startswith("registry_contract_")
+    ]
+    assert len(dynamic_results) >= 20
     assert all(result.status == "PASS" for result in results)
 
     write_effect_verification_report(tmp_path, results)
@@ -51,7 +57,8 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
     assert "PL!HS-bp6-006：按みらくらぱーく！人数降低登场 cost" in zh_markdown
     assert "Baton Touch：防止同一回合二次 Baton" in zh_markdown
     assert "发动源在控室: OK" in zh_markdown
-    assert summary["schema_version"] == "effect_verification_report_v0.3"
+    assert summary["schema_version"] == "effect_verification_report_v0.4"
+    assert summary["dynamic_state_transition_scenarios"] >= 20
     assert summary["passed"] == len(results)
 
 

@@ -132,6 +132,61 @@ def test_simple_ai_returns_a_legal_deterministic_action_without_mutating_state()
     assert state.revision == 7
 
 
+def test_simple_ai_v1_1_mulligan_preserves_two_lives_with_a_playable_member_base():
+    card_ids = ["member-1", "member-2", "live-1", "live-2"]
+    cards = {
+        instance_id: CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code=instance_id,
+                card_id=instance_id,
+                name_ja=instance_id,
+                card_type="live" if instance_id.startswith("live") else "member",
+                cost=1 if instance_id.startswith("member") else None,
+                score=1 if instance_id.startswith("live") else None,
+                required_hearts={} if instance_id.startswith("live") else {},
+            ),
+        )
+        for instance_id in card_ids
+    }
+    state = MatchState(
+        match_id="v1-1-mulligan-live-balance",
+        seed=1,
+        phase="setup_mulligan_first",
+        active_player_id="player_1",
+        players={
+            "player_1": PlayerState(player_id="player_1", name="AI", hand=card_ids),
+            "player_2": PlayerState(player_id="player_2", name="Opponent"),
+        },
+        cards=cards,
+        pending_choice=PendingChoice(
+            choice_type="mulligan",
+            player_id="player_1",
+            message_ja="引き直し",
+            message_zh="调度",
+            options={"card_instance_ids": card_ids},
+        ),
+    )
+    legal = [
+        LegalAction(
+            action_type="submit_mulligan",
+            player_id="player_1",
+            label_zh="提交调度选择",
+            label_ja="引き直しを確定",
+            options={"card_instance_ids": card_ids},
+        )
+    ]
+
+    decision = SimpleAIController(
+        SimpleAIPolicy(policy_version="simple_ai_v1_1")
+    ).choose_action(state, legal, controlled_player_ids={"player_1"})
+
+    mulligan_ids = set(decision.action.payload["card_instance_ids"])
+    assert not (mulligan_ids & {"live-1", "live-2"})
+    assert not (mulligan_ids & {"member-1", "member-2"})
+
+
 def test_controller_policy_version_defaults_old_snapshots_to_v0():
     state = MatchState(
         match_id="policy-version-default",
@@ -147,14 +202,16 @@ def test_controller_policy_version_defaults_old_snapshots_to_v0():
     assert _controller_policy_version(state, {"player_1"}) == "simple_ai_v0"
     state.controller_policy_versions["player_1"] = "simple_ai_v1"
     assert _controller_policy_version(state, {"player_1"}) == "simple_ai_v1"
+    state.controller_policy_versions["player_1"] = "simple_ai_v1_1"
+    assert _controller_policy_version(state, {"player_1"}) == "simple_ai_v1_1"
     assert (
         MatchState.model_validate_json(state.model_dump_json())
         .controller_policy_versions["player_1"]
-        == "simple_ai_v1"
+        == "simple_ai_v1_1"
     )
     assert _new_match_controller_policy_versions(
         {"player_1": "human", "player_2": "simple_ai"}
-    ) == {"player_2": "simple_ai_v1"}
+    ) == {"player_2": "simple_ai_v1_1"}
 
 
 def test_simple_ai_acceptance_driver_can_press_player_neutral_system_actions():
@@ -371,9 +428,6 @@ def test_ai_observation_never_contains_opponent_hidden_hand_identity():
     assert hidden not in observation.cards
     assert hidden not in repr(observation)
 
-    first = SimpleAIController(
-        SimpleAIPolicy(policy_version="simple_ai_v1")
-    ).choose_action(state, legal, controlled_player_ids={"player_1"})
     changed = state.model_copy(deep=True)
     changed.cards[hidden].card = CardDefinition(
         card_code="DIFFERENT-SECRET",
@@ -384,11 +438,20 @@ def test_ai_observation_never_contains_opponent_hidden_hand_identity():
         basic_hearts={"heart06": 9},
         blade=9,
     )
-    second = SimpleAIController(
-        SimpleAIPolicy(policy_version="simple_ai_v1")
-    ).choose_action(changed, legal, controlled_player_ids={"player_1"})
+    for policy_version in ("simple_ai_v1", "simple_ai_v1_1"):
+        controller = SimpleAIController(SimpleAIPolicy(policy_version=policy_version))
+        first = controller.choose_action(
+            state,
+            legal,
+            controlled_player_ids={"player_1"},
+        )
+        second = controller.choose_action(
+            changed,
+            legal,
+            controlled_player_ids={"player_1"},
+        )
 
-    assert first == second
+        assert first == second
 
 
 def test_simple_ai_v1_requires_positive_board_gain_for_baton_replacement():
@@ -480,6 +543,15 @@ def test_simple_ai_v1_requires_positive_board_gain_for_baton_replacement():
         controlled_player_ids={"player_1"},
     )
     assert positive_value.action.action_type == "play_member"
+
+    v1_1_positive_value = SimpleAIController(
+        SimpleAIPolicy(policy_version="simple_ai_v1_1")
+    ).choose_action(
+        improved,
+        legal,
+        controlled_player_ids={"player_1"},
+    )
+    assert v1_1_positive_value.action.action_type == "play_member"
 
 
 def test_simple_ai_v1_preserves_the_last_live_when_an_effect_discards_from_hand():
@@ -580,6 +652,310 @@ def test_simple_ai_v1_preserves_the_last_live_when_an_effect_discards_from_hand(
 
     assert decision.action.action_type == "resolve_effect"
     assert decision.action.payload["selected_card_instance_ids"] == [member_id]
+
+
+def test_simple_ai_v1_1_declines_optional_effect_that_discards_only_live():
+    source_id = "source"
+    live_id = "last-live"
+    effect = EffectDefinition(
+        effect_id="OPTIONAL-DISCARD:1",
+        card_code="OPTIONAL-DISCARD",
+        text_revision_id=1,
+        raw_text_hash="optional-discard",
+        effect_index=1,
+        label_ja="手札を1枚控え室に置いてもよい：カードを1枚引く。",
+        effect_type="triggered",
+        timing="on_play",
+        trigger="member_played",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="none",
+        is_optional=True,
+        choice=EffectChoice(
+            choice_type="card_from_zone",
+            zone="hand",
+            minimum=1,
+            maximum=1,
+        ),
+        actions=[
+            EffectOperation(action_type="discard_from_hand"),
+            EffectOperation(action_type="draw_card", amount=1),
+        ],
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = MatchState(
+        match_id="v1-1-preserve-only-live",
+        seed=1,
+        phase="first_main",
+        active_player_id="player_1",
+        players={
+            "player_1": PlayerState(
+                player_id="player_1",
+                name="AI",
+                hand=[live_id],
+                member_area={"left": source_id, "center": None, "right": None},
+            ),
+            "player_2": PlayerState(player_id="player_2", name="Opponent"),
+        },
+        cards={
+            source_id: CardInstance(
+                instance_id=source_id,
+                owner_id="player_1",
+                card=CardDefinition(
+                    card_code="OPTIONAL-DISCARD",
+                    card_id="OPTIONAL-DISCARD",
+                    name_ja="Source",
+                    card_type="member",
+                    effect_ids=[effect.effect_id],
+                ),
+            ),
+            live_id: CardInstance(
+                instance_id=live_id,
+                owner_id="player_1",
+                card=CardDefinition(
+                    card_code="ONLY-LIVE",
+                    card_id="ONLY-LIVE",
+                    name_ja="Only Live",
+                    card_type="live",
+                    score=1,
+                    required_hearts={"heart01": 1},
+                ),
+            ),
+        },
+        effect_definitions={effect.effect_id: effect},
+        pending_effects=[
+            EffectInvocation(
+                invocation_id="optional-discard",
+                effect_id=effect.effect_id,
+                source_card_instance_id=source_id,
+                player_id="player_1",
+                trigger_event="member_played",
+            )
+        ],
+    )
+    legal = generate_legal_actions(state)
+
+    decision = SimpleAIController(
+        SimpleAIPolicy(policy_version="simple_ai_v1_1")
+    ).choose_action(state, legal, controlled_player_ids={"player_1"})
+
+    assert decision.action.action_type == "resolve_effect"
+    assert decision.action.payload == {
+        "invocation_id": "optional-discard",
+        "accepted": False,
+        "ai_decision": decision.action.payload["ai_decision"],
+    }
+    assert decision.reason == "decline_effect_that_discards_last_live"
+
+
+def test_simple_ai_v1_1_caps_choose_count_to_available_active_energy():
+    source_id = "source"
+    energy_id = "energy-1"
+    effect = EffectDefinition(
+        effect_id="PAY-UP-TO-TWO:1",
+        card_code="PAY-UP-TO-TWO",
+        text_revision_id=1,
+        raw_text_hash="pay-up-to-two",
+        effect_index=1,
+        label_ja="エネルギーを2枚までウェイトにする。",
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=True,
+        cost=[
+            EffectOperation(
+                action_type="pay_energy",
+                amount_source="selected_count",
+            )
+        ],
+        choice=EffectChoice(
+            choice_type="choose_count",
+            minimum=1,
+            maximum=2,
+        ),
+        actions=[
+            EffectOperation(
+                action_type="gain_blade",
+                amount_source="selected_count",
+            )
+        ],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = MatchState(
+        match_id="v1-1-energy-count",
+        seed=1,
+        phase="performance_first",
+        active_player_id="player_1",
+        players={
+            "player_1": PlayerState(
+                player_id="player_1",
+                name="AI",
+                member_area={"left": source_id, "center": None, "right": None},
+                energy_area=[energy_id],
+            ),
+            "player_2": PlayerState(player_id="player_2", name="Opponent"),
+        },
+        cards={
+            source_id: CardInstance(
+                instance_id=source_id,
+                owner_id="player_1",
+                card=CardDefinition(
+                    card_code="PAY-UP-TO-TWO",
+                    card_id="PAY-UP-TO-TWO",
+                    name_ja="Source",
+                    card_type="member",
+                    effect_ids=[effect.effect_id],
+                ),
+            ),
+            energy_id: CardInstance(
+                instance_id=energy_id,
+                owner_id="player_1",
+                card=CardDefinition(
+                    card_code="ENERGY",
+                    card_id="ENERGY",
+                    name_ja="Energy",
+                    card_type="energy",
+                ),
+                orientation="active",
+            ),
+        },
+        effect_definitions={effect.effect_id: effect},
+        pending_effects=[
+            EffectInvocation(
+                invocation_id="pay-up-to-two",
+                effect_id=effect.effect_id,
+                source_card_instance_id=source_id,
+                player_id="player_1",
+                trigger_event="live_started",
+            )
+        ],
+    )
+
+    decision = SimpleAIController(
+        SimpleAIPolicy(policy_version="simple_ai_v1_1")
+    ).choose_action(
+        state,
+        generate_legal_actions(state),
+        controlled_player_ids={"player_1"},
+    )
+
+    assert decision.action.action_type == "resolve_effect"
+    assert decision.action.payload["selected_count"] == 1
+    assert decision.action.payload["energy_instance_ids"] == [energy_id]
+
+
+def test_simple_ai_v1_1_sets_only_one_reachable_live_at_match_point():
+    live_ids = ["live-1", "live-2"]
+    success_ids = ["success-1", "success-2"]
+    cards = {
+        instance_id: CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code=instance_id,
+                card_id=instance_id,
+                name_ja=instance_id,
+                card_type="live",
+                score=1,
+                required_hearts={},
+            ),
+        )
+        for instance_id in [*live_ids, *success_ids]
+    }
+    state = MatchState(
+        match_id="v1-1-match-point-live",
+        seed=1,
+        phase="live_set_first",
+        active_player_id="player_1",
+        players={
+            "player_1": PlayerState(
+                player_id="player_1",
+                name="AI",
+                hand=live_ids,
+                success_live_area=success_ids,
+            ),
+            "player_2": PlayerState(player_id="player_2", name="Opponent"),
+        },
+        cards=cards,
+    )
+    legal = [
+        LegalAction(
+            action_type="set_live_cards",
+            player_id="player_1",
+            label_zh="设置 Live",
+            label_ja="ライブカードをセット",
+            options={"maximum": 3, "hand_instance_ids": live_ids},
+        )
+    ]
+
+    decision = SimpleAIController(
+        SimpleAIPolicy(policy_version="simple_ai_v1_1")
+    ).choose_action(state, legal, controlled_player_ids={"player_1"})
+
+    assert len(decision.action.payload["card_instance_ids"]) == 1
+    assert decision.reason == "set_best_reachable_live_combo"
+
+
+def test_simple_ai_v1_1_prioritizes_total_score_when_both_players_are_at_match_point():
+    own_live_ids = ["live-1", "live-2"]
+    own_success_ids = ["own-success-1", "own-success-2"]
+    opponent_success_ids = ["opponent-success-1", "opponent-success-2"]
+    cards = {
+        instance_id: CardInstance(
+            instance_id=instance_id,
+            owner_id="player_2" if instance_id.startswith("opponent") else "player_1",
+            card=CardDefinition(
+                card_code=instance_id,
+                card_id=instance_id,
+                name_ja=instance_id,
+                card_type="live",
+                score=1,
+                required_hearts={},
+            ),
+        )
+        for instance_id in [*own_live_ids, *own_success_ids, *opponent_success_ids]
+    }
+    state = MatchState(
+        match_id="v1-1-both-match-point-live",
+        seed=1,
+        phase="live_set_first",
+        active_player_id="player_1",
+        players={
+            "player_1": PlayerState(
+                player_id="player_1",
+                name="AI",
+                hand=own_live_ids,
+                success_live_area=own_success_ids,
+            ),
+            "player_2": PlayerState(
+                player_id="player_2",
+                name="Opponent",
+                success_live_area=opponent_success_ids,
+            ),
+        },
+        cards=cards,
+    )
+    legal = [
+        LegalAction(
+            action_type="set_live_cards",
+            player_id="player_1",
+            label_zh="设置 Live",
+            label_ja="ライブカードをセット",
+            options={"maximum": 3, "hand_instance_ids": own_live_ids},
+        )
+    ]
+
+    decision = SimpleAIController(
+        SimpleAIPolicy(policy_version="simple_ai_v1_1")
+    ).choose_action(state, legal, controlled_player_ids={"player_1"})
+
+    assert decision.action.payload["card_instance_ids"] == own_live_ids
 
 
 def test_simple_ai_v1_respects_same_unit_cost_choice_constraint():

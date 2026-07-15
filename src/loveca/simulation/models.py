@@ -36,7 +36,11 @@ Phase = Literal[
 
 ModifierDuration = Literal["live", "turn", "game"]
 ControllerType = Literal["human", "simple_ai"]
-ControllerPolicyVersion = Literal["simple_ai_v0", "simple_ai_v1"]
+ControllerPolicyVersion = Literal[
+    "simple_ai_v0",
+    "simple_ai_v1",
+    "simple_ai_v1_1",
+]
 ModifierType = Literal[
     "score",
     "blade",
