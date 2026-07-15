@@ -4,6 +4,20 @@
 
 ### 追加 / 新增
 
+- `simple_ai_v1_1` policy を追加し、Match Point の Live 保持、低価値 Stage 置換の抑制、構造化効果の費用・対象・count 評価を強化した。旧 snapshot の v0 / v1 policy はそのまま保持する。
+- 新增 `simple_ai_v1_1` 策略，强化 Match Point 时保留 Live、抑制低收益 Stage 替换，以及结构化技能的费用、目标和 count 评价；旧 snapshot 继续保留 v0 / v1 policy。
+- effect registry integrity audit、API Play deterministic comparison、manual effect gap report を追加し、技能 segment / trigger / timing / text hash の不整合を実装前に検出できるようにした。
+- 新增 effect registry 完整性审计、API Play deterministic comparison 与 manual effect gap report，可在实现前检测技能分段、trigger、timing 和 text hash 不一致。
+- effect registry を 979 件中 863 件の `test_validated_executable`（88.15%）まで拡張し、strict audit で 0 error / 0 warning を確認した。残る 116 件は `manual_resolution` のまま維持する。
+- 将 effect registry 扩展到 979 条中的 863 条 `test_validated_executable`（88.15%），strict audit 为 0 error / 0 warning；剩余 116 条继续保留 `manual_resolution`。
+- registry integrity 修正では既存 22 件と新規 timing segment 1 件を executable とし、誤った segment に結び付いていた 1 件は安全側へ戻して manual とした。
+- registry 完整性修正将既有 22 条与 1 条新拆分 timing segment 标记为 executable，同时把 1 条错误绑定技能保守降回 manual。
+- 日中 human-readable effect verification を 60 scenario へ拡張し、そのうち 21 scenario で実際の GameState 遷移を検証するようにした。
+- 将中日双语 human-readable effect verification 扩展到 60 个场景，其中 21 个会实际验证 GameState 状态变化。
+- Simple AI acceptance に match index checkpoint / resume を追加し、30 decks x 100 matches の skill-dense regression で 100/100 完走、blocker / silent skip / Replay error 0 を確認した。
+- Simple AI acceptance 新增 match index checkpoint / resume；30 套牌 x 100 局 skill-dense regression 达到 100/100 完赛，blocker / silent skip / Replay error 均为 0。
+- `--pair-start` benchmark の seed を global pair index に固定し、分割実行と単一実行が同じ対戦を再現するようにした。修正後の v1.1-v1 200-match mirrored benchmark は 200/200 完走、v1.1 54%、平均 8.38 turn、P95 14 turn、decision P95 6.975 ms、illegal action / Replay error 0。55% 強度目標は未達。
+- 将 `--pair-start` benchmark 的 seed 固定为全局 pair index，使分块执行和单次执行能重现同一组对局。修正后的 v1.1-v1 200 局镜像 benchmark 为 200/200 完赛、v1.1 积分率 54%、平均 8.38 回合、P95 14 回合、决策 P95 6.975 ms、illegal action / Replay error 均为 0；55% 强度目标未达到。
 - Simple AI の product acceptance runner を追加し、Human-vs-AI / AI-vs-AI の完走率、blocker、Replay serialization を deck pool 単位で検証できるようにした。
 - 新增 Simple AI 产品验收脚本，可按牌组池统计 Human-vs-AI / AI-vs-AI 的完赛率、blocker 与 Replay 序列化结果。
 - `RuleEvaluationSnapshot` / `AIObservation` / versioned `simple_ai_v1` policy を追加し、相手の非公開手札を見ずに Member、Live、構造化能力を deterministic に採点できるようにした。
@@ -17,6 +31,12 @@
 
 ### 修正 / 修复
 
+- `choose_count` で支払う Energy 枚数を決める効果は、LegalActionGenerator が公開した Active Energy 枚数を超えて AI が count を選ばないようにした。
+- 修复 AI 在 `choose_count` 决定 Energy 支付数量时可能超过 LegalActionGenerator 提供的 Active Energy 数量。
+- trigger 時点では存在した必須 choice 候補が同一タイミング中に別 zone へ移動した場合、`effect_not_activatable` を記録して stale invocation を終了できるようにした。
+- 当强制 choice 候选在触发时存在、但同一时点内已移动到其他区域时，记录 `effect_not_activatable` 并结束失效 invocation。
+- 起動 cost 支払い後に必須対象が減った効果は、残った合法対象に対して可能な限り解決するようにし、cost 選択と action 対象が混同されないよう `cost_selected` を分離した。
+- 修复起动技能支付成本后必选目标减少时无法按剩余合法目标尽可能结算，并将成本选卡与 action 目标通过 `cost_selected` 明确分离。
 - CPU action 後に必要な player-neutral rule action も同じ自動進行内で処理し、CPU turn の途中で local Human-vs-AI が停止する問題を修正。
 - 修复电脑行动后未继续处理 player-neutral 规则操作，导致本地人机对战在电脑回合中途停止的问题。
 - `ai_blocked` を runtime event と Replay に保存し、source card、timing、state revision、失敗理由を画面で確認できるようにした。最新の `20 + 20` acceptance は `40/40` 完走、blocker 0、Replay error 0。

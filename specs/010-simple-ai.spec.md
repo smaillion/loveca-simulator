@@ -53,7 +53,8 @@ Any random tie-break should be reproducible and logged.
 Simple AI policy behavior is versioned independently from the runtime database schema.
 
 * existing snapshots without an explicit policy version use `simple_ai_v0`
-* newly created Simple AI matches use `simple_ai_v1`
+* snapshots created before the v1.1 policy keep their recorded `simple_ai_v1`
+* newly created Simple AI matches use `simple_ai_v1_1`
 * a replay must retain the policy version used when its decisions were produced
 
 ## 6. Rule Evaluation and Observation
@@ -70,7 +71,7 @@ The AI observation boundary must include:
 
 Changing only the identities of cards in the opponent's hidden hand must not change a Simple AI decision.
 
-## 7. Simple AI v1 Policy
+## 7. Simple AI v1 and v1.1 Policies
 
 `simple_ai_v1` enumerates legal candidates and assigns deterministic, explainable scores. It may score:
 
@@ -82,6 +83,16 @@ Changing only the identities of cards in the opponent's hidden hand must not cha
 The policy must not inspect candidates outside LegalActionGenerator output. A higher score is a controller preference, not permission to bypass validation.
 
 Optional effects should be declined when their evaluated value is not positive. Unsupported mandatory effects follow the explicit manual-effect policy.
+
+`simple_ai_v1_1` retains the same LegalAction-only boundary and adds conservative match-progress behavior:
+
+* preserve a usable Live when it is the last practical winning resource in hand
+* avoid replacing a Stage Member unless the evaluated gain is positive
+* avoid setting redundant Live cards when one reachable Live can win and the opponent is not also at Match Point
+* prefer draw and Live-recovery effects under Match Point pressure
+* cap count-based Energy costs to the Active Energy candidates supplied by LegalActionGenerator
+
+These preferences are strategy only. They must not alter legality, reveal hidden opponent cards, or reinterpret effect text.
 
 ## 8. Decision Logging and Performance
 
@@ -95,7 +106,7 @@ Each selected AI Action should record a compact decision summary containing:
 
 Full candidate score lists belong in offline benchmark reports, not runtime events or snapshots.
 
-The local benchmark target for `simple_ai_v1` is a p95 decision time no greater than 250 ms on the maintained acceptance environment.
+The local benchmark target for maintained Simple AI policies is a p95 decision time no greater than 250 ms on the maintained acceptance environment.
 
 ## 9. Dependencies
 

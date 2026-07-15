@@ -17,8 +17,10 @@ Current implementation snapshot:
 * AI blockers are persisted as non-mutating runtime events with state revision and effect context
 * `RuleEvaluationSnapshot` supplies effective Heart, Blade, Live requirement, score, Energy, and match-progress values calculated by the Rule Engine
 * `AIObservation` exposes the AI player's private cards and public game data while hiding opponent hand identities
-* `simple_ai_v0` remains available for old snapshots and policy comparison; new Simple AI matches use `simple_ai_v1`
-* the 200-match mirrored v1-v0 benchmark completed 200/200 matches with v1 scoring 65%, no illegal action or replay error, average 9.125 turns, P95 19 turns, and v1 decision P95 12.745 ms
+* `simple_ai_v0` and `simple_ai_v1` remain available for old snapshots and policy comparison; new Simple AI matches use `simple_ai_v1_1`
+* the registry integrity audit currently reports 979 effect definitions with zero integrity errors or warnings
+* the corrected 200-match mirrored v1.1-v1 benchmark completed 200/200 matches with v1.1 scoring 54%, no illegal action or replay error, average 8.38 turns, P95 14 turns, and v1.1 decision P95 6.975 ms
+* the 55% policy-strength target was not met; this result remains the honest regression baseline rather than a reason to tune individual seeds
 
 ## 2. Controller Abstraction
 
@@ -95,7 +97,7 @@ Legal actions should reflect current player, phase, zones, resources, rule versi
 
 ## 7. Simple AI Heuristic Policy
 
-The v1 policy enumerates legal candidates and scores them deterministically. Effective rule values come from `RuleEvaluationSnapshot`; controller code does not reproduce modifier or required-Heart rules.
+The v1 and v1.1 policies enumerate legal candidates and score them deterministically. Effective rule values come from `RuleEvaluationSnapshot`; controller code does not reproduce modifier or required-Heart rules.
 
 Current scoring considers:
 
@@ -106,6 +108,8 @@ Current scoring considers:
 * resource preservation when no positive Main Phase action remains
 
 The policy remains intentionally shallow and explainable. It does not search future game trees.
+
+The v1.1 refinement additionally preserves the last practical Live resource, avoids low-value Stage replacement, uses Match Point pressure in effect activation and Live Set scoring, and validates count-based Energy choices against the candidates exposed by LegalActionGenerator. These refinements remain policy preferences and do not change rule legality.
 
 The following order is a target for later policy refinement rather than a claim that every item is already optimized:
 
