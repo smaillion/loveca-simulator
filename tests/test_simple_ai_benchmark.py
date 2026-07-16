@@ -1,9 +1,15 @@
 from loveca.simulation.models import GameEvent
 from tools.ai_sandbox.simple_ai_benchmark import (
+    _benchmark_seed,
     _percentile,
     _player_policy_metrics,
     benchmark_passed,
 )
+
+
+def test_benchmark_seed_uses_global_pair_index_for_split_replay():
+    assert _benchmark_seed(770000, 0) == 770000
+    assert _benchmark_seed(770000, 20) == 770020
 
 
 def test_simple_ai_benchmark_gate_includes_decision_latency():
@@ -13,7 +19,7 @@ def test_simple_ai_benchmark_gate_includes_decision_latency():
         "illegal_actions": 0,
         "replay_errors": 0,
         "v1_points_rate": 0.55,
-        "average_turns": 10.7,
+        "average_turns": 9.125,
         "p95_turns": 20,
         "v1_decision_p95_ms": 249.9,
     }
@@ -22,7 +28,7 @@ def test_simple_ai_benchmark_gate_includes_decision_latency():
     summary["v1_decision_p95_ms"] = 250.1
     assert not benchmark_passed(summary)
     summary["v1_decision_p95_ms"] = 249.9
-    summary["average_turns"] = 10.701
+    summary["average_turns"] = 9.126
     assert not benchmark_passed(summary)
 
 

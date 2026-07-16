@@ -21,6 +21,7 @@ SUPPORTED_EFFECT_ACTIONS = {
     "attach_selected_under_source",
     "attach_baton_replaced_member_under_source",
     "clear_excess_hearts",
+    "conceal_selected_cards",
     "discard_from_hand",
     "draw_card",
     "draw_card_per_stage_member",
@@ -41,6 +42,7 @@ SUPPORTED_EFFECT_ACTIONS = {
     "move_remaining_cards",
     "move_waiting_room_members_to_deck_bottom",
     "move_selected_to_deck_bottom",
+    "move_selected_to_deck_position",
     "move_selected_energy_to_energy_deck",
     "move_selected_to_deck_top",
     "move_selected_to_deck_top_or_bottom",
@@ -66,8 +68,10 @@ SUPPORTED_EFFECT_ACTIONS = {
     "draw_if_selected_without_blade_heart",
     "reveal_cards",
     "reveal_top_cards",
+    "reveal_top_in_place",
     "reveal_top_matching_to_hand_else_deck_top",
     "reveal_top_matching_to_hand_else_waiting",
+    "reveal_until_matching_to_hand_else_waiting",
     "reveal_top_to_hand",
     "reveal_selected_cards",
     "return_from_waiting_room",
@@ -132,6 +136,8 @@ class EffectOperation(BaseModel):
         "source_attached_energy_count",
         "source_attached_energy_count_plus",
         "source_attached_member_count",
+        "selected_member_matching_source_attribute_count",
+        "success_live_score_card_count_capped",
     ] | None = None
     branch: str | None = None
     multiplier: int | None = None
@@ -181,6 +187,7 @@ class EffectOperation(BaseModel):
             "gain_blade_if_milled_any_card_type",
             "reveal_top_matching_to_hand_else_deck_top",
             "reveal_top_matching_to_hand_else_waiting",
+            "reveal_until_matching_to_hand_else_waiting",
         }:
             raise ValueError(
                 f"card_type is not supported for effect operation {self.action_type}"
@@ -207,6 +214,7 @@ class EffectSelectionGroup(BaseModel):
     work_key: str | None = None
     unit_key: str | None = None
     name_ja_any: list[str] = Field(default_factory=list)
+    exclude_name_ja_any: list[str] = Field(default_factory=list)
     minimum: int = 1
     maximum: int = 1
     exclude_group_ids: list[str] = Field(default_factory=list)
@@ -249,6 +257,7 @@ class EffectChoice(BaseModel):
     exclude_source: bool = False
     target_player: Literal["self", "opponent"] = "self"
     name_ja_any: list[str] = Field(default_factory=list)
+    exclude_name_ja_any: list[str] = Field(default_factory=list)
     minimum_cost: int | None = None
     maximum_cost: int | None = None
     minimum_blade: int | None = None
@@ -277,6 +286,11 @@ class EffectChoice(BaseModel):
     post_action_condition_key: str | None = None
     post_action_condition_minimum: int | None = None
     selection_groups: list[EffectSelectionGroup] = Field(default_factory=list)
+    position_target_unit_keys_any: list[str] = Field(default_factory=list)
+    share_unit_with_cost_selected: bool = False
+    same_name_as_cost_selected: bool = False
+    share_unit_with_stage: bool = False
+    same_name_as_stage: bool = False
     value: object | None = None
 
 
@@ -400,6 +414,19 @@ def validate_registry_for_cards(
                 LIMIT 1
                 """,
                 (effect.card_code, effect.raw_text_hash),
+            ).fetchone()
+        if row is None:
+            row = connection.execute(
+                """
+                SELECT revision.id, revision.raw_text_hash
+                FROM gameplay_cards AS card
+                JOIN card_text_revisions AS revision
+                  ON revision.gameplay_card_id = card.id
+                WHERE card.card_code = ?
+                ORDER BY revision.revision_number DESC, revision.id DESC
+                LIMIT 1
+                """,
+                (effect.card_code,),
             ).fetchone()
         if row is None:
             errors.setdefault(effect.card_code, []).append(

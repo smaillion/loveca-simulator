@@ -56,6 +56,12 @@ def main() -> int:
     parser.add_argument("--output", type=Path, default=Path("logs/simple_ai_acceptance"))
     parser.add_argument("--decks", type=int, default=10)
     parser.add_argument("--matches", type=int, default=10)
+    parser.add_argument(
+        "--match-start",
+        type=int,
+        default=1,
+        help="One-based first match index for deterministic split or resumed runs.",
+    )
     parser.add_argument("--max-actions", type=int, default=450)
     parser.add_argument(
         "--mode",
@@ -65,6 +71,8 @@ def main() -> int:
     args = parser.parse_args()
 
     args.output.mkdir(parents=True, exist_ok=True)
+    progress_path = args.output / "simple-ai-progress.jsonl"
+    progress_path.write_text("", encoding="utf-8")
     modes: list[Mode] = (
         ["human-vs-ai", "ai-vs-ai"] if args.mode == "both" else [args.mode]  # type: ignore[list-item]
     )
@@ -78,6 +86,8 @@ def main() -> int:
                 mode=mode,
                 match_count=args.matches,
                 max_actions=args.max_actions,
+                match_start=args.match_start,
+                progress_path=progress_path,
             )
         )
     write_report(args.output, reports)
@@ -92,11 +102,16 @@ def run_acceptance_matches(
     mode: Mode,
     match_count: int,
     max_actions: int,
+    match_start: int = 1,
+    progress_path: Path | None = None,
 ) -> list[SimpleAIMatchReport]:
+    if match_start < 1:
+        raise ValueError("match_start must be at least 1")
     results: list[SimpleAIMatchReport] = []
     with tempfile.TemporaryDirectory(prefix="loveca-simple-ai-") as tmp:
         service = MatchService(database, Path(tmp) / "matches.sqlite3")
-        for index in range(match_count):
+        for local_index in range(match_count):
+            index = match_start - 1 + local_index
             first = decks[index % len(decks)]
             second = decks[(index * 5 + 3) % len(decks)]
             controllers = (
@@ -117,17 +132,19 @@ def run_acceptance_matches(
                 result = drive_human_side(service, result, max_actions=max_actions)
             else:
                 result = continue_ai_vs_ai(service, result, max_actions=max_actions)
-            results.append(
-                summarize_match(
-                    service,
-                    index + 1,
-                    mode,
-                    first.name or "(unnamed)",
-                    second.name or "(unnamed)",
-                    result,
-                    max_actions=max_actions,
-                )
+            report = summarize_match(
+                service,
+                index + 1,
+                mode,
+                first.name or "(unnamed)",
+                second.name or "(unnamed)",
+                result,
+                max_actions=max_actions,
             )
+            results.append(report)
+            if progress_path is not None:
+                with progress_path.open("a", encoding="utf-8") as handle:
+                    handle.write(json.dumps(asdict(report), ensure_ascii=False) + "\n")
     return results
 
 

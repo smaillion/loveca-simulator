@@ -43,8 +43,8 @@
 - Continue tuning `tools/ai_sandbox/blackbox_playtest.py` action caps and strategies.
 - Keep `30 decks x 100 matches --manual-policy block` as the standard long-run regression after each executor-pattern expansion.
 - Latest broad Phase 5 long run: `100/100` completed with blocker 0 after the stale-trigger-condition fix.
-- The prior targeted problem-card smoke completed 9/15 in `block` mode and 14/15 in `skip` mode. `PL!S-bp6-001:1` is now structured through effect-driven Member deployment triggers; rerun this targeted pool before declaring `PL!S-pb1-001:1` the sole remaining blocker.
-- Static registry coverage is now `841 / 977 = 86.08%`; raising it further requires real executor patterns for the remaining 136 `manual_resolution` families.
+- The earlier problem-card blockers `PL!S-bp6-001:1` and `PL!S-pb1-001:1` are now structured. Future targeted pools should be generated from the current 116-entry manual gap report instead of preserving this obsolete blocker list.
+- Static registry coverage is now `863 / 979 = 88.15%`; the strict integrity audit reports zero errors and warnings. Reaching 90% still requires real executor patterns for the remaining 116 `manual_resolution` entries.
 - Do not mark registry entries executable only to improve coverage numbers.
 
 ## Low Priority
@@ -124,11 +124,11 @@
 
 ### Simple AI Follow-Up
 
-- `simple_ai_v1` now uses Rule Engine evaluations, hidden-information-safe observations, scored legal candidates, versioned policies, and compact decision timing logs.
-- Completed mirrored benchmark: 200/200 completed, v1 points 65%, average 9.125 turns, P95 19 turns, v1 decision P95 12.745 ms, with no blocker, illegal action, or Replay error. Four unsupported effects were explicitly skipped and logged under the configured manual policy.
+- `simple_ai_v1_1` now adds Match Point Live preservation, conservative Stage replacement, structured effect scoring, hidden-information-safe observations, and compact decision timing logs while retaining v0 / v1 for old snapshots.
+- Corrected 200-match mirrored v1.1-v1 benchmark: 200/200 completed, v1.1 points 54%, average 8.38 turns, P95 14 turns, decision P95 6.975 ms, no illegal action or Replay error, and 19 explicit unsupported-effect skips. The 55% strength target remains open.
 - Keep Simple AI deterministic and LegalAction-only; do not add direct GameState mutation or hidden opponent-hand inspection.
 - Use the archived 200-match mirrored v1-v0 benchmark as the policy regression baseline; investigate only repeated weaknesses across multiple deck/seed pairs.
-- The 30-deck / 100-match skill-dense regression completed 98 matches and resolved 689/689 executable effects; tune long-game progress only if the two 600-action-cap cases recur in product AI runs.
+- The 30-deck / 100-match skill-dense regression now completes 100/100 matches with zero blocker, silent skip, or Replay error; preserve these exact match indices as a regression pool for future policy changes.
 - Continue strategy work only when a larger mirrored pool shows a repeated weakness; do not tune against a single seed.
 - Keep the human recovery path for mandatory manual effects explicit and replay-safe.
 - Add a focused browser smoke that reaches and observes at least one full CPU turn; the long 20x20 acceptance remains a manual release gate rather than normal CI.

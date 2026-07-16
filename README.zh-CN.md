@@ -20,9 +20,9 @@
 - 包含官方 `PBSP02` 新补充包的锁版本卡牌数据库
   - `PBSP02` 收录 122 个印刷版本 / 96 个规则卡身份
   - importer 报告中新增 Gameplay Card 70 条
-- 977 条 effect registry entry
-  - 841 条为 `test_validated_executable`
-  - 136 条为 timing prompt / 未支持处理用 `manual_resolution`
+- 979 条 effect registry entry
+  - 863 条为 `test_validated_executable`
+  - 116 条为 timing prompt / 未支持处理用 `manual_resolution`
   - `PBSP02` 相关技能 74 条中 63 条为 `test_validated_executable`，新补充包覆盖率为 85.14%
 - 面向未来低成本 online 同步的 state hash / compatibility metadata 基础
 - Hosted Online MVP 房间 API
@@ -46,7 +46,7 @@
 - Phase 1 / 2 / 3 已基本实现，进入维护和改善阶段。
 - Phase 4 的 Human-vs-Human 验证器和 Phase 7 的 UI 已提前完成大部分。
 - Phase 9 / 10 的低成本 online 验证会和 Phase 5 并行提前推进。
-- Simple AI v1 已可在 local / Hosted FastAPI 中使用，会基于 Rule Engine 的评估值对 Member、Live 和结构化技能进行 deterministic 评分。MCTS、Monte Carlo、学习型 AI 和胜率引擎不在本轮范围。
+- Simple AI v1.1 已可在 local / Hosted FastAPI 中使用，会基于 Rule Engine 的评估值对 Member、Live 和结构化技能进行 deterministic 评分；旧 Replay 仍保留 v0 / v1 policy。MCTS、Monte Carlo、学习型 AI 和胜率引擎不在本轮范围。
 
 当前规则验证器已覆盖:
 
@@ -59,18 +59,18 @@
 - 部分双方都需要选择的效果已可通过 multi-player pending choice 顺序处理
 - 支持把 Stage Member 目标拆成多个选择组，并对各组选中目标应用相同的临时 modifier
 - 支持每个分支使用不同 Stage Member 候选池的技能选择
-- 按 registry entry 计算的 `test_validated_executable` 覆盖率已达到 86.08%（841 / 977）
+- 按 registry entry 计算的 `test_validated_executable` 覆盖率已达到 88.15%（863 / 979）
 - `PBSP02` 相关技能 74 条中 63 条已结构化，新补充包覆盖率确认达到 85.14%
 - 追加结构化支持 μ's / Aqours / Saint Snow / Nijigasaki / Hasunosora / Edel Note 的部分控室回收、Energy ready、牌堆顶检查、应援公开条件和带手牌成本的 Live 开始时效果
 - static Heart / Blade 等常时效果现在只会在 operation 侧条件满足时计入
 - `PBSP02` 集中 block sandbox 为 `30 decks x 20 matches` 中 19 局完走，`mandatory_manual_resolution = 0`，剩余 1 局为 `max_actions:match_point_players_have_no_live_in_hand`
 - Phase 5 broad black-box sandbox 已在 `30 decks x 100 matches` block mode 中达到 `100/100` 完走，blocker 为 0
-- 最新 skill-dense sandbox 为 `30 decks x 100 matches` 中 98 局完赛，剩余 2 局在第 36 / 37 回合达到 action cap；可执行技能 689 / 689 完成结算，illegal action / silent skip / Replay error 均为 0
-- 包含问题卡的 targeted sandbox 最新 block smoke 改善到 `15 matches` 中 9 局完走、6 件 `mandatory_manual_resolution`
+- 最新 skill-dense Simple AI regression 为 `30 decks x 100 matches` 100/100 完赛，blocker / silent skip / Replay error 均为 0
+- 之前问题卡 targeted sandbox 中的 `PL!S-bp6-001:1` / `PL!S-pb1-001:1` 已完成结构化；剩余 116 条未支持技能通过 gap report 记录原因
 - 触发时条件满足的 pending effect 如果在同一时点中被其他效果改变条件导致失效，会记录明确的 `effect_not_activatable` event 并继续推进
 - 公开并加入手牌的效果会在对手侧履历中保留公开卡名，方便联机复盘
-- 现在提供 46 个日文 / 中文人类可读技能验证场景，用于检查重点技能的状态变化和 registry 契约
-- Simple AI v1 / v0 的 200 局镜像 benchmark 为 200/200 完赛、v1 积分率 65%、illegal action / Replay error 均为 0、平均 9.125 回合、P95 19 回合、v1 单次决策 P95 12.745 ms
+- 现在提供 60 个日文 / 中文人类可读技能验证场景，其中 21 个会实际验证 GameState 状态变化
+- Simple AI v1.1 / v1 的 200 局镜像 benchmark 为 200/200 完赛、v1.1 积分率 54%、平均 8.38 回合、P95 14 回合、单次决策 P95 6.975 ms、illegal action / Replay error 均为 0；19 次未支持技能均显式记录为 skip，没有静默处理，55% 强度目标尚未达到
 - 使用 `amount_source=selected_count` 的效果已支持按选中张数抽牌
 - `PL!HS-bp6-006` 已结构化支持手牌中 cost reduction、非みらくらぱーく！Baton replacement 限制、Live 成功时 Wait + 下一 Active Phase 不转 Active
 - `PL!HS-bp6-014:1` 等从手牌发动的效果，在没有目标 Stage Member 时也会处理成本和抽牌，只把目标 modifier 空结算
@@ -108,7 +108,7 @@ Bug 报告、规则行为讨论和 online 对战伙伴寻找请前往 [Discord](
 
 - 这是开发中的 alpha 版本，不是官方数字客户端。当前目标是规则验证和收集 playtest feedback。
 - 还没有覆盖全卡技能自动执行。未支持技能可能需要 `ManualAdjustmentAction`、结构化 pending choice，或用调试 skip 继续推进。
-- Broad Phase 5 sandbox 长回归中，`30 decks x 100 matches` 已经以 blocker 0 完走。但包含问题卡的 targeted sandbox 仍会暴露 `PL!S-bp6-001:1` / `PL!S-pb1-001:1` 等手动处理 blocker。最新详细数字请看 `CHANGELOG.md` 与 `TODO.md`。
+- 最新 skill-dense 回归已让 `30 decks x 100 matches` 以 blocker 0 完走，但这不代表剩余 116 条 `manual_resolution` 已能自动处理；未在该测试池触发或语义复杂的技能仍需人工处理，最新分类见 `docs/13-effect-semantics-audit.md` 与 `TODO.md`。
 - 依赖 FAQ 或个别裁定的效果尚未规格化。
 - `data/loveca.sqlite3` 是仓库内锁版本权威卡牌 DB。官方补充包或 parser/schema/effect registry 变化后，由维护者重建并提交新的 DB 与 `data/loveca-db-manifest.json`；普通用户和 CI 不应自行 import 产生不同线上 DB。保存牌组是 `decklist.v0` 用户数据，可以和卡牌数据库分开保留。
 - Web/API 测试依赖 `httpx2`。环境缺少该依赖时，`tests/test_catalog_api.py` 和 `tests/test_webapp.py` 会在收集阶段停止。

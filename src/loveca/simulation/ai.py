@@ -39,7 +39,7 @@ class SimpleAIBlocker:
 @dataclass(frozen=True)
 class SimpleAIPolicy:
     manual_effect_policy: ManualEffectPolicy = "skip"
-    policy_version: ControllerPolicyVersion = "simple_ai_v1"
+    policy_version: ControllerPolicyVersion = "simple_ai_v1_1"
 
 
 @dataclass(frozen=True)
@@ -93,6 +93,7 @@ class SimpleAIController:
                 observation,
                 available,
                 manual_policy=self.policy.manual_effect_policy,
+                policy_version=self.policy.policy_version,
             )
         if candidate is None:
             return SimpleAIBlocker(
@@ -159,6 +160,7 @@ def choose_simple_ai_action_v1(
     legal_actions: list[LegalAction],
     *,
     manual_policy: ManualEffectPolicy,
+    policy_version: ControllerPolicyVersion = "simple_ai_v1",
 ) -> AICandidate | None:
     """Choose a deterministic scored action from the authoritative legal list."""
 
@@ -178,7 +180,10 @@ def choose_simple_ai_action_v1(
         )
     if "submit_mulligan" in by_type:
         action = by_type["submit_mulligan"]
-        selected = _choose_mulligan_v1(observation)
+        selected = _choose_mulligan_v1(
+            observation,
+            protect_live=policy_version == "simple_ai_v1_1",
+        )
         return AICandidate(
             action.action_type,
             action.player_id,
@@ -202,16 +207,27 @@ def choose_simple_ai_action_v1(
             observation,
             by_type,
             manual_policy,
+            policy_version=policy_version,
         )
 
     if observation.phase.endswith("_main"):
         candidates: list[AICandidate] = []
         if "activate_effect" in by_type:
             candidates.extend(
-                _activation_candidates_v1(observation, by_type["activate_effect"])
+                _activation_candidates_v1(
+                    observation,
+                    by_type["activate_effect"],
+                    match_point_strategy=policy_version == "simple_ai_v1_1",
+                )
             )
         if "play_member" in by_type:
-            candidates.extend(_member_play_candidates_v1(observation, by_type["play_member"]))
+            candidates.extend(
+                _member_play_candidates_v1(
+                    observation,
+                    by_type["play_member"],
+                    conservative_replacement=policy_version == "simple_ai_v1_1",
+                )
+            )
         if "end_main_phase" in by_type:
             action = by_type["end_main_phase"]
             candidates.append(
@@ -226,7 +242,11 @@ def choose_simple_ai_action_v1(
         return _best_candidate(candidates)
 
     if "set_live_cards" in by_type:
-        return _choose_live_set_v1(observation, by_type["set_live_cards"])
+        return _choose_live_set_v1(
+            observation,
+            by_type["set_live_cards"],
+            match_point_efficient=policy_version == "simple_ai_v1_1",
+        )
     if "start_next_turn" in by_type:
         action = by_type["start_next_turn"]
         return AICandidate(action.action_type, action.player_id, {}, 800, "start_next_turn")
@@ -236,7 +256,11 @@ def choose_simple_ai_action_v1(
     return None
 
 
-def _choose_mulligan_v1(observation: AIObservation) -> list[str]:
+def _choose_mulligan_v1(
+    observation: AIObservation,
+    *,
+    protect_live: bool = False,
+) -> list[str]:
     player = observation.players[observation.player_id]
     members = [item for item in player.hand if _card_type(observation, item) == "member"]
     lives = [item for item in player.hand if _card_type(observation, item) == "live"]
@@ -264,6 +288,8 @@ def _choose_mulligan_v1(observation: AIObservation) -> list[str]:
     )
     keep: set[str] = set(ranked_members[:2])
     keep.update(ranked_lives[:1])
+    if protect_live and len(ranked_lives) > 1:
+        keep.add(ranked_lives[1])
     if len(ranked_members) >= 3 and not lives:
         keep.add(ranked_members[2])
     return [item for item in player.hand if item not in keep]
@@ -364,6 +390,8 @@ def _choose_live_requirement_resolution_v1(
 def _activation_candidates_v1(
     observation: AIObservation,
     action: LegalAction,
+    *,
+    match_point_strategy: bool = False,
 ) -> list[AICandidate]:
     candidates: list[AICandidate] = []
     for activation in action.options.get("activations", []):
@@ -372,6 +400,20 @@ def _activation_candidates_v1(
         if effect is None or effect.simulation_support == "manual_resolution":
             continue
         value, components = _effect_value(observation, effect)
+        match_point_bonus = 0.0
+        if match_point_strategy and observation.evaluation.success_live_count >= 2:
+            if any(
+                operation.action_type
+                in {
+                    "draw_card",
+                    "draw_until_hand_size",
+                    "return_from_waiting_room",
+                    "move_selected_to_hand",
+                }
+                for operation in effect.actions
+            ):
+                match_point_bonus = 14.0
+                value += match_point_bonus
         source_id = activation.get("source_card_instance_id")
         source_cost = 0.0
         source_cost_adjustment = 0.0
@@ -434,7 +476,11 @@ def _activation_candidates_v1(
                 },
                 20 + value,
                 "activate_positive_structured_effect",
-                (*components, ("source_cost_adjustment", source_cost_adjustment)),
+                (
+                    *components,
+                    ("source_cost_adjustment", source_cost_adjustment),
+                    ("match_point", match_point_bonus),
+                ),
             )
         )
     return candidates
@@ -443,9 +489,17 @@ def _activation_candidates_v1(
 def _member_play_candidates_v1(
     observation: AIObservation,
     action: LegalAction,
+    *,
+    conservative_replacement: bool = False,
 ) -> list[AICandidate]:
     active_energy = list(action.options.get("active_energy_instance_ids", []))
     stage_by_slot = dict(observation.players[observation.player_id].member_area)
+    has_reachable_live = any(
+        estimate_live_combo_missing_hearts(observation.evaluation, (live.instance_id,))
+        <= 0.25
+        for live in observation.evaluation.lives
+        if live.instance_id in observation.players[observation.player_id].hand
+    )
     candidates: list[AICandidate] = []
     for placement in action.options.get("placements", []):
         instance_id = placement.get("card_instance_id")
@@ -468,7 +522,12 @@ def _member_play_candidates_v1(
             - payment * 2.5
             + on_play_bonus * 0.35
         )
-        if replaced_id is not None and replacement_gain <= 0:
+        replacement_threshold = 0.0
+        if conservative_replacement and replaced_id is not None:
+            replacement_threshold = 3.0 if has_reachable_live else 0.0
+            if placement.get("use_baton_touch"):
+                replacement_threshold += 1.0
+        if replaced_id is not None and replacement_gain <= replacement_threshold:
             continue
         score = (
             replacement_gain
@@ -501,6 +560,8 @@ def _member_play_candidates_v1(
 def _choose_live_set_v1(
     observation: AIObservation,
     action: LegalAction,
+    *,
+    match_point_efficient: bool = False,
 ) -> AICandidate:
     player = observation.players[observation.player_id]
     live_ids = [item for item in player.hand if _card_type(observation, item) == "live"]
@@ -526,10 +587,31 @@ def _choose_live_set_v1(
         total_score = sum(_live_score(observation, item) for item in combo)
         reachable_bonus = 70 if missing <= 0.25 else max(-45.0, 25 - missing * 20)
         score_pressure = total_score * (13 if pressure else 8)
-        size_cost = (len(combo) - 1) * (
-            16 if missing > 0.25 else 2 if pressure else 8
+        safe_single_live_finish = (
+            match_point_efficient
+            and own_success >= 2
+            and opponent_success < 2
+            and missing <= 0.25
         )
-        winning_bonus = 45 if own_success >= 2 and missing <= 0.25 else 0
+        size_cost = (len(combo) - 1) * (
+            30
+            if safe_single_live_finish
+            else 16
+            if missing > 0.25
+            else 2
+            if pressure
+            else 8
+        )
+        winning_bonus = (
+            110
+            if (
+                safe_single_live_finish
+                and len(combo) == 1
+            )
+            else 45
+            if own_success >= 2 and missing <= 0.25
+            else 0
+        )
         score = reachable_bonus + score_pressure + winning_bonus - size_cost
         scored.append(
             AICandidate(
@@ -563,6 +645,8 @@ def _choose_effect_resolution_v1(
     observation: AIObservation,
     by_type: dict[str, LegalAction],
     manual_policy: ManualEffectPolicy,
+    *,
+    policy_version: ControllerPolicyVersion = "simple_ai_v1",
 ) -> AICandidate | None:
     action = by_type["resolve_effect"]
     scored: list[tuple[float, dict[str, Any], EffectDefinition | None]] = []
@@ -616,6 +700,20 @@ def _choose_effect_resolution_v1(
         return None
     value, components = _effect_value(observation, effect)
     payload = _structured_effect_payload_v1(observation, invocation, effect)
+    if (
+        policy_version == "simple_ai_v1_1"
+        and invocation.get("is_optional")
+        and _payload_discards_last_live(observation, payload, effect)
+        and value < 24
+    ):
+        return AICandidate(
+            action.action_type,
+            action.player_id,
+            {"invocation_id": invocation["invocation_id"], "accepted": False},
+            0,
+            "decline_effect_that_discards_last_live",
+            (*components, ("preserve_last_live", 24.0)),
+        )
     if invocation.get("is_optional") and value <= 0:
         payload = {"invocation_id": invocation["invocation_id"], "accepted": False}
         return AICandidate(
@@ -635,6 +733,22 @@ def _choose_effect_resolution_v1(
         "resolve_best_structured_effect",
         components,
     )
+
+
+def _payload_discards_last_live(
+    observation: AIObservation,
+    payload: dict[str, Any],
+    effect: EffectDefinition,
+) -> bool:
+    if not any(
+        operation.action_type == "discard_from_hand"
+        for operation in (*effect.cost, *effect.actions)
+    ):
+        return False
+    hand = observation.players[observation.player_id].hand
+    lives = {item for item in hand if _card_type(observation, item) == "live"}
+    selected = set(payload.get("selected_card_instance_ids", []))
+    return len(lives) == 1 and bool(lives & selected)
 
 
 def _invocation_choices_are_currently_satisfiable(
@@ -793,11 +907,18 @@ def _structured_effect_payload_v1(
             colors or ["heart01"],
         )
     if choice_type == "choose_count":
-        payload["selected_count"] = _choose_effect_count(
+        selected_count = _choose_effect_count(
             effect,
             choice,
             maximum_override=invocation.get("card_selection_maximum"),
         )
+        if invocation.get("energy_required_source") == "selected_count":
+            available_energy = list(
+                invocation.get("energy_instance_ids", [])
+                or invocation.get("active_energy_instance_ids", [])
+            )
+            selected_count = min(selected_count, len(available_energy))
+        payload["selected_count"] = selected_count
     energy = list(
         invocation.get("energy_instance_ids", [])
         or invocation.get("active_energy_instance_ids", [])

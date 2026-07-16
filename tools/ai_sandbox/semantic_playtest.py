@@ -73,12 +73,28 @@ class ApiPlayAttempt:
     match_index: int
     action_index: int
     status: str
-    action_type: str | None
-    player_id: str | None
-    confidence: str
-    reason_ja_or_zh: str
+    action_type: str | None = None
+    player_id: str | None = None
+    confidence: str = "low"
+    reason_ja_or_zh: str = ""
+    phase: str = ""
+    legal_action_types: list[str] = field(default_factory=list)
+    agent_reason: str = ""
+    decision: str = "cannot_resolve"
+    schema_gap: str | None = None
     submitted_payload: dict[str, Any] = field(default_factory=dict)
+    baseline_action_type: str | None = None
+    baseline_player_id: str | None = None
+    matches_deterministic_baseline: bool | None = None
+    context_sample: dict[str, Any] | None = None
+    fallback_used: bool = False
     error: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.agent_reason:
+            self.agent_reason = self.reason_ja_or_zh
+        if not self.reason_ja_or_zh:
+            self.reason_ja_or_zh = self.agent_reason
 
 
 @dataclass
@@ -316,6 +332,13 @@ def provider_from_environment(provider_name: str | None = None) -> SemanticAgent
     raise SemanticAgentError(f"unsupported semantic agent provider: {provider_name}")
 
 
+def require_real_semantic_provider(provider: SemanticAgentProvider) -> None:
+    if provider.provider_name == "mock":
+        raise SemanticAgentError(
+            "API Play comparison requires a real semantic provider"
+        )
+
+
 def load_rule_context(source_path: Path, *, max_chars: int) -> RuleContext:
     if max_chars <= 0:
         return RuleContext(
@@ -379,10 +402,12 @@ def run_semantic_matches(
     play_policy: str = "deterministic",
     play_fallback: str = "deterministic",
     rule_context: RuleContext | None = None,
+    api_context_sample_limit: int = 0,
 ) -> tuple[list[SemanticMatchSummary], list[SemanticAttempt], list[ApiPlayAttempt]]:
     results: list[SemanticMatchSummary] = []
     attempts: list[SemanticAttempt] = []
     api_play_attempts: list[ApiPlayAttempt] = []
+    remaining_context_samples = max(0, api_context_sample_limit)
     with tempfile.TemporaryDirectory(prefix="loveca-semantic-sandbox-") as tmp:
         runtime = Path(tmp) / "matches.sqlite3"
         service = MatchService(database, runtime)
@@ -441,6 +466,7 @@ def run_semantic_matches(
                     schema_gap_count += semantic_result.schema_gap_count
                     continue
                 if decision is not None and play_policy == "api":
+                    baseline_decision = decision
                     api_result = try_api_play_action(
                         provider,
                         state,
@@ -448,13 +474,22 @@ def run_semantic_matches(
                         match_index=index + 1,
                         action_index=action_count + 1,
                         rule_context=rule_context,
+                        baseline_decision=baseline_decision,
+                        capture_context=remaining_context_samples > 0,
                     )
                     api_play_attempts.extend(api_result.attempts)
+                    if any(
+                        attempt.context_sample is not None
+                        for attempt in api_result.attempts
+                    ):
+                        remaining_context_samples -= 1
                     api_play_count += api_result.success_count
                     api_play_failure_count += api_result.failure_count
                     if api_result.decision is not None:
                         decision = api_result.decision
                     elif play_fallback == "deterministic":
+                        for attempt in api_result.attempts:
+                            attempt.fallback_used = True
                         deterministic_fallback_count += 1
                     else:
                         blocker = "api_play_no_valid_action"
@@ -480,6 +515,14 @@ def run_semantic_matches(
                         ),
                     )
                 except IllegalActionError as exc:
+                    if (
+                        play_policy == "api"
+                        and api_play_attempts
+                        and api_play_attempts[-1].match_index == index + 1
+                        and api_play_attempts[-1].action_index == action_count + 1
+                    ):
+                        api_play_attempts[-1].status = "api_play_engine_illegal"
+                        api_play_attempts[-1].error = str(exc)
                     blocker = "engine_illegal_action"
                     blocker_detail = {
                         **describe_state(state, legal_actions),
@@ -558,23 +601,38 @@ def try_api_play_action(
     match_index: int,
     action_index: int,
     rule_context: RuleContext | None = None,
+    baseline_decision: tuple[str, str | None, dict[str, Any]] | None = None,
+    capture_context: bool = False,
 ) -> ApiPlayResult:
-    context = build_api_play_context(state, legal_actions, rule_context=rule_context)
+    context = build_api_play_context(
+        state,
+        legal_actions,
+        rule_context=rule_context,
+        baseline_decision=baseline_decision,
+    )
+    context_sample = context if capture_context else None
     try:
         decision = provider.decide(context)
         validate_api_play_decision(decision, legal_actions)
     except (SemanticAgentError, ValueError) as exc:
+        invalid = SemanticDecision(
+            decision="cannot_resolve",
+            reason_ja_or_zh=str(exc),
+            confidence="low",
+            schema_gap=str(exc),
+        )
         return ApiPlayResult(
             decision=None,
             attempts=[
-                ApiPlayAttempt(
+                api_play_attempt_from_decision(
                     match_index=match_index,
                     action_index=action_index,
+                    state=state,
+                    legal_actions=legal_actions,
+                    decision=invalid,
                     status="api_play_invalid",
-                    action_type=None,
-                    player_id=None,
-                    confidence="low",
-                    reason_ja_or_zh=str(exc),
+                    baseline_decision=baseline_decision,
+                    context_sample=context_sample,
                     error=str(exc),
                 )
             ],
@@ -584,14 +642,15 @@ def try_api_play_action(
         return ApiPlayResult(
             decision=None,
             attempts=[
-                ApiPlayAttempt(
+                api_play_attempt_from_decision(
                     match_index=match_index,
                     action_index=action_index,
+                    state=state,
+                    legal_actions=legal_actions,
+                    decision=decision,
                     status="api_play_cannot_resolve",
-                    action_type=None,
-                    player_id=None,
-                    confidence=decision.confidence,
-                    reason_ja_or_zh=decision.reason_ja_or_zh,
+                    baseline_decision=baseline_decision,
+                    context_sample=context_sample,
                     error=decision.schema_gap,
                 )
             ],
@@ -600,15 +659,15 @@ def try_api_play_action(
     return ApiPlayResult(
         decision=(str(decision.action_type), decision.player_id, decision.payload),
         attempts=[
-            ApiPlayAttempt(
+            api_play_attempt_from_decision(
                 match_index=match_index,
                 action_index=action_index,
+                state=state,
+                legal_actions=legal_actions,
+                decision=decision,
                 status="api_play_selected",
-                action_type=decision.action_type,
-                player_id=decision.player_id,
-                confidence=decision.confidence,
-                reason_ja_or_zh=decision.reason_ja_or_zh,
-                submitted_payload=decision.payload,
+                baseline_decision=baseline_decision,
+                context_sample=context_sample,
             )
         ],
         success_count=1,
@@ -1033,6 +1092,7 @@ def build_api_play_context(
     legal_actions: list[LegalAction],
     *,
     rule_context: RuleContext | None = None,
+    baseline_decision: tuple[str, str | None, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     acting_player_id = _acting_player_id(state, legal_actions)
     return {
@@ -1045,6 +1105,9 @@ def build_api_play_context(
             "Choose exactly one currently legal action, or return cannot_resolve.",
             "Do not invent payload fields that are not supported by legal_actions.",
             "Do not mutate GameState directly.",
+            "Use strategy.recommended_action_order as a tie-breaker.",
+            "Use deterministic_baseline_action when uncertain.",
+            "Do not choose manual_adjustment; manual effects use the dedicated flow.",
         ],
         "allowed_response_schema": {
             "decision": "submit_action | cannot_resolve",
@@ -1061,9 +1124,19 @@ def build_api_play_context(
             "phase": state.phase,
             "turn_number": state.turn_number,
             "active_player_id": state.active_player_id,
+            "acting_player_id": acting_player_id,
             "revision": state.revision,
             "pending_choice": state.pending_choice.model_dump() if state.pending_choice else None,
+            "pending_effects": [effect.model_dump() for effect in state.pending_effects],
         },
+        "strategy": api_play_strategy_summary(
+            state,
+            legal_actions,
+            acting_player_id,
+        ),
+        "deterministic_baseline_action": decision_context(baseline_decision),
+        "legal_action_summary": summarize_legal_actions(legal_actions),
+        "legal_action_hints": [legal_action_hint(action) for action in legal_actions],
         "players": {
             player_id: player_context(
                 state,
@@ -1074,6 +1147,286 @@ def build_api_play_context(
         },
         "legal_actions": [action.model_dump() for action in legal_actions],
     }
+
+
+def decision_context(
+    decision: tuple[str, str | None, dict[str, Any]] | None,
+) -> dict[str, Any] | None:
+    if decision is None:
+        return None
+    action_type, player_id, payload = decision
+    return {
+        "action_type": action_type,
+        "player_id": player_id,
+        "payload": payload,
+        "note": "scripted deterministic sandbox would choose this legal action",
+    }
+
+
+def api_play_strategy_summary(
+    state: MatchState,
+    legal_actions: list[LegalAction],
+    acting_player_id: str,
+) -> dict[str, Any]:
+    action_types = {action.action_type for action in legal_actions}
+    recommended_order = [
+        action_type
+        for action_type in api_play_recommended_action_order(
+            state.phase,
+            bool(state.pending_choice),
+            bool(state.pending_effects),
+        )
+        if action_type in action_types
+    ]
+    progress: dict[str, Any] = {
+        "success_live_counts": {
+            player_id: len(player.success_live_area)
+            for player_id, player in sorted(state.players.items())
+        },
+        "pending_choice": (
+            state.pending_choice.choice_type if state.pending_choice else None
+        ),
+        "pending_effect_count": len(state.pending_effects),
+    }
+    player = state.players.get(acting_player_id)
+    if player is not None:
+        progress.update(
+            {
+                "acting_player_hand_count": len(player.hand),
+                "acting_player_stage_member_count": sum(
+                    instance_id is not None
+                    for instance_id in player.member_area.values()
+                ),
+                "acting_player_live_area_count": len(player.live_area),
+                "acting_player_active_energy_count": count_active_energy(
+                    state,
+                    acting_player_id,
+                ),
+            }
+        )
+    return {
+        "primary_goal": (
+            "choose legal actions that complete setup, progress turns, "
+            "and create successful Live resolutions"
+        ),
+        "phase_guidance": api_play_phase_guidance(state.phase),
+        "recommended_action_order": recommended_order,
+        "avoid": [
+            "manual_adjustment in API Play",
+            "invented card ids or payload fields",
+            "cannot_resolve when a listed legal action progresses the game",
+        ],
+        "progress": progress,
+    }
+
+
+def api_play_phase_guidance(phase: str) -> str:
+    if "mulligan" in phase:
+        return "finish mulligan with submit_mulligan"
+    if phase.endswith("_main") or phase in {"first_main", "second_main"}:
+        return "resolve useful effects, play useful Members, then end main"
+    if "live" in phase:
+        return "set Live cards and finish Live judgment without stalling"
+    if phase == "turn_complete":
+        return "start the next turn unless the game is complete"
+    return "prefer a legal action that deterministically advances the phase"
+
+
+def api_play_recommended_action_order(
+    phase: str,
+    has_pending_choice: bool,
+    has_pending_effects: bool,
+) -> list[str]:
+    order: list[str] = []
+    if has_pending_choice:
+        order.extend(
+            [
+                "resolve_effect_choice",
+                "resolve_manual_inspection",
+                "resolve_live_requirements",
+            ]
+        )
+    if has_pending_effects:
+        order.extend(["resolve_effect", "activate_effect", "skip_effect"])
+    if "mulligan" in phase:
+        order.extend(["submit_mulligan", "advance_phase"])
+    elif phase.endswith("_main") or phase in {"first_main", "second_main"}:
+        order.extend(
+            ["activate_effect", "play_member", "end_main_phase", "advance_phase"]
+        )
+    elif "live" in phase:
+        order.extend(
+            [
+                "set_live_cards",
+                "resolve_effect",
+                "resolve_effect_choice",
+                "resolve_live_requirements",
+                "advance_phase",
+            ]
+        )
+    elif phase == "turn_complete":
+        order.append("start_next_turn")
+    order.extend(
+        [
+            "choose_first_player",
+            "submit_mulligan",
+            "advance_phase",
+            "play_member",
+            "end_main_phase",
+            "set_live_cards",
+            "resolve_live_requirements",
+            "start_next_turn",
+            "skip_effect",
+        ]
+    )
+    return list(dict.fromkeys(order))
+
+
+def summarize_legal_actions(legal_actions: list[LegalAction]) -> dict[str, Any]:
+    action_type_counts = Counter(action.action_type for action in legal_actions)
+    by_player: dict[str, Counter[str]] = {}
+    for action in legal_actions:
+        by_player.setdefault(action.player_id or "system", Counter())[
+            action.action_type
+        ] += 1
+    return {
+        "count": len(legal_actions),
+        "action_type_counts": dict(sorted(action_type_counts.items())),
+        "by_player": {
+            player_id: dict(sorted(counter.items()))
+            for player_id, counter in sorted(by_player.items())
+        },
+    }
+
+
+def legal_action_hint(action: LegalAction) -> dict[str, Any]:
+    return {
+        "action_type": action.action_type,
+        "player_id": action.player_id,
+        "label_ja": action.label_ja,
+        "option_keys": sorted(action.options),
+        "option_counts": {
+            key: len(value)
+            for key, value in action.options.items()
+            if isinstance(value, (list, dict))
+        },
+        "payload_hint": payload_hint_for_action(action),
+        "payload_example": payload_example_for_action(action),
+    }
+
+
+def payload_hint_for_action(action: LegalAction) -> dict[str, Any]:
+    hints: dict[str, dict[str, Any]] = {
+        "choose_first_player": {
+            "first_player_id": "one id from options.player_ids"
+        },
+        "submit_mulligan": {
+            "card_instance_ids": "zero or more ids from options.card_instance_ids"
+        },
+        "set_live_cards": {
+            "card_instance_ids": "0..options.maximum ids from options.hand_instance_ids"
+        },
+        "activate_effect": {
+            "effect_id": "one options.activations[].effect_id",
+            "source_card_instance_id": "the same activation source id",
+        },
+        "resolve_effect": {
+            "invocation_id": "one options.invocations[].invocation_id",
+            "accepted": "true unless declining an optional effect",
+            "selected_card_instance_ids": "only when requested",
+            "energy_instance_ids": "only when requested",
+            "selected_branch": "only when requested",
+            "selected_color_slot": "only when requested",
+            "selected_count": "only when requested",
+        },
+        "resolve_effect_choice": {
+            "selected_card_instance_ids": "ids from candidate_card_instance_ids",
+            "ordered_card_instance_ids": "selected ids in chosen order when required",
+            "selected_card_instance_ids_by_group": "group_id to selected ids",
+        },
+        "resolve_live_requirements": {
+            "live_instance_ids": "offered Live ids in desired order",
+            "success_live_instance_id": "one offered successful Live id",
+        },
+    }
+    if action.action_type == "play_member":
+        return {
+            "card_instance_id": "one options.placements[].card_instance_id",
+            "slot": "the same placement.slot",
+            "energy_instance_ids": "placement.payment_cost active Energy ids",
+            "use_baton_touch": "the same placement.use_baton_touch",
+        }
+    return hints.get(action.action_type, {})
+
+
+def payload_example_for_action(action: LegalAction) -> dict[str, Any]:
+    options = action.options
+    if action.action_type == "choose_first_player":
+        player_ids = options.get("player_ids", [])
+        return {"first_player_id": player_ids[0]} if player_ids else {}
+    if action.action_type in {"submit_mulligan", "set_live_cards"}:
+        return {"card_instance_ids": []}
+    if action.action_type == "play_member":
+        placements = options.get("placements", [])
+        energy_ids = options.get("active_energy_instance_ids", [])
+        if not placements:
+            return {}
+        placement = placements[0]
+        payment = max(0, int(placement.get("payment_cost", 0)))
+        return {
+            "card_instance_id": placement.get("card_instance_id"),
+            "slot": placement.get("slot"),
+            "energy_instance_ids": energy_ids[:payment],
+            "use_baton_touch": bool(placement.get("use_baton_touch", False)),
+        }
+    if action.action_type == "activate_effect":
+        activations = options.get("activations", [])
+        if not activations:
+            return {}
+        activation = activations[0]
+        return {
+            "effect_id": activation.get("effect_id"),
+            "source_card_instance_id": activation.get("source_card_instance_id"),
+        }
+    if action.action_type == "resolve_effect":
+        invocations = options.get("invocations", [])
+        return (
+            {"invocation_id": invocations[0].get("invocation_id"), "accepted": True}
+            if invocations
+            else {}
+        )
+    if action.action_type == "resolve_effect_choice":
+        minimum = options.get("minimum", 0)
+        count = minimum if isinstance(minimum, int) else 0
+        selected = first_n_strings(
+            options.get("candidate_card_instance_ids"),
+            count,
+        )
+        payload: dict[str, Any] = {"selected_card_instance_ids": selected}
+        if options.get("requires_order"):
+            payload["ordered_card_instance_ids"] = list(selected)
+        return payload
+    if action.action_type == "resolve_live_requirements":
+        if isinstance(options.get("live_instance_ids"), list):
+            return {"live_instance_ids": list(options["live_instance_ids"])}
+    return {}
+
+
+def first_n_strings(value: Any, count: int) -> list[str]:
+    if not isinstance(value, list) or count <= 0:
+        return []
+    return [item for item in value if isinstance(item, str)][:count]
+
+
+def count_active_energy(state: MatchState, player_id: str) -> int:
+    player = state.players.get(player_id)
+    if player is None:
+        return 0
+    return sum(
+        state.cards[instance_id].orientation == "active"
+        for instance_id in player.energy_area
+        if instance_id in state.cards
+    )
 
 
 def _acting_player_id(state: MatchState, legal_actions: list[LegalAction]) -> str:
@@ -1370,6 +1723,48 @@ def attempt_from_decision(
         confidence=decision.confidence,
         schema_gap=decision.schema_gap,
         submitted_payload=decision.payload,
+        error=error,
+    )
+
+
+def api_play_attempt_from_decision(
+    match_index: int,
+    action_index: int,
+    state: MatchState,
+    legal_actions: list[LegalAction],
+    decision: SemanticDecision,
+    *,
+    status: str,
+    baseline_decision: tuple[str, str | None, dict[str, Any]] | None = None,
+    context_sample: dict[str, Any] | None = None,
+    error: str | None = None,
+) -> ApiPlayAttempt:
+    baseline_action_type = baseline_decision[0] if baseline_decision else None
+    baseline_player_id = baseline_decision[1] if baseline_decision else None
+    matches_baseline = None
+    if baseline_decision is not None and decision.decision == "submit_action":
+        matches_baseline = (
+            decision.action_type == baseline_action_type
+            and decision.player_id == baseline_player_id
+            and decision.payload == baseline_decision[2]
+        )
+    return ApiPlayAttempt(
+        match_index=match_index,
+        action_index=action_index,
+        status=status,
+        phase=state.phase,
+        legal_action_types=sorted({action.action_type for action in legal_actions}),
+        agent_reason=decision.reason_ja_or_zh,
+        decision=decision.decision,
+        action_type=decision.action_type,
+        player_id=decision.player_id,
+        confidence=decision.confidence,
+        schema_gap=decision.schema_gap,
+        submitted_payload=decision.payload,
+        baseline_action_type=baseline_action_type,
+        baseline_player_id=baseline_player_id,
+        matches_deterministic_baseline=matches_baseline,
+        context_sample=context_sample,
         error=error,
     )
 

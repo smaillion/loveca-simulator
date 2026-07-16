@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import sqlite3
+from collections import Counter
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal
@@ -21,8 +22,11 @@ from loveca.simulation.effects import (
 )
 from loveca.simulation.engine import (
     IllegalActionError,
+    _effective_member_play_cost,
     _queue_live_success_effects,
     _resolve_automatic_effects,
+    _static_heart_bonus,
+    _static_numeric_bonus,
     apply_action,
     generate_legal_actions,
 )
@@ -170,10 +174,854 @@ def run_effect_verification_scenarios(
         _verify_pl_hs_bp6_006_live_success_skip_ready(visuals),
         _verify_baton_repeat_prevention(visuals),
         _verify_pl_hs_sd1_005_same_name_baton_blocked(visuals),
+        *_v1_1_dynamic_scenarios(effects, database_path),
     ]
     return [
         *dynamic_results,
         *_registry_contract_scenarios(effects, database_path),
+    ]
+
+
+def _v1_1_dynamic_scenarios(
+    effects: dict[str, EffectDefinition],
+    database_path: Path,
+) -> list[ScenarioResult]:
+    cases = (
+        (
+            "v1_1_static_live_state",
+            "静的 Heart・score・登場 cost を実状態から評価",
+            "根据实际状态计算常时 Heart、分数与登场费用",
+            "PL!N-pb1-008:1",
+            _run_v1_1_static_live_state,
+        ),
+        (
+            "v1_1_reveal_until_live",
+            "Live が出るまで公開して手札へ",
+            "公开到出现 Live 并加入手牌",
+            "PL!N-bp1-011:1",
+            _run_v1_1_reveal_until_live,
+        ),
+        (
+            "v1_1_variable_discard_draw",
+            "選んだ枚数 +1 を draw",
+            "抽取所选弃牌数量加一",
+            "PL!HS-pb1-003:1",
+            _run_v1_1_variable_discard_draw,
+        ),
+        (
+            "v1_1_waiting_live_to_bottom",
+            "控室の Live をデッキ下へ",
+            "将控室 Live 放到牌堆底",
+            "PL!S-bp2-008:1",
+            _run_v1_1_waiting_live_to_bottom,
+        ),
+        (
+            "v1_1_attach_waiting_member",
+            "控室 Member を自身の下へ置く",
+            "将控室 Member 放到自身下方",
+            "PL!N-PR-026:1",
+            _run_v1_1_attach_waiting_member,
+        ),
+        (
+            "v1_1_energy_score_per_four",
+            "支払った Energy 4 枚ごとに score +1",
+            "每支付 4 张 Energy 获得分数加一",
+            "PL!SP-bp5-025:1",
+            _run_v1_1_energy_score_per_four,
+        ),
+        (
+            "v1_1_repeat_mill_blade",
+            "繰り返し mill と Blade 加算",
+            "重复堆墓并增加 Blade",
+            "PL!SP-bp5-009:1",
+            _run_v1_1_repeat_mill_blade,
+        ),
+        (
+            "v1_1_post_mill_fourth",
+            "mill 後に Live を上から 4 枚目へ",
+            "堆墓后将 Live 放到牌堆顶第四张",
+            "PL!N-bp5-021:1",
+            _run_v1_1_post_mill_fourth,
+        ),
+        (
+            "v1_1_reveal_hand_then_conceal",
+            "手札公開 cost を score 化して再び非公開",
+            "公开手牌作为成本并计分后重新隐藏",
+            "PL!SP-bp1-003:1",
+            _run_v1_1_reveal_hand_then_conceal,
+        ),
+        (
+            "v1_1_member_comparison",
+            "相手 Member との数値一致を評価",
+            "比较对手 Member 数值并结算",
+            "PL!N-bp3-011:1",
+            _run_v1_1_member_comparison,
+        ),
+        (
+            "v1_1_printemps_ready_score",
+            "Printemps を Active にして score 加算",
+            "复原 Printemps 并增加分数",
+            "PL!-pb1-028:1",
+            _run_v1_1_printemps_ready_score,
+        ),
+        (
+            "v1_1_same_name_discard_target",
+            "捨てた同名 Member だけを対象化",
+            "仅选择与弃置卡同名的 Member",
+            "PL!HS-bp2-007:2",
+            _run_v1_1_same_name_discard_target,
+        ),
+        (
+            "v1_1_inspect_retain_score",
+            "上から見る・順番保持・score 加算",
+            "查看牌堆顶、保留顺序并增加分数",
+            "PL!N-bp3-028:1",
+            _run_v1_1_inspect_retain_score,
+        ),
+        (
+            "v1_1_position_change_unit_filter",
+            "指定 unit の Area へ Position Change",
+            "仅向指定组合所在区域进行位置移动",
+            "PL!S-bp5-111:1",
+            _run_v1_1_position_change_unit_filter,
+        ),
+    )
+    visuals = _load_visuals_for_effect_ids(
+        database_path,
+        [effect_id for _, _, _, effect_id, _ in cases],
+    )
+    results: list[ScenarioResult] = []
+    for scenario_id, title_ja, title_zh, effect_id, runner in cases:
+        effect = effects.get(effect_id)
+        visual = visuals.get(
+            effect_id,
+            _fallback_visual(
+                "検証対象",
+                "验证对象",
+                effect_id.rsplit(":", 1)[0],
+                effect_id.rsplit(":", 1)[0],
+            ),
+        )
+        if effect is None:
+            results.append(
+                _exception_result(
+                    scenario_id,
+                    title_ja,
+                    title_zh,
+                    effect_id,
+                    ["固定状態を構築し、effect を実行する。"],
+                    ["构建固定状态并执行技能。"],
+                    ["すべての状態遷移チェックが成功する。"],
+                    ["所有状态转换检查均应成功。"],
+                    [visual],
+                    KeyError(f"missing effect: {effect_id}"),
+                )
+            )
+            continue
+        try:
+            checks = runner(effect)
+        except Exception as exc:  # report tools must preserve a readable failure
+            results.append(
+                _exception_result(
+                    scenario_id,
+                    title_ja,
+                    title_zh,
+                    effect_id,
+                    ["固定状態を構築し、Legal Action 経由で effect を実行する。"],
+                    ["构建固定状态，通过 Legal Action 执行技能。"],
+                    ["Zone、modifier、公開情報が公式テキストどおり変化する。"],
+                    ["区域、修正值与公开信息按官方文本变化。"],
+                    [visual],
+                    exc,
+                )
+            )
+            continue
+        results.append(
+            ScenarioResult(
+                scenario_id=scenario_id,
+                title_ja=title_ja,
+                title_zh=title_zh,
+                status="PASS" if all(checks.values()) else "FAIL",
+                effect_id=effect_id,
+                steps_ja=[
+                    "固定した公開・非公開 Zone と card instance を構築する。",
+                    "Legal Action と同じ ActionRequest で effect を解決する。",
+                    "解決後の Zone、orientation、modifier、event を照合する。",
+                ],
+                steps_zh=[
+                    "构建固定的公开/非公开区域与卡牌实例。",
+                    "使用与 Legal Action 相同的 ActionRequest 结算技能。",
+                    "核对结算后的区域、状态、修正值与事件。",
+                ],
+                expected_ja=["各チェックがすべて OK になる。"],
+                expected_zh=["每一项检查都应为 OK。"],
+                actual_ja=_format_v1_1_checks(checks, "ja"),
+                actual_zh=_format_v1_1_checks(checks, "zh"),
+                visuals=[visual],
+                notes_ja=[f"公式日本語テキスト: {effect.label_ja}"],
+                notes_zh=[f"官方日文效果文本：{effect.label_ja}"],
+            )
+        )
+    return results
+
+
+def _run_v1_1_static_live_state(effect: EffectDefinition) -> dict[str, bool]:
+    definitions = {effect.effect_id: effect}
+    for effect_id in ("PL!-bp5-003:1", "PL!-bp5-111:1", "PL!HS-bp1-003:1"):
+        definition = _load_effect_definition(effect_id)
+        definitions[effect_id] = definition
+    source = _v1_1_member(
+        "source",
+        "Source",
+        cost=4,
+        work_keys=["hasunosora"],
+        unit_keys=["a_rise"],
+        effect_ids=list(definitions),
+        card_code="PL!N-pb1-008",
+    )
+    left = _v1_1_member(
+        "left",
+        "Left",
+        work_keys=["hasunosora", "nijigasaki"],
+        unit_keys=["a_rise"],
+        orientation="wait",
+    )
+    right = _v1_1_member(
+        "right",
+        "Right",
+        work_keys=["hasunosora"],
+        unit_keys=["a_rise"],
+    )
+    state = _v1_1_state(
+        definitions,
+        [source, left, right],
+        member_area={"left": "left", "center": None, "right": "right"},
+        hand=["source"],
+    )
+    reduced_cost = _effective_member_play_cost(state, "player_1", "source") == 2
+    state.players["player_1"].hand = []
+    state.players["player_1"].member_area["center"] = "source"
+    return {
+        "effective_cost_reduced": reduced_cost,
+        "static_heart_uses_live_state": _static_heart_bonus(
+            state, "player_1", "source"
+        )
+        == Counter({"heart03": 1, "heart05": 2}),
+        "static_score_uses_live_state": _static_numeric_bonus(
+            state, "player_1", "source", "modify_score"
+        )
+        == 1,
+    }
+
+
+def _run_v1_1_reveal_until_live(effect: EffectDefinition) -> dict[str, bool]:
+    cards = [
+        _v1_1_member("source", "Source", effect_ids=[effect.effect_id]),
+        _v1_1_member("discard", "Discard"),
+        _v1_1_member("top-1", "Top 1"),
+        _v1_1_member("top-2", "Top 2"),
+        _v1_1_live("matched", "Matched Live"),
+    ]
+    state = _v1_1_pending_state(
+        effect,
+        cards,
+        hand=["discard"],
+        main_deck=["top-1", "top-2", "matched"],
+    )
+    result = _v1_1_resolve(state, selected_card_instance_ids=["discard"])
+    player = result.state.players["player_1"]
+    return {
+        "matched_live_added_to_hand": player.hand == ["matched"],
+        "cost_and_nonmatches_to_waiting": player.waiting_room
+        == ["discard", "top-1", "top-2"],
+        "public_reveal_event_recorded": any(
+            event.event_type == "effect_top_cards_revealed_until_match"
+            for event in result.events
+        ),
+    }
+
+
+def _run_v1_1_variable_discard_draw(effect: EffectDefinition) -> dict[str, bool]:
+    costs = [
+        _v1_1_member("cost-1", "Cost 1", unit_keys=["miracra_park"]),
+        _v1_1_member("cost-2", "Cost 2", unit_keys=["miracra_park"]),
+    ]
+    draws = [_v1_1_member(f"draw-{index}", f"Draw {index}") for index in range(3)]
+    state = _v1_1_pending_state(
+        effect,
+        [_v1_1_member("source", "Source", effect_ids=[effect.effect_id]), *costs, *draws],
+        hand=["cost-1", "cost-2"],
+        main_deck=["draw-0", "draw-1", "draw-2"],
+    )
+    result = _v1_1_resolve(
+        state,
+        selected_card_instance_ids=["cost-1", "cost-2"],
+    )
+    player = result.state.players["player_1"]
+    return {
+        "selected_hand_cards_discarded": player.waiting_room == ["cost-1", "cost-2"],
+        "selected_count_plus_one_drawn": player.hand == ["draw-0", "draw-1", "draw-2"],
+    }
+
+
+def _run_v1_1_waiting_live_to_bottom(effect: EffectDefinition) -> dict[str, bool]:
+    state = _v1_1_pending_state(
+        effect,
+        [
+            _v1_1_member("source", "Source", effect_ids=[effect.effect_id]),
+            _v1_1_live("waiting-live", "Waiting Live"),
+            _v1_1_member("deck-card", "Deck Card"),
+        ],
+        waiting_room=["waiting-live"],
+        main_deck=["deck-card"],
+    )
+    result = _v1_1_resolve(state, selected_card_instance_ids=["waiting-live"])
+    player = result.state.players["player_1"]
+    return {
+        "selected_live_removed_from_waiting": player.waiting_room == [],
+        "selected_live_appended_to_deck_bottom": player.main_deck
+        == ["deck-card", "waiting-live"],
+    }
+
+
+def _run_v1_1_attach_waiting_member(effect: EffectDefinition) -> dict[str, bool]:
+    state = _v1_1_pending_state(
+        effect,
+        [
+            _v1_1_member("source", "Source", effect_ids=[effect.effect_id]),
+            _v1_1_member("target", "Target", cost=9, work_keys=["nijigasaki"]),
+        ],
+        waiting_room=["target"],
+    )
+    result = _v1_1_resolve(state, selected_card_instance_ids=["target"])
+    player = result.state.players["player_1"]
+    return {
+        "attached_member_removed_from_waiting": player.waiting_room == [],
+        "member_attached_under_source": player.member_area_attachments["center"]
+        == ["target"],
+    }
+
+
+def _run_v1_1_energy_score_per_four(effect: EffectDefinition) -> dict[str, bool]:
+    energies = [_v1_1_energy(f"energy-{index}") for index in range(4)]
+    state = _v1_1_pending_state(
+        effect,
+        [_v1_1_live("source", "Source Live", effect_ids=[effect.effect_id]), *energies],
+        source_zone="live_area",
+        energy_area=[card.instance_id for card in energies],
+    )
+    result = _v1_1_resolve(
+        state,
+        selected_count=4,
+        energy_instance_ids=[card.instance_id for card in energies],
+    )
+    modifiers = result.state.players["player_1"].manual_modifiers
+    return {
+        "selected_energy_becomes_wait": all(
+            result.state.cards[card.instance_id].orientation == "wait" for card in energies
+        ),
+        "score_added_per_four_energy": [
+            modifier.amount for modifier in modifiers if modifier.modifier_type == "score"
+        ]
+        == [1],
+    }
+
+
+def _run_v1_1_repeat_mill_blade(effect: EffectDefinition) -> dict[str, bool]:
+    state = _v1_1_pending_state(
+        effect,
+        [
+            _v1_1_member("source", "Source", effect_ids=[effect.effect_id]),
+            _v1_1_member("top-1", "Top 1"),
+            _v1_1_live("top-live", "Top Live"),
+            _v1_1_member("top-3", "Top 3"),
+        ],
+        main_deck=["top-1", "top-live", "top-3"],
+    )
+    result = _v1_1_resolve(state, selected_count=3)
+    player = result.state.players["player_1"]
+    return {
+        "selected_count_cards_milled": player.waiting_room
+        == ["top-1", "top-live", "top-3"],
+        "source_waits_when_live_milled": result.state.cards["source"].orientation == "wait",
+        "blade_matches_milled_count": [
+            modifier.amount
+            for modifier in player.manual_modifiers
+            if modifier.modifier_type == "blade"
+        ]
+        == [3],
+    }
+
+
+def _run_v1_1_post_mill_fourth(effect: EffectDefinition) -> dict[str, bool]:
+    deck_cards = [_v1_1_member(f"deck-{index}", f"Deck {index}") for index in range(5)]
+    state = _v1_1_pending_state(
+        effect,
+        [
+            _v1_1_member("source", "Source", effect_ids=[effect.effect_id]),
+            _v1_1_member("milled-member", "Milled Member"),
+            _v1_1_live("selected-live", "Selected Live"),
+            *deck_cards,
+        ],
+        main_deck=[
+            "milled-member",
+            "selected-live",
+            "deck-0",
+            "deck-1",
+            "deck-2",
+            "deck-3",
+            "deck-4",
+        ],
+    )
+    first = _v1_1_resolve(state)
+    initial_mill = first.state.players["player_1"].waiting_room == [
+        "milled-member",
+        "selected-live",
+    ]
+    second = _v1_1_resolve(
+        first.state,
+        selected_card_instance_ids=["selected-live"],
+    )
+    return {
+        "first_stage_mills_two": initial_mill,
+        "selected_live_is_fourth_from_top": second.state.players["player_1"].main_deck
+        == ["deck-0", "deck-1", "deck-2", "selected-live", "deck-3", "deck-4"],
+    }
+
+
+def _run_v1_1_reveal_hand_then_conceal(effect: EffectDefinition) -> dict[str, bool]:
+    state = _v1_1_state(
+        {effect.effect_id: effect},
+        [
+            _v1_1_member("source", "Source", effect_ids=[effect.effect_id]),
+            _v1_1_member("cost-4", "Cost 4", cost=4),
+            _v1_1_member("cost-6", "Cost 6", cost=6),
+        ],
+        member_area={"left": None, "center": "source", "right": None},
+        hand=["cost-4", "cost-6"],
+    )
+    result = apply_action(
+        state,
+        ActionRequest(
+            action_type="activate_effect",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={
+                "effect_id": effect.effect_id,
+                "source_card_instance_id": "source",
+                "selected_card_instance_ids": ["cost-4", "cost-6"],
+            },
+        ),
+    )
+    player = result.state.players["player_1"]
+    return {
+        "revealed_hand_is_concealed_after_resolution": all(
+            not result.state.cards[instance_id].face_up for instance_id in ("cost-4", "cost-6")
+        ),
+        "revealed_cost_sum_modifies_score": [
+            modifier.amount
+            for modifier in player.manual_modifiers
+            if modifier.modifier_type == "score"
+        ]
+        == [1],
+    }
+
+
+def _run_v1_1_member_comparison(effect: EffectDefinition) -> dict[str, bool]:
+    source = _v1_1_member("source", "Source", cost=4, effect_ids=[effect.effect_id])
+    source.card.basic_hearts = {"heart04": 1}
+    source.card.blade = 2
+    opponent = _v1_1_member("opponent", "Opponent", cost=4)
+    opponent.owner_id = "player_2"
+    opponent.card.basic_hearts = {"heart04": 2}
+    opponent.card.blade = 2
+    state = _v1_1_pending_state(effect, [source, opponent])
+    state.players["player_2"].member_area["left"] = "opponent"
+    result = _v1_1_resolve(state, selected_card_instance_ids=["opponent"])
+    return {
+        "matching_attributes_grant_three_blade": [
+            modifier.amount
+            for modifier in result.state.players["player_1"].manual_modifiers
+            if modifier.modifier_type == "blade"
+        ]
+        == [3]
+    }
+
+
+def _run_v1_1_printemps_ready_score(effect: EffectDefinition) -> dict[str, bool]:
+    members = [
+        _v1_1_member(
+            f"member-{index}",
+            f"Member {index}",
+            unit_keys=["printemps"],
+            orientation="wait",
+        )
+        for index in range(3)
+    ]
+    state = _v1_1_pending_state(
+        effect,
+        [_v1_1_live("source", "Source Live", effect_ids=[effect.effect_id]), *members],
+        source_zone="live_area",
+    )
+    state.players["player_1"].member_area = {
+        "left": "member-0",
+        "center": "member-1",
+        "right": "member-2",
+    }
+    result = _v1_1_resolve(state)
+    player = result.state.players["player_1"]
+    return {
+        "all_printemps_members_ready": all(
+            result.state.cards[f"member-{index}"].orientation == "active"
+            for index in range(3)
+        ),
+        "ready_count_modifies_score": [
+            modifier.amount
+            for modifier in player.manual_modifiers
+            if modifier.modifier_type == "score"
+        ]
+        == [1],
+    }
+
+
+def _run_v1_1_same_name_discard_target(effect: EffectDefinition) -> dict[str, bool]:
+    state = _v1_1_pending_state(
+        effect,
+        [
+            _v1_1_member("source", "Source", effect_ids=[effect.effect_id]),
+            _v1_1_member("target", "Shared Name"),
+            _v1_1_member("discarded", "Shared Name"),
+        ],
+        hand=["discarded"],
+    )
+    state.players["player_1"].member_area["left"] = "target"
+    first = _v1_1_resolve(state, selected_card_instance_ids=["discarded"])
+    second = _v1_1_resolve(first.state, selected_card_instance_ids=["target"])
+    modifiers = second.state.players["player_1"].manual_modifiers
+    return {
+        "selected_cost_card_discarded": second.state.players["player_1"].waiting_room
+        == ["discarded"],
+        "same_name_target_gets_heart_and_blade": any(
+            modifier.modifier_type == "heart"
+            and modifier.target_card_instance_id == "target"
+            for modifier in modifiers
+        )
+        and any(
+            modifier.modifier_type == "blade"
+            and modifier.target_card_instance_id == "target"
+            for modifier in modifiers
+        ),
+    }
+
+
+def _run_v1_1_inspect_retain_score(effect: EffectDefinition) -> dict[str, bool]:
+    state = _v1_1_pending_state(
+        effect,
+        [
+            _v1_1_live("source", "Source", effect_ids=[effect.effect_id]),
+            _v1_1_live("first", "First"),
+            _v1_1_member("second", "Second"),
+            _v1_1_member("stage-1", "Stage 1", work_keys=["nijigasaki"]),
+            _v1_1_member("stage-2", "Stage 2", work_keys=["nijigasaki"]),
+        ],
+        source_zone="live_area",
+        main_deck=["first", "second"],
+    )
+    state.players["player_1"].member_area = {
+        "left": "stage-1",
+        "center": "stage-2",
+        "right": None,
+    }
+    inspected = _v1_1_resolve(state)
+    resolved = apply_action(
+        inspected.state,
+        ActionRequest(
+            action_type="resolve_effect_choice",
+            expected_revision=inspected.state.revision,
+            player_id="player_1",
+            payload={
+                "invocation_id": "invocation",
+                "selected_card_instance_ids": ["first"],
+                "ordered_card_instance_ids": ["first"],
+            },
+        ),
+    )
+    player = resolved.state.players["player_1"]
+    return {
+        "selected_live_retained_on_top": player.main_deck[0] == "first",
+        "unselected_card_moves_to_waiting": player.waiting_room == ["second"],
+        "score_and_reveal_event_recorded": any(
+            modifier.modifier_type == "score" and modifier.amount == 1
+            for modifier in player.manual_modifiers
+        )
+        and any(
+            event.event_type == "effect_top_card_revealed_in_place"
+            for event in resolved.events
+        ),
+    }
+
+
+def _run_v1_1_position_change_unit_filter(effect: EffectDefinition) -> dict[str, bool]:
+    state = _v1_1_state(
+        {effect.effect_id: effect},
+        [
+            _v1_1_member("source", "Source", effect_ids=[effect.effect_id]),
+            _v1_1_member("aqours", "Aqours", unit_keys=["aqours"]),
+            _v1_1_member("other", "Other", unit_keys=["other"]),
+            _v1_1_energy("energy"),
+        ],
+        member_area={"left": "aqours", "center": "source", "right": "other"},
+    )
+    state.players["player_1"].energy_area = ["energy"]
+    activated = apply_action(
+        state,
+        ActionRequest(
+            action_type="activate_effect",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={
+                "effect_id": effect.effect_id,
+                "source_card_instance_id": "source",
+                "energy_instance_ids": ["energy"],
+            },
+        ),
+    )
+    invocation_id = activated.state.pending_effects[0].invocation_id
+    resolved = apply_action(
+        activated.state,
+        ActionRequest(
+            action_type="resolve_effect",
+            expected_revision=activated.state.revision,
+            player_id="player_1",
+            payload={
+                "invocation_id": invocation_id,
+                "accepted": True,
+                "selected_position_slot": "left",
+            },
+        ),
+    )
+    return {
+        "position_change_targets_required_unit_area": resolved.state.players[
+            "player_1"
+        ].member_area
+        == {"left": "source", "center": "aqours", "right": "other"},
+        "position_change_energy_cost_paid": resolved.state.cards["energy"].orientation
+        == "wait",
+    }
+
+
+def _load_effect_definition(effect_id: str) -> EffectDefinition:
+    registry = load_effect_registry(DEFAULT_EFFECT_REGISTRY)
+    return next(effect for effect in registry.effects if effect.effect_id == effect_id)
+
+
+def _v1_1_state(
+    definitions: dict[str, EffectDefinition],
+    cards: list[CardInstance],
+    *,
+    member_area: dict[str, str | None] | None = None,
+    hand: list[str] | None = None,
+) -> MatchState:
+    return MatchState(
+        match_id="effect-verification-v1-1",
+        seed=23,
+        phase="first_main",
+        first_player_id="player_1",
+        second_player_id="player_2",
+        active_player_id="player_1",
+        players={
+            "player_1": PlayerState(
+                player_id="player_1",
+                name="Player 1",
+                member_area=member_area
+                or {"left": None, "center": None, "right": None},
+                hand=list(hand or []),
+            ),
+            "player_2": PlayerState(player_id="player_2", name="Player 2"),
+        },
+        cards={card.instance_id: card for card in cards},
+        effect_definitions=definitions,
+    )
+
+
+def _v1_1_pending_state(
+    effect: EffectDefinition,
+    cards: list[CardInstance],
+    *,
+    hand: list[str] | None = None,
+    main_deck: list[str] | None = None,
+    waiting_room: list[str] | None = None,
+    energy_area: list[str] | None = None,
+    source_zone: str = "stage",
+) -> MatchState:
+    member_area = {"left": None, "center": None, "right": None}
+    live_area: list[str] = []
+    if source_zone == "stage":
+        member_area["center"] = "source"
+    else:
+        live_area = ["source"]
+    state = _v1_1_state(
+        {effect.effect_id: effect},
+        cards,
+        member_area=member_area,
+        hand=hand,
+    )
+    player = state.players["player_1"]
+    player.main_deck = list(main_deck or [])
+    player.waiting_room = list(waiting_room or [])
+    player.energy_area = list(energy_area or [])
+    player.live_area = live_area
+    state.pending_effects = [
+        EffectInvocation(
+            invocation_id="invocation",
+            effect_id=effect.effect_id,
+            source_card_instance_id="source",
+            player_id="player_1",
+            trigger_event=effect.trigger,
+        )
+    ]
+    return state
+
+
+def _v1_1_resolve(state: MatchState, **payload: object):
+    return apply_action(
+        state,
+        ActionRequest(
+            action_type="resolve_effect",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={"invocation_id": "invocation", "accepted": True, **payload},
+        ),
+    )
+
+
+def _v1_1_member(
+    instance_id: str,
+    name_ja: str,
+    *,
+    cost: int = 1,
+    work_keys: list[str] | None = None,
+    unit_keys: list[str] | None = None,
+    effect_ids: list[str] | None = None,
+    orientation: str = "active",
+    card_code: str | None = None,
+) -> CardInstance:
+    return CardInstance(
+        instance_id=instance_id,
+        owner_id="player_1",
+        orientation=orientation,
+        card=CardDefinition(
+            card_code=card_code or instance_id,
+            card_id=instance_id,
+            name_ja=name_ja,
+            card_type="member",
+            cost=cost,
+            work_keys=list(work_keys or []),
+            unit_keys=list(unit_keys or []),
+            effect_ids=list(effect_ids or []),
+        ),
+    )
+
+
+def _v1_1_live(
+    instance_id: str,
+    name_ja: str,
+    *,
+    effect_ids: list[str] | None = None,
+) -> CardInstance:
+    return CardInstance(
+        instance_id=instance_id,
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code=instance_id,
+            card_id=instance_id,
+            name_ja=name_ja,
+            card_type="live",
+            score=1,
+            effect_ids=list(effect_ids or []),
+        ),
+    )
+
+
+def _v1_1_energy(instance_id: str) -> CardInstance:
+    return CardInstance(
+        instance_id=instance_id,
+        owner_id="player_1",
+        orientation="active",
+        card=CardDefinition(
+            card_code=instance_id,
+            card_id=instance_id,
+            name_ja="Energy",
+            card_type="energy",
+        ),
+    )
+
+
+def _load_visuals_for_effect_ids(
+    database_path: Path,
+    effect_ids: list[str],
+) -> dict[str, CardVisual]:
+    if not database_path.exists():
+        return {}
+    visuals: dict[str, CardVisual] = {}
+    try:
+        with sqlite3.connect(database_path) as connection:
+            connection.row_factory = sqlite3.Row
+            for effect_id in effect_ids:
+                card_code = effect_id.rsplit(":", 1)[0]
+                visual = _visual_by_card_code(
+                    connection,
+                    card_code,
+                    role_ja="検証対象",
+                    role_zh="验证对象",
+                )
+                if visual is not None:
+                    visuals[effect_id] = visual
+    except sqlite3.Error:
+        return {}
+    return visuals
+
+
+_V1_1_CHECK_LABELS: dict[str, tuple[str, str]] = {
+    "effective_cost_reduced": ("実効登場 cost を状態から算出", "根据状态计算实际登场费用"),
+    "static_heart_uses_live_state": ("静的 Heart が現在状態を反映", "常时 Heart 反映当前状态"),
+    "static_score_uses_live_state": ("静的 score が現在状態を反映", "常时分数反映当前状态"),
+    "matched_live_added_to_hand": ("最初の Live を手札へ", "第一张 Live 加入手牌"),
+    "cost_and_nonmatches_to_waiting": ("cost と非該当カードを控室へ", "成本与不匹配卡进入控室"),
+    "public_reveal_event_recorded": ("公開 event を記録", "记录公开事件"),
+    "selected_hand_cards_discarded": ("選択した手札を控室へ", "所选手牌进入控室"),
+    "selected_count_plus_one_drawn": ("選択枚数 +1 を draw", "抽取所选数量加一"),
+    "selected_live_removed_from_waiting": ("選択 Live を控室から除外", "所选 Live 离开控室"),
+    "selected_live_appended_to_deck_bottom": ("選択 Live をデッキ下へ", "所选 Live 放到牌堆底"),
+    "attached_member_removed_from_waiting": ("附属 Member を控室から除外", "附属 Member 离开控室"),
+    "member_attached_under_source": ("自身の下に Member を附属", "Member 附属在自身下方"),
+    "selected_energy_becomes_wait": ("選択 Energy が Wait", "所选 Energy 变为 Wait"),
+    "score_added_per_four_energy": ("Energy 4 枚ごとに score +1", "每 4 张 Energy 分数加一"),
+    "selected_count_cards_milled": ("指定枚数を控室へ", "指定数量送入控室"),
+    "source_waits_when_live_milled": ("Live が出たため自身が Wait", "出现 Live 后自身变为 Wait"),
+    "blade_matches_milled_count": ("mill 枚数分 Blade 加算", "按堆墓数量增加 Blade"),
+    "first_stage_mills_two": ("第一段で上 2 枚を控室へ", "第一段将顶 2 张送入控室"),
+    "selected_live_is_fourth_from_top": ("選択 Live が上から 4 枚目", "所选 Live 位于牌堆顶第四张"),
+    "revealed_hand_is_concealed_after_resolution": ("解決後に手札を再び非公開", "结算后手牌重新隐藏"),
+    "revealed_cost_sum_modifies_score": ("公開 cost 合計で score 加算", "按公开卡费用合计增加分数"),
+    "matching_attributes_grant_three_blade": ("一致した 3 属性で Blade +3", "三个匹配属性使 Blade 加三"),
+    "all_printemps_members_ready": ("Printemps 全員を Active", "所有 Printemps 变为 Active"),
+    "ready_count_modifies_score": ("Active 化枚数で score 加算", "按复原数量增加分数"),
+    "selected_cost_card_discarded": ("選択 cost カードを控室へ", "所选成本卡进入控室"),
+    "same_name_target_gets_heart_and_blade": ("同名対象に Heart と Blade", "同名目标获得 Heart 与 Blade"),
+    "selected_live_retained_on_top": ("選択 Live をデッキ上に保持", "所选 Live 保留在牌堆顶"),
+    "unselected_card_moves_to_waiting": ("非選択カードを控室へ", "未选卡进入控室"),
+    "score_and_reveal_event_recorded": ("score と公開 event を記録", "记录分数与公开事件"),
+    "position_change_targets_required_unit_area": ("指定 unit の Area と入れ替え", "与指定组合所在区域交换"),
+    "position_change_energy_cost_paid": ("Position Change の Energy cost を支払い", "支付位置移动的 Energy 成本"),
+}
+
+
+def _format_v1_1_checks(checks: dict[str, bool], language: ReportLanguage) -> list[str]:
+    index = 0 if language == "ja" else 1
+    return [
+        f"{_V1_1_CHECK_LABELS.get(name, (name, name))[index]}: {'OK' if passed else 'NG'}"
+        for name, passed in checks.items()
     ]
 
 
@@ -289,10 +1137,13 @@ def write_effect_verification_report(
     (output_dir / "effect-verification-summary.json").write_text(
         json.dumps(
             {
-                "schema_version": "effect_verification_report_v0.3",
+                "schema_version": "effect_verification_report_v0.4",
                 "total": len(results),
                 "passed": sum(1 for result in results if result.status == "PASS"),
                 "failed": sum(1 for result in results if result.status != "PASS"),
+                "dynamic_state_transition_scenarios": sum(
+                    1 for result in results if not result.scenario_id.startswith("registry_contract_")
+                ),
                 "results": [asdict(result) for result in results],
             },
             ensure_ascii=False,

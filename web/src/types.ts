@@ -374,7 +374,10 @@ export interface MatchState {
   players: Record<string, PlayerState>;
   cards: Record<string, CardInstance>;
   controllers?: Record<string, "human" | "simple_ai">;
-  controller_policy_versions?: Record<string, "simple_ai_v0" | "simple_ai_v1">;
+  controller_policy_versions?: Record<
+    string,
+    "simple_ai_v0" | "simple_ai_v1" | "simple_ai_v1_1"
+  >;
   effect_registry_version: string | null;
   effect_definitions: Record<string, EffectDefinition>;
   pending_effects: EffectInvocation[];

@@ -61,63 +61,72 @@ def discover_effect_candidates(
     include_registered: bool = False,
 ) -> list[EffectCandidate]:
     registry = load_effect_registry(registry_path)
-    registered = {
-        (effect.card_code, effect.raw_text_hash, effect.effect_index)
+    registered_by_id = {
+        effect.effect_id: (
+            effect.card_code,
+            effect.text_revision_id,
+            effect.raw_text_hash,
+            effect.effect_index,
+        )
         for effect in registry.effects
     }
+    registered = set(registered_by_id.values())
     registered_ids = {effect.effect_id for effect in registry.effects}
-    emitted_ids: set[str] = set()
-    candidates: list[EffectCandidate] = []
+    selected_candidates: dict[str, EffectCandidate] = {}
     with connect_database(database_path) as connection:
         for row in _effect_text_rows(connection):
+            row_candidates: list[EffectCandidate] = []
             for pattern in _PATTERNS:
                 candidate = pattern(row)
                 if candidate is None:
                     continue
+                row_candidates.append(candidate)
+            row_candidates.extend(_manual_timing_candidates(row))
+            for candidate in row_candidates:
                 identity = (
                     candidate.card_code,
+                    candidate.text_revision_id,
                     candidate.raw_text_hash,
                     candidate.effect_index,
                 )
                 already_registered = (
                     identity in registered or candidate.effect_id in registered_ids
                 )
-                if (
-                    (include_registered or not already_registered)
-                    and candidate.effect_id not in emitted_ids
-                ):
-                    candidates.append(
-                        EffectCandidate(
-                            **{
-                                **candidate.__dict__,
-                                "already_registered": already_registered,
-                            }
-                        )
-                    )
-                    emitted_ids.add(candidate.effect_id)
-            for candidate in _manual_timing_candidates(row):
-                identity = (
-                    candidate.card_code,
-                    candidate.raw_text_hash,
-                    candidate.effect_index,
+                candidate = EffectCandidate(
+                    **{
+                        **candidate.__dict__,
+                        "already_registered": already_registered,
+                    }
                 )
-                already_registered = (
-                    identity in registered or candidate.effect_id in registered_ids
-                )
-                if (
-                    (include_registered or not already_registered)
-                    and candidate.effect_id not in emitted_ids
-                ):
-                    candidates.append(
-                        EffectCandidate(
-                            **{
-                                **candidate.__dict__,
-                                "already_registered": already_registered,
-                            }
-                        )
-                    )
-                    emitted_ids.add(candidate.effect_id)
+                current = selected_candidates.get(candidate.effect_id)
+                if current is None or _candidate_priority(
+                    candidate,
+                    registered_by_id,
+                ) > _candidate_priority(current, registered_by_id):
+                    selected_candidates[candidate.effect_id] = candidate
+    candidates = [
+        candidate
+        for candidate in selected_candidates.values()
+        if include_registered or not candidate.already_registered
+    ]
     return sorted(candidates, key=lambda item: (item.card_code, item.effect_index))
+
+
+def _candidate_priority(
+    candidate: EffectCandidate,
+    registered_by_id: dict[str, tuple[str, int, str, int]],
+) -> tuple[int, int, int]:
+    identity = (
+        candidate.card_code,
+        candidate.text_revision_id,
+        candidate.raw_text_hash,
+        candidate.effect_index,
+    )
+    exact_registered_identity = int(
+        registered_by_id.get(candidate.effect_id) == identity
+    )
+    structured = int(candidate.pattern_id != "manual_timing_fallback")
+    return exact_registered_identity, candidate.text_revision_id, structured
 
 
 def render_candidates_json(candidates: list[EffectCandidate]) -> str:
@@ -174,15 +183,12 @@ def _base_with_execution_mode(
 
 
 def _timing_segments(row: sqlite3.Row) -> list[tuple[int, str]]:
-    text = str(row["raw_effect_text_ja"]).strip()
-    starts = _timing_effect_starts(text)
-    if not starts:
-        return [(1, text)]
-    segments: list[tuple[int, str]] = []
-    for effect_index, (start, _marker) in enumerate(starts, start=1):
-        end = starts[effect_index][0] if effect_index < len(starts) else len(text)
-        segments.append((effect_index, text[start:end].strip()))
-    return segments
+    return [
+        (effect_index, label)
+        for effect_index, _marker, label in _timing_segments_with_markers(
+            str(row["raw_effect_text_ja"])
+        )
+    ]
 
 
 def _matching_segment(
@@ -1384,6 +1390,17 @@ def _wait_opponent_member_by_cost(row: sqlite3.Row) -> EffectCandidate | None:
             "actions": [{"action_type": "apply_wait_member", "target": "selected"}],
             "duration": "live",
         },
+        "【ライブ開始時】相手のステージにいるコスト2以下のメンバー1人をウェイトにする。": {
+            "pattern_id": "live_start_wait_opponent_cost2_member",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "frequency_limit": "once_per_live",
+            "condition": {},
+            "maximum_cost": 2,
+            "minimum": 1,
+            "actions": [{"action_type": "apply_wait_member", "target": "selected"}],
+            "duration": "live",
+        },
         "【ライブ開始時】自分のステージにコスト10以上のメンバーがいる場合、相手のステージにいるコスト4以下のメンバー1人をウェイトにする。": {
             "pattern_id": "live_start_stage_cost10_wait_opponent_cost4_member",
             "timing": "live_start",
@@ -1465,6 +1482,11 @@ def _dual_onplay_wait_opponent_member_patterns(
 ) -> EffectCandidate | None:
     text = str(row["raw_effect_text_ja"]).strip()
     patterns: dict[str, dict[str, Any]] = {
+        "【登場】/【ライブ開始時】相手のステージにいるコスト2以下のメンバー1人をウェイトにする。": {
+            "pattern_id": "onplay_wait_opponent_cost2_member",
+            "condition": {},
+            "choice": {"maximum_cost": 2},
+        },
         "【登場】/【ライブ開始時】相手のステージにいるコスト9以下のメンバー1人をウェイトにする。": {
             "pattern_id": "onplay_wait_opponent_cost9_member",
             "condition": {},
@@ -4617,6 +4639,59 @@ def _onplay_pay1_choose_wait_opponent_cost4_or_draw1(
     )
 
 
+def _live_start_pay1_choose_wait_opponent_cost4_or_draw1(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    label = (
+        "【ライブ開始時】【E】支払ってもよい：以下から1つを選ぶ。 "
+        "・相手のステージにいるコスト4以下のメンバー1人をウェイトにする。 "
+        "・カードを1枚引く。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base(
+            row,
+            pattern_id="live_start_pay1_choose_wait_opponent_cost4_or_draw1",
+            effect_index=effect_index,
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        frequency_limit="once_per_live",
+        is_optional=True,
+        condition={"minimum_active_energy": 1},
+        cost=[{"action_type": "pay_energy", "amount": 1}],
+        choice={
+            "choice_type": "choose_effect_branch",
+            "branch_ids": ["wait_opponent_cost4", "draw1"],
+            "branch_selection_minimum": {"wait_opponent_cost4": 1},
+            "branch_selection_maximum": {"wait_opponent_cost4": 1},
+            "branch_choice_filters": {
+                "wait_opponent_cost4": {
+                    "choice_type": "member_from_stage",
+                    "zone": "stage",
+                    "target_player": "opponent",
+                    "card_type": "member",
+                    "maximum_cost": 4,
+                }
+            },
+        },
+        actions=[
+            {
+                "action_type": "apply_wait_member",
+                "target": "selected",
+                "branch": "wait_opponent_cost4",
+            },
+            {"action_type": "draw_card", "amount": 1, "branch": "draw1"},
+        ],
+        duration=None,
+    )
+
+
 def _onplay_mill5(row: sqlite3.Row) -> EffectCandidate | None:
     expected_options = {
         "【登場】デッキの上からカードを5枚控え室に置く。": 5,
@@ -7342,7 +7417,7 @@ def _live_success_simple_effects(row: sqlite3.Row) -> EffectCandidate | None:
             "duration": "live",
             "execution_mode": "auto_resolve",
         },
-        "【ライブ成功時】自分のステージに「澁谷かのん」と「唐 可可」がいる場合、カードを1枚引く。 (必要ハートを確認する時、エールで出た【ALLブレード】は任意の色のハートとして扱う。)": {
+        "【ライブ成功時】自分のステージに「澁谷かのん」と「唐 可可」がいる場合、カードを1枚引く。": {
             "suffix": "stage_kanon_keke_draw1",
             "condition": {"own_stage_member_names_present": ["澁谷かのん", "唐 可可"]},
             "actions": [{"action_type": "draw_card", "amount": 1}],
@@ -9263,6 +9338,57 @@ def _activated_more_simple_effects(row: sqlite3.Row) -> EffectCandidate | None:
 
 def _static_modifier_effects(row: sqlite3.Row) -> EffectCandidate | None:
     patterns: dict[str, dict[str, Any]] = {
+        "【常時】自分のライブ中のライブカードに、【ライブ開始時】能力も【ライブ成功時】能力も持たないカードがあるかぎり、【heart06】【heart06】を得る。": {
+            "suffix": "live_without_start_or_success_heart06_2",
+            "condition": {"own_live_has_card_without_live_start_or_success_effects": True},
+            "actions": [
+                {"action_type": "gain_heart", "amount": 2, "color_slot": "heart06"}
+            ],
+        },
+        "【常時】自分のステージに名前が異なるメンバーが3人以上いるかぎり、【heart03】を得る。": {
+            "suffix": "stage_distinct_names3_heart03",
+            "condition": {"own_stage_member_distinct_name_count_at_least": 3},
+            "actions": [
+                {"action_type": "gain_heart", "amount": 1, "color_slot": "heart03"}
+            ],
+        },
+        "【常時】自分のステージにいるこのメンバー以外の『A-RISE』のメンバー1人につき、【heart05】を得る。": {
+            "suffix": "heart05_per_other_a_rise_member",
+            "actions": [
+                {
+                    "action_type": "gain_heart",
+                    "amount_source": "own_stage_member_unit_count",
+                    "color_slot": "heart05",
+                    "value": {"unit_key": "a_rise", "exclude_source": True},
+                }
+            ],
+        },
+        "【常時】自分のステージのエリアすべてに『蓮ノ空』のメンバーが登場しており、かつ名前が異なる場合、「【常時】ライブの合計スコアを＋１する。」を得る。": {
+            "suffix": "hasunosora_all_slots_distinct_score1",
+            "condition": {
+                "own_stage_member_count_exact": 3,
+                "own_stage_members_only_work_key": "hasunosora",
+                "own_stage_member_distinct_name_count_at_least": 3,
+            },
+            "actions": [{"action_type": "modify_score", "amount": 1}],
+        },
+        "【常時】自分のステージにウェイト状態の『虹ヶ咲』のメンバーがいるかぎり、手札にあるこのメンバーカードのコストは2減る。": {
+            "suffix": "hand_cost_minus2_if_wait_nijigasaki_member",
+            "condition": {
+                "source_zone": "hand",
+                "own_stage_wait_member_work_count_at_least": {
+                    "work_key": "nijigasaki",
+                    "count": 1,
+                },
+            },
+            "actions": [
+                {
+                    "action_type": "reduce_play_cost",
+                    "amount": 2,
+                    "value": {"target_filter": {"card_code": "PL!N-pb1-008"}},
+                }
+            ],
+        },
         "【常時】自分か相手のステージにコスト13以上のメンバーがいる場合、 【ブレード】【ブレード】 を得る。": {
             "suffix": "any_stage_cost13_blade2",
             "condition": {"any_stage_member_cost_at_least": 13},
@@ -13812,6 +13938,470 @@ def _phase5_v1_final_static_effects(row: sqlite3.Row) -> EffectCandidate | None:
     return None
 
 
+def _simple_ai_v1_1_safe_effects(row: sqlite3.Row) -> EffectCandidate | None:
+    patterns: dict[str, dict[str, Any]] = {
+        "【登場】手札の『みらくらぱーく！』のメンバーカードを好きな枚数控え室に置き、その後、その枚数に1を足した枚数のカードを引く。": {
+            "suffix": "onplay_discard_miracra_draw_count_plus1",
+            "effect_type": "triggered",
+            "timing": "on_play",
+            "trigger": "member_played",
+            "frequency_limit": "none",
+            "cost": [{"action_type": "discard_from_hand"}],
+            "cost_choice": {
+                "choice_type": "card_from_zone",
+                "zone": "hand",
+                "card_type": "member",
+                "unit_key": "miracra_park",
+                "minimum": 0,
+                "maximum": 60,
+            },
+            "actions": [
+                {
+                    "action_type": "draw_card",
+                    "amount_source": "selected_count",
+                    "value": {"offset": 1},
+                }
+            ],
+        },
+        "【登場】手札を1枚控え室に置いてもよい：ライブカードが公開されるまで、自分のデッキの一番上のカードを公開し続ける。そのライブカードを手札に加え、これにより公開されたほかのすべてのカードを控え室に置く。": {
+            "suffix": "onplay_reveal_until_live_to_hand",
+            "effect_type": "triggered",
+            "timing": "on_play",
+            "trigger": "member_played",
+            "frequency_limit": "none",
+            "is_optional": True,
+            "cost": [{"action_type": "discard_from_hand"}],
+            "cost_choice": {
+                "choice_type": "card_from_zone",
+                "zone": "hand",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [
+                {
+                    "action_type": "reveal_until_matching_to_hand_else_waiting",
+                    "card_type": "live",
+                }
+            ],
+        },
+        "【登場】自分の控え室からコスト9以下の『虹ヶ咲』のメンバーカード1枚をこのメンバーの下に置く。": {
+            "suffix": "onplay_attach_waiting_nijigasaki_cost9",
+            "effect_type": "triggered",
+            "timing": "on_play",
+            "trigger": "member_played",
+            "frequency_limit": "none",
+            "condition": {"source_zone": "stage"},
+            "choice": {
+                "choice_type": "card_from_zone",
+                "zone": "waiting_room",
+                "card_type": "member",
+                "work_key": "nijigasaki",
+                "maximum_cost": 9,
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [{"action_type": "attach_selected_under_source"}],
+        },
+        "【登場】自分の控え室からライブカードを1枚までデッキの一番下に置く。": {
+            "suffix": "onplay_waiting_live_up_to1_deck_bottom",
+            "effect_type": "triggered",
+            "timing": "on_play",
+            "trigger": "member_played",
+            "frequency_limit": "none",
+            "choice": {
+                "choice_type": "card_from_zone",
+                "zone": "waiting_room",
+                "card_type": "live",
+                "minimum": 0,
+                "maximum": 1,
+            },
+            "actions": [{"action_type": "move_selected_to_deck_bottom"}],
+        },
+        "【起動】【センター】【ターン1回】メンバー1人をウェイトにする：ライブ終了時まで、これによってウェイト状態になったメンバーは、「【常時】ライブの合計スコアを＋１する。」を得る。（この能力はセンターエリアに登場している場合のみ起動できる。）": {
+            "suffix": "activated_center_wait_member_score1",
+            "effect_type": "activated",
+            "timing": "activated_main",
+            "trigger": "player_activation",
+            "frequency_limit": "once_per_turn",
+            "condition": {"source_zone": "stage", "source_slot": "center"},
+            "cost": [{"action_type": "apply_wait_member", "target": "selected"}],
+            "cost_choice": {
+                "choice_type": "member_from_stage",
+                "zone": "stage",
+                "card_type": "member",
+                "orientation": "active",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [{"action_type": "modify_score", "amount": 1}],
+            "duration": "live",
+        },
+        "【ライブ開始時】手札の『Aqours』のカードを1枚公開してもよい：これにより公開したカードをデッキの一番上か一番下に置き、ライブ終了時まで、【ブレード】を得る。": {
+            "suffix": "live_start_reveal_aqours_hand_top_bottom_blade1",
+            "effect_type": "triggered",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "frequency_limit": "once_per_live",
+            "is_optional": True,
+            "choice": {
+                "choice_type": "card_from_zone",
+                "zone": "hand",
+                "unit_key": "aqours",
+                "minimum": 1,
+                "maximum": 1,
+                "destination_options": ["main_deck_top", "main_deck_bottom"],
+            },
+            "actions": [
+                {"action_type": "reveal_selected_cards"},
+                {"action_type": "move_selected_to_deck_top_or_bottom"},
+                {"action_type": "gain_blade", "amount": 1},
+            ],
+            "duration": "live",
+        },
+        "【ライブ成功時】【E】を好きな数支払ってもよい：これにより支払った【E】4つにつき、このカードのスコアを＋１する。": {
+            "suffix": "live_success_pay_any_energy_score_per4",
+            "effect_type": "triggered",
+            "timing": "live_success",
+            "trigger": "live_succeeded",
+            "frequency_limit": "once_per_live",
+            "is_optional": True,
+            "choice": {
+                "choice_type": "choose_count",
+                "amount_source": "own_active_energy_count",
+                "minimum": 0,
+                "maximum": 60,
+            },
+            "cost": [
+                {"action_type": "pay_energy", "amount_source": "selected_count"}
+            ],
+            "actions": [
+                {
+                    "action_type": "modify_score",
+                    "amount_source": "selected_count",
+                    "value": {"divisor": 4},
+                }
+            ],
+            "duration": "live",
+        },
+        "【登場】自分のデッキの上からカードを2枚控え室に置く。その後、自分の控え室からライブカード1枚を自分のデッキの一番上から4枚目に置いてもよい。": {
+            "suffix": "onplay_mill2_waiting_live_deck_fourth",
+            "effect_type": "triggered",
+            "timing": "on_play",
+            "trigger": "member_played",
+            "frequency_limit": "none",
+            "choice": {
+                "choice_type": "post_action_card_from_zone",
+                "zone": "waiting_room",
+                "card_type": "live",
+                "minimum": 0,
+                "maximum": 1,
+            },
+            "actions": [
+                {"action_type": "mill_top_cards", "amount": 2},
+                {
+                    "action_type": "move_selected_to_deck_position",
+                    "value": {"position": 4},
+                },
+            ],
+        },
+        "【ライブ開始時】自分のデッキの一番上のカードを控え室に置いてもよい。そうした場合、ライブ終了時まで、【ブレード】を得る。これにより控え室に置いたカードがライブカードの場合、このメンバーをウェイトにする。自分はこの手順をさらに4回まで繰り返してもよい。": {
+            "suffix": "live_start_mill_up_to5_blade_each_wait_if_live",
+            "effect_type": "triggered",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "frequency_limit": "once_per_live",
+            "choice": {
+                "choice_type": "choose_count",
+                "minimum": 0,
+                "maximum": 5,
+            },
+            "actions": [
+                {"action_type": "mill_top_cards", "amount_source": "selected_count"},
+                {"action_type": "gain_blade", "amount_source": "selected_count"},
+                {
+                    "action_type": "apply_wait_member",
+                    "target": "source",
+                    "value": {"condition": {"milled_any_card_type": "live"}},
+                },
+            ],
+            "duration": "live",
+        },
+        "【起動】【ターン1回】手札にあるメンバーカードを好きな枚数公開する：公開したカードのコストの合計が、10、20、30、40、50のいずれかの場合、ライブ終了時まで、「【常時】ライブの合計スコアを＋１する。」を得る。": {
+            "suffix": "activated_reveal_members_cost_multiple10_score1",
+            "effect_type": "activated",
+            "timing": "activated_main",
+            "trigger": "player_activation",
+            "frequency_limit": "once_per_turn",
+            "condition": {"source_zone": "stage"},
+            "cost": [{"action_type": "reveal_selected_cards"}],
+            "cost_choice": {
+                "choice_type": "card_from_zone",
+                "zone": "hand",
+                "card_type": "member",
+                "minimum": 0,
+                "maximum": 60,
+            },
+            "actions": [
+                {
+                    "action_type": "modify_score",
+                    "amount": 1,
+                    "value": {
+                        "condition": {
+                            "cost_selected_card_cost_sum_in": [10, 20, 30, 40, 50]
+                        }
+                    },
+                },
+                {
+                    "action_type": "conceal_selected_cards",
+                    "target": "cost_selected",
+                },
+            ],
+            "duration": "live",
+        },
+        "【起動】【ターン1回】【E】：このメンバーを『Aqours』か『Saint Snow』のメンバーがいるエリアにポジションチェンジする。": {
+            "suffix": "activated_pay1_position_to_aqours_or_saint_snow",
+            "effect_type": "activated",
+            "timing": "activated_main",
+            "trigger": "player_activation",
+            "frequency_limit": "once_per_turn",
+            "condition": {"source_zone": "stage", "minimum_active_energy": 1},
+            "cost": [{"action_type": "pay_energy", "amount": 1}],
+            "choice": {
+                "choice_type": "position_change_source",
+                "position_target_unit_keys_any": ["aqours", "saint_snow"],
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [{"action_type": "position_change_source"}],
+        },
+        "【登場】相手のステージにいる「ミア・テイラー」以外のメンバーを1人選ぶ。そのメンバーが持つハートと、このメンバーが持つハートの中に同じ色のハートがある場合、ライブ終了時まで、【ブレード】を得る。それぞれのメンバーのコストが同じ場合、元々の【ブレード】の数が同じ場合についても同じことを行う。": {
+            "suffix": "onplay_compare_opponent_member_gain_blade_per_match",
+            "effect_type": "triggered",
+            "timing": "on_play",
+            "trigger": "member_played",
+            "frequency_limit": "none",
+            "choice": {
+                "choice_type": "member_from_stage",
+                "zone": "stage",
+                "target_player": "opponent",
+                "card_type": "member",
+                "exclude_name_ja_any": ["ミア・テイラー"],
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [
+                {
+                    "action_type": "gain_blade",
+                    "amount_source": "selected_member_matching_source_attribute_count",
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のステージにいる『虹ヶ咲』のメンバー1人につき、自分のデッキの上からカードを1枚見る。その中から1枚までをデッキの上に置き、残りを控え室に置く。その後、自分のデッキの一番上のカードを1枚公開する。これによりライブカードを公開した場合、このカードのスコアを＋１する。": {
+            "suffix": "live_start_inspect_per_nijigasaki_reveal_top_live_score1",
+            "effect_type": "triggered",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "frequency_limit": "once_per_live",
+            "choice": {
+                "choice_type": "inspect_top_select",
+                "amount_source": "own_stage_member_work_count",
+                "amount_source_work_key": "nijigasaki",
+                "minimum": 0,
+                "maximum": 1,
+                "selected_destination": "main_deck_top_ordered",
+                "unselected_destination": "waiting_room",
+            },
+            "actions": [
+                {"action_type": "inspect_top_cards"},
+                {"action_type": "reorder_deck_top"},
+                {"action_type": "move_remaining_cards"},
+                {"action_type": "reveal_top_in_place"},
+                {
+                    "action_type": "modify_score",
+                    "amount": 1,
+                    "value": {
+                        "condition": {"last_revealed_top_card_type": "live"}
+                    },
+                },
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分のステージにいる『Printemps』のメンバーをアクティブにする。これによりウェイト状態のメンバーが3人以上アクティブ状態になったとき、このカードのスコアを＋１する。": {
+            "suffix": "live_start_ready_printemps_score_if_three",
+            "effect_type": "triggered",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "frequency_limit": "once_per_live",
+            "execution_mode": "auto_resolve",
+            "actions": [
+                {
+                    "action_type": "ready_member",
+                    "target": "self_stage_unit",
+                    "value": {"unit_key": "printemps"},
+                },
+                {
+                    "action_type": "modify_score",
+                    "amount": 1,
+                    "value": {
+                        "condition": {"effect_ready_member_count_at_least": 3}
+                    },
+                },
+            ],
+            "duration": "live",
+        },
+        "【登場】【センター】自分の成功ライブカード置き場に【スコア】を持つ『μ's』のカードが1枚ある場合、ライブ終了時まで、「【常時】ライブの合計スコアを＋１する。」を得る。2枚以上ある場合、代わりに「【常時】ライブの合計スコアを＋２する。」を得る。（この能力はセンターエリアに登場した場合のみ発動する。）": {
+            "suffix": "onplay_center_success_score_cards_score_bonus",
+            "effect_type": "triggered",
+            "timing": "on_play",
+            "trigger": "member_played",
+            "frequency_limit": "none",
+            "execution_mode": "auto_resolve",
+            "condition": {
+                "source_slot": "center",
+                "success_live_count_at_least": 1,
+            },
+            "actions": [
+                {
+                    "action_type": "modify_score",
+                    "amount_source": "success_live_score_card_count_capped",
+                    "value": {"cap": 2},
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】自分の控え室にあるすべてのメンバーカードをシャッフルし、デッキの下に置いてもよい。これにより『みらくらぱーく！』のカードを15枚以上デッキの下に置いた場合、ライブ終了時まで、自分のステージにいる「安養寺姫芽」1人は【ブレード】【ブレード】【ブレード】を得る。": {
+            "suffix": "live_start_shuffle_waiting_members_hime_blade3",
+            "effect_type": "triggered",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "frequency_limit": "once_per_live",
+            "is_optional": True,
+            "choice": {
+                "choice_type": "post_action_card_from_zone",
+                "zone": "stage",
+                "card_type": "member",
+                "name_ja_any": ["安養寺姫芽"],
+                "minimum": 1,
+                "maximum": 1,
+                "post_action_condition_key": "bulk_moved_waiting_room_member_unit_count:miracra_park",
+                "post_action_condition_minimum": 15,
+            },
+            "actions": [
+                {
+                    "action_type": "move_waiting_room_members_to_deck_bottom",
+                    "target": "self",
+                },
+                {
+                    "action_type": "gain_blade",
+                    "target": "selected",
+                    "amount": 3,
+                },
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】手札を1枚控え室に置いてもよい：ライブ終了時まで、これにより控え室に置いたカードと同じグループ名を持つメンバー1人は、【heart01】を得る。": {
+            "suffix": "live_start_discard_same_unit_member_heart01",
+            "effect_type": "triggered",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "frequency_limit": "once_per_live",
+            "is_optional": True,
+            "cost": [{"action_type": "discard_from_hand"}],
+            "cost_choice": {
+                "choice_type": "card_from_zone",
+                "zone": "hand",
+                "share_unit_with_stage": True,
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "choice": {
+                "choice_type": "member_from_stage",
+                "zone": "stage",
+                "card_type": "member",
+                "share_unit_with_cost_selected": True,
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [
+                {
+                    "action_type": "gain_heart",
+                    "target": "selected",
+                    "amount": 1,
+                    "color_slot": "heart01",
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】手札を1枚控え室に置いてもよい：これにより控え室に置いたカードがメンバーカードの場合、控え室に置いたカードと同じ名前を持つメンバー1人は、ライブ終了時まで、【heart04】【ブレード】を得る。": {
+            "suffix": "live_start_discard_same_name_member_heart04_blade1",
+            "effect_type": "triggered",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "frequency_limit": "once_per_live",
+            "is_optional": True,
+            "cost": [{"action_type": "discard_from_hand"}],
+            "cost_choice": {
+                "choice_type": "card_from_zone",
+                "zone": "hand",
+                "card_type": "member",
+                "same_name_as_stage": True,
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "choice": {
+                "choice_type": "member_from_stage",
+                "zone": "stage",
+                "card_type": "member",
+                "same_name_as_cost_selected": True,
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [
+                {
+                    "action_type": "gain_heart",
+                    "target": "selected",
+                    "amount": 1,
+                    "color_slot": "heart04",
+                },
+                {
+                    "action_type": "gain_blade",
+                    "target": "selected",
+                    "amount": 1,
+                },
+            ],
+            "duration": "live",
+        },
+    }
+    for label, values in patterns.items():
+        matched = _matching_segment(row, label)
+        if matched is None:
+            continue
+        effect_index, exact_label = matched
+        execution_mode = values.get("execution_mode", "prompt_then_resolve")
+        return EffectCandidate(
+            **_base_with_execution_mode(
+                row,
+                pattern_id=f"simple_ai_v1_1_{values['suffix']}",
+                effect_index=effect_index,
+                execution_mode=execution_mode,
+            ),
+            label_ja=exact_label,
+            effect_type=values["effect_type"],
+            timing=values["timing"],
+            trigger=values["trigger"],
+            frequency_limit=values["frequency_limit"],
+            is_optional=values.get("is_optional", False),
+            condition=values.get("condition", {}),
+            cost=values.get("cost", []),
+            cost_choice=values.get("cost_choice"),
+            choice=values.get("choice"),
+            actions=values["actions"],
+            duration=values.get("duration"),
+        )
+    return None
+
+
 _PATTERNS = (
     _onplay_wait_inspect2_reorder,
     _onplay_inspect2_reorder,
@@ -13900,6 +14490,7 @@ _PATTERNS = (
     _onplay_choose_draw_discard_or_wait_opponent_cost2,
     _onplay_choose_mill3_or_wait_opponent_cost2,
     _onplay_pay1_choose_wait_opponent_cost4_or_draw1,
+    _live_start_pay1_choose_wait_opponent_cost4_or_draw1,
     _onplay_mill5,
     _onplay_no_effect_ready_flag,
     _onplay_success_exists_draw,
@@ -13971,6 +14562,7 @@ _PATTERNS = (
     _phase5_v1_zone_choice_effects,
     _phase5_v1_final_triggered_effects,
     _phase5_v1_final_static_effects,
+    _simple_ai_v1_1_safe_effects,
     _live_start_deep_modifiers,
     _onplay_variable_discard_draw,
     _activated_more_simple_effects,
@@ -14009,19 +14601,15 @@ def _manual_timing_candidates(row: sqlite3.Row) -> list[EffectCandidate]:
     when it appears at the beginning of the text or after a clear separator.
     """
 
-    text = str(row["raw_effect_text_ja"]).strip()
-    starts = _timing_effect_starts(text)
-    if not starts:
-        return []
     candidates: list[EffectCandidate] = []
-    for effect_index, (start, marker) in enumerate(starts, start=1):
-        end = starts[effect_index][0] if effect_index < len(starts) else len(text)
-        label_ja = text[start:end].strip()
-        if _is_empty_timing_alias(label_ja):
-            continue
+    for effect_index, marker, label_ja in _timing_segments_with_markers(
+        str(row["raw_effect_text_ja"])
+    ):
         effect_type, timing, trigger, frequency_limit = _MANUAL_TIMING_MARKERS[marker]
-        if marker == "【起動】" and "【ターン1回】" in label_ja:
-            frequency_limit = "once_per_turn"
+        frequency_limit = _frequency_limit_for_label(
+            frequency_limit,
+            label_ja,
+        )
         base = _base(
             row,
             pattern_id="manual_timing_fallback",
@@ -14057,6 +14645,40 @@ def _manual_timing_candidates(row: sqlite3.Row) -> list[EffectCandidate]:
     return candidates
 
 
+def _timing_segments_with_markers(text: str) -> list[tuple[int, str, str]]:
+    """Split official text while preserving combined timing aliases.
+
+    Cards written as ``【登場】/【ライブ開始時】...`` represent one body that
+    can trigger at two timings. Runtime effects still need one stable identity
+    per trigger, so the first alias receives the combined label and the second
+    receives the ordinary Live-start label.
+    """
+
+    text = text.strip()
+    starts = _timing_effect_starts(text)
+    if not starts:
+        return []
+    segments: list[tuple[int, str, str]] = []
+    for offset, (start, marker) in enumerate(starts):
+        effect_index = offset + 1
+        end = starts[offset + 1][0] if offset + 1 < len(starts) else len(text)
+        label = text[start:end].strip()
+        if (
+            marker == "【登場】"
+            and _is_empty_timing_alias(label)
+            and offset + 1 < len(starts)
+            and starts[offset + 1][1] == "【ライブ開始時】"
+        ):
+            following_end = (
+                starts[offset + 2][0]
+                if offset + 2 < len(starts)
+                else len(text)
+            )
+            label = text[start:following_end].strip()
+        segments.append((effect_index, marker, label))
+    return segments
+
+
 def _timing_effect_starts(text: str) -> list[tuple[int, str]]:
     starts: list[tuple[int, str]] = []
     for index, char in enumerate(text):
@@ -14086,6 +14708,14 @@ def _is_empty_timing_alias(label_ja: str) -> bool:
 
 def _looks_optional(label_ja: str) -> bool:
     return "てもよい" in label_ja or "1枚まで" in label_ja or "選んでもよい" in label_ja
+
+
+def _frequency_limit_for_label(default: str, label_ja: str) -> str:
+    if "【ターン1回】" in label_ja:
+        return "once_per_turn"
+    if "【ターン2回】" in label_ja:
+        return "twice_per_turn"
+    return default
 
 
 def _manual_condition(marker: str) -> dict[str, Any]:

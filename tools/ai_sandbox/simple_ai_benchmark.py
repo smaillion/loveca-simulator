@@ -11,7 +11,11 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from loveca.simulation.models import ActionResult, GameEvent
+from loveca.simulation.models import (
+    ActionResult,
+    ControllerPolicyVersion,
+    GameEvent,
+)
 from loveca.simulation.service import MatchService
 from tools.ai_sandbox.blackbox_playtest import build_decks
 
@@ -25,6 +29,8 @@ class PolicyMatchResult:
     player_1_deck: str
     player_2_deck: str
     v1_player_id: str
+    baseline_policy: str
+    challenger_policy: str
     status: str
     turn_number: int
     winner_player_ids: list[str]
@@ -49,6 +55,7 @@ class PolicyMatchResult:
     blocker: str | None
     blocker_detail: dict[str, Any]
     replay_ok: bool
+    progress_signature: dict[str, Any]
 
 
 def main() -> int:
@@ -63,6 +70,19 @@ def main() -> int:
         help="One-based benchmark pair index used for targeted seed reruns.",
     )
     parser.add_argument("--max-actions", type=int, default=600)
+    parser.add_argument(
+        "--baseline-policy",
+        choices=("simple_ai_v0", "simple_ai_v1", "simple_ai_v1_1"),
+        default="simple_ai_v1",
+    )
+    parser.add_argument(
+        "--challenger-policy",
+        choices=("simple_ai_v0", "simple_ai_v1", "simple_ai_v1_1"),
+        default="simple_ai_v1_1",
+    )
+    parser.add_argument("--seed-base", type=int, default=770000)
+    parser.add_argument("--first-deck", type=int, default=None)
+    parser.add_argument("--second-deck", type=int, default=None)
     parser.add_argument(
         "--output",
         type=Path,
@@ -79,6 +99,11 @@ def main() -> int:
         pairs=args.pairs,
         max_actions=args.max_actions,
         pair_start=args.pair_start,
+        baseline_policy=args.baseline_policy,
+        challenger_policy=args.challenger_policy,
+        seed_base=args.seed_base,
+        first_deck_number=args.first_deck,
+        second_deck_number=args.second_deck,
         progress_path=progress_path,
     )
     write_benchmark_report(args.output, results)
@@ -94,6 +119,11 @@ def run_mirrored_benchmark(
     pairs: int,
     max_actions: int,
     pair_start: int = 1,
+    baseline_policy: ControllerPolicyVersion = "simple_ai_v1",
+    challenger_policy: ControllerPolicyVersion = "simple_ai_v1_1",
+    seed_base: int = 770000,
+    first_deck_number: int | None = None,
+    second_deck_number: int | None = None,
     progress_path: Path | None = None,
 ) -> list[PolicyMatchResult]:
     if pair_start < 1:
@@ -104,9 +134,19 @@ def run_mirrored_benchmark(
         match_index = 0
         for local_pair_index in range(pairs):
             pair_index = pair_start - 1 + local_pair_index
-            deck_a = decks[pair_index % len(decks)]
-            deck_b = decks[(pair_index * 7 + 3) % len(decks)]
-            seed = 770000 + pair_index
+            if first_deck_number is not None or second_deck_number is not None:
+                if first_deck_number is None or second_deck_number is None:
+                    raise ValueError("first_deck_number and second_deck_number must be paired")
+                if not (1 <= first_deck_number <= len(decks)) or not (
+                    1 <= second_deck_number <= len(decks)
+                ):
+                    raise ValueError("targeted deck number is outside the generated pool")
+                deck_a = decks[first_deck_number - 1]
+                deck_b = decks[second_deck_number - 1]
+            else:
+                deck_a = decks[pair_index % len(decks)]
+                deck_b = decks[(pair_index * 7 + 3) % len(decks)]
+            seed = _benchmark_seed(seed_base, pair_index)
             variants = (
                 (deck_a, deck_b, "player_1"),
                 (deck_b, deck_a, "player_2"),
@@ -116,12 +156,12 @@ def run_mirrored_benchmark(
             for mirror, (first_deck, second_deck, v1_player_id) in enumerate(variants):
                 match_index += 1
                 versions = {
-                    "player_1": "simple_ai_v1"
+                    "player_1": challenger_policy
                     if v1_player_id == "player_1"
-                    else "simple_ai_v0",
-                    "player_2": "simple_ai_v1"
+                    else baseline_policy,
+                    "player_2": challenger_policy
                     if v1_player_id == "player_2"
-                    else "simple_ai_v0",
+                    else baseline_policy,
                 }
                 result = service.create_match(
                     first_name="Simple AI",
@@ -144,6 +184,8 @@ def run_mirrored_benchmark(
                     first_deck=first_deck.name or "(unnamed)",
                     second_deck=second_deck.name or "(unnamed)",
                     v1_player_id=v1_player_id,
+                    baseline_policy=baseline_policy,
+                    challenger_policy=challenger_policy,
                 )
                 results.append(match_result)
                 if progress_path is not None:
@@ -152,6 +194,12 @@ def run_mirrored_benchmark(
                             json.dumps(asdict(match_result), ensure_ascii=False) + "\n"
                         )
     return results
+
+
+def _benchmark_seed(seed_base: int, pair_index: int) -> int:
+    """Keep split and targeted runs identical to the corresponding full run."""
+
+    return seed_base + pair_index
 
 
 def _continue_match(
@@ -188,6 +236,8 @@ def _summarize_match(
     first_deck: str,
     second_deck: str,
     v1_player_id: str,
+    baseline_policy: ControllerPolicyVersion,
+    challenger_policy: ControllerPolicyVersion,
 ) -> PolicyMatchResult:
     state = result.state
     events = service.repository.list_events(state.match_id)
@@ -197,8 +247,8 @@ def _summarize_match(
         if event.event_type == "ai_action_selected"
     )
     policy_reasons: dict[str, Counter[str]] = {
-        "simple_ai_v0": Counter(),
-        "simple_ai_v1": Counter(),
+        baseline_policy: Counter(),
+        challenger_policy: Counter(),
     }
     for event in events:
         if event.event_type != "ai_action_selected":
@@ -213,8 +263,8 @@ def _summarize_match(
         and isinstance(event.data.get("effect_id"), str)
     }
     policy_effect_choices: dict[str, Counter[str]] = {
-        "simple_ai_v0": Counter(),
-        "simple_ai_v1": Counter(),
+        baseline_policy: Counter(),
+        challenger_policy: Counter(),
     }
     for event in events:
         if event.event_type != "ai_action_selected":
@@ -227,8 +277,8 @@ def _summarize_match(
         if version in policy_effect_choices and isinstance(effect_id, str):
             policy_effect_choices[version][effect_id] += 1
     policy_durations: dict[str, list[float]] = {
-        "simple_ai_v0": [],
-        "simple_ai_v1": [],
+        baseline_policy: [],
+        challenger_policy: [],
     }
     for event in events:
         if event.event_type != "ai_action_selected":
@@ -268,16 +318,18 @@ def _summarize_match(
         player_1_deck=first_deck,
         player_2_deck=second_deck,
         v1_player_id=v1_player_id,
+        baseline_policy=baseline_policy,
+        challenger_policy=challenger_policy,
         status="completed" if state.phase == "complete" else "blocked",
         turn_number=state.turn_number,
         winner_player_ids=winner_ids,
         v1_points=v1_points,
-        v0_actions=policy_actions["simple_ai_v0"],
-        v1_actions=policy_actions["simple_ai_v1"],
-        v0_reasons=dict(policy_reasons["simple_ai_v0"].most_common()),
-        v1_reasons=dict(policy_reasons["simple_ai_v1"].most_common()),
-        v0_decision_ms=policy_durations["simple_ai_v0"],
-        v1_decision_ms=policy_durations["simple_ai_v1"],
+        v0_actions=policy_actions[baseline_policy],
+        v1_actions=policy_actions[challenger_policy],
+        v0_reasons=dict(policy_reasons[baseline_policy].most_common()),
+        v1_reasons=dict(policy_reasons[challenger_policy].most_common()),
+        v0_decision_ms=policy_durations[baseline_policy],
+        v1_decision_ms=policy_durations[challenger_policy],
         v0_live_checks=v0_metrics["live_checks"],
         v1_live_checks=v1_metrics["live_checks"],
         v0_live_successes=v0_metrics["live_successes"],
@@ -286,12 +338,21 @@ def _summarize_match(
         v1_energy_spent=v1_metrics["energy_spent"],
         v0_effect_decisions=v0_metrics["effect_decisions"],
         v1_effect_decisions=v1_metrics["effect_decisions"],
-        v0_effect_choices=dict(policy_effect_choices["simple_ai_v0"].most_common()),
-        v1_effect_choices=dict(policy_effect_choices["simple_ai_v1"].most_common()),
+        v0_effect_choices=dict(policy_effect_choices[baseline_policy].most_common()),
+        v1_effect_choices=dict(policy_effect_choices[challenger_policy].most_common()),
         skipped_effects=skipped,
         blocker=blocker,
         blocker_detail=blocker_detail,
         replay_ok=replay_ok,
+        progress_signature={
+            "phase": state.phase,
+            "turn_number": state.turn_number,
+            "revision": state.revision,
+            "success_live_counts": {
+                player_id: len(player.success_live_area)
+                for player_id, player in state.players.items()
+            },
+        },
     )
 
 
@@ -347,6 +408,8 @@ def summarize_benchmark(results: list[PolicyMatchResult]) -> dict[str, object]:
         v1_effect_choices.update(item.v1_effect_choices)
     return {
         "schema_version": "simple_ai_policy_benchmark_v0.1",
+        "baseline_policy": results[0].baseline_policy if results else None,
+        "challenger_policy": results[0].challenger_policy if results else None,
         "matches": total,
         "completed": completed,
         "blocked": total - completed,
@@ -386,7 +449,7 @@ def benchmark_passed(summary: dict[str, object]) -> bool:
         and summary.get("illegal_actions") == 0
         and summary.get("replay_errors") == 0
         and float(summary.get("v1_points_rate", 0)) >= 0.55
-        and float(summary.get("average_turns", 999)) <= 10.7
+        and float(summary.get("average_turns", 999)) <= 9.125
         and int(summary.get("p95_turns", 999)) <= 20
         and float(summary.get("v1_decision_p95_ms", 999)) <= 250
     )
@@ -405,11 +468,12 @@ def write_benchmark_report(output: Path, results: list[PolicyMatchResult]) -> No
         encoding="utf-8",
     )
     lines = [
-        "# Simple AI v0 / v1 镜像对战报告",
+        "# Simple AI 策略镜像对战报告",
         "",
         f"- 对局数: {summary['matches']}",
         f"- 完成: {summary['completed']}",
-        f"- v1 比赛积分率: {float(summary['v1_points_rate']):.2%}",
+        f"- 基线 / 挑战策略: `{summary['baseline_policy']}` / `{summary['challenger_policy']}`",
+        f"- 挑战策略比赛积分率: {float(summary['v1_points_rate']):.2%}",
         f"- 平均回合: {summary['average_turns']}",
         f"- P95 回合: {summary['p95_turns']}",
         f"- v1 单次决策 P95: {summary['v1_decision_p95_ms']} ms",

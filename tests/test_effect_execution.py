@@ -12204,6 +12204,63 @@ def test_live_start_choose_count_energy_payment_uses_selected_count():
     assert modifier.target_card_instance_id == "source-live"
 
 
+def test_triggered_effect_with_disappeared_choice_candidate_expires_with_event():
+    effect = EffectDefinition(
+        effect_id="test-stale-resolution-candidate:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="s" * 64,
+        effect_index=1,
+        label_ja="公開したライブカードを1枚選ぶ。",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_success_completed",
+        execution_mode="prompt_then_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        choice={
+            "choice_type": "card_from_zone",
+            "zone": "resolution_area",
+            "card_type": "live",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[{"action_type": "move_selected_to_hand"}],
+        duration=None,
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    state.players["player_1"].resolution_area = ["live-1"]
+    state.players["player_1"].live_area = []
+    state.pending_effects[0].trigger_data["_condition_checked_at_trigger"] = True
+
+    state.players["player_1"].resolution_area = []
+    state.players["player_1"].waiting_room = ["live-1"]
+    options = generate_legal_actions(state)[0].options["invocations"][0]
+    assert options["candidate_card_instance_ids"] == []
+    assert options["card_selection_minimum"] == 0
+
+    result = apply_action(
+        state,
+        ActionRequest(
+            action_type="resolve_effect",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={"invocation_id": "inv-1", "selected_card_instance_ids": []},
+        ),
+    )
+
+    assert result.state.pending_effects == []
+    assert result.state.players["player_1"].waiting_room == ["live-1"]
+    unavailable = next(
+        event for event in result.events if event.event_type == "effect_not_activatable"
+    )
+    assert unavailable.data["reason"] == "choice_candidates_unavailable"
+
+
 def test_live_start_choose_number_reveal_top_compares_member_cost():
     effect = EffectDefinition(
         effect_id="test-choose-number-reveal:1",

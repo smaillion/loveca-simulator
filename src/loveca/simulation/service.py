@@ -288,9 +288,9 @@ def _new_match_controller_policy_versions(
     normalized = _normalize_controllers(controllers)
     return {
         player_id: (
-            requested.get(player_id, "simple_ai_v1")
+            requested.get(player_id, "simple_ai_v1_1")
             if requested
-            else "simple_ai_v1"
+            else "simple_ai_v1_1"
         )
         for player_id, controller in normalized.items()
         if controller == "simple_ai"
@@ -305,7 +305,11 @@ def _controller_policy_version(
         state.controller_policy_versions.get(player_id, "simple_ai_v0")
         for player_id in controlled_player_ids
     }
-    return "simple_ai_v1" if versions == {"simple_ai_v1"} else "simple_ai_v0"
+    if len(versions) == 1:
+        return next(iter(versions))
+    if "simple_ai_v0" in versions:
+        return "simple_ai_v0"
+    return "simple_ai_v1"
 
 
 def _ai_blocked_event(
