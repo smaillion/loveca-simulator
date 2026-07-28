@@ -87,6 +87,7 @@ class ObservedPlayer:
     member_area: tuple[tuple[str, str | None], ...]
     energy_area: tuple[str, ...]
     live_area: tuple[str, ...]
+    live_area_count: int
     waiting_room: tuple[str, ...]
     resolution_area: tuple[str, ...]
     success_live_area: tuple[str, ...]
@@ -235,6 +236,11 @@ def build_ai_observation(
     observed_players: dict[str, ObservedPlayer] = {}
     for observed_id, player in state.players.items():
         own = observed_id == player_id
+        visible_live_ids = tuple(
+            item
+            for item in player.live_area
+            if own or state.cards[item].face_up
+        )
         public_ids = {
             item
             for item in (
@@ -245,7 +251,7 @@ def build_ai_observation(
                     for attached in items
                 ),
                 *player.energy_area,
-                *player.live_area,
+                *visible_live_ids,
                 *player.waiting_room,
                 *player.resolution_area,
                 *player.success_live_area,
@@ -263,7 +269,8 @@ def build_ai_observation(
             energy_deck_count=len(player.energy_deck),
             member_area=tuple(sorted(player.member_area.items())),
             energy_area=tuple(player.energy_area),
-            live_area=tuple(player.live_area),
+            live_area=visible_live_ids,
+            live_area_count=len(player.live_area),
             waiting_room=tuple(player.waiting_room),
             resolution_area=tuple(player.resolution_area),
             success_live_area=tuple(player.success_live_area),

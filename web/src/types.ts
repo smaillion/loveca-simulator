@@ -369,6 +369,10 @@ export interface MatchState {
   next_first_player_id: string | null;
   success_live_moved_player_ids: string[];
   success_live_moved_instance_ids: Record<string, string[]>;
+  live_success_player_ids?: string[];
+  live_placement_eligible_player_ids?: string[];
+  live_placement_prevented_player_ids?: string[];
+  effect_blocked_live_placement_player_ids?: string[];
   live_success_effects_queued: boolean;
   active_player_id: string | null;
   players: Record<string, PlayerState>;
@@ -391,7 +395,11 @@ export interface MatchState {
   live_winner_ids: string[];
   live_judgment_summary: {
     basis: string;
+    successful_player_ids?: string[];
     winner_ids: string[];
+    placement_eligible_player_ids?: string[];
+    placement_prevented_player_ids?: string[];
+    placement_prevention_reasons?: Record<string, string[]>;
     players: Record<
       string,
       {
@@ -401,6 +409,7 @@ export interface MatchState {
         base_score: number;
         score_bonus: number;
         total_score: number;
+        success_live_count_before?: number;
       }
     >;
   } | null;

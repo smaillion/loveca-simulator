@@ -21,8 +21,8 @@
   - `PBSP02` は 122 printings / 96 gameplay card identities を収録
   - importer 報告上の新規 Gameplay Card は 70 件
 - 979 件の effect registry entry
-  - 863 件は `test_validated_executable`
-  - 116 件は timing prompt / 未対応処理用の `manual_resolution`
+  - 864 件は `test_validated_executable`
+  - 115 件は timing prompt / 未対応処理用の `manual_resolution`
   - `PBSP02` 関連 effect は 74 件中 63 件が `test_validated_executable`、新パック coverage は 85.14%
 - 将来の低コスト online 同期に向けた state hash / compatibility metadata の基礎
 - Hosted Online MVP の room API
@@ -59,14 +59,17 @@
 - 双方が選択する一部の効果は multi-player pending choice で順番に処理可能
 - 複数 group に分けて Stage Member を選び、それぞれに同じ一時 modifier を適用する効果に対応
 - 分岐ごとに異なる Stage Member 候補を持つ効果選択に対応
-- registry entry ベースの `test_validated_executable` coverage は 88.15%（863 / 979）まで拡張済み
+- registry entry ベースの `test_validated_executable` coverage は 88.25%（864 / 979）まで拡張済み
 - `PBSP02` 関連 effect は 74 件中 63 件を構造化し、新パック内 coverage 85.14% を確認済み
 - μ's / Aqours / Saint Snow / Nijigasaki / Hasunosora / Edel Note の一部控室回収、Energy ready、山札上確認、Yell 公開条件、手札コスト付き Live 開始時効果を追加で構造化
 - static Heart / Blade などの常時効果は、operation 側の条件を満たす場合だけ加算するようにしています
 - `PBSP02` 集中 block sandbox は `30 decks x 20 matches` で 19 完走、`mandatory_manual_resolution = 0`、残り 1 件は `max_actions:match_point_players_have_no_live_in_hand`
 - Phase 5 broad black-box sandbox は `30 decks x 100 matches` の block mode で `100/100` 完走、blocker 0 を確認済み
 - 最新の skill-dense Simple AI regression は `30 decks x 100 matches` で 100/100 完走、blocker / silent skip / Replay error 0
-- 以前の問題カード targeted sandbox で blocker だった `PL!S-bp6-001:1` / `PL!S-pb1-001:1` は現在構造化済み。未対応 116 件は gap report で理由を管理します
+- 以前の問題カード targeted sandbox で blocker だった `PL!S-bp6-001:1` / `PL!S-pb1-001:1` は現在構造化済み。未対応 115 件は gap report で理由を管理します
+- `LL-bp5-002:1` の「Stage に異なるグループ名の Member が 3 人以上なら、Center Member が Live 終了まで任意色 Heart を得る」処理を構造化しました
+- 公式総合ルール ver.1.06 を参照する AI 逐 Action 監査では 20/20 完走、12/20 が「10 turn 以内かつ双方 1 回以上 Live 成功」を満たし、14,160 check と実際に処理した 64 種 / 260 step の skill check はすべて PASS、Replay error 0 でした
+- Live 判定は 9 つの固定境界でも監査し、Live 成功、今回の勝者、Match Point 時の成功 Live 追加可否、最終勝敗を別々に確認します
 - trigger 時に条件を満たした pending effect が、同一タイミング中の別効果で条件失効した場合は、明示的な `effect_not_activatable` event を残して進行可能
 - 公開して手札に加える効果は、相手側の履歴にも公開カード名が残るようにしています
 - 60 件の日本語 / 中文 human-readable effect 検証シナリオで重点効果を確認でき、そのうち 21 件は実際の GameState 遷移を検証します
@@ -108,7 +111,7 @@ Deck Builder の現在の到達点:
 
 - これは開発中の alpha 版です。公式アプリではなく、ルール検証とプレイテスト feedback を集めるためのツールです。
 - 全カード効果の自動実行 coverage はまだありません。未対応効果は `ManualAdjustmentAction`、構造化 pending choice、またはデバッグ用 skip で進行する場合があります。
-- 最新の skill-dense 回帰は `30 decks x 100 matches` を blocker 0 で完走しています。ただし、これは全 116 件の `manual_resolution` を自動処理できることを意味しません。未登場または複雑な技能は引き続き manual となり、最新の分類は `docs/13-effect-semantics-audit.md` と `TODO.md` に記録します。
+- 最新の skill-dense 回帰は `30 decks x 100 matches` を blocker 0 で完走しています。ただし、これは全 115 件の `manual_resolution` を自動処理できることを意味しません。未登場または複雑な技能は引き続き manual となり、最新の分類は `docs/13-effect-semantics-audit.md` と `TODO.md` に記録します。
 - FAQ / 個別裁定に依存する効果はまだ仕様化していません。
 - `data/loveca.sqlite3` は repository 内の locked authoritative card DB です。公式カード追加や parser / schema / effect registry の互換性変更後は、maintainer が DB と `data/loveca-db-manifest.json` を再生成して commit します。ユーザーや CI が online 用に別 DB を import してはいけません。保存済みデッキは `decklist.v0` のユーザーデータなので、カード DB とは分けて保持できます。
 - Web/API テストには `httpx2` が必要です。環境に未導入の場合、`tests/test_catalog_api.py` と `tests/test_webapp.py` は収集段階で停止します。

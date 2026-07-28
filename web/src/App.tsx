@@ -3459,7 +3459,18 @@ function LiveAnalysisPanel({
     state.phase === "turn_complete" ||
     state.phase === "complete";
   const summary = state.live_judgment_summary;
-  const winners = summary?.winner_ids.map((id) => state.players[id].name) ?? [];
+  const successfulPlayers = (summary?.successful_player_ids ?? [])
+    .map((id) => state.players[id]?.name)
+    .filter((name): name is string => Boolean(name));
+  const winners = (summary?.winner_ids ?? [])
+    .map((id) => state.players[id]?.name)
+    .filter((name): name is string => Boolean(name));
+  const placementEligiblePlayers = (summary?.placement_eligible_player_ids ?? [])
+    .map((id) => state.players[id]?.name)
+    .filter((name): name is string => Boolean(name));
+  const placementPreventedPlayers = (summary?.placement_prevented_player_ids ?? [])
+    .map((id) => state.players[id]?.name)
+    .filter((name): name is string => Boolean(name));
   if (!visible) {
     return (
       <div className="phase-track">
@@ -3481,7 +3492,10 @@ function LiveAnalysisPanel({
       <CompactLiveAnalysisPanel
         state={state}
         onCard={onCard}
+        successfulPlayers={successfulPlayers}
         winners={winners}
+        placementEligiblePlayers={placementEligiblePlayers}
+        placementPreventedPlayers={placementPreventedPlayers}
         summaryBasis={summary?.basis}
       />
     );
@@ -3506,11 +3520,28 @@ function LiveAnalysisPanel({
               : tr("等待双方完成应援与爱心判定", "双方のエールとハート判定を待っています")}
           </strong>
           {summary && (
-            <span>
-              {winners.length > 0
-                ? `${tr("胜者", "勝者")}：${winners.join("、")}`
-                : tr("无胜者", "勝者なし")}
-            </span>
+            <>
+              <span>
+                {successfulPlayers.length > 0
+                  ? `${tr("Live 成功", "ライブ成功")}：${successfulPlayers.join("、")}`
+                  : tr("双方 Live 均失败", "双方ライブ失敗")}
+              </span>
+              <span>
+                {winners.length > 0
+                  ? `${tr("本轮胜者", "今回の勝者")}：${winners.join("、")}`
+                  : tr("本轮无胜者", "今回の勝者なし")}
+              </span>
+              <span>
+                {placementEligiblePlayers.length > 0
+                  ? `${tr("可追加成功 Live", "成功ライブ追加可")}：${placementEligiblePlayers.join("、")}`
+                  : tr("本轮不追加成功 Live", "今回は成功ライブ追加なし")}
+              </span>
+              {placementPreventedPlayers.length > 0 && (
+                <span>
+                  {tr("追加被阻止", "追加不可")}：{placementPreventedPlayers.join("、")}
+                </span>
+              )}
+            </>
           )}
           {state.phase === "turn_complete" && state.next_first_player_id && (
             <span>
@@ -3546,12 +3577,18 @@ function LiveAnalysisPanel({
 function CompactLiveAnalysisPanel({
   state,
   onCard,
+  successfulPlayers,
   winners,
+  placementEligiblePlayers,
+  placementPreventedPlayers,
   summaryBasis,
 }: {
   state: MatchState;
   onCard: (card: CardInstance) => void;
+  successfulPlayers: string[];
   winners: string[];
+  placementEligiblePlayers: string[];
+  placementPreventedPlayers: string[];
   summaryBasis?: string;
 }) {
   const { locale, tr } = useUiLanguage();
@@ -3561,12 +3598,31 @@ function CompactLiveAnalysisPanel({
         <strong>{phaseLabels[state.phase]?.[locale === "zh" ? 0 : 1] ?? state.phase}</strong>
         <span>
           {winners.length > 0
-            ? `${tr("胜者", "勝者")}：${winners.join("、")}`
+            ? `${tr("本轮胜者", "今回の勝者")}：${winners.join("、")}`
             : summaryBasis
-              ? tr("无胜者", "勝者なし")
+              ? tr("本轮无胜者", "今回の勝者なし")
               : tr("判定中", "判定中")}
         </span>
       </header>
+      {summaryBasis && (
+        <div className="compact-live-result-lines">
+          <span>
+            {successfulPlayers.length > 0
+              ? `${tr("Live 成功", "ライブ成功")}：${successfulPlayers.join("、")}`
+              : tr("双方 Live 均失败", "双方ライブ失敗")}
+          </span>
+          <span>
+            {placementEligiblePlayers.length > 0
+              ? `${tr("成功 Live 追加", "成功ライブ追加")}：${placementEligiblePlayers.join("、")}`
+              : tr("成功 Live 追加なし", "成功ライブ追加なし")}
+          </span>
+          {placementPreventedPlayers.length > 0 && (
+            <span>
+              {tr("追加被阻止", "追加不可")}：{placementPreventedPlayers.join("、")}
+            </span>
+          )}
+        </div>
+      )}
       <div className="compact-live-breakdown-grid">
         {["player_2", "player_1"].map((playerId) => (
           <PlayerLiveCompactBreakdown
