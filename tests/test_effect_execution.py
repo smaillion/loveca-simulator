@@ -22,6 +22,7 @@ from loveca.simulation.effects import (
 )
 from loveca.simulation.engine import (
     IllegalActionError,
+    _begin_live_judgment,
     _effect_condition_met,
     _effect_operation_condition_met,
     _operation_amount,
@@ -39,6 +40,7 @@ from loveca.simulation.models import (
     CardInstance,
     EffectInvocation,
     GameEvent,
+    LivePerformanceResult,
     ManualModifier,
     MatchState,
     PendingChoice,
@@ -702,6 +704,7 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
         "live_start_deep_hasunosora_stage_waiting_distinct6_required_any_minus2",
         "live_start_deep_moved_liella_stage_blade1",
         "live_start_deep_member_entered2_score1",
+        "live_start_deep_stage_distinct_units3_center_heart1",
         "live_start_deep_moved_5yncri5e_required_any_minus_each",
         "live_start_deep_catchu_distinct2_ready_energy6_all_active_score1",
         "live_start_deep_replace_yell_blade_hearts_heart05",
@@ -1396,7 +1399,7 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
         == "live_success_equal_score_prevent_success_live_placement"
     )
     assert equal_score_prevention_candidate.condition == {
-        "live_judgment_basis": "equal_total_score"
+        "live_score_relation": "equal_to_opponent"
     }
     assert equal_score_prevention_candidate.actions == [
         {"action_type": "prevent_equal_score_success_live_placement"}
@@ -2155,6 +2158,23 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
             "amount": 1,
             "value": {"name_ja": "唐 可可", "maximum": 1},
         },
+    ]
+    distinct_units_candidate = next(
+        candidate
+        for candidate in all_candidates
+        if candidate.effect_id == "LL-bp5-002:1"
+    )
+    assert distinct_units_candidate.execution_mode == "auto_resolve"
+    assert distinct_units_candidate.condition == {
+        "own_stage_distinct_unit_count_at_least": 3
+    }
+    assert distinct_units_candidate.actions == [
+        {
+            "action_type": "gain_heart_to_stage_members",
+            "amount": 1,
+            "color_slot": "heart0",
+            "value": {"slot": "center"},
+        }
     ]
     nijigasaki_ready_candidate = next(
         candidate
@@ -4796,6 +4816,77 @@ def test_named_stage_member_heart_and_blade_modifiers_only_hit_named_targets():
     assert _target_modifier_total(result.state.players["player_1"], "blade", "kanon") == 1
     assert _target_modifier_total(result.state.players["player_1"], "blade", "keke") == 1
     assert _target_modifier_total(result.state.players["player_1"], "blade", "other") == 0
+
+
+def test_distinct_stage_units_grant_all_heart_to_center_member_only():
+    effect = EffectDefinition(
+        effect_id="LL-bp5-002:1",
+        card_code="LL-bp5-002",
+        text_revision_id=273,
+        raw_text_hash="682d40d62256f2504f62972327176060adeff8dfe80393e4d490bc66f9f09c47",
+        effect_index=1,
+        label_ja=(
+            "【ライブ開始時】自分のステージにグループ名がそれぞれ異なる"
+            "メンバーが3人以上いる場合、ライブ終了時まで、自分のセンター"
+            "エリアにいるメンバーは【ハート】を得る。"
+        ),
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={"own_stage_distinct_unit_count_at_least": 3},
+        cost=[],
+        choice=None,
+        actions=[
+            {
+                "action_type": "gain_heart_to_stage_members",
+                "amount": 1,
+                "color_slot": "heart0",
+                "value": {"slot": "center"},
+            }
+        ],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="test",
+    )
+    state = _minimal_effect_state(effect)
+    for slot, unit_key in zip(
+        ("left", "center", "right"),
+        ("cerise_bouquet", "dollchestra", "miracra_park"),
+        strict=True,
+    ):
+        instance_id = f"{slot}-member"
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code=f"TEST-{slot.upper()}",
+                card_id=f"TEST-{slot.upper()}",
+                name_ja=slot,
+                card_type="member",
+                unit_keys=[unit_key],
+            ),
+        )
+        state.players["player_1"].member_area[slot] = instance_id
+
+    result = apply_action(
+        state,
+        ActionRequest(
+            action_type="resolve_effect",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        ),
+    )
+
+    from loveca.simulation.engine import _member_heart_count
+
+    assert _member_heart_count(result.state, "player_1", "left-member", "heart0") == 0
+    assert _member_heart_count(result.state, "player_1", "center-member", "heart0") == 1
+    assert _member_heart_count(result.state, "player_1", "right-member", "heart0") == 0
 
 
 def test_grouped_stage_member_choice_applies_blade_to_each_group_target():
@@ -13988,7 +14079,8 @@ def test_live_start_branch_can_grant_live_success_draw():
     ]
 
     events: list[GameEvent] = []
-    state.success_live_moved_instance_ids = {"player_1": ["source-live"]}
+    state.players["player_1"].live_area = ["source-live"]
+    state.live_success_player_ids = ["player_1"]
     _queue_live_success_effects(state, events)
 
     assert state.players["player_1"].hand == ["deck-live-1"]
@@ -14108,7 +14200,8 @@ def test_live_start_can_disable_source_live_success_effects():
     ]
 
     events: list[GameEvent] = []
-    state.success_live_moved_instance_ids = {"player_1": ["source-live"]}
+    state.players["player_1"].live_area = ["source-live"]
+    state.live_success_player_ids = ["player_1"]
     state.live_success_effects_queued = False
     _queue_live_success_effects(state, events)
 
@@ -14946,7 +15039,7 @@ def test_equal_score_live_success_effect_prevents_success_live_placement():
             "execution_mode": "auto_resolve",
             "frequency_limit": "once_per_live",
             "is_optional": False,
-            "condition": {"live_judgment_basis": "equal_total_score"},
+            "condition": {"live_score_relation": "equal_to_opponent"},
             "cost": [],
             "choice": None,
             "actions": [{"action_type": "prevent_equal_score_success_live_placement"}],
@@ -14959,14 +15052,12 @@ def test_equal_score_live_success_effect_prevents_success_live_placement():
     state = _minimal_effect_state(effect)
     state.phase = "live_judgment"
     state.live_success_effects_queued = True
-    state.live_judgment_summary = {
-        "basis": "equal_total_score",
-        "winner_ids": ["player_1", "player_2"],
-        "players": {},
-    }
-    state.live_winner_ids = ["player_1", "player_2"]
-    state.players["player_1"].live_area = []
-    state.players["player_1"].success_live_area = ["live-1"]
+    state.live_success_player_ids = ["player_1", "player_2"]
+    state.players["player_1"].live_result = LivePerformanceResult(
+        requirements_satisfied=True,
+        base_score=1,
+        total_score=1,
+    )
     state.cards["opponent-live"] = CardInstance(
         instance_id="opponent-live",
         owner_id="player_2",
@@ -14974,12 +15065,12 @@ def test_equal_score_live_success_effect_prevents_success_live_placement():
             update={"card_code": "TEST-OP-LIVE", "card_id": "TEST-OP-LIVE"}
         ),
     )
-    state.players["player_2"].success_live_area = ["opponent-live"]
-    state.success_live_moved_player_ids = ["player_1", "player_2"]
-    state.success_live_moved_instance_ids = {
-        "player_1": ["live-1"],
-        "player_2": ["opponent-live"],
-    }
+    state.players["player_2"].live_area = ["opponent-live"]
+    state.players["player_2"].live_result = LivePerformanceResult(
+        requirements_satisfied=True,
+        base_score=1,
+        total_score=1,
+    )
 
     state = _apply_direct(
         state,
@@ -14994,7 +15085,84 @@ def test_equal_score_live_success_effect_prevents_success_live_placement():
     assert "opponent-live" in state.players["player_2"].waiting_room
     assert state.success_live_moved_player_ids == []
     assert state.success_live_moved_instance_ids == {}
+    assert state.live_winner_ids == ["player_1", "player_2"]
+    assert state.live_placement_eligible_player_ids == []
+    assert state.live_placement_prevented_player_ids == ["player_1", "player_2"]
     assert state.phase == "turn_complete"
+
+
+def test_live_success_score_effect_resolves_before_winner_comparison():
+    effect = EffectDefinition.model_validate(
+        {
+            "effect_id": "test-live-success-score:1",
+            "card_code": "TEST-LIVE",
+            "text_revision_id": 1,
+            "raw_text_hash": "f" * 64,
+            "effect_index": 1,
+            "label_ja": "【ライブ成功時】このカードのスコアを＋2する。",
+            "effect_type": "triggered",
+            "timing": "live_success",
+            "trigger": "live_succeeded",
+            "execution_mode": "auto_resolve",
+            "frequency_limit": "once_per_live",
+            "is_optional": False,
+            "condition": {},
+            "cost": [],
+            "choice": None,
+            "actions": [{"action_type": "modify_score", "amount": 2}],
+            "duration": "live",
+            "simulation_support": "test_validated_executable",
+            "review_status": "test_validated",
+            "source_reference": "test",
+        }
+    )
+    state = _minimal_effect_state(effect)
+    state.phase = "live_judgment"
+    state.pending_effects = []
+    source = state.cards["source-live"]
+    source.card = source.card.model_copy(
+        update={
+            "effect_ids": [effect.effect_id],
+            "effect_registry_status": "supported",
+        }
+    )
+    state.players["player_1"].live_area = ["source-live"]
+    state.players["player_1"].live_result = LivePerformanceResult(
+        requirements_satisfied=True,
+        base_score=1,
+        total_score=1,
+    )
+    state.cards["opponent-live"] = CardInstance(
+        instance_id="opponent-live",
+        owner_id="player_2",
+        card=source.card.model_copy(
+            update={
+                "card_code": "TEST-OP-LIVE",
+                "card_id": "TEST-OP-LIVE",
+                "score": 2,
+                "effect_ids": [],
+            }
+        ),
+    )
+    state.players["player_2"].live_area = ["opponent-live"]
+    state.players["player_2"].live_result = LivePerformanceResult(
+        requirements_satisfied=True,
+        base_score=2,
+        total_score=2,
+    )
+    events: list[GameEvent] = []
+
+    _begin_live_judgment(state, events)
+
+    event_types = [event.event_type for event in events]
+    assert event_types.index("effect_auto_resolved") < event_types.index(
+        "live_judgment_started"
+    )
+    assert state.live_success_player_ids == ["player_1", "player_2"]
+    assert state.live_winner_ids == ["player_1"]
+    assert state.players["player_1"].live_result.total_score == 3
+    assert state.players["player_1"].success_live_area == ["source-live"]
+    assert state.players["player_2"].waiting_room == ["opponent-live"]
 
 
 def test_onplay_5yncri5e_effect_rotates_both_stage_member_groups():
@@ -18012,7 +18180,7 @@ def test_hime_live_success_waits_and_skips_next_active_ready():
                 player_id="player_1",
                 name="Player 1",
                 member_area={"left": None, "center": "hime-stage", "right": None},
-                success_live_area=["successful-live"],
+                live_area=["successful-live"],
             ),
             "player_2": PlayerState(player_id="player_2", name="Player 2"),
         },
@@ -18030,7 +18198,7 @@ def test_hime_live_success_waits_and_skips_next_active_ready():
             ),
         },
         effect_definitions={effect.effect_id: effect},
-        success_live_moved_instance_ids={"player_1": ["successful-live"]},
+        live_success_player_ids=["player_1"],
     )
     events: list[GameEvent] = []
 

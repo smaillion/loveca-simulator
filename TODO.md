@@ -43,9 +43,13 @@
 - Continue tuning `tools/ai_sandbox/blackbox_playtest.py` action caps and strategies.
 - Keep `30 decks x 100 matches --manual-policy block` as the standard long-run regression after each executor-pattern expansion.
 - Latest broad Phase 5 long run: `100/100` completed with blocker 0 after the stale-trigger-condition fix.
-- The earlier problem-card blockers `PL!S-bp6-001:1` and `PL!S-pb1-001:1` are now structured. Future targeted pools should be generated from the current 116-entry manual gap report instead of preserving this obsolete blocker list.
-- Static registry coverage is now `863 / 979 = 88.15%`; the strict integrity audit reports zero errors and warnings. Reaching 90% still requires real executor patterns for the remaining 116 `manual_resolution` entries.
+- The earlier problem-card blockers `PL!S-bp6-001:1` and `PL!S-pb1-001:1` are now structured. Future targeted pools should be generated from the current 115-entry manual gap report instead of preserving this obsolete blocker list.
+- Static registry coverage is now `864 / 979 = 88.25%`; the strict integrity audit reports zero errors and warnings. Reaching 90% still requires real executor patterns for the remaining 115 `manual_resolution` entries.
 - Do not mark registry entries executable only to improve coverage numbers.
+- Keep the official-rule AI acceptance gate at 20 attempts / 10 strict qualified matches. The latest run completed 20/20, qualified 12/20, and produced 14,160 PASS checks with no Replay error.
+- Keep the 9-case Live judgment boundary matrix as a release gate. Extend it when card text or FAQ adds a new score-comparison or Success Live placement exception.
+- Implement and audit the repeated turn-end automatic-effect check loop from comprehensive rules 8.4.10-8.4.12 before claiming full End Phase coverage.
+- The next AI strategy experiment should use a cached probabilistic Live-access model or a narrower tie-breaker. Naive Live conservation, flat draw/recovery bonuses, and uncached one-action Member placement lookahead all failed to beat `simple_ai_v1_1` and must not be restored without a new mirrored benchmark.
 
 ## Low Priority
 

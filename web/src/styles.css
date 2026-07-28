@@ -3409,6 +3409,16 @@ label {
     font-weight: 800;
   }
 
+  .compact-live-result-lines {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px 8px;
+    margin: -3px 0 7px;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 700;
+  }
+
   .compact-live-breakdown-grid {
     display: grid;
     gap: 8px;

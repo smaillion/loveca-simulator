@@ -7956,35 +7956,33 @@ def _execute_operations(
                 )
             )
         elif operation_type == "prevent_equal_score_success_live_placement":
-            summary = state.live_judgment_summary or {}
-            if summary.get("basis") != "equal_total_score":
-                continue
-            prevented: dict[str, list[str]] = {}
-            for target_player_id, moved_ids in list(
-                state.success_live_moved_instance_ids.items()
+            first_id = state.first_player_id or ""
+            second_id = state.second_player_id or ""
+            if (
+                not state.players[first_id].live_area
+                or not state.players[second_id].live_area
+                or state.players[first_id].live_result.total_score
+                != state.players[second_id].live_result.total_score
             ):
-                target_player = state.players[target_player_id]
-                for instance_id in list(moved_ids):
-                    if instance_id not in target_player.success_live_area:
-                        continue
-                    target_player.success_live_area.remove(instance_id)
-                    target_player.live_area.append(instance_id)
-                    prevented.setdefault(target_player_id, []).append(instance_id)
-            if prevented:
-                state.success_live_moved_instance_ids = {}
-                state.success_live_moved_player_ids = []
-                events.append(
-                    GameEvent(
-                        event_type="success_live_placement_prevented",
-                        player_id=invocation.player_id,
-                        data={
-                            "invocation_id": invocation.invocation_id,
-                            "effect_id": invocation.effect_id,
-                            "prevented_instance_ids_by_player": prevented,
-                        },
-                        source="system",
-                    )
+                continue
+            blocked = list(state.players)
+            state.effect_blocked_live_placement_player_ids = list(
+                dict.fromkeys(
+                    [*state.effect_blocked_live_placement_player_ids, *blocked]
                 )
+            )
+            events.append(
+                GameEvent(
+                    event_type="success_live_placement_blocked",
+                    player_id=invocation.player_id,
+                    data={
+                        "invocation_id": invocation.invocation_id,
+                        "effect_id": invocation.effect_id,
+                        "player_ids": blocked,
+                    },
+                    source="system",
+                )
+            )
         elif operation_type == "rotate_stage_members":
             target = operation.target or "self"
             if target == "both":
@@ -8950,7 +8948,7 @@ def _continue_after_effect_queue(
     elif state.phase == "performance_second":
         state.phase = "yell_second"
     elif state.phase == "live_judgment" and state.live_success_effects_queued:
-        _complete_live_judgment(state, events)
+        _continue_live_judgment_after_success_effects(state, events)
         return
     else:
         return
@@ -9318,9 +9316,6 @@ def _continue_after_yell(
     state: MatchState,
     events: list[GameEvent],
 ) -> None:
-    player_id = state.active_player_id
-    if player_id:
-        _expire_modifiers(state, player_id, "live", events)
     if state.phase == "yell_first":
         state.phase = "performance_second"
         state.active_player_id = state.second_player_id
@@ -9349,11 +9344,44 @@ def _begin_live_judgment(
 ) -> None:
     state.success_live_moved_player_ids = []
     state.success_live_moved_instance_ids = {}
+    state.live_success_player_ids = [
+        player_id
+        for player_id in (state.first_player_id, state.second_player_id)
+        if player_id is not None and state.players[player_id].live_area
+    ]
+    state.live_placement_eligible_player_ids = []
+    state.live_placement_prevented_player_ids = []
+    state.effect_blocked_live_placement_player_ids = []
     state.live_success_effects_queued = False
+    events.append(
+        GameEvent(
+            event_type="live_success_determined",
+            data={
+                "successful_player_ids": list(state.live_success_player_ids),
+                "successful_live_instance_ids": {
+                    player_id: list(state.players[player_id].live_area)
+                    for player_id in state.live_success_player_ids
+                },
+            },
+        )
+    )
+    _queue_live_success_effects(state, events)
+    _resolve_automatic_effects(state, events)
+    if state.pending_effects:
+        return
+    _continue_live_judgment_after_success_effects(state, events)
+
+
+def _continue_live_judgment_after_success_effects(
+    state: MatchState,
+    events: list[GameEvent],
+) -> None:
     first_id = state.first_player_id or ""
     second_id = state.second_player_id or ""
     first = state.players[first_id]
     second = state.players[second_id]
+    _refresh_live_judgment_score(state, first_id)
+    _refresh_live_judgment_score(state, second_id)
     if not first.live_area and not second.live_area:
         winners: list[str] = []
     elif first.live_area and not second.live_area:
@@ -9365,16 +9393,7 @@ def _begin_live_judgment(
     elif second.live_result.total_score > first.live_result.total_score:
         winners = [second_id]
     else:
-        first_at_match_point = len(first.success_live_area) >= 2
-        second_at_match_point = len(second.success_live_area) >= 2
-        if first_at_match_point and second_at_match_point:
-            winners = []
-        elif first_at_match_point and not second_at_match_point:
-            winners = [second_id]
-        elif second_at_match_point and not first_at_match_point:
-            winners = [first_id]
-        else:
-            winners = [first_id, second_id]
+        winners = [first_id, second_id]
     state.live_winner_ids = winners
     if not first.live_area and not second.live_area:
         basis = "no_successful_live"
@@ -9384,9 +9403,46 @@ def _begin_live_judgment(
         basis = "equal_total_score"
     else:
         basis = "higher_total_score"
+    match_point_player_ids = [
+        player_id
+        for player_id in (first_id, second_id)
+        if len(state.players[player_id].success_live_area) >= 2
+    ]
+    rule_prevented = (
+        [player_id for player_id in winners if player_id in match_point_player_ids]
+        if len(winners) == 2
+        else []
+    )
+    effect_prevented = [
+        player_id
+        for player_id in winners
+        if player_id in state.effect_blocked_live_placement_player_ids
+    ]
+    prevented = list(dict.fromkeys([*rule_prevented, *effect_prevented]))
+    eligible = [player_id for player_id in winners if player_id not in prevented]
+    state.live_placement_eligible_player_ids = eligible
+    state.live_placement_prevented_player_ids = prevented
     state.live_judgment_summary = {
         "basis": basis,
+        "successful_player_ids": list(state.live_success_player_ids),
         "winner_ids": winners,
+        "placement_eligible_player_ids": eligible,
+        "placement_prevented_player_ids": prevented,
+        "placement_prevention_reasons": {
+            player_id: [
+                *(
+                    ["match_point_equal_score"]
+                    if player_id in rule_prevented
+                    else []
+                ),
+                *(
+                    ["card_effect"]
+                    if player_id in effect_prevented
+                    else []
+                ),
+            ]
+            for player_id in prevented
+        },
         "players": {
             first_id: {
                 "player_id": first_id,
@@ -9395,6 +9451,7 @@ def _begin_live_judgment(
                 "base_score": first.live_result.base_score,
                 "score_bonus": first.live_result.score_bonus,
                 "total_score": first.live_result.total_score,
+                "success_live_count_before": len(first.success_live_area),
             },
             second_id: {
                 "player_id": second_id,
@@ -9403,6 +9460,7 @@ def _begin_live_judgment(
                 "base_score": second.live_result.base_score,
                 "score_bonus": second.live_result.score_bonus,
                 "total_score": second.live_result.total_score,
+                "success_live_count_before": len(second.success_live_area),
             },
         },
     }
@@ -9411,15 +9469,57 @@ def _begin_live_judgment(
             event_type="live_judgment_started",
             data={
                 "basis": basis,
+                "successful_player_ids": list(state.live_success_player_ids),
                 "winner_ids": winners,
+                "placement_eligible_player_ids": eligible,
+                "placement_prevented_player_ids": prevented,
                 "scores": {
                     first_id: first.live_result.total_score,
                     second_id: second.live_result.total_score,
                 },
+                "players": state.live_judgment_summary["players"],
             },
         )
     )
-    _finish_judgment_choices(state, list(winners), events)
+    if prevented:
+        events.append(
+            GameEvent(
+                event_type="success_live_placement_prevented",
+                data={
+                    "player_ids": prevented,
+                    "reasons": state.live_judgment_summary[
+                        "placement_prevention_reasons"
+                    ],
+                },
+            )
+        )
+    _finish_judgment_choices(state, list(eligible), events)
+
+
+def _refresh_live_judgment_score(state: MatchState, player_id: str) -> None:
+    player = state.players[player_id]
+    if not player.live_area:
+        player.live_result.base_score = 0
+        player.live_result.score_bonus = 0
+        player.live_result.total_score = 0
+        return
+    yell_score_bonus = sum(
+        int(result.get("value", 0))
+        for result in player.live_result.special_blade_heart_results
+        if result.get("effect_type") == "score"
+    )
+    player.live_result.base_score = sum(
+        _card_score(state, player_id, instance_id)
+        for instance_id in player.live_area
+    )
+    player.live_result.score_bonus = (
+        yell_score_bonus
+        + _modifier_total(player, "score")
+        + _static_score_bonus(state, player_id)
+    )
+    player.live_result.total_score = (
+        player.live_result.base_score + player.live_result.score_bonus
+    )
 
 
 def _start_next_turn(
@@ -9451,6 +9551,10 @@ def _start_next_turn(
     state.next_first_player_id = None
     state.success_live_moved_player_ids = []
     state.success_live_moved_instance_ids = {}
+    state.live_success_player_ids = []
+    state.live_placement_eligible_player_ids = []
+    state.live_placement_prevented_player_ids = []
+    state.effect_blocked_live_placement_player_ids = []
     state.live_success_effects_queued = False
     state.live_winner_ids = []
     state.live_judgment_summary = None
@@ -9505,10 +9609,6 @@ def _finish_judgment_choices(
             )
             state.active_player_id = player_id
             return
-    _queue_live_success_effects(state, events)
-    _resolve_automatic_effects(state, events)
-    if state.pending_effects:
-        return
     _complete_live_judgment(state, events)
 
 
@@ -9521,6 +9621,8 @@ def _complete_live_judgment(
             for instance_id in list(zone):
                 zone.remove(instance_id)
                 player.waiting_room.append(instance_id)
+    for player_id in state.players:
+        _expire_modifiers(state, player_id, "live", events)
     state.pending_choice = None
     state.active_player_id = None
     success_counts = {
@@ -9578,7 +9680,14 @@ def _complete_live_judgment(
         GameEvent(
             event_type="live_judgment_completed",
             data={
+                "successful_player_ids": list(state.live_success_player_ids),
                 "winner_ids": state.live_winner_ids,
+                "placement_eligible_player_ids": list(
+                    state.live_placement_eligible_player_ids
+                ),
+                "placement_prevented_player_ids": list(
+                    state.live_placement_prevented_player_ids
+                ),
                 "success_live_moved_player_ids": list(
                     state.success_live_moved_player_ids
                 ),
@@ -11424,7 +11533,8 @@ def _queue_live_success_effects(
     if state.live_success_effects_queued:
         return
     state.live_success_effects_queued = True
-    for player_id, live_ids in state.success_live_moved_instance_ids.items():
+    for player_id in state.live_success_player_ids:
+        live_ids = list(state.players[player_id].live_area)
         if not live_ids:
             continue
         stage_sources = [

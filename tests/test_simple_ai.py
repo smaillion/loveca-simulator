@@ -454,6 +454,94 @@ def test_ai_observation_never_contains_opponent_hidden_hand_identity():
         assert first == second
 
 
+def test_ai_observation_hides_opponent_face_down_live_set_identity() -> None:
+    own_live = "own-live"
+    hidden_live = "opponent-set-live"
+    state = MatchState(
+        match_id="observation-face-down-live-redaction",
+        seed=2,
+        phase="live_set_second",
+        active_player_id="player_2",
+        players={
+            "player_1": PlayerState(
+                player_id="player_1",
+                name="AI",
+                hand=[own_live],
+            ),
+            "player_2": PlayerState(
+                player_id="player_2",
+                name="Opponent",
+                live_area=[hidden_live],
+            ),
+        },
+        cards={
+            own_live: CardInstance(
+                instance_id=own_live,
+                owner_id="player_1",
+                card=CardDefinition(
+                    card_code="OWN-LIVE",
+                    card_id="OWN-LIVE",
+                    name_ja="Own Live",
+                    card_type="live",
+                    score=1,
+                ),
+            ),
+            hidden_live: CardInstance(
+                instance_id=hidden_live,
+                owner_id="player_2",
+                face_up=False,
+                card=CardDefinition(
+                    card_code="SECRET-LIVE",
+                    card_id="SECRET-LIVE",
+                    name_ja="Secret Live",
+                    card_type="live",
+                    score=9,
+                ),
+            ),
+        },
+    )
+    legal = [
+        LegalAction(
+            action_type="set_live_cards",
+            player_id="player_1",
+            label_zh="设置 Live",
+            label_ja="ライブセット",
+        )
+    ]
+
+    observation = build_ai_observation(state, "player_1", legal)
+
+    assert observation.players["player_2"].live_area == ()
+    assert observation.players["player_2"].live_area_count == 1
+    assert hidden_live not in observation.cards
+    assert hidden_live not in repr(observation)
+
+    changed = state.model_copy(deep=True)
+    changed.cards[hidden_live].card = CardDefinition(
+        card_code="DIFFERENT-SECRET-LIVE",
+        card_id="DIFFERENT-SECRET-LIVE",
+        name_ja="Different Secret Live",
+        card_type="live",
+        score=1,
+        required_hearts={"heart06": 9},
+    )
+    controller = SimpleAIController(
+        SimpleAIPolicy(policy_version="simple_ai_v1_1")
+    )
+    first = controller.choose_action(
+        state,
+        legal,
+        controlled_player_ids={"player_1"},
+    )
+    second = controller.choose_action(
+        changed,
+        legal,
+        controlled_player_ids={"player_1"},
+    )
+
+    assert first == second
+
+
 def test_simple_ai_v1_requires_positive_board_gain_for_baton_replacement():
     old_id = "old-member"
     new_id = "new-member"

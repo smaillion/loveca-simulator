@@ -2281,7 +2281,7 @@ def _hime_live_success_state(effect: EffectDefinition) -> MatchState:
                 player_id="player_1",
                 name="Player 1",
                 member_area={"left": None, "center": "hime-stage", "right": None},
-                success_live_area=["successful-live"],
+                live_area=["successful-live"],
             ),
             "player_2": PlayerState(player_id="player_2", name="Player 2"),
         },
@@ -2299,7 +2299,7 @@ def _hime_live_success_state(effect: EffectDefinition) -> MatchState:
             ),
         },
         effect_definitions={effect.effect_id: effect},
-        success_live_moved_instance_ids={"player_1": ["successful-live"]},
+        live_success_player_ids=["player_1"],
     )
 
 

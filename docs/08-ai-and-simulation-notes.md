@@ -226,7 +226,23 @@ If AI bypasses validation, then:
 
 The controller chooses. The rule engine validates and resolves.
 
-## 13. Future Advanced AI
+## 14. Official-Rule Conformance Acceptance
+
+Simple AI policy changes should pass a separate rule-conformance acceptance run in addition to strength benchmarks. The maintained acceptance gate:
+
+* drives both players exclusively through `LegalActionGenerator`
+* records before/after state, Action, Events, decision reason, and rule references
+* validates zone ownership, revision progression, Live Heart and score resolution, match-point ties, final victory, effect snapshot binding, Japanese semantic-operation alignment, and Replay identity
+* requires at least 10 matches to finish within 10 turns while both players complete at least one Live
+* treats any illegal Action, effect-error skip, failed semantic check, or Replay mismatch as disqualifying
+
+Live judgment has an additional fixed boundary matrix derived from comprehensive rules 8.4.2-8.4.13 and 1.2.1.1-1.2.1.2. It keeps Live success, `ライブ成功時` check timing, performance winner, Success Live placement eligibility, and whole-match result as separate facts. In particular, an equal-score comparison still has two performance winners, but rule 8.4.7.1 prevents a player already holding two Success Live cards from adding another. When both players are at Match Point, neither adds a card and the match continues.
+
+The maintained run completed 20/20 matches and qualified 12/20. It produced 14,160 passing checks and exercised 64 distinct effects over 260 effect decisions or resolutions. This is path evidence, not proof for effects that did not trigger.
+
+Policy optimization must use mirrored fixed-deck and fixed-seed comparisons. Two initial v1.2 experiments that increased Live conservation or generic draw/recovery priority were rejected: both completed 80/80 matches, but challenger points rates were 48.75% and 47.50%, and both reduced Live success rates. A third 40-match bounded Member-placement lookahead experiment reached only 50.00% points; it improved Live successes from 84/139 to 85/139 while increasing decision P95 from 13.96ms to 104.07ms. `simple_ai_v1_1` therefore remains the best tested deterministic policy until a stronger candidate passes the same gate.
+
+## 15. Future Advanced AI
 
 Future advanced AI may support:
 

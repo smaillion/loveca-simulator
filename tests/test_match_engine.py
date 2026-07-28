@@ -1521,7 +1521,9 @@ def test_higher_score_at_both_match_point_wins(tmp_path):
     assert state.game_result.winner_player_ids == [first_id]
 
 
-def test_equal_score_at_both_match_point_counts_no_success_live(tmp_path):
+def test_equal_score_at_both_match_point_has_two_winners_but_no_success_live_move(
+    tmp_path,
+):
     service, match_id = _create_match(tmp_path, seed=1443)
     state = _reach_first_main(service, match_id)
     players = {state.first_player_id or "", state.second_player_id or ""}
@@ -1537,7 +1539,9 @@ def test_equal_score_at_both_match_point_counts_no_success_live(tmp_path):
     assert state.phase == "turn_complete"
     assert state.live_judgment_summary is not None
     assert state.live_judgment_summary["basis"] == "equal_total_score"
-    assert state.live_winner_ids == []
+    assert set(state.live_winner_ids) == players
+    assert state.live_placement_eligible_player_ids == []
+    assert set(state.live_placement_prevented_player_ids) == players
     assert state.success_live_moved_player_ids == []
     assert {
         player_id: len(state.players[player_id].success_live_area)
@@ -1557,6 +1561,9 @@ def test_equal_score_at_one_sided_match_point_only_counts_non_match_point_player
     assert state.phase == "turn_complete"
     assert len(state.players[match_point_id].success_live_area) == 2
     assert len(state.players[challenger_id].success_live_area) == 1
+    assert state.live_winner_ids == [match_point_id, challenger_id]
+    assert state.live_placement_eligible_player_ids == [challenger_id]
+    assert state.live_placement_prevented_player_ids == [match_point_id]
     assert state.success_live_moved_player_ids == [challenger_id]
     assert state.next_first_player_id == challenger_id
     assert state.game_result is None

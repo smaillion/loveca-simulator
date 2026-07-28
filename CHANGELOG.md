@@ -4,12 +4,22 @@
 
 ### 追加 / 新增
 
+- Live 判定を 9 つの固定境界で監査する gate と中文レポートを追加し、Live 成功・今回の勝者・成功 Live 追加資格・試合結果を別々に検証できるようにした。
+- 新增包含 9 个固定边界的 Live 判定审计门禁与中文报告，分别验证 Live 成功、本轮胜者、成功 Live 移动资格和整场胜负。
+- 公式総合ルール ver.1.06 を参照する AI 対戦逐 Action 監査 runner を追加した。固定 20 戦は 20/20 完走し、12/20 が 10 turn 以内かつ双方 1 回以上 Live 成功、14,160 check と 64 種 / 260 step の skill check はすべて PASS、Replay error 0 となった。
+- 新增基于官方综合规则 ver.1.06 的 AI 对战逐 Action 审计工具。固定 20 局为 20/20 完赛，12/20 满足 10 回合内且双方至少各成功一次 Live；14,160 条检查与 64 种 / 260 步技能检查全部 PASS，Replay error 为 0。
+- `LL-bp5-002:1` の異なる 3 グループ条件と Center Member の Live-duration Heart 付与を構造化し、effect registry を 864 / 979 `test_validated_executable`（88.25%）へ更新した。
+- 结构化 `LL-bp5-002:1` 的三种不同组合条件与中心 Member 的 Live-duration Heart，effect registry 更新为 864 / 979 条 `test_validated_executable`（88.25%）。
+- Simple AI v1.1 に対して Live 保持 / access 重みを変えた 2 つの v1.2 候補を各 80 戦比較し、積分率 48.75% / 47.50% と Live 成功率低下を確認したため採用しなかった。
+- 对 Simple AI v1.1 分别进行了两组各 80 局的 v1.2 Live 保留 / 获取权重实验；因积分率仅 48.75% / 47.50%，且 Live 成功率下降，未予采用。
+- Member 登場後の Live 到達性を 1 action だけ先読みする候補も 40 戦比較し、Live 成功は 84/139 から 85/139 へ微増したが積分率 50.00% のまま、decision P95 が 13.96ms から 104.07ms へ増えたため採用しなかった。
+- 另对 Member 登场后的 Live 可达性进行单步前瞻，完成 40 局镜像比较；Live 成功仅从 84/139 增至 85/139，积分率仍为 50.00%，决策 P95 从 13.96ms 增至 104.07ms，因此未采用。
 - `simple_ai_v1_1` policy を追加し、Match Point の Live 保持、低価値 Stage 置換の抑制、構造化効果の費用・対象・count 評価を強化した。旧 snapshot の v0 / v1 policy はそのまま保持する。
 - 新增 `simple_ai_v1_1` 策略，强化 Match Point 时保留 Live、抑制低收益 Stage 替换，以及结构化技能的费用、目标和 count 评价；旧 snapshot 继续保留 v0 / v1 policy。
 - effect registry integrity audit、API Play deterministic comparison、manual effect gap report を追加し、技能 segment / trigger / timing / text hash の不整合を実装前に検出できるようにした。
 - 新增 effect registry 完整性审计、API Play deterministic comparison 与 manual effect gap report，可在实现前检测技能分段、trigger、timing 和 text hash 不一致。
-- effect registry を 979 件中 863 件の `test_validated_executable`（88.15%）まで拡張し、strict audit で 0 error / 0 warning を確認した。残る 116 件は `manual_resolution` のまま維持する。
-- 将 effect registry 扩展到 979 条中的 863 条 `test_validated_executable`（88.15%），strict audit 为 0 error / 0 warning；剩余 116 条继续保留 `manual_resolution`。
+- effect registry を 979 件中 864 件の `test_validated_executable`（88.25%）まで拡張し、strict audit で 0 error / 0 warning を確認した。残る 115 件は `manual_resolution` のまま維持する。
+- 将 effect registry 扩展到 979 条中的 864 条 `test_validated_executable`（88.25%），strict audit 为 0 error / 0 warning；剩余 115 条继续保留 `manual_resolution`。
 - registry integrity 修正では既存 22 件と新規 timing segment 1 件を executable とし、誤った segment に結び付いていた 1 件は安全側へ戻して manual とした。
 - registry 完整性修正将既有 22 条与 1 条新拆分 timing segment 标记为 executable，同时把 1 条错误绑定技能保守降回 manual。
 - 日中 human-readable effect verification を 60 scenario へ拡張し、そのうち 21 scenario で実際の GameState 遷移を検証するようにした。
@@ -31,6 +41,10 @@
 
 ### 修正 / 修复
 
+- `ライブ成功時` effect を総 score 比較より先に処理し、その score modifier が今回の Live 勝敗へ反映されるよう修正した。Live-duration modifier も判定完了前には失効しない。
+- 修复 `ライブ成功時` 效果晚于总分比较的问题，使其分数 modifier 能影响当前 Live 胜负；Live-duration modifier 也不会在判定完成前提前失效。
+- 同点時の勝者と成功 Live 追加資格を分離し、片方または双方が Match Point の場合に 8.4.7.1 の追加禁止だけを適用するよう修正した。
+- 分离同分时的本轮胜者与成功 Live 移动资格，只在单方或双方处于 Match Point 时应用 8.4.7.1 的禁止追加规则。
 - `choose_count` で支払う Energy 枚数を決める効果は、LegalActionGenerator が公開した Active Energy 枚数を超えて AI が count を選ばないようにした。
 - 修复 AI 在 `choose_count` 决定 Energy 支付数量时可能超过 LegalActionGenerator 提供的 Active Energy 数量。
 - trigger 時点では存在した必須 choice 候補が同一タイミング中に別 zone へ移動した場合、`effect_not_activatable` を記録して stale invocation を終了できるようにした。

@@ -902,7 +902,7 @@ def _live_success_equal_score_prevent_success_live_placement(
         trigger="live_succeeded",
         frequency_limit="once_per_live",
         is_optional=False,
-        condition={"live_judgment_basis": "equal_total_score"},
+        condition={"live_score_relation": "equal_to_opponent"},
         cost=[],
         choice=None,
         actions=[{"action_type": "prevent_equal_score_success_live_placement"}],
@@ -7966,6 +7966,24 @@ def _live_start_deep_modifiers(row: sqlite3.Row) -> EffectCandidate | None:
             "condition": {"own_member_entered_count_this_turn_at_least": 2},
             "actions": [{"action_type": "modify_score", "amount": 1}],
             "duration": "live",
+        },
+        (
+            "【ライブ開始時】自分のステージにグループ名がそれぞれ異なる"
+            "メンバーが3人以上いる場合、ライブ終了時まで、自分のセンター"
+            "エリアにいるメンバーは【ハート】を得る。"
+        ): {
+            "suffix": "stage_distinct_units3_center_heart1",
+            "condition": {"own_stage_distinct_unit_count_at_least": 3},
+            "actions": [
+                {
+                    "action_type": "gain_heart_to_stage_members",
+                    "amount": 1,
+                    "color_slot": "heart0",
+                    "value": {"slot": "center"},
+                }
+            ],
+            "duration": "live",
+            "execution_mode": "auto_resolve",
         },
         "【ライブ開始時】ライブ終了時まで、自分のステージのセンターエリアにいる『Liella!』のメンバーが元々持つ【ブレード】の数は3つになる。": {
             "suffix": "center_liella_base_blade3",

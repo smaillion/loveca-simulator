@@ -360,26 +360,33 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution"
+          "action_type": "gain_heart_to_stage_members",
+          "amount": 1,
+          "color_slot": "heart0",
+          "value": {
+            "slot": "center"
+          }
         }
       ],
       "card_code": "LL-bp5-002",
       "choice": null,
-      "condition": {},
+      "condition": {
+        "own_stage_distinct_unit_count_at_least": 3
+      },
       "cost": [],
       "cost_choice": null,
       "duration": "live",
       "effect_id": "LL-bp5-002:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "frequency_limit": "once_per_live",
       "is_optional": false,
       "label_ja": "【ライブ開始時】自分のステージにグループ名がそれぞれ異なるメンバーが3人以上いる場合、ライブ終了時まで、自分のセンターエリアにいるメンバーは【ハート】を得る。",
       "raw_text_hash": "682d40d62256f2504f62972327176060adeff8dfe80393e4d490bc66f9f09c47",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 273,
       "timing": "live_start",
       "trigger": "live_started"
@@ -27441,7 +27448,7 @@
       "card_code": "PL!S-pb1-022",
       "choice": null,
       "condition": {
-        "live_judgment_basis": "equal_total_score"
+        "live_score_relation": "equal_to_opponent"
       },
       "cost": [],
       "cost_choice": null,

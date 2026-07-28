@@ -204,6 +204,10 @@ class MatchState(BaseModel):
     next_first_player_id: str | None = None
     success_live_moved_player_ids: list[str] = Field(default_factory=list)
     success_live_moved_instance_ids: dict[str, list[str]] = Field(default_factory=dict)
+    live_success_player_ids: list[str] = Field(default_factory=list)
+    live_placement_eligible_player_ids: list[str] = Field(default_factory=list)
+    live_placement_prevented_player_ids: list[str] = Field(default_factory=list)
+    effect_blocked_live_placement_player_ids: list[str] = Field(default_factory=list)
     live_success_effects_queued: bool = False
     active_player_id: str | None = None
     players: dict[str, PlayerState]
