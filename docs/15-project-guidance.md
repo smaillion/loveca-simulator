@@ -85,3 +85,34 @@ This file records maintenance rules that should stay stable across releases.
 - `README.zh-CN.md` 面向简体中文用户。
 - `docs/` 和 `specs/` 中既有的英文设计文档，除非有明确需要，继续保持英文。
 - 面向用户的操作说明和 release note 优先使用日文或简体中文。
+
+## AI-DLC Development Flow
+
+### 日本語
+
+- 複雑な feature、rule、online、database、infrastructure 変更では AI-DLC
+  を使用し、要件、設計判断、test evidence、review を intent record に残す。
+- 小さな文書修正や局所的な UI 修正は `express`、再現可能な不具合は
+  `bugfix`、通常機能は `feature`、横断的な rule / protocol / schema 変更は
+  `classic` を基本とする。
+- 既存の `docs/` と `specs/` を source of truth とし、AI-DLC artifact は
+  approved delta と traceability を記録する。重複 roadmap や schema を作らない。
+- AI-DLC の stage approval は remote PR merge や deploy approval を意味しない。
+  remote PR merge 前には必ず maintainer の明示承認を取得する。
+- pin 済み vendor は `python scripts/aidlc_vendor.py verify` で検証し、upgrade
+  時は upstream migration note と hook trust を再確認する。
+- 詳細は `docs/20-ai-dlc-development-workflow.md` に従う。
+
+### 简体中文
+
+- 对复杂 feature、规则、online、数据库和基础设施改动使用 AI-DLC，在
+  intent record 中保留需求、设计决定、测试证据和审查记录。
+- 小型文档或局部 UI 修正默认用 `express`，可复现缺陷用 `bugfix`，普通功能
+  用 `feature`，跨模块规则 / 协议 / schema 改动用 `classic`。
+- 既有 `docs/` 和 `specs/` 继续作为 source of truth；AI-DLC 产物只记录已批准
+  的差异与追踪关系，不建立重复 roadmap 或 schema。
+- AI-DLC 阶段批准不等于允许合并远程 PR 或部署。合并远程 PR 前必须再次取得
+  maintainer 明确批准。
+- 使用 `python scripts/aidlc_vendor.py verify` 检查固定的上游文件；升级时必须
+  复核 upstream migration note，并重新确认 hook trust。
+- 详细流程见 `docs/20-ai-dlc-development-workflow.md`。

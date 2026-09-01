@@ -211,6 +211,8 @@ private tester 向けに事前構築 DB を渡す場合も、release version、s
 - `docs/16-low-cost-online-battle-plan.md`: 低コストなネットワーク対戦検証モードの計画
 - `docs/17-browser-only-preview-and-pages-release.md`: GitHub Pages browser preview と静的 data package の計画
 - `docs/18-hosted-online-smoke-checklist.md`: Hosted Online MVP の merge / deploy 前 smoke checklist
+- `docs/19-ai-rule-conformance-and-strategy-audit.md`: AI 対戦と公式ルール適合性の監査基準
+- `docs/20-ai-dlc-development-workflow.md`: AI-DLC を使う開発、承認、vendor 更新手順
 
 ## ローカル環境構築と開発コマンド
 
@@ -218,6 +220,7 @@ private tester 向けに事前構築 DB を渡す場合も、release version、s
 
 - Python `3.11+`
 - Node.js `20` / `22` / `24+`
+- Bun（AI-DLC workflow を使う開発者のみ）
 - SQLite は追加セットアップ不要
 
 インストール:
@@ -228,6 +231,18 @@ cd web
 npm install
 cd ..
 ```
+
+AI-DLC を使う場合:
+
+```powershell
+npm install -g bun
+python scripts/aidlc_vendor.py verify
+bun .codex/tools/aidlc-utility.ts doctor
+```
+
+新しい Codex session で `.codex/hooks.json` を確認して hook trust を承認し、
+`$aidlc compose "変更内容"` から開始します。詳細は
+`docs/20-ai-dlc-development-workflow.md` を参照してください。
 
 ### ローカル起動
 

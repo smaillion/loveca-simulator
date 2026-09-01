@@ -74,6 +74,16 @@ $manifestSensitivePatterns = @(
 )
 
 $changed = if ($All) { @("__all__") } else { Changed-Files }
+$python = @(Find-Python)
+$pythonExe = $python[0]
+$pythonArgs = if ($python.Count -gt 1) { $python[1..($python.Count - 1)] } else { @() }
+
+Write-Host "Verifying pinned AI-DLC distribution..."
+& $pythonExe @pythonArgs scripts/aidlc_vendor.py verify
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+
 $shouldVerifyManifest = $All
 foreach ($file in $changed) {
     $normalized = $file -replace "\\", "/"
@@ -89,9 +99,6 @@ foreach ($file in $changed) {
 }
 
 if ($shouldVerifyManifest) {
-    $python = @(Find-Python)
-    $pythonExe = $python[0]
-    $pythonArgs = if ($python.Count -gt 1) { $python[1..($python.Count - 1)] } else { @() }
     Write-Host "Verifying locked card database manifest..."
     & $pythonExe @pythonArgs scripts/card-db-manifest.py verify
     if ($LASTEXITCODE -ne 0) {

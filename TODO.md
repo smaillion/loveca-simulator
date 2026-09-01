@@ -2,6 +2,17 @@
 
 ## High Priority
 
+### AI-DLC Rollout Validation
+
+- Use the pinned AI-DLC workflow for the next rule-engine bugfix, normal feature,
+  and infrastructure change, then review whether scope selection and approval
+  gates produced useful artifacts without duplicating existing specs.
+- Keep `python scripts/aidlc_vendor.py verify` and the official doctor green.
+- Add only reviewed project learnings to `team.md` / `project.md`; do not turn
+  one-off implementation details into permanent rules.
+- Review each upstream AI-DLC release before upgrade and never overwrite the
+  LoveCA branch, deployment, language, or rule-conformance adaptations.
+
 ### Develop-Based Branch Hygiene
 
 - Keep all new feature branches based on `develop`.

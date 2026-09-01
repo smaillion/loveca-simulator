@@ -4,6 +4,12 @@
 
 ### 追加 / 新增
 
+- AI-DLC Workflows `v2.7.0` の Codex distribution を pin し、develop-based
+  branch、remote PR merge approval、ルール準拠 test を project rule として
+  統合した。vendor manifest、pre-push check、専用 GHA で drift を検出する。
+- 引入并固定 AI-DLC Workflows `v2.7.0` 的 Codex 分发，将 develop-based 分支、
+  远程 PR 合并审批和规则符合性测试纳入项目规则；通过 vendor manifest、
+  pre-push 检查和独立 GHA 检测上游文件漂移。
 - Live 判定を 9 つの固定境界で監査する gate と中文レポートを追加し、Live 成功・今回の勝者・成功 Live 追加資格・試合結果を別々に検証できるようにした。
 - 新增包含 9 个固定边界的 Live 判定审计门禁与中文报告，分别验证 Live 成功、本轮胜者、成功 Live 移动资格和整场胜负。
 - 公式総合ルール ver.1.06 を参照する AI 対戦逐 Action 監査 runner を追加した。固定 20 戦は 20/20 完走し、12/20 が 10 turn 以内かつ双方 1 回以上 Live 成功、14,160 check と 64 種 / 260 step の skill check はすべて PASS、Replay error 0 となった。

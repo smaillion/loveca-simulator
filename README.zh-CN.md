@@ -211,6 +211,8 @@ browser preview 的 deck 保存在 localStorage。Deck 主要只保存卡号和�
 - `docs/16-low-cost-online-battle-plan.md`: 低成本网络双人规则验证模式规划
 - `docs/17-browser-only-preview-and-pages-release.md`: GitHub Pages browser preview 与静态数据包计划
 - `docs/18-hosted-online-smoke-checklist.md`: Hosted Online MVP 合并 / 部署前 smoke checklist
+- `docs/19-ai-rule-conformance-and-strategy-audit.md`: AI 对战与官方规则符合性审计基准
+- `docs/20-ai-dlc-development-workflow.md`: AI-DLC 开发、审批和 vendor 更新流程
 
 ## 本地搭建与开发命令
 
@@ -218,6 +220,7 @@ browser preview 的 deck 保存在 localStorage。Deck 主要只保存卡号和�
 
 - Python `3.11+`
 - Node.js `20` / `22` / `24+`
+- Bun（仅使用 AI-DLC workflow 的开发者需要）
 - SQLite 无需额外安装
 
 安装依赖:
@@ -228,6 +231,18 @@ cd web
 npm install
 cd ..
 ```
+
+需要使用 AI-DLC 时：
+
+```powershell
+npm install -g bun
+python scripts/aidlc_vendor.py verify
+bun .codex/tools/aidlc-utility.ts doctor
+```
+
+在新的 Codex 会话中检查 `.codex/hooks.json` 并确认 hook trust，然后使用
+`$aidlc compose "改动内容"` 开始。完整流程见
+`docs/20-ai-dlc-development-workflow.md`。
 
 ### 本地启动
 
