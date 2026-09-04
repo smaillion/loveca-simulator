@@ -61,7 +61,20 @@ The production engine now emits separate `live_success_determined`, `live_judgme
 
 ## Current Result
 
-The fixed 20-match run produced:
+After importing `BP07` and `NSD02`, the full post-refresh gate produced:
+
+* 20/20 formally completed matches
+* 14/20 strict qualified matches
+* 12,543 passing transition checks
+* zero review or failed checks
+* zero illegal Actions, effect-error skips, or Replay mismatches
+* 49 distinct effects exercised in 219 effect decisions or resolutions
+* 219 passing dynamic effect semantic checks
+
+This run is the current data-compatibility gate for the new official-card
+snapshot and supersedes the earlier fixed baseline below.
+
+The earlier fixed 20-match run produced:
 
 * 20/20 formally completed matches
 * 12/20 strict qualified matches
@@ -77,13 +90,16 @@ A strict match must formally complete within 10 turns, give both players at leas
 
 ## Effect Registry Status
 
-The strict registry integrity audit reports zero errors and zero warnings across 979 effect identities.
+The strict registry integrity audit reports zero errors and zero warnings across 1,121 effect identities.
 
-* 864 `test_validated_executable`
-* 115 `manual_resolution`
-* 88.25% registry-entry executable coverage
+* 887 `test_validated_executable`
+* 234 `manual_resolution`
+* 79.13% registry-entry executable coverage
 
-`LL-bp5-002:1` was added in this audit cycle. It uses the existing distinct-Stage-unit condition and a Live-duration all-color Heart modifier targeted at the Center Member.
+The lower percentage is caused by registering all newly discovered BP07/NSD02
+timing segments rather than silently omitting unsupported text. The absolute
+executable count increased. `PL!N-bp7-030:2` is included as a two-step source
+Live return followed by a required discard from the updated hand.
 
 Static registry coverage and dynamic exercised-effect coverage are independent. A passing match does not justify promoting an untriggered effect, and automated tests do not grant `reviewed_executable` status without human rule review.
 

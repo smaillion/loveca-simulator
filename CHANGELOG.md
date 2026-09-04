@@ -4,6 +4,15 @@
 
 ### 追加 / 新增
 
+- 公式 card list の新 JSON API に importer を対応し、`BP07` / `NSD02` を locked DB に追加した。現在は 1,835 Gameplay Cards / 2,485 printings / 959 text revisions / 22 Card Sets。
+- 正式 importer 已适配官方 card list 新 JSON API，并把 `BP07` / `NSD02` 加入锁版本数据库；当前为 1,835 条 Gameplay Card / 2,485 个印刷版本 / 959 条文本修订 / 22 个 Card Set。
+- exact-text candidate の review gate を追加し、新パックの timing segment を含む effect registry を 1,121 件へ更新した。887 件は `test_validated_executable`、234 件は明示的な `manual_resolution` とし、strict integrity は 0 error / 0 warning。
+- 新增 exact-text candidate 审查门禁，将包含新卡包 timing segment 的 effect registry 更新到 1,121 条；其中 887 条为 `test_validated_executable`、234 条明确保留 `manual_resolution`，strict integrity 为 0 error / 0 warning。
+- `PL!N-bp7-030:2` の「source Live を手札へ戻し、更新後の手札から 1 枚捨てる」二段処理を構造化した。
+- 结构化 `PL!N-bp7-030:2`：先将来源 Live 回手，再从更新后的手牌中选择 1 张弃置。
+- 新カード snapshot に対する Simple AI 逐 Action 監査は 20/20 完走、14/20 strict qualified、12,543 check と 49 種 / 219 step の skill check がすべて PASS、Replay error / effect-error skip 0。
+- 新卡牌快照下的 Simple AI 逐 Action 审计达到 20/20 完赛、14/20 严格合格，12,543 条检查与 49 种 / 219 步技能检查全部 PASS，Replay error / effect-error skip 均为 0。
+
 - AI-DLC Workflows `v2.7.0` の Codex distribution を pin し、develop-based
   branch、remote PR merge approval、ルール準拠 test を project rule として
   統合した。vendor manifest、pre-push check、専用 GHA で drift を検出する。
@@ -46,6 +55,15 @@
 - 技能密集 sandbox 使用 30 套牌完成 100 局，其中 98 局完赛、可执行技能 689 / 689 完成结算、illegal action / silent skip / Replay error 均为 0；剩余 2 局在第 36 / 37 回合达到 action cap。
 
 ### 修正 / 修复
+
+- 公式サイトが空 HTML list を返す場合に成功扱いしないよう importer を fail-closed にし、全角 `＋`、effect icon alt、作品 alias、新特殊 Heart label の保持を修正した。
+- 修复官网返回空 HTML 列表时 importer 误判成功的问题，并完善全角 `＋`、技能图标 alt、作品别名及新特殊 Heart 标签的保留。
+- Member 登場 action 内で支払った Energy が直後の登場 effect により Active へ戻った場合、最終 orientation だけを見て未払いと誤判定していた AI rule audit を修正した。
+- 修复 AI 规则审计误报：Member 登场支付的 Energy 若在同一动作内被登场技能重新 Active，不再仅凭最终朝向判定为未支付。
+- Live 成功時 effect 後の Live Area 状態を使う 8.4.3 / 8.4.6 比較を audit に反映し、古い成功 event snapshot による誤判定を解消した。
+- 让审计按 Live 成功时技能结算后的 Live 区状态执行 8.4.3 / 8.4.6 比较，修复使用较早成功事件快照造成的误判。
+- browser preview 用 card catalog export を gameplay card 単位の shared-connection 読み込みへ変更し、同一カードの別 printings を重複出力せず、最新 1,835 cards の export を数分から約 1.3 秒へ短縮した。
+- 将 browser preview 卡库导出改为按 Gameplay Card 使用共享连接批量读取；不再因不同印刷版重复导出同一卡牌，并将最新 1,835 张卡的导出从数分钟缩短到约 1.3 秒。
 
 - `ライブ成功時` effect を総 score 比較より先に処理し、その score modifier が今回の Live 勝敗へ反映されるよう修正した。Live-duration modifier も判定完了前には失効しない。
 - 修复 `ライブ成功時` 效果晚于总分比较的问题，使其分数 modifier 能影响当前 Live 胜负；Live-duration modifier 也不会在判定完成前提前失效。

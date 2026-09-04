@@ -116,6 +116,41 @@ Every workflow is risk-sized, but these repository gates cannot be skipped:
 Unsupported or ambiguous card behavior stays visible as manual or unsupported.
 AI-DLC review does not grant `reviewed_executable` status by itself.
 
+## Official Card Data Refresh
+
+Official card updates are treated as a `classic` AI-DLC change because importer,
+locked data, Effect Registry identity, Replay compatibility, and AI regression
+evidence move together.
+
+The current importer discovers the official card-list JSON endpoints from
+`https://llofficial-cardgame.com/cardlist/`, caches list/detail responses, and
+fails closed when the selected set returns zero cards. A refresh must follow
+this order:
+
+1. Fetch selected sets into an ignored staging directory with
+   `loveca cards import-official --mode incremental-set`.
+2. Review the normalized artifact and run importer validation before changing
+   the locked SQLite file.
+3. Import into a disposable database copy, inspect entity/revision deltas, and
+   only then replace `data/loveca.sqlite3`.
+4. Generate Effect Registry candidates. Candidate generation is read-only;
+   `tools.ai_sandbox.register_effect_candidates --approve` is required after
+   reviewing exact Japanese text, identity, timing, operations, and support
+   status.
+5. Keep ambiguous semantics as `manual_resolution`. Unknown special Blade
+   Heart labels such as `無2` remain explicit `unknown` values until an official
+   rule or ruling defines them.
+6. Run strict registry integrity, focused state-transition tests, the official
+   rule AI acceptance, and the locked DB manifest gate.
+7. Build the browser preview package and verify that `cards.json` contains one
+   detail per gameplay card while retaining every printing under that detail.
+   The export path must use the shared-connection bulk catalog API; a return to
+   per-card database connections is treated as a release-build regression.
+
+An absolute executable count increase may coincide with a percentage decrease
+when a new set adds many honestly registered manual effects. This is expected
+and must not be hidden by promoting untested candidates.
+
 ## Branch And Approval Flow
 
 1. Inspect existing worktrees and user changes.

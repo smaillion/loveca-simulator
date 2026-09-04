@@ -8,7 +8,11 @@ It does not define scraper code, database schema, migrations, APIs, or implement
 
 ## 2. Source Requirements
 
-The importer must preserve official Japanese source text.
+The importer must preserve official Japanese source text. The current official
+card list is exposed through a list/detail JSON API discovered from the public
+`cardlist` page. Endpoint paths are source configuration, not stable project
+identifiers, and must be rediscovered or explicitly configured instead of
+being assumed forever.
 
 Imported records should preserve:
 
@@ -53,7 +57,13 @@ For exact official image labels, the spike may normalize:
 * `ドローn` to `draw`
 * `スコアn` to `score`
 
-Each normalized entry must preserve the source `alt` label, official HTML source field, and numeric value. Because official HTML currently exposes `ALLn` under `ブレードハート` while exposing Draw and Score under `特殊ハート`, importer provenance must retain that distinction. An ALL entry may also project to `blade_heart_color = heart0`. Unknown labels must remain `unknown` with the original source label and must not be guessed or converted into Effect DSL.
+Each normalized entry must preserve the source label, official JSON field or
+HTML fallback field, and numeric value. `ALLn` and `全ブレード` may normalize
+to `all_color`; Draw and Score remain distinct special effects. Importer
+provenance must retain the source distinction. An ALL entry may also project to
+`blade_heart_color = heart0`. Unknown labels, including the currently observed
+`無2`, must remain `unknown` with the original source label and value; they must
+not be guessed or converted into Effect DSL without an official rule source.
 
 The importer should not emit a generic `live_requirement` field unless source review identifies a separate official field beyond required Heart and score.
 
@@ -72,6 +82,9 @@ The importer must:
 * create a new provisional revision when official text changes
 * retain the Printing and Source Observation that exposed the text
 * avoid duplicating effect interpretations for equivalent printings
+* reject an empty selected-set result instead of reporting a successful import
+* normalize full-width `＋` to ASCII `+` before identity comparison
+* preserve effect-text icon alternatives when the JSON source embeds images
 
 An Energy card or a card without official effect text may have no text revision.
 

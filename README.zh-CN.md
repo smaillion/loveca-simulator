@@ -8,22 +8,22 @@
 
 ## 当前状态
 
-`v0.77` 当前已收录:
+`develop`（下一版 `v0.9`）当前已收录:
 
-- 正式官方 `card_list` 卡牌 importer
+- 基于官方 `card_list` JSON API 的正式卡牌 importer
 - 避免 `＋` / `+` 混用的卡号正规化
 - SQLite Schema v2 本地卡牌数据库
 - 带本地保存能力的 Deck Builder
 - 基于 `decklist.v0` 的 Deck Analyzer
 - FastAPI + React SPA 可视化规则验证器
 - 可回放的 Action-only GameState
-- 包含官方 `PBSP02` 新补充包的锁版本卡牌数据库
-  - `PBSP02` 收录 122 个印刷版本 / 96 个规则卡身份
-  - importer 报告中新增 Gameplay Card 70 条
-- 979 条 effect registry entry
-  - 864 条为 `test_validated_executable`
-  - 115 条为 timing prompt / 未支持处理用 `manual_resolution`
-  - `PBSP02` 相关技能 74 条中 63 条为 `test_validated_executable`，新补充包覆盖率为 85.14%
+- 包含 `BP07` / `NSD02` 的锁版本卡牌数据库
+  - 1,835 条 Gameplay Card / 2,485 个印刷版本 / 959 条文本修订 / 22 个 Card Set
+  - `BP07` 为 190 个印刷版本 / 130 个规则卡身份，`NSD02` 为 43 / 34
+- 1,121 条 effect registry entry
+  - 887 条为 `test_validated_executable`
+  - 234 条为 timing prompt / 未支持处理用 `manual_resolution`
+  - 新卡包中发现的未支持技能也会显式登记为 manual，避免静默跳过
 - 面向未来低成本 online 同步的 state hash / compatibility metadata 基础
 - Hosted Online MVP 房间 API
   - 通过 room code 创建 / 加入房间
@@ -42,7 +42,7 @@
 
 当前开发主线:
 
-- Roadmap 上当前集中在 Phase 5 Effect DSL / 结构化技能执行。
+- Roadmap 当前让 Phase 5 进入维护，同时推进 Phase 6 官方规则符合性与结构化技能准确度。
 - Phase 1 / 2 / 3 已基本实现，进入维护和改善阶段。
 - Phase 4 的 Human-vs-Human 验证器和 Phase 7 的 UI 已提前完成大部分。
 - Phase 9 / 10 的低成本 online 验证会和 Phase 5 并行提前推进。
@@ -59,16 +59,16 @@
 - 部分双方都需要选择的效果已可通过 multi-player pending choice 顺序处理
 - 支持把 Stage Member 目标拆成多个选择组，并对各组选中目标应用相同的临时 modifier
 - 支持每个分支使用不同 Stage Member 候选池的技能选择
-- 按 registry entry 计算的 `test_validated_executable` 覆盖率已达到 88.25%（864 / 979）
+- 按 registry entry 计算的 `test_validated_executable` 覆盖率为 79.13%（887 / 1,121）。新卡包复杂技能被如实登记为 manual，百分比因此下降，但可执行技能绝对数量已经增加
 - `PBSP02` 相关技能 74 条中 63 条已结构化，新补充包覆盖率确认达到 85.14%
 - 追加结构化支持 μ's / Aqours / Saint Snow / Nijigasaki / Hasunosora / Edel Note 的部分控室回收、Energy ready、牌堆顶检查、应援公开条件和带手牌成本的 Live 开始时效果
 - static Heart / Blade 等常时效果现在只会在 operation 侧条件满足时计入
 - `PBSP02` 集中 block sandbox 为 `30 decks x 20 matches` 中 19 局完走，`mandatory_manual_resolution = 0`，剩余 1 局为 `max_actions:match_point_players_have_no_live_in_hand`
 - Phase 5 broad black-box sandbox 已在 `30 decks x 100 matches` block mode 中达到 `100/100` 完走，blocker 为 0
 - 最新 skill-dense Simple AI regression 为 `30 decks x 100 matches` 100/100 完赛，blocker / silent skip / Replay error 均为 0
-- 之前问题卡 targeted sandbox 中的 `PL!S-bp6-001:1` / `PL!S-pb1-001:1` 已完成结构化；剩余 115 条未支持技能通过 gap report 记录原因
+- 之前问题卡 targeted sandbox 中的 `PL!S-bp6-001:1` / `PL!S-pb1-001:1` 已完成结构化；剩余 234 条未支持技能通过 gap report 记录原因
 - 已结构化 `LL-bp5-002:1`：Stage 上存在 3 名不同组合的 Member 时，中心 Member 获得持续到本次 Live 结束的任意色 Heart
-- 基于官方综合规则 ver.1.06 的 AI 逐 Action 审计为 20/20 完赛，12/20 满足“10 回合内且双方至少各成功一次 Live”；14,160 条检查以及实际处理的 64 种 / 260 步技能检查全部 PASS，Replay error 为 0
+- 同步 `BP07` / `NSD02` 后，基于官方综合规则 ver.1.06 的 AI 逐 Action 审计为 20/20 完赛，14/20 满足“10 回合内且双方至少各成功一次 Live”；12,543 条检查以及实际处理的 49 种 / 219 步技能检查全部 PASS，Replay error 为 0
 - Live 判定另有 9 个固定边界门禁，分别审计 Live 成功、本轮胜者、Match Point 时的成功 Live 移动资格及最终胜负
 - 触发时条件满足的 pending effect 如果在同一时点中被其他效果改变条件导致失效，会记录明确的 `effect_not_activatable` event 并继续推进
 - 公开并加入手牌的效果会在对手侧履历中保留公开卡名，方便联机复盘
@@ -111,7 +111,8 @@ Bug 报告、规则行为讨论和 online 对战伙伴寻找请前往 [Discord](
 
 - 这是开发中的 alpha 版本，不是官方数字客户端。当前目标是规则验证和收集 playtest feedback。
 - 还没有覆盖全卡技能自动执行。未支持技能可能需要 `ManualAdjustmentAction`、结构化 pending choice，或用调试 skip 继续推进。
-- 最新 skill-dense 回归已让 `30 decks x 100 matches` 以 blocker 0 完走，但这不代表剩余 115 条 `manual_resolution` 已能自动处理；未在该测试池触发或语义复杂的技能仍需人工处理，最新分类见 `docs/13-effect-semantics-audit.md` 与 `TODO.md`。
+- 最新新卡包同步仍明确保留 234 条 `manual_resolution`；未在测试池触发或语义复杂的技能仍需人工处理，最新分类见 `docs/13-effect-semantics-audit.md` 与 `TODO.md`。
+- `BP07` 的 `無2` 特殊 Blade Heart 无法仅凭综合规则 ver.1.06 确定语义，因此不会猜测实现，当前保持未支持状态。
 - 依赖 FAQ 或个别裁定的效果尚未规格化。
 - `data/loveca.sqlite3` 是仓库内锁版本权威卡牌 DB。官方补充包或 parser/schema/effect registry 变化后，由维护者重建并提交新的 DB 与 `data/loveca-db-manifest.json`；普通用户和 CI 不应自行 import 产生不同线上 DB。保存牌组是 `decklist.v0` 用户数据，可以和卡牌数据库分开保留。
 - Web/API 测试依赖 `httpx2`。环境缺少该依赖时，`tests/test_catalog_api.py` 和 `tests/test_webapp.py` 会在收集阶段停止。
@@ -371,9 +372,10 @@ loveca decks analyze `
 
 ```powershell
 loveca cards import-official `
-  --output-root data/imports/official-bp06 `
+  --output-root data/imports/official-bp07-nsd02 `
   --mode incremental-set `
-  --card-set BP06 `
+  --card-set BP07 `
+  --card-set NSD02 `
   --delay 1
 ```
 
@@ -382,8 +384,9 @@ loveca cards import `
   --database data/loveca.sqlite3 `
   --input data/imports/official/normalized/cards-official.json `
   --normalization data_sources/card-entity-normalization.json `
-  --card-set BP06 `
-  --report logs/import-bp06.md
+  --card-set BP07 `
+  --card-set NSD02 `
+  --report logs/import-bp07-nsd02.md
 ```
 
 ### 测试

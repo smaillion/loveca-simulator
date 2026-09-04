@@ -18,19 +18,34 @@ This audit does not incorporate FAQ, Q&A, or individual ruling clarifications.
 
 ## Current Repository Snapshot
 
-Local card data observed during this review:
+Local card data observed after the September 2026 official-source refresh:
 
-* about 1,679 Gameplay Cards
-* about 845 Card Text Revisions
-* about 832 Gameplay Cards with at least one text revision
+* 1,835 Gameplay Cards
+* 2,485 Card Printings across 22 Card Sets
+* 959 Card Text Revisions
   * current registry coverage has split into two separate layers:
-  * 979 effect definitions
-  * 864 `test_validated_executable` definitions
-  * 115 timing-only `manual_resolution` definitions
-  * registry-entry executable coverage is currently 88.25%
+  * 1,121 effect definitions
+  * 887 `test_validated_executable` definitions
+  * 234 timing-only `manual_resolution` definitions
+  * registry-entry executable coverage is currently 79.13%
   * the latest Phase 5 sandbox block run still records mandatory manual-resolution blockers in generated matches, but the current 10-match smoke no longer blocks on the newly structured base-Blade, source position-change, Baton replacement return, distinct-name Yell, no-excess-Heart, minimum-Blade choice, branch-specific Stage Member choice, branch-conditioned Waiting Room Live choice, activated Waiting Room Member deploy, activated cost-choice Live recovery, on-play pay-Energy, simple on-play, live-start pay / discard modifier, activated wait-or-discard ready Energy branch, on-play branch, moved-source modifier, success-count-equal Live-start Heart, opponent wait count static, multi-segment static Heart / Blade, Live-success Energy placement / pay draw, moved-source draw / Energy / opponent wait, Yell-revealed special Blade Heart / Stage name Live-success, static count modifier, static position / Heart / Live-area condition, static opposing-cost / movement / attachment condition, Yell / Live-success condition, Yell-revealed recovery, Live-success conditional score / Energy, hand deploy / source-wait Blade, or source-wait opponent original-Blade wait patterns
   * `skip` mode currently avoids illegal actions in the latest 50-match run, but long sandbox games still frequently reach the action cap before a formal result
   * the latest testing loop added Live-specific temporary score / required-Heart modifiers, reveal-top scoring, Live Area condition checks, grouped Stage Member choice, base Blade replacement, source Member position change, Baton replacement return, distinct-name Yell conditions, no-excess-Heart conditions, minimum-Blade target filtering, branch-specific Stage Member choice filters, branch-specific conditions, both-player Waiting Room Member bulk deck-bottom movement, single-player Waiting Room Member deployment to empty Stage slots, activated cost-choice handling, on-play pay-Energy handling, simple on-play effects, activated source-orientation branch handling, on-play branch filters, moved-source auto modifiers, success-count-equal Live-start Heart modifiers, opponent wait-count amount sources, opponent Energy placement, additional exact-text Live timing patterns, Yell-revealed Member recovery, source Live-success disabling, original-Blade bulk wait, source score replacement, deck-refresh turn history, Yell-revealed special Blade Heart conditions, all-required Stage name conditions, static Stage / success / opponent-excess count modifiers, static position / Heart / Live-area condition modifiers, static opposing-cost / movement / attachment condition modifiers, Yell-revealed Heart-color / non-Blade-Heart conditions, member-entered count conditions, Yell-revealed deck placement / recovery, source-moved operation conditions, Live-success conditional score / Energy amount conditions, hand-zone Member deployment, source-wait center Member Blade modifiers, source-wait opponent original-Blade choice filters, unit-exclusion opponent wait filters, top-level moved-source gating, operation-conditioned static bonus calculation, selected/cost-card operation conditions, capped Yell-revealed Live counts, shared-unit Yell conditions, and additional exact-text Waiting Room recovery / Energy ready / inspect-top patterns
+
+The latest refresh adds `BP07` (190 printings / 130 gameplay identities) and
+`NSD02` (43 / 34). Candidate discovery found 142 previously unregistered timing
+segments. Every segment is now registered, but ambiguous or unsupported text
+remains manual. The executable absolute count increased from 864 to 887 while
+the percentage decreased because the denominator now includes the new packs'
+complex effects. This is intentional and prevents silent skips.
+
+The safely structured new-pack subset includes Waiting Room Live/Member return,
+top-three inspect/reorder, Energy payment plus Member ready, targeted Member
+Blade, conditional draw, mill-three, temporary Heart, and opponent cost-2 Wait.
+`PL!N-bp7-030:2` now returns its source Live to hand and then performs a required
+post-action hand discard. `PL!S-bp7-007:1` remains manual because its mandatory
+return plus optional deployment cannot yet preserve the selected-card relation.
+The `無2` special Blade Heart remains explicitly unknown under rules ver.1.06.
 
 Therefore, the current repository has broad timing-prompt coverage but is still in a pattern-expansion phase rather than a broad full-card executable-effects phase. The new manual fallback entries are not proof of automated semantic support.
 
@@ -38,7 +53,15 @@ The Simple AI v1 accuracy pass added 39 exact-text executable definitions withou
 
 The v1.1 registry-integrity pass corrected effect segmentation, trigger timing, frequency, and Japanese-text bindings without fuzzy matching. The strict audit maps all 979 registry identities to exact local text revisions with zero errors and zero warnings. Twenty-two existing exact-text entries were promoted after executor and state-transition tests, one newly split timing entry is executable, and one previously executable misbinding was conservatively returned to manual. The later rule-audit pass structured `LL-bp5-002:1`, whose exact text checks three distinct Stage units and grants the Center Member one all-color Heart for the current Live. The remaining 115 entries stay manual.
 
-The official-rule AI acceptance run uses comprehensive rules ver. 1.06 as a clause-indexed audit baseline. In a fixed 20-match pool, all 20 matches completed, 12 met the strict requirement of finishing within 10 turns with both players completing at least one Live, and all 14,160 observable transition checks passed. The run exercised 64 distinct effects across 260 effect decisions or resolutions, with 260 semantic effect checks passing and no Replay error. This dynamic result is evidence for exercised paths only; it does not promote unexercised manual entries or replace human review.
+The post-refresh official-rule AI acceptance run uses comprehensive rules ver.
+1.06 as a clause-indexed audit baseline. In the fixed 20-match verification,
+all 20 matches completed, 14 met the strict requirement of finishing within 10
+turns with both players completing at least one Live, and all 12,543 observable
+transition checks passed. The run exercised 49 distinct effects across 219
+effect decisions or resolutions, with all 219 semantic effect checks passing
+and no review, Replay error, or effect-error skip. This dynamic result is evidence for
+exercised paths only; it does not promote unexercised manual entries or replace
+human review.
 
 The human-readable effect verification artifact now contains 60 Japanese / Chinese scenarios. Twenty-one scenarios execute focused state transitions, while the remaining contract scenarios verify exact trigger, choice, operation, support status, official Japanese text, and card visual linkage. These checks are implementation evidence only; `reviewed_executable` still requires human rule review.
 
