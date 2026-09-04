@@ -319,42 +319,50 @@ def _onplay_inspect3_reorder(row: sqlite3.Row) -> EffectCandidate | None:
 
 
 def _live_success_inspect3_reorder(row: sqlite3.Row) -> EffectCandidate | None:
-    text = str(row["raw_effect_text_ja"]).strip()
     amount = 3
     condition: dict[str, Any] = {}
-    if text == (
+    label = (
         "【ライブ成功時】自分のデッキの上からカードを3枚見る。"
         "それらを好きな順番でデッキの上に置く。"
-    ):
+    )
+    matched = _matching_segment(row, label)
+    if matched is not None:
         minimum = maximum = 3
         unselected_destination = None
         pattern_id = "live_success_inspect3_reorder_all_top"
-    elif text == (
+    else:
+        label = (
         "【ライブ成功時】自分のデッキの上からカードを3枚見る。"
         "その中から好きな枚数を好きな順番でデッキの上に置き、"
         "残りを控え室に置く。"
-    ):
+        )
+        matched = _matching_segment(row, label)
+    if matched is not None and label.endswith("残りを控え室に置く。") and amount == 3:
         minimum = 0
         maximum = 3
         unselected_destination = "waiting_room"
         pattern_id = "live_success_inspect3_reorder_rest_wr"
-    elif text == (
+    if matched is None:
+        amount = 2
+        label = (
         "【ライブ成功時】このターン、自分が余剰ハートを1つ以上持っている場合、"
         "自分のデッキの上からカードを2枚見る。"
         "その中から好きな枚数を好きな順番でデッキの上に置き、"
         "残りを控え室に置く。"
-    ):
-        amount = 2
+        )
+        matched = _matching_segment(row, label)
+    if matched is not None and amount == 2:
         minimum = 0
         maximum = 2
         unselected_destination = "waiting_room"
         condition = {"own_excess_heart_count_at_least": 1}
         pattern_id = "live_success_excess_heart_inspect2_reorder_rest_wr"
-    else:
+    if matched is None:
         return None
+    effect_index, exact_label = matched
     return EffectCandidate(
-        **_base(row, pattern_id=pattern_id, effect_index=1),
-        label_ja=text,
+        **_base(row, pattern_id=pattern_id, effect_index=effect_index),
+        label_ja=exact_label,
         effect_type="triggered",
         timing="live_success",
         trigger="live_succeeded",
@@ -1340,11 +1348,16 @@ def _onplay_mill3_all_heart04_gain_heart04(row: sqlite3.Row) -> EffectCandidate 
 def _onplay_wait_opponent_member_cost4(row: sqlite3.Row) -> EffectCandidate | None:
     text = str(row["raw_effect_text_ja"]).strip()
     expected = "【登場】相手のステージにいるコスト4以下のメンバー1人をウェイトにする。"
-    if not text.startswith(expected):
+    annotated = (
+        expected
+        + "（ウェイト状態のメンバーが持つ【ブレード】は、"
+        "エールで公開する枚数を増やさない。）"
+    )
+    if text not in {expected, annotated}:
         return None
     return EffectCandidate(
         **_base(row, pattern_id="onplay_wait_opponent_cost4_member", effect_index=1),
-        label_ja=expected,
+        label_ja=text,
         effect_type="triggered",
         timing="on_play",
         trigger="member_played",
@@ -1373,6 +1386,21 @@ def _wait_opponent_member_by_cost(row: sqlite3.Row) -> EffectCandidate | None:
             "timing": "on_play",
             "trigger": "member_played",
             "frequency_limit": "none",
+            "condition": {},
+            "maximum_cost": 2,
+            "minimum": 1,
+            "actions": [{"action_type": "apply_wait_member", "target": "selected"}],
+            "duration": None,
+        },
+        (
+            "【ライブ開始時】相手のステージにいるコスト2以下のメンバー1人をウェイトにする。"
+            "（ウェイト状態のメンバーが持つ【ブレード】は、"
+            "エールで公開する枚数を増やさない。）"
+        ): {
+            "pattern_id": "live_start_wait_opponent_cost2_member",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "frequency_limit": "once_per_live",
             "condition": {},
             "maximum_cost": 2,
             "minimum": 1,
@@ -4877,17 +4905,18 @@ def _onplay_success_low_score_gain_score(row: sqlite3.Row) -> EffectCandidate | 
 
 
 def _onplay_return_waiting_member_cost2(row: sqlite3.Row) -> EffectCandidate | None:
-    text = str(row["raw_effect_text_ja"]).strip()
     expected = "【登場】自分の控え室からコスト2以下のメンバーカードを1枚手札に加える。"
-    if not text.startswith(expected):
+    matched = _matching_segment(row, expected)
+    if matched is None:
         return None
+    effect_index, exact_label = matched
     return EffectCandidate(
         **_base(
             row,
             pattern_id="onplay_return_waiting_member_cost2",
-            effect_index=1,
+            effect_index=effect_index,
         ),
-        label_ja=expected,
+        label_ja=exact_label,
         effect_type="triggered",
         timing="on_play",
         trigger="member_played",
@@ -4904,6 +4933,50 @@ def _onplay_return_waiting_member_cost2(row: sqlite3.Row) -> EffectCandidate | N
             "maximum": 1,
         },
         actions=[{"action_type": "return_from_waiting_room"}],
+        duration=None,
+    )
+
+
+def _onplay_return_waiting_member_cost2_then_optional_deploy(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    expected = (
+        "【登場】自分の控え室からコスト2以下のメンバーカードを1枚手札に加える。"
+        "これによって「津島善子」か「黒澤ルビィ」を手札に加えた場合、"
+        "そのカードを自分のステージのメンバーのいないエリアに登場させてもよい。"
+    )
+    matched = _matching_segment(row, expected)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    base = _base_with_execution_mode(
+        row,
+        pattern_id="onplay_return_waiting_member_cost2_then_optional_deploy_manual",
+        effect_index=effect_index,
+        execution_mode="manual_resolution",
+    )
+    base.update(
+        {
+            "simulation_support": "manual_resolution",
+            "review_status": "parsed_draft",
+            "source_reference": (
+                "Official card text; mandatory return followed by optional deployment "
+                "requires a dedicated multi-step executor"
+            ),
+        }
+    )
+    return EffectCandidate(
+        **base,
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="on_play",
+        trigger="member_played",
+        frequency_limit="none",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "manual_resolution"}],
         duration=None,
     )
 
@@ -9950,6 +10023,225 @@ def _static_opponent_wait_count_modifiers(
     return None
 
 
+def _bp07_nsd02_safe_exact_effects(row: sqlite3.Row) -> EffectCandidate | None:
+    patterns: dict[str, dict[str, Any]] = {
+        "【登場】自分の控え室からライブカードを1枚手札に加える。": {
+            "suffix": "onplay_return_live",
+            "timing": "on_play",
+            "trigger": "member_played",
+            "choice": {
+                "choice_type": "card_from_zone",
+                "zone": "waiting_room",
+                "card_type": "live",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [{"action_type": "return_from_waiting_room"}],
+        },
+        "【登場】自分のステージに『A・ZU・NA』のメンバーが3人いる場合、カードを1枚引く。": {
+            "suffix": "onplay_azuna_stage3_draw1",
+            "timing": "on_play",
+            "trigger": "member_played",
+            "condition": {
+                "own_stage_member_unit_count_at_least": {
+                    "unit_key": "a_zu_na",
+                    "count": 3,
+                }
+            },
+            "actions": [{"action_type": "draw_card", "amount": 1}],
+            "execution_mode": "auto_resolve",
+        },
+        "【登場】カードを2枚引く。": {
+            "suffix": "onplay_draw2",
+            "timing": "on_play",
+            "trigger": "member_played",
+            "actions": [{"action_type": "draw_card", "amount": 2}],
+            "execution_mode": "auto_resolve",
+        },
+        "【ライブ開始時】【E】支払ってもよい：自分のステージにいるメンバー1人をアクティブにする。": {
+            "suffix": "live_start_pay1_ready_member",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "is_optional": True,
+            "condition": {"minimum_active_energy": 1},
+            "cost": [{"action_type": "pay_energy", "amount": 1}],
+            "choice": {
+                "choice_type": "member_from_stage",
+                "zone": "stage",
+                "card_type": "member",
+                "orientation": "wait",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [{"action_type": "ready_member", "target": "selected"}],
+        },
+        "【ライブ開始時】自分のステージにいる『虹ヶ咲』のメンバー1人をアクティブにする。": {
+            "suffix": "live_start_ready_nijigasaki_member",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "choice": {
+                "choice_type": "member_from_stage",
+                "zone": "stage",
+                "card_type": "member",
+                "work_key": "nijigasaki",
+                "orientation": "wait",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [{"action_type": "ready_member", "target": "selected"}],
+        },
+        "【ライブ開始時】ライブ終了時まで、自分のステージにいる『虹ヶ咲』のメンバー1人は、【ブレード】を得る。": {
+            "suffix": "live_start_nijigasaki_member_blade1",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "choice": {
+                "choice_type": "member_from_stage",
+                "zone": "stage",
+                "card_type": "member",
+                "work_key": "nijigasaki",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [
+                {"action_type": "gain_blade", "target": "selected", "amount": 1}
+            ],
+            "duration": "live",
+        },
+        "【登場】自分のステージにコスト9以上の『Aqours』のメンバーがいる場合、カードを1枚引く。": {
+            "suffix": "onplay_aqours_cost9_stage_draw1",
+            "timing": "on_play",
+            "trigger": "member_played",
+            "condition": {
+                "own_stage_member_unit_count_at_least": {
+                    "unit_key": "aqours",
+                    "minimum_cost": 9,
+                    "count": 1,
+                }
+            },
+            "actions": [{"action_type": "draw_card", "amount": 1}],
+            "execution_mode": "auto_resolve",
+        },
+        "【ライブ成功時】自分のデッキの上からカードを3枚控え室に置く。": {
+            "suffix": "live_success_mill3",
+            "timing": "live_success",
+            "trigger": "live_succeeded",
+            "actions": [{"action_type": "mill_top_cards", "amount": 3}],
+            "execution_mode": "auto_resolve",
+        },
+        "【登場】ライブ終了時まで、【heart05】を得る。": {
+            "suffix": "onplay_gain_heart05",
+            "timing": "on_play",
+            "trigger": "member_played",
+            "actions": [
+                {"action_type": "gain_heart", "amount": 1, "color_slot": "heart05"}
+            ],
+            "duration": "live",
+            "execution_mode": "auto_resolve",
+        },
+    }
+    for label, values in patterns.items():
+        matched = _matching_segment(row, label)
+        if matched is None:
+            continue
+        effect_index, exact_label = matched
+        execution_mode = values.get("execution_mode", "prompt_then_resolve")
+        return EffectCandidate(
+            **_base_with_execution_mode(
+                row,
+                pattern_id=f"bp07_nsd02_{values['suffix']}",
+                effect_index=effect_index,
+                execution_mode=execution_mode,
+            ),
+            label_ja=exact_label,
+            effect_type="triggered",
+            timing=values["timing"],
+            trigger=values["trigger"],
+            frequency_limit=(
+                "once_per_live"
+                if values["timing"] in {"live_start", "live_success"}
+                else "none"
+            ),
+            is_optional=bool(values.get("is_optional", False)),
+            condition=values.get("condition", {}),
+            cost=values.get("cost", []),
+            choice=values.get("choice"),
+            actions=values["actions"],
+            duration=values.get("duration"),
+        )
+    return None
+
+
+def _bp07_live_success_return_member(row: sqlite3.Row) -> EffectCandidate | None:
+    expected = "【ライブ成功時】自分の控え室からメンバーカードを1枚手札に加える。"
+    matched = _matching_segment(row, expected)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base(
+            row,
+            pattern_id="bp07_nsd02_live_success_return_member",
+            effect_index=effect_index,
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice={
+            "choice_type": "card_from_zone",
+            "zone": "waiting_room",
+            "card_type": "member",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[{"action_type": "return_from_waiting_room"}],
+        duration=None,
+    )
+
+
+def _bp07_live_success_return_source_then_discard(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    expected = (
+        "【ライブ成功時】このカードをライブカード置き場から手札に戻す。"
+        "その後、手札を1枚控え室に置く。"
+    )
+    matched = _matching_segment(row, expected)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base(
+            row,
+            pattern_id="bp07_live_success_return_source_then_discard",
+            effect_index=effect_index,
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice={
+            "choice_type": "post_action_card_from_zone",
+            "zone": "hand",
+            "minimum": 1,
+            "maximum": 1,
+        },
+        actions=[
+            {"action_type": "return_source_live_to_hand"},
+            {"action_type": "discard_from_hand"},
+        ],
+        duration=None,
+    )
+
+
 def _live_start_left_liella_heart02_blade(row: sqlite3.Row) -> EffectCandidate | None:
     label = (
         "【ライブ開始時】自分のステージの左サイドエリアにいる『Liella!』のメンバーが"
@@ -14516,6 +14808,7 @@ _PATTERNS = (
     _onplay_waiting_room10_draw,
     _onplay_success_low_score_gain_score,
     _onplay_return_waiting_member_cost2,
+    _onplay_return_waiting_member_cost2_then_optional_deploy,
     _onplay_mill4_any_live_gain_blade2,
     _onplay_bibi_two_wait_opponent_cost4,
     _onplay_other_member_ready_energy,
@@ -14589,6 +14882,9 @@ _PATTERNS = (
     _static_segment_stage_fujishima_blade2,
     _static_opponent_wait_count_modifiers,
     _static_modifier_effects,
+    _bp07_nsd02_safe_exact_effects,
+    _bp07_live_success_return_member,
+    _bp07_live_success_return_source_then_discard,
 )
 
 

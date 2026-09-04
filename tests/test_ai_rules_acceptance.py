@@ -3,13 +3,21 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from loveca.simulation.models import GameEvent, MatchState, PlayerState
+from loveca.simulation.models import (
+    ActionRequest,
+    CardDefinition,
+    CardInstance,
+    GameEvent,
+    MatchState,
+    PlayerState,
+)
 from tools.ai_sandbox.ai_rules_acceptance import (
     audit_rulebook,
     load_strategy_experiment,
 )
 from tools.ai_sandbox.rule_conformance import (
     RULE_REFERENCES,
+    _action_semantics_check,
     _event_conformance_checks,
     _expected_live_winners,
     _semantic_operation_alignment,
@@ -133,6 +141,20 @@ def test_semantic_alignment_covers_mill_deck_position_and_heart_replacement() ->
     )
 
 
+def test_semantic_alignment_distinguishes_prior_reveal_and_base_blade_replacement() -> None:
+    move_from_yell = (
+        "【ライブ成功時】エールにより公開された自分のカードの中から、"
+        "『Aqours』のライブカードを1枚手札に加える。"
+    )
+    replace_blade = (
+        "【ライブ開始時】ライブ終了時まで、自分のステージのセンターエリアにいる"
+        "『Liella!』のメンバーが元々持つ【ブレード】の数は3つになる。"
+    )
+
+    assert _semantic_operation_alignment(move_from_yell, {"move_selected_to_hand"})
+    assert _semantic_operation_alignment(replace_blade, {"replace_member_base_blade"})
+
+
 def test_equal_score_winners_are_independent_from_match_point_placement() -> None:
     neither_at_match_point = _live_judgment_state(
         first_score=2,
@@ -189,6 +211,136 @@ def test_live_success_audit_uses_requirement_result_from_same_action() -> None:
         if check.check_id == "live_success_before_score_comparison"
     )
     assert success_check.verdict == "pass"
+
+
+def test_live_judgment_audit_uses_live_area_after_success_effects() -> None:
+    before = _live_judgment_state(
+        first_score=0,
+        second_score=1,
+        first_success=2,
+        second_success=2,
+    )
+    after = before.model_copy(deep=True)
+    events = [
+        GameEvent(
+            event_type="live_judgment_started",
+            data={
+                "basis": "only_one_player_has_successful_live",
+                "successful_player_ids": ["player_1", "player_2"],
+                "winner_ids": ["player_2"],
+                "placement_eligible_player_ids": ["player_2"],
+                "placement_prevented_player_ids": [],
+                "scores": {"player_1": 0, "player_2": 1},
+                "players": {
+                    "player_1": {
+                        "successful_live_instance_ids": [],
+                        "base_score": 0,
+                        "score_bonus": 0,
+                        "total_score": 0,
+                        "success_live_count_before": 2,
+                    },
+                    "player_2": {
+                        "successful_live_instance_ids": ["second-live"],
+                        "base_score": 1,
+                        "score_bonus": 0,
+                        "total_score": 1,
+                        "success_live_count_before": 2,
+                    },
+                },
+            },
+        )
+    ]
+
+    checks = _event_conformance_checks(before, after, events)
+
+    judgment = next(
+        check for check in checks if check.check_id == "live_judgment_basis_and_winners"
+    )
+    assert judgment.verdict == "pass"
+    assert judgment.evidence["expected_basis"] == "only_one_player_has_successful_live"
+
+
+def test_member_payment_audit_accepts_energy_readied_by_onplay_effect() -> None:
+    member = CardInstance(
+        instance_id="member-1",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="TEST-MEMBER",
+            card_id="TEST-MEMBER",
+            name_ja="テストメンバー",
+            card_type="member",
+            cost=1,
+        ),
+    )
+    energy = CardInstance(
+        instance_id="energy-1",
+        owner_id="player_1",
+        card=CardDefinition(
+            card_code="TEST-ENERGY",
+            card_id="TEST-ENERGY",
+            name_ja="テストエネルギー",
+            card_type="energy",
+        ),
+        orientation="active",
+    )
+    before = MatchState(
+        match_id="payment-audit",
+        seed=1,
+        first_player_id="player_1",
+        second_player_id="player_2",
+        active_player_id="player_1",
+        phase="first_main",
+        players={
+            "player_1": PlayerState(
+                player_id="player_1",
+                name="First",
+                hand=["member-1"],
+                energy_area=["energy-1"],
+            ),
+            "player_2": PlayerState(player_id="player_2", name="Second"),
+        },
+        cards={"member-1": member, "energy-1": energy},
+    )
+    after = before.model_copy(deep=True)
+    after.players["player_1"].hand = []
+    after.players["player_1"].member_area["center"] = "member-1"
+    # A triggered on-play effect may ready the Energy again before the composite
+    # action returns, so final orientation is not proof that payment was skipped.
+    after.cards["energy-1"].orientation = "active"
+    action = ActionRequest(
+        action_type="play_member",
+        expected_revision=before.revision,
+        player_id="player_1",
+        payload={
+            "card_instance_id": "member-1",
+            "slot": "center",
+            "energy_instance_ids": ["energy-1"],
+            "use_baton_touch": False,
+        },
+    )
+    events = [
+        GameEvent(
+            event_type="member_played",
+            player_id="player_1",
+            data={
+                "card_instance_id": "member-1",
+                "slot": "center",
+                "energy_instance_ids": ["energy-1"],
+                "payment_cost": 1,
+                "baton_touch": False,
+            },
+        ),
+        GameEvent(
+            event_type="effect_auto_resolved",
+            player_id="player_1",
+            data={"effect_id": "TEST-MEMBER:1"},
+        ),
+    ]
+
+    check = _action_semantics_check(before, after, action, events)
+
+    assert check.verdict == "pass"
+    assert check.evidence["payment_orientations_after"] == {"energy-1": "active"}
 
 
 def test_strategy_experiment_rejects_clean_but_weaker_candidate(tmp_path: Path) -> None:

@@ -6594,6 +6594,27 @@ def _execute_operations(
                 state.cards[invocation.source_card_instance_id].face_up = True
             else:
                 raise IllegalActionError("effect source must be on Stage or in hand")
+        elif operation_type == "return_source_live_to_hand":
+            source_instance_id = invocation.source_card_instance_id
+            if source_instance_id not in player.live_area:
+                raise IllegalActionError("effect source must be in the Live Area")
+            if state.cards[source_instance_id].card.card_type != "live":
+                raise IllegalActionError("effect source must be a Live card")
+            player.live_area.remove(source_instance_id)
+            player.hand.append(source_instance_id)
+            state.cards[source_instance_id].face_up = True
+            events.append(
+                GameEvent(
+                    event_type="source_live_returned_to_hand",
+                    player_id=invocation.player_id,
+                    data={
+                        "invocation_id": invocation.invocation_id,
+                        "effect_id": invocation.effect_id,
+                        "card_instance_id": source_instance_id,
+                    },
+                    source="system",
+                )
+            )
         elif operation_type == "apply_wait_member":
             if operation.target == "opponent_stage_cost2_all":
                 opponent_id = (

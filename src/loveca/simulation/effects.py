@@ -81,6 +81,7 @@ SUPPORTED_EFFECT_ACTIONS = {
     "replace_member_base_blade",
     "replace_required_hearts",
     "return_baton_replaced_member_to_hand",
+    "return_source_live_to_hand",
     "source_to_waiting_room",
     "mill_top_cards",
     "draw_if_milled_all_card_type",
