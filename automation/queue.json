@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "ci-clean-runner-temp-parent",
+      "priority": -1,
+      "title": "修复干净 CI runner 的 pytest 临时目录初始化",
+      "status": "queued",
+      "depends_on": ["continuous-workflow"],
+      "required_profiles": ["control", "registry"],
+      "acceptance": ["pytest 前显式创建临时目录父目录", "保持全量测试范围，不添加 skip 或忽略失败", "同一 PR 推送修复并监控真实 GHA 结果"]
+    },
+    {
       "id": "continuous-workflow",
       "priority": 0,
       "title": "建立单分支持续开发、验证与审查流程",

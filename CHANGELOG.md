@@ -8,6 +8,8 @@
 - 持续开发改为单一分支 / 工作树，新增带依赖的任务队列、持久租约、绑定源码 hash 的测试证据、Draft PR 复用与 CI 门禁；远程合并和部署继续保留人工批准。
 - 公式 PDF 監査の clean CI 環境での収集失敗を避けるため、`pypdf` を dev dependency に明示した。
 - 将官方 PDF 审计所需的 `pypdf` 显式加入 dev dependency，避免干净 CI 环境缺少依赖而收集失败。
+- clean Linux runner でも pytest の一時領域を作成できるよう、CI が `.tmp` の親ディレクトリを準備するよう修正した。
+- 修复干净 Linux runner 未创建 `.tmp` 父目录导致 pytest 临时目录初始化失败的问题。
 
 - 公式 products API を優先する importer discovery と全量 refresh を追加し、`CLLS01` / `PBLL02` までの 24 sets、1,977 Gameplay Cards、2,700 printings、1,246 text revisions を locked DB に収録した。
 - importer 现优先使用官方 products API 并完成全量刷新；锁版本数据库已包含至 `CLLS01` / `PBLL02` 的 24 个卡包、1,977 条 Gameplay Card、2,700 个印刷版本和 1,246 条文本修订。

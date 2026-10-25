@@ -30,7 +30,9 @@ jobs:
           python scripts/card-db-manifest.py verify
           python -m tools.ai_sandbox.effect_registry_integrity --database data/loveca.sqlite3 --strict --output logs/ci-registry-integrity
       - name: Python regression
-        run: python -m pytest -q --basetemp .tmp/pytest-ci
+        run: |
+          mkdir -p .tmp
+          python -m pytest -q --basetemp .tmp/pytest-ci
       - uses: actions/upload-artifact@v4
         if: always()
         with:
