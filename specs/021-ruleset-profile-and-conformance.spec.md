@@ -36,16 +36,34 @@ reference IDs, evidence location and diagnostics. Reports must distinguish
 source/contract checks from actual engine state transitions and human review.
 A source check must never be counted as a completed gameplay matrix scenario.
 
-## Compatibility Target
+## Match And Replay Binding
 
-The next migration slice will add profile identity to match/replay/online
-compatibility, retaining existing app/protocol/card/registry/deck identities.
-Unknown profiles must be rejected before match creation. Mismatching rule
-fingerprints must not be represented as deterministic replay equivalence.
-Old replay read-only inspection remains allowed.
+New MatchState snapshots pin ruleset_id, ruleset_fingerprint and
+ruling_pack_version. Only the current profile is executable by this engine;
+unknown or archived profiles are rejected before match persistence. Existing
+create-match requests may omit ruleset_id and use the current profile. Selecting
+a new current profile does not itself upgrade the engine: its rule_version must
+also equal the engine's declared RULE_VERSION, even for a fully matching snapshot.
 
-This source-profile slice does **not** change MatchState, HTTP requests, runtime
-SQLite, replay serialization or the current match-state hash.
+Old snapshots omit these optional fields when serialized: no automatic upgrade,
+no historical state-hash drift. A same-rule-version legacy snapshot may retain
+historical replay execution, but is explicitly legacy_unpinned and does not get
+ruleset_identity_verified. This is not evidence of complete rules conformance.
+
+Runtime actions on incompatible identities are rejected before engine execution
+or persistence. Replay export keeps the saved initial/final states, actions and
+events without executing them, with deterministic_replay_verified=false. Initial
+and final identities must agree before reexecution is allowed. A compatible
+replay is marked verified only after its result equals the saved final state.
+
+CompatibilityFingerprint compares all three new identity fields in addition to
+the existing app/protocol/card/registry/deck fields. Active room payloads inherit
+the match identity without relaxing hidden-information redaction. Incompatible
+payloads expose no actionable LegalAction and show a localized read-only notice.
+
+No SQLite schema changes. Waiting-room creation-time profile pinning is still
+pending; the current room creates its pinned Match when the guest joins. Do not
+claim that this remaining room-lifecycle contract is already implemented.
 
 ## v0.9 Exit Criteria
 

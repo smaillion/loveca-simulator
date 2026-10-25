@@ -1004,6 +1004,23 @@ describe("App", () => {
     expect(screen.getByRole("button", { name: "查看可处理操作" })).toBeInTheDocument();
   });
 
+  it("explains that an incompatible ruleset is read-only in both languages", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate: {
+      ...MATCH_PAYLOAD,
+      ruleset_compatibility: {
+        can_execute: false, status: "ruleset_mismatch", mismatches: ["ruleset_fingerprint"],
+      },
+    } }));
+    render(<App />);
+    const createButton = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+    expect(await screen.findByRole("alert")).toHaveTextContent("规则版本不兼容，此对局仅供查看");
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("この対戦は閲覧専用です");
+  });
+
   it("shows a localized concise Simple AI decision reason", async () => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const matchCreate = {

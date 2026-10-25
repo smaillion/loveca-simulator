@@ -51,9 +51,18 @@
       "priority": 1,
       "title": "将 Ruleset 身份接入 Match / Replay / Online 兼容性",
       "status": "queued",
-      "depends_on": ["legacy-ruleset-source-profile"],
+      "depends_on": ["legacy-ruleset-source-profile", "ruleset-match-replay-binding"],
       "required_profiles": ["registry", "backend", "web"],
-      "acceptance": ["拒绝未知 Profile，旧请求和旧 Replay 保持兼容", "规则指纹不一致不能宣称重放一致", "不照搬旧 hosted_rooms ALTER TABLE，先采用兼容的序列化状态方案", "验证旧快照、房间、隐藏信息与 Replay 行为"]
+      "acceptance": ["拒绝未知 Profile，旧请求和旧 Replay 保持兼容", "规则指纹不一致不能宣称重放一致", "不照搬旧 hosted_rooms ALTER TABLE，先采用兼容的序列化状态方案", "验证旧快照、房间、隐藏信息与 Replay 行为", "剩余子项：等待加入的房间在创建时固定 Ruleset，创建到加入期间版本改变必须明确拒绝；独立设计持久化，不把版本信息混进 decklist"]
+    },
+    {
+      "id": "ruleset-match-replay-binding",
+      "priority": 0,
+      "title": "固定 Match 规则身份并拒绝不兼容的操作和回放重执行",
+      "status": "queued",
+      "depends_on": ["legacy-ruleset-source-profile"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["新 Match 保存 profile/fingerprint/ruling pack，未知或非当前 Profile 在写入前拒绝，旧请求不变", "旧 snapshot 不补写字段或改变 hash，旧规则身份未固定的状态明确标 legacy_unpinned", "指纹不一致的状态只读导出，不能调用引擎或宣称 Replay 重新验证成功，非法操作不改变 runtime", "兼容性 helper 比较三个新身份字段，现有 active room 双方保留隐藏信息边界", "中日只读提示、专项状态与 SQL Replay、固定 AI 回归；不修改 SQLite schema，不宣称等待房间已固定版本"]
     },
     {
       "id": "legacy-core-matrix-and-end-phase",

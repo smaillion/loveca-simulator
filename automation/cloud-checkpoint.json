@@ -3,15 +3,16 @@
   "branch": "codex/continuous-development",
   "base_ref": "origin/develop",
   "pull_request": 54,
-  "source_head": "6d58f376113e14349dab423ea0ed35080ba30c32",
-  "generated_at": "2026-10-25T20:08:00.136602+00:00",
+  "source_head": "6c03a8182c6665e25833447f1ec0e132d3df904b",
+  "generated_at": "2026-10-25T20:37:28.575980+00:00",
   "task_states": {
     "codex-cloud-handoff-preparation": "done",
     "ci-card-preview-printing-race": "done",
     "ci-clean-runner-temp-parent": "done",
     "continuous-workflow": "done",
     "legacy-ruleset-source-profile": "done",
-    "legacy-ruleset-match-replay": "queued",
+    "legacy-ruleset-match-replay": "in_progress",
+    "ruleset-match-replay-binding": "in_progress",
     "legacy-core-matrix-and-end-phase": "queued",
     "legacy-api-play-comparison": "done",
     "legacy-cost-result-branch": "done",
@@ -34,7 +35,7 @@
     "legacy-worktree-reconciliation": "in_progress",
     "ai-long-game-reliability": "done",
     "ai-live-set-resource-cycle": "done",
-    "live-success-selected-member-blade-comparison": "in_progress",
+    "live-success-selected-member-blade-comparison": "done",
     "effect-accuracy-loop": "queued",
     "phase6-conformance-matrix": "queued"
   }

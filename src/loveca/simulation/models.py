@@ -206,6 +206,9 @@ class GameResult(BaseModel):
 class MatchState(BaseModel):
     match_id: str
     rule_version: str = RULE_VERSION
+    ruleset_id: str | None = None
+    ruleset_fingerprint: str | None = None
+    ruling_pack_version: str | None = None
     seed: int
     member_overlap_policy: (
         Literal[
@@ -248,6 +251,9 @@ class MatchState(BaseModel):
     @model_serializer(mode="wrap")
     def serialize_overlap_policy(self, handler: Any) -> dict[str, Any]:
         payload = handler(self)
+        for field in ("ruleset_id", "ruleset_fingerprint", "ruling_pack_version"):
+            if getattr(self, field) is None:
+                payload.pop(field, None)
         if self.member_overlap_policy is None:
             payload.pop("member_overlap_policy", None)
         if self.effect_order_policy is None:

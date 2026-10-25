@@ -2,6 +2,10 @@
 
 ## 本批范围
 
+后续检查点：已选择性迁移Match/Replay身份绑定，并补上旧原型缺少的拒绝重执行逻辑。
+详见[状态与兼容性验证](./development/ruleset-match-replay-verification.md)。
+本报告下文保留来源档案初次迁移时的批次边界，等待房间和规则矩阵仍未完成。
+
 2026-10-25 从旧 `v0-9-rule-conformance` 工作树选择性迁移来源档案，而不是合并整份实验。
 固定开发分支仍为 `codex/continuous-development`。原工作树的 44 项未提交文件、API Play 的
 6 项未提交文件和所有 ignored 报告均保留。父任务仍未完成，后续批次见 `automation/queue.json`。

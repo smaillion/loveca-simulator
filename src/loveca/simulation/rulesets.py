@@ -170,3 +170,49 @@ def current_ruleset_identity(
     registry = load_ruleset_registry(registry_path)
     profile = get_ruleset_profile(registry=registry)
     return profile, ruleset_fingerprint(profile, registry=registry)
+
+
+def ruleset_execution_report(
+    *,
+    rule_version: str,
+    ruleset_id: str | None,
+    fingerprint: str | None,
+    ruling_pack_version: str | None,
+    supported_rule_version: str,
+    registry: RulesetRegistry | None = None,
+) -> dict[str, object]:
+    """Do not reinterpret a pinned snapshot under another active ruleset."""
+    resolved = registry or load_ruleset_registry()
+    current = get_ruleset_profile(registry=resolved)
+    if current.rule_version != supported_rule_version:
+        return {
+            "can_execute": False,
+            "status": "engine_rule_version_mismatch",
+            "mismatches": ["rule_version"],
+        }
+    identity = (ruleset_id, fingerprint, ruling_pack_version)
+    if all(value is None for value in identity):
+        compatible = rule_version == current.rule_version
+        return {
+            "can_execute": compatible,
+            "status": "legacy_unpinned" if compatible else "rule_version_mismatch",
+            "mismatches": [] if compatible else ["rule_version"],
+        }
+    expected = {
+        "rule_version": current.rule_version,
+        "ruleset_id": current.ruleset_id,
+        "ruleset_fingerprint": ruleset_fingerprint(current, registry=resolved),
+        "ruling_pack_version": current.ruling_pack_version,
+    }
+    saved = {
+        "rule_version": rule_version,
+        "ruleset_id": ruleset_id,
+        "ruleset_fingerprint": fingerprint,
+        "ruling_pack_version": ruling_pack_version,
+    }
+    mismatches = [field for field in expected if saved[field] != expected[field]]
+    return {
+        "can_execute": not mismatches,
+        "status": "compatible" if not mismatches else "ruleset_mismatch",
+        "mismatches": mismatches,
+    }

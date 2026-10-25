@@ -20,6 +20,11 @@ from loveca.db.bootstrap import connect_database, get_schema_version
 from loveca.decks.analyzer import DeckList
 from loveca.simulation.effects import EffectRegistry, load_effect_registry
 from loveca.simulation.models import ActionRequest, MatchState, RULE_VERSION
+from loveca.simulation.rulesets import (
+    get_ruleset_profile,
+    load_ruleset_registry,
+    ruleset_fingerprint,
+)
 
 ONLINE_PROTOCOL_VERSION = "loveca-online.v0"
 
@@ -39,6 +44,9 @@ class CompatibilityFingerprint(BaseModel):
     app_version: str = __version__
     protocol_version: str = ONLINE_PROTOCOL_VERSION
     rule_version: str = RULE_VERSION
+    ruleset_id: str | None = None
+    ruleset_fingerprint: str | None = None
+    ruling_pack_version: str | None = None
     card_database_fingerprint: str | None = None
     effect_registry_hash: str | None = None
     decklist_hashes: dict[str, str] = Field(default_factory=dict)
@@ -129,10 +137,18 @@ def build_compatibility_fingerprint(
     decks: dict[str, DeckList] | None = None,
     rule_version: str = RULE_VERSION,
     protocol_version: str = ONLINE_PROTOCOL_VERSION,
+    ruleset_id: str | None = None,
 ) -> CompatibilityFingerprint:
+    registry = load_ruleset_registry()
+    profile = get_ruleset_profile(ruleset_id, registry=registry)
+    if rule_version != profile.rule_version:
+        raise ValueError("rule_version does not match ruleset profile")
     return CompatibilityFingerprint(
         protocol_version=protocol_version,
         rule_version=rule_version,
+        ruleset_id=profile.ruleset_id,
+        ruleset_fingerprint=ruleset_fingerprint(profile, registry=registry),
+        ruling_pack_version=profile.ruling_pack_version,
         card_database_fingerprint=(
             card_database_fingerprint(card_database_path)
             if card_database_path is not None
@@ -158,6 +174,9 @@ def compatibility_report(
             "app_version",
             "protocol_version",
             "rule_version",
+            "ruleset_id",
+            "ruleset_fingerprint",
+            "ruling_pack_version",
             "card_database_fingerprint",
             "effect_registry_hash",
             "decklist_hashes",
@@ -167,6 +186,9 @@ def compatibility_report(
         "app_version",
         "protocol_version",
         "rule_version",
+        "ruleset_id",
+        "ruleset_fingerprint",
+        "ruling_pack_version",
         "card_database_fingerprint",
         "effect_registry_hash",
         "decklist_hashes",

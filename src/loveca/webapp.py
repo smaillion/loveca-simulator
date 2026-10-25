@@ -65,6 +65,8 @@ from loveca.simulation.runtime import (
     InvalidMatchSnapshotError,
     MatchNotFoundError,
     MatchRuntimeError,
+    MatchRulesetMismatchError,
+    match_ruleset_report,
 )
 from loveca.simulation.service import MatchService, MatchSetupError
 
@@ -86,6 +88,7 @@ class CreateMatchRequest(BaseModel):
     player_2: PlayerSetup
     seed: int | None = None
     controllers: dict[str, ControllerType] | None = None
+    ruleset_id: str | None = None
 
 
 class AnalyzeDeckRequest(BaseModel):
@@ -219,6 +222,15 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
             content={"detail": str(exc), "code": "invalid_match_snapshot"},
         )
 
+    @app.exception_handler(MatchRulesetMismatchError)
+    async def match_ruleset_mismatch(
+        _request: Request, exc: MatchRulesetMismatchError,
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=409,
+            content={"detail": str(exc), "code": "ruleset_mismatch"},
+        )
+
     if resolved.allowed_origins:
         app.add_middleware(
             CORSMiddleware,
@@ -292,6 +304,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
                 second_deck=second_deck,
                 seed=request.seed,
                 controllers=request.controllers,
+                ruleset_id=request.ruleset_id,
             )
             payload = result.model_dump()
             payload["match_token"] = service.repository.issue_match_token(
@@ -505,17 +518,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
                 match_token=match_token,
                 header_token=x_loveca_match_token,
             )
-            state = service.repository.get_state(match_id)
-            return {
-                "state": state.model_dump(),
-                "events": [
-                    event.model_dump()
-                    for event in service.repository.list_events(match_id)
-                ],
-                "legal_actions": [
-                    action.model_dump() for action in generate_legal_actions(state)
-                ],
-            }
+            return _match_payload(service, match_id)
         except MatchNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -533,6 +536,8 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
                 header_token=x_loveca_match_token,
             )
             state = service.repository.get_state(match_id)
+            if not match_ruleset_report(state)["can_execute"]:
+                return []
             return [action.model_dump() for action in generate_legal_actions(state)]
         except MatchNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -1956,7 +1961,8 @@ def _match_state_payload(
     player_id: str | None,
 ) -> dict[str, Any]:
     state_payload = state.model_dump()
-    visible_actions = legal_actions
+    compatibility = match_ruleset_report(state)
+    visible_actions = legal_actions if compatibility["can_execute"] else []
     if player_id is not None:
         private_inspected = private_inspection_card_ids(state, player_id)
         for instance_id in private_inspected:
@@ -1966,13 +1972,14 @@ def _match_state_payload(
         _redact_opponent_private_cards(state_payload, player_id)
         visible_actions = [
             action
-            for action in legal_actions
+            for action in visible_actions
             if action.player_id is None or action.player_id == player_id
         ]
     return {
         "state": state_payload,
         "events": [event.model_dump() for event in events],
         "legal_actions": [action.model_dump() for action in visible_actions],
+        "ruleset_compatibility": compatibility,
     }
 
 

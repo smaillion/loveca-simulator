@@ -364,6 +364,9 @@ export interface MatchState {
   stage_departure_policy?: "clear_departed_card_modifiers" | null;
   match_id: string;
   rule_version: string;
+  ruleset_id?: string | null;
+  ruleset_fingerprint?: string | null;
+  ruling_pack_version?: string | null;
   seed: number;
   revision: number;
   phase: string;
@@ -446,6 +449,11 @@ export interface MatchPayload {
   events: GameEvent[];
   legal_actions: LegalAction[];
   match_token?: string;
+  ruleset_compatibility?: {
+    can_execute: boolean;
+    status: string;
+    mismatches: string[];
+  };
 }
 
 export interface MatchSummary {

@@ -1123,6 +1123,13 @@ export default function App() {
 
       {error && <div className="error-banner">{error}</div>}
       {onlineSession && onlineStatus && <div className="error-banner" role="status">{onlineStatus}</div>}
+      {match.ruleset_compatibility?.can_execute === false && (
+        <div className="error-banner" role="alert">
+          {locale === "zh"
+            ? "规则版本不兼容，此对局仅供查看。可导出回放或创建新对局。"
+            : "ルールの版が一致しないため、この対戦は閲覧専用です。リプレイを保存するか、新しい対戦を作成してください。"}
+        </div>
+      )}
       {simpleAiPlayerNames.length > 0 && (
         <div className={`info-banner ai-status-banner ${latestAiBlocker ? "warning" : ""}`}>
           <Activity size={16} />

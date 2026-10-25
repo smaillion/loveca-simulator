@@ -264,6 +264,97 @@ def test_hosted_room_api_create_join_act_and_replay(tmp_path):
     replay = client.get(f"/api/rooms/{room_code}/replay?player_token={host_token}")
     assert replay.status_code == 200
     assert replay.json()["final_state"]["revision"] == 2
+    metadata = replay.json()["metadata"]
+    assert metadata["deterministic_replay_verified"] is True
+    assert metadata["ruleset_id"] == host_state["ruleset_id"] == guest_state["ruleset_id"]
+    assert metadata["ruleset_fingerprint"] == host_state["ruleset_fingerprint"]
+    assert metadata["ruleset_fingerprint"] == guest_state["ruleset_fingerprint"]
+    assert metadata["ruling_pack_version"] == host_state["ruling_pack_version"]
+
+
+def test_match_api_rejects_unknown_ruleset_before_persistence(tmp_path):
+    client = _client(tmp_path)
+    deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
+    response = client.post("/api/matches", json={
+        "player_1": {"name": "A", "deck": deck},
+        "player_2": {"name": "B", "deck": deck},
+        "ruleset_id": "future-profile",
+    })
+    assert response.status_code == 400
+    assert "unknown ruleset_id" in response.json()["detail"]
+    assert client.get("/api/matches").json()["items"] == []
+
+
+def test_local_match_ruleset_mismatch_returns_read_only_payload_and_conflict(tmp_path):
+    client = _client(tmp_path)
+    deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
+    created = client.post("/api/matches", json={
+        "player_1": {"name": "A", "deck": deck},
+        "player_2": {"name": "B", "deck": deck}, "seed": 1,
+    }).json()
+    match_id = created["state"]["match_id"]
+    headers = {"X-Loveca-Match-Token": created["match_token"]}
+    with sqlite3.connect(tmp_path / "matches.sqlite3") as connection:
+        for column in ("initial_state_json", "current_state_json"):
+            saved = json.loads(connection.execute(
+                f"SELECT {column} FROM matches WHERE match_id = ?", (match_id,),
+            ).fetchone()[0])
+            saved["ruling_pack_version"] = "future-pack"
+            connection.execute(f"UPDATE matches SET {column} = ? WHERE match_id = ?", (json.dumps(saved), match_id))
+        before = list(connection.iterdump())
+    payload = client.get(f"/api/matches/{match_id}", headers=headers).json()
+    assert payload["legal_actions"] == []
+    assert payload["ruleset_compatibility"]["mismatches"] == ["ruling_pack_version"]
+    assert client.get(f"/api/matches/{match_id}/legal-actions", headers=headers).json() == []
+    rejected = client.post(f"/api/matches/{match_id}/actions", headers=headers, json={
+        "action_type": "submit_mulligan", "expected_revision": 1,
+        "player_id": "player_1", "payload": {"card_instance_ids": []},
+    })
+    assert rejected.status_code == 409
+    assert rejected.json()["code"] == "ruleset_mismatch"
+    replay = client.get(f"/api/matches/{match_id}/replay", headers=headers).json()
+    assert replay["metadata"]["deterministic_replay_verified"] is False
+    with sqlite3.connect(tmp_path / "matches.sqlite3") as connection:
+        assert list(connection.iterdump()) == before
+
+
+def test_ruleset_mismatch_room_is_read_only_without_private_hand_leak(tmp_path):
+    client = _client(tmp_path)
+    deck = json.loads(SAMPLE_DECK.read_text(encoding="utf-8"))
+    room = client.post("/api/rooms", json={"player_name": "A", "deck": deck, "seed": 1}).json()
+    code, host_token = room["room_code"], room["player_token"]
+    guest = client.post(f"/api/rooms/{code}/join", json={"player_name": "B", "deck": deck}).json()
+    match_id = guest["match_id"]
+    with sqlite3.connect(tmp_path / "matches.sqlite3") as connection:
+        schema_before = connection.execute("SELECT sql FROM sqlite_master ORDER BY name").fetchall()
+        for column in ("initial_state_json", "current_state_json"):
+            saved = json.loads(connection.execute(
+                f"SELECT {column} FROM matches WHERE match_id = ?", (match_id,),
+            ).fetchone()[0])
+            saved["ruleset_fingerprint"] = "0" * 64
+            connection.execute(f"UPDATE matches SET {column} = ? WHERE match_id = ?", (json.dumps(saved), match_id))
+    for token, player_id, other in (
+        (host_token, "player_1", "player_2"),
+        (guest["player_token"], "player_2", "player_1"),
+    ):
+        payload = client.get(f"/api/rooms/{code}", params={"player_token": token}).json()["match"]
+        assert payload["ruleset_compatibility"]["can_execute"] is False
+        assert payload["legal_actions"] == []
+        assert set(payload["state"]["players"][player_id]["hand"]).issubset(payload["state"]["cards"])
+        assert set(payload["state"]["players"][other]["hand"]).isdisjoint(payload["state"]["cards"])
+    with sqlite3.connect(tmp_path / "matches.sqlite3") as connection:
+        # Presence polling intentionally updates the room, not match data.
+        match_before = [line for line in connection.iterdump() if '"hosted_rooms"' not in line]
+    action = {"action_type": "submit_mulligan", "expected_revision": 1, "player_id": "player_1", "payload": {"card_instance_ids": []}}
+    rejected = client.post(f"/api/rooms/{code}/actions", json={"player_token": host_token, "action": action})
+    assert rejected.status_code == 409
+    assert rejected.json()["code"] == "ruleset_mismatch"
+    with sqlite3.connect(tmp_path / "matches.sqlite3") as connection:
+        assert [line for line in connection.iterdump() if '"hosted_rooms"' not in line] == match_before
+        assert connection.execute("SELECT sql FROM sqlite_master ORDER BY name").fetchall() == schema_before
+    exported = client.get(f"/api/rooms/{code}/replay", params={"player_token": host_token})
+    assert exported.status_code == 200
+    assert exported.json()["metadata"]["deterministic_replay_verified"] is False
 
 
 def test_hosted_room_stream_emits_lightweight_update_signal(tmp_path):

@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+新しい対戦はRulesetのID・指紋・裁定パックを保存します。不一致の対戦は閲覧・Replay保存のみとし、再実行済みと表示しません。旧snapshotは書き換えません。待機中ルームの版固定は次の課題です。[互換性検証](./docs/development/ruleset-match-replay-verification.md)
+
 `PL!N-bp7-027`「オードリー」のライブ成功時能力に対応しました。選んだ虹ヶ咲メンバーの実効ブレードを双方の他メンバーと厳密比較し、誘発元のLiveだけに+1します。同数は加算せず、画面に比較結果を表示します。[状態・Replay・50局検証](./docs/development/selected-blade-source-score-verification.md)
 
 `PL!N-bp3-005:1` 宮下愛の補充を正確に「3回目の登場」に限定しました。4回目以降は誘発せず、

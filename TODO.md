@@ -2,6 +2,12 @@
 
 ## High Priority
 
+### Ruleset 对局身份与等待房间
+
+- 已完成Match身份绑定、未知Profile拒绝、规则不一致只读导出和中日提示，旧snapshot不补写字段。
+- 等待房间尚未在创建时固定Ruleset；下一切片设计独立持久化，不能把版本混进decklist或照搬旧ALTER TABLE。
+- 接入后再迁移核心规则矩阵和End Phase重复检查；版本契约测试不计为规则场景。
+
 ### AI Live 获取与旧脚本长局（继续）
 
 - 可选v1.2已补无Live时富余Member换牌；固定20套牌50局完赛，前10局达到双方成功Live且10回合内结束。

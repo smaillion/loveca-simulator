@@ -1,5 +1,10 @@
 # 分支与工作树清单
 
+Ruleset检查点：同一continuous分支选择性接回Match/Replay身份，不复制旧房间ALTER TABLE。
+补上指纹不符时拒绝Action、只读导出与中日提示，旧snapshot不补写字段。等待房间版本固定
+仍归父任务，旧44项/6项dirty文件未改动。见 `ruleset-match-replay-verification.md`。
+只更新Draft PR #54，不合并部署，不启用Cloud。
+
 虹咲Live检查点：同一continuous分支精确适配 `PL!N-bp7-027:1`，37项状态/快照/Replay/
 四policy/隐私专项及中日结果提示通过；冻结50局block中原3次manual blocker消失。
 登记900/1212，不提升reviewed。见 `selected-blade-source-score-verification.md`。
