@@ -37,6 +37,10 @@ Baton 原型检查点：已核对 `07f51e4` 的两个 PR entry，没有直接恢
 位置变化；旧快照缺省保留原语义和序列化。未恢复四条虹咲和两张 PR 卡的 executable，
 附属卡转为顶部时的技能触发与通用替换登场另列任务。原工作树和报告继续保留。
 
+双方登場检查点：`PL!-pb1-018:1` 已使用独立 snapshot 策略，双方选择后统一 Wait 入场，
+再检测并处理登場触发；修正候选卡 / 区域 UI，保留旧 Replay。见 `multi-player-entry-verification.md`。
+仍只有同一 continuous 分支与 Draft PR #54，不合并部署，不启用 Cloud，旧 dirty 工作树未动。
+
 ## 工作树
 
 附属 Member 审计检查点：`PL!-bp6-003:2` 新 effect snapshot 不再把 Area 内转移算作外部登場，

@@ -3003,6 +3003,51 @@ describe("App", () => {
     });
   });
 
+  it("requires a waiting-room member and area for simultaneous two-player deployment", () => {
+    const onAction = vi.fn();
+    const action = {
+      ...INSPECTION_MATCH_PAYLOAD.legal_actions[0],
+      options: {
+        multi_player_choice_type: "multi_player_deploy_waiting_member",
+        deployment_policy: "simultaneous_member_area_entry",
+        orientation: "wait",
+        candidate_card_instance_ids: ["player_1-M002"],
+        available_slots: ["left", "right"],
+        minimum: 1,
+        maximum: 1,
+      },
+    };
+    const props = { state: INSPECTION_MATCH_PAYLOAD.state as never,
+      loading: false, onAction, title: "双方登场", submitLabel: "确认登场" };
+    const view = render(<InspectionChoiceAction {...props} action={action as never} />);
+    expect(screen.getByRole("button", { name: "确认登场" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /候補カード/ }));
+    expect(screen.getByRole("button", { name: "确认登场" })).toBeDisabled();
+    const slots = screen.getByRole("group", { name: "登场区域" });
+    fireEvent.click(slots.querySelectorAll("button")[1]);
+    fireEvent.click(screen.getByRole("button", { name: "确认登场" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_1", {
+      selected_card_instance_id: "player_1-M002", slot: "right",
+    });
+    view.rerender(<InspectionChoiceAction {...props}
+      action={{ ...action, player_id: "player_2" } as never} />);
+    expect(screen.getByRole("button", { name: "确认登场" })).toBeDisabled();
+    expect(screen.queryByRole("group", { name: "登场区域" })).not.toBeInTheDocument();
+  });
+
+  it("confirms an empty multi-player deployment without inventing a target", () => {
+    const onAction = vi.fn();
+    const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], options: {
+      multi_player_choice_type: "multi_player_deploy_waiting_member",
+      candidate_card_instance_ids: [], available_slots: [], minimum: 0, maximum: 0,
+    } };
+    render(<InspectionChoiceAction action={action as never}
+      state={INSPECTION_MATCH_PAYLOAD.state as never} loading={false}
+      onAction={onAction} title="双方登场" submitLabel="无目标确认" />);
+    fireEvent.click(screen.getByRole("button", { name: "无目标确认" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_1", {});
+  });
+
   it("offers a manual adjustment for returning a waiting-room card to hand", () => {
     const onSubmit = vi.fn();
     const state = {

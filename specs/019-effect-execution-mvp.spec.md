@@ -18,6 +18,19 @@ implementation is not an individual official ruling or reviewed promotion.
 
 ## 1. Purpose
 
+### Simultaneous Member Deployment Snapshot Boundary (2026-10)
+
+`multi_player_deploy_waiting_member` may declare choice-level
+`deployment_policy: simultaneous_member_area_entry` with explicit `active` / `wait`.
+Only a single Waiting Room Member per player is supported, without follow-up operations.
+The AP chooses first (first player when no turn player), followed by NAP. Selection does
+not move a card. The final action revalidates all selections, places both Members, detects
+entry triggers from the final board, completes the parent and resolves AP effects first.
+UI submits the existing singular card ID and slot payload; no new HTTP endpoint is needed.
+Absent policy is omitted from serialization and preserves historical snapshot behavior.
+This bounded path is not a general simultaneous-trigger scheduler or reviewed ruling.
+Evidence: `docs/development/multi-player-entry-verification.md`.
+
 This specification defines the first limited executable-effect slice for the local Battle Simulator.
 
 It does not define the final Effect DSL, a database schema, AI behavior, full card coverage, or automatic parsing from Japanese text.

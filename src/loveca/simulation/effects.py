@@ -242,6 +242,7 @@ class EffectSelectionGroup(BaseModel):
 
 class EffectChoice(BaseModel):
     choice_type: str
+    deployment_policy: Literal["simultaneous_member_area_entry"] | None = None
     zone: str | None = None
     card_type: str | None = None
     orientation: str | None = None
@@ -314,6 +315,25 @@ class EffectChoice(BaseModel):
     same_name_as_stage: bool = False
     value: object | None = None
 
+    @model_serializer(mode="wrap")
+    def serialize_deployment_policy(self, handler) -> dict[str, Any]:
+        result = handler(self)
+        if self.deployment_policy is None:
+            result.pop("deployment_policy", None)
+        return result
+
+    @model_validator(mode="after")
+    def validate_deployment_policy(self) -> EffectChoice:
+        if self.deployment_policy is not None and (
+            self.choice_type != "multi_player_deploy_waiting_member"
+            or self.zone != "waiting_room" or self.card_type != "member"
+            or self.orientation not in {"active", "wait"} or self.maximum != 1
+        ):
+            raise ValueError(
+                "simultaneous deployment requires a single Waiting Room Member and orientation"
+            )
+        return self
+
 
 class EffectDefinition(BaseModel):
     effect_id: str
@@ -341,6 +361,10 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        if self.choice and self.choice.deployment_policy is not None and (
+            self.actions or self.follow_up_choice is not None
+        ):
+            raise ValueError("simultaneous Member deployment does not support follow-up operations")
         operations = [*self.cost, *self.actions]
         unknown = {
             operation.action_type

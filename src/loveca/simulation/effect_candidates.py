@@ -4423,7 +4423,9 @@ def _onplay_both_deploy_cost2_waiting_member(
         cost=[],
         choice={
             "choice_type": "multi_player_deploy_waiting_member",
+            "deployment_policy": "simultaneous_member_area_entry",
             "zone": "waiting_room",
+            "orientation": "wait",
             "card_type": "member",
             "maximum_cost": 2,
             "minimum": 0,

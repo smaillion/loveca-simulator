@@ -91,6 +91,9 @@ Member Area 内。新技能快照不再因此追加 `member_played` / `own_membe
 
 ## 新发现与后续
 
+后续更新：下述多人登場缺口已在同一分支的下一切片修复，详见
+[双方控室登場验证](./multi-player-entry-verification.md)。以下保留当时的复现结论，不代表当前仍未修复。
+
 用真实登记 `PL!-pb1-018:1` 加同一受控目标 / 观察者测试多玩家控室登場：Member 正确放置、进入次数为 1，
 但两项应有的抽牌都没有入队（实际抽牌差 0，期望 2，pending choice 已结束）。
 该路径走独立的 multi-player helper，不在本次单目标 operation 中修复。

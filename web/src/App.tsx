@@ -5382,7 +5382,12 @@ export function InspectionChoiceAction({
   submitLabel: string;
 }) {
   const { locale, tr } = useUiLanguage();
-  const inspected = ((action.options.inspected_card_instance_ids ?? []) as string[]).filter(
+  const multiChoiceType = String(action.options.multi_player_choice_type ?? "");
+  const isMultiChoice = multiChoiceType.startsWith("multi_player_");
+  const isMemberDeployment = multiChoiceType === "multi_player_deploy_waiting_member";
+  const slotOptions = stringArray(action.options.available_slots);
+  const inspected = ((action.options.inspected_card_instance_ids
+    ?? (isMultiChoice ? action.options.candidate_card_instance_ids : []) ?? []) as string[]).filter(
     (item): item is string => typeof item === "string",
   );
   const candidateIds = ((action.options.candidate_card_instance_ids ?? inspected) as string[]).filter(
@@ -5400,19 +5405,28 @@ export function InspectionChoiceAction({
   const effectDefinition = effectId ? state.effect_definitions[effectId] : undefined;
   const sourceCard = sourceCardId ? state.cards[sourceCardId] : undefined;
   const [selected, setSelected] = useState<string[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState("");
 
   useEffect(() => {
     setSelected([]);
-  }, [state.revision, action.action_type]);
+    setSelectedSlot("");
+  }, [state.revision, action.action_type, action.player_id]);
 
   const isValidSelection =
     selected.length >= minimum &&
     selected.length <= maximum &&
-    selected.every((item) => candidates.has(item));
+    selected.every((item) => candidates.has(item)) &&
+    (!isMemberDeployment || selected.length === 0 || slotOptions.includes(selectedSlot));
 
   return (
     <div className="effect-resolution">
       <strong>{title}</strong>
+      {isMultiChoice && (
+        <small>{tr("选择玩家", "選択するプレイヤー")}: {state.players[action.player_id ?? ""]?.name ?? tr("对战玩家", "プレイヤー")}</small>
+      )}
+      {action.options.deployment_policy === "simultaneous_member_area_entry" && (
+        <small>{tr("双方选择后同时登场；随后处理登場能力。", "双方の選択後に同時に登場し、登場能力を処理します。")}</small>
+      )}
       {effectDefinition && (
         <div className="effect-source-text">
           <small>
@@ -5483,13 +5497,25 @@ export function InspectionChoiceAction({
           ))}
         </div>
       )}
+      {isMemberDeployment && selected.length === 1 && (
+        <div className="effect-candidates effect-position-choices" role="group" aria-label={tr("登场区域", "登場エリア")}>
+          {slotOptions.map((slot) => (
+            <button key={slot} type="button" aria-pressed={selectedSlot === slot}
+              className={selectedSlot === slot ? "selected" : ""} onClick={() => setSelectedSlot(slot)}>
+              {memberSlotLabel(slot, locale)}
+            </button>
+          ))}
+        </div>
+      )}
       <button
         className="primary-button"
         disabled={loading || !isValidSelection}
         onClick={() =>
           onAction(action.action_type, action.player_id, {
-            selected_card_instance_ids: selected,
-            ordered_card_instance_ids: requiresOrder ? selected : undefined,
+            ...(isMemberDeployment
+              ? selected.length === 1 ? { selected_card_instance_id: selected[0], slot: selectedSlot } : {}
+              : { selected_card_instance_ids: selected,
+                  ordered_card_instance_ids: requiresOrder ? selected : undefined }),
           })
         }
       >

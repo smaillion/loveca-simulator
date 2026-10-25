@@ -50,9 +50,10 @@
 - 原 `attachment_promotion_onplay_trigger_and_entry_count_requires_rules_audit` 已按固定 PDF 完成
   有限程序修正：新 effect snapshot 不误发外部登場，旧快照兼容；不视为人工 reviewed。
   见 `docs/development/attachment-promotion-verification.md`。
-- 新复现 `multi_player_deploy_waiting_member` 漏发目标登場 / 己方登場观察者，两项受控抽牌
-  实际 0 / 期望 2；下一任务先审计双方选择与后续自动能力顺序，再修复并验证旧 Replay。
-  之后继续已有 Member 区域的效果替换登场；不宣称通用登場底座已经全部完成。
+- `multi_player_deploy_waiting_member` 的真实登记 `PL!-pb1-018:1` 已补双方选择后的同时 Wait 登場，
+  目标登場 / 己方登場观察者两项受控抽牌各 +2，AP/NAP 与新旧 Replay 均有回归。
+  见 `docs/development/multi-player-entry-verification.md`；后续继续已有 Member 区域的效果替换登场，
+  以及一般同时触发的自由排序，不宣称通用登場底座已经全部完成。
 
 ### AI-DLC Rollout Validation
 

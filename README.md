@@ -47,6 +47,10 @@ mock と実モデルの検証を区別し、context 保存は既定で無効で�
 新しい技能 snapshot はエリア間移動として扱い、旧 Replay の結果は維持します。
 結果画面でも処理の違いを表示します。[検証と残課題](./docs/development/attachment-promotion-verification.md)
 
+`PL!-pb1-018:1` の双方控え室登場で登場能力が誘発しない問題を修正しました。
+双方がカード・空きエリアを選んでから同時にウェイトで登場し、その後に能力を処理します。
+選択画面と旧 Replay の互換性も検証しました。[検証記録](./docs/development/multi-player-entry-verification.md)
+
 `develop`（次期 `v0.9`）の収録内容:
 
 - 公式 `card_list` JSON API からの正式カード importer

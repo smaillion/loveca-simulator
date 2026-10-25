@@ -44,6 +44,10 @@ API Play 测试工具已隔离对手背面卡与他方私有选择，区分 mock
 Area 内转移与外部登場，旧 Replay 保留原结果；结算面板显示中文 / 日文说明。
 [状态验证及后续缺口](./docs/development/attachment-promotion-verification.md)，不增加虚假覆盖率。
 
+修正 `PL!-pb1-018:1` 双方控室登場漏触发能力的问题：双方先选卡与空区域，再同时 Wait 登場，
+父技能结束后处理触发效果。补齐多人选卡 / 区域 UI，保留旧 Replay 结果。
+[中文状态验证报告](./docs/development/multi-player-entry-verification.md)，本轮不增加登记率。
+
 `develop`（下一版 `v0.9`）当前已收录:
 
 - 基于官方 `card_list` JSON API 的正式卡牌 importer

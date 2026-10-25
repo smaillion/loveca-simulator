@@ -2050,9 +2050,12 @@ def _begin_multi_player_effect_choice(
         raise IllegalActionError("effect does not define a multi-player choice")
     if state.pending_choice is not None:
         raise IllegalActionError("another choice is already pending")
+    first_chooser = invocation.player_id
+    if choice.deployment_policy is not None:
+        first_chooser = state.active_player_id or state.first_player_id or invocation.player_id
     player_order = [
-        invocation.player_id,
-        "player_2" if invocation.player_id == "player_1" else "player_1",
+        first_chooser,
+        "player_2" if first_chooser == "player_1" else "player_1",
     ]
     options = {
         "invocation_id": invocation.invocation_id,
@@ -2068,6 +2071,8 @@ def _begin_multi_player_effect_choice(
         "maximum_cost": choice.maximum_cost,
         "card_type": choice.card_type,
     }
+    if choice.deployment_policy is not None:
+        options.update(deployment_policy=choice.deployment_policy, orientation=choice.orientation)
     if choice.choice_type == "multi_player_draw_then_discard":
         amount = choice.amount or 0
         for player_id in player_order:
@@ -2378,6 +2383,29 @@ def _resolve_multi_player_deploy_choice(
         raise IllegalActionError("selected Member Area slot is no longer empty")
     if selected not in player.waiting_room:
         raise IllegalActionError("selected Member must remain in Waiting Room")
+    if pending.options.get("deployment_policy") == "simultaneous_member_area_entry":
+        _record_multi_player_selection(
+            pending, player_id, {"selected_card_instance_id": selected, "slot": slot}
+        )
+        events.append(GameEvent(
+            event_type="effect_multi_player_deployment_selected", player_id=player_id,
+            data={"invocation_id": pending.options.get("invocation_id"),
+                  "effect_id": pending.options.get("effect_id"),
+                  "selected_card_instance_id": selected, "slot": slot}, source="player",
+        ))
+        return
+    _place_multi_player_member(state, pending, player_id, selected, slot, events)
+
+
+def _place_multi_player_member(
+    state: MatchState,
+    pending: PendingChoice,
+    player_id: str,
+    selected: str,
+    slot: str,
+    events: list[GameEvent],
+) -> None:
+    player = state.players[player_id]
     player.waiting_room.remove(selected)
     player.member_area[slot] = selected
     _record_external_member_card_entry(player, selected)
@@ -2385,7 +2413,7 @@ def _resolve_multi_player_deploy_choice(
     if slot not in player.member_areas_entered_this_turn:
         player.member_areas_entered_this_turn.append(slot)
     state.cards[selected].face_up = True
-    state.cards[selected].orientation = "wait"
+    state.cards[selected].orientation = pending.options.get("orientation", "wait")
     _record_multi_player_selection(
         pending,
         player_id,
@@ -2400,11 +2428,48 @@ def _resolve_multi_player_deploy_choice(
                 "effect_id": pending.options.get("effect_id"),
                 "card_instance_id": selected,
                 "slot": slot,
-                "orientation": "wait",
+                "orientation": state.cards[selected].orientation,
             },
             source="player",
         )
     )
+
+
+def _complete_simultaneous_member_deployment(
+    state: MatchState, pending: PendingChoice, events: list[GameEvent]
+) -> None:
+    if pending.options.get("orientation") not in {"active", "wait"}:
+        raise IllegalActionError("simultaneous Member deployment requires orientation")
+    placements: list[tuple[str, str, str]] = []
+    for player_id in pending.options["player_order"]:
+        selection = pending.options["selections"][player_id]
+        if selection.get("skipped"):
+            continue
+        selected, slot = selection.get("selected_card_instance_id"), selection.get("slot")
+        player = state.players[player_id]
+        maximum_cost = pending.options.get("maximum_cost")
+        if (
+            not isinstance(selected, str) or not isinstance(slot, str)
+            or selected not in player.waiting_room or slot not in player.member_area
+            or player.member_area[slot] is not None
+            or state.cards[selected].owner_id != player_id
+            or state.cards[selected].card.card_type != "member"
+            or (isinstance(maximum_cost, int) and (state.cards[selected].card.cost or 0) > maximum_cost)
+        ):
+            raise IllegalActionError("selected simultaneous Member deployment is no longer legal")
+        placements.append((player_id, selected, slot))
+    # Complete both non-choice moves before detecting their triggers (1.3.4.1 / 9.7.4.2).
+    for player_id, selected, slot in placements:
+        _place_multi_player_member(state, pending, player_id, selected, slot, events)
+    for player_id, selected, slot in placements:
+        trigger_data = {"card_instance_id": selected, "slot": slot,
+                        "source_zone": "waiting_room", "used_baton_touch": False,
+                        "replacement_card_instance_id": None}
+        _queue_triggered_effects(state, "member_played", events,
+                                 source_instance_ids=[selected], trigger_data=trigger_data)
+        _queue_triggered_effects(state, "own_member_played", events,
+            source_instance_ids=[i for i in state.players[player_id].member_area.values() if i],
+            trigger_data=trigger_data)
 
 
 def _resolve_multi_player_discard_choice(
@@ -2560,6 +2625,9 @@ def _complete_multi_player_effect_choice(
 ) -> None:
     invocation = _find_pending_invocation(state, pending.options.get("invocation_id"))
     effect = state.effect_definitions[invocation.effect_id]
+    simultaneous = pending.options.get("deployment_policy") == "simultaneous_member_area_entry"
+    if simultaneous:
+        _complete_simultaneous_member_deployment(state, pending, events)
     state.pending_choice = None
     if pending.options.get("multi_player_choice_type") == (
         "multi_player_discard_to_hand_size_then_draw"
@@ -2590,6 +2658,9 @@ def _complete_multi_player_effect_choice(
             selected_ids=[],
         )
     state.pending_effects.remove(invocation)
+    if simultaneous:
+        active_id = state.active_player_id or state.first_player_id or invocation.player_id
+        state.pending_effects.sort(key=lambda item: item.player_id != active_id)
     _record_effect_usage(state, invocation)
     events.append(
         GameEvent(
