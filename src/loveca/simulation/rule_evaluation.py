@@ -30,6 +30,7 @@ from loveca.simulation.models import (
     LegalAction,
     MatchState,
 )
+from loveca.simulation.visibility import private_inspection_card_ids
 
 
 @dataclass(frozen=True)
@@ -232,6 +233,7 @@ def build_ai_observation(
 ) -> AIObservation:
     """Build a controller view without opponent hand identities or deck order."""
 
+    private_inspected = private_inspection_card_ids(state, player_id)
     visible_ids: set[str] = set()
     observed_players: dict[str, ObservedPlayer] = {}
     for observed_id, player in state.players.items():
@@ -253,7 +255,7 @@ def build_ai_observation(
                 *player.energy_area,
                 *visible_live_ids,
                 *player.waiting_room,
-                *player.resolution_area,
+                *(item for item in player.resolution_area if item not in private_inspected),
                 *player.success_live_area,
             )
             if item is not None
@@ -272,14 +274,15 @@ def build_ai_observation(
             live_area=visible_live_ids,
             live_area_count=len(player.live_area),
             waiting_room=tuple(player.waiting_room),
-            resolution_area=tuple(player.resolution_area),
+            resolution_area=tuple(item for item in player.resolution_area if item not in private_inspected),
             success_live_area=tuple(player.success_live_area),
         )
 
     # LegalActionGenerator is authoritative for private cards explicitly exposed
     # by a structured choice (for example an inspected or revealed candidate).
     for action in legal_actions:
-        visible_ids.update(_card_ids_in_value(action.options, state.cards))
+        if action.player_id in {None, player_id}:
+            visible_ids.update(_card_ids_in_value(action.options, state.cards))
 
     cards = {
         instance_id: state.cards[instance_id].card.model_copy(deep=True)
@@ -293,7 +296,8 @@ def build_ai_observation(
         if effect_id in state.effect_definitions
     }
     for action in legal_actions:
-        effect_ids.update(_effect_ids_in_value(action.options, state.effect_definitions))
+        if action.player_id in {None, player_id}:
+            effect_ids.update(_effect_ids_in_value(action.options, state.effect_definitions))
     effects = {
         effect_id: state.effect_definitions[effect_id].model_copy(deep=True)
         for effect_id in sorted(effect_ids)

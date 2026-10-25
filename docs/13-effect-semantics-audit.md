@@ -25,9 +25,9 @@ Local card data observed after the October 25, 2026 full official-source refresh
 * 1,246 Card Text Revisions
   * current registry coverage has split into two separate layers:
   * 1,212 effect definitions
-  * 902 `test_validated_executable` definitions
-  * 310 timing-only `manual_resolution` definitions
-  * registry-entry executable coverage is currently 74.42%
+  * 903 `test_validated_executable` definitions
+  * 309 timing-only `manual_resolution` definitions
+  * registry-entry executable coverage is currently 74.50%
   * the latest Phase 5 sandbox block run still records mandatory manual-resolution blockers in generated matches, but the current 10-match smoke no longer blocks on the newly structured base-Blade, source position-change, Baton replacement return, distinct-name Yell, no-excess-Heart, minimum-Blade choice, branch-specific Stage Member choice, branch-conditioned Waiting Room Live choice, activated Waiting Room Member deploy, activated cost-choice Live recovery, on-play pay-Energy, simple on-play, live-start pay / discard modifier, activated wait-or-discard ready Energy branch, on-play branch, moved-source modifier, success-count-equal Live-start Heart, opponent wait count static, multi-segment static Heart / Blade, Live-success Energy placement / pay draw, moved-source draw / Energy / opponent wait, Yell-revealed special Blade Heart / Stage name Live-success, static count modifier, static position / Heart / Live-area condition, static opposing-cost / movement / attachment condition, Yell / Live-success condition, Yell-revealed recovery, Live-success conditional score / Energy, hand deploy / source-wait Blade, or source-wait opponent original-Blade wait patterns
   * `skip` mode currently avoids illegal actions in the latest 50-match run, but long sandbox games still frequently reach the action cap before a formal result
   * the latest testing loop added Live-specific temporary score / required-Heart modifiers, reveal-top scoring, Live Area condition checks, grouped Stage Member choice, base Blade replacement, source Member position change, Baton replacement return, distinct-name Yell conditions, no-excess-Heart conditions, minimum-Blade target filtering, branch-specific Stage Member choice filters, branch-specific conditions, both-player Waiting Room Member bulk deck-bottom movement, single-player Waiting Room Member deployment to empty Stage slots, activated cost-choice handling, on-play pay-Energy handling, simple on-play effects, activated source-orientation branch handling, on-play branch filters, moved-source auto modifiers, success-count-equal Live-start Heart modifiers, opponent wait-count amount sources, opponent Energy placement, additional exact-text Live timing patterns, Yell-revealed Member recovery, source Live-success disabling, original-Blade bulk wait, source score replacement, deck-refresh turn history, Yell-revealed special Blade Heart conditions, all-required Stage name conditions, static Stage / success / opponent-excess count modifiers, static position / Heart / Live-area condition modifiers, static opposing-cost / movement / attachment condition modifiers, Yell-revealed Heart-color / non-Blade-Heart conditions, member-entered count conditions, Yell-revealed deck placement / recovery, source-moved operation conditions, Live-success conditional score / Energy amount conditions, hand-zone Member deployment, source-wait center Member Blade modifiers, source-wait opponent original-Blade choice filters, unit-exclusion opponent wait filters, top-level moved-source gating, operation-conditioned static bonus calculation, selected/cost-card operation conditions, capped Yell-revealed Live counts, shared-unit Yell conditions, and additional exact-text Waiting Room recovery / Energy ready / inspect-top patterns
@@ -51,6 +51,14 @@ Yell Heart-color variety, and revealed-Member shared-unit conditions.
 `PL!S-bp7-007:1` remains manual because its mandatory
 return plus optional deployment cannot yet preserve the selected-card relation.
 The `無2` special Blade Heart remains explicitly unknown under rules ver.1.06.
+
+The cost-result branch pass adds `PL!-bp5-003:2` without altering its static
+first segment or text revision 151. A paid μ's card deterministically selects
+inspect-four / keep-two; another work selects mandatory Waiting Room Live
+recovery, resolving zero only when no legal Live remains after payment. It
+includes state-transition, forged-branch rollback, three AI-policy, Replay,
+private-inspection view and multi-stage UI tests. This is test-validated, not
+human rules review. See `development/cost-result-branch-verification.md`.
 
 Therefore, the current repository has broad timing-prompt coverage but is still in a pattern-expansion phase rather than a broad full-card executable-effects phase. The new manual fallback entries are not proof of automated semantic support.
 

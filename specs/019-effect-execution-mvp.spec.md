@@ -166,3 +166,22 @@ Depends on:
 * [012 Controller and Legal Actions](012-controller-and-legal-actions.spec.md)
 * [015 Effect Taxonomy](015-effect-taxonomy.spec.md)
 * [018 Card Data Storage](018-card-data-storage.spec.md)
+
+## 11. Cost-Result Branch Selection
+
+`choose_effect_branch` may declare `auto_branch_from_cost_choice=true` for the
+restricted single-hand-discard pattern. Exactly two complementary work-key
+conditions are required. The engine validates the cost card, derives one branch
+before mutation, pays the complete cost atomically, and persists the branch on
+the invocation. Client-provided conflicting branch IDs are rejected.
+
+The initial legal action exposes the hand cost as `card_from_zone`, not a branch
+picker. After payment, inspection branches use `resolve_effect_choice`; recovery
+branches expose only post-payment candidates and a read-only `branch_from_cost`
+label. Mandatory recovery requires one card when available, otherwise resolves
+as much as possible. The selected branch cannot change and other branches must
+not run after inspection. Multi-stage UI selection state resets at stage changes.
+
+Existing definitions default to non-automatic branching; old effect snapshots,
+ActionRequest and runtime SQLite remain compatible. Private inspection cards are
+visible only to the choosing player until their subsequent public movement.

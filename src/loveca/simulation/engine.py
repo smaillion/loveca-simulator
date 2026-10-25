@@ -1373,7 +1373,9 @@ def _activate_effect(
         resolution_stage="after_cost",
     )
     has_cost_selection_payload = "selected_card_instance_ids" in action.payload
-    if effect.cost_choice is not None and not has_cost_selection_payload:
+    if effect.cost_choice is not None and (
+        not has_cost_selection_payload or _effect_uses_auto_cost_branch_choice(effect)
+    ):
         invocation.resolution_stage = "initial"
         events.append(
             GameEvent(
@@ -1392,6 +1394,12 @@ def _activate_effect(
             )
         )
         state.pending_effects.append(invocation)
+        if has_cost_selection_payload:
+            payload = dict(action.payload, invocation_id=invocation.invocation_id)
+            payload["energy_instance_ids"] = _activation_energy_ids(
+                state, player_id, effect, action.payload.get("energy_instance_ids")
+            )
+            _resolve_effect(state, action.model_copy(update={"payload": payload}), events)
         return
     selected_ids = action.payload.get("selected_card_instance_ids", [])
     if effect.cost_choice is not None:
@@ -1567,6 +1575,11 @@ def _resolve_effect(
             )
         ):
             raise IllegalActionError("effect cost card selection is not legal")
+        if _effect_uses_auto_cost_branch_choice(effect):
+            # Lock the result while the validated cost IDs are still available.
+            selected_branch = _auto_branch_from_cost_choice(
+                state, effect, selected_ids, selected_branch
+            )
     elif _effect_uses_branch_choice(effect):
         selected_branch = _validate_branch_choice(
             state,
@@ -1803,6 +1816,10 @@ def _resolve_effect(
             operations = []
         elif _effect_uses_branch_choice(effect):
             invocation.trigger_data["selected_branch"] = selected_branch
+            branch_choice = _branch_choice_filter(effect, selected_branch)
+            if branch_choice is not None and branch_choice.choice_type == "inspect_top_select":
+                _begin_effect_inspection_choice(state, invocation, events, choice_override=branch_choice)
+                return
             branch_operations = [
                 operation
                 for operation in effect.actions
@@ -1898,10 +1915,12 @@ def _begin_effect_inspection_choice(
     state: MatchState,
     invocation: EffectInvocation,
     events: list[GameEvent],
+    *,
+    choice_override: Any | None = None,
 ) -> None:
     effect = state.effect_definitions[invocation.effect_id]
-    choice = effect.choice
-    if choice is None or not _effect_uses_inspection_choice(effect):
+    choice = choice_override or effect.choice
+    if choice is None or choice.choice_type != "inspect_top_select":
         raise IllegalActionError("effect does not define an inspection follow-up")
     if state.pending_choice is not None:
         raise IllegalActionError("another choice is already pending")
@@ -1920,6 +1939,8 @@ def _begin_effect_inspection_choice(
                 and work_key in state.cards[item].card.work_keys
                 for item in player.member_area.values()
             )
+    # Rules 10.2.2.2 / 10.2.3: refresh beneath remaining cards before looking.
+    _refresh_main_deck(state, invocation.player_id, events, minimum_size=max(0, amount))
     inspected: list[str] = []
     for _ in range(max(0, amount)):
         instance_id = _take_main_deck_card(state, invocation.player_id, events)
@@ -1928,7 +1949,7 @@ def _begin_effect_inspection_choice(
         player.resolution_area.append(instance_id)
         state.cards[instance_id].face_up = True
         inspected.append(instance_id)
-    candidates = _inspection_choice_candidates(state, invocation, inspected)
+    candidates = _inspection_choice_candidates(state, invocation, inspected, choice)
     minimum = min(choice.minimum, len(candidates))
     maximum = min(choice.maximum, len(candidates))
     state.pending_choice = PendingChoice(
@@ -2178,7 +2199,8 @@ def _resolve_effect_choice(
     post_choice_operations = [
         operation
         for operation in effect.actions
-        if operation.action_type
+        if (operation.branch is None or operation.branch == invocation.trigger_data.get("selected_branch"))
+        and operation.action_type
         not in {
             "inspect_top_cards",
             "reveal_cards",
@@ -4446,6 +4468,7 @@ def _effect_unavailable_reason(
         return "deploy_member_unavailable"
     if (
         _effect_uses_branch_choice(effect)
+        and not _effect_uses_auto_cost_branch_choice(effect)
         and invocation.resolution_stage == "initial"
         and not _available_effect_branches(state, invocation)
     ):
@@ -4480,6 +4503,8 @@ def _effect_resolution_options(
         "candidate_card_instance_ids": candidate_ids,
         "resolution_stage": invocation.resolution_stage,
     }
+    if _effect_uses_auto_cost_branch_choice(effect):
+        options["branch_from_cost"] = True
     if invocation.resolution_stage == "initial" and (
         _effect_uses_post_action_card_choice(effect)
         or _effect_uses_post_cost_card_choice(effect)
@@ -4535,6 +4560,13 @@ def _effect_resolution_options(
                 options["card_selection_maximum"] = (
                     effect.choice.branch_selection_maximum.get(branch, 0)
                 )
+                if _effect_uses_auto_cost_branch_choice(effect):
+                    options["card_selection_minimum"] = min(
+                        options["card_selection_minimum"], len(candidate_ids)
+                    )
+                    options["card_selection_maximum"] = min(
+                        options["card_selection_maximum"], len(candidate_ids)
+                    )
                 energy_required = effect.choice.branch_energy_required.get(branch, 0)
                 if energy_required:
                     options["energy_required"] = energy_required
@@ -4760,8 +4792,15 @@ def _branch_choice_filter(effect: Any, branch: str) -> Any | None:
         card_type=raw.get("card_type"),
         orientation=raw.get("orientation"),
         color_slots=[],
-        minimum=0,
-        maximum=1,
+        minimum=raw.get("minimum", 0),
+        maximum=raw.get("maximum", 1),
+        amount=raw.get("amount"),
+        amount_source=raw.get("amount_source"),
+        amount_source_work_key=raw.get("amount_source_work_key"),
+        requires_order=bool(raw.get("requires_order", False)),
+        selected_destination=raw.get("selected_destination"),
+        unselected_destination=raw.get("unselected_destination"),
+        reveal_selected_to_opponent=bool(raw.get("reveal_selected_to_opponent", False)),
         work_key=raw.get("work_key"),
         unit_key=raw.get("unit_key"),
         exclude_unit_key=raw.get("exclude_unit_key"),
@@ -6264,6 +6303,41 @@ def _effect_uses_branch_choice(effect: Any) -> bool:
     return bool(effect.choice and effect.choice.choice_type == "choose_effect_branch")
 
 
+def _effect_uses_auto_cost_branch_choice(effect: Any) -> bool:
+    return bool(
+        _effect_uses_branch_choice(effect)
+        and effect.cost_choice is not None
+        and effect.choice.auto_branch_from_cost_choice
+    )
+
+
+def _auto_branch_from_cost_choice(
+    state: MatchState,
+    effect: Any,
+    selected_ids: list[str],
+    selected_branch: Any,
+) -> str:
+    matches = []
+    for branch in effect.choice.branch_ids:
+        conditions = effect.choice.branch_cost_conditions.get(branch, {})
+        if len(conditions) != 1 or not selected_ids:
+            continue
+        key, work = next(iter(conditions.items()))
+        if key == "selected_cost_has_work_key":
+            met = any(work in state.cards[item].card.work_keys for item in selected_ids)
+        elif key == "selected_cost_lacks_work_key":
+            met = all(work not in state.cards[item].card.work_keys for item in selected_ids)
+        else:
+            raise IllegalActionError("unsupported effect cost branch condition")
+        if met:
+            matches.append(branch)
+    if len(matches) != 1:
+        raise IllegalActionError("effect cost result branch is ambiguous")
+    if selected_branch is not None and selected_branch != matches[0]:
+        raise IllegalActionError("effect branch is determined by the paid cost")
+    return matches[0]
+
+
 def _effect_branch_accepts_position_choice(
     effect: Any, invocation: EffectInvocation
 ) -> bool:
@@ -6315,6 +6389,9 @@ def _validate_branch_choice(
         raise IllegalActionError("effect branch cannot be changed after setup")
     minimum = effect.choice.branch_selection_minimum.get(branch, 0)
     maximum = effect.choice.branch_selection_maximum.get(branch, 0)
+    if _effect_uses_auto_cost_branch_choice(effect):
+        minimum = min(minimum, len(candidates))
+        maximum = min(maximum, len(candidates))
     if (
         len(selected_ids) < minimum
         or len(selected_ids) > maximum
@@ -6443,9 +6520,10 @@ def _inspection_choice_candidates(
     state: MatchState,
     invocation: EffectInvocation,
     inspected_ids: list[str],
+    choice_override: Any | None = None,
 ) -> list[str]:
     effect = state.effect_definitions[invocation.effect_id]
-    choice = effect.choice
+    choice = choice_override or effect.choice
     if choice is None:
         return []
     candidates = list(inspected_ids)
@@ -10612,9 +10690,11 @@ def _refresh_main_deck(
     state: MatchState,
     player_id: str,
     events: list[GameEvent],
+    *,
+    minimum_size: int = 1,
 ) -> None:
     player = state.players[player_id]
-    if player.main_deck or not player.waiting_room:
+    if len(player.main_deck) >= minimum_size or not player.waiting_room:
         return
     moved = list(player.waiting_room)
     player.waiting_room.clear()
@@ -10622,11 +10702,11 @@ def _refresh_main_deck(
         state.cards[instance_id].face_up = False
     player.refresh_count += 1
     player.refreshed_this_turn = True
-    player.main_deck = _deterministic_shuffle(
+    player.main_deck.extend(_deterministic_shuffle(
         moved,
         state.seed,
         f"refresh:{player_id}:{player.refresh_count}",
-    )
+    ))
     events.append(
         GameEvent(
             event_type="deck_refreshed",

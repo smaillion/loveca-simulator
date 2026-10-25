@@ -21,6 +21,10 @@ Deck Builder 详情中主动选择的卡面不会再被后台数据更新重置�
 API Play 测试工具已隔离对手背面卡与他方私有选择，区分 mock / 真实模型，默认不保存输入样本。
 这属于测试底座改进，不计入技能可执行覆盖率。
 
+新增 `PL!-bp5-003:2` 起动能力的结构化处理：根据实际弃牌决定查看 4 张选 2 张，或回收
+控室 Live。待查看卡不向对手画面 / AI 暴露，费用选择与后续选择之间会重置 UI。
+[中文验证记录](./docs/development/cost-result-branch-verification.md)
+
 `develop`（下一版 `v0.9`）当前已收录:
 
 - 基于官方 `card_list` JSON API 的正式卡牌 importer

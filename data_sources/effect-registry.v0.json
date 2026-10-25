@@ -8763,41 +8763,49 @@
     },
     {
       "actions": [
-        {
-          "action_type": "manual_resolution",
-          "amount": null,
-          "amount_source": null,
-          "branch": null,
-          "card_type": null,
-          "color_slot": null,
-          "flag": null,
-          "multiplier": null,
-          "orientation": null,
-          "target": null,
-          "target_hand_size": null,
-          "value": null
-        }
+        {"action_type": "inspect_top_cards", "amount": 4, "branch": "discarded_muse"},
+        {"action_type": "select_to_hand_from_inspected", "branch": "discarded_muse"},
+        {"action_type": "move_remaining_cards", "branch": "discarded_muse"},
+        {"action_type": "return_from_waiting_room", "branch": "discarded_other"}
       ],
       "card_code": "PL!-bp5-003",
-      "choice": null,
-      "condition": {
-        "source_zone": "stage"
+      "choice": {
+        "choice_type": "choose_effect_branch",
+        "branch_ids": ["discarded_muse", "discarded_other"],
+        "auto_branch_from_cost_choice": true,
+        "branch_cost_conditions": {
+          "discarded_muse": {"selected_cost_has_work_key": "love_live"},
+          "discarded_other": {"selected_cost_lacks_work_key": "love_live"}
+        },
+        "branch_selection_minimum": {"discarded_other": 1},
+        "branch_selection_maximum": {"discarded_other": 1},
+        "branch_choice_filters": {
+          "discarded_muse": {
+            "choice_type": "inspect_top_select", "amount": 4, "minimum": 2, "maximum": 2,
+            "selected_destination": "hand", "unselected_destination": "waiting_room"
+          },
+          "discarded_other": {
+            "choice_type": "card_from_zone", "zone": "waiting_room", "card_type": "live",
+            "minimum": 1, "maximum": 1
+          }
+        }
       },
-      "cost": [],
-      "cost_choice": null,
+      "condition": {"source_zone": "stage", "minimum_active_energy": 2},
+      "cost": [{"action_type": "pay_energy", "amount": 2}, {"action_type": "discard_from_hand"}],
+      "cost_choice": {"choice_type": "card_from_zone", "zone": "hand", "minimum": 1, "maximum": 1},
       "duration": null,
       "effect_id": "PL!-bp5-003:2",
       "effect_index": 2,
       "effect_type": "activated",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "prompt_then_resolve",
       "follow_up_choice": null,
       "frequency_limit": "once_per_turn",
       "is_optional": false,
       "label_ja": "【起動】【ターン1回】【E】【E】手札を1枚控え室に置く：これにより控え室に置いたカードが『μ's』のカードの場合、自分のデッキの上からカードを4枚見る。その中からカードを2枚手札に加える。残りを控え室に置く。『μ's』のカード以外の場合、自分の控え室からライブカードを1枚手札に加える。",
       "raw_text_hash": "e4736c87b50acd3129afbe1de6e1845496a08c41dfe1c08ca61951edb60653d7",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06: 1.3.2, 9.4.2, 9.6.2.3; cost-result branch state and Replay tests",
       "text_revision_id": 151,
       "timing": "activated_main",
       "trigger": "player_activation"

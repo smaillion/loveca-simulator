@@ -23,6 +23,7 @@ from loveca.decks.analyzer import DeckList
 from loveca.simulation.engine import IllegalActionError, generate_legal_actions
 from loveca.simulation.models import ActionRequest, CardInstance, LegalAction, MatchState
 from loveca.simulation.service import MatchService
+from loveca.simulation.visibility import private_inspection_card_ids
 from tools.ai_sandbox.blackbox_playtest import (
     SandboxDeckSummary,
     build_decks,
@@ -1614,6 +1615,9 @@ def pending_choice_context(state: MatchState, player_id: str) -> dict[str, Any] 
 
 
 def player_context(state: MatchState, player_id: str, *, include_private: bool) -> dict[str, Any]:
+    private_inspected = set()
+    if not include_private:
+        private_inspected = private_inspection_card_ids(state, None)
     player = state.players[player_id]
     return {
         "player_id": player.player_id,
@@ -1633,7 +1637,10 @@ def player_context(state: MatchState, player_id: str, *, include_private: bool) 
         "energy_area": zone_cards(state, player.energy_area, include_private=include_private),
         "live_area": zone_cards(state, player.live_area, include_private=include_private),
         "waiting_room": zone_cards(state, player.waiting_room, include_private=include_private),
-        "resolution_area": zone_cards(state, player.resolution_area, include_private=include_private),
+        "resolution_area": zone_cards(
+            state, [item for item in player.resolution_area if item not in private_inspected],
+            include_private=include_private,
+        ),
         "success_live_area": zone_cards(state, player.success_live_area, include_private=include_private),
         "manual_modifiers": [modifier.model_dump() for modifier in player.manual_modifiers],
     }

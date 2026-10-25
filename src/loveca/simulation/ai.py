@@ -837,7 +837,7 @@ def _structured_effect_payload_v1(
         if slots:
             payload["to_slot"] = _preferred_slot(slots)
         return payload
-    if choice.get("choice_type") == "choose_effect_branch":
+    if choice_type == "choose_effect_branch":
         branch = _choose_effect_branch_v1(observation, invocation, effect)
         if branch:
             payload["selected_branch"] = branch
@@ -1517,7 +1517,7 @@ def _choose_effect_resolution(
         if slots:
             payload["to_slot"] = slots[0]
         return action.action_type, action.player_id, payload, "resolve_position_change"
-    if choice.get("choice_type") == "choose_effect_branch":
+    if choice_type == "choose_effect_branch":
         _fill_branch_choice_payload(payload, invocation, choice, candidates, available_energy)
     elif candidates:
         minimum = int(invocation.get("card_selection_minimum", choice.get("minimum", 1)))

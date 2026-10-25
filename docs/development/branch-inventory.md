@@ -19,6 +19,10 @@ API Play 检查点：16 个旧提交已按功能分组核对，选择性补回 C
 测试输入中的对手背面卡和他方 private choice 暴露。6 项 dirty 原型仍保留，成本分支与
 Baton 手牌登场登记另列任务，不直接继承旧 executable 状态。见 `legacy-api-play-migration.md`。
 
+成本分支检查点：已选择性重建 `PL!-bp5-003:2`，修正旧原型的费用 ID 清空、可选回收数量
+和非本分支操作混入问题；旧 6 项 dirty 文件仍原样保留。剩余 Baton 原型继续独立复核。
+见 `cost-result-branch-verification.md`。
+
 ## 工作树
 
 | 分支 | 领先 / 落后 develop | 未提交文件 | 处理方式 | 路径 |

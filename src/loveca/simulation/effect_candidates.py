@@ -9101,6 +9101,45 @@ def _activated_more_simple_effects(row: sqlite3.Row) -> EffectCandidate | None:
         "maximum": 1,
     }
     patterns: dict[str, dict[str, Any]] = {
+        (
+            "【起動】【ターン1回】【E】【E】手札を1枚控え室に置く："
+            "これにより控え室に置いたカードが『μ's』のカードの場合、"
+            "自分のデッキの上からカードを4枚見る。"
+            "その中からカードを2枚手札に加える。残りを控え室に置く。"
+            "『μ's』のカード以外の場合、自分の控え室からライブカードを1枚手札に加える。"
+        ): {
+            "suffix": "pay2_discard1_cost_result_muse_inspect4_or_live",
+            "condition": {"minimum_active_energy": 2},
+            "cost": [{"action_type": "pay_energy", "amount": 2}, {"action_type": "discard_from_hand"}],
+            "cost_choice": hand_discard,
+            "choice": {
+                "choice_type": "choose_effect_branch",
+                "branch_ids": ["discarded_muse", "discarded_other"],
+                "auto_branch_from_cost_choice": True,
+                "branch_cost_conditions": {
+                    "discarded_muse": {"selected_cost_has_work_key": "love_live"},
+                    "discarded_other": {"selected_cost_lacks_work_key": "love_live"},
+                },
+                "branch_selection_minimum": {"discarded_other": 1},
+                "branch_selection_maximum": {"discarded_other": 1},
+                "branch_choice_filters": {
+                    "discarded_muse": {
+                        "choice_type": "inspect_top_select", "amount": 4, "minimum": 2, "maximum": 2,
+                        "selected_destination": "hand", "unselected_destination": "waiting_room",
+                    },
+                    "discarded_other": {
+                        "choice_type": "card_from_zone", "zone": "waiting_room", "card_type": "live",
+                        "minimum": 1, "maximum": 1,
+                    },
+                },
+            },
+            "actions": [
+                {"action_type": "inspect_top_cards", "amount": 4, "branch": "discarded_muse"},
+                {"action_type": "select_to_hand_from_inspected", "branch": "discarded_muse"},
+                {"action_type": "move_remaining_cards", "branch": "discarded_muse"},
+                {"action_type": "return_from_waiting_room", "branch": "discarded_other"},
+            ],
+        },
         "【起動】【ターン1回】【E】：カードを1枚引き、手札を1枚控え室に置く。": {
             "suffix": "pay1_draw1_discard1",
             "condition": {"minimum_active_energy": 1},

@@ -48,6 +48,7 @@ from loveca.simulation.models import (
     MatchState,
 )
 from loveca.simulation.online import card_database_fingerprint, effect_registry_hash
+from loveca.simulation.visibility import private_inspection_card_ids
 from loveca.simulation.rooms import (
     RoomError,
     RoomNotFoundError,
@@ -1937,6 +1938,11 @@ def _match_state_payload(
     state_payload = state.model_dump()
     visible_actions = legal_actions
     if player_id is not None:
+        private_inspected = private_inspection_card_ids(state, player_id)
+        for instance_id in private_inspected:
+            state_payload["cards"].pop(instance_id, None)
+        if private_inspected and state_payload["pending_choice"]:
+            state_payload["pending_choice"]["options"] = {}
         _redact_opponent_private_cards(state_payload, player_id)
         visible_actions = [
             action

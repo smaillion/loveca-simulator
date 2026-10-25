@@ -3554,6 +3554,45 @@ describe("App", () => {
     });
   });
 
+  it("chooses a discard cost without allowing a branch override, then resets the follow-up selection", () => {
+    const onAction = vi.fn();
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, pending_choice: null };
+    const invocation = {
+      invocation_id: "cost-result-001", effect_id: "PL!-bp5-003:2",
+      source_card_instance_id: "player_1-M001", label_ja: "【起動】手札を1枚控え室に置く：費用により処理。",
+      trigger: "player_activation", timing: "activated_main", execution_mode: "prompt_then_resolve",
+      is_optional: false, simulation_support: "test_validated_executable",
+      resolution_stage: "initial", choice_type: "card_from_zone", choice_zone: "hand",
+      candidate_card_instance_ids: ["player_1-M002"], card_selection_minimum: 1, card_selection_maximum: 1,
+      branch_from_cost: true, branch_ids: ["discarded_muse", "discarded_other"],
+    };
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [invocation] } };
+    const { rerender } = render(<EffectResolutionAction action={action as never} state={state as never}
+      loading={false} onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: /弃置 μ's/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /候補カード/ }));
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "cost-result-001", accepted: true, selected_card_instance_ids: ["player_1-M002"], energy_instance_ids: [],
+    });
+    const followUp = { ...action, options: { invocations: [{ ...invocation,
+      resolution_stage: "after_cost", choice_type: "choose_effect_branch", choice_zone: "waiting_room",
+      candidate_card_instance_ids: ["player_1-M003"], selected_branch: "discarded_other",
+    }] } };
+    rerender(<EffectResolutionAction action={followUp as never} state={state as never}
+      loading={false} onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.getByText(/费用判定/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /弃置其他作品/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /条件外カード/ }));
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenLastCalledWith("resolve_effect", "player_1", {
+      invocation_id: "cost-result-001", accepted: true, selected_card_instance_ids: ["player_1-M003"],
+      energy_instance_ids: [], selected_branch: "discarded_other",
+    });
+  });
+
   it("submits branch follow-up card choices with the selected branch", () => {
     const onAction = vi.fn();
     const onManual = vi.fn();

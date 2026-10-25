@@ -4788,6 +4788,8 @@ function zoneLabel(zone: string, locale: UiLocale): string {
 function effectBranchLabel(branchId: string, locale: UiLocale): string {
   const labels: Record<string, [string, string]> = {
     draw_discard: ["抽 1 张后弃 1 张手牌", "1枚引いて手札を1枚控え室へ"],
+    discarded_muse: ["弃置 μ's：查看 4 张，加入 2 张", "μ'sを控え室へ：4枚見て2枚を手札へ"],
+    discarded_other: ["弃置其他作品：回收 1 张 Live", "他作品を控え室へ：ライブを1枚回収"],
     wait_opponent_cost2: [
       "将对手全部费用 2 以下角色横置",
       "相手のコスト2以下メンバーすべてをウェイト",
@@ -4981,6 +4983,7 @@ export function EffectResolutionAction({
     energy_required?: number;
     branch_ids?: string[];
     selected_branch?: string;
+    branch_from_cost?: boolean;
     position_change_slots_by_candidate?: Record<string, string[]>;
     choice_groups?: Array<{
       group_id: string;
@@ -5012,7 +5015,7 @@ export function EffectResolutionAction({
     setSelectedBranch("");
     setSelectedPositionSlot("");
     setSelectedGroups({});
-  }, [current?.invocation_id]);
+  }, [current?.invocation_id, current?.resolution_stage, current?.choice_type]);
 
   if (!current) return null;
   const source = state.pending_effects.find(
@@ -5106,7 +5109,7 @@ export function EffectResolutionAction({
       <p>{formatEffectText(current.label_ja, locale)}</p>
       {isBranchChoice && (
         <div className="effect-candidates effect-branch-choices">
-          {branchIds.map((branchId) => (
+          {!current.branch_from_cost && branchIds.map((branchId) => (
             <button
               className={resolvedBranch === branchId ? "selected" : ""}
               key={branchId}
@@ -5119,7 +5122,7 @@ export function EffectResolutionAction({
           ))}
           {current.selected_branch && (
             <span>
-              {tr("已选择", "選択済み")}:
+              {current.branch_from_cost ? tr("费用判定", "費用による分岐") : tr("已选择", "選択済み")}:
               {" "}
               {effectBranchLabel(current.selected_branch, locale)}
             </span>

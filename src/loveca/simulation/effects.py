@@ -284,6 +284,8 @@ class EffectChoice(BaseModel):
     branch_selection_maximum: dict[str, int] = Field(default_factory=dict)
     branch_energy_required: dict[str, int] = Field(default_factory=dict)
     branch_conditions: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    auto_branch_from_cost_choice: bool = False
+    branch_cost_conditions: dict[str, dict[str, str]] = Field(default_factory=dict)
     branch_choice_filters: dict[str, dict[str, Any]] = Field(default_factory=dict)
     post_action_condition_key: str | None = None
     post_action_condition_minimum: int | None = None
@@ -336,6 +338,29 @@ class EffectDefinition(BaseModel):
             "manual_resolution",
         }:
             raise ValueError(f"unsupported execution_mode: {self.execution_mode}")
+        if self.choice is not None and self.choice.auto_branch_from_cost_choice:
+            if (
+                self.choice.choice_type != "choose_effect_branch"
+                or self.cost_choice is None
+                or self.cost_choice.zone != "hand"
+                or self.cost_choice.minimum != 1
+                or self.cost_choice.maximum != 1
+                or not any(operation.action_type == "discard_from_hand" for operation in self.cost)
+            ):
+                raise ValueError("cost result branch requires exactly one hand discard cost")
+            conditions = self.choice.branch_cost_conditions
+            if set(conditions) != set(self.choice.branch_ids) or len(conditions) != 2:
+                raise ValueError("cost result branch requires two exhaustive work conditions")
+            pairs = [next(iter(value.items())) for value in conditions.values() if len(value) == 1]
+            if (
+                len(pairs) != 2
+                or {key for key, _ in pairs} != {
+                    "selected_cost_has_work_key", "selected_cost_lacks_work_key",
+                }
+                or not pairs[0][1]
+                or pairs[0][1] != pairs[1][1]
+            ):
+                raise ValueError("cost result branch requires complementary work conditions")
         if self.execution_mode == "manual_resolution":
             if self.simulation_support != "manual_resolution":
                 raise ValueError(

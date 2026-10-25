@@ -588,7 +588,7 @@ def choose_action(
             if slots:
                 payload["to_slot"] = slots[0]
             return action.action_type, action.player_id, payload
-        if choice.get("choice_type") == "choose_effect_branch":
+        if choice_type == "choose_effect_branch":
             selected_branch = invocation.get("selected_branch")
             if selected_branch:
                 payload["selected_branch"] = selected_branch
