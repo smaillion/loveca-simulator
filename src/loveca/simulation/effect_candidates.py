@@ -3708,6 +3708,17 @@ def _activated_source_to_waiting_return_or_wait(
     row: sqlite3.Row,
 ) -> EffectCandidate | None:
     patterns: dict[str, tuple[dict[str, Any], list[dict[str, Any]], str]] = {
+        "【起動】このメンバーをステージから控え室に置く：自分の控え室から『Aqours』のカードを1枚手札に加える。": (
+            {
+                "choice_type": "card_from_zone",
+                "zone": "waiting_room",
+                "work_key": "love_live_sunshine",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            [{"action_type": "return_from_waiting_room"}],
+            "source_to_wr_return_aqours_card",
+        ),
         "【起動】このメンバーをステージから控え室に置く：自分の控え室から『蓮ノ空』のカードを1枚手札に加える。": (
             {
                 "choice_type": "card_from_zone",
@@ -14250,6 +14261,164 @@ def _phase5_v1_final_static_effects(row: sqlite3.Row) -> EffectCandidate | None:
 
 def _simple_ai_v1_1_safe_effects(row: sqlite3.Row) -> EffectCandidate | None:
     patterns: dict[str, dict[str, Any]] = {
+        "【ライブ開始時】自分のデッキの下からカードを3枚控え室に置く。それらがすべて『Aqours』のメンバーカードの場合、ライブ終了時まで、【heart04】を得る。": {
+            "suffix": "live_start_mill_bottom3_all_aqours_member_heart04",
+            "effect_type": "triggered",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "frequency_limit": "once_per_live",
+            "actions": [
+                {"action_type": "mill_bottom_cards", "amount": 3},
+                {
+                    "action_type": "gain_heart",
+                    "target": "source",
+                    "amount": 1,
+                    "color_slot": "heart04",
+                    "value": {
+                        "condition": {
+                            "milled_all_card_type": "member",
+                            "milled_all_work_key": "love_live_sunshine",
+                        }
+                    },
+                },
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】ライブ終了時まで、自分のステージにいる『Aqours』のメンバー1人は、元々持つハートがすべて【heart04】になる。": {
+            "suffix": "live_start_aqours_member_replace_base_hearts_heart04",
+            "effect_type": "triggered",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "frequency_limit": "once_per_live",
+            "choice": {
+                "choice_type": "member_from_stage",
+                "zone": "stage",
+                "card_type": "member",
+                "work_key": "love_live_sunshine",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [
+                {
+                    "action_type": "replace_member_base_hearts",
+                    "color_slot": "heart04",
+                }
+            ],
+            "duration": "live",
+        },
+        "【ライブ成功時】自分の控え室から『Aqours』のカードを2枚まで好きな順番でデッキの下に置く。": {
+            "suffix": "live_success_waiting_aqours_up_to2_deck_bottom",
+            "effect_type": "triggered",
+            "timing": "live_success",
+            "trigger": "live_succeeded",
+            "frequency_limit": "once_per_live",
+            "choice": {
+                "choice_type": "card_from_zone",
+                "zone": "waiting_room",
+                "work_key": "love_live_sunshine",
+                "minimum": 0,
+                "maximum": 2,
+                "requires_order": True,
+            },
+            "actions": [{"action_type": "move_selected_to_deck_bottom"}],
+        },
+        "【ライブ成功時】自分のエネルギーが相手より2枚以上多い場合、このカードのスコアを＋１する。": {
+            "suffix": "live_success_energy_advantage2_score1",
+            "effect_type": "triggered",
+            "timing": "live_success",
+            "trigger": "live_succeeded",
+            "frequency_limit": "once_per_live",
+            "condition": {"own_energy_count_at_least_opponent_plus": 2},
+            "actions": [{"action_type": "modify_score", "amount": 1}],
+            "duration": "live",
+        },
+        "【ライブ成功時】エールにより公開された自分のカードの中に【heart01】、【heart02】、【heart03】、【heart04】、【heart05】、【heart06】のうち、3種類以上ある場合、このカードのスコアを＋１する。": {
+            "suffix": "live_success_yell_heart_color_variety3_score1",
+            "effect_type": "triggered",
+            "timing": "live_success",
+            "trigger": "live_succeeded",
+            "frequency_limit": "once_per_live",
+            "condition": {"own_yell_revealed_heart_color_variety_at_least": 3},
+            "actions": [{"action_type": "modify_score", "amount": 1}],
+            "duration": "live",
+            "execution_mode": "auto_resolve",
+        },
+        "【ライブ成功時】エールにより公開された自分のメンバーカードがすべて『Printemps』か、すべて『lily white』か、すべて『BiBi』のいずれかの場合、エールにより公開された自分のカードの中からメンバーカードを1枚手札に加える。": {
+            "suffix": "live_success_yell_members_one_muse_unit_return_member",
+            "effect_type": "triggered",
+            "timing": "live_success",
+            "trigger": "live_succeeded",
+            "frequency_limit": "once_per_live",
+            "condition": {
+                "own_yell_revealed_members_all_share_one_unit_key_any": [
+                    "printemps",
+                    "lily_white",
+                    "bibi",
+                ]
+            },
+            "choice": {
+                "choice_type": "card_from_zone",
+                "zone": "resolution_area",
+                "card_type": "member",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [{"action_type": "move_selected_to_hand"}],
+        },
+        "【ライブ開始時】自分のステージにいるメンバーが『BiBi』のみの場合、相手のステージにいるコスト2以下のメンバー1人をウェイトにする。": {
+            "suffix": "live_start_only_bibi_wait_opponent_cost2",
+            "effect_type": "triggered",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "frequency_limit": "once_per_live",
+            "condition": {"own_stage_members_only_unit_key": "bibi"},
+            "choice": {
+                "choice_type": "member_from_stage",
+                "zone": "stage",
+                "target_player": "opponent",
+                "card_type": "member",
+                "maximum_cost": 2,
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [
+                {"action_type": "apply_wait_member", "target": "selected"}
+            ],
+        },
+        "【ライブ開始時】このメンバーをウェイトにしてもよい：ライブ終了時まで、【heart03】を得る。（ウェイト状態のメンバーが持つ【ブレード】は、エールで公開する枚数を増やさない。）": {
+            "suffix": "live_start_wait_source_gain_heart03",
+            "effect_type": "triggered",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "frequency_limit": "once_per_live",
+            "is_optional": True,
+            "condition": {"source_orientation": "active"},
+            "cost": [{"action_type": "apply_wait", "target": "source"}],
+            "actions": [
+                {"action_type": "gain_heart", "amount": 1, "color_slot": "heart03"}
+            ],
+            "duration": "live",
+        },
+        "【ライブ開始時】手札の『μ's』のカードを1枚控え室に置いてもよい：ライブ終了時まで、【heart06】を得る。": {
+            "suffix": "live_start_discard_muse_gain_heart06",
+            "effect_type": "triggered",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "frequency_limit": "once_per_live",
+            "is_optional": True,
+            "cost": [{"action_type": "discard_from_hand"}],
+            "cost_choice": {
+                "choice_type": "card_from_zone",
+                "zone": "hand",
+                "work_key": "love_live",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [
+                {"action_type": "gain_heart", "amount": 1, "color_slot": "heart06"}
+            ],
+            "duration": "live",
+        },
         "【登場】手札の『みらくらぱーく！』のメンバーカードを好きな枚数控え室に置き、その後、その枚数に1を足した枚数のカードを引く。": {
             "suffix": "onplay_discard_miracra_draw_count_plus1",
             "effect_type": "triggered",
@@ -14712,6 +14881,95 @@ def _simple_ai_v1_1_safe_effects(row: sqlite3.Row) -> EffectCandidate | None:
     return None
 
 
+def _look_top_card_optional_deck_bottom_onplay(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    labels = (
+        "【登場】/【ライブ開始時】自分のデッキの一番上のカードを見る。それをデッキの一番下に置いてもよい。",
+        "【登場】自分のデッキの一番上のカードを見る。それをデッキの一番下に置いてもよい。",
+    )
+    matched = next(
+        (
+            _matching_segment(row, label)
+            for label in labels
+            if _matching_segment(row, label) is not None
+        ),
+        None,
+    )
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return _look_top_card_optional_deck_bottom_candidate(
+        row,
+        effect_index=effect_index,
+        exact_label=exact_label,
+        timing="on_play",
+        trigger="member_played",
+        frequency_limit="none",
+        pattern_suffix="onplay",
+    )
+
+
+def _look_top_card_optional_deck_bottom_live_start(
+    row: sqlite3.Row,
+) -> EffectCandidate | None:
+    label = "【ライブ開始時】自分のデッキの一番上のカードを見る。それをデッキの一番下に置いてもよい。"
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return _look_top_card_optional_deck_bottom_candidate(
+        row,
+        effect_index=effect_index,
+        exact_label=exact_label,
+        timing="live_start",
+        trigger="live_started",
+        frequency_limit="once_per_live",
+        pattern_suffix="live_start",
+    )
+
+
+def _look_top_card_optional_deck_bottom_candidate(
+    row: sqlite3.Row,
+    *,
+    effect_index: int,
+    exact_label: str,
+    timing: str,
+    trigger: str,
+    frequency_limit: str,
+    pattern_suffix: str,
+) -> EffectCandidate:
+    return EffectCandidate(
+        **_base(
+            row,
+            pattern_id=f"{pattern_suffix}_look_top1_optional_deck_bottom",
+            effect_index=effect_index,
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing=timing,
+        trigger=trigger,
+        frequency_limit=frequency_limit,
+        is_optional=True,
+        condition={},
+        cost=[],
+        choice={
+            "choice_type": "inspect_top_select",
+            "amount": 1,
+            "minimum": 0,
+            "maximum": 1,
+            "selected_destination": "main_deck_bottom",
+            "unselected_destination": "main_deck_top_ordered",
+            "reveal_selected_to_opponent": False,
+        },
+        actions=[
+            {"action_type": "inspect_top_cards", "amount": 1},
+            {"action_type": "move_remaining_cards"},
+        ],
+        duration=None,
+    )
+
+
 _PATTERNS = (
     _onplay_wait_inspect2_reorder,
     _onplay_inspect2_reorder,
@@ -14874,6 +15132,8 @@ _PATTERNS = (
     _phase5_v1_final_triggered_effects,
     _phase5_v1_final_static_effects,
     _simple_ai_v1_1_safe_effects,
+    _look_top_card_optional_deck_bottom_onplay,
+    _look_top_card_optional_deck_bottom_live_start,
     _live_start_deep_modifiers,
     _onplay_variable_discard_draw,
     _activated_more_simple_effects,

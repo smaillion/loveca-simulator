@@ -83,6 +83,7 @@ SUPPORTED_EFFECT_ACTIONS = {
     "return_baton_replaced_member_to_hand",
     "return_source_live_to_hand",
     "source_to_waiting_room",
+    "mill_bottom_cards",
     "mill_top_cards",
     "draw_if_milled_all_card_type",
     "draw_if_milled_any_card_type",

@@ -17,12 +17,12 @@
 - `decklist.v0` ベースの Deck Analyzer
 - FastAPI + React SPA の可視化ルール検証 UI
 - Replay 可能な Action-only GameState
-- `BP07` / `NSD02` まで含む locked card database
-  - 1,835 Gameplay Cards / 2,485 printings / 959 text revisions / 22 Card Sets
-  - `BP07` は 190 printings / 130 gameplay card identities、`NSD02` は 43 / 34
-- 1,121 件の effect registry entry
-  - 887 件は `test_validated_executable`
-  - 234 件は timing prompt / 未対応処理用の `manual_resolution`
+- 2026-10-24 発売の `CLLS01` と、`PBLL02` / `BP07` / `NSD02` まで含む locked card database
+  - 1,977 Gameplay Cards / 2,700 printings / 1,246 text revisions / 24 Card Sets
+  - importer は公式 products API を優先し、カードリスト未公開の将来商品や unit filter を set として誤取得しません
+- 1,212 件の effect registry entry
+  - 902 件は `test_validated_executable`
+  - 310 件は timing prompt / 未対応処理用の `manual_resolution`
   - 新パックで見つかった未対応効果も manual として明示登録し、silent skip を防止
 - 将来の低コスト online 同期に向けた state hash / compatibility metadata の基礎
 - Hosted Online MVP の room API
@@ -59,16 +59,17 @@
 - 双方が選択する一部の効果は multi-player pending choice で順番に処理可能
 - 複数 group に分けて Stage Member を選び、それぞれに同じ一時 modifier を適用する効果に対応
 - 分岐ごとに異なる Stage Member 候補を持つ効果選択に対応
-- registry entry ベースの `test_validated_executable` coverage は 79.13%（887 / 1,121）。新パックの複雑な未対応効果を manual 登録したため比率は低下しましたが、可実行件数は増加しています
+- registry entry ベースの `test_validated_executable` coverage は 74.42%（902 / 1,212）。全公式データを再同期して複雑な未対応効果も manual 登録したため比率は低下しましたが、可実行件数は増加しています
 - `PBSP02` 関連 effect は 74 件中 63 件を構造化し、新パック内 coverage 85.14% を確認済み
 - μ's / Aqours / Saint Snow / Nijigasaki / Hasunosora / Edel Note の一部控室回収、Energy ready、山札上確認、Yell 公開条件、手札コスト付き Live 開始時効果を追加で構造化
 - static Heart / Blade などの常時効果は、operation 側の条件を満たす場合だけ加算するようにしています
 - `PBSP02` 集中 block sandbox は `30 decks x 20 matches` で 19 完走、`mandatory_manual_resolution = 0`、残り 1 件は `max_actions:match_point_players_have_no_live_in_hand`
 - Phase 5 broad black-box sandbox は `30 decks x 100 matches` の block mode で `100/100` 完走、blocker 0 を確認済み
 - 最新の skill-dense Simple AI regression は `30 decks x 100 matches` で 100/100 完走、blocker / silent skip / Replay error 0
-- 以前の問題カード targeted sandbox で blocker だった `PL!S-bp6-001:1` / `PL!S-pb1-001:1` は現在構造化済み。未対応 234 件は gap report で理由を管理します
+- 以前の問題カード targeted sandbox で blocker だった `PL!S-bp6-001:1` / `PL!S-pb1-001:1` は現在構造化済み。未対応 310 件は gap report で理由を管理します
 - `LL-bp5-002:1` の「Stage に異なるグループ名の Member が 3 人以上なら、Center Member が Live 終了まで任意色 Heart を得る」処理を構造化しました
-- `BP07` / `NSD02` 同期後の公式総合ルール ver.1.06 AI 逐 Action 監査は 20/20 完走、14/20 が「10 turn 以内かつ双方 1 回以上 Live 成功」を満たし、12,543 check と実際に処理した 49 種 / 219 step の skill check はすべて PASS、Replay error 0 でした
+- 2026-10 全量同期後の公式総合ルール ver.1.06 AI 逐 Action 監査は 20/20 完走、13/20 が「10 turn 以内かつ双方 1 回以上 Live 成功」を満たし、13,539 件の check、Replay error / effect-error skip 0 でした
+- 最新の 30 deck / 50 match black-box run は executable effect 314/314、skipped effect 0、Replay error 0。34 局が完走し、残る 16 局は Live access / 長局戦略により action cap に達したため、Rule Engine の不正 Action ではなく AI 方策課題として追跡します
 - Live 判定は 9 つの固定境界でも監査し、Live 成功、今回の勝者、Match Point 時の成功 Live 追加可否、最終勝敗を別々に確認します
 - trigger 時に条件を満たした pending effect が、同一タイミング中の別効果で条件失効した場合は、明示的な `effect_not_activatable` event を残して進行可能
 - 公開して手札に加える効果は、相手側の履歴にも公開カード名が残るようにしています
@@ -111,7 +112,7 @@ Deck Builder の現在の到達点:
 
 - これは開発中の alpha 版です。公式アプリではなく、ルール検証とプレイテスト feedback を集めるためのツールです。
 - 全カード効果の自動実行 coverage はまだありません。未対応効果は `ManualAdjustmentAction`、構造化 pending choice、またはデバッグ用 skip で進行する場合があります。
-- 最新の新パック同期では 234 件を `manual_resolution` として明示保持しています。未登場または複雑な技能は引き続き manual となり、最新の分類は `docs/13-effect-semantics-audit.md` と `TODO.md` に記録します。
+- 最新の全量公式同期では 310 件を `manual_resolution` として明示保持しています。未登場または複雑な技能は引き続き manual となり、最新の分類は `docs/13-effect-semantics-audit.md` と `TODO.md` に記録します。
 - `BP07` の `無2` 特殊 Blade Heart は総合ルール ver.1.06 だけでは意味を確定できないため、推測実装せず未対応として保持しています。
 - FAQ / 個別裁定に依存する効果はまだ仕様化していません。
 - `data/loveca.sqlite3` は repository 内の locked authoritative card DB です。公式カード追加や parser / schema / effect registry の互換性変更後は、maintainer が DB と `data/loveca-db-manifest.json` を再生成して commit します。ユーザーや CI が online 用に別 DB を import してはいけません。保存済みデッキは `decklist.v0` のユーザーデータなので、カード DB とは分けて保持できます。

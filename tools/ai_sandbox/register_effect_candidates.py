@@ -30,10 +30,22 @@ def main() -> int:
         action="store_true",
         help="Write the validated merge. Without this flag the command is read-only.",
     )
+    parser.add_argument(
+        "--replace-matching-manual",
+        action="store_true",
+        help=(
+            "Replace only an identity-matching manual_resolution entry with a "
+            "test_validated_executable candidate."
+        ),
+    )
     args = parser.parse_args()
 
     try:
-        merged, added = merge_candidates(args.registry, args.candidates)
+        merged, added = merge_candidates(
+            args.registry,
+            args.candidates,
+            replace_matching_manual=args.replace_matching_manual,
+        )
     except (OSError, ValueError, CandidateRegistrationError) as exc:
         print(f"error: {exc}")
         return 1
@@ -60,6 +72,8 @@ def main() -> int:
 def merge_candidates(
     registry_path: Path,
     candidates_path: Path,
+    *,
+    replace_matching_manual: bool = False,
 ) -> tuple[EffectRegistry, list[EffectDefinition]]:
     registry = load_effect_registry(registry_path)
     payload = json.loads(candidates_path.read_text(encoding="utf-8"))
@@ -67,6 +81,7 @@ def merge_candidates(
         raise CandidateRegistrationError("candidate artifact must be a JSON array")
 
     registered_ids = {effect.effect_id for effect in registry.effects}
+    registered_by_id = {effect.effect_id: effect for effect in registry.effects}
     registered_identities = {
         (effect.card_code, effect.raw_text_hash, effect.effect_index)
         for effect in registry.effects
@@ -74,12 +89,16 @@ def merge_candidates(
     added: list[EffectDefinition] = []
     candidate_ids: set[str] = set()
     candidate_identities: set[tuple[str, str, int]] = set()
+    replacements: dict[str, EffectDefinition] = {}
     allowed_fields = set(EffectDefinition.model_fields)
 
     for index, raw_candidate in enumerate(payload):
         if not isinstance(raw_candidate, dict):
             raise CandidateRegistrationError(f"candidate {index} must be an object")
-        if raw_candidate.get("already_registered") is True:
+        if (
+            raw_candidate.get("already_registered") is True
+            and not replace_matching_manual
+        ):
             raise CandidateRegistrationError(
                 f"candidate {index} is already registered and must not be rewritten"
             )
@@ -93,9 +112,28 @@ def merge_candidates(
             candidate.effect_index,
         )
         if candidate.effect_id in registered_ids or identity in registered_identities:
-            raise CandidateRegistrationError(
-                f"candidate would overwrite an existing effect: {candidate.effect_id}"
+            existing = registered_by_id.get(candidate.effect_id)
+            existing_identity = (
+                existing.card_code,
+                existing.raw_text_hash,
+                existing.effect_index,
+            ) if existing is not None else None
+            can_replace = (
+                replace_matching_manual
+                and existing is not None
+                and existing_identity == identity
+                and existing.text_revision_id == candidate.text_revision_id
+                and existing.simulation_support == "manual_resolution"
+                and candidate.simulation_support == "test_validated_executable"
+                and candidate.review_status == "test_validated"
             )
+            if not can_replace:
+                raise CandidateRegistrationError(
+                    f"candidate would overwrite an existing effect: {candidate.effect_id}"
+                )
+            replacements[candidate.effect_id] = candidate
+            added.append(candidate)
+            continue
         if candidate.effect_id in candidate_ids or identity in candidate_identities:
             raise CandidateRegistrationError(
                 f"candidate artifact contains a duplicate effect: {candidate.effect_id}"
@@ -104,8 +142,15 @@ def merge_candidates(
         candidate_identities.add(identity)
         added.append(candidate)
 
+    unchanged = [
+        replacements.get(effect.effect_id, effect)
+        for effect in registry.effects
+    ]
+    new_effects = [
+        effect for effect in added if effect.effect_id not in replacements
+    ]
     effects = sorted(
-        [*registry.effects, *added],
+        [*unchanged, *new_effects],
         key=lambda effect: (effect.card_code, effect.effect_index, effect.effect_id),
     )
     return (

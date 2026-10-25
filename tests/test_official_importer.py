@@ -12,6 +12,8 @@ from loveca.cards.official_importer import (
     _api_live_blade_hearts,
     _backfill_missing_names,
     _choose_gameplay_card_code,
+    _discover_api_product_codes,
+    _discover_api_config,
     crawl_official_card_catalog,
 )
 
@@ -234,6 +236,29 @@ def test_json_api_zero_card_result_fails_closed(tmp_path: Path):
     assert "website contract may have changed" in report
 
 
+def test_json_api_product_discovery_ignores_non_product_filters(tmp_path: Path):
+    session = FakeProductApiSession()
+    card_list_url = "https://llofficial-cardgame.com/cardlist/"
+    api_config = _discover_api_config(card_list_url, _api_card_list_html())
+    assert api_config is not None
+
+    inspected_pages: list[dict[str, object]] = []
+    raw_files: list[str] = []
+    product_codes = _discover_api_product_codes(
+        session=session,
+        card_list_url=card_list_url,
+        api_config=api_config,
+        inspected_pages=inspected_pages,
+        output_raw_dir=tmp_path,
+        raw_files=raw_files,
+    )
+
+    assert product_codes == ["CLLS01", "PBLL02"]
+    assert "A-RISE" not in product_codes
+    assert inspected_pages[0]["page_type"] == "api_products"
+    assert raw_files == [str(tmp_path / "products-api.json")]
+
+
 class FakeApiSession:
     def fetch(
         self,
@@ -315,6 +340,38 @@ class FakeEmptyApiSession(FakeApiSession):
             return FakeResponse(
                 url,
                 json.dumps({"page": 1, "per_page": 100, "total": 0, "items": []}),
+                content_type="application/json",
+            )
+        raise AssertionError(f"unexpected URL: {url}")
+
+
+class FakeProductApiSession(FakeApiSession):
+    def fetch(
+        self,
+        url: str,
+        *,
+        form_data: dict[str, str] | None = None,
+        referer: str | None = None,
+        ajax: bool = False,
+    ) -> FakeResponse:
+        del form_data, referer, ajax
+        if url.endswith("/products"):
+            return FakeResponse(
+                url,
+                json.dumps(
+                    {
+                        "products": [
+                            {
+                                "year": "2026",
+                                "items": [
+                                    {"code": "CLLS01"},
+                                    {"code": "PBLL02"},
+                                ],
+                            }
+                        ],
+                        "filters": [{"title": "A-RISE"}],
+                    }
+                ),
                 content_type="application/json",
             )
         raise AssertionError(f"unexpected URL: {url}")

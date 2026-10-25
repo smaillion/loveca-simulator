@@ -93,8 +93,8 @@ def test_effect_registry_card_pool_expansion_keeps_validated_support_floor():
     # be reviewed. Keep an absolute support floor so data refreshes cannot be
     # blocked or "fixed" by falsely promoting manual entries. The v0.9 90%
     # release target remains tracked by the registry audit and TODO.
-    assert executable >= 887
-    assert executable / len(registry.effects) >= 0.79
+    assert executable >= 902
+    assert executable / len(registry.effects) >= 0.74
 
 
 def test_yell_revealed_conditions_support_new_executable_patterns():
@@ -444,6 +444,354 @@ def test_effect_candidate_discovery_structures_bp07_nsd02_safe_exact_family():
             "count": 1,
         }
     }
+
+
+def test_effect_candidate_discovery_structures_pbll02_clls01_safe_exact_family():
+    database = _require_full_card_database()
+    candidates = discover_effect_candidates(database, include_registered=True)
+    by_id = {item.effect_id: item for item in candidates}
+
+    expected_patterns = {
+        "PL!-pb2-022:1": "activated_source_to_wr_return_member",
+        "PL!-pb2-024:1": "simple_ai_v1_1_live_start_only_bibi_wait_opponent_cost2",
+        "PL!-pb2-028:1": "simple_ai_v1_1_live_start_wait_source_gain_heart03",
+        "PL!-pb2-031:1": "simple_ai_v1_1_live_start_discard_muse_gain_heart06",
+        "PL!-pb2-035:1": "activated_source_to_wr_return_live",
+        "PL!S-cl1-001:1": "onplay_mill5",
+        "PL!S-cl1-003:1": "activated_source_to_wr_return_aqours_card",
+        "PL!S-cl1-005:1": "live_start_look_top1_optional_deck_bottom",
+        "PL!S-cl1-008:1": "activated_wait_discard1_draw1",
+        "PL!S-cl1-009:1": "activated_source_to_wr_return_member",
+        "PL!S-bp7-006:1": "simple_ai_v1_1_live_start_mill_bottom3_all_aqours_member_heart04",
+        "PL!S-bp7-019:1": "simple_ai_v1_1_live_success_waiting_aqours_up_to2_deck_bottom",
+        "PL!S-bp7-024:1": "simple_ai_v1_1_live_start_aqours_member_replace_base_hearts_heart04",
+        "PL!SP-bp7-024:1": "simple_ai_v1_1_live_success_energy_advantage2_score1",
+        "PL!N-bp7-025:2": "simple_ai_v1_1_live_success_yell_heart_color_variety3_score1",
+        "PL!-pb2-037:1": "simple_ai_v1_1_live_success_yell_members_one_muse_unit_return_member",
+    }
+    for effect_id, pattern_id in expected_patterns.items():
+        assert by_id[effect_id].pattern_id == pattern_id
+        assert by_id[effect_id].simulation_support == "test_validated_executable"
+
+    assert by_id["PL!S-cl1-003:1"].choice == {
+        "choice_type": "card_from_zone",
+        "zone": "waiting_room",
+        "work_key": "love_live_sunshine",
+        "minimum": 1,
+        "maximum": 1,
+    }
+    assert by_id["PL!-pb2-028:1"].cost == [
+        {"action_type": "apply_wait", "target": "source"}
+    ]
+    assert by_id["PL!-pb2-031:1"].cost_choice == {
+        "choice_type": "card_from_zone",
+        "zone": "hand",
+        "work_key": "love_live",
+        "minimum": 1,
+        "maximum": 1,
+    }
+
+
+def test_mill_bottom_cards_grants_heart_only_when_all_are_aqours_members():
+    effect = EffectDefinition.model_validate(
+        {
+            "effect_id": "test-mill-bottom-aqours:1",
+            "card_code": "TEST-LIVE",
+            "text_revision_id": 1,
+            "raw_text_hash": "m" * 64,
+            "effect_index": 1,
+            "label_ja": (
+                "【ライブ開始時】自分のデッキの下からカードを3枚控え室に置く。"
+                "それらがすべて『Aqours』のメンバーカードの場合、"
+                "ライブ終了時まで、【heart04】を得る。"
+            ),
+            "effect_type": "triggered",
+            "timing": "live_start",
+            "trigger": "live_started",
+            "execution_mode": "auto_resolve",
+            "frequency_limit": "once_per_live",
+            "is_optional": False,
+            "condition": {},
+            "cost": [],
+            "choice": None,
+            "actions": [
+                {"action_type": "mill_bottom_cards", "amount": 3},
+                {
+                    "action_type": "gain_heart",
+                    "target": "source",
+                    "amount": 1,
+                    "color_slot": "heart04",
+                    "value": {
+                        "condition": {
+                            "milled_all_card_type": "member",
+                            "milled_all_work_key": "love_live_sunshine",
+                        }
+                    },
+                },
+            ],
+            "duration": "live",
+            "simulation_support": "test_validated_executable",
+            "review_status": "test_validated",
+            "source_reference": "test fixture",
+        }
+    )
+
+    def setup_state(*, last_card_type: str = "member") -> MatchState:
+        state = _minimal_effect_state(effect)
+        bottom_ids = ["bottom-aqours-1", "bottom-aqours-2", "bottom-aqours-3"]
+        for index, instance_id in enumerate(bottom_ids):
+            card_type = last_card_type if index == 2 else "member"
+            state.cards[instance_id] = CardInstance(
+                instance_id=instance_id,
+                owner_id="player_1",
+                card=CardDefinition(
+                    card_code=f"TEST-BOTTOM-{index + 1}",
+                    card_id=f"TEST-BOTTOM-{index + 1}",
+                    name_ja=f"Aqours {index + 1}",
+                    card_type=card_type,
+                    work_keys=["love_live_sunshine"],
+                ),
+                face_up=False,
+            )
+        state.players["player_1"].main_deck.extend(bottom_ids)
+        return state
+
+    state = setup_state()
+    original_top = state.players["player_1"].main_deck[0]
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    assert resolved.players["player_1"].main_deck[0] == original_top
+    assert resolved.players["player_1"].waiting_room == [
+        "bottom-aqours-3",
+        "bottom-aqours-2",
+        "bottom-aqours-1",
+    ]
+    assert [
+        (
+            modifier.modifier_type,
+            modifier.color_slot,
+            modifier.amount,
+            modifier.target_card_instance_id,
+        )
+        for modifier in resolved.players["player_1"].manual_modifiers
+    ] == [("heart", "heart04", 1, "source-live")]
+
+    blocked = setup_state(last_card_type="live")
+    blocked = _apply_direct(
+        blocked,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    assert blocked.players["player_1"].manual_modifiers == []
+
+
+def test_live_success_yell_conditions_use_revealed_hearts_and_shared_unit():
+    score_effect = EffectDefinition.model_validate(
+        {
+            "effect_id": "test-yell-heart-variety:1",
+            "card_code": "TEST-LIVE",
+            "text_revision_id": 1,
+            "raw_text_hash": "v" * 64,
+            "effect_index": 1,
+            "label_ja": "Yell Heart variety test",
+            "effect_type": "triggered",
+            "timing": "live_success",
+            "trigger": "live_succeeded",
+            "execution_mode": "auto_resolve",
+            "frequency_limit": "once_per_live",
+            "is_optional": False,
+            "condition": {"own_yell_revealed_heart_color_variety_at_least": 3},
+            "cost": [],
+            "choice": None,
+            "actions": [{"action_type": "modify_score", "amount": 1}],
+            "duration": "live",
+            "simulation_support": "test_validated_executable",
+            "review_status": "test_validated",
+            "source_reference": "test fixture",
+        }
+    )
+    state = _minimal_effect_state(score_effect)
+    revealed_ids = []
+    for index, color_slot in enumerate(["heart01", "heart03", "heart06"]):
+        instance_id = f"revealed-heart-{index}"
+        revealed_ids.append(instance_id)
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code=f"TEST-REVEALED-{index}",
+                card_id=f"TEST-REVEALED-{index}",
+                name_ja=f"公開カード {index}",
+                card_type="member",
+                blade_heart_color_slot=color_slot,
+            ),
+        )
+    state.players["player_1"].resolution_area = list(revealed_ids)
+    state.players["player_1"].live_result = LivePerformanceResult(
+        revealed_instance_ids=list(revealed_ids)
+    )
+    assert _effect_condition_met(state, state.pending_effects[0])
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+    assert [
+        (modifier.modifier_type, modifier.amount)
+        for modifier in resolved.players["player_1"].manual_modifiers
+    ] == [("score", 1)]
+
+    return_payload = score_effect.model_dump(mode="json")
+    return_payload.update(
+        {
+            "effect_id": "test-yell-shared-unit:1",
+            "condition": {
+                "own_yell_revealed_members_all_share_one_unit_key_any": [
+                    "printemps",
+                    "lily_white",
+                    "bibi",
+                ]
+            },
+            "execution_mode": "prompt_then_resolve",
+            "choice": {
+                "choice_type": "card_from_zone",
+                "zone": "resolution_area",
+                "card_type": "member",
+                "minimum": 1,
+                "maximum": 1,
+            },
+            "actions": [{"action_type": "move_selected_to_hand"}],
+            "duration": None,
+        }
+    )
+    return_effect = EffectDefinition.model_validate(return_payload)
+    shared = _minimal_effect_state(return_effect)
+    shared_revealed = []
+    for index in range(2):
+        instance_id = f"printemps-{index}"
+        shared_revealed.append(instance_id)
+        shared.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code=f"TEST-PRINTEMPS-{index}",
+                card_id=f"TEST-PRINTEMPS-{index}",
+                name_ja=f"Printemps {index}",
+                card_type="member",
+                unit_keys=["printemps"],
+            ),
+        )
+    shared.players["player_1"].resolution_area = list(shared_revealed)
+    shared.players["player_1"].live_result = LivePerformanceResult(
+        revealed_instance_ids=list(shared_revealed)
+    )
+    assert _effect_condition_met(shared, shared.pending_effects[0])
+    options = generate_legal_actions(shared)[0].options["invocations"][0]
+    assert options["candidate_card_instance_ids"] == shared_revealed
+    returned = _apply_direct(
+        shared,
+        "resolve_effect",
+        player_id="player_1",
+        payload={
+            "invocation_id": "inv-1",
+            "selected_card_instance_ids": [shared_revealed[0]],
+        },
+    )
+    assert shared_revealed[0] in returned.players["player_1"].hand
+    assert shared_revealed[0] not in returned.players["player_1"].resolution_area
+
+    mixed = _minimal_effect_state(return_effect)
+    for instance_id, unit_key in [("printemps", "printemps"), ("bibi", "bibi")]:
+        mixed.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id="player_1",
+            card=CardDefinition(
+                card_code=f"TEST-{unit_key.upper()}",
+                card_id=f"TEST-{unit_key.upper()}",
+                name_ja=unit_key,
+                card_type="member",
+                unit_keys=[unit_key],
+            ),
+        )
+    mixed.players["player_1"].live_result = LivePerformanceResult(
+        revealed_instance_ids=["printemps", "bibi"]
+    )
+    assert not _effect_condition_met(mixed, mixed.pending_effects[0])
+
+
+def test_inspection_choice_can_move_viewed_top_card_to_deck_bottom():
+    state = _minimal_effect_state(
+        EffectDefinition(
+            effect_id="test-look-top-bottom:1",
+            card_code="TEST-MEMBER",
+            text_revision_id=1,
+            raw_text_hash="b" * 64,
+            effect_index=1,
+            label_ja=(
+                "【ライブ開始時】自分のデッキの一番上のカードを見る。"
+                "それをデッキの一番下に置いてもよい。"
+            ),
+            effect_type="triggered",
+            timing="live_start",
+            trigger="live_started",
+            execution_mode="prompt_then_resolve",
+            frequency_limit="once_per_live",
+            is_optional=True,
+            condition={},
+            cost=[],
+            choice={
+                "choice_type": "inspect_top_select",
+                "amount": 1,
+                "minimum": 0,
+                "maximum": 1,
+                "selected_destination": "main_deck_bottom",
+                "unselected_destination": "main_deck_top_ordered",
+            },
+            actions=[
+                {"action_type": "inspect_top_cards", "amount": 1},
+                {"action_type": "move_remaining_cards"},
+            ],
+            duration=None,
+            simulation_support="test_validated_executable",
+            review_status="test_validated",
+            source_reference="test fixture",
+        )
+    )
+    original_deck = list(state.players["player_1"].main_deck)
+    viewed = original_deck[0]
+
+    result = apply_action(
+        state,
+        ActionRequest(
+            action_type="resolve_effect",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={"invocation_id": "inv-1", "accepted": True},
+        ),
+    )
+    state = result.state
+    assert state.pending_choice is not None
+    assert state.pending_choice.options["inspected_card_instance_ids"] == [viewed]
+
+    result = apply_action(
+        state,
+        ActionRequest(
+            action_type="resolve_effect_choice",
+            expected_revision=state.revision,
+            player_id="player_1",
+            payload={"selected_card_instance_ids": [viewed]},
+        ),
+    )
+
+    assert result.state.players["player_1"].main_deck == [*original_deck[1:], viewed]
+    assert result.state.cards[viewed].face_up is False
 
 
 def test_bp07_onplay_recovery_moves_selected_live_from_waiting_room():
@@ -18612,6 +18960,73 @@ def test_member_played_by_baton_cannot_baton_touch_again_after_position_change()
                 },
             ),
         )
+
+
+def test_live_success_energy_advantage_requires_full_margin_before_score_bonus():
+    effect = EffectDefinition(
+        effect_id="test-energy-advantage-score:1",
+        card_code="TEST-LIVE",
+        text_revision_id=1,
+        raw_text_hash="e" * 64,
+        effect_index=1,
+        label_ja="test",
+        effect_type="triggered",
+        timing="live_success",
+        trigger="live_succeeded",
+        execution_mode="auto_resolve",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={"own_energy_count_at_least_opponent_plus": 2},
+        cost=[],
+        choice=None,
+        actions=[{"action_type": "modify_score", "amount": 1}],
+        duration="live",
+        simulation_support="test_validated_executable",
+        review_status="test_validated",
+        source_reference="unit test",
+    )
+    state = _minimal_effect_state(effect)
+    energy = CardDefinition(
+        card_code="TEST-ENERGY",
+        card_id="TEST-ENERGY",
+        name_ja="テストエネルギー",
+        card_type="energy",
+    )
+    for instance_id, owner_id in (
+        ("energy-self-1", "player_1"),
+        ("energy-self-2", "player_1"),
+        ("energy-self-3", "player_1"),
+        ("energy-opponent-1", "player_2"),
+        ("energy-opponent-2", "player_2"),
+    ):
+        state.cards[instance_id] = CardInstance(
+            instance_id=instance_id,
+            owner_id=owner_id,
+            card=energy.model_copy(deep=True),
+        )
+    state.players["player_1"].energy_area = ["energy-self-1", "energy-self-2"]
+    state.players["player_2"].energy_area = ["energy-opponent-1"]
+
+    with pytest.raises(Exception, match="energy_count_advantage_too_low"):
+        _apply_direct(
+            state,
+            "resolve_effect",
+            player_id="player_1",
+            payload={"invocation_id": "inv-1"},
+        )
+
+    state.players["player_1"].energy_area.append("energy-self-3")
+    resolved = _apply_direct(
+        state,
+        "resolve_effect",
+        player_id="player_1",
+        payload={"invocation_id": "inv-1"},
+    )
+
+    assert [
+        (modifier.modifier_type, modifier.amount)
+        for modifier in resolved.players["player_1"].manual_modifiers
+    ] == [("score", 1)]
 
 
 def _minimal_effect_state(effect: EffectDefinition) -> MatchState:

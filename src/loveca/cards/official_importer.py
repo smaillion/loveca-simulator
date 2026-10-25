@@ -80,6 +80,7 @@ class OfficialCardSourceError(RuntimeError):
 class OfficialApiConfig:
     list_endpoint: str
     detail_endpoint: str
+    products_endpoint: str
     image_base_url: str
 
 
@@ -175,11 +176,21 @@ def crawl_official_card_catalog(
 
     discovery = spike.inspect_html(card_list_url, card_list_html, base_domain)
     api_config = _discover_api_config(card_list_url, card_list_html)
-    product_codes = (
-        list(requested_product_codes)
-        if requested_product_codes
-        else _discover_product_codes(card_list_url, card_list_html, discovery)
-    )
+    if requested_product_codes:
+        product_codes = list(requested_product_codes)
+    elif api_config is not None:
+        product_codes = _discover_api_product_codes(
+            session=session,
+            card_list_url=card_list_url,
+            api_config=api_config,
+            inspected_pages=inspected_pages,
+            output_raw_dir=output_dirs["raw"],
+            raw_files=raw_files,
+        )
+        if not product_codes:
+            product_codes = _discover_product_codes(card_list_url, card_list_html, discovery)
+    else:
+        product_codes = _discover_product_codes(card_list_url, card_list_html, discovery)
 
     seen_printing_ids: set[str] = set()
     seen_gameplay_codes: dict[str, tuple[str, str]] = {}
@@ -313,6 +324,7 @@ def _discover_api_config(
         return OfficialApiConfig(
             list_endpoint=f"{normalized_api_base}/list",
             detail_endpoint=f"{normalized_api_base}/detail",
+            products_endpoint=f"{normalized_api_base}/products",
             image_base_url=urllib.parse.urljoin(card_list_url, image_base),
         )
 
@@ -336,14 +348,72 @@ def _discover_api_config(
         return None
     list_path = endpoints.get("list")
     detail_path = endpoints.get("detail")
+    products_path = endpoints.get("products")
     if not isinstance(list_path, str) or not isinstance(detail_path, str):
         return None
+    if not isinstance(products_path, str):
+        products_path = "/card-list-user/products"
     normalized_api_base = urllib.parse.urljoin(card_list_url, api_base).rstrip("/")
     return OfficialApiConfig(
         list_endpoint=f"{normalized_api_base}/{list_path.lstrip('/')}",
         detail_endpoint=f"{normalized_api_base}/{detail_path.lstrip('/')}",
+        products_endpoint=f"{normalized_api_base}/{products_path.lstrip('/')}",
         image_base_url=urllib.parse.urljoin(card_list_url, image_base),
     )
+
+
+def _discover_api_product_codes(
+    *,
+    session: Any,
+    card_list_url: str,
+    api_config: OfficialApiConfig,
+    inspected_pages: list[dict[str, Any]],
+    output_raw_dir: Path,
+    raw_files: list[str],
+) -> list[str]:
+    """Read product codes from the card-list product API.
+
+    The HTML page also links to work and unit filters. Those query values can
+    look like product codes (for example ``A-RISE``), so the API product list is
+    the authoritative discovery source whenever the JSON contract is present.
+    """
+
+    result = session.fetch(api_config.products_endpoint, referer=card_list_url)
+    inspected_pages.append(spike.page_record(result, "api_products"))
+    if result.error is not None:
+        return []
+
+    payload = _parse_api_payload(result.body, context="card-list products")
+    raw_path = output_raw_dir / "products-api.json"
+    spike.write_json(raw_path, payload)
+    raw_files.append(str(raw_path))
+
+    groups = payload.get("products")
+    if not isinstance(groups, list):
+        raise OfficialCardSourceError(
+            "official API products response has no products array"
+        )
+
+    product_codes: list[str] = []
+    seen: set[str] = set()
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        items = group.get("items")
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            code = item.get("code")
+            if not isinstance(code, str):
+                continue
+            normalized = code.strip()
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            product_codes.append(normalized)
+    return product_codes
 
 
 def _html_data_attribute(content: str, attribute: str) -> str | None:

@@ -95,6 +95,30 @@
         "canonical_name_ja": "蓮ノ空女学院スクールアイドルクラブ"
       }
     ],
+    "ラブライブ！蓮ノ空女学院スクールアイドルクラブ": [
+      {
+        "key": "hasunosora",
+        "canonical_name_ja": "蓮ノ空女学院スクールアイドルクラブ"
+      }
+    ],
+    "AiScReam": [
+      {
+        "key": "aiscream",
+        "canonical_name_ja": "AiScReam"
+      }
+    ],
+    "イキヅライブ！ LOVELIVE! BLUEBIRD": [
+      {
+        "key": "ikizulive",
+        "canonical_name_ja": "イキヅライブ！ LOVELIVE! BLUEBIRD"
+      }
+    ],
+    "その他": [
+      {
+        "key": "other",
+        "canonical_name_ja": "その他"
+      }
+    ],
     "ラブライブ！ ラブライブ！サンシャイン!! ラブライブ！虹ヶ咲学園スクールアイドル同好会": [
       {
         "key": "love_live",
@@ -216,6 +240,12 @@
       }
     ],
     "AZALEA": [
+      {
+        "key": "azalea",
+        "canonical_name_ja": "AZALEA"
+      }
+    ],
+    "AZAREA": [
       {
         "key": "azalea",
         "canonical_name_ja": "AZALEA"

@@ -65,6 +65,85 @@ def test_merge_candidates_rejects_existing_identity(tmp_path: Path):
         merge_candidates(registry_path, candidates_path)
 
 
+def test_merge_candidates_can_promote_identity_matching_manual(tmp_path: Path):
+    registry_path = tmp_path / "registry.json"
+    candidates_path = tmp_path / "candidates.json"
+    candidate = _candidate()
+    manual = {
+        key: value
+        for key, value in candidate.items()
+        if key not in {"already_registered", "pattern_id"}
+    }
+    manual.update(
+        {
+            "actions": [{"action_type": "manual_resolution"}],
+            "execution_mode": "manual_resolution",
+            "review_status": "parsed_draft",
+            "simulation_support": "manual_resolution",
+        }
+    )
+    registry_path.write_text(
+        json.dumps(
+            {
+                "registry_version": "effect-registry.v0",
+                "rule_version": "1.06",
+                "effects": [manual],
+            }
+        ),
+        encoding="utf-8",
+    )
+    candidate["already_registered"] = True
+    candidates_path.write_text(json.dumps([candidate]), encoding="utf-8")
+
+    merged, changed = merge_candidates(
+        registry_path,
+        candidates_path,
+        replace_matching_manual=True,
+    )
+
+    assert [effect.effect_id for effect in changed] == ["TEST-M-001:1"]
+    assert merged.effects[0].simulation_support == "test_validated_executable"
+
+
+def test_merge_candidates_rejects_manual_replacement_with_changed_revision(tmp_path: Path):
+    registry_path = tmp_path / "registry.json"
+    candidates_path = tmp_path / "candidates.json"
+    candidate = _candidate()
+    manual = {
+        key: value
+        for key, value in candidate.items()
+        if key not in {"already_registered", "pattern_id"}
+    }
+    manual.update(
+        {
+            "actions": [{"action_type": "manual_resolution"}],
+            "execution_mode": "manual_resolution",
+            "review_status": "parsed_draft",
+            "simulation_support": "manual_resolution",
+        }
+    )
+    registry_path.write_text(
+        json.dumps(
+            {
+                "registry_version": "effect-registry.v0",
+                "rule_version": "1.06",
+                "effects": [manual],
+            }
+        ),
+        encoding="utf-8",
+    )
+    candidate["already_registered"] = True
+    candidate["text_revision_id"] = 2
+    candidates_path.write_text(json.dumps([candidate]), encoding="utf-8")
+
+    with pytest.raises(CandidateRegistrationError, match="overwrite"):
+        merge_candidates(
+            registry_path,
+            candidates_path,
+            replace_matching_manual=True,
+        )
+
+
 def _candidate() -> dict[str, object]:
     return {
         "effect_id": "TEST-M-001:1",

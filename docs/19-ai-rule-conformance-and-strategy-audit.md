@@ -64,12 +64,13 @@ The production engine now emits separate `live_success_determined`, `live_judgme
 After importing `BP07` and `NSD02`, the full post-refresh gate produced:
 
 * 20/20 formally completed matches
-* 14/20 strict qualified matches
-* 12,543 passing transition checks
-* zero review or failed checks
+* 13/20 strict qualified matches
+* 13,539 passing transition checks
+* zero failed checks
+* two review annotations
 * zero illegal Actions, effect-error skips, or Replay mismatches
-* 49 distinct effects exercised in 219 effect decisions or resolutions
-* 219 passing dynamic effect semantic checks
+* 61 distinct effects exercised in 212 effect decisions or resolutions
+* 210 passing dynamic effect semantic checks plus two review annotations
 
 This run is the current data-compatibility gate for the new official-card
 snapshot and supersedes the earlier fixed baseline below.
@@ -90,16 +91,24 @@ A strict match must formally complete within 10 turns, give both players at leas
 
 ## Effect Registry Status
 
-The strict registry integrity audit reports zero errors and zero warnings across 1,121 effect identities.
+The strict registry integrity audit reports zero errors and zero warnings across 1,212 effect identities.
 
-* 887 `test_validated_executable`
-* 234 `manual_resolution`
-* 79.13% registry-entry executable coverage
+* 902 `test_validated_executable`
+* 310 `manual_resolution`
+* 74.42% registry-entry executable coverage
 
-The lower percentage is caused by registering all newly discovered BP07/NSD02
-timing segments rather than silently omitting unsupported text. The absolute
-executable count increased. `PL!N-bp7-030:2` is included as a two-step source
-Live return followed by a required discard from the updated hand.
+The lower percentage is caused by the October 2026 full official refresh through
+`CLLS01` / `PBLL02`: all newly discovered timing segments are registered rather
+than silently omitted. The absolute executable count increased. The latest safe
+patterns include deck-bottom mill, Aqours Heart replacement and Waiting Room
+deck-bottom ordering, Energy-advantage score, Yell Heart-color variety, and
+revealed Member shared-unit recovery.
+
+The follow-up 30-deck / 50-match black-box run completed 314/314 executable
+effect resolutions with zero skipped effects and zero Replay errors. It completed
+34 matches; 16 reached the action cap because of Live-access or long-game policy
+stalls. These results are a Simple AI/controller follow-up and do not indicate an
+illegal engine transition.
 
 Static registry coverage and dynamic exercised-effect coverage are independent. A passing match does not justify promoting an untriggered effect, and automated tests do not grant `reviewed_executable` status without human rule review.
 

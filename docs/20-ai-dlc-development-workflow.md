@@ -122,13 +122,18 @@ Official card updates are treated as a `classic` AI-DLC change because importer,
 locked data, Effect Registry identity, Replay compatibility, and AI regression
 evidence move together.
 
-The current importer discovers the official card-list JSON endpoints from
-`https://llofficial-cardgame.com/cardlist/`, caches list/detail responses, and
-fails closed when the selected set returns zero cards. A refresh must follow
-this order:
+The current importer discovers released products from the official products API
+and resolves their card-list JSON endpoints under
+`https://llofficial-cardgame.com/cardlist/`. It caches list/detail responses and
+fails closed when the selected set returns zero cards. API discovery is preferred
+over scraping filter links because the latter also contains unit/work filters and
+future products whose card list is not published yet. A refresh must follow this
+order:
 
 1. Fetch selected sets into an ignored staging directory with
-   `loveca cards import-official --mode incremental-set`.
+   `loveca cards import-official --mode incremental-set`. When official errata or
+   parser normalization changed, perform a reviewed full refresh so existing text
+   revisions and canonical names are corrected rather than only appending products.
 2. Review the normalized artifact and run importer validation before changing
    the locked SQLite file.
 3. Import into a disposable database copy, inspect entity/revision deltas, and

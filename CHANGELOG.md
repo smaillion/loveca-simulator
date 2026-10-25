@@ -4,14 +4,20 @@
 
 ### 追加 / 新增
 
-- 公式 card list の新 JSON API に importer を対応し、`BP07` / `NSD02` を locked DB に追加した。現在は 1,835 Gameplay Cards / 2,485 printings / 959 text revisions / 22 Card Sets。
-- 正式 importer 已适配官方 card list 新 JSON API，并把 `BP07` / `NSD02` 加入锁版本数据库；当前为 1,835 条 Gameplay Card / 2,485 个印刷版本 / 959 条文本修订 / 22 个 Card Set。
-- exact-text candidate の review gate を追加し、新パックの timing segment を含む effect registry を 1,121 件へ更新した。887 件は `test_validated_executable`、234 件は明示的な `manual_resolution` とし、strict integrity は 0 error / 0 warning。
-- 新增 exact-text candidate 审查门禁，将包含新卡包 timing segment 的 effect registry 更新到 1,121 条；其中 887 条为 `test_validated_executable`、234 条明确保留 `manual_resolution`，strict integrity 为 0 error / 0 warning。
+- 公式 products API を優先する importer discovery と全量 refresh を追加し、`CLLS01` / `PBLL02` までの 24 sets、1,977 Gameplay Cards、2,700 printings、1,246 text revisions を locked DB に収録した。
+- importer 现优先使用官方 products API 并完成全量刷新；锁版本数据库已包含至 `CLLS01` / `PBLL02` 的 24 个卡包、1,977 条 Gameplay Card、2,700 个印刷版本和 1,246 条文本修订。
+- 旧データの全角波線、Energy printing identity、誤分類 printing、公式 canonical name の更新を full refresh 時に互換処理し、normalization candidate を 0 件にした。
+- 全量刷新兼容旧数据中的全角波线、Energy 印刷身份、错误卡种与官方 canonical name 修正，normalization candidate 为 0。
+- effect registry を 1,212 件へ更新し、902 件を `test_validated_executable`、310 件を明示的な `manual_resolution` とした。strict integrity は 0 error / 0 warning。
+- effect registry 更新至 1,212 条，其中 902 条为 `test_validated_executable`、310 条明确保留 `manual_resolution`；strict integrity 为 0 error / 0 warning。
+- `PL!S-bp7-006:1` / `PL!S-bp7-019:1` / `PL!S-bp7-024:1` / `PL!SP-bp7-024:1` / `PL!N-bp7-025:2` / `PL!-pb2-037:1` の Live 系 exact-text 効果を構造化し、山札下 mill、Yell Heart 色数、公開 Member の unit 一致条件を追加した。
+- 结构化上述六条 Live 类 exact-text 技能，新增牌库底部弃置、应援 Heart 颜色种类及公开 Member 同 unit 条件。
+- 30 deck / 50 match sandbox は executable effect 314/314、skipped effect 0、Replay error 0。34 局完走、16 局は Live access / 長局方策による action cap として分離した。
+- 30 deck / 50 match sandbox 中 executable effect 为 314/314、skipped effect 为 0、Replay error 为 0；34 局完赛，其余 16 局归类为 Live 获取 / 长局策略导致的 action cap。
 - `PL!N-bp7-030:2` の「source Live を手札へ戻し、更新後の手札から 1 枚捨てる」二段処理を構造化した。
 - 结构化 `PL!N-bp7-030:2`：先将来源 Live 回手，再从更新后的手牌中选择 1 张弃置。
-- 新カード snapshot に対する Simple AI 逐 Action 監査は 20/20 完走、14/20 strict qualified、12,543 check と 49 種 / 219 step の skill check がすべて PASS、Replay error / effect-error skip 0。
-- 新卡牌快照下的 Simple AI 逐 Action 审计达到 20/20 完赛、14/20 严格合格，12,543 条检查与 49 种 / 219 步技能检查全部 PASS，Replay error / effect-error skip 均为 0。
+- 新カード snapshot に対する Simple AI 逐 Action 監査は 20/20 完走、13/20 strict qualified、13,539 check、Replay error / effect-error skip 0。61 種 / 212 step を処理し、失敗 0、review annotation 2 件を記録した。
+- 新卡牌快照下的 Simple AI 逐 Action 审计达到 20/20 完赛、13/20 严格合格、13,539 条检查，Replay error / effect-error skip 均为 0；共处理 61 种 / 212 步技能，失败 0、保留 2 条 review annotation。
 
 - AI-DLC Workflows `v2.7.0` の Codex distribution を pin し、develop-based
   branch、remote PR merge approval、ルール準拠 test を project rule として
@@ -62,8 +68,8 @@
 - 修复 AI 规则审计误报：Member 登场支付的 Energy 若在同一动作内被登场技能重新 Active，不再仅凭最终朝向判定为未支付。
 - Live 成功時 effect 後の Live Area 状態を使う 8.4.3 / 8.4.6 比較を audit に反映し、古い成功 event snapshot による誤判定を解消した。
 - 让审计按 Live 成功时技能结算后的 Live 区状态执行 8.4.3 / 8.4.6 比较，修复使用较早成功事件快照造成的误判。
-- browser preview 用 card catalog export を gameplay card 単位の shared-connection 読み込みへ変更し、同一カードの別 printings を重複出力せず、最新 1,835 cards の export を数分から約 1.3 秒へ短縮した。
-- 将 browser preview 卡库导出改为按 Gameplay Card 使用共享连接批量读取；不再因不同印刷版重复导出同一卡牌，并将最新 1,835 张卡的导出从数分钟缩短到约 1.3 秒。
+- browser preview 用 card catalog export を gameplay card 単位の shared-connection 読み込みへ変更し、同一カードの別 printings を重複出力せず、locked snapshot 全件を一括 export するようにした。
+- 将 browser preview 卡库导出改为按 Gameplay Card 使用共享连接批量读取；不再因不同印刷版重复输出同一卡牌，并可一次导出锁版本快照中的全部卡牌。
 
 - `ライブ成功時` effect を総 score 比較より先に処理し、その score modifier が今回の Live 勝敗へ反映されるよう修正した。Live-duration modifier も判定完了前には失効しない。
 - 修复 `ライブ成功時` 效果晚于总分比较的问题，使其分数 modifier 能影响当前 Live 胜负；Live-duration modifier 也不会在判定完成前提前失效。

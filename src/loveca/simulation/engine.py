@@ -2153,6 +2153,10 @@ def _resolve_effect_choice(
         player.main_deck = [*order, *player.main_deck]
         for instance_id in order:
             state.cards[instance_id].face_up = False
+    elif selected_destination == "main_deck_bottom":
+        player.main_deck.extend(selected_ids)
+        for instance_id in selected_ids:
+            state.cards[instance_id].face_up = False
     elif selected_ids:
         raise IllegalActionError("unsupported selected destination for inspection effect")
 
@@ -2162,6 +2166,10 @@ def _resolve_effect_choice(
             state.cards[instance_id].face_up = True
     elif unselected_destination == "main_deck_top_ordered":
         player.main_deck = [*unselected_ids, *player.main_deck]
+        for instance_id in unselected_ids:
+            state.cards[instance_id].face_up = False
+    elif unselected_destination == "main_deck_bottom":
+        player.main_deck.extend(unselected_ids)
         for instance_id in unselected_ids:
             state.cards[instance_id].face_up = False
     elif unselected_ids:
@@ -3041,6 +3049,34 @@ def _effect_unavailable_reason(
             }
             if not set(color_slots).issubset(actual):
                 return "yell_revealed_member_heart_colors_missing"
+    yell_revealed_heart_variety = effect.condition.get(
+        "own_yell_revealed_heart_color_variety_at_least"
+    )
+    if isinstance(yell_revealed_heart_variety, int):
+        actual = {
+            state.cards[item].card.blade_heart_color_slot
+            for item in player.live_result.revealed_instance_ids
+            if state.cards[item].card.blade_heart_color_slot
+            in {"heart01", "heart02", "heart03", "heart04", "heart05", "heart06"}
+        }
+        if len(actual) < yell_revealed_heart_variety:
+            return "yell_revealed_heart_color_variety_too_low"
+    yell_revealed_members_one_unit = effect.condition.get(
+        "own_yell_revealed_members_all_share_one_unit_key_any"
+    )
+    if isinstance(yell_revealed_members_one_unit, list) and all(
+        isinstance(unit_key, str) for unit_key in yell_revealed_members_one_unit
+    ):
+        revealed_members = [
+            state.cards[item].card
+            for item in player.live_result.revealed_instance_ids
+            if state.cards[item].card.card_type == "member"
+        ]
+        if not revealed_members or not any(
+            all(unit_key in card.unit_keys for card in revealed_members)
+            for unit_key in yell_revealed_members_one_unit
+        ):
+            return "yell_revealed_members_do_not_share_required_unit"
     yell_revealed_special_count = effect.condition.get(
         "own_yell_revealed_special_blade_heart_count_at_least"
     )
@@ -3073,6 +3109,10 @@ def _effect_unavailable_reason(
     if effect.condition.get("own_energy_more_than_opponent"):
         if len(player.energy_area) <= len(opponent.energy_area):
             return "energy_count_not_higher"
+    energy_advantage = effect.condition.get("own_energy_count_at_least_opponent_plus")
+    if isinstance(energy_advantage, int):
+        if len(player.energy_area) < len(opponent.energy_area) + energy_advantage:
+            return "energy_count_advantage_too_low"
     exact_energy_count = effect.condition.get("own_energy_count_exact")
     if isinstance(exact_energy_count, int):
         if len(player.energy_area) != exact_energy_count:
@@ -4852,6 +4892,17 @@ def _effect_operation_condition_met(
             milled = list(operation_context.get("milled_card_instance_ids", []))
         if not milled or any(
             milled_all_work not in state.cards[item].card.work_keys for item in milled
+        ):
+            return False
+    milled_all_card_type = condition.get("milled_all_card_type")
+    if isinstance(milled_all_card_type, str):
+        milled = []
+        if operation_context is not None:
+            milled = list(operation_context.get("milled_card_instance_ids", []))
+        if not milled or any(
+            item not in state.cards
+            or state.cards[item].card.card_type != milled_all_card_type
+            for item in milled
         ):
             return False
     milled_any_card_type = condition.get("milled_any_card_type")
@@ -8020,7 +8071,7 @@ def _execute_operations(
                 )
             for target_player_id in target_player_ids:
                 _rotate_stage_member_groups(state, target_player_id, events)
-        elif operation_type == "mill_top_cards":
+        elif operation_type in {"mill_top_cards", "mill_bottom_cards"}:
             milled: list[str] = []
             amount = _operation_amount(
                 operation,
@@ -8030,11 +8081,16 @@ def _execute_operations(
                 operation_context=operation_context,
             )
             for _ in range(max(0, amount)):
-                instance_id = _take_main_deck_card(
-                    state,
-                    invocation.player_id,
-                    events,
-                )
+                if operation_type == "mill_top_cards":
+                    instance_id = _take_main_deck_card(
+                        state,
+                        invocation.player_id,
+                        events,
+                    )
+                else:
+                    if not player.main_deck:
+                        _refresh_main_deck(state, invocation.player_id, events)
+                    instance_id = player.main_deck.pop() if player.main_deck else None
                 if instance_id is None:
                     break
                 player.waiting_room.append(instance_id)
@@ -8049,6 +8105,11 @@ def _execute_operations(
                         "invocation_id": invocation.invocation_id,
                         "effect_id": invocation.effect_id,
                         "milled_card_instance_ids": milled,
+                        "source": (
+                            "deck_top"
+                            if operation_type == "mill_top_cards"
+                            else "deck_bottom"
+                        ),
                     },
                     source="system",
                 )
