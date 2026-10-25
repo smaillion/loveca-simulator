@@ -1,5 +1,10 @@
 # 分支与工作树清单
 
+Live矩阵检查点：只读核对旧58项核心描述及20项Live原型，迁移Live20项并补原生Action、
+17字段完整预期、实际区域清理与逐项SQLite Replay。4项Match Point措辞待审与4项合成技能
+单独标记，不搬运旧75项完成声明；旧End Phase清理/触发顺序仍待修，原44/6项dirty及报告不改。
+见 `live-boundary-matrix-verification.md`。同一Draft PR #54，不合并部署，登记900/1212不变。
+
 等待房间检查点：创建时固定Ruleset四字段，复用runtime_metadata独立JSON，不改表结构或decklist。
 规则变化在Match写入前409拒绝，旧房间不补造身份，元数据随room保留期清理。见
 `room-ruleset-lifecycle-verification.md`。原Ruleset迁移父任务本批收口，核心矩阵继续排队。

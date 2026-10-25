@@ -69,9 +69,18 @@
       "priority": 1,
       "title": "选择性迁移核心规则矩阵与 End Phase 重复检查",
       "status": "queued",
-      "depends_on": ["legacy-ruleset-match-replay"],
+      "depends_on": ["legacy-ruleset-match-replay", "live-judgment-boundary-matrix-expansion"],
       "required_profiles": ["registry", "backend", "web"],
       "acceptance": ["依据固定 PDF 复核 8.4.10-12 行为并增加真实状态转换与 Replay 断言", "迁移至少 75 个核心场景及 20 个 Live 边界，区分契约检查和行为测试", "用当前 1212 条 registry 重算 unresolved reason，不覆盖旧卡库统计", "保留原工作树及报告，不搬运旧版本的通过声明"]
+    },
+    {
+      "id": "live-judgment-boundary-matrix-expansion",
+      "priority": 1,
+      "title": "扩展20项Live得分边界并区分规则解释待审与实现回归",
+      "status": "queued",
+      "depends_on": ["legacy-ruleset-match-replay"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["选择性迁移旧Live矩阵至20项，显式完整预期、真实成功区/控室清理与原生Action/SQLite Replay逐项通过", "固定PDF hash和逐项规则引用，8.4.7.1区域措辞与既有Match Point解释差异明确待审，不修改引擎或宣称裁定完成", "合成技能fixture不计入官方技能覆盖；工程契约和规则行为分开，旧58+20不能冒充75项已完成核心规则", "更新中日README/Changelog及中文报告，registry仍900/1212、312manual，不改Card/SQL schema或旧工作树"]
     },
     {
       "id": "legacy-api-play-comparison",

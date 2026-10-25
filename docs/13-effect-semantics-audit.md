@@ -1,5 +1,12 @@
 # Effect Semantics Audit
 
+Live boundary checkpoint: 20 post-Heart score/movement regressions now use native
+Actions and individual SQLite Replay assertions. Four synthetic effect fixtures
+do not represent new card support; four Match Point cases retain an explicit
+8.4.7.1 area-wording review note. No registry or reviewed status changes:
+900/1212 executable (74.26%),312manual. Old core-matrix and end-phase claims are
+not imported as completed evidence. See [scope and unresolved items](development/live-boundary-matrix-verification.md).
+
 Occupied-deployment checkpoint: explicit operation snapshot policy distinguishes
 an outgoing Member's own on-play, activation and Live timings from a different
 Member entering. Full source text, unknown/combined timings, static and inherited

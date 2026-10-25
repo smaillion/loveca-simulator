@@ -2,6 +2,13 @@
 
 ## High Priority
 
+### Live矩阵与结束阶段规则可信度
+
+- Live得分/移动资格已扩展20项实现回归与逐项SQLite Replay，详见 `docs/development/live-boundary-matrix-verification.md`；4项Match Point解释待审，4项使用合成技能，不能合算成20项官方裁定认证。
+- PDF 8.4.7.1原图写作ライブ置き場，既有Match Point实现按成功Live区2张处理。需明确官方勘误/审核依据，暂不改引擎或给出reviewed标签。
+- 旧矩阵58项含online13/action3/replay2等工程契约，且旧JUnit解析会把skip当通过；先重新分类并拒绝skip冒充验证，再补足75项核心行为。
+- 旧End Phase原型在清理Live/公开区前触发结束能力，且按来源整体入队可能重复能力；不可直接迁移。须按8.4.8-12验证清理、结束触发、期限解除、重新检查和pending续步，保留旧Replay。
+
 ### 效果登场重叠边界（继续）
 
 - 已用显式operation snapshot策略区分旧Member自身登场、起动及Live时点，不把非本事件的能力误当观察者；50项定向测试见 `docs/development/disjoint-overlap-source-verification.md`。

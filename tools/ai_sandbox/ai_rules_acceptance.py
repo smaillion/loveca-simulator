@@ -664,8 +664,10 @@ def _render_summary(report: AcceptanceReport) -> str:
         f"- 结论：**{conclusion}**",
         f"- 逐步审计统计：`{dict(sorted(verdicts.items()))}`",
         f"- 使用策略：`{report.policy_version}`",
-        f"- Live 判定固定边界：**{live_boundary_passed} / "
-        f"{len(report.live_judgment_boundaries)}** 通过",
+        f"- Live 判定实现回归：**{live_boundary_passed} / "
+        f"{len(report.live_judgment_boundaries)}** 通过（不是官方裁定认证）",
+        f"- Live 边界规则解释待复核：**{sum(bool(item.review_notes) for item in report.live_judgment_boundaries)}** 项；"
+        "8.4.7.1区域措辞与既有Match Point解释存在差异，未擅改引擎。",
         "",
         "> 合格局要求同时满足：正式完赛、回合数不超过限制、双方至少各有一张成功 "
         "Live、无规则审计失败、无技能错误跳过且 Replay 完全一致。",
@@ -748,12 +750,14 @@ def _render_summary(report: AcceptanceReport) -> str:
 def _render_live_judgment_boundaries(report: AcceptanceReport) -> str:
     passed = sum(item.passed for item in report.live_judgment_boundaries)
     lines = [
-        "# Live 判定官方规则边界审计",
+        "# Live 判定实现回归与规则待审边界",
         "",
         "## 结论",
         "",
         f"- 固定场景：**{len(report.live_judgment_boundaries)}**",
         f"- 通过：**{passed} / {len(report.live_judgment_boundaries)}**",
+        f"- 规则解释待复核：**{sum(bool(item.review_notes) for item in report.live_judgment_boundaries)}** 项",
+        "- Heart需求已作为输入前提，不验证完整Heart/Yell流程；合成技能不计入卡牌支持数。",
         f"- 规则书：`{report.rulebook.source_path}`",
         f"- SHA-256：`{report.rulebook.sha256}`",
         "",
@@ -763,14 +767,16 @@ def _render_live_judgment_boundaries(report: AcceptanceReport) -> str:
         "",
         "## 固定边界矩阵",
         "",
-        "| 场景 | 规则 | 结果 | 关键状态 |",
-        "|---|---|---|---|",
+        "| 场景 | 规则 | 实现回归 | 证据边界 | 关键状态 |",
+        "|---|---|---|---|---|",
     ]
     for item in report.live_judgment_boundaries:
         lines.append(
             f"| `{item.scenario_id}`<br>{_md(item.title_zh)} | "
             f"{', '.join(item.rule_refs)} | "
             f"**{'PASS' if item.passed else 'FAIL'}** | "
+            f"{'合成技能fixture' if item.inputs['first_effect'] else '核心得分转换'}"
+            f"{'；区域措辞待复核' if item.review_notes else ''} | "
             f"{_md(_live_boundary_summary(item.actual))} |"
         )
     failed = [item for item in report.live_judgment_boundaries if not item.passed]
@@ -794,8 +800,8 @@ def _render_live_judgment_boundaries(report: AcceptanceReport) -> str:
             "- `8.4.4-8.4.5`：Live 区仍有卡即先产生 Live 成功事件，并在此处处理"
             " `ライブ成功時` 自动能力。",
             "- `8.4.6`：能力结算后的总分决定本轮胜者；普通同分时双方均为胜者。",
-            "- `8.4.7.1`：同分时已有 2 张成功 Live 的玩家不能再移动卡。"
-            "这不会倒推抹除前面的 Live 成功事件或本轮同分胜者事实。",
+            "- `8.4.7.1`：PDF原图为ライブ置き場，既有实现按成功Live区2张处理同分限制。"
+            "区域解释待官方勘误/人工复核；当前回归不代表已解决该规则疑点，也不擅改现有引擎。",
             "- `1.2.1.1-1.2.1.2`：只有实际移动后达到 3 张，才产生整场胜利或平局。",
             "- `8.4.13`：仅一方实际新增成功 Live 时该方成为下回合先攻；"
             "双方均移动或均未移动时保持原先攻。",

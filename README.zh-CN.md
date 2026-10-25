@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+Live得分、成功区移动及胜负已扩展至20项实现回归，逐项验证SQLite Replay。4项仍需复核PDF 8.4.7.1的区域措辞与现有Match Point解释；不把回归通过当作官方裁定认证，不改引擎或登记率。[验证范围与未解决点](./docs/development/live-boundary-matrix-verification.md)
+
 效果登场的受控底座已区分旧 Member 的自身登场、起动及 Live 时点能力，不再将它们混同为另一 Member 的入场观察者；常时、继承及不完整原文仍保留限制，本轮不增加卡牌支持数。[验证与边界](./docs/development/disjoint-overlap-source-verification.md)
 
 新对局及等待房间均固定Ruleset ID、指纹和裁定包；创建后规则变化时拒绝加入并要求重建房间。旧快照不补写字段，不兼容对局仍仅供查看和导出Replay。[房间兼容与清理验证](./docs/development/room-ruleset-lifecycle-verification.md)

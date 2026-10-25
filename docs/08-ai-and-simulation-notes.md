@@ -249,7 +249,14 @@ Simple AI policy changes should pass a separate rule-conformance acceptance run 
 * requires at least 10 matches to finish within 10 turns while both players complete at least one Live
 * treats any illegal Action, effect-error skip, failed semantic check, or Replay mismatch as disqualifying
 
-Live judgment has an additional fixed boundary matrix derived from comprehensive rules 8.4.2-8.4.13 and 1.2.1.1-1.2.1.2. It keeps Live success, `ライブ成功時` check timing, performance winner, Success Live placement eligibility, and whole-match result as separate facts. In particular, an equal-score comparison still has two performance winners, but rule 8.4.7.1 prevents a player already holding two Success Live cards from adding another. When both players are at Match Point, neither adds a card and the match continues.
+Live judgment has 20 post-Heart score/movement regressions, with native Action
+and SQLite Replay checks. They distinguish Live success, success-effect timing,
+performance winner, placement eligibility and whole-match result. Four fixtures
+use synthetic effects; four Match Point cases remain rule-text review items
+because PDF 8.4.7.1's area wording differs from the existing Success Live count
+interpretation. The engine remains unchanged. These cases are not a claim that
+Heart allocation, Yell, end-phase loops or all official rulings are certified.
+See [the maintained evidence boundary](development/live-boundary-matrix-verification.md).
 
 The maintained run completed 20/20 matches and qualified 12/20. It produced 14,160 passing checks and exercised 64 distinct effects over 260 effect decisions or resolutions. This is path evidence, not proof for effects that did not trigger.
 

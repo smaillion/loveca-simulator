@@ -1,5 +1,12 @@
 # AI Rule Conformance and Strategy Audit
 
+Current boundary checkpoint: the post-Heart score/movement matrix now contains
+20 implementation regressions, each with native Action and SQLite Replay tests.
+Four use synthetic effect fixtures, not registered-card evidence. Four retain a
+rule-text review note: the pinned PDF's 8.4.7.1 area wording differs from the
+existing Success Live count interpretation. Passing this regression is not
+official-ruling certification. See [scope and unresolved evidence](development/live-boundary-matrix-verification.md).
+
 ## Purpose
 
 This document defines the maintained local acceptance process for Simple AI matches. It separates three questions that must not be conflated:
@@ -43,7 +50,12 @@ The audit keeps four results separate because the comprehensive rules assign the
 3. **Performance winner and placement eligibility**: 8.4.6 determines the winner or winners, while 8.4.7 and 8.4.7.1 independently determine who may move one card to the Success Live Area.
 4. **Match result**: only actual Success Live counts after movement are evaluated against 1.2.1.1 and 1.2.1.2.
 
-This distinction is material at Match Point. On equal total score, both players remain performance winners. A player already holding two Success Live cards cannot add another under 8.4.7.1. If both players are at Match Point, neither moves a card and the match continues; this is not a simultaneous match win or draw.
+This distinction is material at Match Point. The existing implementation keeps
+both equal-score players as performance winners, prevents a player holding two
+Success Live cards from adding another, and continues when neither moves. This
+is the maintained regression interpretation, not a newly certified reading of
+8.4.7.1: the pinned PDF image says Live Area, so the area wording remains under
+review. This iteration does not change engine behavior.
 
 The maintained matrix covers:
 
@@ -93,9 +105,9 @@ A strict match must formally complete within 10 turns, give both players at leas
 
 The strict registry integrity audit reports zero errors and zero warnings across 1,212 effect identities.
 
-* 902 `test_validated_executable`
-* 310 `manual_resolution`
-* 74.42% registry-entry executable coverage
+* 900 `test_validated_executable`
+* 312 `manual_resolution`
+* 74.26% registry-entry executable coverage
 
 The lower percentage is caused by the October 2026 full official refresh through
 `CLLS01` / `PBLL02`: all newly discovered timing segments are registered rather
