@@ -65,11 +65,29 @@
       "acceptance": ["对比旧分支 16 个提交及 6 个未提交文件，不全量合并", "只迁移当前缺少的普通 LegalAction comparison 或成本分支语义", "默认 mock，不调用付费模型；不得泄露对手隐藏手牌", "registry 改动必须精确文本绑定并有状态转换和 Replay 测试"]
     },
     {
+      "id": "legacy-cost-result-branch",
+      "priority": 1,
+      "title": "复核并迁移 PL!-bp5-003:2 的弃牌成本结果分支",
+      "status": "queued",
+      "depends_on": ["legacy-api-play-comparison"],
+      "required_profiles": ["registry", "backend", "web"],
+      "acceptance": ["以当前文本 revision/hash 复核旧工作树原型，不覆盖已修正的 effect index 1 常时技能", "由实际支付的弃牌决定 μ's inspect4/选2 或其他作品控室 Live 回收，玩家不能伪选分支", "费用/选择验证原子性、分支 inspection、Replay 和隐藏信息均有状态断言", "仅在前后端和 Simple AI 均能处理后提升准确绑定的 entry，否则保留 manual 并记录原因"]
+    },
+    {
+      "id": "legacy-baton-hand-deploy-audit",
+      "priority": 1,
+      "title": "重新核对旧 PR Member 手牌登场原型的规则边界",
+      "status": "queued",
+      "depends_on": ["legacy-cost-result-branch"],
+      "required_profiles": ["registry", "backend", "web"],
+      "acceptance": ["重新核对 PL!-PR-015:1 与 PL!SP-PR-020:1 的当前 exact-text/hash，不继承旧提交的 executable 标签", "核对 Baton 原 Member cost、手牌 Member cost 上限、目标区域限制和重复登场触发", "只有具备状态转换、Replay 和 AI 合法选择验收才提升，否则保留 manual 并记录 unresolved reason", "不复制旧 registry/manifest，不修改原工作树"]
+    },
+    {
       "id": "legacy-worktree-reconciliation",
       "priority": 1,
       "title": "迁移旧工作树中尚未收口的 Phase 6 / API Play 成果",
       "status": "queued",
-      "depends_on": ["legacy-ruleset-source-profile", "legacy-ruleset-match-replay", "legacy-core-matrix-and-end-phase", "legacy-api-play-comparison"],
+      "depends_on": ["legacy-ruleset-source-profile", "legacy-ruleset-match-replay", "legacy-core-matrix-and-end-phase", "legacy-api-play-comparison", "legacy-cost-result-branch", "legacy-baton-hand-deploy-audit"],
       "required_profiles": ["control", "registry", "backend", "web"],
       "acceptance": ["逐项对比工作树清单，不直接合并旧实验", "保留未提交改动及 ignored 报告", "只迁移当前主线缺少且已测试的实现", "更新唯一分支清单，不新增长期分叉"]
     },

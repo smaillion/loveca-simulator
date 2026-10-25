@@ -4,6 +4,7 @@ import json
 
 import pytest
 
+from tools.ai_sandbox import api_play_compare
 from tools.ai_sandbox.api_play_compare import (
     build_actionable_findings,
     comparison_deltas,
@@ -166,6 +167,24 @@ def test_api_play_comparison_real_provider_preflight_rejects_mock(tmp_path):
             play_fallback="deterministic",
             require_real_provider=True,
         )
+
+
+def test_api_play_comparison_does_not_capture_context_by_default(monkeypatch, tmp_path):
+    monkeypatch.setattr(api_play_compare, "build_decks", lambda *args: [])
+    limits = []
+
+    def run(*args, **kwargs):
+        limits.append(kwargs["api_context_sample_limit"])
+        return [], [], []
+
+    monkeypatch.setattr(api_play_compare, "run_semantic_matches", run)
+    report = run_api_play_comparison(
+        database=tmp_path / "unused.sqlite3", provider_factory=MockSemanticAgentProvider,
+        deck_count=1, match_count=1, max_actions=1,
+        manual_fallback="block", play_fallback="deterministic",
+    )
+    assert report["api_context_sample_limit"] == 0
+    assert limits == [0, 0]
 
 
 def test_extract_api_play_context_samples_for_prompt_review():

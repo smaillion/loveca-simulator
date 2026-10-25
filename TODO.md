@@ -26,6 +26,10 @@
   `docs/22-ruleset-source-profile-migration.md`。后续依次接入 Match/Replay 身份、End Phase /
   规则矩阵，再收敛 API Play；不把旧卡池通过结论直接当作当前证据。
 - 后续按任务队列推进 AI 长局、技能准确度和 v0.9 门禁；不再为每轮自动任务开分支。
+- API Play 旧提交已分组核对，测试输入/采样入口完成选择性迁移；下一步复核
+  `PL!-bp5-003:2` 的成本结果分支，以及 `PL!-PR-015:1` / `PL!SP-PR-020:1` 的 Baton 手牌登场，
+  不直接搬运旧 executable 登记。当前仍为 902 / 1212 可执行，详见
+  `docs/development/legacy-api-play-migration.md`。
 
 ### AI-DLC Rollout Validation
 

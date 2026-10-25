@@ -69,7 +69,7 @@ def main() -> int:
     parser.add_argument(
         "--api-context-samples",
         type=int,
-        default=5,
+        default=0,
         help="Maximum number of API Play model-input contexts to preserve in the JSON report.",
     )
     args = parser.parse_args()
@@ -100,7 +100,7 @@ def run_api_play_comparison(
     manual_fallback: str,
     play_fallback: str,
     require_real_provider: bool = False,
-    api_context_sample_limit: int = 5,
+    api_context_sample_limit: int = 0,
 ) -> dict[str, Any]:
     deterministic_provider = provider_factory()
     if require_real_provider:

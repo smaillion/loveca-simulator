@@ -15,6 +15,10 @@ v0-9-card-sync-effects-ai-reliability 的 3 个提交与当前分支 patch 等�
 未提交原文件和 ignored 报告未改动、未删除。其他内容仍待队列逐批迁移；不视为已收敛。
 详细范围见 `../22-ruleset-source-profile-migration.md`，后续任务见 `automation/queue.json`。
 
+API Play 检查点：16 个旧提交已按功能分组核对，选择性补回 CLI 预检/采样入口，并修正
+测试输入中的对手背面卡和他方 private choice 暴露。6 项 dirty 原型仍保留，成本分支与
+Baton 手牌登场登记另列任务，不直接继承旧 executable 状态。见 `legacy-api-play-migration.md`。
+
 ## 工作树
 
 | 分支 | 领先 / 落后 develop | 未提交文件 | 处理方式 | 路径 |
