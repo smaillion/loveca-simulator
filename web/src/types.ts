@@ -384,7 +384,7 @@ export interface MatchState {
   controllers?: Record<string, "human" | "simple_ai">;
   controller_policy_versions?: Record<
     string,
-    "simple_ai_v0" | "simple_ai_v1" | "simple_ai_v1_1"
+    "simple_ai_v0" | "simple_ai_v1" | "simple_ai_v1_1" | "simple_ai_v1_2"
   >;
   effect_registry_version: string | null;
   effect_definitions: Record<string, EffectDefinition>;

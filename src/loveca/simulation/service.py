@@ -65,7 +65,10 @@ class MatchService:
         first_player_id: str | None = None,
         controllers: dict[str, ControllerType] | None = None,
         controller_policy_versions: dict[str, ControllerPolicyVersion] | None = None,
+        max_ai_actions: int = 256,
     ) -> ActionResult:
+        if type(max_ai_actions) is not int or max_ai_actions < 0:
+            raise ValueError("max_ai_actions must be a non-negative integer")
         for label, deck in (("player_1", first_deck), ("player_2", second_deck)):
             analysis = analyze_deck(self.card_database_path, deck)
             if not analysis.is_legal:
@@ -119,7 +122,7 @@ class MatchService:
                 },
             ),
         )
-        return self.advance_ai(created.state.match_id, created_result)
+        return self.advance_ai(created.state.match_id, created_result, max_ai_actions=max_ai_actions)
 
     def create_match_from_paths(
         self,

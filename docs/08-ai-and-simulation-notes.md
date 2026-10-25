@@ -1,5 +1,12 @@
 # AI and Simulation Notes
 
+Experimental `simple_ai_v1_2` adds legal non-Live resource cycling without changing
+the v1.1 default or historical policies. A paired 50-match sample completes 50/50
+under both policies, reducing mean turns from 7.64 to 5.94 and maximum from 19 to
+11. The first ten v1.2 matches all meet the ten-turn / both-player success target.
+This is not a strength benchmark or a universal optimal strategy. The archived
+30-deck heuristic pool still completes only 34/50. [Chinese evidence and remaining work](development/ai-live-cycle-verification.md).
+
 ## 1. Purpose
 
 This document describes AI and simulation strategy for the platform.

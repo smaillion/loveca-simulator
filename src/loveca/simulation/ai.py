@@ -20,6 +20,7 @@ from loveca.simulation.rule_evaluation import (
 )
 
 ManualEffectPolicy = Literal["skip", "block", "noop"]
+LIVE_PROTECTING_POLICIES = frozenset({"simple_ai_v1_1", "simple_ai_v1_2"})
 
 
 @dataclass(frozen=True)
@@ -182,7 +183,7 @@ def choose_simple_ai_action_v1(
         action = by_type["submit_mulligan"]
         selected = _choose_mulligan_v1(
             observation,
-            protect_live=policy_version == "simple_ai_v1_1",
+            protect_live=policy_version in LIVE_PROTECTING_POLICIES,
         )
         return AICandidate(
             action.action_type,
@@ -217,7 +218,7 @@ def choose_simple_ai_action_v1(
                 _activation_candidates_v1(
                     observation,
                     by_type["activate_effect"],
-                    match_point_strategy=policy_version == "simple_ai_v1_1",
+                    match_point_strategy=policy_version in LIVE_PROTECTING_POLICIES,
                 )
             )
         if "play_member" in by_type:
@@ -225,7 +226,7 @@ def choose_simple_ai_action_v1(
                 _member_play_candidates_v1(
                     observation,
                     by_type["play_member"],
-                    conservative_replacement=policy_version == "simple_ai_v1_1",
+                    conservative_replacement=policy_version in LIVE_PROTECTING_POLICIES,
                 )
             )
         if "end_main_phase" in by_type:
@@ -245,7 +246,8 @@ def choose_simple_ai_action_v1(
         return _choose_live_set_v1(
             observation,
             by_type["set_live_cards"],
-            match_point_efficient=policy_version == "simple_ai_v1_1",
+            match_point_efficient=policy_version in LIVE_PROTECTING_POLICIES,
+            cycle_surplus_members=policy_version == "simple_ai_v1_2",
         )
     if "start_next_turn" in by_type:
         action = by_type["start_next_turn"]
@@ -562,6 +564,7 @@ def _choose_live_set_v1(
     action: LegalAction,
     *,
     match_point_efficient: bool = False,
+    cycle_surplus_members: bool = False,
 ) -> AICandidate:
     player = observation.players[observation.player_id]
     live_ids = [item for item in player.hand if _card_type(observation, item) == "live"]
@@ -571,6 +574,26 @@ def _choose_live_set_v1(
         for combo in itertools.combinations(live_ids, size)
     ]
     if not combinations:
+        if cycle_surplus_members:
+            members = [item for item in player.hand if _card_type(observation, item) == "member"]
+            reserve = set(_rank_card_ids(observation, members, descending=True)[:2])
+            offered = set(action.options.get("hand_instance_ids", player.hand))
+            maximum = action.options.get("maximum", 3)
+            maximum = min(3, max(0, maximum)) if type(maximum) is int else 0
+            surplus = [item for item in members if item in offered and item not in reserve]
+            selected = _rank_card_ids(observation, surplus, descending=False)[:maximum]
+            if selected:
+                return AICandidate(
+                    action.action_type,
+                    action.player_id,
+                    {"card_instance_ids": selected},
+                    float(len(selected) * 10),
+                    "cycle_spare_members_to_find_live",
+                    (
+                        ("cycle_members", float(len(selected))),
+                        ("member_reserve", float(len(reserve))),
+                    ),
+                )
         return AICandidate(
             action.action_type,
             action.player_id,
@@ -701,7 +724,7 @@ def _choose_effect_resolution_v1(
     value, components = _effect_value(observation, effect)
     payload = _structured_effect_payload_v1(observation, invocation, effect)
     if (
-        policy_version == "simple_ai_v1_1"
+        policy_version in LIVE_PROTECTING_POLICIES
         and invocation.get("is_optional")
         and _payload_discards_last_live(observation, payload, effect)
         and value < 24

@@ -162,7 +162,7 @@ def main() -> int:
     parser.add_argument("--max-actions", type=int, default=500)
     parser.add_argument(
         "--policy",
-        choices=("simple_ai_v0", "simple_ai_v1", "simple_ai_v1_1"),
+        choices=("simple_ai_v0", "simple_ai_v1", "simple_ai_v1_1", "simple_ai_v1_2"),
         default="simple_ai_v1_1",
     )
     parser.add_argument("--seed-base", type=int, default=12000)

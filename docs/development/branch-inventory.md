@@ -1,5 +1,9 @@
 # 分支与工作树清单
 
+AI换牌检查点：同一continuous分支新增可选v1.2，默认v1.1不变；固定50局平均7.64→5.94回合，
+前10局均在10回合内结束且双方成功Live。旧30套牌脚本仍34/50，父AI可靠性任务继续跟踪。
+见 `ai-live-cycle-verification.md`。只更新Draft PR #54，不合并部署，旧工作树未改动。
+
 第3次登場检查点：已修复实际 `PL!N-bp3-005:1` 计数与普通交代漏触发，保留第二段“2回以上”
 及旧Replay；46项专项与固定10局回归通过。见 `third-entry-observer-verification.md`。
 父任务保留，下一优先项为AI固定seed长局/零Live归因；仍为同一Draft PR #54，不合并部署，旧工作树不变。

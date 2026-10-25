@@ -1,5 +1,12 @@
 # Effect Semantics Audit
 
+AI resource-cycle checkpoint: opt-in `simple_ai_v1_2` uses the existing legal
+Live Set operation on surplus Members, with native draw/privacy/cleanup/Replay
+assertions. Paired 50-match tests complete 50/50 with no skip or Replay error;
+the ten-match step audit retains one human-review item. Registry remains
+899 executable / 1212 total (74.17%), 313 manual; no review promotion.
+[Evidence and the unchanged archived 34/50 heuristic baseline](development/ai-live-cycle-verification.md).
+
 ## Purpose
 
 This document records the first full-card-pool semantic review baseline for effect modeling.

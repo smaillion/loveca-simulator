@@ -1042,6 +1042,24 @@ describe("App", () => {
     ).toBeInTheDocument();
   });
 
+  it("localizes the experimental AI resource-cycle reason", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const matchCreate = { ...MATCH_PAYLOAD, events: [{
+      event_type: "ai_action_selected", player_id: "player_1", source: "system",
+      data: { action_type: "set_live_cards", reason: "cycle_spare_members_to_find_live",
+        policy_version: "simple_ai_v1_2" },
+    }] };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    const createButton = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+    await screen.findByText("选择 · set_live_cards · 用富余 Member 换牌寻找 Live");
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect(screen.getByText("選択 · set_live_cards · 余剰メンバーをセットして Live を探す"))
+      .toBeInTheDocument();
+  });
+
   it("hides the opponent hand on the match board by default", async () => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const ownHandId = "player_1-H001";

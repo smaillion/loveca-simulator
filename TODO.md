@@ -2,6 +2,13 @@
 
 ## High Priority
 
+### AI Live 获取与旧脚本长局（继续）
+
+- 可选v1.2已补无Live时富余Member换牌；固定20套牌50局完赛，前10局达到双方成功Live且10回合内结束。
+- 默认仍v1.1。扩大同池镜像强度/资源代价比较，再决定是否改默认，不把小样本称为最优策略。
+- 旧30套牌/50局启发式脚本按原始牌组重跑仍34完赛、16行动上限；迁移共用策略需另做有限切片。
+- 十局逐步规则审计仍有1项review；继续人工核对和补真实状态断言，不提升registry审核状态。
+
 ### Codex Cloud 开发交接（已准备，未切换）
 
 - 入口见 `automation/CLOUD.md` 与 `docs/development/codex-cloud-handoff.md`；

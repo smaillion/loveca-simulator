@@ -4297,6 +4297,7 @@ function aiDecisionReasonLabel(reason: string, locale: UiLocale): string {
     preserve_resources_end_main: ["保留资源并结束主阶段", "リソースを温存してメイン終了"],
     set_best_reachable_live_combo: ["设置成功可能性最高的 Live 组合", "成功可能性の高い Live 組合せをセット"],
     no_live_in_hand: ["手牌中没有 Live", "手札に Live なし"],
+    cycle_spare_members_to_find_live: ["用富余 Member 换牌寻找 Live", "余剰メンバーをセットして Live を探す"],
     resolve_best_structured_effect: ["选择估值最高的技能处理", "評価の高い能力処理を選択"],
     activate_positive_structured_effect: ["发动正收益起动能力", "有利な起動能力を使用"],
     decline_nonpositive_optional_effect: ["不发动收益不足的可选技能", "利益の少ない任意能力を見送り"],

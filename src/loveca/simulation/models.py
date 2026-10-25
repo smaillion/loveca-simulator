@@ -40,6 +40,7 @@ ControllerPolicyVersion = Literal[
     "simple_ai_v0",
     "simple_ai_v1",
     "simple_ai_v1_1",
+    "simple_ai_v1_2",
 ]
 ModifierType = Literal[
     "score",

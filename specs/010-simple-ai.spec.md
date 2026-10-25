@@ -2,6 +2,18 @@
 
 ## 1. Purpose
 
+### Experimental resource-cycle policy
+
+`simple_ai_v1_2` is opt-in; new default matches remain `simple_ai_v1_1`.
+It retains v1.1 protections and, only without a Live in hand, may set up to three
+surplus Members offered by LegalActionGenerator, keeping the two highest-valued
+Members. PDF 8.2.2/8.2.4 permits setting hand cards, not only Lives; normal draws,
+face-down visibility and non-Live cleanup (10.5.1) remain Rule Engine operations.
+No opponent private identity or future deck order may inform this choice.
+AI-vs-AI acceptance counts initial and subsequent AI decisions against one cap;
+Human-vs-AI retains its human-driver cap. Explained blockers alone do not prove
+the separate completion-performance target. See the [verification report](../docs/development/ai-live-cycle-verification.md).
+
 This spec defines how Simple AI should treat unsupported and manual card effects.
 
 It does not define AI implementation code, algorithms, APIs, or UI.
