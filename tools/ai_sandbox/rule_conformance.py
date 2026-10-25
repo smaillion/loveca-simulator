@@ -12,6 +12,7 @@ from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
+from loveca.simulation.effect_candidates import NIJIGASAKI_SELECTED_BLADE_SCORE_TEXT
 from loveca.simulation.models import (
     ActionRequest,
     GameEvent,
@@ -461,6 +462,9 @@ def _semantic_operation_alignment(
     label_ja: str,
     operation_types: set[str],
 ) -> bool | None:
+    comparison = "modify_source_score_if_selected_blade_highest"
+    if comparison in operation_types:
+        return operation_types == {comparison} and label_ja == NIJIGASAKI_SELECTED_BLADE_SCORE_TEXT
     expectations: list[set[str]] = []
     if "カードを引" in label_ja or "枚引" in label_ja:
         expectations.append(

@@ -43,6 +43,7 @@ ControllerPolicyVersion = Literal[
     "simple_ai_v1_2",
 ]
 ModifierType = Literal[
+    "live_card_score",
     "score",
     "blade",
     "heart",

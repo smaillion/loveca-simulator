@@ -1,5 +1,23 @@
 # 019 Effect Execution MVP Specification
 
+## Selected Member Blade / Source Live Score
+
+The bounded `modify_source_score_if_selected_blade_highest(amount=1)` operation
+requires one own Stage Member choice at `live_succeeded`, no cost or follow-up,
+and a single operation with Live duration. Registry binding remains exact-text.
+It compares the chosen Member with all other top Stage Members of both players,
+including Wait Members, using base replacement, targeted temporary and active
+static Blade values. Equality does not qualify; hidden and attached cards do not
+participate. The result event records the compared public values and score delta.
+
+Only the source card still in its own Live Area receives `live_card_score`.
+Existing global `score` modifiers are unchanged. Card score replacement precedes
+addition (9.9.1.4–5), Live winner comparison follows success effects (8.4.4–6),
+and zone movement clears this new modifier (4.1.4). Source departure cannot
+redirect the bonus to another Live. Old manual snapshots retain their contract.
+LegalAction exposes public `candidate_blade_counts` so AI does not duplicate the
+calculation. The UI uses the same result event in both languages.
+
 ## Exact Member Entry Counter Snapshot (2026-10)
 
 The bounded mandatory `own_member_played` draw-to-hand family may declare exactly:

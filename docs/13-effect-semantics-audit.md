@@ -1,6 +1,15 @@
 # Effect Semantics Audit
 
-Frozen 30-deck follow-up exposes actual `PL!N-bp7-027:1` manual skips at seeds9008
+Current selected-Blade checkpoint: exact `PL!N-bp7-027:1` is now test validated,
+bringing the registry to900/1212 (74.26%), 312 manual. The bounded source-Live
+operation compares effective Blade on both Stages strictly, including waiting
+Members, and preserves card-specific score scope and zone-change cleanup.
+The three actual manual blockers disappear in a frozen50-match block regression;
+positive scoring, ties, ordering layers, privacy and SQL Replay have state tests.
+This is not human-reviewed status or full rules certification.
+[Chinese card illustration and evidence](development/selected-blade-source-score-verification.md).
+
+Historical frozen 30-deck follow-up exposed `PL!N-bp7-027:1` manual skips at seeds9008
 and9029, now queued for exact-text adaptation. The existing executable
 `PL!HS-bp6-005:2` ends explicitly not activatable without a DOLLCHESTRA Yell target;
 the report separates this from resolved, skipped and unfinished invocations.
@@ -63,9 +72,9 @@ Local card data observed after the October 25, 2026 full official-source refresh
   * An unregistered, bounded `deploy_selected_to_stage` foundation now validates simple occupied-area cleanup, entry/exit, costs, Replay, AI and privacy. Complex overlap/entry conditions and private-hand fail-to-find remain excluded; the two PR and four Nijigasaki effects stay manual. See [the precise scope and newly reproduced Energy Replay gap](./development/occupied-deployment-foundation.md). This does not increase executable coverage or claim a general check-timing implementation.
   * current registry coverage has split into two separate layers:
   * 1,212 effect definitions
-  * 899 `test_validated_executable` definitions
-  * 313 timing-only `manual_resolution` definitions
-  * registry-entry executable coverage is currently 74.17%
+  * 900 `test_validated_executable` definitions
+  * 312 timing-only `manual_resolution` definitions
+  * registry-entry executable coverage is currently 74.26%
   * `PL!-bp6-003:2` attachment promotion now has explicit snapshot-scoped entry-trigger semantics: Member Area internal transfers do not trigger on-play or own-member-entry effects, while old snapshots retain historical behavior. State, runtime Replay, UI, AI and privacy assertions are documented in [the follow-up audit](./development/attachment-promotion-verification.md).
   * `PL!-pb1-018:1` now records AP/NAP selections before simultaneous Wait placement, then queues entry triggers from the final board and resolves them after the parent. Its explicit choice policy preserves old snapshots; candidate/area UI, atomic rejection, actual draw transitions, AI and privacy tests are documented in [the bounded verification](./development/multi-player-entry-verification.md). Counts remain 899/1212; this is not a general simultaneous-trigger scheduler or human-reviewed ruling.
   * October 25 deployment audit: six literal-empty-area effects now explicitly enter Active and expose legal position choices. Four unrestricted named-Member deployment effects were downgraded to manual instead of retaining an incorrect empty-only restriction. See [verification](./development/empty-effect-deployment-verification.md). Historical counts below describe earlier runs, not the current denominator.

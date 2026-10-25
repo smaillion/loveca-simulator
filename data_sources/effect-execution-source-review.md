@@ -96,4 +96,14 @@ Member into a top Stage position.
 
 ## Review Status
 
+Selected-Blade source Live score scope (2026-10-26): exact `PL!N-bp7-027:1`
+uses a mandatory own Nijigasaki Stage Member choice and strict comparison against
+both Stages' other top Members. Effective Blade includes Wait cards and numeric
+replacement/addition layers, not only their contribution to Yell. Score is local
+to the source Live and resets on zone change. References: PDF4.1.4,8.4.4–6,
+9.6.3.1/9.6.3.1.3,9.9.1.4–5, plus current Japanese revision921/hash.
+State, SQL Replay, four AI policies, privacy and frozen50-match block evidence
+are in `docs/development/selected-blade-source-score-verification.md`.
+This entry is test validated, not human reviewed; no FAQ pack is implied.
+
 The rule timing above is source-confirmed. Automated effect entries remain `test_validated_executable` until a human card-by-card rules review promotes them.

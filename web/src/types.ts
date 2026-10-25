@@ -302,7 +302,7 @@ export interface PlayerState {
   success_live_area: string[];
   manual_modifiers: Array<{
     modifier_id: string;
-    modifier_type: "score" | "blade" | "heart" | "flag";
+    modifier_type: "score" | "live_card_score" | "blade" | "heart" | "flag";
     duration: "live" | "turn" | "game";
     created_turn: number;
     amount: number | null;

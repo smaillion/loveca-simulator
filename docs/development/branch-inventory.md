@@ -1,5 +1,10 @@
 # 分支与工作树清单
 
+虹咲Live检查点：同一continuous分支精确适配 `PL!N-bp7-027:1`，37项状态/快照/Replay/
+四policy/隐私专项及中日结果提示通过；冻结50局block中原3次manual blocker消失。
+登记900/1212，不提升reviewed。见 `selected-blade-source-score-verification.md`。
+仍只更新Draft PR #54，不合并部署，不修改旧dirty工作树与原始报告。
+
 冻结牌组检查点：同一continuous分支为旧blackbox工具增加可选共用AI策略与原始牌组/seed恢复。
 50局同260步：legacy34 / v1.1 42 / v1.2 48完赛；保留3次manual skip与新2个上限案例。
 下一项为实际触发的 `PL!N-bp7-027:1`，见 `ai-frozen-pool-verification.md`。

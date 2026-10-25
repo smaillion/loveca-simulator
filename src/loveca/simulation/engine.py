@@ -4868,6 +4868,14 @@ def _effect_resolution_options(
             if state.cards[item].orientation == "active"
         ]
         options["energy_required_source"] = "selected_count"
+    if any(
+        op.action_type == "modify_source_score_if_selected_blade_highest"
+        for op in effect.actions
+    ):
+        options["candidate_blade_counts"] = {
+            item: _effective_member_blade(state, invocation.player_id, item)
+            for item in candidate_ids
+        }
     return options
 
 
@@ -7408,6 +7416,7 @@ def _execute_operations(
                 raise IllegalActionError("effect source must be in the Live Area")
             if state.cards[source_instance_id].card.card_type != "live":
                 raise IllegalActionError("effect source must be a Live card")
+            _clear_live_card_score(player, source_instance_id)
             player.live_area.remove(source_instance_id)
             player.hand.append(source_instance_id)
             state.cards[source_instance_id].face_up = True
@@ -8698,6 +8707,44 @@ def _execute_operations(
                     ),
                 )
             )
+        elif operation_type == "modify_source_score_if_selected_blade_highest":
+            if len(operation_selected_ids) != 1:
+                raise IllegalActionError("Blade comparison requires exactly one Stage Member")
+            selected_id = operation_selected_ids[0]
+            if selected_id not in player.member_area.values():
+                raise IllegalActionError("Blade comparison target must be on the owner's Stage")
+            selected_blade = _effective_member_blade(state, invocation.player_id, selected_id)
+            other_blades = [
+                _effective_member_blade(state, owner_id, item)
+                for owner_id, owner in state.players.items()
+                for item in owner.member_area.values()
+                if item is not None and item != selected_id
+            ]
+            highest = all(selected_blade > other for other in other_blades)
+            source_id = invocation.source_card_instance_id
+            source_available = (
+                source_id in player.live_area
+                and state.cards[source_id].card.card_type == "live"
+            )
+            amount = 1 if highest and source_available else 0
+            if amount:
+                player.manual_modifiers.append(ManualModifier(
+                    modifier_id=f"effect:{invocation.invocation_id}:live-card-score",
+                    modifier_type="live_card_score", duration="live",
+                    created_turn=state.turn_number, amount=amount,
+                    target_card_instance_id=source_id,
+                ))
+            events.append(GameEvent(
+                event_type="effect_blade_comparison_resolved", player_id=invocation.player_id,
+                data={
+                    "invocation_id": invocation.invocation_id, "effect_id": effect.effect_id,
+                    "source_card_instance_id": source_id, "selected_card_instance_id": selected_id,
+                    "selected_blade": selected_blade,
+                    "other_max_blade": max(other_blades) if other_blades else None,
+                    "condition_met": highest, "source_available": source_available,
+                    "score_delta": amount,
+                }, source="system",
+            ))
         elif operation_type == "replace_score":
             player.manual_modifiers.append(
                 ManualModifier(
@@ -11321,6 +11368,8 @@ def _clean_stage_attachments(
 
 
 def _remove_from_player_zones(player: Any, instance_id: str) -> None:
+    if instance_id in player.live_area:
+        _clear_live_card_score(player, instance_id)
     for zone in (
         player.main_deck,
         player.energy_deck,
@@ -12080,14 +12129,34 @@ def _modifier_total(player: Any, modifier_type: str) -> int:
 
 
 def _card_score(state: MatchState, player_id: str, instance_id: str) -> int:
+    score = state.cards[instance_id].card.score or 0
     for modifier in reversed(state.players[player_id].manual_modifiers):
         if (
             modifier.modifier_type == "score_replacement"
             and modifier.target_card_instance_id == instance_id
             and modifier.amount is not None
         ):
-            return modifier.amount
-    return state.cards[instance_id].card.score or 0
+            score = modifier.amount
+            break
+    if instance_id in state.players[player_id].live_area:
+        score += _target_modifier_total(state.players[player_id], "live_card_score", instance_id)
+    return score
+
+
+def _clear_live_card_score(player: PlayerState, instance_id: str) -> None:
+    player.manual_modifiers = [
+        modifier for modifier in player.manual_modifiers
+        if not (modifier.modifier_type == "live_card_score"
+                and modifier.target_card_instance_id == instance_id)
+    ]
+
+
+def _effective_member_blade(state: MatchState, player_id: str, instance_id: str) -> int:
+    return max(
+        0, _member_base_blade(state, player_id, instance_id)
+        + _target_modifier_total(state.players[player_id], "blade", instance_id)
+        + _static_numeric_bonus(state, player_id, instance_id, "gain_blade"),
+    )
 
 
 def _target_modifier_total(
@@ -12581,6 +12650,7 @@ def _record_success_live_move(
     player_id: str,
     instance_id: str,
 ) -> None:
+    _clear_live_card_score(state.players[player_id], instance_id)
     if player_id not in state.success_live_moved_player_ids:
         state.success_live_moved_player_ids.append(player_id)
     state.success_live_moved_instance_ids.setdefault(player_id, []).append(instance_id)

@@ -1905,6 +1905,7 @@ const autoResultTerminalEvents = new Set([
 ]);
 
 const autoResultOperationEvents = new Set([
+  "effect_blade_comparison_resolved",
   "effect_cards_milled",
   "effect_cards_revealed",
   "effect_cards_revealed_to_hand",
@@ -2010,6 +2011,14 @@ function autoResultLines(
           || related.data.reason === "overlap_source_member_departed")) {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
+    } else if (related.event_type === "effect_blade_comparison_resolved") {
+      const summary = eventSummary(related, state, locale);
+      if (summary) lines.push(summary);
+      lines.push(related.data.source_available === false
+        ? (locale === "zh" ? "来源 Live 已离开 Live 区，未加分" : "誘発元がライブカード置き場を離れたため加算なし")
+        : related.data.condition_met
+          ? (locale === "zh" ? "条件满足" : "条件成立")
+          : (locale === "zh" ? "条件未满足" : "条件不成立"));
     } else if (related.event_type === "effect_cards_milled") {
       const ids = stringArray(related.data.milled_card_instance_ids);
       const names = ids.map((id) => state.cards[id]?.card.name_ja).filter(Boolean);
@@ -4180,6 +4189,7 @@ function eventTitle(event: GameEvent, locale: UiLocale): string {
     ai_action_selected: ["电脑操作", "CPU操作"],
     ai_blocked: ["电脑操作受阻", "CPU操作ブロック"],
     effect_auto_resolved: ["技能自动发动", "能力の自動解決"],
+    effect_blade_comparison_resolved: ["Blade 比较结果", "ブレード比較結果"],
     effect_resolved: ["技能结算", "能力解決"],
     effect_not_activatable: ["技能未自动处理", "能力の自動処理不可"],
     effect_operation_not_applied: ["技能部分未执行", "能力の一部未実行"],
@@ -4251,6 +4261,14 @@ function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): st
     return locale === "zh"
       ? "该登场观察者的重叠时点尚待审核，请手动确认。"
       : "重複時の登場誘発は未審査です。手動で確認してください。";
+  }
+  if (event.event_type === "effect_blade_comparison_resolved") {
+    const selected = Number(event.data.selected_blade ?? 0);
+    const other = event.data.other_max_blade ?? "-";
+    const delta = Number(event.data.score_delta ?? 0);
+    return locale === "zh"
+      ? `Blade ${selected} / 其他最高 ${other} · 来源 Live 分数 +${delta}`
+      : `ブレード ${selected} / ほかの最大 ${other} · 誘発元のスコア +${delta}`;
   }
   if (event.event_type === "ai_action_selected") {
     const actionType = typeof event.data.action_type === "string" ? event.data.action_type : "";

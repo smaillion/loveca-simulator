@@ -2000,6 +2000,28 @@ describe("App", () => {
     expect(screen.getByText("自動処理 · 宮下 愛 · PL!N-bp3-005:1")).toBeInTheDocument();
   });
 
+  it.each([0, 1])("shows source Live score comparison results in both languages (+%s)", async (delta) => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const other = delta ? 3 : 4;
+    const data = { invocation_id: "blade-score", effect_id: "PL!N-bp7-027:1",
+      source_card_instance_id: "player_1-M001", selected_blade: 4, other_max_blade: other,
+      condition_met: delta > 0, source_available: true, score_delta: delta };
+    const matchCreate = { ...MATCH_PAYLOAD, events: [
+      { event_type: "effect_blade_comparison_resolved", player_id: "player_1", source: "system", data },
+      { event_type: "effect_resolved", player_id: "player_1", source: "system", data },
+    ] };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    const create = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(create).not.toBeDisabled());
+    fireEvent.click(create);
+    expect((await screen.findAllByText(`Blade 4 / 其他最高 ${other} · 来源 Live 分数 +${delta}`)).length).toBeGreaterThan(0);
+    expect(await screen.findByText("自动效果结果")).toBeInTheDocument();
+    expect(await screen.findByText(delta ? "条件满足" : "条件未满足")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect((await screen.findAllByText(`ブレード 4 / ほかの最大 ${other} · 誘発元のスコア +${delta}`)).length).toBeGreaterThan(0);
+  });
+
   it("shows an automatic result notice for milled cards even when the conditional follow-up does not happen", async () => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const sourceId = "player_1-M001";

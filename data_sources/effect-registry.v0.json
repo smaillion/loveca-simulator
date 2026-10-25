@@ -55895,22 +55895,20 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution",
-          "amount": null,
-          "amount_source": null,
-          "branch": null,
-          "card_type": null,
-          "color_slot": null,
-          "flag": null,
-          "multiplier": null,
-          "orientation": null,
-          "target": null,
-          "target_hand_size": null,
-          "value": null
+          "action_type": "modify_source_score_if_selected_blade_highest",
+          "amount": 1
         }
       ],
       "card_code": "PL!N-bp7-027",
-      "choice": null,
+      "choice": {
+        "choice_type": "member_from_stage",
+        "zone": "stage",
+        "target_player": "self",
+        "card_type": "member",
+        "work_key": "nijigasaki",
+        "minimum": 1,
+        "maximum": 1
+      },
       "condition": {},
       "cost": [],
       "cost_choice": null,
@@ -55918,15 +55916,15 @@
       "effect_id": "PL!N-bp7-027:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "prompt_then_resolve",
       "follow_up_choice": null,
       "frequency_limit": "once_per_live",
       "is_optional": false,
       "label_ja": "【ライブ成功時】自分のステージにいる『虹ヶ咲』のメンバー1人を選ぶ。そのメンバーが、自分と相手のステージにいるほかのすべてのメンバーより多くの【ブレード】を持つ場合、このカードのスコアを＋１する。",
       "raw_text_hash": "4c9f50c82ec56c823425e62731d8e0c65cbf30cbf31d3a07e6813a2c3cfe0df0",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 921,
       "timing": "live_success",
       "trigger": "live_succeeded"

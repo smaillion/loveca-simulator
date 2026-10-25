@@ -25,6 +25,12 @@ BATON_LOWER_COST_HAND_DEPLOY_TEXT = (
     "ステージに登場させてもよい。"
 )
 
+NIJIGASAKI_SELECTED_BLADE_SCORE_TEXT = (
+    "【ライブ成功時】自分のステージにいる『虹ヶ咲』のメンバー1人を選ぶ。"
+    "そのメンバーが、自分と相手のステージにいるほかのすべてのメンバーより多くの"
+    "【ブレード】を持つ場合、このカードのスコアを＋１する。"
+)
+
 
 @dataclass(frozen=True)
 class EffectCandidate:
@@ -7133,6 +7139,16 @@ def _live_start_simple_modifiers(row: sqlite3.Row) -> EffectCandidate | None:
 
 def _live_success_simple_effects(row: sqlite3.Row) -> EffectCandidate | None:
     patterns: dict[str, dict[str, Any]] = {
+        NIJIGASAKI_SELECTED_BLADE_SCORE_TEXT: {
+            "suffix": "selected_nijigasaki_strictly_highest_blade_source_score1",
+            "choice": {
+                "choice_type": "member_from_stage", "zone": "stage",
+                "target_player": "self", "card_type": "member", "work_key": "nijigasaki",
+                "minimum": 1, "maximum": 1,
+            },
+            "actions": [{"action_type": "modify_source_score_if_selected_blade_highest", "amount": 1}],
+            "duration": "live",
+        },
         "【ライブ成功時】ライブの合計スコアが相手より高い場合、カードを1枚引く。": {
             "suffix": "higher_score_draw1",
             "condition": {"live_score_relation": "greater_than_opponent"},

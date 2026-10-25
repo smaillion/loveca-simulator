@@ -38,6 +38,7 @@ SUPPORTED_EFFECT_ACTIONS = {
     "inspect_top_cards",
     "manual_resolution",
     "modify_score",
+    "modify_source_score_if_selected_blade_highest",
     "modify_required_heart",
     "modify_yell_count",
     "move_remaining_cards",
@@ -165,6 +166,12 @@ class EffectOperation(BaseModel):
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        if self.action_type == "modify_source_score_if_selected_blade_highest" and (
+            self.amount != 1 or self.amount_source is not None
+            or self.target is not None or self.multiplier is not None
+            or self.branch is not None or self.value is not None
+        ):
+            raise ValueError("selected Blade comparison only supports a fixed source Live score +1")
         if self.overlap_source_policy is not None and (
             self.action_type != "gain_blade"
             or self.target not in {None, "self"}
@@ -425,6 +432,17 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        if any(op.action_type == "modify_source_score_if_selected_blade_highest" for op in self.actions):
+            choice = self.choice
+            if (
+                len(self.actions) != 1 or self.cost or self.cost_choice or self.follow_up_choice
+                or self.duration != "live" or self.trigger != "live_succeeded"
+                or self.execution_mode != "prompt_then_resolve"
+                or choice is None or choice.choice_type != "member_from_stage"
+                or choice.zone != "stage" or choice.target_player != "self"
+                or choice.card_type != "member" or choice.minimum != 1 or choice.maximum != 1
+            ):
+                raise ValueError("source score comparison requires one own Stage Member at Live success")
         if any(op.overlap_source_policy is not None for op in self.cost):
             raise ValueError("overlap source policy cannot be used as a cost")
         if any(op.overlap_source_policy is not None for op in self.actions) and (
