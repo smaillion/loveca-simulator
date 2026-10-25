@@ -11,6 +11,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
+
 from loveca.simulation.engine import apply_action, generate_legal_actions
 from loveca.simulation.models import (
     MATCH_RUNTIME_SCHEMA_VERSION,
@@ -115,6 +117,20 @@ class MatchNotFoundError(MatchRuntimeError):
 
 class RuntimeSchemaError(MatchRuntimeError):
     """Raised when a runtime database has an unsupported layout."""
+
+
+class InvalidMatchSnapshotError(MatchRuntimeError):
+    """Persisted match data cannot be read without changing historical data."""
+
+
+def _read_match_state(state_json: str) -> MatchState:
+    try:
+        return MatchState.model_validate_json(state_json)
+    except ValidationError as exc:
+        raise InvalidMatchSnapshotError(
+            "invalid_match_snapshot: saved match data cannot be read. "
+            "It was not changed; create a new match."
+        ) from exc
 
 
 def initialize_runtime_database(path: Path) -> None:
@@ -394,7 +410,7 @@ class MatchRepository:
             ).fetchone()
         if row is None:
             raise MatchNotFoundError(f"match not found: {match_id}")
-        return MatchState.model_validate_json(row["current_state_json"])
+        return _read_match_state(row["current_state_json"])
 
     def list_events(self, match_id: str) -> list[GameEvent]:
         with closing(_connect(self.path)) as connection:
@@ -503,7 +519,7 @@ class MatchRepository:
                 ).fetchone()
                 if row is None:
                     raise MatchNotFoundError(f"match not found: {match_id}")
-                state = MatchState.model_validate_json(row["current_state_json"])
+                state = _read_match_state(row["current_state_json"])
                 result = apply_action(state, persisted_action)
                 sequence = int(
                     connection.execute(
@@ -633,7 +649,8 @@ class MatchRepository:
                 (match_id,),
             ).fetchall()
 
-        initial = MatchState.model_validate_json(match["initial_state_json"])
+        initial = _read_match_state(match["initial_state_json"])
+        expected = _read_match_state(match["current_state_json"])
         replay_state = initial
         actions: list[dict[str, Any]] = []
         for row in action_rows:
@@ -651,7 +668,6 @@ class MatchRepository:
                     "result_revision": int(row["result_revision"]),
                 }
             )
-        expected = MatchState.model_validate_json(match["current_state_json"])
         if replay_state != expected:
             raise MatchRuntimeError("replayed state does not match persisted state")
         card_database_path = Path(str(match["card_database_path"]))

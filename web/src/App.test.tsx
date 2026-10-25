@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App, {
   EffectResolutionAction,
@@ -2027,6 +2027,82 @@ describe("App", () => {
         }),
       ),
     );
+  });
+
+  it.each([true, false])("stops corrupt-snapshot retries but keeps transient fallback (%s)", async (terminal) => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const runtimeConfig = { mode: "release" as const, browserPreview: false,
+      apiBaseUrl: "https://api.test", publicMatchHistory: false, cardDatabaseFingerprint: "test" };
+    const instances: MockSource[] = [];
+    class MockSource extends EventTarget {
+      close = vi.fn();
+      onerror: ((event: Event) => void) | null = null;
+      constructor() { super(); instances.push(this); }
+    }
+    vi.stubGlobal("EventSource", MockSource);
+    vi.stubGlobal("fetch", createFetchMock({ runtimeConfig, roomCreate: roomPayload("active") }));
+    resetRuntimeConfigForTests(runtimeConfig);
+    const intervalSpy = vi.spyOn(window, "setInterval");
+    const view = render(<App />);
+    try {
+      const create = await screen.findByRole("button", { name: "房间创建" });
+      await waitFor(() => expect(create).not.toBeDisabled());
+      fireEvent.click(create);
+      await waitFor(() => expect(instances.length).toBe(1));
+      const source = instances[0];
+      await act(async () => {
+        source.dispatchEvent(new MessageEvent("room_error", { data: JSON.stringify({
+          code: terminal ? "invalid_match_snapshot" : "temporary",
+          detail: "temporary room failure",
+        }) }));
+      });
+      expect(source.close).toHaveBeenCalled();
+      if (terminal) {
+        expect(screen.getByText("保存的对局数据已损坏，已停止重试。请新建对局。")).toBeInTheDocument();
+        await act(async () => {
+          source.onerror?.(new Event("error"));
+          source.dispatchEvent(new MessageEvent("room_error", { data: "temporary late failure" }));
+        });
+      } else {
+        expect(screen.queryByText("保存的对局数据已损坏，已停止重试。请新建对局。")).not.toBeInTheDocument();
+      }
+      const fallbackCalls = intervalSpy.mock.calls.filter((call) => call[1] === 8000);
+      expect(fallbackCalls.length).toBe(terminal ? 0 : 1);
+    } finally {
+      view.unmount();
+      intervalSpy.mockRestore();
+    }
+  });
+
+  it("stops HTTP fallback polling when the snapshot cannot be read", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const runtimeConfig = { mode: "release" as const, browserPreview: false,
+      apiBaseUrl: "https://api.test", publicMatchHistory: false, cardDatabaseFingerprint: "test" };
+    const base = createFetchMock({ runtimeConfig, roomCreate: roomPayload("active") });
+    vi.stubGlobal("EventSource", undefined);
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes("/api/rooms/ABC123") && (init?.method ?? "GET") === "GET") {
+        return new Response(JSON.stringify({ code: "invalid_match_snapshot", detail: "invalid saved data" }), { status: 409 });
+      }
+      return base(input, init);
+    }));
+    resetRuntimeConfigForTests(runtimeConfig);
+    const intervalSpy = vi.spyOn(window, "setInterval");
+    const clearSpy = vi.spyOn(window, "clearInterval");
+    const view = render(<App />);
+    try {
+      const create = await screen.findByRole("button", { name: "房间创建" });
+      await waitFor(() => expect(create).not.toBeDisabled());
+      fireEvent.click(create);
+      await screen.findByText("保存的对局数据已损坏，已停止重试。请新建对局。");
+      const index = intervalSpy.mock.calls.findIndex((call) => call[1] === 8000);
+      expect(index).toBeGreaterThanOrEqual(0);
+      expect(clearSpy).toHaveBeenCalledWith(intervalSpy.mock.results[index].value);
+    } finally {
+      view.unmount();
+      intervalSpy.mockRestore();
+      clearSpy.mockRestore();
+    }
   });
 
   it("shows hosted room controls for same-origin release API builds", async () => {

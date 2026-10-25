@@ -8,6 +8,10 @@
 
 ## 現在の状態
 
+`PL!SP-bp5-111:2` / `PL!SP-pb2-010:1` の Energy をデッキへ戻した後に保存データを読めなくなる問題を修正しました。
+既に壊れた保存データは書き換えず、明確なエラーと新規対局の案内を表示し、再試行を停止します。
+[状態・API・Replay の検証](./docs/development/energy-return-replay-verification.md)。登録率は変更していません。
+
 継続開発は単一の `codex/continuous-development` と固定 worktree で進めます。
 タスク、検証結果、PR を引き継ぐ運用は [継続開発ガイド](./docs/21-continuous-development.md)
 と [実行手順](./automation/WORKFLOW.md) を参照してください。

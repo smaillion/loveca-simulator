@@ -43,6 +43,10 @@ Baton 原型检查点：已核对 `07f51e4` 的两个 PR entry，没有直接恢
 
 ## 工作树
 
+Energy Replay 后续检查点：两张卡的空朝向已在真实费用 / 分支路径修复，旧坏快照明确拒绝且不改写。
+API / SSE 返回安全诊断，前端停止永久错误重试；候选恢复为精确文本匹配，登记率不变。
+见 `energy-return-replay-verification.md`。仍使用 PR #54，旧工作树 / 报告未修改，不合并部署。
+
 已有区域底座检查点：新增受控 `deploy_selected_to_stage`，简单覆盖 / 附属卡清理 / 触发已测试，
 不绑定正式卡牌；完整重叠触发和私有手牌零张选择继续排队。旧 Energy 回牌库的空朝向
 Replay 缺陷已复现并列最高优先级。见 `occupied-deployment-foundation.md`；旧工作树未动。

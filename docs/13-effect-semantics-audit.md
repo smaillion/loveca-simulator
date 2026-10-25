@@ -18,6 +18,8 @@ This audit does not incorporate FAQ, Q&A, or individual ruling clarifications.
 
 ## Current Repository Snapshot
 
+Energy return follow-up: actual `PL!SP-bp5-111:2` costs and `PL!SP-pb2-010:1` branches now retain a valid face-down deck representation, preserving JSON/read/replay. Invalid historical snapshots are rejected without mutation or private error details; HTTP/SSE report a stable error and clients stop retrying. Exact candidate recovery does not change registry counts or review status. See [Chinese verification](./development/energy-return-replay-verification.md).
+
 Local card data observed after the October 25, 2026 full official-source refresh:
 
 * 1,977 Gameplay Cards

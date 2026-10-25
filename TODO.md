@@ -58,8 +58,9 @@
 - 受控 `deploy_selected_to_stage` 底座已完成独立状态验证，但没有绑定正式卡牌。
   完整的检查时点重叠、出场观察者、继承和私有手牌零张选择仍由父任务追踪；
   两张 PR / 四条虹咲保持 manual。见 `docs/development/occupied-deployment-foundation.md`。
-- 高优先级：`PL!SP-bp5-111:2` / `PL!SP-pb2-010:1` 的旧 Energy 回牌库操作写入空朝向，
-  真实 operation 已复现 JSON 读取失败；独立修复新旧 snapshot / runtime Replay，不改 schema。
+- 已修复：`PL!SP-bp5-111:2` / `PL!SP-pb2-010:1` 的 Energy 回牌库空朝向，
+  验证真实费用 / 分支 / runtime Replay；旧坏快照拒绝读取且不改写，API / SSE 错误不泄露私有信息，
+  前端显示诊断并停止重试。见 `docs/development/energy-return-replay-verification.md`；不改 schema。
 
 ### AI-DLC Rollout Validation
 

@@ -231,3 +231,7 @@ not run after inspection. Multi-stage UI selection state resets at stage changes
 Existing definitions default to non-automatic branching; old effect snapshots,
 ActionRequest and runtime SQLite remain compatible. Private inspection cards are
 visible only to the choosing player until their subsequent public movement.
+
+## Energy deck return snapshot integrity
+
+`move_selected_energy_to_energy_deck` keeps returned cards face-down with a valid `active` serialization default. Outside Energy Area this value does not make the card usable Energy. Cost and branch paths must survive JSON, runtime reread and Replay. Invalid historical snapshots return `invalid_match_snapshot` without repair or private validation details; clients stop retrying that permanent error. No Card/runtime schema migration or executable-status promotion is implied. Evidence: `docs/development/energy-return-replay-verification.md`.

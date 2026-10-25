@@ -14,7 +14,7 @@ from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -62,6 +62,7 @@ from loveca.simulation.runtime import (
     DEFAULT_MATCH_HISTORY_LIMIT,
     DEFAULT_MATCH_HISTORY_PAGE_SIZE,
     MAX_SNAPSHOTS_PER_MATCH,
+    InvalidMatchSnapshotError,
     MatchNotFoundError,
     MatchRuntimeError,
 )
@@ -208,6 +209,16 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         title="LoveCA Visual Rules Debugger",
         version=__version__,
     )
+
+    @app.exception_handler(InvalidMatchSnapshotError)
+    async def invalid_match_snapshot(
+        _request: Request, exc: InvalidMatchSnapshotError,
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=409,
+            content={"detail": str(exc), "code": "invalid_match_snapshot"},
+        )
+
     if resolved.allowed_origins:
         app.add_middleware(
             CORSMiddleware,
@@ -364,6 +375,11 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
                             break
                     if room.status == "expired":
                         break
+                except InvalidMatchSnapshotError as exc:
+                    yield _sse_event(
+                        "room_error", {"detail": str(exc), "code": "invalid_match_snapshot"},
+                    )
+                    break
                 except RoomError as exc:
                     yield _sse_event("room_error", {"detail": str(exc)})
                     break
@@ -451,6 +467,8 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
             raise HTTPException(status_code=403, detail=str(exc)) from exc
         except RoomStateError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except InvalidMatchSnapshotError:
+            raise
         except MatchRuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -555,6 +573,8 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
             return service.repository.replay(match_id)
         except MatchNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except InvalidMatchSnapshotError:
+            raise
         except MatchRuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 

@@ -30,6 +30,7 @@ import {
   useState,
 } from "react";
 import {
+  ApiRequestError,
   createMatch,
   createRoom,
   cleanupAdminRuntime,
@@ -378,10 +379,22 @@ export default function App() {
     let disposed = false;
     let fallbackPollId: number | null = null;
     let eventSource: EventSource | null = null;
+    let terminalSnapshotError = false;
+    const stopForInvalidSnapshot = () => {
+      terminalSnapshotError = true;
+      setOnlineStatus(locale === "zh"
+        ? "保存的对局数据已损坏，已停止重试。请新建对局。"
+        : "保存済み対局データが不正なため、再試行を停止しました。新しい対局を作成してください。");
+      eventSource?.close();
+      eventSource = null;
+      if (fallbackPollId !== null) window.clearInterval(fallbackPollId);
+      fallbackPollId = null;
+    };
     const refreshRoom = async () => {
+      if (disposed || terminalSnapshotError) return;
       try {
         const room = await getRoom(onlineSession.roomCode, onlineSession.playerToken);
-        if (disposed) return;
+        if (disposed || terminalSnapshotError) return;
         setOnlineRoom(room);
         setOnlineStatus(null);
         if (room.match) {
@@ -394,13 +407,17 @@ export default function App() {
           setScreen("match");
         }
       } catch (reason) {
-        if (!disposed) {
-          setOnlineStatus(reason instanceof Error ? reason.message : String(reason));
+        if (!disposed && !terminalSnapshotError) {
+          if (reason instanceof ApiRequestError && reason.code === "invalid_match_snapshot") {
+            stopForInvalidSnapshot();
+          } else {
+            setOnlineStatus(reason instanceof Error ? reason.message : String(reason));
+          }
         }
       }
     };
     const startFallbackPolling = () => {
-      if (disposed || fallbackPollId !== null) return;
+      if (disposed || terminalSnapshotError || fallbackPollId !== null) return;
       fallbackPollId = window.setInterval(() => void refreshRoom(), 8000);
     };
     void refreshRoom();
@@ -415,18 +432,25 @@ export default function App() {
           void refreshRoom();
         });
         eventSource.addEventListener("room_error", (event) => {
-          if (disposed) return;
-          setOnlineStatus(
-            event instanceof MessageEvent && event.data
-              ? event.data
-              : "room stream error",
-          );
+          if (disposed || terminalSnapshotError) return;
+          let detail = event instanceof MessageEvent && typeof event.data === "string"
+            ? event.data : "room stream error";
+          try {
+            const payload = JSON.parse(detail) as { code?: unknown; detail?: unknown } | null;
+            terminalSnapshotError = payload?.code === "invalid_match_snapshot";
+            if (typeof payload?.detail === "string") detail = payload.detail;
+          } catch { /* Older streams may send a plain-text error. */ }
+          if (terminalSnapshotError) {
+            stopForInvalidSnapshot();
+            return;
+          }
+          setOnlineStatus(detail);
           eventSource?.close();
           eventSource = null;
           startFallbackPolling();
         });
         eventSource.onerror = () => {
-          if (disposed) return;
+          if (disposed || terminalSnapshotError) return;
           setOnlineStatus(
             locale === "zh"
               ? "实时同步中断，已切换为低频更新"
@@ -1098,6 +1122,7 @@ export default function App() {
       </header>
 
       {error && <div className="error-banner">{error}</div>}
+      {onlineSession && onlineStatus && <div className="error-banner" role="status">{onlineStatus}</div>}
       {simpleAiPlayerNames.length > 0 && (
         <div className={`info-banner ai-status-banner ${latestAiBlocker ? "warning" : ""}`}>
           <Activity size={16} />

@@ -7747,7 +7747,8 @@ def _execute_operations(
                 player.energy_area.remove(instance_id)
                 player.energy_deck.append(instance_id)
                 state.cards[instance_id].face_up = False
-                state.cards[instance_id].orientation = None
+                # Outside the Energy Area this is only a serializable default, not Active Energy.
+                state.cards[instance_id].orientation = "active"
         elif operation_type == "move_selected_to_deck_top_or_bottom":
             if selected_destination not in {
                 "main_deck_top",

@@ -92,6 +92,9 @@ deterministic controller、隐藏手牌身份不变性、DSL 拒绝范围和旧 
 同一旧操作还用于 `PL!SP-pb2-010:1`。这不是本轮新增回归，但会破坏 Replay，已加入
 最高优先级独立任务 `energy-deck-return-replay-orientation`，本轮没有声称修好。
 
+后续切片已修复上述两张卡的新执行路径，并对旧坏快照增加安全拒绝；不改写历史数据。
+详见 [Energy 返回验证报告](./energy-return-replay-verification.md)，本段保留最初发现时的记录。
+
 完整重叠触发 / 手牌零张选择由 `effect-overlap-trigger-and-private-choice` 继续；之后才复核
 六条手动卡的自动适配。保留既有6条空区域效果和4条虹咲降级结论，登记仍为
 **899 / 1212（74.17%），313 manual**。没有更改 registry、卡库或 importer。

@@ -8,6 +8,10 @@
 
 ## 当前状态
 
+修复 `PL!SP-bp5-111:2` / `PL!SP-pb2-010:1` 将 Energy 返回牌库后无法读取保存状态的问题。
+旧坏快照不自动改写：返回明确错误，停止前端重试并提示新建对局，不提升技能登记率。
+[中文状态 / API / Replay 验证报告](./docs/development/energy-return-replay-verification.md)。
+
 持续开发统一使用 `codex/continuous-development` 和固定工作树，自动接续任务、验证并更新
 同一个 Draft PR。入口见[持续开发指南](./docs/21-continuous-development.md)与
 [执行流程](./automation/WORKFLOW.md)；合并和部署仍需维护者确认。

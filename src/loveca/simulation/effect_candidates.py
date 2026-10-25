@@ -14991,7 +14991,48 @@ def _look_top_card_optional_deck_bottom_candidate(
     )
 
 
+def _activated_return_energy_recover_live(row: sqlite3.Row) -> EffectCandidate | None:
+    expected = (
+        "【起動】【ターン1回】エネルギー2枚をエネルギーデッキに置く："
+        "自分の控え室にあるライブカードを1枚手札に加える。"
+    )
+    matched = _matching_segment(row, expected)
+    if matched is None:
+        return None
+    effect_index, label = matched
+    return EffectCandidate(
+        **_base(row, pattern_id="activated_return_energy2_recover_live", effect_index=effect_index),
+        label_ja=label,
+        effect_type="activated",
+        timing="activated_main",
+        trigger="player_activation",
+        frequency_limit="once_per_turn",
+        is_optional=False,
+        condition={"source_zone": "stage"},
+        cost=[{"action_type": "move_selected_energy_to_energy_deck"}],
+        cost_choice={
+            "choice_type": "energy_from_area",
+            "zone": "energy_area",
+            "card_type": "energy",
+            "minimum": 2,
+            "maximum": 2,
+            "target_player": "self",
+        },
+        choice={
+            "choice_type": "card_from_zone",
+            "zone": "waiting_room",
+            "card_type": "live",
+            "minimum": 1,
+            "maximum": 1,
+            "target_player": "self",
+        },
+        actions=[{"action_type": "return_from_waiting_room"}],
+        duration=None,
+    )
+
+
 _PATTERNS = (
+    _activated_return_energy_recover_live,
     _edel_note_live_start_deployment,
     _onplay_wait_inspect2_reorder,
     _onplay_inspect2_reorder,
