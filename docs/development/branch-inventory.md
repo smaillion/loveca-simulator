@@ -1,5 +1,9 @@
 # 分支与工作树清单
 
+本轮检查点：已在同一 continuous 分支修复新对局 Stage 离场遗留定向补正，真实花帆状态 / SQL Replay /
+三policy与固定10局回归通过，旧快照保持原行为；父重叠任务与六张manual卡保留。
+见 `stage-departure-modifier-verification.md`。只更新Draft PR #54，不合并部署，旧dirty工作树不变。
+
 生成时间（UTC）：2026-10-25T06:57:14.815226+00:00。基线：`origin/develop`。
 本地分支 32 个；工作树 14 个。
 

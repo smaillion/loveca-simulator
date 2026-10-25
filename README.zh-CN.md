@@ -8,6 +8,10 @@
 
 ## 当前状态
 
+新建对局修复普通替换、Baton、受控效果登场和手动离场遗留卡牌补正的问题；
+同一卡回场不再带回旧 Blade / Heart，Stage 内移动和玩家整体补正保留。
+旧 Replay 与登记率不变。[真实花帆 / Replay / AI 验证](./docs/development/stage-departure-modifier-verification.md)。
+
 补齐 `PL!HS-pb1-009:1` 花帆中心观察者：已触发后因普通替换离场，仍处理能力并计次数，
 但不把本次自身 Blade 加成给控室或重新登场的同一卡牌。旧 Replay 不变，非重叠对象追踪仍待审计。
 [中文状态 / 限制 / AI 验证](./docs/development/overlap-source-modifier-verification.md)。

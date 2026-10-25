@@ -678,6 +678,9 @@ def _play_member(
             reason="member_replaced",
         )
         player.waiting_room.append(replaced_instance_id)
+        _clear_departed_card_modifiers(
+            state, player_id, [replaced_instance_id], events, reason="member_replaced"
+        )
         _queue_triggered_effects(
             state,
             "member_left_stage_to_waiting_room",
@@ -6748,6 +6751,9 @@ def _deploy_selected_to_stage(
             state, invocation.player_id, slot, events, reason="effect_member_replaced"
         )
         player.waiting_room.append(old_id)
+        _clear_departed_card_modifiers(
+            state, invocation.player_id, [old_id], events, reason="effect_member_replaced"
+        )
         departed = {old_id, *attached}
         player.manual_modifiers = [
             m for m in player.manual_modifiers if m.target_card_instance_id not in departed
@@ -10779,6 +10785,10 @@ def _manual_move_card(
     }
     if to_zone in simple_zones:
         simple_zones[to_zone].append(instance_id)
+        if was_on_stage:
+            _clear_departed_card_modifiers(
+                state, player_id, [instance_id], events, reason="manual_move_off_stage"
+            )
         if to_zone in {"main_deck", "energy_deck"}:
             state.cards[instance_id].face_up = False
         if was_on_stage and to_zone == "waiting_room" and stage_slot is not None:
@@ -11171,6 +11181,7 @@ def _move_top_member_off_stage(
     if to_zone != "waiting_room":
         raise IllegalActionError("unsupported top Member destination")
     player.waiting_room.append(instance_id)
+    _clear_departed_card_modifiers(state, player_id, [instance_id], events, reason=reason)
     _queue_triggered_effects(
         state,
         "member_left_stage_to_waiting_room",
@@ -11184,6 +11195,38 @@ def _move_top_member_off_stage(
         },
     )
     return instance_id
+
+
+def _clear_departed_card_modifiers(
+    state: MatchState,
+    player_id: str,
+    instance_ids: list[str],
+    events: list[GameEvent],
+    *,
+    reason: str,
+) -> None:
+    if state.stage_departure_policy != "clear_departed_card_modifiers":
+        return
+    departed = set(instance_ids)
+    removed_count = 0
+    # A targeted effect may be stored under the opponent who created it.
+    for player in state.players.values():
+        retained = [
+            modifier
+            for modifier in player.manual_modifiers
+            if modifier.target_card_instance_id not in departed
+        ]
+        removed_count += len(player.manual_modifiers) - len(retained)
+        player.manual_modifiers = retained
+    if removed_count:
+        events.append(
+            GameEvent(
+                event_type="stage_card_modifiers_cleared",
+                player_id=player_id,
+                data={"reason": reason, "removed_count": removed_count},
+                source="system",
+            )
+        )
 
 
 def _clean_stage_attachments(
@@ -11212,6 +11255,7 @@ def _clean_stage_attachments(
         else:
             raise IllegalActionError("invalid attached card type")
     player.member_area_attachments[slot] = []
+    _clear_departed_card_modifiers(state, player_id, attached, events, reason=reason)
     events.append(
         GameEvent(
             event_type="stage_attachments_cleaned",

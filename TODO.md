@@ -28,6 +28,11 @@
 
 ### 持续开发与遗留收敛
 
+- 已完成 `stage-departure-modifier-cleanup` 有限切片：普通替换 / Baton / 受控效果登场 /
+  手动离场清理旧卡和一同离场附属卡的定向补正；Stage内移动、玩家整体补正和旧 Replay 不变。
+  真实花帆获得2Blade后离场回场、SQL Replay与三policy已验证，见
+  `docs/development/stage-departure-modifier-verification.md`。
+  其他 zone-move 操作、继承、来源依赖离场前信息及完整重叠调度仍由父任务审计；六卡继续manual。
 - 自动推进入口固定为 `codex/continuous-development`，规则和队列见 `automation/`。
 - 先对比旧 v0.9 工作树的 44 项未提交 Ruleset / 规则矩阵改动，再核对旧 API Play 的 6 项改动。
 - 保留其原始工作树和报告，逐项迁移验证；不得直接全量合并旧实验或删除 dirty worktree。

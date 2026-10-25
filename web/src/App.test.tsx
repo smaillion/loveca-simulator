@@ -1171,6 +1171,23 @@ describe("App", () => {
       .toBeGreaterThan(0);
   });
 
+  it("explains departure modifier cleanup without exposing modifier payloads", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const matchCreate = { ...MATCH_PAYLOAD, events: [{
+      event_type: "stage_card_modifiers_cleared", player_id: "player_1", source: "system",
+      data: { reason: "member_replaced", removed_count: 2 },
+    }] };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    const createButton = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+    await screen.findByText("卡牌离开 Stage，解除 2 项卡牌专属补正。");
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect(screen.getByText("ステージを離れたカードの補正を2件解除しました。"))
+      .toBeInTheDocument();
+  });
+
   it.each(["effect:PL!N-pb1-012:1", "energy_phase"])("only shows an Energy result notice for an effect (%s)", async (reason) => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const matchCreate = { ...MATCH_PAYLOAD, events: [{

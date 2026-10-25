@@ -1,5 +1,20 @@
 # 019 Effect Execution MVP Specification
 
+## Existing Stage Modifier Departure Boundary (2026-10)
+
+New matches explicitly set `stage_departure_policy: clear_departed_card_modifiers`.
+Ordinary replacement, Baton, bounded occupied-area deployment, source-to-Waiting-Room
+and manual external Stage movement remove existing card-targeted modifiers, including
+those stored under the opposing player. Their attachment cleanup also clears modifiers
+targeting departing cards. Player-wide modifiers and Stage-internal movement are unchanged.
+A compact `stage_card_modifiers_cleared` event contains only a reason and count.
+
+Absent policy is omitted from serialization and keeps historical Replay semantics,
+including the pre-existing bounded deployment cleanup. This is not a general zone-epoch
+implementation or an inheritance / last-known-information ruling. Other movement families
+require independent audit. No SQLite or Card Schema migration is introduced.
+Evidence: `docs/development/stage-departure-modifier-verification.md` (PDF4.1.4/9.9.2).
+
 ## Attachment Promotion Snapshot Boundary (2026-10)
 
 `deploy_selected_to_empty_stage` may declare

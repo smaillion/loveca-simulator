@@ -18,6 +18,12 @@ This audit does not incorporate FAQ, Q&A, or individual ruling clarifications.
 
 ## Current Repository Snapshot
 
+新建对局增加独立 `stage_departure_policy=clear_departed_card_modifiers`：普通替换、Baton、
+受控效果登场、手动离场及该路径附属卡清理会解除旧对象的定向 modifier，包含存于对方玩家下的补正。
+Stage 内移动和非定向补正保留；None省略并保持旧Replay。实际花帆先获得2Blade再离场/回场与SQL重放已验证，
+登记仍899/1212，不代表通用区域身份、继承或完整重叠处理完成。见
+[中文状态与兼容性报告](./development/stage-departure-modifier-verification.md)。
+
 Actual `PL!HS-pb1-009:1` now opts into a bounded `overlap_source_policy=original_stage_member` operation snapshot. Capture positional entry qualification before ordinary overlap cleanup, then record resolution/usage without giving this modifier to a departed or re-entered source object. None is omitted for old snapshots; candidate identity and manifest are synchronized without coverage/review promotion. Non-overlap identity, full conditional Stage views and inheritance remain unresolved. [Chinese state and compatibility evidence](./development/overlap-source-modifier-verification.md).
 
 The latest new-match overlap policy also preserves actual `PL!N-pb1-012:1` fixed self Wait Energy entry observers after normal replacement. Resource availability is deferred until overlap attachment cleanup; insufficient Energy at resolution produces an explicit result instead of a silent skip. None and the earlier fixed-draw policy keep historical Replay behavior. State, native AI, privacy and bilingual result evidence: [Chinese verification](./development/overlap-energy-observer-verification.md). Registry counts and human-review status are unchanged.

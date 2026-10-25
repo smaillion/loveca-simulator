@@ -4183,6 +4183,7 @@ function eventTitle(event: GameEvent, locale: UiLocale): string {
     effect_resolved: ["技能结算", "能力解決"],
     effect_not_activatable: ["技能未自动处理", "能力の自動処理不可"],
     effect_operation_not_applied: ["技能部分未执行", "能力の一部未実行"],
+    stage_card_modifiers_cleared: ["离场加成清理", "離れたカードの補正解除"],
     effect_triggered: ["技能触发", "能力誘発"],
     yell_completed: ["应援结算完成", "エール解決完了"],
   };
@@ -4227,6 +4228,12 @@ function describeAiBlocker(
 }
 
 function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): string | null {
+  if (event.event_type === "stage_card_modifiers_cleared") {
+    const count = typeof event.data.removed_count === "number" ? event.data.removed_count : 0;
+    return locale === "zh"
+      ? `卡牌离开 Stage，解除 ${count} 项卡牌专属补正。`
+      : `ステージを離れたカードの補正を${count}件解除しました。`;
+  }
   if (event.event_type === "effect_operation_not_applied"
       && event.data.reason === "overlap_source_member_departed") {
     return locale === "zh"

@@ -212,6 +212,7 @@ class MatchState(BaseModel):
         | None
     ) = None
     effect_order_policy: Literal["ap_nap_player_choice"] | None = None
+    stage_departure_policy: Literal["clear_departed_card_modifiers"] | None = None
     revision: int = 0
     phase: Phase = "setup_choose_first"
     first_player_id: str | None = None
@@ -249,6 +250,8 @@ class MatchState(BaseModel):
             payload.pop("member_overlap_policy", None)
         if self.effect_order_policy is None:
             payload.pop("effect_order_policy", None)
+        if self.stage_departure_policy is None:
+            payload.pop("stage_departure_policy", None)
         return payload
 
 

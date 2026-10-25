@@ -87,6 +87,7 @@ class MatchService:
             seed=resolved_seed,
             member_overlap_policy="capture_fixed_draw_and_energy_entry_observers",
             effect_order_policy="ap_nap_player_choice",
+            stage_departure_policy="clear_departed_card_modifiers",
             players=player_states,
             cards=cards,
             controllers=_normalize_controllers(controllers),

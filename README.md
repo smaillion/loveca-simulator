@@ -8,6 +8,10 @@
 
 ## 現在の状態
 
+新規対戦では、通常交代・バトンタッチ・限定的な効果登場・手動退場でステージを離れたカードの
+一時補正を解除します。再登場しても旧 Blade / Heart を引き継がず、ステージ内移動と全体補正は維持します。
+旧 Replay と登録率は変更しません。[実カード・Replay・AI の検証](./docs/development/stage-departure-modifier-verification.md)
+
 `PL!HS-pb1-009:1` のセンター誘発に限定的な重複処理を追加しました。誘発後に通常交代で離れた場合、
 解決と回数は記録しますが、控え室や再登場したカードへ今回の Blade を与えません。旧 Replay は維持します。
 [状態・制限・AI の検証](./docs/development/overlap-source-modifier-verification.md)
