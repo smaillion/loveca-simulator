@@ -3674,7 +3674,8 @@ describe("App", () => {
     });
   });
 
-  it.each([{ slots: ["left", "right"] }, { slots: [] as string[] }])("uses legal deployment areas without a manual adjustment: %j", ({ slots }) => {
+  it.each([{ slots: ["left", "right"], occupied: false }, { slots: [] as string[], occupied: false },
+    { slots: ["center"], occupied: true }])("uses legal deployment areas without a manual adjustment: %j", ({ slots, occupied }) => {
     const onAction = vi.fn();
     const action = {
       action_type: "resolve_effect", player_id: "player_1", label_zh: "技能", label_ja: "能力",
@@ -3687,6 +3688,7 @@ describe("App", () => {
         card_selection_minimum: 1, card_selection_maximum: 1,
         candidate_card_instance_ids: ["player_1-M002"], deployment_choice: true,
         position_change_slots_by_candidate: { "player_1-M002": slots },
+        deployment_members_by_slot: occupied ? { center: "player_1-M003" } : {},
       }] },
     };
     render(<EffectResolutionAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never}
@@ -3699,11 +3701,11 @@ describe("App", () => {
       expect(onAction).not.toHaveBeenCalled();
       return;
     }
-    fireEvent.click(screen.getByRole("button", { name: "右" }));
+    fireEvent.click(screen.getByRole("button", { name: occupied ? /中.*条件外カード/ : "右" }));
     fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
     expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
       invocation_id: "deploy-001", accepted: true, selected_card_instance_ids: ["player_1-M002"],
-      energy_instance_ids: [], to_slot: "right",
+      energy_instance_ids: [], to_slot: occupied ? "center" : "right",
     });
   });
 

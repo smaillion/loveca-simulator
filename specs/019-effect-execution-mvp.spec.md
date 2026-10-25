@@ -37,6 +37,23 @@ It does not define the final Effect DSL, a database schema, AI behavior, full ca
 
 ## 2. Registry Boundary
 
+### Bounded Occupied-Area Foundation (2026-10)
+
+`deploy_selected_to_stage` is a new operation identity, not a reinterpretation of old
+`deploy_selected_to_empty_stage` snapshots. It requires explicit Active/Wait, one self
+Member from hand/Waiting Room, a `card_from_zone` 1..1 choice, fixed self Energy costs
+only, and no other actions/follow-up choices. Legal card/slot options use current entry
+identity; simple overlap clears the old Member, attachments and departed-card modifiers.
+Energy goes to Energy Deck, never Waiting Room; no Baton event/history is created.
+Native UI/AI keep using `selected_card_instance_ids` and `to_slot`.
+
+Conditional or inherited overlap observers, unknown outgoing effects, incoming static
+effects and orphan attachments are excluded with per-area/per-candidate reasons before
+payment. Private-hand zero-target choice and general transient-overlap timing are not
+implemented. No official registry entry uses this foundation yet; do not promote the
+two PR/four Nijigasaki entries on the strength of synthetic transition tests alone.
+Evidence: `docs/development/occupied-deployment-foundation.md`.
+
 Executable effect definitions are stored in a version-controlled JSON registry for this MVP.
 
 Every definition must identify:

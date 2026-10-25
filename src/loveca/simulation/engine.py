@@ -1688,7 +1688,9 @@ def _resolve_effect(
     elif _effect_uses_deploy_to_empty_stage_choice(effect, invocation):
         if not isinstance(selected_position_slot, str):
             selected_position_slot = action.payload.get("slot")
-        deploy_slots = _empty_member_area_slots(state.players[invocation.player_id])
+        deploy_slots = _effect_deployment_slots(
+            state, invocation, selected_ids[0] if len(selected_ids) == 1 else None
+        )
         unavailable_after_cost = (
             invocation.resolution_stage == "after_cost"
             and not selected_ids
@@ -4547,7 +4549,7 @@ def _effect_unavailable_reason(
         return "position_change_unavailable"
     if _effect_uses_deploy_to_empty_stage_choice(effect, invocation) and (
         not _effect_choice_candidates(state, invocation)
-        or not _empty_member_area_slots(player)
+        or not _effect_deployment_slots(state, invocation)
     ):
         return "deploy_member_unavailable"
     if (
@@ -4693,12 +4695,20 @@ def _effect_resolution_options(
                 state, invocation
             )
         if _effect_uses_deploy_to_empty_stage_choice(effect, invocation):
-            options["available_slots"] = _empty_member_area_slots(
-                state.players[invocation.player_id]
-            )
+            options["available_slots"] = _effect_deployment_slots(state, invocation)
+            if _effect_uses_occupied_stage_deployment(effect):
+                options["deployment_unsupported_slots"] = _occupied_deployment_gaps(state, invocation)
+                options["deployment_members_by_slot"] = {
+                    slot: state.players[invocation.player_id].member_area[slot]
+                    for slot in options["available_slots"]
+                }
+                options["deployment_unsupported_slots_by_candidate"] = {
+                    item: _occupied_deployment_gaps(state, invocation, item)
+                    for item in _effect_candidates_for_choice(state, invocation, choice)
+                }
             options["deployment_choice"] = True
             options["position_change_slots_by_candidate"] = {
-                instance_id: list(options["available_slots"])
+                instance_id: _effect_deployment_slots(state, invocation, instance_id)
                 for instance_id in candidate_ids
             }
         if _effect_accepts_selected_position_choice(effect):
@@ -4836,9 +4846,9 @@ def _effect_choice_candidates(
         and any(
             op.orientation is not None
             for op in effect.actions
-            if op.action_type == "deploy_selected_to_empty_stage"
+            if op.action_type in {"deploy_selected_to_empty_stage", "deploy_selected_to_stage"}
         )
-        and not _empty_member_area_slots(state.players[invocation.player_id])
+        and not _effect_deployment_slots(state, invocation)
     ):
         return []
     follow_up_choice = _effect_follow_up_choice(effect, invocation)
@@ -4867,7 +4877,10 @@ def _effect_choice_candidates(
         effect
     ) and not _post_action_choice_condition_met(effect, invocation):
         return []
-    return _effect_candidates_for_choice(state, invocation, effect.choice)
+    candidates = _effect_candidates_for_choice(state, invocation, effect.choice)
+    if _effect_uses_occupied_stage_deployment(effect):
+        return [item for item in candidates if _effect_deployment_slots(state, invocation, item)]
+    return candidates
 
 
 def _resolved_choice_zone(choice: Any) -> str | None:
@@ -5998,6 +6011,7 @@ def _operation_requires_selected_choice(operation: Any) -> bool:
         "apply_wait_energy",
         "conceal_selected_cards",
         "deploy_selected_to_empty_stage",
+        "deploy_selected_to_stage",
         "discard_from_hand",
         "move_selected_to_deck_bottom",
         "move_selected_to_deck_position",
@@ -6566,6 +6580,8 @@ def _effect_uses_deploy_to_empty_stage_choice(
     effect: Any,
     invocation: EffectInvocation | None = None,
 ) -> bool:
+    if _effect_uses_occupied_stage_deployment(effect):
+        return True
     # Old replay snapshots keep the original choice timing and Wait default.
     if not any(
         op.action_type == "deploy_selected_to_empty_stage" and op.orientation is not None
@@ -6588,12 +6604,211 @@ def _effect_uses_deploy_to_empty_stage_choice(
     return any(op.action_type == "deploy_selected_to_empty_stage" for op in effect.actions)
 
 
+def _deploy_selected_to_stage(
+    state: MatchState,
+    invocation: EffectInvocation,
+    operation: Any,
+    selected_ids: list[str],
+    slot: Any,
+    events: list[GameEvent],
+) -> None:
+    player = state.players[invocation.player_id]
+    if not selected_ids and not _effect_choice_candidates(state, invocation):
+        events.append(
+            GameEvent(
+                event_type="effect_operation_not_applied",
+                player_id=invocation.player_id,
+                data={
+                    "invocation_id": invocation.invocation_id,
+                    "effect_id": invocation.effect_id,
+                    "operation": operation.action_type,
+                    "reason": "no_legal_deployment_target_or_area",
+                },
+                source="system",
+            )
+        )
+        return
+    if len(selected_ids) != 1 or slot not in _effect_deployment_slots(
+        state, invocation, selected_ids[0]
+    ):
+        raise IllegalActionError("effect Stage deployment selection is not legal")
+    instance_id = selected_ids[0]
+    effect = state.effect_definitions[invocation.effect_id]
+    source_zone = effect.choice.zone
+    source = getattr(player, source_zone)
+    if (
+        instance_id not in source
+        or state.cards[instance_id].owner_id != invocation.player_id
+        or instance_id not in _effect_choice_candidates(state, invocation)
+    ):
+        raise IllegalActionError("effect Stage deployment Member is not legal")
+    old_id = player.member_area[slot]
+    attached = list(player.member_area_attachments[slot]) if old_id else []
+    source.remove(instance_id)
+    player.member_area[slot] = instance_id
+    _record_external_member_card_entry(player, instance_id)
+    player.member_entered_count_this_turn += 1
+    if slot not in player.member_areas_entered_this_turn:
+        player.member_areas_entered_this_turn.append(slot)
+    state.cards[instance_id].face_up = True
+    state.cards[instance_id].orientation = operation.orientation
+    if old_id:
+        # Bounded overlap cleanup: complex outgoing abilities are excluded before payment.
+        _clean_stage_attachments(
+            state, invocation.player_id, slot, events, reason="effect_member_replaced"
+        )
+        player.waiting_room.append(old_id)
+        departed = {old_id, *attached}
+        player.manual_modifiers = [
+            m for m in player.manual_modifiers if m.target_card_instance_id not in departed
+        ]
+        for departed_id in departed:
+            # CardInstance requires an orientation; outside the relevant areas it has no rules meaning.
+            state.cards[departed_id].orientation = "active"
+            state.cards[departed_id].face_up = state.cards[departed_id].card.card_type == "member"
+        _queue_triggered_effects(
+            state,
+            "member_left_stage_to_waiting_room",
+            events,
+            source_instance_ids=[old_id],
+            trigger_data={
+                "turn_number": state.turn_number,
+                "from_slot": slot,
+                "to_zone": "waiting_room",
+                "replacement_card_instance_id": instance_id,
+                "used_baton_touch": False,
+            },
+        )
+        events.append(
+            GameEvent(
+                event_type="duplicate_member_resolved",
+                player_id=invocation.player_id,
+                data={
+                    "kept_card_instance_id": instance_id,
+                    "moved_to_waiting_room_instance_id": old_id,
+                    "slot": slot,
+                    "reason": "effect_member_replaced",
+                },
+                source="system",
+            )
+        )
+    events.append(
+        GameEvent(
+            event_type="effect_member_deployed_from_hand"
+            if source_zone == "hand"
+            else "effect_member_deployed_from_waiting_room",
+            player_id=invocation.player_id,
+            data={
+                "invocation_id": invocation.invocation_id,
+                "effect_id": invocation.effect_id,
+                "card_instance_id": instance_id,
+                "source_zone": source_zone,
+                "slot": slot,
+                "orientation": operation.orientation,
+                "replaced_card_instance_id": old_id,
+            },
+            source="system",
+        )
+    )
+    trigger_data = {
+        "card_instance_id": instance_id,
+        "slot": slot,
+        "source_zone": source_zone,
+        "replacement_card_instance_id": old_id,
+        "used_baton_touch": False,
+    }
+    _queue_triggered_effects(
+        state, "member_played", events, source_instance_ids=[instance_id], trigger_data=trigger_data
+    )
+    _queue_triggered_effects(
+        state,
+        "own_member_played",
+        events,
+        source_instance_ids=[item for item in player.member_area.values() if item],
+        trigger_data=trigger_data,
+    )
+
+
 def _empty_member_area_slots(player: Any) -> list[str]:
     return [
         slot
         for slot in ("left", "center", "right")
         if player.member_area.get(slot) is None
     ]
+
+
+def _effect_uses_occupied_stage_deployment(effect: Any) -> bool:
+    return any(op.action_type == "deploy_selected_to_stage" for op in effect.actions)
+
+
+def _occupied_deployment_gaps(
+    state: MatchState,
+    invocation: EffectInvocation,
+    candidate_id: str | None = None,
+) -> dict[str, str]:
+    player = state.players[invocation.player_id]
+    gaps: dict[str, str] = {}
+    for slot, old_id in player.member_area.items():
+        if _member_area_blocks_entry(player, slot):
+            gaps[slot] = "member_entered_stage_this_turn"
+            continue
+        if old_id is None:
+            if player.member_area_attachments[slot]:
+                gaps[slot] = "orphan_attachments_require_rule_check"
+            continue
+        attached = player.member_area_attachments[slot]
+        if any(state.cards[item].card.card_type not in {"member", "energy"} for item in attached):
+            gaps[slot] = "invalid_attached_card_requires_rule_check"
+            continue
+        if any(state.cards[item].card.effect_ids for item in attached):
+            gaps[slot] = "attached_effects_require_overlap_timing_review"
+            continue
+        for effect_id in state.cards[old_id].card.effect_ids:
+            effect = state.effect_definitions.get(effect_id)
+            if (
+                effect is None
+                or effect.trigger != "member_left_stage_to_waiting_room"
+                or effect.condition
+            ):
+                gaps[slot] = "outgoing_effect_requires_overlap_timing_review"
+                break
+        if slot in gaps:
+            continue
+        entry_sources = [item for item in player.member_area.values() if item and item != old_id]
+        if candidate_id:
+            entry_sources.append(candidate_id)
+        for source_id in entry_sources:
+            for effect_id in state.cards[source_id].card.effect_ids:
+                effect = state.effect_definitions.get(effect_id)
+                if (
+                    effect is None
+                    or (source_id == candidate_id and "static_always" in effect.trigger.split("|"))
+                    or (
+                        (
+                            "own_member_played" in effect.trigger.split("|")
+                            or (source_id == candidate_id and "member_played" in effect.trigger.split("|"))
+                        )
+                        and effect.condition
+                    )
+                ):
+                    gaps[slot] = "entry_condition_requires_overlap_timing_review"
+                    break
+            if slot in gaps:
+                break
+    return gaps
+
+
+def _effect_deployment_slots(
+    state: MatchState,
+    invocation: EffectInvocation,
+    candidate_id: str | None = None,
+) -> list[str]:
+    effect = state.effect_definitions[invocation.effect_id]
+    player = state.players[invocation.player_id]
+    if not _effect_uses_occupied_stage_deployment(effect):
+        return _empty_member_area_slots(player)
+    gaps = _occupied_deployment_gaps(state, invocation, candidate_id)
+    return [slot for slot in ("left", "center", "right") if slot not in gaps]
 
 
 def _position_change_source_target_slots(
@@ -7551,6 +7766,10 @@ def _execute_operations(
                 for instance_id in operation_selected_ids:
                     player.main_deck.append(instance_id)
                     state.cards[instance_id].face_up = False
+        elif operation_type == "deploy_selected_to_stage":
+            _deploy_selected_to_stage(
+                state, invocation, operation, operation_selected_ids, selected_position_slot, events
+            )
         elif operation_type == "deploy_selected_to_empty_stage":
             if (
                 operation.orientation is not None

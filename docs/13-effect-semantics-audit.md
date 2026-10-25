@@ -23,6 +23,7 @@ Local card data observed after the October 25, 2026 full official-source refresh
 * 1,977 Gameplay Cards
 * 2,700 Card Printings across 24 Card Sets
 * 1,246 Card Text Revisions
+  * An unregistered, bounded `deploy_selected_to_stage` foundation now validates simple occupied-area cleanup, entry/exit, costs, Replay, AI and privacy. Complex overlap/entry conditions and private-hand fail-to-find remain excluded; the two PR and four Nijigasaki effects stay manual. See [the precise scope and newly reproduced Energy Replay gap](./development/occupied-deployment-foundation.md). This does not increase executable coverage or claim a general check-timing implementation.
   * current registry coverage has split into two separate layers:
   * 1,212 effect definitions
   * 899 `test_validated_executable` definitions

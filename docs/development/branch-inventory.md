@@ -43,6 +43,10 @@ Baton 原型检查点：已核对 `07f51e4` 的两个 PR entry，没有直接恢
 
 ## 工作树
 
+已有区域底座检查点：新增受控 `deploy_selected_to_stage`，简单覆盖 / 附属卡清理 / 触发已测试，
+不绑定正式卡牌；完整重叠触发和私有手牌零张选择继续排队。旧 Energy 回牌库的空朝向
+Replay 缺陷已复现并列最高优先级。见 `occupied-deployment-foundation.md`；旧工作树未动。
+
 附属 Member 审计检查点：`PL!-bp6-003:2` 新 effect snapshot 不再把 Area 内转移算作外部登場，
 保留旧 snapshot 的触发 / events / hash。另已复现多人控室登場漏发触发并独立排队。
 见 `attachment-promotion-verification.md`。Cloud 仅备交接，旧 dirty 工作树仍未上传或删除。

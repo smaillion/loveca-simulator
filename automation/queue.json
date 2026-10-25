@@ -128,11 +128,38 @@
       "acceptance": ["复现真实登记 PL!-pb1-018:1 的 multi_player_deploy_waiting_member：目标已进入但 onplay / own_member_played 未触发，受控两项抽牌实际0期望2", "依据固定 PDF 9.5.3 / 9.6 / 11.4.2 确认双方选择、当前效果结束与后续自动能力顺序，不在费用或选择中间错误结算", "外部控室来源仍按确切卡文指定朝向并登记身份；新旧 snapshot 使用明确兼容边界，不改变历史 Replay", "双方真实选择、optional / 无目标、原子回滚、Replay、三种AI和双方隐藏信息均有状态断言；不把此修复扩大为未审复杂多目标裁定"]
     },
     {
+      "id": "effect-occupied-deployment-foundation",
+      "priority": 0,
+      "title": "建立受控的已有 Member 区域效果登場底座",
+      "status": "queued",
+      "depends_on": ["multi-player-member-entry-trigger-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["新增独立 deploy_selected_to_stage，仅支持单个手牌/控室 Member、显式朝向且没有后续操作，不改变旧 empty-stage snapshot", "合法区域遵守当前 Member 入场身份限制；简单区域覆盖清理旧 Member 和附属卡，Energy 回能量牌库，不伪造 Baton", "覆盖目标中的复杂观察者、常时/替换、继承和条件离场效果明确拒绝并报告 unresolved reason，不猜测临时重叠场面", "真实状态断言覆盖费用回滚、登場和简单离场触发、当前区域历史、Replay、三种AI和双方隐藏信息，前端继续提交现有 card/slot", "本切片不提升六条尚待逐卡验证的手动登记；父任务继续追踪完整重叠时点与技能适配"]
+    },
+    {
+      "id": "energy-deck-return-replay-orientation",
+      "priority": 0,
+      "title": "修复 Energy 回能量牌库时空朝向导致的 Replay 读取失败",
+      "status": "queued",
+      "depends_on": ["effect-occupied-deployment-foundation"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["复现 PL!SP-bp5-111:2 与 PL!SP-pb2-010:1 的 move_selected_energy_to_energy_deck 写入 orientation=None，CardInstance 重新读取拒绝 None", "以真实费用/分支、runtime SQLite 重放和 JSON round-trip 修正，不修改 Card Schema 或 SQLite schema", "新旧快照边界和历史已损坏记录显式说明，不伪称旧 Replay 能正常重放", "旧技能登记逐项复核，必要时降级或显式新策略，不能用改测试预期掩盖错误"]
+    },
+    {
+      "id": "effect-overlap-trigger-and-private-choice",
+      "priority": 1,
+      "title": "复核完整重叠检查时点及手牌目标可选零张",
+      "status": "queued",
+      "depends_on": ["effect-occupied-deployment-foundation"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["依据 10.1.2/10.4.1/9.7 与 9.6.3.1.4 处理临时重叠、离场观察者、继承及手牌可视性边界", "不得仅把两个 Member 覆盖为一个就宣称所有触发正确；仍不能确认的语义保持能力边界和 unresolved reason", "支持非公开手牌选择零张时的原生UI/AI/费用结果，不把私有筛选等同公开必选目标", "只有逐卡真实状态/Replay/三policy/UI验收后才提升两张PR卡与四条虹咲登记，父任务未完成前不恢复旧标签"]
+    },
+    {
       "id": "effect-deployment-rule-conformance",
       "priority": 1,
       "title": "补齐效果登场的合法区域、朝向、UI 和 AI 选择",
       "status": "queued",
-      "depends_on": ["member-entry-current-area-history", "attachment-promotion-trigger-audit", "multi-player-member-entry-trigger-audit"],
+      "depends_on": ["member-entry-current-area-history", "attachment-promotion-trigger-audit", "multi-player-member-entry-trigger-audit", "effect-occupied-deployment-foundation", "effect-overlap-trigger-and-private-choice"],
       "required_profiles": ["registry", "backend", "web"],
       "acceptance": ["依据 PDF 4.3.2.3、9.6.2.1.2、9.6.2.4.2.1 和 10.4 新增或修正效果登场语义，不能把所有登场限制为空区域并默认 Wait", "区域限制按本回合入场 Member 当前所在位置计算，覆盖 Position / Formation 后的合法性，旧快照字段兼容且不新增 SQLite migration", "空区域和可替换已有 Member 的区域均能选择，正确处理重复 Member、附属卡清理及登場/离场触发，不冒充 Baton", "前端和三种 AI policy 都从 legal payload 选择 Member 与位置，包含非法目标回滚、Replay 和双方隐藏信息测试", "只在真实状态断言通过后提升 PL!-PR-015:1 与 PL!SP-PR-020:1；同时复核当前 10 条 empty-stage executable 并逐条记录保留/修正/降级原因，不虚标覆盖率"]
     },

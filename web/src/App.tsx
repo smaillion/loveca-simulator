@@ -4992,6 +4992,7 @@ export function EffectResolutionAction({
     branch_from_cost?: boolean;
     position_change_slots_by_candidate?: Record<string, string[]>;
     deployment_choice?: boolean;
+    deployment_members_by_slot?: Record<string, string | null>;
     choice_groups?: Array<{
       group_id: string;
       label_ja?: string | null;
@@ -5177,6 +5178,9 @@ export function EffectResolutionAction({
               onClick={() => setSelectedPositionSlot(slot)}
             >
               {memberSlotLabel(slot, locale)}
+              {current.deployment_members_by_slot?.[slot] && (
+                <small>{state.cards[current.deployment_members_by_slot[slot]!]?.card.name_ja}</small>
+              )}
             </button>
           ))}
         </div>

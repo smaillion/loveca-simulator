@@ -1104,7 +1104,7 @@ def _operation_value_without_observation(
         base = 11 * amount
     elif action_type in {"return_from_waiting_room", "move_selected_to_hand"}:
         base = 7 * amount
-    elif action_type == "deploy_selected_to_empty_stage":
+    elif action_type in {"deploy_selected_to_empty_stage", "deploy_selected_to_stage"}:
         base = 20 * amount
     elif action_type in {"inspect_top_cards", "reveal_top_cards", "reveal_cards"}:
         base = 2 * amount

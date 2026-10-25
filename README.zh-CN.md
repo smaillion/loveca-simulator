@@ -48,6 +48,10 @@ Area 内转移与外部登場，旧 Replay 保留原结果；结算面板显示�
 父技能结束后处理触发效果。补齐多人选卡 / 区域 UI，保留旧 Replay 结果。
 [中文状态验证报告](./docs/development/multi-player-entry-verification.md)，本轮不增加登记率。
 
+已有 Member 区域的效果登場已增加受控执行底座，但复杂重叠触发和私有手牌选择仍未完成；
+两张 PR 卡及四张虹咲卡继续手动处理，不增加登记率。
+[本轮验证范围与新发现的 Replay 缺口](./docs/development/occupied-deployment-foundation.md)已记录。
+
 `develop`（下一版 `v0.9`）当前已收录:
 
 - 基于官方 `card_list` JSON API 的正式卡牌 importer

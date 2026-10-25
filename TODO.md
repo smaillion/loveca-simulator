@@ -55,6 +55,12 @@
   见 `docs/development/multi-player-entry-verification.md`；后续继续已有 Member 区域的效果替换登场，
   以及一般同时触发的自由排序，不宣称通用登場底座已经全部完成。
 
+- 受控 `deploy_selected_to_stage` 底座已完成独立状态验证，但没有绑定正式卡牌。
+  完整的检查时点重叠、出场观察者、继承和私有手牌零张选择仍由父任务追踪；
+  两张 PR / 四条虹咲保持 manual。见 `docs/development/occupied-deployment-foundation.md`。
+- 高优先级：`PL!SP-bp5-111:2` / `PL!SP-pb2-010:1` 的旧 Energy 回牌库操作写入空朝向，
+  真实 operation 已复现 JSON 读取失败；独立修复新旧 snapshot / runtime Replay，不改 schema。
+
 ### AI-DLC Rollout Validation
 
 - Use the pinned AI-DLC workflow for the next rule-engine bugfix, normal feature,

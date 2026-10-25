@@ -28,6 +28,7 @@ SUPPORTED_EFFECT_ACTIONS = {
     "draw_until_hand_size",
     "disable_source_live_success_effects",
     "deploy_selected_to_empty_stage",
+    "deploy_selected_to_stage",
     "gain_blade",
     "gain_blade_to_stage_members",
     "gain_blade_if_milled_all_card_type",
@@ -161,6 +162,13 @@ class EffectOperation(BaseModel):
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        if self.action_type == "deploy_selected_to_stage" and (
+            self.orientation is None or self.branch is not None
+            or self.entry_trigger_policy is not None
+            or self.amount not in {None, 1} or self.amount_source is not None
+            or self.target not in {None, "self"}
+        ):
+            raise ValueError("Stage deployment requires explicit orientation and self target")
         if (
             self.entry_trigger_policy is not None
             and self.action_type != "deploy_selected_to_empty_stage"
@@ -179,7 +187,9 @@ class EffectOperation(BaseModel):
                 raise ValueError("place_energy_from_deck requires an orientation")
         elif (
             self.orientation is not None
-            and self.action_type != "deploy_selected_to_empty_stage"
+            and self.action_type not in {
+                "deploy_selected_to_empty_stage", "deploy_selected_to_stage",
+            }
         ):
             raise ValueError(
                 f"orientation is not supported for effect operation {self.action_type}"
@@ -361,6 +371,25 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        if any(op.action_type == "deploy_selected_to_stage" for op in self.actions):
+            if (
+                len(self.actions) != 1 or self.follow_up_choice is not None
+                or self.cost_choice is not None or self.choice is None
+                or self.choice.zone not in {"hand", "waiting_room"}
+                or self.choice.target_player not in {None, "self"}
+                or self.choice.choice_type != "card_from_zone"
+                or self.choice.card_type != "member"
+                or self.choice.minimum != 1 or self.choice.maximum != 1
+                or any(
+                    op.action_type != "pay_energy" or op.amount_source is not None
+                    or op.target not in {None, "self"} or not op.amount or op.amount < 0
+                    or op.branch is not None
+                    for op in self.cost
+                )
+            ):
+                raise ValueError(
+                    "Stage deployment only supports one external Member and Energy cost"
+                )
         if self.choice and self.choice.deployment_policy is not None and (
             self.actions or self.follow_up_choice is not None
         ):
