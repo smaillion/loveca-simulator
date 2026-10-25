@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "branch": "codex/continuous-development",
+  "base_ref": "origin/develop",
+  "pull_request": 54,
+  "source_head": "6008a4e66344024a6d66a60df5ac672a67d6cf1c",
+  "generated_at": "2026-10-25T11:36:35.938429+00:00",
+  "task_states": {
+    "codex-cloud-handoff-preparation": "in_progress",
+    "ci-card-preview-printing-race": "done",
+    "ci-clean-runner-temp-parent": "done",
+    "continuous-workflow": "done",
+    "legacy-ruleset-source-profile": "done",
+    "legacy-ruleset-match-replay": "queued",
+    "legacy-core-matrix-and-end-phase": "queued",
+    "legacy-api-play-comparison": "done",
+    "legacy-cost-result-branch": "done",
+    "legacy-baton-hand-deploy-audit": "done",
+    "effect-empty-deployment-active-ui-ai": "done",
+    "member-entry-current-area-history": "done",
+    "attachment-promotion-trigger-audit": "queued",
+    "effect-deployment-rule-conformance": "in_progress",
+    "legacy-worktree-reconciliation": "in_progress",
+    "ai-long-game-reliability": "queued",
+    "effect-accuracy-loop": "queued",
+    "phase6-conformance-matrix": "queued"
+  }
+}

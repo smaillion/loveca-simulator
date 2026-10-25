@@ -60,3 +60,13 @@ python -m tools.development.loop resume
 
 本地任务需要计算机开机、Codex 应用保持运行、项目目录可用以及账户仍有使用额度。
 关闭电脑期间不会执行；重新运行后通过持久状态接续。此方案不需要另配模型 API key。
+
+## Cloud 交接预备（未切换）
+
+`automation/CLOUD.md` 和 `docs/development/codex-cloud-handoff.md` 提供 Linux / Cloud 接续入口。
+policy 仍为 `active_environment=local`：本机继续写入，云端仅可预检；不自动暂停现有任务。
+每轮预检先确认当前环境仍是 active_environment，不符则只读记录并结束，不领取业务任务。
+本地锁不跨主机或 Cloud task，共用 Git 分支也不是分布式锁；切换必须先停止另一端。
+最终 check 前可用 `checkpoint --lease TOKEN` 更新可移植任务状态，检查后不得再改 checkpoint。
+它不包含 token、日志、绝对路径或旧测试授权；新 Cloud VM 必须重新验收最后的 in_progress 切片。
+当前固定 PR #54 若关闭或合并，publish 会在推送前拒绝，等待维护者确认，不创建替代 PR。

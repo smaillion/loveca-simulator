@@ -12,6 +12,10 @@
 タスク、検証結果、PR を引き継ぐ運用は [継続開発ガイド](./docs/21-continuous-development.md)
 と [実行手順](./automation/WORKFLOW.md) を参照してください。
 
+[Codex Cloud への引き継ぎ](./docs/development/codex-cloud-handoff.md)を準備しました。
+Linux のセットアップとタスク状態を共有できますが、実行元はまだローカルです。
+クラウドへの切替・定期実行・同一 PR 更新は別途確認し、認証情報や本番環境は移しません。
+
 旧 worktree から公式ルール ver.1.06 の読み取り専用 Profile と 49 件の条項参照を移行しました。
 FAQ は未審査のため非適用です。対局 / Replay への接続とルール行列は次の工程であり、
 今回の資料検証だけで v0.9 準拠を宣言しません。[移行範囲](./docs/22-ruleset-source-profile-migration.md)

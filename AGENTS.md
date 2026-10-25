@@ -18,6 +18,11 @@ more specific to this repository:
   feature pushes, and draft PR updates are authorized within the queued scope;
   do not request repetitive stage approvals. Remote PR merge and deployment
   still require explicit user approval. Claim the shared worker lease first.
+- Cloud handoff is prepared, not activated: read `automation/CLOUD.md` first.
+  `--environment cloud` uses a normal checkout of the same branch; writes are
+  denied while policy `active_environment` is local. Never start a second writer
+  or copy local credentials/runtime. Pause the local schedule and obtain explicit
+  cutover approval before changing ownership; keep Draft PR #54 pinned.
 - Treat official Japanese card text and the pinned comprehensive rules profile
   as authoritative. Unsupported or ambiguous effects must stay explicit; do
   not use silent skips or inflate executable coverage.

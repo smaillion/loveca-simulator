@@ -12,6 +12,10 @@
 同一个 Draft PR。入口见[持续开发指南](./docs/21-continuous-development.md)与
 [执行流程](./automation/WORKFLOW.md)；合并和部署仍需维护者确认。
 
+已准备 [Codex Cloud 交接入口](./docs/development/codex-cloud-handoff.md)：提供 Linux 初始化、
+可移植任务检查点和单写者预检。当前仍由本机执行，云端切换、定时接续及同一 PR 更新待实测；
+不复制认证信息，也不迁移或部署生产对战服务。
+
 已从旧工作树迁移综合规则 ver.1.06 的只读 Profile 与 49 条规则引用；未审核 FAQ 不生效。
 对局 / Replay 接入和规则矩阵仍在后续队列，来源校验不代表 v0.9 规则门禁完成。
 详见[迁移范围与限制](./docs/22-ruleset-source-profile-migration.md)。

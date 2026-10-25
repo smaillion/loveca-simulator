@@ -25,6 +25,7 @@ jobs:
       - run: python -m pip install -e ".[dev]"
       - name: Validate development queue and pinned inputs
         run: |
+          bash -n scripts/codex-cloud-setup.sh
           python -m tools.development.loop validate
           python scripts/aidlc_vendor.py verify
           python scripts/card-db-manifest.py verify

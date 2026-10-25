@@ -2,6 +2,15 @@
 
 ## High Priority
 
+### Codex Cloud 开发交接（已准备，未切换）
+
+- 入口见 `automation/CLOUD.md` 与 `docs/development/codex-cloud-handoff.md`；
+  Linux setup、白名单 checkpoint、普通 checkout 和固定 PR #54 校验已加入。
+- 当前 active_environment=local；维持本机调度，不复制认证和 runtime，不启用第二个写入者。
+- 维护者在 Cloud 选择同一仓库 / 分支，私人环境，Python 3.12 / Node 24 / gh，先只读预检。
+- 实测 GitHub 写入能力、Linux 全量门禁、恢复及定时能力后，再批准暂停本机并切换 cloud。
+- 旧 dirty 工作树 / ignored 报告未上传，缺少输入的遗留任务不能声称迁移完成；生产 VPS 不变。
+
 ### 本机持续开发的节能与唤醒（暂缓实施）
 
 - 2026-10-25 决定：出差期间保持现有持续开发，不启用自动睡眠、不迁移开发 VPS。

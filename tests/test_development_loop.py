@@ -309,3 +309,188 @@ def test_cleanup_handles_readonly_git_objects_and_refuses_escape(tmp_path):
     with pytest.raises(WorkflowError, match="escaped"):
         remove_generated_directory(outside, run_dir)
     assert outside.exists()
+
+
+def prepare_cloud_clone(workflow, tmp_path, *, active="local"):
+    workflow.policy.update(
+        active_environment=active, pull_request=54,
+        checkpoint="automation/cloud-checkpoint.json",
+    )
+    write_json(workflow.root / "automation/policy.json", workflow.policy)
+    # Export with the source writer still local, then simulate a reviewed cutover.
+    workflow.policy["active_environment"] = "local"
+    token = workflow.claim("source-worker")["lease"]["token"]
+    with workflow.transaction() as state:
+        state["private_note"] = "do-not-export-credential"
+        state["last_check"] = {"passed": True, "report": "C:/private/report.json"}
+        state["tasks"]["first"]["note"] = "do-not-export-credential"
+    checkpoint = workflow.checkpoint(token)
+    with workflow.transaction() as state:
+        state["lease"] = None
+    workflow.policy["active_environment"] = active
+    write_json(workflow.root / "automation/policy.json", workflow.policy)
+    git(workflow.root, "add", "automation")
+    git(workflow.root, "commit", "-m", "portable checkpoint")
+    clone = tmp_path / "cloud"
+    subprocess.run(
+        ["git", "clone", "--local", "--no-hardlinks", "--branch", workflow.policy["branch"],
+         str(workflow.main), str(clone)], check=True, capture_output=True,
+    )
+    git(clone, "branch", "develop", "origin/develop")
+    return Workflow(clone, environment="cloud"), checkpoint
+
+
+def test_cloud_checkpoint_is_progress_not_credentials_or_gate_authority(workflow, tmp_path):
+    cloud, checkpoint = prepare_cloud_clone(workflow, tmp_path, active="cloud")
+    serialized = json.dumps(checkpoint)
+    assert "credential" not in serialized
+    assert "lease" not in checkpoint and "last_check" not in checkpoint
+    assert "report" not in serialized and "private_note" not in serialized
+    cloud.assert_workspace()
+    restored = cloud.load()
+    assert restored["lease"] is None
+    assert restored["tasks"]["first"]["status"] == "in_progress"
+    assert "last_check" not in restored and "publish_task_id" not in restored
+    with pytest.raises(WorkflowError, match="completed checkpoint"):
+        cloud.publish()
+    token = cloud.claim("cloud-worker")["lease"]["token"]
+    with pytest.raises(WorkflowError, match="passing gates"):
+        cloud.complete(token, "done", "old evidence cannot authorize completion")
+    assert cloud.check(token, ["control"])["passed"]
+    cloud.complete(token, "done", "fresh cloud validation")
+    assert cloud.next_task(cloud.load())["id"] == "second"
+
+
+def test_writer_selector_is_fail_closed_before_cutover(workflow, tmp_path):
+    cloud, _ = prepare_cloud_clone(workflow, tmp_path)
+    cloud.assert_workspace()
+    with pytest.raises(WorkflowError, match="preflight-only"):
+        cloud.claim("cloud-worker")
+    assert not cloud.state_path.exists()
+    workflow.policy["active_environment"] = "cloud"
+    with pytest.raises(WorkflowError, match="preflight-only"):
+        workflow.claim("local-worker")
+
+
+def test_cloud_checkpoint_restores_done_and_respects_existing_runtime(workflow, tmp_path):
+    cloud, checkpoint = prepare_cloud_clone(workflow, tmp_path)
+    checkpoint["task_states"] = {"first": "done", "second": "in_progress"}
+    write_json(cloud.root / "automation/cloud-checkpoint.json", checkpoint)
+    restored = cloud.load()
+    assert cloud.next_task(restored)["id"] == "second"
+    restored["tasks"]["second"]["status"] = "done"
+    write_json(cloud.state_path, restored)
+    assert cloud.next_task(cloud.load()) is None
+    assert "last_check" not in cloud.load()
+
+
+def test_cloud_mode_refuses_linked_worktree_or_wrong_branch(workflow, tmp_path):
+    cloud, _ = prepare_cloud_clone(workflow, tmp_path, active="cloud")
+    with pytest.raises(WorkflowError, match="wrong worktree"):
+        Workflow(workflow.root, environment="cloud").assert_workspace()
+    git(cloud.root, "checkout", "-b", "codex/unrelated")
+    with pytest.raises(WorkflowError, match="wrong branch"):
+        cloud.claim("cloud-worker")
+
+
+@pytest.mark.parametrize("corruption", [
+    {"lease": {"token": "must-never-import"}},
+    {"branch": "codex/another"},
+    {"pull_request": 55},
+    {"source_head": "../../escape"},
+    {"source_head": "a" * 40},
+    {"task_states": {"unknown-task": "done"}},
+    {"task_states": {"first": "silently_skipped"}},
+    {"task_states": {"first": {"token": "must-never-import"}}},
+    {"task_states": []},
+])
+def test_cloud_checkpoint_rejects_incompatible_input(workflow, tmp_path, corruption):
+    cloud, checkpoint = prepare_cloud_clone(workflow, tmp_path)
+    checkpoint.update(corruption)
+    write_json(cloud.root / "automation/cloud-checkpoint.json", checkpoint)
+    with pytest.raises(WorkflowError):
+        cloud.load()
+    assert not cloud.state_path.exists()
+
+
+def test_checkpoint_export_requires_current_lease(workflow):
+    workflow.policy["checkpoint"] = "automation/cloud-checkpoint.json"
+    with pytest.raises(WorkflowError, match="does not belong"):
+        workflow.checkpoint("not-a-lease")
+    assert not (workflow.root / workflow.policy["checkpoint"]).exists()
+
+
+def test_checkpoint_export_rejects_non_status_data(workflow):
+    workflow.policy["checkpoint"] = "automation/cloud-checkpoint.json"
+    token = workflow.claim("worker")["lease"]["token"]
+    with workflow.transaction() as state:
+        state["tasks"]["first"]["status"] = "untrusted-secret-value"
+    with pytest.raises(WorkflowError, match="not exported"):
+        workflow.checkpoint(token)
+    assert not (workflow.root / workflow.policy["checkpoint"]).exists()
+
+
+@pytest.mark.parametrize("change", [
+    {"state": "MERGED"}, {"state": "CLOSED"}, {"isDraft": False},
+    {"headRefName": "codex/unrelated"}, {"baseRefName": "preview"},
+])
+def test_pinned_pr_change_refuses_push_or_replacement(workflow, monkeypatch, change):
+    from tools.development import loop
+
+    workflow.policy["pull_request"] = 54
+    token = workflow.claim("worker")["lease"]["token"]
+    assert workflow.check(token, ["control"])["passed"]
+    workflow.complete(token, "done", "tested")
+    real_command = loop.command
+    calls = []
+
+    def fake_command(cwd, *args, **kwargs):
+        calls.append(args)
+        if args[:3] == ("gh", "pr", "view"):
+            return json.dumps(dict(
+                state="OPEN", isDraft=True, headRefName=workflow.policy["branch"],
+                baseRefName="develop", url="https://example.invalid/pull/54",
+            ) | change)
+        return real_command(cwd, *args, **kwargs)
+
+    monkeypatch.setattr(loop, "command", fake_command)
+    with pytest.raises(WorkflowError, match="pinned PR changed"):
+        workflow.publish()
+    assert not any(call[:2] == ("git", "push") for call in calls)
+    assert not any(call[:3] == ("gh", "pr", "create") for call in calls)
+
+
+def test_pinned_pr_is_checked_before_push_and_reused(workflow, monkeypatch):
+    from tools.development import loop
+
+    workflow.policy["pull_request"] = 54
+    token = workflow.claim("worker")["lease"]["token"]
+    workflow.check(token, ["control"])
+    workflow.complete(token, "done", "tested")
+    real_command = loop.command
+    calls = []
+
+    def fake_command(cwd, *args, **kwargs):
+        calls.append(args)
+        if args[:3] == ("gh", "pr", "view"):
+            return json.dumps(dict(
+                state="OPEN", isDraft=True, headRefName=workflow.policy["branch"],
+                baseRefName="develop", url="https://example.invalid/pull/54",
+            ))
+        if args[:2] == ("git", "push") or args[:3] == ("gh", "pr", "edit"):
+            return ""
+        return real_command(cwd, *args, **kwargs)
+
+    monkeypatch.setattr(loop, "command", fake_command)
+    assert workflow.publish()["url"].endswith("/54")
+    assert next(i for i, call in enumerate(calls) if call[:3] == ("gh", "pr", "view")) < next(
+        i for i, call in enumerate(calls) if call[:2] == ("git", "push")
+    )
+    assert not any(call[:3] == ("gh", "pr", "list") for call in calls)
+
+
+@pytest.mark.parametrize("value", ["both", "", None])
+def test_policy_rejects_ambiguous_writer(workflow, value):
+    workflow.policy["active_environment"] = value
+    with pytest.raises(WorkflowError, match="unknown active"):
+        validate(workflow.policy, workflow.queue)

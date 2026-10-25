@@ -63,6 +63,11 @@ GitHub `Development Gates` 只验证 PR，不合并、不部署、不写回分�
 GitHub 登录有效及账户额度。没有另起 API 模型服务，也不向 VPS 部署开发 agent。
 本地关机不会继续执行，恢复后接续；真正脱离本机的 24 小时服务以后再单独迁移到常开主机。
 
+2026-10-25 已准备 [Codex Cloud 交接](./development/codex-cloud-handoff.md)，
+但尚未配置 / 发布云端环境或迁移定时任务。`active_environment` 默认 local；Cloud 普通 checkout
+可只读预检，不能与本机同时领取任务。可移植 checkpoint 只恢复任务状态，所有测试授权重新生成。
+正式切换须先暂停本机任务并取得明确批准；不需要另租开发 VPS，也不改变生产对战服务。
+
 ## 遗留收敛
 
 见 `docs/development/branch-inventory.md`。只删除确定已在 develop 中、没有工作树占用的本地

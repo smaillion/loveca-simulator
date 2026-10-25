@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "codex-cloud-handoff-preparation",
+      "priority": -3,
+      "title": "准备 Codex Cloud 单写者交接与可移植进度",
+      "status": "queued",
+      "depends_on": ["continuous-workflow"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["保留同一分支与 Draft PR #54，准备 Linux 环境和云端接续入口，不自动合并或部署", "仅迁移白名单任务状态，不复制租约、登录信息、生产配置、原始日志或旧测试发布授权", "本机默认继续为唯一写入端；云端在明确切换前只能预检，跨主机 SQLite 不是分布式锁", "云端普通 checkout 可验证，错误分支、关闭 PR、未知任务和不兼容交接必须拒绝", "交接文档列出真实进度、未迁移 dirty 工作树和回退步骤，不宣称云端定时能力已验收"]
+    },
+    {
       "id": "ci-card-preview-printing-race",
       "priority": -2,
       "title": "修复卡面预览选择被异步默认值重置的 CI 失败",

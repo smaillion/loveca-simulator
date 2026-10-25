@@ -67,6 +67,14 @@ def validate(policy: dict[str, Any], queue: dict[str, Any]) -> None:
         raise WorkflowError("development branch must be an unprotected codex branch")
     if policy.get("allow_merge") or policy.get("allow_deploy"):
         raise WorkflowError("remote merge and deployment require separate user approval")
+    if policy.get("active_environment", "local") not in {"local", "cloud"}:
+        raise WorkflowError("unknown active development environment")
+    if "pull_request" in policy and (
+        type(policy["pull_request"]) is not int or policy["pull_request"] < 1
+    ):
+        raise WorkflowError("pull_request must identify the existing review PR")
+    if "checkpoint" in policy and policy["checkpoint"] != "automation/cloud-checkpoint.json":
+        raise WorkflowError("checkpoint must use the fixed version-controlled path")
     for key in ("runtime_relative", "workspace_relative"):
         path = Path(policy[key])
         if path.is_absolute() or ".." in path.parts or not path.parts or path.parts[0] != ".tmp":
@@ -103,8 +111,11 @@ def validate(policy: dict[str, Any], queue: dict[str, Any]) -> None:
 
 
 class Workflow:
-    def __init__(self, root: Path):
+    def __init__(self, root: Path, *, environment: str = "local"):
         self.root = root.resolve()
+        if environment not in {"local", "cloud"}:
+            raise WorkflowError("unknown development environment")
+        self.environment = environment
         self.policy = read_json(self.root / "automation/policy.json")
         self.queue = read_json(self.root / "automation/queue.json")
         validate(self.policy, self.queue)
@@ -118,7 +129,73 @@ class Workflow:
     def load(self) -> dict[str, Any]:
         if self.state_path.exists():
             return read_json(self.state_path)
-        return {"schema_version": 1, "paused": False, "lease": None, "tasks": {}}
+        state = {"schema_version": 1, "paused": False, "lease": None, "tasks": {}}
+        if self.environment == "cloud" and self.policy.get("checkpoint"):
+            checkpoint = read_json(self.root / self.policy["checkpoint"])
+            expected_keys = {
+                "schema_version", "branch", "base_ref", "pull_request", "source_head",
+                "generated_at", "task_states",
+            }
+            if (
+                not isinstance(checkpoint, dict) or set(checkpoint) != expected_keys
+                or checkpoint["schema_version"] != 1
+            ):
+                raise WorkflowError("invalid portable checkpoint schema")
+            if any(checkpoint[key] != self.policy.get(key) for key in (
+                "branch", "base_ref", "pull_request"
+            )):
+                raise WorkflowError("checkpoint belongs to another branch or PR")
+            head = checkpoint["source_head"]
+            if not isinstance(head, str) or len(head) != 40 or any(
+                char not in "0123456789abcdef" for char in head
+            ):
+                raise WorkflowError("invalid checkpoint source commit")
+            command(self.root, "git", "merge-base", "--is-ancestor", head, "HEAD")
+            statuses = checkpoint["task_states"]
+            if not isinstance(statuses, dict):
+                raise WorkflowError("invalid checkpoint task states")
+            for task_id, status in statuses.items():
+                self.task(task_id)
+                if not isinstance(status, str) or status not in {
+                    "queued", "in_progress", "done", "blocked"
+                }:
+                    raise WorkflowError("invalid checkpoint task status")
+                state["tasks"][task_id] = {"status": status, "restored_from_checkpoint": True}
+            # Progress is portable; leases and publishing evidence deliberately are not.
+            state["restored_from"] = head
+        return state
+
+    def assert_writer(self) -> None:
+        active = self.policy.get("active_environment", "local")
+        if active != self.environment:
+            raise WorkflowError(f"writer is {active}; {self.environment} is preflight-only")
+
+    def checkpoint(self, token: str) -> dict[str, Any]:
+        self.assert_writer()
+        self.assert_workspace()
+        state = self.load()
+        self.lease(state, token)
+        if not self.policy.get("checkpoint"):
+            raise WorkflowError("portable checkpoint is not configured")
+        statuses = {}
+        for task in self.queue["tasks"]:
+            status = state["tasks"].get(task["id"], {}).get("status", task["status"])
+            if not isinstance(status, str) or status not in {
+                "queued", "in_progress", "done", "blocked"
+            }:
+                raise WorkflowError("invalid task status; checkpoint not exported")
+            statuses[task["id"]] = status
+        result = {
+            "schema_version": 1,
+            "branch": self.policy["branch"],
+            "base_ref": self.policy["base_ref"],
+            "pull_request": self.policy.get("pull_request"),
+            "source_head": command(self.root, "git", "rev-parse", "HEAD"),
+            "generated_at": now_utc().isoformat(),
+            "task_states": statuses,
+        }
+        write_json(self.root / self.policy["checkpoint"], result)
+        return result
 
     @contextmanager
     def transaction(self):
@@ -143,7 +220,9 @@ class Workflow:
         actual = command(self.root, "git", "symbolic-ref", "--short", "HEAD")
         if actual != self.policy["branch"]:
             raise WorkflowError(f"wrong branch: {actual}; reuse {self.policy['branch']}")
-        expected = (self.main / self.policy["workspace_relative"]).resolve()
+        expected = self.main if self.environment == "cloud" else (
+            self.main / self.policy["workspace_relative"]
+        ).resolve()
         if self.root != expected:
             raise WorkflowError(f"wrong worktree: use {expected}")
         if require_base:
@@ -182,6 +261,7 @@ class Workflow:
 
     def claim(self, owner: str, task_id: str | None = None) -> dict[str, Any]:
         # Take the lease before updating a branch after develop advances.
+        self.assert_writer()
         self.assert_workspace(require_base=False)
         with self.transaction() as state:
             if state.get("paused"):
@@ -215,6 +295,7 @@ class Workflow:
             return {"lease": state["lease"], "task": task, "recovered_expired_lease": bool(old)}
 
     def renew(self, token: str) -> None:
+        self.assert_writer()
         with self.transaction() as state:
             lease = self.lease(state, token)
             lease["expires_at"] = (
@@ -243,6 +324,7 @@ class Workflow:
         return digest.hexdigest()
 
     def check(self, token: str, profiles: list[str], timeout: int = 1800) -> dict[str, Any]:
+        self.assert_writer()
         self.assert_workspace()
         lease = self.lease(self.load(), token)
         if not profiles or set(profiles) - set(self.policy["profiles"]):
@@ -361,6 +443,7 @@ class Workflow:
         return check
 
     def complete(self, token: str, outcome: str, note: str) -> None:
+        self.assert_writer()
         self.assert_workspace()
         with self.transaction() as state:
             lease = self.lease(state, token)
@@ -373,6 +456,7 @@ class Workflow:
             state["lease"] = None
 
     def publish(self) -> dict[str, str]:
+        self.assert_writer()
         self.assert_workspace()
         with self.transaction() as state:
             if state.get("paused") or state.get("lease"):
@@ -386,8 +470,23 @@ class Workflow:
             if not self.policy["allow_push"] or not self.policy["allow_draft_pr"]:
                 raise WorkflowError("publishing is disabled")
             branch = self.policy["branch"]
+            pinned_pull = self.policy.get("pull_request")
+            if pinned_pull:
+                pull = json.loads(command(
+                    self.root, "gh", "pr", "view", str(pinned_pull), "--json",
+                    "state,isDraft,headRefName,baseRefName,url",
+                ))
+                if (
+                    pull.get("state") != "OPEN" or not pull.get("isDraft")
+                    or pull.get("headRefName") != branch
+                    or pull.get("baseRefName") != self.policy["base_branch"]
+                ):
+                    raise WorkflowError("pinned PR changed or closed; wait for maintainer")
+                pulls = [dict(pull, number=pinned_pull)]
+            else:
+                pulls = None
             command(self.root, "git", "push", "-u", "origin", branch)
-            pulls = json.loads(
+            pulls = pulls if pulls is not None else json.loads(
                 command(
                     self.root,
                     "gh",
@@ -620,6 +719,10 @@ def inventory_markdown(result: dict[str, Any]) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path.cwd())
+    parser.add_argument(
+        "--environment", choices=["local", "cloud"],
+        default=os.environ.get("LOVECA_DEVELOPMENT_ENV", "local"),
+    )
     commands = parser.add_subparsers(dest="operation", required=True)
     for name in ("validate", "status", "next", "doctor", "pause", "resume", "publish"):
         commands.add_parser(name)
@@ -629,7 +732,7 @@ def main() -> int:
     claim = commands.add_parser("claim")
     claim.add_argument("--owner", required=True)
     claim.add_argument("--task")
-    for name in ("renew", "release", "complete", "check"):
+    for name in ("renew", "release", "complete", "check", "checkpoint"):
         sub = commands.add_parser(name)
         sub.add_argument("--lease", required=True)
         if name == "complete":
@@ -640,16 +743,21 @@ def main() -> int:
             sub.add_argument("--timeout", type=int, default=1800)
     args = parser.parse_args()
     try:
-        workflow = Workflow(args.root)
+        workflow = Workflow(args.root, environment=args.environment)
         operation = args.operation
         result: Any = {"ok": True}
         if operation == "doctor":
             workflow.assert_workspace()
+            workflow.load()
             result = {
                 "ok": True,
                 "workspace": str(workflow.root),
                 "runtime": str(workflow.runtime),
                 "branch": workflow.policy["branch"],
+                "environment": workflow.environment,
+                "write_enabled": workflow.environment == workflow.policy.get(
+                    "active_environment", "local"
+                ),
             }
         elif operation == "inventory":
             result = inventory(
@@ -666,6 +774,7 @@ def main() -> int:
         elif operation == "next":
             result = workflow.next_task(workflow.load())
         elif operation in {"pause", "resume"}:
+            workflow.assert_writer()
             with workflow.transaction() as state:
                 state["paused"] = operation == "pause"
                 result = {"paused": state["paused"]}
@@ -674,9 +783,12 @@ def main() -> int:
         elif operation == "renew":
             workflow.renew(args.lease)
         elif operation == "release":
+            workflow.assert_writer()
             with workflow.transaction() as state:
                 workflow.lease(state, args.lease)
                 state["lease"] = None
+        elif operation == "checkpoint":
+            result = workflow.checkpoint(args.lease)
         elif operation == "complete":
             workflow.complete(args.lease, args.outcome, args.note)
         elif operation == "check":
