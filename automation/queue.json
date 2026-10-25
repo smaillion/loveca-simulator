@@ -159,9 +159,18 @@
       "priority": 1,
       "title": "复核完整重叠检查时点及手牌目标可选零张",
       "status": "queued",
-      "depends_on": ["effect-occupied-deployment-foundation", "effect-private-filtered-hand-choice", "overlap-fixed-draw-entry-observer", "pending-effect-apnap-choice", "overlap-fixed-energy-entry-observer", "overlap-source-blade-observer", "stage-departure-modifier-cleanup", "third-entry-counter-observer"],
+      "depends_on": ["effect-occupied-deployment-foundation", "effect-private-filtered-hand-choice", "overlap-fixed-draw-entry-observer", "pending-effect-apnap-choice", "overlap-fixed-energy-entry-observer", "overlap-source-blade-observer", "stage-departure-modifier-cleanup", "third-entry-counter-observer", "overlap-disjoint-source-timings"],
       "required_profiles": ["control", "registry", "backend", "web"],
       "acceptance": ["依据 10.1.2/10.4.1/9.7 与 9.6.3.1.4 处理临时重叠、离场观察者、继承及手牌可视性边界", "不得仅把两个 Member 覆盖为一个就宣称所有触发正确；仍不能确认的语义保持能力边界和 unresolved reason", "支持非公开手牌选择零张时的原生UI/AI/费用结果，不把私有筛选等同公开必选目标", "只有逐卡真实状态/Replay/三policy/UI验收后才提升两张PR卡与四条虹咲登记，父任务未完成前不恢复旧标签"]
+    },
+    {
+      "id": "overlap-disjoint-source-timings",
+      "priority": 0,
+      "title": "区分效果覆盖中旧 Member 的无关自身时点与真正观察者",
+      "status": "queued",
+      "depends_on": ["effect-occupied-deployment-foundation", "effect-private-filtered-hand-choice"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["依据9.7.2/10.1.2/10.4.1/11.4.2，以显式operation snapshot策略识别旧Member的自身登場、起動、Live开始/成功与另一Member入场互不相关，不触发/支付旧技能", "未知、复合、常时、真正入场/离场观察者、附属技能及入场条件继续保留原拒绝原因", "旧operation省略新策略，保留序列化/hash和保守行为，不改MatchState或SQLite schema", "真实卡库定义的旧Member、费用/区域/附属清理、SQLite Replay、四AI策略和双方隐私有真实断言；固定Human-vs-AI/AI-vs-AI回归", "六条待审登场技能仍manual，不将受控AUDIT底座测试称为新增卡牌支持或完整重叠调度器"]
     },
     {
       "id": "effect-private-filtered-hand-choice",

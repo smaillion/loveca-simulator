@@ -2,6 +2,13 @@
 
 ## High Priority
 
+### 效果登场重叠边界（继续）
+
+- 已用显式operation snapshot策略区分旧Member自身登场、起动及Live时点，不把非本事件的能力误当观察者；50项定向测试见 `docs/development/disjoint-overlap-source-verification.md`。
+- 当前新策略仍仅用于AUDIT底座，四条虹咲与两张PR登场技能保持manual；不为覆盖率绕过完整重叠、继承和逐卡状态验收。
+- 整段原文未完整绑定、未知/复合trigger、常时、附属能力、入场条件仍需具体规则审计。
+- 人类侧heuristic驱动的seed12005仍可单边零Live；与共享AI双方对战分开统计，不将20局全部包装为双方成功Live。
+
 ### Ruleset 对局身份与等待房间
 
 - 已完成Match身份绑定、未知Profile拒绝、规则不一致只读导出和中日提示，旧snapshot不补写字段。

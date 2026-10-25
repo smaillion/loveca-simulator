@@ -1,5 +1,24 @@
 # 019 Effect Execution MVP Specification
 
+## Bounded Occupied Deployment Observer Policy
+
+`deploy_selected_to_stage` may explicitly snapshot
+`overlap_observer_policy=ignore_disjoint_source_triggers`. Missing policy retains
+the historical conservative area exclusions and serialization shape. The field
+is invalid on other operations or in costs.
+
+For an outgoing top Member only, a complete bound source text may distinguish
+triggered `member_played`, `live_started`, `live_succeeded` and activated
+`player_activation` from the different Member's entry/departure. These source
+abilities are not triggered or paid during replacement. Whole source text must
+equal the ordered bound labels after whitespace normalization, with no binding
+errors; this is not fuzzy matching or a new registry binding.
+
+Unknown/combined triggers, static abilities, attached effects, incoming entry
+conditions and actual entry/departure observers keep existing unresolved
+boundaries. This policy is not a generic overlap scheduler or inheritance engine.
+The current AUDIT fixture uses it without promoting the six pending card entries.
+
 ## Selected Member Blade / Source Live Score
 
 The bounded `modify_source_score_if_selected_blade_highest(amount=1)` operation

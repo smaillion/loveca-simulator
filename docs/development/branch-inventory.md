@@ -1,5 +1,10 @@
 # 分支与工作树清单
 
+重叠时点检查点：新增显式operation策略，区分旧Member无关的自身/Live时点与真正观察者，
+50项受控状态/Replay/四policy验证、20局回归；六条manual和900/1212登记数不变。
+完整重叠/继承仍留父任务。见 `disjoint-overlap-source-verification.md`。
+仍只更新Draft PR #54，不合并部署，不改旧dirty工作树或ignored原始报告。
+
 Ruleset检查点：同一continuous分支选择性接回Match/Replay身份，不复制旧房间ALTER TABLE。
 补上指纹不符时拒绝Action、只读导出与中日提示，旧snapshot不补写字段。等待房间版本固定
 仍归父任务，旧44项/6项dirty文件未改动。见 `ruleset-match-replay-verification.md`。

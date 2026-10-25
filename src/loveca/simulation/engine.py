@@ -7051,6 +7051,10 @@ def _occupied_deployment_gaps(
 ) -> dict[str, str]:
     player = state.players[invocation.player_id]
     gaps: dict[str, str] = {}
+    classify_disjoint = any(
+        op.overlap_observer_policy == "ignore_disjoint_source_triggers"
+        for op in state.effect_definitions[invocation.effect_id].actions
+    )
     for slot, old_id in player.member_area.items():
         if _member_area_blocks_entry(player, slot):
             gaps[slot] = "member_entered_stage_this_turn"
@@ -7069,12 +7073,40 @@ def _occupied_deployment_gaps(
         outgoing_effects = [
             state.effect_definitions.get(key) for key in state.cards[old_id].card.effect_ids
         ]
+        if classify_disjoint:
+            # Partial source text must not hide a second, unregistered observer.
+            source_card = state.cards[old_id].card
+            raw_text = "".join((source_card.raw_effect_text_ja or "").split())
+            bound_text = "".join(
+                effect.label_ja for effect in sorted(
+                    (item for item in outgoing_effects if item is not None),
+                    key=lambda item: item.effect_index,
+                )
+            )
+            fully_bound = (
+                not source_card.effect_registry_errors
+                and all(item is not None for item in outgoing_effects)
+                and raw_text == "".join(bound_text.split())
+                and (not raw_text or source_card.effect_registry_status == "supported")
+            )
+            if not fully_bound:
+                gaps[slot] = "outgoing_source_text_requires_overlap_timing_review"
+                continue
         source_policy_enabled = any(
             item is not None and any(op.overlap_source_policy for op in item.actions)
             for item in outgoing_effects
         )
         entry_counter_enabled = any(_entry_count_observer(item) for item in outgoing_effects)
         for effect in outgoing_effects:
+            if classify_disjoint and effect is not None and (
+                (effect.effect_type == "activated" and effect.trigger == "player_activation")
+                or (
+                    effect.effect_type == "triggered"
+                    and effect.trigger in {"member_played", "live_started", "live_succeeded"}
+                )
+            ):
+                # These source-local timings cannot observe another Member's entry or departure.
+                continue
             if (
                 state.member_overlap_policy is not None
                 and _fixed_entry_observer(

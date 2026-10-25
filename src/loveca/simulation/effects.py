@@ -148,6 +148,7 @@ class EffectOperation(BaseModel):
     orientation: Literal["active", "wait"] | None = None
     entry_trigger_policy: Literal["member_area_external_only"] | None = None
     overlap_source_policy: Literal["original_stage_member"] | None = None
+    overlap_observer_policy: Literal["ignore_disjoint_source_triggers"] | None = None
     color_slot: str | None = None
     card_type: str | None = None
     flag: str | None = None
@@ -162,10 +163,14 @@ class EffectOperation(BaseModel):
             result.pop("entry_trigger_policy", None)
         if self.overlap_source_policy is None:
             result.pop("overlap_source_policy", None)
+        if self.overlap_observer_policy is None:
+            result.pop("overlap_observer_policy", None)
         return result
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        if self.overlap_observer_policy is not None and self.action_type != "deploy_selected_to_stage":
+            raise ValueError("overlap observer policy requires bounded Stage deployment")
         if self.action_type == "modify_source_score_if_selected_blade_highest" and (
             self.amount != 1 or self.amount_source is not None
             or self.target is not None or self.multiplier is not None
@@ -443,6 +448,8 @@ class EffectDefinition(BaseModel):
                 or choice.card_type != "member" or choice.minimum != 1 or choice.maximum != 1
             ):
                 raise ValueError("source score comparison requires one own Stage Member at Live success")
+        if any(op.overlap_observer_policy is not None for op in self.cost):
+            raise ValueError("overlap observer policy cannot be used as a cost")
         if any(op.overlap_source_policy is not None for op in self.cost):
             raise ValueError("overlap source policy cannot be used as a cost")
         if any(op.overlap_source_policy is not None for op in self.actions) and (

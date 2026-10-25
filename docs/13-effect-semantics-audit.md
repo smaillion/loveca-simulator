@@ -1,5 +1,13 @@
 # Effect Semantics Audit
 
+Occupied-deployment checkpoint: explicit operation snapshot policy distinguishes
+an outgoing Member's own on-play, activation and Live timings from a different
+Member entering. Full source text, unknown/combined timings, static and inherited
+abilities remain guarded. 50 targeted scenarios include six real outgoing card
+definitions, SQL Replay and four policies; this is AUDIT infrastructure, not six
+new card adaptations. Coverage stays900/1212,312manual. See the
+[Chinese evidence and limits](development/disjoint-overlap-source-verification.md).
+
 Current selected-Blade checkpoint: exact `PL!N-bp7-027:1` is now test validated,
 bringing the registry to900/1212 (74.26%), 312 manual. The bounded source-Live
 operation compares effective Blade on both Stages strictly, including waiting

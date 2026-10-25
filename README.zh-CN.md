@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+效果登场的受控底座已区分旧 Member 的自身登场、起动及 Live 时点能力，不再将它们混同为另一 Member 的入场观察者；常时、继承及不完整原文仍保留限制，本轮不增加卡牌支持数。[验证与边界](./docs/development/disjoint-overlap-source-verification.md)
+
 新对局固定Ruleset ID、指纹和裁定包；规则不一致时仅允许查看和导出Replay，不冒充重放验证成功。旧快照不补写字段；等待加入的房间版本固定仍待后续完成。[兼容性验证](./docs/development/ruleset-match-replay-verification.md)
 
 已适配 `PL!N-bp7-027`「オードリー」的 Live 成功技能：选择虹咲 Member，用有效 Blade 与双方其他场上 Member 严格比较，满足时仅来源 Live 加1分；同分不加分，界面明确展示比较结果。[状态、Replay与50局验证](./docs/development/selected-blade-source-score-verification.md)

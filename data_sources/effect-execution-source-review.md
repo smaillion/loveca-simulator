@@ -1,5 +1,14 @@
 # Effect Execution MVP Source Review
 
+## Outgoing Source Timing Classification (2026-10-26)
+
+Rules1.06 clauses9.7.2,10.1.2,10.4.1,11.4.2,11.5.2,11.6.2 distinguish a source's
+own entry and Live timings from a different Member's entry. An opt-in bounded
+deployment operation classifies only complete, non-error source text snapshots;
+no current card is newly registered. Static, inherited, combined and unconfirmed
+observers retain manual/unresolved limits. This is automated state evidence, not
+human reviewed status. See `docs/development/disjoint-overlap-source-verification.md`.
+
 ## Purpose
 
 This artifact records the official-rule basis for the first executable-effect slice. It contains references and conclusions, not bulk official rule or card text.
