@@ -1104,6 +1104,8 @@ def _operation_value_without_observation(
         base = 11 * amount
     elif action_type in {"return_from_waiting_room", "move_selected_to_hand"}:
         base = 7 * amount
+    elif action_type == "deploy_selected_to_empty_stage":
+        base = 20 * amount
     elif action_type in {"inspect_top_cards", "reveal_top_cards", "reveal_cards"}:
         base = 2 * amount
     elif action_type in {"apply_wait", "apply_wait_member", "apply_wait_energy"}:
@@ -1542,6 +1544,11 @@ def _choose_effect_resolution(
                 "decline_optional_without_targets",
             )
         payload["selected_card_instance_ids"] = selected_cards
+    selected = payload.get("selected_card_instance_ids", [])
+    if selected and invocation.get("deployment_choice"):
+        slots = invocation.get("position_change_slots_by_candidate", {}).get(selected[0], [])
+        if slots:
+            payload["to_slot"] = _preferred_slot(slots)
     destinations = list(
         invocation.get("destination_options", [])
         or choice.get("destination_options", [])

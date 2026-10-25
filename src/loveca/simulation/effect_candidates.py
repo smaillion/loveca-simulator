@@ -4492,7 +4492,7 @@ def _activated_deploy_waiting_member_to_empty_stage(
             },
             cost=[{"action_type": "pay_energy", "amount": values["energy"]}],
             choice=choice,
-            actions=[{"action_type": "deploy_selected_to_empty_stage"}],
+            actions=[{"action_type": "deploy_selected_to_empty_stage", "orientation": "active"}],
             duration=None,
         )
     return None
@@ -5337,6 +5337,41 @@ def _onplay_baton_non_kachimachi_hasunosora_return_live(
     )
 
 
+def _edel_note_live_start_deployment(row: sqlite3.Row) -> EffectCandidate | None:
+    label = (
+        "【ライブ開始時】【E】【E】支払ってもよい：自分のステージにコスト9以上の『Edel Note』の"
+        "メンバーがいる場合、以下から1つを選ぶ。 ・自分の控え室からコスト4以下の『Edel Note』の"
+        "メンバーカードを1枚、メンバーのいないエリアに登場させる。 ・このカードの必要ハートを【heart06】減らす。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    index, exact_label = matched
+    return EffectCandidate(
+        **_base(row, pattern_id="live_start_edel_pay2_deploy_or_reduce_heart06", effect_index=index),
+        label_ja=exact_label, effect_type="triggered", timing="live_start", trigger="live_started",
+        frequency_limit="once_per_live", is_optional=True,
+        condition={"minimum_active_energy": 2, "own_stage_member_unit_count_at_least": {
+            "count": 1, "minimum_cost": 9, "unit_key": "edel_note",
+        }},
+        cost=[{"action_type": "pay_energy", "amount": 2}],
+        choice={
+            "choice_type": "choose_effect_branch", "branch_ids": ["deploy_edel", "reduce_heart06"],
+            "branch_selection_minimum": {"deploy_edel": 1},
+            "branch_selection_maximum": {"deploy_edel": 1},
+            "branch_choice_filters": {"deploy_edel": {
+                "choice_type": "deploy_member_from_waiting_room", "zone": "waiting_room",
+                "card_type": "member", "unit_key": "edel_note", "maximum_cost": 4,
+                "minimum": 1, "maximum": 1,
+            }},
+        },
+        actions=[
+            {"action_type": "deploy_selected_to_empty_stage", "branch": "deploy_edel", "orientation": "active"},
+            {"action_type": "modify_required_heart", "amount": -1, "color_slot": "heart06", "branch": "reduce_heart06"},
+        ], duration="live",
+    )
+
+
 def _onplay_center_baton_two_liella_draw2_deploy_waiting_member_cost4(
     row: sqlite3.Row,
 ) -> EffectCandidate | None:
@@ -5375,7 +5410,7 @@ def _onplay_center_baton_two_liella_draw2_deploy_waiting_member_cost4(
         },
         cost=[],
         choice={
-            "choice_type": "deploy_member_from_waiting_room",
+            "choice_type": "post_action_card_from_zone",
             "zone": "waiting_room",
             "card_type": "member",
             "work_key": "love_live_superstar",
@@ -5385,7 +5420,7 @@ def _onplay_center_baton_two_liella_draw2_deploy_waiting_member_cost4(
         },
         actions=[
             {"action_type": "draw_card", "amount": 2},
-            {"action_type": "deploy_selected_to_empty_stage"},
+            {"action_type": "deploy_selected_to_empty_stage", "orientation": "active"},
         ],
         duration=None,
     )
@@ -5721,70 +5756,6 @@ def _onplay_more_simple_effects(row: sqlite3.Row) -> EffectCandidate | None:
                 {"action_type": "mill_top_cards", "amount": 3},
                 {"action_type": "return_from_waiting_room"},
             ],
-            "is_optional": True,
-        },
-        "【登場】【E】【E】支払ってもよい：手札からコスト4以下の「上原歩夢」のメンバーカードを1枚ステージに登場させる。": {
-            "suffix": "optional_pay2_deploy_hand_uehara_ayumu_member_cost4",
-            "condition": {"minimum_active_energy": 2},
-            "cost": [{"action_type": "pay_energy", "amount": 2}],
-            "choice": {
-                "choice_type": "deploy_member_from_waiting_room",
-                "zone": "hand",
-                "card_type": "member",
-                "name_ja_any": ["上原歩夢"],
-                "maximum_cost": 4,
-                "minimum": 1,
-                "maximum": 1,
-            },
-            "actions": [{"action_type": "deploy_selected_to_empty_stage"}],
-            "is_optional": True,
-        },
-        "【登場】【E】【E】支払ってもよい：手札からコスト4以下の「桜坂しずく」のメンバーカードを1枚ステージに登場させる。": {
-            "suffix": "optional_pay2_deploy_hand_osaka_shizuku_member_cost4",
-            "condition": {"minimum_active_energy": 2},
-            "cost": [{"action_type": "pay_energy", "amount": 2}],
-            "choice": {
-                "choice_type": "deploy_member_from_waiting_room",
-                "zone": "hand",
-                "card_type": "member",
-                "name_ja_any": ["桜坂しずく"],
-                "maximum_cost": 4,
-                "minimum": 1,
-                "maximum": 1,
-            },
-            "actions": [{"action_type": "deploy_selected_to_empty_stage"}],
-            "is_optional": True,
-        },
-        "【登場】【E】【E】支払ってもよい：手札からコスト4以下の「宮下 愛」のメンバーカードを1枚ステージに登場させる。": {
-            "suffix": "optional_pay2_deploy_hand_miyashita_ai_member_cost4",
-            "condition": {"minimum_active_energy": 2},
-            "cost": [{"action_type": "pay_energy", "amount": 2}],
-            "choice": {
-                "choice_type": "deploy_member_from_waiting_room",
-                "zone": "hand",
-                "card_type": "member",
-                "name_ja_any": ["宮下 愛"],
-                "maximum_cost": 4,
-                "minimum": 1,
-                "maximum": 1,
-            },
-            "actions": [{"action_type": "deploy_selected_to_empty_stage"}],
-            "is_optional": True,
-        },
-        "【登場】【E】【E】支払ってもよい：手札からコスト4以下の「ミア・テイラー」のメンバーカードを1枚ステージに登場させる。": {
-            "suffix": "optional_pay2_deploy_hand_mia_taylor_member_cost4",
-            "condition": {"minimum_active_energy": 2},
-            "cost": [{"action_type": "pay_energy", "amount": 2}],
-            "choice": {
-                "choice_type": "deploy_member_from_waiting_room",
-                "zone": "hand",
-                "card_type": "member",
-                "name_ja_any": ["ミア・テイラー"],
-                "maximum_cost": 4,
-                "minimum": 1,
-                "maximum": 1,
-            },
-            "actions": [{"action_type": "deploy_selected_to_empty_stage"}],
             "is_optional": True,
         },
     }
@@ -10739,7 +10710,7 @@ def _pl_bp6_003_live_success_deploy_attached_muse_member(
             "minimum": 1,
             "maximum": 1,
         },
-        actions=[{"action_type": "deploy_selected_to_empty_stage"}],
+        actions=[{"action_type": "deploy_selected_to_empty_stage", "orientation": "active"}],
         duration="live",
     )
 
@@ -14136,7 +14107,7 @@ def _phase5_v1_final_triggered_effects(
                 "minimum": 1,
                 "maximum": 1,
             },
-            "actions": [{"action_type": "deploy_selected_to_empty_stage"}],
+            "actions": [{"action_type": "deploy_selected_to_empty_stage", "orientation": "active"}],
         },
         "【自動】このメンバーがステージから控え室に置かれたとき、メンバー1人をポジションチェンジさせてもよい。": {
             "suffix": "left_stage_position_change_member",
@@ -15016,6 +14987,7 @@ def _look_top_card_optional_deck_bottom_candidate(
 
 
 _PATTERNS = (
+    _edel_note_live_start_deployment,
     _onplay_wait_inspect2_reorder,
     _onplay_inspect2_reorder,
     _onplay_inspect3_reorder,

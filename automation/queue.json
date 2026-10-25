@@ -83,11 +83,20 @@
       "acceptance": ["重新核对 PL!-PR-015:1 与 PL!SP-PR-020:1 的当前 exact-text/hash，不继承旧提交的 executable 标签", "核对 Baton 原 Member cost、手牌 Member cost 上限、目标区域限制和重复登场触发", "只有具备状态转换、Replay 和 AI 合法选择验收才提升，否则保留 manual 并记录 unresolved reason", "不复制旧 registry/manifest，不修改原工作树"]
     },
     {
+      "id": "effect-empty-deployment-active-ui-ai",
+      "priority": 0,
+      "title": "修正明确空区域登场的 Active 朝向及 UI/AI 位置选择",
+      "status": "queued",
+      "depends_on": ["legacy-baton-hand-deploy-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["六条明确空区域登场技能显式指定 Active，不改变旧快照缺省 Wait", "位置选择由 legal payload 暴露并被 UI、三种 AI policy 与 deterministic sandbox 使用", "逐条验证来源/费用/触发、非法位置原子性和 Replay，补前端位置提交测试", "四条未限定空区域的虹咲技能退回 manual，明确尚待 occupied-area 支持，不虚标覆盖率"]
+    },
+    {
       "id": "effect-deployment-rule-conformance",
       "priority": 1,
       "title": "补齐效果登场的合法区域、朝向、UI 和 AI 选择",
       "status": "queued",
-      "depends_on": ["legacy-baton-hand-deploy-audit"],
+      "depends_on": ["effect-empty-deployment-active-ui-ai"],
       "required_profiles": ["registry", "backend", "web"],
       "acceptance": ["依据 PDF 4.3.2.3、9.6.2.1.2、9.6.2.4.2.1 和 10.4 新增或修正效果登场语义，不能把所有登场限制为空区域并默认 Wait", "区域限制按本回合入场 Member 当前所在位置计算，覆盖 Position / Formation 后的合法性，旧快照字段兼容且不新增 SQLite migration", "空区域和可替换已有 Member 的区域均能选择，正确处理重复 Member、附属卡清理及登場/离场触发，不冒充 Baton", "前端和三种 AI policy 都从 legal payload 选择 Member 与位置，包含非法目标回滚、Replay 和双方隐藏信息测试", "只在真实状态断言通过后提升 PL!-PR-015:1 与 PL!SP-PR-020:1；同时复核当前 10 条 empty-stage executable 并逐条记录保留/修正/降级原因，不虚标覆盖率"]
     },

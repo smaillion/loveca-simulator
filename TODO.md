@@ -28,11 +28,12 @@
 - 后续按任务队列推进 AI 长局、技能准确度和 v0.9 门禁；不再为每轮自动任务开分支。
 - API Play 旧提交已分组核对，测试输入/采样入口完成选择性迁移；`PL!-bp5-003:2` 成本结果
   分支已按当前文本重建，并增加两分支状态 / AI / Replay 和观察视角测试。
-  当前为 903 / 1212 可执行（74.50%），见 `docs/development/cost-result-branch-verification.md`。
+  该切片当时为 903 / 1212；效果登场复核后当前为 899 / 1212（74.17%）、313 manual。
 - `PL!-PR-015:1` / `PL!SP-PR-020:1` 已完成旧原型复核并修正手动提示条件，仍为 manual。
-  下一步按 `effect-deployment-rule-conformance` 补合法区域、Active 默认朝向和 UI / AI 选择，
-  同时复核当前 10 条 empty-stage executable，不能只恢复旧标签。
-  gap report 已列出这 10 条未指定朝向却使用旧 Wait 默认值的风险，必须修正或降级后才能结算发布。
+  `effect-empty-deployment-active-ui-ai` 已将明确空区域的 6 条技能改为 Active 并补位置选择，
+  另 4 条不限定空区域的虹咲技能已退回 manual，旧 Replay 保留原朝向。
+  下一步 `effect-deployment-rule-conformance` 仍需实现已有 Member 区域替换、入场身份追踪及附属卡 / 离场处理；
+  再复核上述虹咲 4 条和两张 PR 卡，不得只恢复旧标签。见 `docs/development/empty-effect-deployment-verification.md`。
   详见 `docs/development/baton-hand-deploy-audit.md`；旧工作树和原始报告继续保留。
 
 ### AI-DLC Rollout Validation

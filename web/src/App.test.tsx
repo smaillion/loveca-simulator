@@ -3593,6 +3593,39 @@ describe("App", () => {
     });
   });
 
+  it.each([{ slots: ["left", "right"] }, { slots: [] as string[] }])("uses legal deployment areas without a manual adjustment: %j", ({ slots }) => {
+    const onAction = vi.fn();
+    const action = {
+      action_type: "resolve_effect", player_id: "player_1", label_zh: "技能", label_ja: "能力",
+      options: { invocations: [{
+        invocation_id: "deploy-001", effect_id: "PL!S-sd1-006:1", source_card_instance_id: "player_1-M001",
+        label_ja: "メンバーのいないエリアに登場させる。", trigger: "member_played", timing: "on_play",
+        execution_mode: "prompt_then_resolve", simulation_support: "test_validated_executable",
+        resolution_stage: "after_cost", is_optional: false,
+        choice_type: "deploy_member_from_waiting_room", choice_zone: "waiting_room",
+        card_selection_minimum: 1, card_selection_maximum: 1,
+        candidate_card_instance_ids: ["player_1-M002"], deployment_choice: true,
+        position_change_slots_by_candidate: { "player_1-M002": slots },
+      }] },
+    };
+    render(<EffectResolutionAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never}
+      loading={false} onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /候補カード/ }));
+    expect(screen.getByText("登场区域")).toBeInTheDocument();
+    if (!slots.length) {
+      expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+      expect(onAction).not.toHaveBeenCalled();
+      return;
+    }
+    fireEvent.click(screen.getByRole("button", { name: "右" }));
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "deploy-001", accepted: true, selected_card_instance_ids: ["player_1-M002"],
+      energy_instance_ids: [], to_slot: "right",
+    });
+  });
+
   it("submits branch follow-up card choices with the selected branch", () => {
     const onAction = vi.fn();
     const onManual = vi.fn();

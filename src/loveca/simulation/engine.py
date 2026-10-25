@@ -1685,7 +1685,15 @@ def _resolve_effect(
         if not isinstance(selected_position_slot, str):
             selected_position_slot = action.payload.get("slot")
         deploy_slots = _empty_member_area_slots(state.players[invocation.player_id])
-        if selected_position_slot not in deploy_slots:
+        unavailable_after_cost = (
+            invocation.resolution_stage == "after_cost"
+            and not selected_ids
+            and not candidates
+        )
+        if (
+            not (unavailable_after_cost and selected_position_slot is None)
+            and selected_position_slot not in deploy_slots
+        ):
             raise IllegalActionError("effect deploy slot selection is not legal")
     elif selected_position_slot is not None and not (
         _effect_branch_accepts_position_choice(effect, invocation)
@@ -4560,7 +4568,10 @@ def _effect_resolution_options(
                 options["card_selection_maximum"] = (
                     effect.choice.branch_selection_maximum.get(branch, 0)
                 )
-                if _effect_uses_auto_cost_branch_choice(effect):
+                if (
+                    _effect_uses_auto_cost_branch_choice(effect)
+                    or _effect_uses_deploy_to_empty_stage_choice(effect, invocation)
+                ):
                     options["card_selection_minimum"] = min(
                         options["card_selection_minimum"], len(candidate_ids)
                     )
@@ -4609,6 +4620,11 @@ def _effect_resolution_options(
             options["available_slots"] = _empty_member_area_slots(
                 state.players[invocation.player_id]
             )
+            options["deployment_choice"] = True
+            options["position_change_slots_by_candidate"] = {
+                instance_id: list(options["available_slots"])
+                for instance_id in candidate_ids
+            }
         if _effect_accepts_selected_position_choice(effect):
             options["position_change_slots_by_candidate"] = (
                 _position_change_slots_by_candidate(
@@ -4739,6 +4755,16 @@ def _effect_choice_candidates(
     invocation: EffectInvocation,
 ) -> list[str]:
     effect = state.effect_definitions[invocation.effect_id]
+    if (
+        _effect_uses_deploy_to_empty_stage_choice(effect, invocation)
+        and any(
+            op.orientation is not None
+            for op in effect.actions
+            if op.action_type == "deploy_selected_to_empty_stage"
+        )
+        and not _empty_member_area_slots(state.players[invocation.player_id])
+    ):
+        return []
     follow_up_choice = _effect_follow_up_choice(effect, invocation)
     if follow_up_choice is not None:
         if not _choice_condition_met(state, invocation, follow_up_choice):
@@ -5216,6 +5242,13 @@ def _branch_unavailable_reason(
             return "source_orientation_mismatch"
     if not _effect_operation_condition_met(state, invocation, conditions):
         return "branch_condition_unavailable"
+    if any(
+        op.action_type == "deploy_selected_to_empty_stage"
+        and op.orientation is not None and op.branch == branch
+        for op in effect.actions
+    ):
+        if not _empty_member_area_slots(player):
+            return "deploy_member_unavailable"
     minimum = effect.choice.branch_selection_minimum.get(branch, 0)
     if minimum > 0:
         branch_choice = _branch_choice_filter(effect, branch)
@@ -6043,6 +6076,11 @@ def _post_action_choice_should_continue(
     invocation: EffectInvocation,
 ) -> bool:
     effect = state.effect_definitions[invocation.effect_id]
+    if _effect_uses_deploy_to_empty_stage_choice(effect, invocation) and (
+        not _empty_member_area_slots(state.players[invocation.player_id])
+        or not _effect_choice_candidates(state, invocation)
+    ):
+        return False
     if not _post_action_choice_condition_met(effect, invocation):
         return False
     if effect.choice is None:
@@ -6389,7 +6427,10 @@ def _validate_branch_choice(
         raise IllegalActionError("effect branch cannot be changed after setup")
     minimum = effect.choice.branch_selection_minimum.get(branch, 0)
     maximum = effect.choice.branch_selection_maximum.get(branch, 0)
-    if _effect_uses_auto_cost_branch_choice(effect):
+    if (
+        _effect_uses_auto_cost_branch_choice(effect)
+        or _effect_uses_deploy_to_empty_stage_choice(effect, invocation)
+    ):
         minimum = min(minimum, len(candidates))
         maximum = min(maximum, len(candidates))
     if (
@@ -6449,9 +6490,26 @@ def _effect_uses_deploy_to_empty_stage_choice(
     effect: Any,
     invocation: EffectInvocation | None = None,
 ) -> bool:
-    choice = _effect_follow_up_choice(effect, invocation) if invocation else None
-    choice = choice or effect.choice
-    return bool(choice and choice.choice_type == "deploy_member_from_waiting_room")
+    # Old replay snapshots keep the original choice timing and Wait default.
+    if not any(
+        op.action_type == "deploy_selected_to_empty_stage" and op.orientation is not None
+        for op in effect.actions
+    ):
+        choice = _effect_follow_up_choice(effect, invocation) if invocation else None
+        choice = choice or effect.choice
+        return bool(choice and choice.choice_type == "deploy_member_from_waiting_room")
+    if invocation is not None and invocation.resolution_stage == "initial" and (
+        _effect_uses_post_cost_card_choice(effect)
+        or _effect_uses_post_action_card_choice(effect)
+    ):
+        return False
+    if _effect_uses_branch_choice(effect):
+        branch = invocation.trigger_data.get("selected_branch") if invocation else None
+        return branch is not None and any(
+            op.action_type == "deploy_selected_to_empty_stage" and op.branch == branch
+            for op in effect.actions
+        )
+    return any(op.action_type == "deploy_selected_to_empty_stage" for op in effect.actions)
 
 
 def _empty_member_area_slots(player: Any) -> list[str]:
@@ -7415,6 +7473,25 @@ def _execute_operations(
                     player.main_deck.append(instance_id)
                     state.cards[instance_id].face_up = False
         elif operation_type == "deploy_selected_to_empty_stage":
+            if (
+                operation.orientation is not None
+                and not operation_selected_ids
+                and not _effect_choice_candidates(state, invocation)
+            ):
+                events.append(
+                    GameEvent(
+                        event_type="effect_operation_not_applied",
+                        player_id=invocation.player_id,
+                        data={
+                            "invocation_id": invocation.invocation_id,
+                            "effect_id": invocation.effect_id,
+                            "operation": operation_type,
+                            "reason": "no_legal_deployment_target_or_area",
+                        },
+                        source="system",
+                    )
+                )
+                continue
             if len(operation_selected_ids) != 1:
                 raise IllegalActionError("effect requires exactly one Member to deploy")
             slot = selected_position_slot

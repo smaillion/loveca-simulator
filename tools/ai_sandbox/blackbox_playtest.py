@@ -666,6 +666,11 @@ def choose_action(
                     {"invocation_id": invocation["invocation_id"], "accepted": False},
                 )
             payload["selected_card_instance_ids"] = selected_cards
+        selected = payload.get("selected_card_instance_ids", [])
+        if selected and invocation.get("deployment_choice"):
+            slots = invocation.get("position_change_slots_by_candidate", {}).get(selected[0], [])
+            if slots:
+                payload["to_slot"] = slots[0]
         destinations = list(
             invocation.get("destination_options", [])
             or choice.get("destination_options", [])

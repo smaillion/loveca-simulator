@@ -2972,8 +2972,8 @@
       "card_code": "PL!-PR-015",
       "choice": null,
       "condition": {
-        "requires_baton_touch": true,
-        "replacement_member_cost_less_than_source": true
+        "replacement_member_cost_less_than_source": true,
+        "requires_baton_touch": true
       },
       "cost": [],
       "cost_choice": null,
@@ -8766,36 +8766,83 @@
     },
     {
       "actions": [
-        {"action_type": "inspect_top_cards", "amount": 4, "branch": "discarded_muse"},
-        {"action_type": "select_to_hand_from_inspected", "branch": "discarded_muse"},
-        {"action_type": "move_remaining_cards", "branch": "discarded_muse"},
-        {"action_type": "return_from_waiting_room", "branch": "discarded_other"}
+        {
+          "action_type": "inspect_top_cards",
+          "amount": 4,
+          "branch": "discarded_muse"
+        },
+        {
+          "action_type": "select_to_hand_from_inspected",
+          "branch": "discarded_muse"
+        },
+        {
+          "action_type": "move_remaining_cards",
+          "branch": "discarded_muse"
+        },
+        {
+          "action_type": "return_from_waiting_room",
+          "branch": "discarded_other"
+        }
       ],
       "card_code": "PL!-bp5-003",
       "choice": {
-        "choice_type": "choose_effect_branch",
-        "branch_ids": ["discarded_muse", "discarded_other"],
         "auto_branch_from_cost_choice": true,
-        "branch_cost_conditions": {
-          "discarded_muse": {"selected_cost_has_work_key": "love_live"},
-          "discarded_other": {"selected_cost_lacks_work_key": "love_live"}
-        },
-        "branch_selection_minimum": {"discarded_other": 1},
-        "branch_selection_maximum": {"discarded_other": 1},
         "branch_choice_filters": {
           "discarded_muse": {
-            "choice_type": "inspect_top_select", "amount": 4, "minimum": 2, "maximum": 2,
-            "selected_destination": "hand", "unselected_destination": "waiting_room"
+            "amount": 4,
+            "choice_type": "inspect_top_select",
+            "maximum": 2,
+            "minimum": 2,
+            "selected_destination": "hand",
+            "unselected_destination": "waiting_room"
           },
           "discarded_other": {
-            "choice_type": "card_from_zone", "zone": "waiting_room", "card_type": "live",
-            "minimum": 1, "maximum": 1
+            "card_type": "live",
+            "choice_type": "card_from_zone",
+            "maximum": 1,
+            "minimum": 1,
+            "zone": "waiting_room"
           }
-        }
+        },
+        "branch_cost_conditions": {
+          "discarded_muse": {
+            "selected_cost_has_work_key": "love_live"
+          },
+          "discarded_other": {
+            "selected_cost_lacks_work_key": "love_live"
+          }
+        },
+        "branch_ids": [
+          "discarded_muse",
+          "discarded_other"
+        ],
+        "branch_selection_maximum": {
+          "discarded_other": 1
+        },
+        "branch_selection_minimum": {
+          "discarded_other": 1
+        },
+        "choice_type": "choose_effect_branch"
       },
-      "condition": {"source_zone": "stage", "minimum_active_energy": 2},
-      "cost": [{"action_type": "pay_energy", "amount": 2}, {"action_type": "discard_from_hand"}],
-      "cost_choice": {"choice_type": "card_from_zone", "zone": "hand", "minimum": 1, "maximum": 1},
+      "condition": {
+        "minimum_active_energy": 2,
+        "source_zone": "stage"
+      },
+      "cost": [
+        {
+          "action_type": "pay_energy",
+          "amount": 2
+        },
+        {
+          "action_type": "discard_from_hand"
+        }
+      ],
+      "cost_choice": {
+        "choice_type": "card_from_zone",
+        "maximum": 1,
+        "minimum": 1,
+        "zone": "hand"
+      },
       "duration": null,
       "effect_id": "PL!-bp5-003:2",
       "effect_index": 2,
@@ -11399,7 +11446,7 @@
           "color_slot": null,
           "flag": null,
           "multiplier": null,
-          "orientation": null,
+          "orientation": "active",
           "target": null,
           "target_hand_size": null,
           "value": null
@@ -27167,7 +27214,7 @@
           "color_slot": null,
           "flag": null,
           "multiplier": null,
-          "orientation": null,
+          "orientation": "active",
           "target": null,
           "target_hand_size": null,
           "value": null
@@ -28946,7 +28993,7 @@
           "color_slot": null,
           "flag": null,
           "multiplier": null,
-          "orientation": null,
+          "orientation": "active",
           "target": null,
           "target_hand_size": null,
           "value": null
@@ -31350,7 +31397,7 @@
           "color_slot": null,
           "flag": null,
           "multiplier": null,
-          "orientation": null,
+          "orientation": "active",
           "target": null,
           "target_hand_size": null,
           "value": null
@@ -57829,105 +57876,23 @@
         }
       ],
       "card_code": "PL!N-pb1-013",
-      "choice": {
-        "ability_bucket": [],
-        "amount": null,
-        "amount_source": null,
-        "amount_source_unit_key": null,
-        "amount_source_work_key": null,
-        "branch_choice_filters": {},
-        "branch_conditions": {},
-        "branch_energy_required": {},
-        "branch_ids": [],
-        "branch_selection_maximum": {},
-        "branch_selection_minimum": {},
-        "card_type": "member",
-        "choice_type": "deploy_member_from_waiting_room",
-        "color_slots": [],
-        "condition": {},
-        "destination_options": [],
-        "discard_amount": null,
-        "exclude_blade_heart": false,
-        "exclude_name_ja_any": [],
-        "exclude_source": false,
-        "exclude_stage_unit_keys": false,
-        "exclude_unit_key": null,
-        "excluded_position_slots": [],
-        "heart_color_slot": null,
-        "heart_color_slots_all": [],
-        "heart_color_slots_any": [],
-        "maximum": 1,
-        "maximum_blade": null,
-        "maximum_cost": 4,
-        "maximum_cost_less_than_cost_selected": false,
-        "maximum_original_blade": null,
-        "maximum_score": null,
-        "minimum": 1,
-        "minimum_blade": null,
-        "minimum_cost": null,
-        "minimum_heart_count": null,
-        "minimum_original_blade": null,
-        "minimum_required_heart": null,
-        "minimum_required_heart_total": null,
-        "minimum_score": null,
-        "name_ja_any": [
-          "上原歩夢"
-        ],
-        "orientation": null,
-        "position_target_unit_keys_any": [],
-        "post_action_condition_key": null,
-        "post_action_condition_minimum": null,
-        "required_heart_color_slot": null,
-        "requires_order": false,
-        "reveal_selected_to_opponent": false,
-        "same_name_as_cost_selected": false,
-        "same_name_as_stage": false,
-        "selected_destination": null,
-        "selection_groups": [],
-        "share_unit_with_cost_selected": false,
-        "share_unit_with_stage": false,
-        "target_hand_size": null,
-        "target_player": "self",
-        "unit_key": null,
-        "unit_keys_any": [],
-        "unselected_destination": null,
-        "value": null,
-        "work_key": null,
-        "zone": "hand"
-      },
-      "condition": {
-        "minimum_active_energy": 2
-      },
-      "cost": [
-        {
-          "action_type": "pay_energy",
-          "amount": 2,
-          "amount_source": null,
-          "branch": null,
-          "card_type": null,
-          "color_slot": null,
-          "flag": null,
-          "multiplier": null,
-          "orientation": null,
-          "target": null,
-          "target_hand_size": null,
-          "value": null
-        }
-      ],
+      "choice": null,
+      "condition": {},
+      "cost": [],
       "cost_choice": null,
       "duration": null,
       "effect_id": "PL!N-pb1-013:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "prompt_then_resolve",
+      "execution_mode": "manual_resolution",
       "follow_up_choice": null,
       "frequency_limit": "none",
       "is_optional": true,
       "label_ja": "【登場】【E】【E】支払ってもよい：手札からコスト4以下の「上原歩夢」のメンバーカードを1枚ステージに登場させる。",
       "raw_text_hash": "29530a0cfb715fda417265550777eb4ea9fadfad1bf30b7fa84a1db0c7ea2e4a",
-      "review_status": "test_validated",
-      "simulation_support": "test_validated_executable",
-      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
+      "review_status": "parsed_draft",
+      "simulation_support": "manual_resolution",
+      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
       "text_revision_id": 320,
       "timing": "on_play",
       "trigger": "member_played"
@@ -58054,7 +58019,7 @@
     {
       "actions": [
         {
-          "action_type": "deploy_selected_to_empty_stage",
+          "action_type": "manual_resolution",
           "amount": null,
           "amount_source": null,
           "branch": null,
@@ -58069,105 +58034,23 @@
         }
       ],
       "card_code": "PL!N-pb1-015",
-      "choice": {
-        "ability_bucket": [],
-        "amount": null,
-        "amount_source": null,
-        "amount_source_unit_key": null,
-        "amount_source_work_key": null,
-        "branch_choice_filters": {},
-        "branch_conditions": {},
-        "branch_energy_required": {},
-        "branch_ids": [],
-        "branch_selection_maximum": {},
-        "branch_selection_minimum": {},
-        "card_type": "member",
-        "choice_type": "deploy_member_from_waiting_room",
-        "color_slots": [],
-        "condition": {},
-        "destination_options": [],
-        "discard_amount": null,
-        "exclude_blade_heart": false,
-        "exclude_name_ja_any": [],
-        "exclude_source": false,
-        "exclude_stage_unit_keys": false,
-        "exclude_unit_key": null,
-        "excluded_position_slots": [],
-        "heart_color_slot": null,
-        "heart_color_slots_all": [],
-        "heart_color_slots_any": [],
-        "maximum": 1,
-        "maximum_blade": null,
-        "maximum_cost": 4,
-        "maximum_cost_less_than_cost_selected": false,
-        "maximum_original_blade": null,
-        "maximum_score": null,
-        "minimum": 1,
-        "minimum_blade": null,
-        "minimum_cost": null,
-        "minimum_heart_count": null,
-        "minimum_original_blade": null,
-        "minimum_required_heart": null,
-        "minimum_required_heart_total": null,
-        "minimum_score": null,
-        "name_ja_any": [
-          "桜坂しずく"
-        ],
-        "orientation": null,
-        "position_target_unit_keys_any": [],
-        "post_action_condition_key": null,
-        "post_action_condition_minimum": null,
-        "required_heart_color_slot": null,
-        "requires_order": false,
-        "reveal_selected_to_opponent": false,
-        "same_name_as_cost_selected": false,
-        "same_name_as_stage": false,
-        "selected_destination": null,
-        "selection_groups": [],
-        "share_unit_with_cost_selected": false,
-        "share_unit_with_stage": false,
-        "target_hand_size": null,
-        "target_player": "self",
-        "unit_key": null,
-        "unit_keys_any": [],
-        "unselected_destination": null,
-        "value": null,
-        "work_key": null,
-        "zone": "hand"
-      },
-      "condition": {
-        "minimum_active_energy": 2
-      },
-      "cost": [
-        {
-          "action_type": "pay_energy",
-          "amount": 2,
-          "amount_source": null,
-          "branch": null,
-          "card_type": null,
-          "color_slot": null,
-          "flag": null,
-          "multiplier": null,
-          "orientation": null,
-          "target": null,
-          "target_hand_size": null,
-          "value": null
-        }
-      ],
+      "choice": null,
+      "condition": {},
+      "cost": [],
       "cost_choice": null,
       "duration": null,
       "effect_id": "PL!N-pb1-015:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "prompt_then_resolve",
+      "execution_mode": "manual_resolution",
       "follow_up_choice": null,
       "frequency_limit": "none",
       "is_optional": true,
       "label_ja": "【登場】【E】【E】支払ってもよい：手札からコスト4以下の「桜坂しずく」のメンバーカードを1枚ステージに登場させる。",
       "raw_text_hash": "021639ab988959afa66007794570d7a026e0a2edfc0832f617d7f96a1673f004",
-      "review_status": "test_validated",
-      "simulation_support": "test_validated_executable",
-      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
+      "review_status": "parsed_draft",
+      "simulation_support": "manual_resolution",
+      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
       "text_revision_id": 322,
       "timing": "on_play",
       "trigger": "member_played"
@@ -58307,7 +58190,7 @@
     {
       "actions": [
         {
-          "action_type": "deploy_selected_to_empty_stage",
+          "action_type": "manual_resolution",
           "amount": null,
           "amount_source": null,
           "branch": null,
@@ -58322,105 +58205,23 @@
         }
       ],
       "card_code": "PL!N-pb1-017",
-      "choice": {
-        "ability_bucket": [],
-        "amount": null,
-        "amount_source": null,
-        "amount_source_unit_key": null,
-        "amount_source_work_key": null,
-        "branch_choice_filters": {},
-        "branch_conditions": {},
-        "branch_energy_required": {},
-        "branch_ids": [],
-        "branch_selection_maximum": {},
-        "branch_selection_minimum": {},
-        "card_type": "member",
-        "choice_type": "deploy_member_from_waiting_room",
-        "color_slots": [],
-        "condition": {},
-        "destination_options": [],
-        "discard_amount": null,
-        "exclude_blade_heart": false,
-        "exclude_name_ja_any": [],
-        "exclude_source": false,
-        "exclude_stage_unit_keys": false,
-        "exclude_unit_key": null,
-        "excluded_position_slots": [],
-        "heart_color_slot": null,
-        "heart_color_slots_all": [],
-        "heart_color_slots_any": [],
-        "maximum": 1,
-        "maximum_blade": null,
-        "maximum_cost": 4,
-        "maximum_cost_less_than_cost_selected": false,
-        "maximum_original_blade": null,
-        "maximum_score": null,
-        "minimum": 1,
-        "minimum_blade": null,
-        "minimum_cost": null,
-        "minimum_heart_count": null,
-        "minimum_original_blade": null,
-        "minimum_required_heart": null,
-        "minimum_required_heart_total": null,
-        "minimum_score": null,
-        "name_ja_any": [
-          "宮下 愛"
-        ],
-        "orientation": null,
-        "position_target_unit_keys_any": [],
-        "post_action_condition_key": null,
-        "post_action_condition_minimum": null,
-        "required_heart_color_slot": null,
-        "requires_order": false,
-        "reveal_selected_to_opponent": false,
-        "same_name_as_cost_selected": false,
-        "same_name_as_stage": false,
-        "selected_destination": null,
-        "selection_groups": [],
-        "share_unit_with_cost_selected": false,
-        "share_unit_with_stage": false,
-        "target_hand_size": null,
-        "target_player": "self",
-        "unit_key": null,
-        "unit_keys_any": [],
-        "unselected_destination": null,
-        "value": null,
-        "work_key": null,
-        "zone": "hand"
-      },
-      "condition": {
-        "minimum_active_energy": 2
-      },
-      "cost": [
-        {
-          "action_type": "pay_energy",
-          "amount": 2,
-          "amount_source": null,
-          "branch": null,
-          "card_type": null,
-          "color_slot": null,
-          "flag": null,
-          "multiplier": null,
-          "orientation": null,
-          "target": null,
-          "target_hand_size": null,
-          "value": null
-        }
-      ],
+      "choice": null,
+      "condition": {},
+      "cost": [],
       "cost_choice": null,
       "duration": null,
       "effect_id": "PL!N-pb1-017:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "prompt_then_resolve",
+      "execution_mode": "manual_resolution",
       "follow_up_choice": null,
       "frequency_limit": "none",
       "is_optional": true,
       "label_ja": "【登場】【E】【E】支払ってもよい：手札からコスト4以下の「宮下 愛」のメンバーカードを1枚ステージに登場させる。",
       "raw_text_hash": "2033893f4ff526515fb9e58769d664c64692a964f06d6a43ea3679b56b7c81d3",
-      "review_status": "test_validated",
-      "simulation_support": "test_validated_executable",
-      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
+      "review_status": "parsed_draft",
+      "simulation_support": "manual_resolution",
+      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
       "text_revision_id": 324,
       "timing": "on_play",
       "trigger": "member_played"
@@ -59049,7 +58850,7 @@
     {
       "actions": [
         {
-          "action_type": "deploy_selected_to_empty_stage",
+          "action_type": "manual_resolution",
           "amount": null,
           "amount_source": null,
           "branch": null,
@@ -59064,105 +58865,23 @@
         }
       ],
       "card_code": "PL!N-pb1-023",
-      "choice": {
-        "ability_bucket": [],
-        "amount": null,
-        "amount_source": null,
-        "amount_source_unit_key": null,
-        "amount_source_work_key": null,
-        "branch_choice_filters": {},
-        "branch_conditions": {},
-        "branch_energy_required": {},
-        "branch_ids": [],
-        "branch_selection_maximum": {},
-        "branch_selection_minimum": {},
-        "card_type": "member",
-        "choice_type": "deploy_member_from_waiting_room",
-        "color_slots": [],
-        "condition": {},
-        "destination_options": [],
-        "discard_amount": null,
-        "exclude_blade_heart": false,
-        "exclude_name_ja_any": [],
-        "exclude_source": false,
-        "exclude_stage_unit_keys": false,
-        "exclude_unit_key": null,
-        "excluded_position_slots": [],
-        "heart_color_slot": null,
-        "heart_color_slots_all": [],
-        "heart_color_slots_any": [],
-        "maximum": 1,
-        "maximum_blade": null,
-        "maximum_cost": 4,
-        "maximum_cost_less_than_cost_selected": false,
-        "maximum_original_blade": null,
-        "maximum_score": null,
-        "minimum": 1,
-        "minimum_blade": null,
-        "minimum_cost": null,
-        "minimum_heart_count": null,
-        "minimum_original_blade": null,
-        "minimum_required_heart": null,
-        "minimum_required_heart_total": null,
-        "minimum_score": null,
-        "name_ja_any": [
-          "ミア・テイラー"
-        ],
-        "orientation": null,
-        "position_target_unit_keys_any": [],
-        "post_action_condition_key": null,
-        "post_action_condition_minimum": null,
-        "required_heart_color_slot": null,
-        "requires_order": false,
-        "reveal_selected_to_opponent": false,
-        "same_name_as_cost_selected": false,
-        "same_name_as_stage": false,
-        "selected_destination": null,
-        "selection_groups": [],
-        "share_unit_with_cost_selected": false,
-        "share_unit_with_stage": false,
-        "target_hand_size": null,
-        "target_player": "self",
-        "unit_key": null,
-        "unit_keys_any": [],
-        "unselected_destination": null,
-        "value": null,
-        "work_key": null,
-        "zone": "hand"
-      },
-      "condition": {
-        "minimum_active_energy": 2
-      },
-      "cost": [
-        {
-          "action_type": "pay_energy",
-          "amount": 2,
-          "amount_source": null,
-          "branch": null,
-          "card_type": null,
-          "color_slot": null,
-          "flag": null,
-          "multiplier": null,
-          "orientation": null,
-          "target": null,
-          "target_hand_size": null,
-          "value": null
-        }
-      ],
+      "choice": null,
+      "condition": {},
+      "cost": [],
       "cost_choice": null,
       "duration": null,
       "effect_id": "PL!N-pb1-023:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "prompt_then_resolve",
+      "execution_mode": "manual_resolution",
       "follow_up_choice": null,
       "frequency_limit": "none",
       "is_optional": true,
       "label_ja": "【登場】【E】【E】支払ってもよい：手札からコスト4以下の「ミア・テイラー」のメンバーカードを1枚ステージに登場させる。",
       "raw_text_hash": "f9917cb835b9a0fc50c7101015c4a428d4823816c6ffa52ee966e8bb4e43d844",
-      "review_status": "test_validated",
-      "simulation_support": "test_validated_executable",
-      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
+      "review_status": "parsed_draft",
+      "simulation_support": "manual_resolution",
+      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
       "text_revision_id": 330,
       "timing": "on_play",
       "trigger": "member_played"
@@ -78733,7 +78452,7 @@
           "color_slot": null,
           "flag": null,
           "multiplier": null,
-          "orientation": null,
+          "orientation": "active",
           "target": null,
           "target_hand_size": null,
           "value": null
@@ -81376,8 +81095,8 @@
       "card_code": "PL!SP-PR-020",
       "choice": null,
       "condition": {
-        "requires_baton_touch": true,
-        "replacement_member_cost_less_than_source": true
+        "replacement_member_cost_less_than_source": true,
+        "requires_baton_touch": true
       },
       "cost": [],
       "cost_choice": null,
@@ -85690,7 +85409,7 @@
           "color_slot": null,
           "flag": null,
           "multiplier": null,
-          "orientation": null,
+          "orientation": "active",
           "target": null,
           "target_hand_size": null,
           "value": null
@@ -85710,7 +85429,7 @@
         "branch_selection_maximum": {},
         "branch_selection_minimum": {},
         "card_type": "member",
-        "choice_type": "deploy_member_from_waiting_room",
+        "choice_type": "post_action_card_from_zone",
         "color_slots": [],
         "condition": {},
         "destination_options": [],

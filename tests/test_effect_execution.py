@@ -90,10 +90,11 @@ def test_effect_registry_card_pool_expansion_keeps_validated_support_floor():
     )
 
     # New official sets expand the denominator before their complex effects can
-    # be reviewed. Keep an absolute support floor so data refreshes cannot be
-    # blocked or "fixed" by falsely promoting manual entries. The v0.9 90%
+    # be reviewed. Four over-restricted deployment entries were explicitly
+    # downgraded after the rule 9.6.2.1.2 audit, not silently counted as supported.
+    # Keep an absolute support floor; the v0.9 90%
     # release target remains tracked by the registry audit and TODO.
-    assert executable >= 902
+    assert executable >= 899
     assert executable / len(registry.effects) >= 0.74
 
 
@@ -1008,7 +1009,7 @@ def test_effect_candidate_discovery_structures_pl_bp6_003_source_attachment():
         "minimum": 1,
         "maximum": 1,
     }
-    assert live_success.actions == [{"action_type": "deploy_selected_to_empty_stage"}]
+    assert live_success.actions == [{"action_type": "deploy_selected_to_empty_stage", "orientation": "active"}]
 
 
 def test_effect_candidate_discovery_structures_attached_energy_family():
@@ -1219,10 +1220,7 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
         "onplay_other_5yncri5e_draw1",
         "onplay_left_side_draw2_discard1",
         "onplay_optional_waiting_card_to_deck_top",
-        "onplay_optional_pay2_deploy_hand_uehara_ayumu_member_cost4",
-        "onplay_optional_pay2_deploy_hand_osaka_shizuku_member_cost4",
-        "onplay_optional_pay2_deploy_hand_miyashita_ai_member_cost4",
-        "onplay_optional_pay2_deploy_hand_mia_taylor_member_cost4",
+        "live_start_edel_pay2_deploy_or_reduce_heart06",
         "live_start_pay1_choose_any_heart1",
         "live_start_discard1_gain_blade1",
         "live_start_wait_source_center_muse_blade2",
@@ -1652,7 +1650,7 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
         "maximum": 1,
     }
     assert deploy_candidate.actions == [
-        {"action_type": "deploy_selected_to_empty_stage"}
+        {"action_type": "deploy_selected_to_empty_stage", "orientation": "active"}
     ]
     hasu_deploy_candidate = next(
         candidate
@@ -1758,7 +1756,7 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
         },
     }
     assert liella_baton_deploy_candidate.choice == {
-        "choice_type": "deploy_member_from_waiting_room",
+        "choice_type": "post_action_card_from_zone",
         "zone": "waiting_room",
         "card_type": "member",
         "work_key": "love_live_superstar",
@@ -1768,7 +1766,7 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
     }
     assert liella_baton_deploy_candidate.actions == [
         {"action_type": "draw_card", "amount": 2},
-        {"action_type": "deploy_selected_to_empty_stage"},
+        {"action_type": "deploy_selected_to_empty_stage", "orientation": "active"},
     ]
     left_draw_discard_candidate = next(
         candidate
@@ -6895,7 +6893,7 @@ def test_pl_bp6_003_live_success_deploys_attached_member_to_empty_center():
     assert player.member_area["center"] == "attached-low"
     assert player.member_area_attachments["left"] == ["attached-high"]
     assert "center" in player.member_areas_entered_this_turn
-    assert state.cards["attached-low"].orientation == "wait"
+    assert state.cards["attached-low"].orientation == "active"
     assert not state.pending_effects
 
 

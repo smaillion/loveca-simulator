@@ -28,7 +28,9 @@ API Play 测试工具已隔离对手背面卡与他方私有选择，区分 mock
 `PL!-PR-015` / `PL!SP-PR-020` 仅在确实从较低费用 Member Baton 入场时显示手动技能提示。
 两张卡仍为手动处理，暂不把不完整的区域 / 朝向选择登记为自动支持。
 [中文审计报告](./docs/development/baton-hand-deploy-audit.md)
-另有 10 条旧效果登场登记存在默认横置风险，已逐项警告并优先排入修正；登记率不代表规则正确率。
+已逐项复核 10 条旧效果登场：6 条明确空区域的技能改为 Active 登场并支持位置选择；
+4 条不限定空区域的虹咲技能退回手动处理，等待合法替换区域底座。旧 Replay 朝向不变。
+[本轮验证及限制](./docs/development/empty-effect-deployment-verification.md)。登记率不代表规则正确率。
 
 `develop`（下一版 `v0.9`）当前已收录:
 
@@ -43,8 +45,8 @@ API Play 测试工具已隔离对手背面卡与他方私有选择，区分 mock
   - 1,977 条 Gameplay Card / 2,700 个印刷版本 / 1,246 条文本修订 / 24 个 Card Set
   - importer 优先使用官方 products API，不会把尚未公开卡表的未来商品或 unit filter 误当成卡包
 - 1,212 条 effect registry entry
-  - 902 条为 `test_validated_executable`
-  - 310 条为 timing prompt / 未支持处理用 `manual_resolution`
+  - 899 条（74.17%）为 `test_validated_executable`
+  - 313 条为 timing prompt / 未支持处理用 `manual_resolution`
   - 新卡包中发现的未支持技能也会显式登记为 manual，避免静默跳过
 - 面向未来低成本 online 同步的 state hash / compatibility metadata 基础
 - Hosted Online MVP 房间 API
@@ -81,14 +83,14 @@ API Play 测试工具已隔离对手背面卡与他方私有选择，区分 mock
 - 部分双方都需要选择的效果已可通过 multi-player pending choice 顺序处理
 - 支持把 Stage Member 目标拆成多个选择组，并对各组选中目标应用相同的临时 modifier
 - 支持每个分支使用不同 Stage Member 候选池的技能选择
-- 按 registry entry 计算的 `test_validated_executable` 覆盖率为 74.42%（902 / 1,212）。全量同步官方数据后，复杂未支持技能也被如实登记为 manual，因此比例下降，但可执行技能绝对数量继续增加
+- 按 registry entry 计算的 `test_validated_executable` 覆盖率为 74.17%（899 / 1,212）。未适配新技能和审计发现不准确的旧登场效果均明确标为 manual，不靠错误登记维持数字
 - `PBSP02` 相关技能 74 条中 63 条已结构化，新补充包覆盖率确认达到 85.14%
 - 追加结构化支持 μ's / Aqours / Saint Snow / Nijigasaki / Hasunosora / Edel Note 的部分控室回收、Energy ready、牌堆顶检查、应援公开条件和带手牌成本的 Live 开始时效果
 - static Heart / Blade 等常时效果现在只会在 operation 侧条件满足时计入
 - `PBSP02` 集中 block sandbox 为 `30 decks x 20 matches` 中 19 局完走，`mandatory_manual_resolution = 0`，剩余 1 局为 `max_actions:match_point_players_have_no_live_in_hand`
 - Phase 5 broad black-box sandbox 已在 `30 decks x 100 matches` block mode 中达到 `100/100` 完走，blocker 为 0
 - 最新 skill-dense Simple AI regression 为 `30 decks x 100 matches` 100/100 完赛，blocker / silent skip / Replay error 均为 0
-- 之前问题卡 targeted sandbox 中的 `PL!S-bp6-001:1` / `PL!S-pb1-001:1` 已完成结构化；剩余 310 条未支持技能通过 gap report 记录原因
+- 之前问题卡 targeted sandbox 中的 `PL!S-bp6-001:1` / `PL!S-pb1-001:1` 已完成结构化；剩余 313 条未支持技能通过 gap report 记录原因
 - 已结构化 `LL-bp5-002:1`：Stage 上存在 3 名不同组合的 Member 时，中心 Member 获得持续到本次 Live 结束的任意色 Heart
 - 2026-10 全量同步后，基于官方综合规则 ver.1.06 的 AI 逐 Action 审计为 20/20 完赛，13/20 满足“10 回合内且双方至少各成功一次 Live”；共 13,539 条检查，Replay error / effect-error skip 均为 0
 - 最新 30 deck / 50 match black-box run 中 executable effect 为 314/314、skipped effect 为 0、Replay error 为 0；34 局完赛，剩余 16 局因 Live 获取或长局策略达到 action cap，作为 AI 策略问题而非非法规则操作追踪
@@ -134,7 +136,7 @@ Bug 报告、规则行为讨论和 online 对战伙伴寻找请前往 [Discord](
 
 - 这是开发中的 alpha 版本，不是官方数字客户端。当前目标是规则验证和收集 playtest feedback。
 - 还没有覆盖全卡技能自动执行。未支持技能可能需要 `ManualAdjustmentAction`、结构化 pending choice，或用调试 skip 继续推进。
-- 最新全量官方同步仍明确保留 310 条 `manual_resolution`；未在测试池触发或语义复杂的技能仍需人工处理，最新分类见 `docs/13-effect-semantics-audit.md` 与 `TODO.md`。
+- 当前明确保留 313 条 `manual_resolution`；未在测试池触发或语义复杂的技能仍需人工处理，最新分类见 `docs/13-effect-semantics-audit.md` 与 `TODO.md`。
 - `BP07` 的 `無2` 特殊 Blade Heart 无法仅凭综合规则 ver.1.06 确定语义，因此不会猜测实现，当前保持未支持状态。
 - 依赖 FAQ 或个别裁定的效果尚未规格化。
 - `data/loveca.sqlite3` 是仓库内锁版本权威卡牌 DB。官方补充包或 parser/schema/effect registry 变化后，由维护者重建并提交新的 DB 与 `data/loveca-db-manifest.json`；普通用户和 CI 不应自行 import 产生不同线上 DB。保存牌组是 `decklist.v0` 用户数据，可以和卡牌数据库分开保留。

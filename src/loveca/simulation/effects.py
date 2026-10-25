@@ -163,7 +163,10 @@ class EffectOperation(BaseModel):
                 )
             if self.orientation is None:
                 raise ValueError("place_energy_from_deck requires an orientation")
-        elif self.orientation is not None:
+        elif (
+            self.orientation is not None
+            and self.action_type != "deploy_selected_to_empty_stage"
+        ):
             raise ValueError(
                 f"orientation is not supported for effect operation {self.action_type}"
             )

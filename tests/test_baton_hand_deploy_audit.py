@@ -184,15 +184,13 @@ def test_baton_condition_compares_card_cost_not_discounted_payment():
     assert played.data["payment_cost"] == 0
 
 
-def test_gap_report_warns_about_existing_executable_orientation_gaps(tmp_path):
+def test_gap_report_has_no_remaining_executable_orientation_gaps(tmp_path):
     from tools.ai_sandbox.effect_gap_report import build_effect_gap_report, write_gap_outputs
     report = build_effect_gap_report(database_path=None, top=500)
     warnings = report["executable_audit_warnings"]
-    assert len(warnings) == 10
-    assert {item["reason"] for item in warnings} == {"deploy_orientation_unspecified_uses_legacy_wait_default"}
-    assert all(item["rule_clauses"] == ["4.3.2.3"] for item in warnings)
+    assert warnings == []
     write_gap_outputs(tmp_path, report)
-    assert "已登记技能的待修正风险" in (tmp_path / "effect-gap-report.md").read_text(encoding="utf-8")
+    assert (tmp_path / "effect-gap-report.md").is_file()
 
 
 def test_manual_deploy_prompt_does_not_expose_hand_targets_to_opponent():

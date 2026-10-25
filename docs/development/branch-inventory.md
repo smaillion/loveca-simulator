@@ -28,6 +28,11 @@ Baton 原型检查点：已核对 `07f51e4` 的两个 PR entry，没有直接恢
 见 `baton-hand-deploy-audit.md`。旧 API Play 的提交与 dirty 成果已逐类登记去向，底座未完成前
 父收敛任务继续保持进行中。
 
+效果登场检查点：六条明确空区域的技能已修正 Active / 分步选择 / UI / AI；
+四条没有空区域限定的虹咲技能已退回 manual。尚未迁移的已有 Member 区域替换和入场身份
+规则继续由父任务追踪，两张 PR 卡仍不提升。原 dirty 工作树和报告未动。
+见 `empty-effect-deployment-verification.md`。
+
 ## 工作树
 
 | 分支 | 领先 / 落后 develop | 未提交文件 | 处理方式 | 路径 |

@@ -4985,6 +4985,7 @@ export function EffectResolutionAction({
     selected_branch?: string;
     branch_from_cost?: boolean;
     position_change_slots_by_candidate?: Record<string, string[]>;
+    deployment_choice?: boolean;
     choice_groups?: Array<{
       group_id: string;
       label_ja?: string | null;
@@ -5049,7 +5050,7 @@ export function EffectResolutionAction({
     selectedPositionCandidates.length === 1
       ? (positionSlotsByCandidate[selectedPositionCandidates[0]] ?? [])
       : [];
-  const requiresPositionSlot = positionSlotOptions.length > 0;
+  const requiresPositionSlot = selectedPositionCandidates.length === 1;
   const resolvedPositionSlot = selectedPositionSlot || positionSlotOptions[0] || "";
   const positionSlotValid =
     !requiresPositionSlot || positionSlotOptions.includes(resolvedPositionSlot);
@@ -5161,7 +5162,7 @@ export function EffectResolutionAction({
       )}
       {requiresPositionSlot && (
         <div className="effect-candidates effect-position-choices">
-          <span>{tr("移动到", "移動先")}</span>
+          <span>{current.deployment_choice ? tr("登场区域", "登場エリア") : tr("移动到", "移動先")}</span>
           {positionSlotOptions.map((slot) => (
             <button
               className={resolvedPositionSlot === slot ? "selected" : ""}

@@ -95,6 +95,10 @@ illegal / blocker / skipped effect / Replay 序列化错误均为 0。仅 7/10 �
 
 ## 下一切片
 
+后续更新：已完成[空区域子集修正](./empty-effect-deployment-verification.md)，原 10 条警告中
+6 条改为显式 Active 并补齐 UI / AI，另外 4 条不限定空区域的技能已退回 manual。
+当前计数为 899 / 1212、313 manual；下方 903 / 1212 为本报告初次审计时的历史快照。
+
 队列 `effect-deployment-rule-conformance`：补齐合法区域、Active 默认朝向、重复处理、
 Member 入场身份跟踪、UI 和 AI 选择，再重新验证两张 PR 卡及上述 10 条旧登记。
 涉及旧 snapshot 的行为必须保留显式兼容边界，不直接用新解释伪装旧 Replay 一致。

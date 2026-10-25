@@ -25,6 +25,10 @@ from loveca.simulation.effects import (
 )
 
 GAP_REPORT_SCHEMA_VERSION = "effect_gap_report_v0.2"
+UNRESTRICTED_NAMED_HAND_DEPLOY_TEXTS = frozenset(
+    f"【登場】【E】【E】支払ってもよい：手札からコスト4以下の「{name}」のメンバーカードを1枚ステージに登場させる。"
+    for name in ("上原歩夢", "桜坂しずく", "宮下 愛", "ミア・テイラー")
+)
 
 
 @dataclass
@@ -244,6 +248,8 @@ def classify_unresolved_reason(trigger: str, timing: str, label_ja: str) -> str:
 
     if label_ja == BATON_LOWER_COST_HAND_DEPLOY_TEXT:
         return "member_deployment_area_orientation_ui_ai_not_rules_conformant"
+    if label_ja in UNRESTRICTED_NAMED_HAND_DEPLOY_TEXTS:
+        return "occupied_stage_deployment_and_current_member_entry_history_not_modeled"
     if trigger == "static_always" or timing == "static" or "【常時】" in label_ja:
         if "能力" in label_ja and ("発動" in label_ja or "得る" in label_ja):
             return "nested_or_inherited_effect_invocation_not_modeled"
