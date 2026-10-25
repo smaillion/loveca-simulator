@@ -12,6 +12,10 @@
 同一个 Draft PR。入口见[持续开发指南](./docs/21-continuous-development.md)与
 [执行流程](./automation/WORKFLOW.md)；合并和部署仍需维护者确认。
 
+已从旧工作树迁移综合规则 ver.1.06 的只读 Profile 与 49 条规则引用；未审核 FAQ 不生效。
+对局 / Replay 接入和规则矩阵仍在后续队列，来源校验不代表 v0.9 规则门禁完成。
+详见[迁移范围与限制](./docs/22-ruleset-source-profile-migration.md)。
+
 `develop`（下一版 `v0.9`）当前已收录:
 
 - 基于官方 `card_list` JSON API 的正式卡牌 importer

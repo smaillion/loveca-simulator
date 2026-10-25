@@ -1,0 +1,379 @@
+{
+  "schema_version": "ruleset_profiles_v0.1",
+  "current_ruleset_id": "loveca-ja-1.06",
+  "sources": [
+    {
+      "source_id": "comprehensive_rules_1_06",
+      "source_kind": "comprehensive_rules_pdf",
+      "official_url": "https://llofficial-cardgame.com/wordpress/wp-content/uploads/2026/04/28140005/LoveLiveTCG_cr_1.06_260428.pdf",
+      "local_path": "raw_doc/LoveLiveTCG_cr_1.06_260428.pdf",
+      "sha256": "c4f6881dcac15f69614799560fe8a327c878d4ccd8e41c85cc1d970e697ce485",
+      "published_date": "2026-04-28",
+      "validation_status": "source_confirmed"
+    },
+    {
+      "source_id": "official_rule_qa",
+      "source_kind": "official_qa",
+      "official_url": "https://llofficial-cardgame.com/rule/",
+      "local_path": null,
+      "sha256": null,
+      "published_date": null,
+      "validation_status": "source_available_unreviewed"
+    }
+  ],
+  "profiles": [
+    {
+      "ruleset_id": "loveca-ja-1.06",
+      "rule_version": "1.06",
+      "ruling_pack_version": "comprehensive-only-v1",
+      "source_ids": [
+        "comprehensive_rules_1_06"
+      ],
+      "rule_references": [
+        {
+          "reference_id": "cr-1.2.1.1",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "1.2.1.1",
+          "summary_ja": "一方だけが成功ライブ3枚以上になった場合、そのプレイヤーが勝利する。",
+          "summary_zh": "仅一方成功 Live 达到 3 张时，该玩家获胜。"
+        },
+        {
+          "reference_id": "cr-1.2.1.2",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "1.2.1.2",
+          "summary_ja": "双方が同時に成功ライブ3枚以上になった場合、引き分けになる。",
+          "summary_zh": "双方同时成功 Live 达到 3 张时，比赛为平局。"
+        },
+        {
+          "reference_id": "cr-1.3.1",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "1.3.1",
+          "summary_ja": "カードテキストと総合ルールが矛盾する場合、カードテキストを優先する。",
+          "summary_zh": "卡牌文本与综合规则冲突时，以卡牌文本为准。"
+        },
+        {
+          "reference_id": "cr-1.3.2",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "1.3.2",
+          "summary_ja": "処理のすべてを実行できない場合、実行可能な部分を実行する。",
+          "summary_zh": "无法完成全部处理时，执行能够完成的部分。"
+        },
+        {
+          "reference_id": "cr-4.6",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "4.6",
+          "summary_ja": "ライブエリアは公開領域だが、セット中のカードは裏向きで置かれる。",
+          "summary_zh": "Live 区是公开区域，但设置期间卡牌暂时背面放置。"
+        },
+        {
+          "reference_id": "cr-4.11",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "4.11",
+          "summary_ja": "手札は非公開領域であり、相手はカードの内容を確認できない。",
+          "summary_zh": "手牌是非公开区域，对手不能确认卡牌身份。"
+        },
+        {
+          "reference_id": "cr-4.12",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "4.12",
+          "summary_ja": "控え室は公開領域である。",
+          "summary_zh": "控室是公开区域。"
+        },
+        {
+          "reference_id": "cr-5.6",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "5.6",
+          "summary_ja": "カードを引く場合、デッキの上から手札へ移動する。",
+          "summary_zh": "抽牌从主牌库顶移动到手牌。"
+        },
+        {
+          "reference_id": "cr-5.7",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "5.7",
+          "summary_ja": "デッキの上を見る処理だけではカードの領域を変更しない。",
+          "summary_zh": "查看牌库顶不会擅自改变卡牌区域。"
+        },
+        {
+          "reference_id": "cr-5.9",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "5.9",
+          "summary_ja": "エネルギーの支払いでは指定枚数のアクティブなエネルギーをウェイトにする。",
+          "summary_zh": "支付 Energy 时将指定数量 Active Energy 变为 Wait。"
+        },
+        {
+          "reference_id": "cr-6.2.1.2",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "6.2.1.2",
+          "summary_ja": "ゲーム開始時にメインデッキをシャッフルする。",
+          "summary_zh": "对局开始时洗切主牌库。"
+        },
+        {
+          "reference_id": "cr-6.2.1.4",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "6.2.1.4",
+          "summary_ja": "先攻後攻を決める権利を持つプレイヤーを無作為に決定する。",
+          "summary_zh": "随机决定取得先后手选择权的玩家。"
+        },
+        {
+          "reference_id": "cr-6.2.1.5",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "6.2.1.5",
+          "summary_ja": "両プレイヤーは初期手札として6枚引く。",
+          "summary_zh": "双方起手各抽 6 张。"
+        },
+        {
+          "reference_id": "cr-6.2.1.6",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "6.2.1.6",
+          "summary_ja": "先攻後攻の順で引き直しを行い、選んだ枚数と同じ枚数を引く。",
+          "summary_zh": "依先后手顺序调度并补回相同张数。"
+        },
+        {
+          "reference_id": "cr-6.2.1.7",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "6.2.1.7",
+          "summary_ja": "両プレイヤーは初期エネルギーを3枚置く。",
+          "summary_zh": "双方初始放置 3 张 Energy。"
+        },
+        {
+          "reference_id": "cr-7.3.3",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "7.3.3",
+          "summary_ja": "通常のターンはアクティブ、エネルギー、ドロー、メインの順に進行する。",
+          "summary_zh": "通常阶段依 Active、Energy、Draw、Main 顺序进行。"
+        },
+        {
+          "reference_id": "cr-7.4",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "7.4",
+          "summary_ja": "アクティブフェイズでは自分のウェイト状態のメンバーとエネルギーをアクティブにする。",
+          "summary_zh": "Active Phase 将己方 Wait 的 Member 与 Energy 变为 Active。"
+        },
+        {
+          "reference_id": "cr-7.5",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "7.5",
+          "summary_ja": "エネルギーフェイズではエネルギーデッキの上から1枚を置く。",
+          "summary_zh": "Energy Phase 从 Energy Deck 顶补充 1 张 Energy。"
+        },
+        {
+          "reference_id": "cr-7.6",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "7.6",
+          "summary_ja": "ドローフェイズではカードを1枚引く。",
+          "summary_zh": "Draw Phase 抽 1 张卡。"
+        },
+        {
+          "reference_id": "cr-7.7",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "7.7",
+          "summary_ja": "メインフェイズではメンバーの登場、起動能力の使用、フェイズ終了を行える。",
+          "summary_zh": "Main Phase 可登场 Member、发动起动能力或结束阶段。"
+        },
+        {
+          "reference_id": "cr-8.2",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "8.2",
+          "summary_ja": "両プレイヤーは順に3枚までセットし、同じ枚数を引く。",
+          "summary_zh": "双方依序设置至多 3 张卡并补抽相同张数。"
+        },
+        {
+          "reference_id": "cr-8.3.4",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "8.3.4",
+          "summary_ja": "ライブエリアのカードを公開し、ライブカードでないカードを控え室に置く。",
+          "summary_zh": "公开 Live 区卡牌，非 Live 卡进入控室。"
+        },
+        {
+          "reference_id": "cr-8.3.8",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "8.3.8",
+          "summary_ja": "ライブ開始時の能力を定められたタイミングで処理する。",
+          "summary_zh": "Live 开始时能力在规定时点触发。"
+        },
+        {
+          "reference_id": "cr-8.3.10",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "8.3.10",
+          "summary_ja": "応援回数はアクティブなメンバーのブレード合計で決まる。",
+          "summary_zh": "应援次数为 Active Member 的 Blade 合计。"
+        },
+        {
+          "reference_id": "cr-8.3.11",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "8.3.11",
+          "summary_ja": "応援回数分、デッキの上からカードを公開して解決領域に置く。",
+          "summary_zh": "按应援次数从牌库顶公开卡牌到 Resolution Area。"
+        },
+        {
+          "reference_id": "cr-8.3.12",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "8.3.12",
+          "summary_ja": "特殊ブレードハートのドローやスコア等を処理する。",
+          "summary_zh": "处理特殊 Blade Heart 的抽牌、分数等效果。"
+        },
+        {
+          "reference_id": "cr-8.3.14",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "8.3.14",
+          "summary_ja": "使用可能なハートはメンバーハートと応援ハートの合計である。",
+          "summary_zh": "可用 Heart 为 Member Heart 与应援 Heart 的合计。"
+        },
+        {
+          "reference_id": "cr-8.3.15",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "8.3.15",
+          "summary_ja": "ライブごとに必要ハートを満たし、任意色は指定色の代わりに使用できる。",
+          "summary_zh": "逐张满足 Live 所需 Heart，任意色可代替指定颜色。"
+        },
+        {
+          "reference_id": "cr-8.3.16",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "8.3.16",
+          "summary_ja": "いずれかのライブの必要ハートを満たせない場合、そのプレイヤーのライブをすべて控え室に置く。",
+          "summary_zh": "任一 Live 需求不满足时，本方 Live 全部进入控室。"
+        },
+        {
+          "reference_id": "cr-8.4.2",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "8.4.2",
+          "summary_ja": "ライブの合計スコアはライブカードのスコアと特殊応援スコアの合計である。",
+          "summary_zh": "Live 总分为 Live 分数与特殊应援分数的合计。"
+        },
+        {
+          "reference_id": "cr-8.4.3",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "8.4.3",
+          "summary_ja": "スコア比較の前に両者のライブエリアにカードが残っているか確認する。",
+          "summary_zh": "比分时先判断双方 Live 区是否仍有卡，再比较总分。"
+        },
+        {
+          "reference_id": "cr-8.4.4",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "8.4.4",
+          "summary_ja": "ライブエリアにライブカードが残るプレイヤーはライブ成功となる。",
+          "summary_zh": "Live 区仍有 Live 卡的玩家视为 Live 成功。"
+        },
+        {
+          "reference_id": "cr-8.4.5",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "8.4.5",
+          "summary_ja": "ライブ成功後、スコア比較前にチェックタイミングと自動能力を処理する。",
+          "summary_zh": "Live 成功后先处理检查时点和自动能力。"
+        },
+        {
+          "reference_id": "cr-8.4.6",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "8.4.6",
+          "summary_ja": "両者の合計スコアを比較し、同点条件では双方が勝者になり得る。",
+          "summary_zh": "比较双方总分；满足条件的同分可由双方同时胜出。"
+        },
+        {
+          "reference_id": "cr-8.4.7",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "8.4.7",
+          "summary_ja": "勝者はライブエリアから1枚を選び成功ライブエリアに置く。",
+          "summary_zh": "胜者从 Live 区选 1 张放入成功 Live 区。"
+        },
+        {
+          "reference_id": "cr-8.4.7.1",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "8.4.7.1",
+          "summary_ja": "同点時、成功ライブが2枚あるプレイヤーは新たに成功ライブへ置けない。",
+          "summary_zh": "同分时已有 2 张成功 Live 的玩家不能再放置。"
+        },
+        {
+          "reference_id": "cr-8.4.8",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "8.4.8",
+          "summary_ja": "判定後、残りのライブと応援カードを控え室に置く。",
+          "summary_zh": "结算后其余 Live 与应援卡进入控室。"
+        },
+        {
+          "reference_id": "cr-8.4.10",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "8.4.10",
+          "summary_ja": "このターンまだ誘発していないターン終了時の自動能力を誘発させる。",
+          "summary_zh": "触发本回合尚未触发的回合结束自动能力。"
+        },
+        {
+          "reference_id": "cr-8.4.11",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "8.4.11",
+          "summary_ja": "チェックタイミングの処理後、ターン終了時まで・ライブ終了時までの効果を消滅させる。",
+          "summary_zh": "检查时点处理完成后，回合结束或 Live 结束到期的效果失效。"
+        },
+        {
+          "reference_id": "cr-8.4.12",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "8.4.12",
+          "summary_ja": "チェックタイミングで処理した場合や新たな誘発がある場合、8.4.9から再確認する。",
+          "summary_zh": "检查时点处理过能力或规则处理，或有新触发时，返回 8.4.9 再检查。"
+        },
+        {
+          "reference_id": "cr-8.4.13",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "8.4.13",
+          "summary_ja": "一方だけが成功ライブを増やした場合はそのプレイヤーが次の先攻になり、それ以外は元の先攻を維持する。",
+          "summary_zh": "仅一方新增成功 Live 时该方成为下回合先攻，否则先攻不变。"
+        },
+        {
+          "reference_id": "cr-9.1",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "9.1",
+          "summary_ja": "能力は起動、自動、常時などの種類に従って処理する。",
+          "summary_zh": "能力按起动、自动、常时等类型处理。"
+        },
+        {
+          "reference_id": "cr-9.4",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "9.4",
+          "summary_ja": "能力のコストを支払った後に効果を処理する。",
+          "summary_zh": "支付能力费用后再处理效果。"
+        },
+        {
+          "reference_id": "cr-9.5",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "9.5",
+          "summary_ja": "能力は適正なタイミングでのみ使用および解決できる。",
+          "summary_zh": "能力只能在合法时点发动和结算。"
+        },
+        {
+          "reference_id": "cr-9.6.2",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "9.6.2",
+          "summary_ja": "メンバーの登場と関連能力を規定の順序で処理する。",
+          "summary_zh": "Member 登场和能力处理必须按规则顺序完成。"
+        },
+        {
+          "reference_id": "cr-9.6.2.1.2",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "9.6.2.1.2",
+          "summary_ja": "メンバーのプレイ時に自分のメンバーエリアを1つ指定する。",
+          "summary_zh": "登场 Member 时指定一个己方 Member 区域。"
+        },
+        {
+          "reference_id": "cr-9.6.2.3.2",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "9.6.2.3.2",
+          "summary_ja": "バトンタッチでは元のメンバーのコストを登場に必要なエネルギーから差し引く。",
+          "summary_zh": "Baton Touch 以原 Member cost 抵扣登场 Energy。"
+        },
+        {
+          "reference_id": "cr-9.6.3",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "9.6.3",
+          "summary_ja": "目標は、解決中に選択の指示が現れた段階で選ぶ。",
+          "summary_zh": "目标在结算中到达选择指示时选定。"
+        },
+        {
+          "reference_id": "cr-9.6.2.1.2.1",
+          "source_id": "comprehensive_rules_1_06",
+          "clause_id": "9.6.2.1.2.1",
+          "summary_ja": "このターンにステージ外から移動したメンバーのいるエリアは指定できない。",
+          "summary_zh": "不能指定本回合已有 Member 从场外进入且仍有该 Member 的区域。"
+        }
+      ]
+    }
+  ]
+}

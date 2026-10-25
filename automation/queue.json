@@ -20,11 +20,47 @@
       "acceptance": ["任务和租约在重启后保留", "重叠运行不能同时写入", "测试失败或过期证据不能发布", "复用固定工作树和唯一 Draft PR", "远程合并和部署仍需明确批准"]
     },
     {
+      "id": "legacy-ruleset-source-profile",
+      "priority": 0,
+      "title": "迁移旧 Ruleset 来源档案并固定可移植指纹",
+      "status": "queued",
+      "depends_on": ["continuous-workflow"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["只读核对旧 Phase 6 和 API Play 改动，登记迁移边界", "迁移只读来源档案、规则引用和测试，不改变 MatchState 或 SQLite schema", "PDF hash、来源链接、重复标识和指纹稳定性有真实断言", "未审核 FAQ 不进入当前生效来源，文档不宣称规则门禁已经完成"]
+    },
+    {
+      "id": "legacy-ruleset-match-replay",
+      "priority": 1,
+      "title": "将 Ruleset 身份接入 Match / Replay / Online 兼容性",
+      "status": "queued",
+      "depends_on": ["legacy-ruleset-source-profile"],
+      "required_profiles": ["registry", "backend", "web"],
+      "acceptance": ["拒绝未知 Profile，旧请求和旧 Replay 保持兼容", "规则指纹不一致不能宣称重放一致", "不照搬旧 hosted_rooms ALTER TABLE，先采用兼容的序列化状态方案", "验证旧快照、房间、隐藏信息与 Replay 行为"]
+    },
+    {
+      "id": "legacy-core-matrix-and-end-phase",
+      "priority": 1,
+      "title": "选择性迁移核心规则矩阵与 End Phase 重复检查",
+      "status": "queued",
+      "depends_on": ["legacy-ruleset-match-replay"],
+      "required_profiles": ["registry", "backend", "web"],
+      "acceptance": ["依据固定 PDF 复核 8.4.10-12 行为并增加真实状态转换与 Replay 断言", "迁移至少 75 个核心场景及 20 个 Live 边界，区分契约检查和行为测试", "用当前 1212 条 registry 重算 unresolved reason，不覆盖旧卡库统计", "保留原工作树及报告，不搬运旧版本的通过声明"]
+    },
+    {
+      "id": "legacy-api-play-comparison",
+      "priority": 1,
+      "title": "核对并选择性迁移 API Play 普通行动与成本分支测试",
+      "status": "queued",
+      "depends_on": ["continuous-workflow"],
+      "required_profiles": ["registry", "backend", "web"],
+      "acceptance": ["对比旧分支 16 个提交及 6 个未提交文件，不全量合并", "只迁移当前缺少的普通 LegalAction comparison 或成本分支语义", "默认 mock，不调用付费模型；不得泄露对手隐藏手牌", "registry 改动必须精确文本绑定并有状态转换和 Replay 测试"]
+    },
+    {
       "id": "legacy-worktree-reconciliation",
       "priority": 1,
       "title": "迁移旧工作树中尚未收口的 Phase 6 / API Play 成果",
       "status": "queued",
-      "depends_on": ["continuous-workflow"],
+      "depends_on": ["legacy-ruleset-source-profile", "legacy-ruleset-match-replay", "legacy-core-matrix-and-end-phase", "legacy-api-play-comparison"],
       "required_profiles": ["control", "registry", "backend", "web"],
       "acceptance": ["逐项对比工作树清单，不直接合并旧实验", "保留未提交改动及 ignored 报告", "只迁移当前主线缺少且已测试的实现", "更新唯一分支清单，不新增长期分叉"]
     },

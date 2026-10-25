@@ -4,6 +4,9 @@
 
 ### 追加 / 新增
 
+- 旧 Phase 6 worktree から読み取り専用 Ruleset Profile と 49 件の条項参照を移行し、PDF hash、参照整合性、パスや並び順に依存しない fingerprint を検証する。未審査 FAQ は非適用とし、対局 / Replay 接続は次の工程に分離した。
+- 中文: 从旧 Phase 6 工作树选择性迁移只读 Ruleset Profile 和 49 条规则引用，校验 PDF hash、引用完整性及不受路径/顺序影响的指纹；未审 FAQ 不生效，对局 / Replay 接入留给后续切片，不改现有数据和协议。
+
 - 継続開発を単一 branch / worktree に集約し、依存付き task queue、永続 lease、source hash 付き test evidence、既存 Draft PR 再利用と CI gate を追加した。remote merge / deploy は引き続き maintainer 承認を必要とする。
 - 持续开发改为单一分支 / 工作树，新增带依赖的任务队列、持久租约、绑定源码 hash 的测试证据、Draft PR 复用与 CI 门禁；远程合并和部署继续保留人工批准。
 - 公式 PDF 監査の clean CI 環境での収集失敗を避けるため、`pypdf` を dev dependency に明示した。

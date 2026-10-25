@@ -7,6 +7,9 @@
 - 自动推进入口固定为 `codex/continuous-development`，规则和队列见 `automation/`。
 - 先对比旧 v0.9 工作树的 44 项未提交 Ruleset / 规则矩阵改动，再核对旧 API Play 的 6 项改动。
 - 保留其原始工作树和报告，逐项迁移验证；不得直接全量合并旧实验或删除 dirty worktree。
+- 已完成来源档案切片：只读 Ruleset、49 条 PDF 引用、稳定指纹和未审 FAQ 隔离，详见
+  `docs/22-ruleset-source-profile-migration.md`。后续依次接入 Match/Replay 身份、End Phase /
+  规则矩阵，再收敛 API Play；不把旧卡池通过结论直接当作当前证据。
 - 后续按任务队列推进 AI 长局、技能准确度和 v0.9 门禁；不再为每轮自动任务开分支。
 
 ### AI-DLC Rollout Validation

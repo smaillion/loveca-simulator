@@ -12,6 +12,10 @@
 タスク、検証結果、PR を引き継ぐ運用は [継続開発ガイド](./docs/21-continuous-development.md)
 と [実行手順](./automation/WORKFLOW.md) を参照してください。
 
+旧 worktree から公式ルール ver.1.06 の読み取り専用 Profile と 49 件の条項参照を移行しました。
+FAQ は未審査のため非適用です。対局 / Replay への接続とルール行列は次の工程であり、
+今回の資料検証だけで v0.9 準拠を宣言しません。[移行範囲](./docs/22-ruleset-source-profile-migration.md)
+
 `develop`（次期 `v0.9`）の収録内容:
 
 - 公式 `card_list` JSON API からの正式カード importer

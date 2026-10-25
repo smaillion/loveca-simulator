@@ -10,6 +10,11 @@ v0-9-card-sync-effects-ai-reliability 的 3 个提交与当前分支 patch 等�
 优先核对 v0-9-rule-conformance-beta 的 44 项、phase5-api-play-coverage-next 的 6 项未提交改动。
 远程仍有旧 PR #27（develop Draft）、#28（preview）、#38（test）；本次不自动关闭它们。
 
+2026-10-25 迁移检查点：旧 v0.9 的 44 项与 API Play 的 6 项 dirty 内容均已只读清点；
+只选择性迁移 Ruleset 来源定义 / JSON / 测试 / spec，并修正路径相关指纹与未审 FAQ 激活。
+未提交原文件和 ignored 报告未改动、未删除。其他内容仍待队列逐批迁移；不视为已收敛。
+详细范围见 `../22-ruleset-source-profile-migration.md`，后续任务见 `automation/queue.json`。
+
 ## 工作树
 
 | 分支 | 领先 / 落后 develop | 未提交文件 | 处理方式 | 路径 |

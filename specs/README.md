@@ -25,6 +25,7 @@ Current specs are requirement and architecture specifications only. They do not 
 * [018 Card Data Storage](018-card-data-storage.spec.md)
 * [019 Effect Execution MVP](019-effect-execution-mvp.spec.md)
 * [020 Stage Attachments and Movement](020-stage-attachments-and-movement.spec.md)
+* [021 Ruleset Profile and Conformance](021-ruleset-profile-and-conformance.spec.md)
 
 ## Dependency Graph
 
