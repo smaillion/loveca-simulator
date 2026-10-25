@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "ci-card-preview-printing-race",
+      "priority": -2,
+      "title": "修复卡面预览选择被异步默认值重置的 CI 失败",
+      "status": "queued",
+      "depends_on": ["continuous-workflow"],
+      "required_profiles": ["control", "web"],
+      "acceptance": ["复现 GHA 40174561978 frontend job 121112341452 的 App.test.tsx:2670 失败，不能只重跑掩盖问题", "异步摘要或详情更新不得覆盖用户已选择的 SR 卡面，切换到另一张卡仍正确初始化", "用可控异步时序增加回归测试，Vitest 和 production build 通过", "同一 Draft PR #54 修复并确认真实 CI 结果，不新开分支、不合并或部署"]
+    },
+    {
       "id": "ci-clean-runner-temp-parent",
       "priority": -1,
       "title": "修复干净 CI runner 的 pytest 临时目录初始化",

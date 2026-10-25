@@ -16,6 +16,8 @@
 对局 / Replay 接入和规则矩阵仍在后续队列，来源校验不代表 v0.9 规则门禁完成。
 详见[迁移范围与限制](./docs/22-ruleset-source-profile-migration.md)。
 
+Deck Builder 详情中主动选择的卡面不会再被后台数据更新重置；打开其他卡牌时重新初始化印刷版。
+
 `develop`（下一版 `v0.9`）当前已收录:
 
 - 基于官方 `card_list` JSON API 的正式卡牌 importer

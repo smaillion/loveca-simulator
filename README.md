@@ -16,6 +16,9 @@
 FAQ は未審査のため非適用です。対局 / Replay への接続とルール行列は次の工程であり、
 今回の資料検証だけで v0.9 準拠を宣言しません。[移行範囲](./docs/22-ruleset-source-profile-migration.md)
 
+Deck Builder の詳細画面では、明示的に選んだカード画像をデータ再取得後も保持します。
+別カードを開いた場合は、そのカードの印刷版から選び直します。
+
 `develop`（次期 `v0.9`）の収録内容:
 
 - 公式 `card_list` JSON API からの正式カード importer

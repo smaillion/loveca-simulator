@@ -15,7 +15,8 @@ import App, {
   resolveMemberPlaySelection,
 } from "./App";
 import { resetRuntimeConfigForTests } from "./api";
-import type { DeckList } from "./types";
+import { CatalogPreviewDialog } from "./deck-builder";
+import type { CatalogCardDetail, CatalogCardSummary, DeckList } from "./types";
 
 const placements = [
   {
@@ -2674,6 +2675,92 @@ describe("App", () => {
         "src",
         "/api/card-images/LL-TEST-001-SR",
       ),
+    );
+  });
+
+  it("keeps an explicitly selected face when refreshed catalog data changes the default", () => {
+    const detail = {
+      ...CATALOG_DETAIL,
+      printings: [
+        ...CATALOG_DETAIL.printings,
+        { ...CATALOG_DETAIL.printings[0], card_id: "LL-TEST-001-SR", rarity_ja: "SR" },
+        { ...CATALOG_DETAIL.printings[0], card_id: "LL-TEST-001-R", rarity_ja: "R" },
+      ],
+    } as CatalogCardDetail;
+    const summary = CATALOG_SUMMARY as CatalogCardSummary;
+    const { rerender } = render(
+      <CatalogPreviewDialog locale="zh" detail={detail} summary={summary} onClose={() => {}} />,
+    );
+    fireEvent.change(screen.getByLabelText("选择卡面"), {
+      target: { value: "LL-TEST-001-SR" },
+    });
+    expect(screen.getByLabelText("选择卡面")).toHaveValue("LL-TEST-001-SR");
+
+    rerender(
+      <CatalogPreviewDialog
+        locale="zh"
+        detail={{ ...detail, printings: [...detail.printings].reverse() }}
+        summary={{ ...summary, card_id: "LL-TEST-001-R" }}
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByLabelText("选择卡面")).toHaveValue("LL-TEST-001-SR");
+    expect(screen.getByAltText("テストカード")).toHaveAttribute(
+      "src", "/api/card-images/LL-TEST-001-SR",
+    );
+  });
+
+  it("uses late catalog defaults until the user explicitly picks a face", () => {
+    const detail = {
+      ...CATALOG_DETAIL,
+      printings: [
+        ...CATALOG_DETAIL.printings,
+        { ...CATALOG_DETAIL.printings[0], card_id: "LL-TEST-001-SR", rarity_ja: "SR" },
+      ],
+    } as CatalogCardDetail;
+    const { rerender } = render(
+      <CatalogPreviewDialog locale="zh" detail={detail} summary={null} onClose={() => {}} />,
+    );
+    expect(screen.getByLabelText("选择卡面")).toHaveValue("LL-TEST-001-PR");
+    rerender(
+      <CatalogPreviewDialog
+        locale="zh" detail={detail}
+        summary={{ ...CATALOG_SUMMARY, card_id: "LL-TEST-001-SR" } as CatalogCardSummary}
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByLabelText("选择卡面")).toHaveValue("LL-TEST-001-SR");
+  });
+
+  it("initializes a fresh face selection when previewing another card", () => {
+    const detail = {
+      ...CATALOG_DETAIL,
+      printings: [
+        ...CATALOG_DETAIL.printings,
+        { ...CATALOG_DETAIL.printings[0], card_id: "LL-TEST-001-SR", rarity_ja: "SR" },
+      ],
+    } as CatalogCardDetail;
+    const { rerender } = render(
+      <CatalogPreviewDialog key={detail.card.card_code} locale="zh" detail={detail}
+        summary={CATALOG_SUMMARY as CatalogCardSummary} onClose={() => {}} />,
+    );
+    fireEvent.change(screen.getByLabelText("选择卡面"), {
+      target: { value: "LL-TEST-001-SR" },
+    });
+    const other = {
+      ...detail,
+      card: { ...detail.card, card_code: "LL-TEST-002", name_ja: "別のカード" },
+      printings: detail.printings.map((printing) => ({
+        ...printing, card_id: printing.card_id.replace("001", "002"),
+      })),
+    };
+    rerender(
+      <CatalogPreviewDialog key={other.card.card_code} locale="zh" detail={other}
+        summary={null} onClose={() => {}} />,
+    );
+    expect(screen.getByLabelText("选择卡面")).toHaveValue("LL-TEST-002-PR");
+    expect(screen.getByAltText("別のカード")).toHaveAttribute(
+      "src", "/api/card-images/LL-TEST-002-PR",
     );
   });
 

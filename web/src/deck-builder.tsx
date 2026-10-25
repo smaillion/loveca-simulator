@@ -1538,8 +1538,9 @@ export function DeckBuilder({
           </div>
         </section>
       </main>
-      {previewOpen && detail && (
+      {previewOpen && detail && detail.card.card_code === selectedCardCode && (
         <CatalogPreviewDialog
+          key={detail.card.card_code}
           locale={locale}
           detail={detail}
           summary={selectedSummary}
@@ -1803,7 +1804,7 @@ function DeckThumbnail({
   );
 }
 
-function CatalogPreviewDialog({
+export function CatalogPreviewDialog({
   locale,
   detail,
   summary,
@@ -1815,13 +1816,10 @@ function CatalogPreviewDialog({
   onClose: () => void;
 }) {
   const defaultPrintingId = summary?.card_id ?? detail.printings[0]?.card_id ?? "";
-  const [selectedPrintingId, setSelectedPrintingId] = useState(defaultPrintingId);
-  useEffect(() => {
-    setSelectedPrintingId(defaultPrintingId);
-  }, [defaultPrintingId, detail.card.card_code]);
+  const [selectedPrintingId, setSelectedPrintingId] = useState<string | null>(null);
   const selectedPrinting =
     detail.printings.find((printing) => printing.card_id === selectedPrintingId)
-    ?? detail.printings.find((printing) => printing.card_id === summary?.card_id)
+    ?? detail.printings.find((printing) => printing.card_id === defaultPrintingId)
     ?? detail.printings[0]
     ?? null;
   const text = formatEffectText(detail.text_revisions[0]?.raw_effect_text_ja ?? null, locale);

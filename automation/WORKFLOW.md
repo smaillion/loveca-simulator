@@ -4,6 +4,11 @@
 `.tmp/continuous-development`。任务调度使用当前 Codex 对话的定时接续，每 30 分钟唤醒；
 每轮最多 45 分钟，完成一个可验证的小批次后保存进度。
 
+2026-10-25 出差期间的授权：继续修复 PR #54 的前端 CI，再按同一队列推进技能与 AI。
+改动只更新当前分支和同一个 Draft PR；至少在维护者 2026-10-27 夜间回来审核并明确批准前，
+不得合并或部署。保持本机现有运行方式，不自动睡眠、不迁移 VPS。若 PR 被外部关闭或合并，
+先记录并等待确认，不自行创建替代 PR。
+
 ## 每轮执行
 
 1. 读取 `automation/policy.json`、`automation/queue.json`、`docs/21-continuous-development.md`
