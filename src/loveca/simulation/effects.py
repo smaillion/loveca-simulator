@@ -7,7 +7,7 @@ import sqlite3
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_serializer, model_validator
 
 DEFAULT_EFFECT_REGISTRY = (
     Path(__file__).parents[3] / "data_sources" / "effect-registry.v0.json"
@@ -144,14 +144,28 @@ class EffectOperation(BaseModel):
     branch: str | None = None
     multiplier: int | None = None
     orientation: Literal["active", "wait"] | None = None
+    entry_trigger_policy: Literal["member_area_external_only"] | None = None
     color_slot: str | None = None
     card_type: str | None = None
     flag: str | None = None
     value: object | None = None
     target_hand_size: int | None = None
 
+    @model_serializer(mode="wrap")
+    def serialize_entry_policy(self, handler) -> dict[str, Any]:
+        result = handler(self)
+        if self.entry_trigger_policy is None:
+            # Historical effect snapshots retain their exact shape and hash.
+            result.pop("entry_trigger_policy", None)
+        return result
+
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        if (
+            self.entry_trigger_policy is not None
+            and self.action_type != "deploy_selected_to_empty_stage"
+        ):
+            raise ValueError("entry_trigger_policy is only supported for Member deployment")
         if self.action_type == "place_energy_from_deck":
             if self.target not in {None, "self", "opponent", "both"}:
                 raise ValueError(

@@ -1957,6 +1957,42 @@ describe("App", () => {
     expect(screen.getAllByText("ミルLive").length).toBeGreaterThan(0);
   });
 
+  it.each(["zh", "ja"])("explains attachment promotion without implying an on-play trigger (%s)", async (locale) => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const id = "promoted-member";
+    const matchCreate = {
+      ...MATCH_PAYLOAD,
+      state: {
+        ...MATCH_PAYLOAD.state,
+        cards: {
+          ...MATCH_PAYLOAD.state.cards,
+          [id]: {
+            instance_id: id, owner_id: "player_1", orientation: "active", face_up: true,
+            card: { ...CATALOG_DETAIL.card, name_ja: "移動したメンバー" },
+          },
+        },
+      },
+      events: [{
+        event_type: "effect_member_promoted_from_attachment", player_id: "player_1", source: "system",
+        data: { invocation_id: "promotion", effect_id: "PL!-bp6-003:2", card_instance_id: id,
+                source_zone: "source_attachments", slot: "right", member_area_entry_event: false },
+      }],
+    };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    const create = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(create).not.toBeDisabled());
+    fireEvent.click(create);
+    await screen.findByText("下方 Member 移到空区域: 移動したメンバー");
+    if (locale === "ja") {
+      fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+      expect(await screen.findByText("下のメンバーを空きエリアへ: 移動したメンバー")).toBeInTheDocument();
+      expect(screen.getByText("エリア間移動のため登場能力は誘発しません")).toBeInTheDocument();
+    } else {
+      expect(screen.getByText("场内移动，不触发登場能力")).toBeInTheDocument();
+    }
+  });
+
   it("leaves the hosted room before returning from an online match", async () => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const runtimeConfig = {

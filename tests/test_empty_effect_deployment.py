@@ -96,13 +96,16 @@ def test_real_empty_deployment_active_legal_slot_costs_and_replay(effect_id):
     assert result.state.cards["target"].face_up is True
     assert "target" not in player.waiting_room
     assert "target" not in player.member_area_attachments["center"]
-    assert player.member_entered_count_this_turn == 1
-    assert "right" in player.member_areas_entered_this_turn
+    external_entry = effect_id != "PL!-bp6-003:2"
+    assert player.member_entered_count_this_turn == int(external_entry)
+    assert ("right" in player.member_areas_entered_this_turn) is external_entry
     assert not result.state.pending_effects
     assert not any(e.event_type == "baton_touch" for e in result.events)
     assert all(result.state.cards[e].orientation == "wait" for e in energy)
     assert _resolve(type(state).model_validate_json(state.model_dump_json()), **payload).state == result.state
-    deployed = next(e for e in result.events if e.event_type.startswith("effect_member_deployed"))
+    deployed = next(e for e in result.events if e.event_type.startswith((
+        "effect_member_deployed", "effect_member_promoted"
+    )))
     assert deployed.data["orientation"] == "active"
 
 
@@ -223,14 +226,16 @@ def test_invalid_deployment_ids_do_not_pay_energy_or_change_revision(ids):
 
 def test_deployment_target_onplay_is_queued_without_revealing_owner_hand():
     from loveca.webapp import _match_state_payload
-    state = _state(FIXED[0])
-    effect = state.effect_definitions[FIXED[0]].model_copy(update={
+    # A Waiting Room entry is external; promotion from an attachment is not.
+    state = _state("PL!HS-bp5-002:2")
+    effect = state.effect_definitions["PL!HS-bp5-002:2"].model_copy(update={
         "effect_id": "test-new-onplay:1", "trigger": "member_played", "timing": "on_play",
         "choice": None, "actions": [], "condition": {}, "is_optional": True,
     }, deep=True)
     state.effect_definitions[effect.effect_id] = effect
     state.cards["target"].card.effect_ids = [effect.effect_id]
-    result = _resolve(state, selected_card_instance_ids=["target"], to_slot="right")
+    result = _resolve(state, selected_card_instance_ids=["target"], to_slot="right",
+                      energy_instance_ids=["energy-0", "energy-1"])
     assert result.state.pending_effects[0].effect_id == effect.effect_id
     assert result.state.pending_effects[0].trigger_data["used_baton_touch"] is False
     payload = _match_state_payload(result.state, events=[], legal_actions=generate_legal_actions(result.state), player_id="player_2")

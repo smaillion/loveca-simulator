@@ -1009,7 +1009,10 @@ def test_effect_candidate_discovery_structures_pl_bp6_003_source_attachment():
         "minimum": 1,
         "maximum": 1,
     }
-    assert live_success.actions == [{"action_type": "deploy_selected_to_empty_stage", "orientation": "active"}]
+    assert live_success.actions == [{
+        "action_type": "deploy_selected_to_empty_stage", "orientation": "active",
+        "entry_trigger_policy": "member_area_external_only",
+    }]
 
 
 def test_effect_candidate_discovery_structures_attached_energy_family():
@@ -6892,7 +6895,8 @@ def test_pl_bp6_003_live_success_deploys_attached_member_to_empty_center():
     player = state.players["player_1"]
     assert player.member_area["center"] == "attached-low"
     assert player.member_area_attachments["left"] == ["attached-high"]
-    assert "center" in player.member_areas_entered_this_turn
+    assert "center" not in player.member_areas_entered_this_turn
+    assert player.member_entered_count_this_turn == 0
     assert state.cards["attached-low"].orientation == "active"
     assert not state.pending_effects
 

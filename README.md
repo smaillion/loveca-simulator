@@ -43,6 +43,10 @@ mock と実モデルの検証を区別し、context 保存は既定で無効で�
 下に重なる新規 Member も判定対象としました。旧 Replay の動作は維持します。
 [検証記録](./docs/development/member-entry-area-history-verification.md)
 
+`PL!-bp6-003:2` で下のメンバーを空きエリアへ移した際、登場能力が余分に誘発する問題を修正しました。
+新しい技能 snapshot はエリア間移動として扱い、旧 Replay の結果は維持します。
+結果画面でも処理の違いを表示します。[検証と残課題](./docs/development/attachment-promotion-verification.md)
+
 `develop`（次期 `v0.9`）の収録内容:
 
 - 公式 `card_list` JSON API からの正式カード importer

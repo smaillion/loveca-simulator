@@ -1886,6 +1886,7 @@ const autoResultOperationEvents = new Set([
   "effect_top_cards_revealed",
   "effect_cards_moved_to_deck_bottom",
   "effect_member_deployed_from_waiting_room",
+  "effect_member_promoted_from_attachment",
   "granted_live_success_draw_resolved",
 ]);
 
@@ -1971,6 +1972,11 @@ function autoResultLines(
       const names = ids.map((id) => state.cards[id]?.card.name_ja).filter(Boolean);
       const label = locale === "zh" ? "送入控室" : "控室に置いたカード";
       lines.push(`${label}: ${names.length > 0 ? names.join(" / ") : ids.length}`);
+    } else if (related.event_type === "effect_member_promoted_from_attachment") {
+      const id = typeof related.data.card_instance_id === "string" ? related.data.card_instance_id : "";
+      const name = state.cards[id]?.card.name_ja ?? "";
+      lines.push(locale === "zh" ? `下方 Member 移到空区域: ${name}` : `下のメンバーを空きエリアへ: ${name}`);
+      lines.push(locale === "zh" ? "场内移动，不触发登場能力" : "エリア間移動のため登場能力は誘発しません");
     } else if (related.event_type === "cards_drawn") {
       const ids = stringArray(related.data.instance_ids);
       const label = locale === "zh" ? "抽牌" : "ドロー";

@@ -7534,15 +7534,23 @@ def _execute_operations(
             player.member_area[slot] = instance_id
             if source_zone != "source_attachments":
                 _record_external_member_card_entry(player, instance_id)
-            player.member_entered_count_this_turn += 1
-            if slot not in player.member_areas_entered_this_turn:
-                player.member_areas_entered_this_turn.append(slot)
+            # Attached cards already occupy a Member Area (4.5.5 / 11.4.2).
+            # An explicit snapshot policy keeps old Replay event semantics intact.
+            member_entry_event = (
+                operation.entry_trigger_policy is None or source_zone != "source_attachments"
+            )
+            if member_entry_event:
+                player.member_entered_count_this_turn += 1
+                if slot not in player.member_areas_entered_this_turn:
+                    player.member_areas_entered_this_turn.append(slot)
             state.cards[instance_id].face_up = True
             state.cards[instance_id].orientation = operation.orientation or "wait"
             events.append(
                 GameEvent(
                     event_type=(
-                        "effect_member_deployed_from_hand"
+                        "effect_member_promoted_from_attachment"
+                        if not member_entry_event
+                        else "effect_member_deployed_from_hand"
                         if source_zone == "hand"
                         else "effect_member_deployed_from_waiting_room"
                     ),
@@ -7554,10 +7562,16 @@ def _execute_operations(
                         "source_zone": source_zone or "waiting_room",
                         "slot": slot,
                         "orientation": state.cards[instance_id].orientation,
+                        **({
+                            "member_area_entry_event": member_entry_event,
+                            "entry_trigger_policy": operation.entry_trigger_policy,
+                        } if operation.entry_trigger_policy is not None else {}),
                     },
                     source="system",
                 )
             )
+            if not member_entry_event:
+                continue
             _queue_triggered_effects(
                 state,
                 "member_played",

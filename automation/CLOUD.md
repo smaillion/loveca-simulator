@@ -29,8 +29,9 @@ gh pr view 54 --json state,isDraft,headRefName,baseRefName,headRefOid,statusChec
 ```
 
 只有在维护者完成切换后，才领取同一队列。可移植 checkpoint 不包含租约或有效发布证据。
-首轮会恢复本交接任务为 in_progress：重新运行全部 required_profiles，确认 Linux / Cloud
-真实结果再 complete；不要重复实现交接，不把本机测试冒充 Cloud 已验收。
+首轮恢复 checkpoint 中最后的 in_progress 任务（任务 ID 随后续批次变化）：先检查现有实现，
+重新运行其全部 required_profiles，确认 Linux / Cloud 真实结果再 complete；不要重复实现
+已经提交的切片，不把本机测试冒充 Cloud 已验收。
 
 后续每轮最多 45 分钟、一个有限切片，遵循 `automation/WORKFLOW.md` 的相同验收 / 发布流程。
 使用 `claim --owner codex-cloud`，保存 token；长检查前 renew，未完成时 release。
@@ -40,8 +41,9 @@ gh pr view 54 --json state,isDraft,headRefName,baseRefName,headRefOid,statusChec
 
 ## 接下来做什么
 
-首轮交接验证完成后，优先 `attachment-promotion-trigger-audit`，再推进通用效果登场、
-Ruleset / Replay、AI Live 获取和长局。具体以 queue 依赖和当前真实 CI 为准。
+首轮验证完成后，用 status / next 选择 queue 当前最高优先级可执行项，不固定历史任务 ID。
+近期方向为登場边界、通用效果登场、Ruleset / Replay、AI Live 获取和长局；
+已完成的附属 Member 审计等切片不要重做。具体以 checkpoint、queue 和当前真实 CI 为准。
 官方依据用仓库已固定的 ver.1.06 PDF 与 exact-text 卡库，不重新抓取官网。
 
 旧 v0.9 / API Play dirty 工作树和 ignored 报告没有上传。遇到任务确实需要未迁移材料时，

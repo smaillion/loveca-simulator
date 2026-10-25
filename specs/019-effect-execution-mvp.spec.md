@@ -1,5 +1,21 @@
 # 019 Effect Execution MVP Specification
 
+## Attachment Promotion Snapshot Boundary (2026-10)
+
+`deploy_selected_to_empty_stage` may declare
+`entry_trigger_policy: member_area_external_only`. With this policy, a source
+attachment already occupies a Member Area: promoting it emits
+`effect_member_promoted_from_attachment`, not an external entry trigger or count.
+Waiting Room / hand entry still uses the existing entry events. Active placement,
+external-entry card identity and existing Stage modifiers are independent.
+
+The default `None` is omitted from serialization and preserves historical effect
+snapshot behavior, even if the match already contains the newer card-identity
+history. Do not infer this version from PlayerState history or mutate old Replay.
+The field is rejected on other operation families. See the Chinese verification
+report in `docs/development/attachment-promotion-verification.md`; this bounded
+implementation is not an individual official ruling or reviewed promotion.
+
 ## 1. Purpose
 
 This specification defines the first limited executable-effect slice for the local Battle Simulator.

@@ -40,6 +40,10 @@ API Play 测试工具已隔离对手背面卡与他方私有选择，区分 mock
 限制不会错误地留在旧区域；本回合从 Stage 外放入下方的 Member 卡也会随组追踪。
 旧 Replay 保留原行为；本轮不提升技能登记率。[验证记录](./docs/development/member-entry-area-history-verification.md)
 
+修正 `PL!-bp6-003:2` 从下方移到空区域时额外触发登場能力、增加次数的问题。新技能快照区分
+Area 内转移与外部登場，旧 Replay 保留原结果；结算面板显示中文 / 日文说明。
+[状态验证及后续缺口](./docs/development/attachment-promotion-verification.md)，不增加虚假覆盖率。
+
 `develop`（下一版 `v0.9`）当前已收录:
 
 - 基于官方 `card_list` JSON API 的正式卡牌 importer

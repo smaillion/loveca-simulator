@@ -16,7 +16,7 @@
 
 | 卡牌与卡面（官方链接） | 原文中的处理 | 本轮实际断言 |
 |---|---|---|
-| `PL!-bp6-003:2`<br><img src="https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP06/PL!-bp6-003-R2.png" width="110" alt="PL!-bp6-003"> | ライブ成功時；从自身附属卡选择 cost 2 以下 μ's Member，空区域登场 | 仅移走选中的附属卡；Active / face-up；新 Member 的登場能力入队；不记为 Baton |
+| `PL!-bp6-003:2`<br><img src="https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP06/PL!-bp6-003-R2.png" width="110" alt="PL!-bp6-003"> | ライブ成功時；从自身附属卡选择 cost 2 以下 μ's Member，空区域登场 | 仅移走选中的附属卡；Active / face-up。后续独立复核撤回原“登場能力入队”预期，新 snapshot 按 Area 内转移处理；旧 Replay 保留。见[补充审计](./attachment-promotion-verification.md) |
 | `PL!HS-bp5-002:2`<br><img src="https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP05/PL!HS-bp5-002-R2.png" width="110" alt="PL!HS-bp5-002"> | 起動；支付 2 Energy；控室 cost 2 以下 Member，空区域登场 | 支付 Energy 变 Wait；目标离开控室进入所选空区域并 Active；非法 ID / 区域不支付费用 |
 | `PL!HS-bp5-022:1`<br><img src="https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP05/PL!HS-bp5-022-L.png" width="110" alt="PL!HS-bp5-022"> | ライブ開始時；支付 2 Energy；Edel Note 条件；二选一 | Live 来源与满足 9 费用条件的 Stage Member 分开建模；满场保留减 Heart 分支并核对该 Live 有效需求 2→1；登场分支支付后选目标和区域，目标消失时记录原因 |
 | `PL!HS-bp6-016:1`<br><img src="https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/BP06/PL!HS-bp6-016-R.png" width="110" alt="PL!HS-bp6-016"> | 起動；支付 4 Energy；控室 cost 4 以下蓮ノ空 Member | 合法目标及区域来自引擎；费用和登场同一 Action 验证；Active；Replay 结果一致 |

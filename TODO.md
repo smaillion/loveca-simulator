@@ -47,9 +47,12 @@
 - `member-entry-current-area-history` 已补新对局的卡牌身份记录，覆盖位置 / 阵型改变后的
   当前区域限制、附属 Member 与 Stage 内转移的区分；旧快照缺省仍使用原区域历史。
   见 `docs/development/member-entry-area-history-verification.md`。
-- 附属 Member 转为顶部时的 `登場` / `own_member_played` / 进入次数仍需独立规则复核：
-  `attachment_promotion_onplay_trigger_and_entry_count_requires_rules_audit`。
-  不把本轮区域记录修正当作这项裁定已经完成；随后继续已有 Member 区域的效果替换登场。
+- 原 `attachment_promotion_onplay_trigger_and_entry_count_requires_rules_audit` 已按固定 PDF 完成
+  有限程序修正：新 effect snapshot 不误发外部登場，旧快照兼容；不视为人工 reviewed。
+  见 `docs/development/attachment-promotion-verification.md`。
+- 新复现 `multi_player_deploy_waiting_member` 漏发目标登場 / 己方登場观察者，两项受控抽牌
+  实际 0 / 期望 2；下一任务先审计双方选择与后续自动能力顺序，再修复并验证旧 Replay。
+  之后继续已有 Member 区域的效果替换登场；不宣称通用登場底座已经全部完成。
 
 ### AI-DLC Rollout Validation
 

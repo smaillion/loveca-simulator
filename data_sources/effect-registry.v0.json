@@ -11444,6 +11444,7 @@
           "branch": null,
           "card_type": null,
           "color_slot": null,
+          "entry_trigger_policy": "member_area_external_only",
           "flag": null,
           "multiplier": null,
           "orientation": "active",

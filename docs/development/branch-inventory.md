@@ -39,6 +39,10 @@ Baton 原型检查点：已核对 `07f51e4` 的两个 PR entry，没有直接恢
 
 ## 工作树
 
+附属 Member 审计检查点：`PL!-bp6-003:2` 新 effect snapshot 不再把 Area 内转移算作外部登場，
+保留旧 snapshot 的触发 / events / hash。另已复现多人控室登場漏发触发并独立排队。
+见 `attachment-promotion-verification.md`。Cloud 仅备交接，旧 dirty 工作树仍未上传或删除。
+
 | 分支 | 领先 / 落后 develop | 未提交文件 | 处理方式 | 路径 |
 |---|---:|---:|---|---|
 | `codex/new-card-pack-update` | 0 / 12 | 1 | 未提交成果，必须保留 | `E:\Repository\loveca-simulation` |

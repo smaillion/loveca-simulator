@@ -10710,7 +10710,10 @@ def _pl_bp6_003_live_success_deploy_attached_muse_member(
             "minimum": 1,
             "maximum": 1,
         },
-        actions=[{"action_type": "deploy_selected_to_empty_stage", "orientation": "active"}],
+        actions=[{
+            "action_type": "deploy_selected_to_empty_stage", "orientation": "active",
+            "entry_trigger_policy": "member_area_external_only",
+        }],
         duration="live",
     )
 
