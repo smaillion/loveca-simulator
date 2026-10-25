@@ -8,6 +8,10 @@
 
 ## 現在の状態
 
+継続開発は単一の `codex/continuous-development` と固定 worktree で進めます。
+タスク、検証結果、PR を引き継ぐ運用は [継続開発ガイド](./docs/21-continuous-development.md)
+と [実行手順](./automation/WORKFLOW.md) を参照してください。
+
 `develop`（次期 `v0.9`）の収録内容:
 
 - 公式 `card_list` JSON API からの正式カード importer

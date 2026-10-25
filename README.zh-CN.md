@@ -8,6 +8,10 @@
 
 ## 当前状态
 
+持续开发统一使用 `codex/continuous-development` 和固定工作树，自动接续任务、验证并更新
+同一个 Draft PR。入口见[持续开发指南](./docs/21-continuous-development.md)与
+[执行流程](./automation/WORKFLOW.md)；合并和部署仍需维护者确认。
+
 `develop`（下一版 `v0.9`）当前已收录:
 
 - 基于官方 `card_list` JSON API 的正式卡牌 importer

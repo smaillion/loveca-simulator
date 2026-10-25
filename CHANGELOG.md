@@ -4,6 +4,11 @@
 
 ### 追加 / 新增
 
+- 継続開発を単一 branch / worktree に集約し、依存付き task queue、永続 lease、source hash 付き test evidence、既存 Draft PR 再利用と CI gate を追加した。remote merge / deploy は引き続き maintainer 承認を必要とする。
+- 持续开发改为单一分支 / 工作树，新增带依赖的任务队列、持久租约、绑定源码 hash 的测试证据、Draft PR 复用与 CI 门禁；远程合并和部署继续保留人工批准。
+- 公式 PDF 監査の clean CI 環境での収集失敗を避けるため、`pypdf` を dev dependency に明示した。
+- 将官方 PDF 审计所需的 `pypdf` 显式加入 dev dependency，避免干净 CI 环境缺少依赖而收集失败。
+
 - 公式 products API を優先する importer discovery と全量 refresh を追加し、`CLLS01` / `PBLL02` までの 24 sets、1,977 Gameplay Cards、2,700 printings、1,246 text revisions を locked DB に収録した。
 - importer 现优先使用官方 products API 并完成全量刷新；锁版本数据库已包含至 `CLLS01` / `PBLL02` 的 24 个卡包、1,977 条 Gameplay Card、2,700 个印刷版本和 1,246 条文本修订。
 - 旧データの全角波線、Energy printing identity、誤分類 printing、公式 canonical name の更新を full refresh 時に互換処理し、normalization candidate を 0 件にした。

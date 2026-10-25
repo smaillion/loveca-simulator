@@ -88,6 +88,10 @@ This file records maintenance rules that should stay stable across releases.
 
 ## AI-DLC Development Flow
 
+持续开发任务适用 `docs/21-continuous-development.md` 的明确授权：复用固定分支和工作树，
+普通设计、实现、测试、commit、feature push 和 Draft PR 更新不重复请求阶段审批。
+远程 PR 合并、部署及生产数据操作仍需用户明确批准。
+
 ### 日本語
 
 - 複雑な feature、rule、online、database、infrastructure 変更では AI-DLC

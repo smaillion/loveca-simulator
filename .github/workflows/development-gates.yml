@@ -1,0 +1,58 @@
+name: Development Gates
+
+on:
+  pull_request:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: development-gates-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e ".[dev]"
+      - name: Validate development queue and pinned inputs
+        run: |
+          python -m tools.development.loop validate
+          python scripts/aidlc_vendor.py verify
+          python scripts/card-db-manifest.py verify
+          python -m tools.ai_sandbox.effect_registry_integrity --database data/loveca.sqlite3 --strict --output logs/ci-registry-integrity
+      - name: Python regression
+        run: python -m pytest -q --basetemp .tmp/pytest-ci
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: development-registry-evidence
+          path: logs/ci-registry-integrity
+          retention-days: 14
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -e .
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npm run test -- --run
+        working-directory: web
+      - run: npm run build
+        working-directory: web

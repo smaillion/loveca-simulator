@@ -11,6 +11,13 @@ more specific to this repository:
 - Never merge a remote pull request or deploy a release without explicit user
   approval. Approval to implement or push is not approval to merge.
 - Preserve existing user changes and unrelated worktree changes.
+- Continuous development uses the standing authorization in
+  `docs/21-continuous-development.md` and `automation/WORKFLOW.md`. Reuse
+  `codex/continuous-development` in its fixed worktree instead of creating a
+  branch per wake-up or bug. Normal implementation, testing, local commits,
+  feature pushes, and draft PR updates are authorized within the queued scope;
+  do not request repetitive stage approvals. Remote PR merge and deployment
+  still require explicit user approval. Claim the shared worker lease first.
 - Treat official Japanese card text and the pinned comprehensive rules profile
   as authoritative. Unsupported or ambiguous effects must stay explicit; do
   not use silent skips or inflate executable coverage.

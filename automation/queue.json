@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "continuous-workflow",
+      "priority": 0,
+      "title": "建立单分支持续开发、验证与审查流程",
+      "status": "queued",
+      "depends_on": [],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["任务和租约在重启后保留", "重叠运行不能同时写入", "测试失败或过期证据不能发布", "复用固定工作树和唯一 Draft PR", "远程合并和部署仍需明确批准"]
+    },
+    {
+      "id": "legacy-worktree-reconciliation",
+      "priority": 1,
+      "title": "迁移旧工作树中尚未收口的 Phase 6 / API Play 成果",
+      "status": "queued",
+      "depends_on": ["continuous-workflow"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["逐项对比工作树清单，不直接合并旧实验", "保留未提交改动及 ignored 报告", "只迁移当前主线缺少且已测试的实现", "更新唯一分支清单，不新增长期分叉"]
+    },
+    {
+      "id": "ai-long-game-reliability",
+      "priority": 2,
+      "title": "降低新卡池 AI 长局与 Live 获取停滞",
+      "status": "queued",
+      "depends_on": ["continuous-workflow"],
+      "required_profiles": ["registry", "backend", "web"],
+      "acceptance": ["复现 2026-10 的 50 局中 16 个 action-cap 案例", "固定牌组和 seed 比较，保持隐藏手牌独立性", "50 局至少 45 局正式完赛，illegal action / replay error / silent skip 均为零", "保留旧 policy 和中文策略报告，未达目标时如实记录"]
+    },
+    {
+      "id": "effect-accuracy-loop",
+      "priority": 3,
+      "title": "按实际触发与规则风险扩展技能支持",
+      "status": "queued",
+      "depends_on": ["continuous-workflow"],
+      "required_profiles": ["registry", "backend", "web"],
+      "acceptance": ["从当前 310 条 manual 中按实际触发次数选择安全语义家族", "每次最多一个语义家族，有真实状态转换和 replay 测试", "strict integrity 保持零错误零警告", "跑固定 AI 审计及针对性 sandbox，输出中文报告", "FAQ-sensitive / unknown 无法确认时记录原因并转向下一项，不虚标 executable"]
+    },
+    {
+      "id": "phase6-conformance-matrix",
+      "priority": 4,
+      "title": "继续 v0.9 Ruleset 与核心规则矩阵门禁",
+      "status": "queued",
+      "depends_on": ["legacy-worktree-reconciliation"],
+      "required_profiles": ["registry", "backend", "web"],
+      "acceptance": ["先复核旧工作树中的 Ruleset / matrix 实际进度", "最终核心规则矩阵至少 75 场景、Live 边界至少 20 场景", "每项保留 PDF hash 与规则引用，报告实现限制", "旧 replay 不伪装为新规则一致，保持现有 API 和 runtime schema 兼容"]
+    }
+  ]
+}
