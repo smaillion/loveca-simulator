@@ -23,6 +23,11 @@ Baton 手牌登场登记另列任务，不直接继承旧 executable 状态。�
 和非本分支操作混入问题；旧 6 项 dirty 文件仍原样保留。剩余 Baton 原型继续独立复核。
 见 `cost-result-branch-verification.md`。
 
+Baton 原型检查点：已核对 `07f51e4` 的两个 PR entry，没有直接恢复其 executable 标记。
+已修正精确文本手动提示条件；区域 / 朝向 / UI / AI 底座另列有限任务，并保留原工作树。
+见 `baton-hand-deploy-audit.md`。旧 API Play 的提交与 dirty 成果已逐类登记去向，底座未完成前
+父收敛任务继续保持进行中。
+
 ## 工作树
 
 | 分支 | 领先 / 落后 develop | 未提交文件 | 处理方式 | 路径 |

@@ -83,11 +83,20 @@
       "acceptance": ["重新核对 PL!-PR-015:1 与 PL!SP-PR-020:1 的当前 exact-text/hash，不继承旧提交的 executable 标签", "核对 Baton 原 Member cost、手牌 Member cost 上限、目标区域限制和重复登场触发", "只有具备状态转换、Replay 和 AI 合法选择验收才提升，否则保留 manual 并记录 unresolved reason", "不复制旧 registry/manifest，不修改原工作树"]
     },
     {
+      "id": "effect-deployment-rule-conformance",
+      "priority": 1,
+      "title": "补齐效果登场的合法区域、朝向、UI 和 AI 选择",
+      "status": "queued",
+      "depends_on": ["legacy-baton-hand-deploy-audit"],
+      "required_profiles": ["registry", "backend", "web"],
+      "acceptance": ["依据 PDF 4.3.2.3、9.6.2.1.2、9.6.2.4.2.1 和 10.4 新增或修正效果登场语义，不能把所有登场限制为空区域并默认 Wait", "区域限制按本回合入场 Member 当前所在位置计算，覆盖 Position / Formation 后的合法性，旧快照字段兼容且不新增 SQLite migration", "空区域和可替换已有 Member 的区域均能选择，正确处理重复 Member、附属卡清理及登場/离场触发，不冒充 Baton", "前端和三种 AI policy 都从 legal payload 选择 Member 与位置，包含非法目标回滚、Replay 和双方隐藏信息测试", "只在真实状态断言通过后提升 PL!-PR-015:1 与 PL!SP-PR-020:1；同时复核当前 10 条 empty-stage executable 并逐条记录保留/修正/降级原因，不虚标覆盖率"]
+    },
+    {
       "id": "legacy-worktree-reconciliation",
       "priority": 1,
       "title": "迁移旧工作树中尚未收口的 Phase 6 / API Play 成果",
       "status": "queued",
-      "depends_on": ["legacy-ruleset-source-profile", "legacy-ruleset-match-replay", "legacy-core-matrix-and-end-phase", "legacy-api-play-comparison", "legacy-cost-result-branch", "legacy-baton-hand-deploy-audit"],
+      "depends_on": ["legacy-ruleset-source-profile", "legacy-ruleset-match-replay", "legacy-core-matrix-and-end-phase", "legacy-api-play-comparison", "legacy-cost-result-branch", "legacy-baton-hand-deploy-audit", "effect-deployment-rule-conformance"],
       "required_profiles": ["control", "registry", "backend", "web"],
       "acceptance": ["逐项对比工作树清单，不直接合并旧实验", "保留未提交改动及 ignored 报告", "只迁移当前主线缺少且已测试的实现", "更新唯一分支清单，不新增长期分叉"]
     },
@@ -107,7 +116,7 @@
       "status": "queued",
       "depends_on": ["continuous-workflow"],
       "required_profiles": ["registry", "backend", "web"],
-      "acceptance": ["从当前 310 条 manual 中按实际触发次数选择安全语义家族", "每次最多一个语义家族，有真实状态转换和 replay 测试", "strict integrity 保持零错误零警告", "跑固定 AI 审计及针对性 sandbox，输出中文报告", "FAQ-sensitive / unknown 无法确认时记录原因并转向下一项，不虚标 executable"]
+      "acceptance": ["从执行时实际 manual 集合中按真实触发次数选择安全语义家族（本轮基线 309 条）", "每次最多一个语义家族，有真实状态转换和 replay 测试", "strict integrity 保持零错误零警告", "跑固定 AI 审计及针对性 sandbox，输出中文报告", "FAQ-sensitive / unknown 无法确认时记录原因并转向下一项，不虚标 executable"]
     },
     {
       "id": "phase6-conformance-matrix",

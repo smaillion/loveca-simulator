@@ -29,8 +29,11 @@
 - API Play 旧提交已分组核对，测试输入/采样入口完成选择性迁移；`PL!-bp5-003:2` 成本结果
   分支已按当前文本重建，并增加两分支状态 / AI / Replay 和观察视角测试。
   当前为 903 / 1212 可执行（74.50%），见 `docs/development/cost-result-branch-verification.md`。
-- 下一步复核 `PL!-PR-015:1` / `PL!SP-PR-020:1` 的 Baton 手牌登场，不直接搬运旧 executable
-  登记；旧工作树和原始报告继续保留。
+- `PL!-PR-015:1` / `PL!SP-PR-020:1` 已完成旧原型复核并修正手动提示条件，仍为 manual。
+  下一步按 `effect-deployment-rule-conformance` 补合法区域、Active 默认朝向和 UI / AI 选择，
+  同时复核当前 10 条 empty-stage executable，不能只恢复旧标签。
+  gap report 已列出这 10 条未指定朝向却使用旧 Wait 默认值的风险，必须修正或降级后才能结算发布。
+  详见 `docs/development/baton-hand-deploy-audit.md`；旧工作树和原始报告继续保留。
 
 ### AI-DLC Rollout Validation
 

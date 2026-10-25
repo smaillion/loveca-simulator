@@ -17,6 +17,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from loveca.simulation.effect_candidates import BATON_LOWER_COST_HAND_DEPLOY_TEXT
 from loveca.simulation.effects import (
     DEFAULT_EFFECT_REGISTRY,
     EffectDefinition,
@@ -111,6 +112,20 @@ def build_effect_gap_report(
         "manual_by_card_type": dict(card_type_counts.most_common()),
         "actual_trigger_samples": sum(observed_counts.values()),
         "top_manual_patterns": [asdict(group) for group in groups[:top]],
+        "executable_audit_warnings": [
+            {
+                "effect_id": effect.effect_id,
+                "card_code": effect.card_code,
+                "reason": "deploy_orientation_unspecified_uses_legacy_wait_default",
+                "rule_clauses": ["4.3.2.3"],
+            }
+            for effect in executable_effects
+            if any(
+                operation.action_type == "deploy_selected_to_empty_stage"
+                and operation.orientation is None
+                for operation in effect.actions
+            )
+        ],
     }
 
 
@@ -227,6 +242,8 @@ def group_manual_effects(
 def classify_unresolved_reason(trigger: str, timing: str, label_ja: str) -> str:
     """Return a controlled reason instead of implying every manual effect is forgotten work."""
 
+    if label_ja == BATON_LOWER_COST_HAND_DEPLOY_TEXT:
+        return "member_deployment_area_orientation_ui_ai_not_rules_conformant"
     if trigger == "static_always" or timing == "static" or "【常時】" in label_ja:
         if "能力" in label_ja and ("発動" in label_ja or "得る" in label_ja):
             return "nested_or_inherited_effect_invocation_not_modeled"
@@ -268,6 +285,8 @@ def priority_for_trigger(trigger: str, timing: str) -> int:
 
 
 def suggest_next_step(trigger: str, timing: str, label_ja: str) -> str:
+    if label_ja == BATON_LOWER_COST_HAND_DEPLOY_TEXT:
+        return "implement_rule_9_6_2_1_2_deployment_then_revalidate_exact_text"
     if "相手" in label_ja and ("選ぶ" in label_ja or "見る" in label_ja):
         return "opponent_or_private_choice_review"
     if trigger == "member_played" or timing == "on_play":
@@ -332,6 +351,19 @@ def write_gap_outputs(output: Path, report: dict[str, Any]) -> None:
             )
             + " |"
         )
+    warnings = report.get("executable_audit_warnings", [])
+    if warnings:
+        lines.extend([
+            "", "## 已登记技能的待修正风险", "",
+            "静态 executable 标签不代表规则正确性；下列旧效果未显式登记朝向，仍落入旧 executor 的 Wait 默认值。",
+            "应按原文与 4.3.2.3 修正或降级，不能把既有绿测当作人工裁定。", "",
+            "| Effect | 原因 | 官方条款 |", "|---|---|---|",
+        ])
+        for warning in warnings:
+            lines.append(
+                f"| `{warning['effect_id']}` | `{warning['reason']}` | "
+                f"{', '.join(warning['rule_clauses'])} |"
+            )
     (output / "effect-gap-report.md").write_text(
         "\n".join(lines) + "\n",
         encoding="utf-8",

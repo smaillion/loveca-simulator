@@ -27,6 +27,11 @@ mock と実モデルの検証を区別し、context 保存は既定で無効で�
 確認中のカードは相手の画面 / AI に渡さず、費用選択から次の選択へ移る際に UI を初期化します。
 [検証記録](./docs/development/cost-result-branch-verification.md)
 
+`PL!-PR-015` / `PL!SP-PR-020` の手動能力案内は、低コストのメンバーから実際に
+バトンタッチした場合だけ表示します。効果による登場は区域 / 向きの基盤が未整備のため、
+この2枚は引き続き手動処理です。[監査記録](./docs/development/baton-hand-deploy-audit.md)
+既存の効果登場10件にも向きの監査警告があり、修正待ちです。登録率はルール正確性の保証ではありません。
+
 `develop`（次期 `v0.9`）の収録内容:
 
 - 公式 `card_list` JSON API からの正式カード importer

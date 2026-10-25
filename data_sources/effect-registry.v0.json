@@ -2971,7 +2971,10 @@
       ],
       "card_code": "PL!-PR-015",
       "choice": null,
-      "condition": {},
+      "condition": {
+        "requires_baton_touch": true,
+        "replacement_member_cost_less_than_source": true
+      },
       "cost": [],
       "cost_choice": null,
       "duration": null,
@@ -2986,7 +2989,7 @@
       "raw_text_hash": "33aa98797222c47c047413845271fdc26a493ceab414094984e4b97c39cd4a6d",
       "review_status": "parsed_draft",
       "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "source_reference": "Official card text; rules 4.3.2.3, 9.6.2.1.2, 9.6.2.4.2.1; manual pending legal deployment area, active orientation, UI and AI support",
       "text_revision_id": 723,
       "timing": "on_play",
       "trigger": "member_played"
@@ -81372,7 +81375,10 @@
       ],
       "card_code": "PL!SP-PR-020",
       "choice": null,
-      "condition": {},
+      "condition": {
+        "requires_baton_touch": true,
+        "replacement_member_cost_less_than_source": true
+      },
       "cost": [],
       "cost_choice": null,
       "duration": null,
@@ -81387,7 +81393,7 @@
       "raw_text_hash": "33aa98797222c47c047413845271fdc26a493ceab414094984e4b97c39cd4a6d",
       "review_status": "parsed_draft",
       "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "source_reference": "Official card text; rules 4.3.2.3, 9.6.2.1.2, 9.6.2.4.2.1; manual pending legal deployment area, active orientation, UI and AI support",
       "text_revision_id": 775,
       "timing": "on_play",
       "trigger": "member_played"

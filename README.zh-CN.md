@@ -25,6 +25,11 @@ API Play 测试工具已隔离对手背面卡与他方私有选择，区分 mock
 控室 Live。待查看卡不向对手画面 / AI 暴露，费用选择与后续选择之间会重置 UI。
 [中文验证记录](./docs/development/cost-result-branch-verification.md)
 
+`PL!-PR-015` / `PL!SP-PR-020` 仅在确实从较低费用 Member Baton 入场时显示手动技能提示。
+两张卡仍为手动处理，暂不把不完整的区域 / 朝向选择登记为自动支持。
+[中文审计报告](./docs/development/baton-hand-deploy-audit.md)
+另有 10 条旧效果登场登记存在默认横置风险，已逐项警告并优先排入修正；登记率不代表规则正确率。
+
 `develop`（下一版 `v0.9`）当前已收录:
 
 - 基于官方 `card_list` JSON API 的正式卡牌 importer

@@ -60,6 +60,14 @@ includes state-transition, forged-branch rollback, three AI-policy, Replay,
 private-inspection view and multi-stage UI tests. This is test-validated, not
 human rules review. See `development/cost-result-branch-verification.md`.
 
+The legacy Baton hand-deploy audit keeps `PL!-PR-015:1` and `PL!SP-PR-020:1`
+manual. Their prompts now require actual Baton Touch from a strictly lower-cost
+Member; normal replacement and equal/higher-cost Baton do not queue them. The
+old prototype's empty-area / default-Wait executor and missing UI/AI area choice
+do not implement rules 4.3.2.3 and 9.6.2.4.2.1. The exact-text gap reason is
+`member_deployment_area_orientation_ui_ai_not_rules_conformant`; support counts
+remain unchanged. See `development/baton-hand-deploy-audit.md`.
+
 Therefore, the current repository has broad timing-prompt coverage but is still in a pattern-expansion phase rather than a broad full-card executable-effects phase. The new manual fallback entries are not proof of automated semantic support.
 
 The Simple AI v1 accuracy pass added 39 exact-text executable definitions without fuzzy binding. The new families include inspect / reveal / keep, grouped Waiting Room recovery, Heart-color and required-Heart modifiers, conditional post-action discard, effect-driven Member deployment, position change, Baton replacement conditions, static Baton restrictions, Active Phase ready restrictions, and Energy-ready effects. The pass also fixed trigger propagation for Members deployed by effects and replacement metadata for Members leaving Stage through Baton Touch.

@@ -19,6 +19,12 @@ SOURCE_REFERENCE = (
     "Official card text; comprehensive rules ver. 1.06 restricted executor pattern"
 )
 
+BATON_LOWER_COST_HAND_DEPLOY_TEXT = (
+    "【登場】このメンバーよりコストが低いメンバーからバトンタッチして"
+    "登場した場合、自分の手札からコスト4以下のメンバーカードを1枚"
+    "ステージに登場させてもよい。"
+)
+
 
 @dataclass(frozen=True)
 class EffectCandidate:
@@ -15248,7 +15254,7 @@ def _manual_timing_candidates(row: sqlite3.Row) -> list[EffectCandidate]:
                 trigger=trigger,
                 frequency_limit=frequency_limit,
                 is_optional=_looks_optional(label_ja),
-                condition=_manual_condition(marker),
+                condition=_manual_condition(marker, label_ja),
                 cost=[],
                 choice=None,
                 actions=[{"action_type": "manual_resolution"}],
@@ -15331,7 +15337,12 @@ def _frequency_limit_for_label(default: str, label_ja: str) -> str:
     return default
 
 
-def _manual_condition(marker: str) -> dict[str, Any]:
+def _manual_condition(marker: str, label_ja: str = "") -> dict[str, Any]:
+    if marker == "【登場】" and label_ja == BATON_LOWER_COST_HAND_DEPLOY_TEXT:
+        return {
+            "requires_baton_touch": True,
+            "replacement_member_cost_less_than_source": True,
+        }
     if marker == "【起動】":
         return {"source_zone": "stage"}
     return {}
