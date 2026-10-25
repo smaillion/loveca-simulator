@@ -35832,7 +35832,8 @@
           "orientation": null,
           "target": null,
           "target_hand_size": null,
-          "value": null
+          "value": null,
+          "overlap_source_policy": "original_stage_member"
         }
       ],
       "card_code": "PL!HS-pb1-009",

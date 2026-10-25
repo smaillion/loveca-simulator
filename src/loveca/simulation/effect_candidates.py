@@ -12793,7 +12793,13 @@ def _auto_own_member_played_simple_effects(row: sqlite3.Row) -> EffectCandidate 
                 "source_slot": "center",
                 "trigger_member_work_key": "hasunosora",
             },
-            "actions": [{"action_type": "gain_blade", "amount": 2}],
+            "actions": [
+                {
+                    "action_type": "gain_blade",
+                    "amount": 2,
+                    "overlap_source_policy": "original_stage_member",
+                }
+            ],
             "duration": "live",
         },
     }

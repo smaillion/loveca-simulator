@@ -1920,7 +1920,8 @@ function isAutoResultOperation(event: GameEvent): boolean {
     || (event.event_type === "energy_added" && typeof event.data.reason === "string"
       && event.data.reason.startsWith("effect:"))
     || (event.event_type === "effect_operation_not_applied"
-      && event.data.reason === "energy_deck_insufficient_at_resolution");
+      && (event.data.reason === "energy_deck_insufficient_at_resolution"
+        || event.data.reason === "overlap_source_member_departed"));
 }
 
 function latestAutoResultNotice(
@@ -2005,7 +2006,8 @@ function autoResultLines(
       const orientation = related.data.orientation === "wait" ? "WAIT" : "ACTIVE";
       lines.push(`${locale === "zh" ? "能量补充" : "エネルギー追加"} ${orientation}: ${count}`);
     } else if (related.event_type === "effect_operation_not_applied"
-        && related.data.reason === "energy_deck_insufficient_at_resolution") {
+        && (related.data.reason === "energy_deck_insufficient_at_resolution"
+          || related.data.reason === "overlap_source_member_departed")) {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
     } else if (related.event_type === "effect_cards_milled") {
@@ -4225,6 +4227,12 @@ function describeAiBlocker(
 }
 
 function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): string | null {
+  if (event.event_type === "effect_operation_not_applied"
+      && event.data.reason === "overlap_source_member_departed") {
+    return locale === "zh"
+      ? "来源 Member 已离场，此加成不作用于控室或重新登场的卡牌。"
+      : "誘発元のメンバーは一度ステージを離れたため、控え室や再登場したカードには加算しません。";
+  }
   if (event.event_type === "effect_operation_not_applied"
       && event.data.reason === "energy_deck_insufficient_at_resolution") {
     return locale === "zh"

@@ -146,6 +146,7 @@ class EffectOperation(BaseModel):
     multiplier: int | None = None
     orientation: Literal["active", "wait"] | None = None
     entry_trigger_policy: Literal["member_area_external_only"] | None = None
+    overlap_source_policy: Literal["original_stage_member"] | None = None
     color_slot: str | None = None
     card_type: str | None = None
     flag: str | None = None
@@ -158,10 +159,23 @@ class EffectOperation(BaseModel):
         if self.entry_trigger_policy is None:
             # Historical effect snapshots retain their exact shape and hash.
             result.pop("entry_trigger_policy", None)
+        if self.overlap_source_policy is None:
+            result.pop("overlap_source_policy", None)
         return result
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        if self.overlap_source_policy is not None and (
+            self.action_type != "gain_blade"
+            or self.target not in {None, "self"}
+            or self.amount is None
+            or self.amount <= 0
+            or self.amount_source is not None
+            or self.branch is not None
+            or self.multiplier is not None
+            or self.value is not None
+        ):
+            raise ValueError("overlap source policy requires a fixed self Blade modifier")
         if self.action_type == "deploy_selected_to_stage" and (
             self.orientation is None or self.branch is not None
             or self.entry_trigger_policy is not None
@@ -380,6 +394,31 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        if any(op.overlap_source_policy is not None for op in self.cost):
+            raise ValueError("overlap source policy cannot be used as a cost")
+        if any(op.overlap_source_policy is not None for op in self.actions) and (
+            len(self.actions) != 1
+            or self.trigger != "own_member_played"
+            or self.effect_type != "triggered"
+            or self.execution_mode != "auto_resolve"
+            or self.duration != "live"
+            or self.cost
+            or self.cost_choice
+            or self.choice
+            or self.follow_up_choice
+            or self.is_optional
+            or not isinstance(self.condition.get("source_slot"), str)
+            or self.condition.get("source_slot") not in {"left", "center", "right"}
+            or set(self.condition)
+            - {
+                "source_slot",
+                "trigger_member_cost_exact",
+                "trigger_member_work_key",
+                "trigger_member_unit_key",
+                "trigger_member_not_source",
+            }
+        ):
+            raise ValueError("overlap source policy requires a bounded positional entry observer")
         if (
             (self.cost_choice and self.cost_choice.selection_policy is not None)
             or (self.follow_up_choice and self.follow_up_choice.selection_policy is not None)

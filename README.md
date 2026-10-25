@@ -8,6 +8,10 @@
 
 ## 現在の状態
 
+`PL!HS-pb1-009:1` のセンター誘発に限定的な重複処理を追加しました。誘発後に通常交代で離れた場合、
+解決と回数は記録しますが、控え室や再登場したカードへ今回の Blade を与えません。旧 Replay は維持します。
+[状態・制限・AI の検証](./docs/development/overlap-source-modifier-verification.md)
+
 新規対戦で `PL!N-pb1-012` 鐘嵐珠が通常交代で離れた後も、誘発済みの Wait Energy 追加を解決します。
 重複処理で戻った下の Energy も利用でき、不足時は結果を明示します。旧 Replay と登録率は変更しません。
 [実際の状態・AI・画面の検証](./docs/development/overlap-energy-observer-verification.md)

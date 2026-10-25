@@ -1147,11 +1147,16 @@ describe("App", () => {
     expect(screen.getByText("该登场观察者的重叠时点尚待审核，请手动确认。")).toBeInTheDocument();
   });
 
-  it("shows why a triggered Energy placement did not apply", async () => {
+  it.each([
+    ["energy_deck_insufficient_at_resolution", "结算时能量牌库不足，未放置能量。",
+      "解決時にエネルギーデッキが足りないため、エネルギーを置きませんでした。"],
+    ["overlap_source_member_departed", "来源 Member 已离场，此加成不作用于控室或重新登场的卡牌。",
+      "誘発元のメンバーは一度ステージを離れたため、控え室や再登場したカードには加算しません。"],
+  ])("shows why a triggered operation did not apply (%s)", async (reason, zh, ja) => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const matchCreate = { ...MATCH_PAYLOAD, events: [{
       event_type: "effect_operation_not_applied", player_id: "player_1", source: "system",
-      data: { effect_id: "PL!N-pb1-012:1", reason: "energy_deck_insufficient_at_resolution" },
+      data: { effect_id: "AUDIT-result", reason },
     }] };
     vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
     render(<App />);
@@ -1160,9 +1165,9 @@ describe("App", () => {
     fireEvent.click(createButton);
     await waitFor(() => expect(screen.getByText("技能部分未执行")).toBeInTheDocument());
     await waitFor(() => expect(screen.getByText("自动效果结果")).toBeInTheDocument());
-    expect(screen.getAllByText("结算时能量牌库不足，未放置能量。").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(zh).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "日本語" }));
-    expect(screen.getAllByText("解決時にエネルギーデッキが足りないため、エネルギーを置きませんでした。").length)
+    expect(screen.getAllByText(ja).length)
       .toBeGreaterThan(0);
   });
 

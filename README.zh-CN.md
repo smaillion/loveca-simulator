@@ -8,6 +8,10 @@
 
 ## 当前状态
 
+补齐 `PL!HS-pb1-009:1` 花帆中心观察者：已触发后因普通替换离场，仍处理能力并计次数，
+但不把本次自身 Blade 加成给控室或重新登场的同一卡牌。旧 Replay 不变，非重叠对象追踪仍待审计。
+[中文状态 / 限制 / AI 验证](./docs/development/overlap-source-modifier-verification.md)。
+
 新建对局修正 `PL!N-pb1-012` 鐘嵐珠普通替换离场后漏补 Wait Energy 的问题，
 包含重叠整理返还附属 Energy 后再补入的边界；无牌可补时明确显示结果。旧 Replay 与登记率不变。
 [中文状态 / AI / UI 验证报告](./docs/development/overlap-energy-observer-verification.md)。

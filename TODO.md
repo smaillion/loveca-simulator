@@ -71,6 +71,9 @@
   新 overlap policy 保留 None / fixed-draw 旧 Replay，无牌可补有明确结果。见
   `docs/development/overlap-energy-observer-verification.md`。来源位置/属性、条件式离场、继承与
   一般瞬时重叠仍在父任务中，六张待审卡不晋级。
+- 已补 `PL!HS-pb1-009:1` 中心观察者的显式 operation snapshot 策略：普通替换后保留待机，
+  不向控室/重入场对象应用本次自身 Blade，次数仍计入。见 `docs/development/overlap-source-modifier-verification.md`。
+  非重叠来源对象、完整 Stage 条件、继承及其他旧 modifier 清理列为 unresolved；不视为通用对象追踪已完成。
 - 已修复：`PL!SP-bp5-111:2` / `PL!SP-pb2-010:1` 的 Energy 回牌库空朝向，
   验证真实费用 / 分支 / runtime Replay；旧坏快照拒绝读取且不改写，API / SSE 错误不泄露私有信息，
   前端显示诊断并停止重试。见 `docs/development/energy-return-replay-verification.md`；不改 schema。

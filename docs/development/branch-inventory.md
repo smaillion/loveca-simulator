@@ -43,6 +43,10 @@ Baton 原型检查点：已核对 `07f51e4` 的两个 PR entry，没有直接恢
 
 ## 工作树
 
+来源对象检查点：已为 `PL!HS-pb1-009:1` 增加有界 operation snapshot 策略，重叠前检查中心，
+来源离场后不向新对象应用本次 Blade；旧 Replay 保留，registry/manifest 同步。见 `overlap-source-modifier-verification.md`。
+非重叠对象、继承与其他旧 modifier 清理仍待审计；六卡 manual、同一 PR #54，旧工作树未改动，不合并部署。
+
 Wait Energy 检查点：已修正 `PL!N-pb1-012:1` 在普通替换后漏补能量，包含附属 Energy 先返还、
 费用 / 次数 / 空牌库和顺序消耗资源；新策略保留旧 Replay。见 `overlap-energy-observer-verification.md`。
 旧工作树未修改，六张待审卡仍 manual，完整重叠父任务保留；同一 Draft PR #54，不合并部署。

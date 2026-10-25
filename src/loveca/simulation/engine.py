@@ -4279,7 +4279,10 @@ def _effect_unavailable_reason(
             return "total_stage_member_count_too_low"
     source_slot = effect.condition.get("source_slot")
     if isinstance(source_slot, str):
-        if _top_member_slot(player, invocation.source_card_instance_id) != source_slot:
+        actual_slot = _top_member_slot(player, invocation.source_card_instance_id)
+        if _captured_overlap_source_modifier(state, invocation):
+            actual_slot = invocation.trigger_data["overlap_source_slot_at_trigger"]
+        if actual_slot != source_slot:
             return "source_slot_mismatch"
     source_slots = effect.condition.get("source_slot_any")
     if isinstance(source_slots, list):
@@ -6834,7 +6837,7 @@ def _effect_allows_private_selection_none(effect: Any) -> bool:
     )
 
 
-def _fixed_entry_observer(effect: Any, *, include_energy: bool = False) -> bool:
+def _fixed_entry_observer(effect: Any, *, extended: bool = False) -> bool:
     if (
         effect is None
         or effect.trigger != "own_member_played"
@@ -6848,10 +6851,15 @@ def _fixed_entry_observer(effect: Any, *, include_energy: bool = False) -> bool:
     ):
         return False
     fixed_energy = (
-        include_energy
+        extended
         and effect.effect_type == "triggered"
         and len(effect.actions) == 1
         and effect.actions[0].action_type == "place_energy_from_deck"
+    )
+    fixed_modifier = (
+        extended
+        and len(effect.actions) == 1
+        and effect.actions[0].overlap_source_policy == "original_stage_member"
     )
     for key, value in effect.condition.items():
         if key == "trigger_member_cost_exact":
@@ -6866,10 +6874,13 @@ def _fixed_entry_observer(effect: Any, *, include_energy: bool = False) -> bool:
         elif key == "minimum_energy_deck_cards" and fixed_energy:
             if type(value) is not int or value != 1:
                 return False
+        elif key == "source_slot" and fixed_modifier:
+            if value not in {"left", "center", "right"}:
+                return False
         else:
             return False
     return all(
-        (op.action_type == "draw_card" or fixed_energy)
+        (op.action_type == "draw_card" or fixed_energy or fixed_modifier)
         and op.amount is not None
         and op.amount > 0
         and op.amount_source is None
@@ -6887,8 +6898,21 @@ def _deferred_overlap_energy_observer(state: MatchState, invocation: EffectInvoc
     return (
         state.member_overlap_policy == "capture_fixed_draw_and_energy_entry_observers"
         and invocation.trigger_data.get("overlap_observer_before_cleanup") is True
-        and _fixed_entry_observer(effect, include_energy=True)
+        and _fixed_entry_observer(effect, extended=True)
         and effect.actions[0].action_type == "place_energy_from_deck"
+    )
+
+
+def _captured_overlap_source_modifier(state: MatchState, invocation: EffectInvocation) -> bool:
+    effect = state.effect_definitions[invocation.effect_id]
+    slot = invocation.trigger_data.get("overlap_source_slot_at_trigger")
+    return (
+        state.member_overlap_policy == "capture_fixed_draw_and_energy_entry_observers"
+        and invocation.trigger_data.get("overlap_observer_before_cleanup") is True
+        and isinstance(slot, str)
+        and slot in {"left", "center", "right"}
+        and _fixed_entry_observer(effect, extended=True)
+        and effect.actions[0].overlap_source_policy == "original_stage_member"
     )
 
 
@@ -6903,7 +6927,7 @@ def _queue_outgoing_entry_observers(
 ) -> None:
     if state.member_overlap_policy is None:
         return
-    include_energy = state.member_overlap_policy == "capture_fixed_draw_and_energy_entry_observers"
+    extended = state.member_overlap_policy == "capture_fixed_draw_and_energy_entry_observers"
     supported: set[str] = set()
     for effect_id in state.cards[old_id].card.effect_ids:
         effect = state.effect_definitions.get(effect_id)
@@ -6927,7 +6951,7 @@ def _queue_outgoing_entry_observers(
             or (filters.get("trigger_member_not_source") is True and old_id == entering_id)
         ):
             continue
-        if _fixed_entry_observer(effect, include_energy=include_energy):
+        if _fixed_entry_observer(effect, extended=extended):
             supported.add(effect_id)
         else:
             events.append(
@@ -6956,6 +6980,14 @@ def _queue_outgoing_entry_observers(
             "replacement_card_instance_id": old_id,
             "used_baton_touch": False,
             "overlap_observer_before_cleanup": True,
+            **(
+                {"overlap_source_slot_at_trigger": slot}
+                if any(
+                    state.effect_definitions[key].actions[0].overlap_source_policy is not None
+                    for key in supported
+                )
+                else {}
+            ),
         },
     )
 
@@ -6982,13 +7014,19 @@ def _occupied_deployment_gaps(
         if any(state.cards[item].card.effect_ids for item in attached):
             gaps[slot] = "attached_effects_require_overlap_timing_review"
             continue
-        for effect_id in state.cards[old_id].card.effect_ids:
-            effect = state.effect_definitions.get(effect_id)
+        outgoing_effects = [
+            state.effect_definitions.get(key) for key in state.cards[old_id].card.effect_ids
+        ]
+        source_policy_enabled = any(
+            item is not None and any(op.overlap_source_policy for op in item.actions)
+            for item in outgoing_effects
+        )
+        for effect in outgoing_effects:
             if (
                 state.member_overlap_policy is not None
                 and _fixed_entry_observer(
                     effect,
-                    include_energy=state.member_overlap_policy
+                    extended=state.member_overlap_policy
                     == "capture_fixed_draw_and_energy_entry_observers",
                 )
             ):
@@ -6997,7 +7035,8 @@ def _occupied_deployment_gaps(
                 state.member_overlap_policy == "capture_fixed_draw_and_energy_entry_observers"
                 and effect is not None
                 and effect.effect_type == "triggered"
-                and effect.trigger == "live_succeeded"
+                and (effect.trigger == "live_succeeded"
+                     or (effect.trigger == "live_started" and source_policy_enabled))
             ):
                 # This separate ability cannot observe entry, cleanup or leaving Stage.
                 continue
@@ -8355,6 +8394,22 @@ def _execute_operations(
                     orientation=operation.orientation or "active",
                 )
         elif operation_type == "gain_blade":
+            if _captured_overlap_source_modifier(state, invocation):
+                events.append(
+                    GameEvent(
+                        event_type="effect_operation_not_applied",
+                        player_id=invocation.player_id,
+                        data={
+                            "invocation_id": invocation.invocation_id,
+                            "effect_id": invocation.effect_id,
+                            "source_card_instance_id": invocation.source_card_instance_id,
+                            "operation": operation_type,
+                            "reason": "overlap_source_member_departed",
+                        },
+                        source="system",
+                    )
+                )
+                continue
             amount = _operation_amount(
                 operation,
                 selected_count,

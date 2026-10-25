@@ -150,7 +150,7 @@
       "priority": 1,
       "title": "复核完整重叠检查时点及手牌目标可选零张",
       "status": "queued",
-      "depends_on": ["effect-occupied-deployment-foundation", "effect-private-filtered-hand-choice", "overlap-fixed-draw-entry-observer", "pending-effect-apnap-choice", "overlap-fixed-energy-entry-observer"],
+      "depends_on": ["effect-occupied-deployment-foundation", "effect-private-filtered-hand-choice", "overlap-fixed-draw-entry-observer", "pending-effect-apnap-choice", "overlap-fixed-energy-entry-observer", "overlap-source-blade-observer"],
       "required_profiles": ["control", "registry", "backend", "web"],
       "acceptance": ["依据 10.1.2/10.4.1/9.7 与 9.6.3.1.4 处理临时重叠、离场观察者、继承及手牌可视性边界", "不得仅把两个 Member 覆盖为一个就宣称所有触发正确；仍不能确认的语义保持能力边界和 unresolved reason", "支持非公开手牌选择零张时的原生UI/AI/费用结果，不把私有筛选等同公开必选目标", "只有逐卡真实状态/Replay/三policy/UI验收后才提升两张PR卡与四条虹咲登记，父任务未完成前不恢复旧标签"]
     },
@@ -189,6 +189,15 @@
       "depends_on": ["pending-effect-apnap-choice"],
       "required_profiles": ["control", "registry", "backend", "web"],
       "acceptance": ["实际 PL!N-pb1-012:1 普通 cost11 替换后从Energy Deck顶部放置1张Wait Energy，Baton先离场和自身登場对照不触发", "显式新 overlap policy 保留None及旧fixed-draw快照的Replay；不新增SQL迁移，不提升registry状态", "费用不足/非法选择原子拒绝，次数限制、空Energy Deck及附属Energy先返回后供技能使用有真实状态断言，已待机但耗尽时必须显式记录未执行原因", "受控效果登場、AP/NAP续步、真实SQL Replay、三种AI和双方隐藏信息通过；仍不支持复杂条件/继承，六卡manual与父任务保留，中文报告齐全"]
+    },
+    {
+      "id": "overlap-source-blade-observer",
+      "priority": 0,
+      "title": "区分中心观察者的已触发能力与离场前自身对象",
+      "status": "queued",
+      "depends_on": ["overlap-fixed-energy-entry-observer"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["依据PDF11.7.3/9.7.7/4.1.4，实际PL!HS-pb1-009:1在中心普通替换时保留已触发能力，但不向控室或重新入场的同ID卡泄漏Blade加成", "显式受控operation snapshot policy仅覆盖固定自身Live Blade观察者；旧effect snapshot省略None并保留旧Replay，不提升registry计数或reviewed", "中心留场/自身登場/侧区/非蓮ノ空/Baton/两次限制与费用非法原子性有真实状态对照，捕获的来源区域不读取已清理的Stage", "原生UI说明未执行原因；实际SQL Replay、三种AI、隐藏信息、固定10局回归及全部profile通过，复杂继承与一般条件时点仍由父任务保留"]
     },
     {
       "id": "effect-deployment-rule-conformance",
