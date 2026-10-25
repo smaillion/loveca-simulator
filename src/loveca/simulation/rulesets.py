@@ -67,6 +67,13 @@ class RulesetProfile(_ReadOnlyDefinition):
         return self
 
 
+class RulesetIdentity(_ReadOnlyDefinition):
+    ruleset_id: str = Field(min_length=1)
+    rule_version: str = Field(min_length=1)
+    ruleset_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
+    ruling_pack_version: str = Field(min_length=1)
+
+
 class RuleConformanceResult(BaseModel):
     """Evidence, not a claim of complete human rules review."""
 

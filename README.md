@@ -10,7 +10,7 @@
 
 効果による登場の監査用基盤で、交代する旧メンバーの自身登場・起動・Live時点能力を別メンバーの登場監視と混同しない方針を追加しました。常時・継承・未登録の原文は引き続き保留し、カードの対応数は増やしません。[検証と制限](./docs/development/disjoint-overlap-source-verification.md)
 
-新しい対戦はRulesetのID・指紋・裁定パックを保存します。不一致の対戦は閲覧・Replay保存のみとし、再実行済みと表示しません。旧snapshotは書き換えません。待機中ルームの版固定は次の課題です。[互換性検証](./docs/development/ruleset-match-replay-verification.md)
+新しい対戦と待機ルームはRulesetのID・指紋・裁定パックを保存します。ルーム作成後に版が変わった場合は参加を拒否し、作り直しを案内します。旧snapshotは書き換えず、不一致の対戦は閲覧・Replay保存のみです。[ルーム互換性と清掃](./docs/development/room-ruleset-lifecycle-verification.md)
 
 `PL!N-bp7-027`「オードリー」のライブ成功時能力に対応しました。選んだ虹ヶ咲メンバーの実効ブレードを双方の他メンバーと厳密比較し、誘発元のLiveだけに+1します。同数は加算せず、画面に比較結果を表示します。[状態・Replay・50局検証](./docs/development/selected-blade-source-score-verification.md)
 

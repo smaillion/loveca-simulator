@@ -12,8 +12,8 @@
 ### Ruleset 对局身份与等待房间
 
 - 已完成Match身份绑定、未知Profile拒绝、规则不一致只读导出和中日提示，旧snapshot不补写字段。
-- 等待房间尚未在创建时固定Ruleset；下一切片设计独立持久化，不能把版本混进decklist或照搬旧ALTER TABLE。
-- 接入后再迁移核心规则矩阵和End Phase重复检查；版本契约测试不计为规则场景。
+- 等待房间已在创建时固定Ruleset，复用runtime_metadata独立JSON并随房间清理；未知Profile/版本变化在创建Match前拒绝。无ALTER TABLE，不把版本混进decklist；旧房间不补造历史身份。
+- 下一切片迁移核心规则矩阵和End Phase重复检查；版本契约测试不计为规则场景，旧dirty原型不直接整批合并。
 
 ### AI Live 获取与旧脚本长局（继续）
 

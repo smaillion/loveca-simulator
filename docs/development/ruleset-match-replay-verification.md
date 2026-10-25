@@ -1,5 +1,8 @@
 # Ruleset 对局身份与只读 Replay 验证
 
+后续更新：等待房间的创建时版本固定与元数据清理已完成，见[后续报告](./room-ruleset-lifecycle-verification.md)。
+下文保留本批当时的范围和待办，不代表最新房间状态。
+
 ## 本轮范围
 
 从旧 v0.9 工作树只读比对后，选择性接回三个Match字段，不全量合并旧实验。
@@ -67,7 +70,7 @@ ruling pack `comprehensive-only-v1`。PDF SHA-256：
 原始报告：`logs/continuous-ruleset-binding-ai10-20261026/`，保持ignored，不上传私有日志。
 这是运行兼容性回归，不宣称本轮重新逐条人工审计了这10局。
 
-## 仍未完成
+## 本批结束时未完成（历史）
 
 - 等待加入的room目前在Guest加入、创建Match时才固定当前Profile。
   创建到加入期间的Ruleset变化检测另留父任务，不能将版本信息混入decklist，

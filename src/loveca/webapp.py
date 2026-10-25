@@ -103,6 +103,7 @@ class CreateRoomRequest(BaseModel):
     player_name: str
     deck: dict[str, Any]
     seed: int | None = None
+    ruleset_id: str | None = None
 
 
 class JoinRoomRequest(BaseModel):
@@ -321,6 +322,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
                 host_name=request.player_name,
                 host_deck=request.deck,
                 seed=request.seed,
+                ruleset_id=request.ruleset_id,
             )
             return _room_payload(
                 service,
@@ -328,7 +330,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
                 player_id="player_1",
                 player_token=room.host_token,
             )
-        except (DeckFileError, RoomError) as exc:
+        except (DeckFileError, MatchSetupError, RoomError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.get("/api/rooms/{room_code}")
@@ -2050,6 +2052,7 @@ def _room_payload(
         "guest_last_seen_at": room.guest_last_seen_at,
         "closed_at": room.closed_at,
         "close_reason": room.close_reason,
+        "ruleset_identity": room.ruleset_identity.model_dump() if room.ruleset_identity else None,
         "match": None,
     }
     if player_token is not None:

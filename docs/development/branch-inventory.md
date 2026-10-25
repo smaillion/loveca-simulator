@@ -1,5 +1,10 @@
 # 分支与工作树清单
 
+等待房间检查点：创建时固定Ruleset四字段，复用runtime_metadata独立JSON，不改表结构或decklist。
+规则变化在Match写入前409拒绝，旧房间不补造身份，元数据随room保留期清理。见
+`room-ruleset-lifecycle-verification.md`。原Ruleset迁移父任务本批收口，核心矩阵继续排队。
+仍仅更新Draft PR #54，不合并部署，不改旧44/6项dirty成果与ignored报告。
+
 重叠时点检查点：新增显式operation策略，区分旧Member无关的自身/Live时点与真正观察者，
 50项受控状态/Replay/四policy验证、20局回归；六条manual和900/1212登记数不变。
 完整重叠/继承仍留父任务。见 `disjoint-overlap-source-verification.md`。

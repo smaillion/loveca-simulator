@@ -477,6 +477,12 @@ export interface MatchListResponse {
 }
 
 export interface RoomPayload {
+  ruleset_identity?: {
+    ruleset_id: string;
+    rule_version: string;
+    ruleset_fingerprint: string;
+    ruling_pack_version: string;
+  } | null;
   room_code: string;
   status: "waiting_for_guest" | "active" | "expired";
   player_id: "player_1" | "player_2" | null;

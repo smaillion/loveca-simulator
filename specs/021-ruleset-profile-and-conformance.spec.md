@@ -61,9 +61,29 @@ the existing app/protocol/card/registry/deck fields. Active room payloads inheri
 the match identity without relaxing hidden-information redaction. Incompatible
 payloads expose no actionable LegalAction and show a localized read-only notice.
 
-No SQLite schema changes. Waiting-room creation-time profile pinning is still
-pending; the current room creates its pinned Match when the guest joins. Do not
-claim that this remaining room-lifecycle contract is already implemented.
+## Waiting Room Identity
+
+New rooms pin RulesetIdentity at creation, using the same supported-profile
+resolver as MatchService. POST /api/rooms accepts optional ruleset_id; omitting
+it keeps the old request valid. Identity contains only rule version, profile ID,
+fingerprint and ruling-pack version, not full sources, decks, tokens or secrets.
+
+Room and identity persist in the same SQLite transaction. The existing
+runtime_metadata table stores JSON under hosted_room_ruleset:<canonical-code>.
+No table/column/schema-version change and no data inside decklist are required.
+Joining passes the expected identity to MatchService, which resolves current
+support again before deck validation or match persistence. Mismatch returns409
+ruleset_mismatch without creating a Match or updating the room.
+
+Legacy rooms without metadata retain the prior join-at-current-rules behavior;
+their absent creation identity remains null rather than being reconstructed.
+Expired metadata follows room grace retention. Cleanup removes only exact-prefix
+keys whose room rows no longer exist, preserving schema_version and other keys.
+Room-only repositories without runtime_metadata retain legacy behavior, but
+cannot request new binding without a standard runtime database.
+
+This implements Ruleset pinning, not a complete client app/catalog/registry
+handshake or an atomic concurrent-guest room reservation protocol.
 
 ## v0.9 Exit Criteria
 
