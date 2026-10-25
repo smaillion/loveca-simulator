@@ -13925,11 +13925,11 @@ def _phase5_v1_zone_choice_effects(row: sqlite3.Row) -> EffectCandidate | None:
             "effect_type": "triggered",
             "timing": "auto_triggered_event",
             "trigger": "own_member_played",
-            "frequency_limit": "once_per_turn",
+            "frequency_limit": "none",
             "execution_mode": "auto_resolve",
             "condition": {
-                "source_zone": "stage",
-                "own_member_entered_count_this_turn_at_least": 3,
+                "trigger_source_zone": "stage",
+                "trigger_member_entry_count_exact": 3,
             },
             "actions": [
                 {"action_type": "draw_until_hand_size", "target_hand_size": 5}

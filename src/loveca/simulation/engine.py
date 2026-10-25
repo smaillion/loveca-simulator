@@ -2773,6 +2773,23 @@ def _queue_triggered_effects(
             effect = state.effect_definitions.get(effect_id)
             if effect is None or trigger not in str(effect.trigger).split("|"):
                 continue
+            entry_snapshot: dict[str, Any] = {}
+            if _entry_count_observer(effect):
+                player = state.players[source.owner_id]
+                count = player.member_entered_count_this_turn
+                if count != effect.condition["trigger_member_entry_count_exact"]:
+                    continue
+                source_on_stage = _top_member_slot(player, source_id) is not None or (
+                    trigger_data.get("overlap_observer_before_cleanup") is True
+                    and trigger_data.get("replacement_card_instance_id") == source_id
+                    and trigger_data.get("slot") in {"left", "center", "right"}
+                )
+                if not source_on_stage:
+                    continue
+                entry_snapshot = {
+                    "member_entry_count_at_trigger": count,
+                    "source_stage_at_trigger": True,
+                }
             if _source_trigger_disabled(state, source.owner_id, source_id, trigger):
                 events.append(
                     GameEvent(
@@ -2795,7 +2812,11 @@ def _queue_triggered_effects(
                 source_card_instance_id=source_id,
                 player_id=source.owner_id,
                 trigger_event=trigger,
-                trigger_data={**trigger_data, "_condition_checked_at_trigger": True},
+                trigger_data={
+                    **trigger_data,
+                    **entry_snapshot,
+                    "_condition_checked_at_trigger": True,
+                },
             )
             unavailable_reason = _effect_unavailable_reason(state, invocation)
             if unavailable_reason is not None:
@@ -2933,6 +2954,17 @@ def _effect_unavailable_reason(
 ) -> str | None:
     effect = state.effect_definitions[invocation.effect_id]
     player = state.players[invocation.player_id]
+    if _entry_count_observer(effect):
+        if invocation.trigger_event != "own_member_played":
+            return "member_entry_trigger_snapshot_missing"
+        captured_count = invocation.trigger_data.get("member_entry_count_at_trigger")
+        if (
+            type(captured_count) is not int
+            or invocation.trigger_data.get("source_stage_at_trigger") is not True
+        ):
+            return "member_entry_trigger_snapshot_missing"
+        if captured_count != effect.condition["trigger_member_entry_count_exact"]:
+            return "member_entry_trigger_count_mismatch"
     phase_in = effect.condition.get("phase_in")
     if isinstance(phase_in, list) and all(isinstance(item, str) for item in phase_in):
         if state.phase not in set(phase_in):
@@ -6843,6 +6875,10 @@ def _effect_allows_private_selection_none(effect: Any) -> bool:
     )
 
 
+def _entry_count_observer(effect: Any) -> bool:
+    return effect is not None and "trigger_member_entry_count_exact" in effect.condition
+
+
 def _fixed_entry_observer(effect: Any, *, extended: bool = False) -> bool:
     if (
         effect is None
@@ -6856,6 +6892,8 @@ def _fixed_entry_observer(effect: Any, *, extended: bool = False) -> bool:
         or not effect.actions
     ):
         return False
+    if extended and _entry_count_observer(effect):
+        return True
     fixed_energy = (
         extended
         and effect.effect_type == "triggered"
@@ -7027,6 +7065,7 @@ def _occupied_deployment_gaps(
             item is not None and any(op.overlap_source_policy for op in item.actions)
             for item in outgoing_effects
         )
+        entry_counter_enabled = any(_entry_count_observer(item) for item in outgoing_effects)
         for effect in outgoing_effects:
             if (
                 state.member_overlap_policy is not None
@@ -7041,8 +7080,13 @@ def _occupied_deployment_gaps(
                 state.member_overlap_policy == "capture_fixed_draw_and_energy_entry_observers"
                 and effect is not None
                 and effect.effect_type == "triggered"
-                and (effect.trigger == "live_succeeded"
-                     or (effect.trigger == "live_started" and source_policy_enabled))
+                and (
+                    effect.trigger == "live_succeeded"
+                    or (
+                        effect.trigger == "live_started"
+                        and (source_policy_enabled or entry_counter_enabled)
+                    )
+                )
             ):
                 # This separate ability cannot observe entry, cleanup or leaving Stage.
                 continue
@@ -7061,6 +7105,11 @@ def _occupied_deployment_gaps(
         for source_id in entry_sources:
             for effect_id in state.cards[source_id].card.effect_ids:
                 effect = state.effect_definitions.get(effect_id)
+                if (
+                    state.member_overlap_policy == "capture_fixed_draw_and_energy_entry_observers"
+                    and _entry_count_observer(effect)
+                ):
+                    continue
                 if (
                     effect is None
                     or (source_id == candidate_id and "static_always" in effect.trigger.split("|"))

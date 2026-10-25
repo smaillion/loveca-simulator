@@ -8,6 +8,9 @@
 
 ## 現在の状態
 
+`PL!N-bp3-005:1` 宮下愛の補充を正確に「3回目の登場」に限定しました。4回目以降は誘発せず、
+誘発後の交代や追加登場で待機能力を失いません。別段の「2回以上」は維持します。[実カードと旧Replay検証](./docs/development/third-entry-observer-verification.md)
+
 新規対戦では、通常交代・バトンタッチ・限定的な効果登場・手動退場でステージを離れたカードの
 一時補正を解除します。再登場しても旧 Blade / Heart を引き継がず、ステージ内移動と全体補正は維持します。
 旧 Replay と登録率は変更しません。[実カード・Replay・AI の検証](./docs/development/stage-departure-modifier-verification.md)

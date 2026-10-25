@@ -1,5 +1,9 @@
 # 分支与工作树清单
 
+第3次登場检查点：已修复实际 `PL!N-bp3-005:1` 计数与普通交代漏触发，保留第二段“2回以上”
+及旧Replay；46项专项与固定10局回归通过。见 `third-entry-observer-verification.md`。
+父任务保留，下一优先项为AI固定seed长局/零Live归因；仍为同一Draft PR #54，不合并部署，旧工作树不变。
+
 本轮检查点：已在同一 continuous 分支修复新对局 Stage 离场遗留定向补正，真实花帆状态 / SQL Replay /
 三policy与固定10局回归通过，旧快照保持原行为；父重叠任务与六张manual卡保留。
 见 `stage-departure-modifier-verification.md`。只更新Draft PR #54，不合并部署，旧dirty工作树不变。

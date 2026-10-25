@@ -8,6 +8,9 @@
 
 ## 当前状态
 
+修正 `PL!N-bp3-005:1` 宮下愛只在本回合第3次登场时补手牌，第4次以后不误触发；
+已触发后再离场或发生第4次登场不丢失待机能力。第二段“2回以上”不变。[状态与旧Replay验证](./docs/development/third-entry-observer-verification.md)。
+
 新建对局修复普通替换、Baton、受控效果登场和手动离场遗留卡牌补正的问题；
 同一卡回场不再带回旧 Blade / Heart，Stage 内移动和玩家整体补正保留。
 旧 Replay 与登记率不变。[真实花帆 / Replay / AI 验证](./docs/development/stage-departure-modifier-verification.md)。

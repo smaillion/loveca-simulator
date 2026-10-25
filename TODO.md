@@ -28,6 +28,11 @@
 
 ### 持续开发与遗留收敛
 
+- 已修正 `PL!N-bp3-005:1` 第3次登場的事件计数，不再读作第3次及以后；待机后保存触发资格，
+  旧effect snapshot和第二段“2回以上”保留。见 `docs/development/third-entry-observer-verification.md`。
+- 当前固定10局仍仅7局满足10回合且双方成功Live；将既有 `ai-long-game-reliability` 提到下一优先项，
+  先归因seed12004的19回合、12005/12009的单边零Live，再复核旧50局基线，不反复运行不变的10局刷通过。
+  完整继承/重叠父任务继续保留；临时文本revision477/478仅外层引号不同的来源选择另需审计，不改库或自动换hash。
 - 已完成 `stage-departure-modifier-cleanup` 有限切片：普通替换 / Baton / 受控效果登场 /
   手动离场清理旧卡和一同离场附属卡的定向补正；Stage内移动、玩家整体补正和旧 Replay 不变。
   真实花帆获得2Blade后离场回场、SQL Replay与三policy已验证，见

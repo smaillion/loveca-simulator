@@ -46262,8 +46262,8 @@
       "card_code": "PL!N-bp3-005",
       "choice": null,
       "condition": {
-        "own_member_entered_count_this_turn_at_least": 3,
-        "source_zone": "stage"
+        "trigger_member_entry_count_exact": 3,
+        "trigger_source_zone": "stage"
       },
       "cost": [],
       "cost_choice": null,

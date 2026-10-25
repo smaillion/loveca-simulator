@@ -1957,6 +1957,31 @@ describe("App", () => {
     expect(screen.getByText("特殊应援: ドロー1 draw+1")).toBeInTheDocument();
   });
 
+  it("shows the actual third-entry observer source after it has left Stage", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const sourceId = "third-entry-source";
+    const matchCreate = {
+      ...MATCH_PAYLOAD,
+      state: { ...MATCH_PAYLOAD.state,
+        players: { ...MATCH_PAYLOAD.state.players, player_1: {
+          ...MATCH_PAYLOAD.state.players.player_1, waiting_room: [sourceId],
+        } }, cards: {
+        [sourceId]: { instance_id: sourceId, owner_id: "player_1", orientation: "active",
+          face_up: true, card: { ...CATALOG_DETAIL.card, card_code: "PL!N-bp3-005", name_ja: "宮下 愛" } },
+      } },
+      events: [{ event_type: "effect_auto_resolved", player_id: "player_1", source: "system",
+        data: { effect_id: "PL!N-bp3-005:1", source_card_instance_id: sourceId } }],
+    };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    const createButton = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+    await screen.findByText("自动处理 · 宮下 愛 · PL!N-bp3-005:1");
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect(screen.getByText("自動処理 · 宮下 愛 · PL!N-bp3-005:1")).toBeInTheDocument();
+  });
+
   it("shows an automatic result notice for milled cards even when the conditional follow-up does not happen", async () => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const sourceId = "player_1-M001";

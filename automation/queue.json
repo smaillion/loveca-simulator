@@ -150,7 +150,7 @@
       "priority": 1,
       "title": "复核完整重叠检查时点及手牌目标可选零张",
       "status": "queued",
-      "depends_on": ["effect-occupied-deployment-foundation", "effect-private-filtered-hand-choice", "overlap-fixed-draw-entry-observer", "pending-effect-apnap-choice", "overlap-fixed-energy-entry-observer", "overlap-source-blade-observer", "stage-departure-modifier-cleanup"],
+      "depends_on": ["effect-occupied-deployment-foundation", "effect-private-filtered-hand-choice", "overlap-fixed-draw-entry-observer", "pending-effect-apnap-choice", "overlap-fixed-energy-entry-observer", "overlap-source-blade-observer", "stage-departure-modifier-cleanup", "third-entry-counter-observer"],
       "required_profiles": ["control", "registry", "backend", "web"],
       "acceptance": ["依据 10.1.2/10.4.1/9.7 与 9.6.3.1.4 处理临时重叠、离场观察者、继承及手牌可视性边界", "不得仅把两个 Member 覆盖为一个就宣称所有触发正确；仍不能确认的语义保持能力边界和 unresolved reason", "支持非公开手牌选择零张时的原生UI/AI/费用结果，不把私有筛选等同公开必选目标", "只有逐卡真实状态/Replay/三policy/UI验收后才提升两张PR卡与四条虹咲登记，父任务未完成前不恢复旧标签"]
     },
@@ -209,6 +209,15 @@
       "acceptance": ["依据 PDF4.1.4/9.9.2，普通替换、Baton、受控效果登場和手动离场清除旧卡及一同离场附属卡的定向modifier，Stage内移动与非定向加成不清除", "新建对局显式启用策略，旧None快照省略字段并保持历史Replay，不升级Card或SQLite schema", "真实花帆先获Blade再离场回场、跨玩家modifier、非法原子性、SQL Replay、三policy及隐藏信息有断言，固定10局回归通过", "事件以简短中日说明记录清理数量，不输出完整modifier或私有牌面；不提升registry状态、不宣称全部离场路径或继承已完成"]
     },
     {
+      "id": "third-entry-counter-observer",
+      "priority": 0,
+      "title": "按实际第3次登場触发补手牌并保存触发时计数",
+      "status": "queued",
+      "depends_on": ["stage-departure-modifier-cleanup"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["实际PL!N-bp3-005:1只在本回合第3次外部登場触发，第1/2/4/5次与第3次之后才入场不误触发", "以显式新condition快照冻结触发计数和来源Stage资格，普通替换已触发可继续、Baton费用先离场不触发，旧effect snapshot保持历史Replay", "正常/自身/受控效果登場、多能力顺序与延后离场、实际SQL Replay、非法原子性、三policy与隐藏信息均有断言", "精确候选/registry/manifest同步，不新增或晋级entry；完整profile及固定10局回归通过，中文报告明确不代表继承或完整瞬时场面支持"]
+    },
+    {
       "id": "effect-deployment-rule-conformance",
       "priority": 1,
       "title": "补齐效果登场的合法区域、朝向、UI 和 AI 选择",
@@ -228,12 +237,12 @@
     },
     {
       "id": "ai-long-game-reliability",
-      "priority": 2,
+      "priority": 0,
       "title": "降低新卡池 AI 长局与 Live 获取停滞",
       "status": "queued",
       "depends_on": ["continuous-workflow"],
       "required_profiles": ["registry", "backend", "web"],
-      "acceptance": ["复现 2026-10 的 50 局中 16 个 action-cap 案例", "固定牌组和 seed 比较，保持隐藏手牌独立性", "50 局至少 45 局正式完赛，illegal action / replay error / silent skip 均为零", "保留旧 policy 和中文策略报告，未达目标时如实记录"]
+      "acceptance": ["先固定seed12004的19回合与12005/12009单边零成功Live归因，再复核2026-10的旧50局中16个action-cap案例；不得把旧policy结果冒充当前基线", "固定牌组和 seed 比较，保持隐藏手牌独立性", "50 局至少 45 局正式完赛，illegal action / replay error / silent skip 均为零", "保留旧 policy 和中文策略报告，未达目标时如实记录"]
     },
     {
       "id": "effect-accuracy-loop",

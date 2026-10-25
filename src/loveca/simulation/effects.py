@@ -393,6 +393,37 @@ class EffectDefinition(BaseModel):
     source_reference: str
 
     @model_validator(mode="after")
+    def validate_entry_count_snapshot(self) -> EffectDefinition:
+        keys = {"trigger_member_entry_count_exact", "trigger_source_zone"}
+        if not keys.intersection(self.condition):
+            return self
+        count = self.condition.get("trigger_member_entry_count_exact")
+        if (
+            set(self.condition) != keys
+            or type(count) is not int
+            or count < 1
+            or self.condition.get("trigger_source_zone") != "stage"
+            or self.trigger != "own_member_played"
+            or self.effect_type != "triggered"
+            or self.execution_mode != "auto_resolve"
+            or self.is_optional
+            or self.frequency_limit != "none"
+            or self.cost
+            or self.cost_choice
+            or self.choice
+            or self.follow_up_choice
+            or self.duration is not None
+            or len(self.actions) != 1
+            or self.actions[0].action_type != "draw_until_hand_size"
+            or self.actions[0].target not in {None, "self"}
+            or self.actions[0].amount_source is not None
+            or self.actions[0].branch is not None
+            or self.actions[0].value is not None
+        ):
+            raise ValueError("entry count snapshot requires a bounded mandatory draw-to-hand observer")
+        return self
+
+    @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
         if any(op.overlap_source_policy is not None for op in self.cost):
             raise ValueError("overlap source policy cannot be used as a cost")

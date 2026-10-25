@@ -18,6 +18,12 @@ This audit does not incorporate FAQ, Q&A, or individual ruling clarifications.
 
 ## Current Repository Snapshot
 
+实际 `PL!N-bp3-005:1` 的事件条件已从错误的“本回合至少3次”改为触发时恰好第3次，
+保存来源当时在Stage的资格；待机后来源离场或又有第4次登場不取消，手牌缺额仍在解決时计算。
+第2段Live开始时“至少2次”未改，补1分的真实状态对照已验证。新条件仅接受有界强制补手牌观察者，
+旧effect snapshot保持旧Replay；registry/candidate/manifest同步但登记数不变。
+[中文卡图、状态与兼容性报告](./development/third-entry-observer-verification.md)。
+
 新建对局增加独立 `stage_departure_policy=clear_departed_card_modifiers`：普通替换、Baton、
 受控效果登场、手动离场及该路径附属卡清理会解除旧对象的定向 modifier，包含存于对方玩家下的补正。
 Stage 内移动和非定向补正保留；None省略并保持旧Replay。实际花帆先获得2Blade再离场/回场与SQL重放已验证，

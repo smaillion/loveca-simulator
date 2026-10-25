@@ -1,5 +1,20 @@
 # 019 Effect Execution MVP Specification
 
+## Exact Member Entry Counter Snapshot (2026-10)
+
+The bounded mandatory `own_member_played` draw-to-hand family may declare exactly:
+`trigger_member_entry_count_exact: N` (positive integer) and `trigger_source_zone: stage`.
+It requires a single self `draw_until_hand_size`, no cost/choice, no duration, and no
+artificial once-per-turn limit. Trigger detection saves `member_entry_count_at_trigger`
+and `source_stage_at_trigger`; resolution validates this snapshot, not the current counter
+or the departed source's current zone. Draw amount still uses the current hand deficit.
+
+Latest bounded overlap capture accepts this exact family, including a separate unrelated
+Live-start ability on the source. Other stage-count conditions and inherited abilities
+remain excluded. Missing/invalid snapshots fail closed. Existing `at_least` conditions and
+old effect snapshots preserve their behavior. No MatchState field, API or SQL migration.
+Evidence: `docs/development/third-entry-observer-verification.md` (PDF9.7.2/9.7.7/10.4.1).
+
 ## Existing Stage Modifier Departure Boundary (2026-10)
 
 New matches explicitly set `stage_departure_policy: clear_departed_card_modifiers`.
