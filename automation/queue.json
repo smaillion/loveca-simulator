@@ -92,11 +92,29 @@
       "acceptance": ["六条明确空区域登场技能显式指定 Active，不改变旧快照缺省 Wait", "位置选择由 legal payload 暴露并被 UI、三种 AI policy 与 deterministic sandbox 使用", "逐条验证来源/费用/触发、非法位置原子性和 Replay，补前端位置提交测试", "四条未限定空区域的虹咲技能退回 manual，明确尚待 occupied-area 支持，不虚标覆盖率"]
     },
     {
+      "id": "member-entry-current-area-history",
+      "priority": 0,
+      "title": "按 Member 卡牌身份追踪本回合 Stage 入场及当前区域限制",
+      "status": "queued",
+      "depends_on": ["effect-empty-deployment-active-ui-ai"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["依据 9.6.2.1.2.1 与 4.5.5.3，限制随本回合从 Stage 外进入的 Member 卡移动，包含附属 Member；空出的旧区域不继续被错误锁定", "普通登场、效果登场、多人选择、手动入场和外部附属 Member 路径登记身份，Stage 内移动不伪记新入场", "新对局启用身份记录，旧快照缺省保留原区域历史语义，不增加 SQLite migration", "真实 Position / Formation / Baton / 附属卡与费用回滚、Replay、隐藏信息及 AI 选择测试通过，不提升尚未完成的技能覆盖", "将附属卡登场触发等需要额外规则复核的语义独立登记，不凭推测推广"]
+    },
+    {
+      "id": "attachment-promotion-trigger-audit",
+      "priority": 1,
+      "title": "独立复核附属 Member 转为顶部 Member 的登場触发与计数",
+      "status": "queued",
+      "depends_on": ["member-entry-current-area-history"],
+      "required_profiles": ["registry", "backend", "web"],
+      "acceptance": ["以 4.5.5 / 11.4.2 和 PL!-bp6-003:2 的精确文本复核附属卡登场，不能把 Stage 内转移当作 Stage 外入场", "unresolved_reason=attachment_promotion_onplay_trigger_and_entry_count_requires_rules_audit；本轮只修区域身份记录，不继承为已完成人工裁定", "真实状态对比登場触发、own_member_played、进入次数与后续区域限制，必要时修正或降级，不虚标支持", "新旧快照行为、Replay、UI/AI 与隐藏信息均验证后才能并入通用效果登场底座"]
+    },
+    {
       "id": "effect-deployment-rule-conformance",
       "priority": 1,
       "title": "补齐效果登场的合法区域、朝向、UI 和 AI 选择",
       "status": "queued",
-      "depends_on": ["effect-empty-deployment-active-ui-ai"],
+      "depends_on": ["member-entry-current-area-history", "attachment-promotion-trigger-audit"],
       "required_profiles": ["registry", "backend", "web"],
       "acceptance": ["依据 PDF 4.3.2.3、9.6.2.1.2、9.6.2.4.2.1 和 10.4 新增或修正效果登场语义，不能把所有登场限制为空区域并默认 Wait", "区域限制按本回合入场 Member 当前所在位置计算，覆盖 Position / Formation 后的合法性，旧快照字段兼容且不新增 SQLite migration", "空区域和可替换已有 Member 的区域均能选择，正确处理重复 Member、附属卡清理及登場/离场触发，不冒充 Baton", "前端和三种 AI policy 都从 legal payload 选择 Member 与位置，包含非法目标回滚、Replay 和双方隐藏信息测试", "只在真实状态断言通过后提升 PL!-PR-015:1 与 PL!SP-PR-020:1；同时复核当前 10 条 empty-stage executable 并逐条记录保留/修正/降级原因，不虚标覆盖率"]
     },
@@ -125,7 +143,7 @@
       "status": "queued",
       "depends_on": ["continuous-workflow"],
       "required_profiles": ["registry", "backend", "web"],
-      "acceptance": ["从执行时实际 manual 集合中按真实触发次数选择安全语义家族（本轮基线 309 条）", "每次最多一个语义家族，有真实状态转换和 replay 测试", "strict integrity 保持零错误零警告", "跑固定 AI 审计及针对性 sandbox，输出中文报告", "FAQ-sensitive / unknown 无法确认时记录原因并转向下一项，不虚标 executable"]
+      "acceptance": ["从执行时实际 manual 集合中按真实触发次数选择安全语义家族（当前队列基线 313 条）", "每次最多一个语义家族，有真实状态转换和 replay 测试", "strict integrity 保持零错误零警告", "跑固定 AI 审计及针对性 sandbox，输出中文报告", "FAQ-sensitive / unknown 无法确认时记录原因并转向下一项，不虚标 executable"]
     },
     {
       "id": "phase6-conformance-matrix",

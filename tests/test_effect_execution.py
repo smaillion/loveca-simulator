@@ -12028,7 +12028,9 @@ def test_baton_touch_auto_readies_two_energy(tmp_path):
     new = _instance(state, "player_1", "PL!HS-sd1-002", zone="main_deck")
     state = _manual_move(service, match_id, state, old, "member_center")
     state = _manual_move(service, match_id, state, new, "hand")
+    # The fixture models an incumbent from an earlier turn, not today's manual entry.
     state.players["player_1"].member_areas_entered_this_turn.clear()
+    state.players["player_1"].member_card_instance_ids_entered_stage_this_turn.clear()
     old_cost = state.cards[old].card.cost or 0
     new_cost = state.cards[new].card.cost or 0
     payment = max(0, new_cost - old_cost)

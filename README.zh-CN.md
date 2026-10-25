@@ -32,6 +32,10 @@ API Play 测试工具已隔离对手背面卡与他方私有选择，区分 mock
 4 条不限定空区域的虹咲技能退回手动处理，等待合法替换区域底座。旧 Replay 朝向不变。
 [本轮验证及限制](./docs/development/empty-effect-deployment-verification.md)。登记率不代表规则正确率。
 
+新建对局的本回合登场区域限制现按 Member 卡的当前位置判断：Position / Formation Change 后，
+限制不会错误地留在旧区域；本回合从 Stage 外放入下方的 Member 卡也会随组追踪。
+旧 Replay 保留原行为；本轮不提升技能登记率。[验证记录](./docs/development/member-entry-area-history-verification.md)
+
 `develop`（下一版 `v0.9`）当前已收录:
 
 - 基于官方 `card_list` JSON API 的正式卡牌 importer

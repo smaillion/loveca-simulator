@@ -34,6 +34,11 @@ mock と実モデルの検証を区別し、context 保存は既定で無効で�
 空きエリア限定ではない虹ヶ咲4件は手動処理へ戻しました。旧 Replay の向きは維持します。
 [検証と未対応範囲](./docs/development/empty-effect-deployment-verification.md)。登録率はルール正確性の保証ではありません。
 
+新規対戦では、同一ターンの登場先制限がメンバーカードの現在位置に追従します。
+ポジション / フォーメーションチェンジ後に元のエリアだけが制限される問題を修正し、
+下に重なる新規 Member も判定対象としました。旧 Replay の動作は維持します。
+[検証記録](./docs/development/member-entry-area-history-verification.md)
+
 `develop`（次期 `v0.9`）の収録内容:
 
 - 公式 `card_list` JSON API からの正式カード importer

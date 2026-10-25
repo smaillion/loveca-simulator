@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_serializer
 
 from loveca.simulation.effects import EffectDefinition
 
@@ -154,6 +154,8 @@ class PlayerState(BaseModel):
         default_factory=lambda: {"left": [], "center": [], "right": []}
     )
     member_areas_entered_this_turn: list[str] = Field(default_factory=list)
+    # None keeps historical snapshots on their original area-based behavior.
+    member_card_instance_ids_entered_stage_this_turn: list[str] | None = None
     member_areas_moved_this_turn: list[str] = Field(default_factory=list)
     member_entered_count_this_turn: int = 0
     member_areas_baton_entered_this_turn: list[str] = Field(default_factory=list)
@@ -168,6 +170,13 @@ class PlayerState(BaseModel):
     refresh_count: int = 0
     refreshed_this_turn: bool = False
     live_result: LivePerformanceResult = Field(default_factory=LivePerformanceResult)
+
+    @model_serializer(mode="wrap")
+    def serialize_entry_history(self, handler: Any) -> dict[str, Any]:
+        payload = handler(self)
+        if self.member_card_instance_ids_entered_stage_this_turn is None:
+            payload.pop("member_card_instance_ids_entered_stage_this_turn", None)
+        return payload
 
 
 class PendingChoice(BaseModel):

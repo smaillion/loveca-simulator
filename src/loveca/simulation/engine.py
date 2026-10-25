@@ -559,7 +559,7 @@ def _play_member(
         raise IllegalActionError("only Member cards can be played")
     if slot not in player.member_area:
         raise IllegalActionError("the selected Member Area slot is invalid")
-    if slot in player.member_areas_entered_this_turn:
+    if _member_area_blocks_entry(player, slot):
         raise IllegalActionError(
             "the selected Member Area received a Member from outside the Stage this turn"
         )
@@ -573,7 +573,10 @@ def _play_member(
         if replaced_instance_id is None:
             raise IllegalActionError("Baton Touch requires a Member in the selected area")
         if (
-            slot in player.member_areas_baton_entered_this_turn
+            (
+                player.member_card_instance_ids_entered_stage_this_turn is None
+                and slot in player.member_areas_baton_entered_this_turn
+            )
             or replaced_instance_id in player.member_instance_ids_baton_entered_this_turn
         ):
             raise IllegalActionError(
@@ -635,6 +638,7 @@ def _play_member(
         )
     player.hand.remove(instance_id)
     player.member_area[slot] = instance_id
+    _record_external_member_card_entry(player, instance_id)
     player.member_entered_count_this_turn += 1
     if slot not in player.member_areas_entered_this_turn:
         player.member_areas_entered_this_turn.append(slot)
@@ -2376,6 +2380,7 @@ def _resolve_multi_player_deploy_choice(
         raise IllegalActionError("selected Member must remain in Waiting Room")
     player.waiting_room.remove(selected)
     player.member_area[slot] = selected
+    _record_external_member_card_entry(player, selected)
     player.member_entered_count_this_turn += 1
     if slot not in player.member_areas_entered_this_turn:
         player.member_areas_entered_this_turn.append(slot)
@@ -7344,6 +7349,8 @@ def _execute_operations(
                         "effect attach target source zone is not supported"
                     )
                 player.member_area_attachments[source_slot].append(instance_id)
+                if state.cards[instance_id].card.card_type == "member":
+                    _record_external_member_card_entry(player, instance_id)
                 state.cards[instance_id].face_up = True
                 events.append(
                     GameEvent(
@@ -7384,6 +7391,7 @@ def _execute_operations(
                 raise IllegalActionError("baton replaced card must be a Member")
             player.waiting_room.remove(instance_id)
             player.member_area_attachments[source_slot].append(instance_id)
+            _record_external_member_card_entry(player, instance_id)
             state.cards[instance_id].face_up = True
             events.append(
                 GameEvent(
@@ -7524,6 +7532,8 @@ def _execute_operations(
             if state.cards[instance_id].card.card_type != "member":
                 raise IllegalActionError("effect deploy target must be a Member")
             player.member_area[slot] = instance_id
+            if source_zone != "source_attachments":
+                _record_external_member_card_entry(player, instance_id)
             player.member_entered_count_this_turn += 1
             if slot not in player.member_areas_entered_this_turn:
                 player.member_areas_entered_this_turn.append(slot)
@@ -9776,6 +9786,8 @@ def _start_next_turn(
         _expire_modifiers(state, player_id, "turn", events)
         state.players[player_id].live_result = LivePerformanceResult()
         state.players[player_id].member_areas_entered_this_turn = []
+        if state.players[player_id].member_card_instance_ids_entered_stage_this_turn is not None:
+            state.players[player_id].member_card_instance_ids_entered_stage_this_turn = []
         state.players[player_id].member_areas_moved_this_turn = []
         state.players[player_id].member_entered_count_this_turn = 0
         state.players[player_id].member_areas_baton_entered_this_turn = []
@@ -10205,6 +10217,7 @@ def _manual_move_card(
                 to_slot=slot,
             )
         if not was_on_stage:
+            _record_external_member_card_entry(player, instance_id)
             player.member_entered_count_this_turn += 1
             if slot not in player.member_areas_entered_this_turn:
                 player.member_areas_entered_this_turn.append(slot)
@@ -10232,6 +10245,7 @@ def _attach_card_under_member(
         if instance_id not in player.hand:
             raise IllegalActionError("attached Member must come from hand")
         player.hand.remove(instance_id)
+        _record_external_member_card_entry(player, instance_id)
         if slot not in player.member_areas_entered_this_turn:
             player.member_areas_entered_this_turn.append(slot)
     elif card_type == "energy":
@@ -11119,6 +11133,20 @@ def _deterministic_shuffle(items: list[str], seed: int, salt: str) -> list[str]:
     return shuffled
 
 
+def _record_external_member_card_entry(player: PlayerState, instance_id: str) -> None:
+    history = player.member_card_instance_ids_entered_stage_this_turn
+    if history is not None and instance_id not in history:
+        history.append(instance_id)
+
+
+def _member_area_blocks_entry(player: PlayerState, slot: str) -> bool:
+    history = player.member_card_instance_ids_entered_stage_this_turn
+    if history is None:
+        return slot in player.member_areas_entered_this_turn
+    current_ids = [player.member_area.get(slot), *player.member_area_attachments.get(slot, [])]
+    return any(instance_id in history for instance_id in current_ids if instance_id is not None)
+
+
 def _legal_member_placements(
     state: MatchState,
     player_id: str,
@@ -11132,7 +11160,7 @@ def _legal_member_placements(
             continue
         new_cost = _effective_member_play_cost(state, player_id, instance_id)
         for slot, current_instance_id in player.member_area.items():
-            if slot in player.member_areas_entered_this_turn:
+            if _member_area_blocks_entry(player, slot):
                 continue
             if new_cost <= active_energy_count:
                 replaced_cost = (
@@ -11155,7 +11183,10 @@ def _legal_member_placements(
             if current_instance_id is None or new_cost <= 0:
                 continue
             if (
-                slot in player.member_areas_baton_entered_this_turn
+                (
+                    player.member_card_instance_ids_entered_stage_this_turn is None
+                    and slot in player.member_areas_baton_entered_this_turn
+                )
                 or current_instance_id
                 in player.member_instance_ids_baton_entered_this_turn
             ):

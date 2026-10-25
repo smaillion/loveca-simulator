@@ -35,6 +35,12 @@
   下一步 `effect-deployment-rule-conformance` 仍需实现已有 Member 区域替换、入场身份追踪及附属卡 / 离场处理；
   再复核上述虹咲 4 条和两张 PR 卡，不得只恢复旧标签。见 `docs/development/empty-effect-deployment-verification.md`。
   详见 `docs/development/baton-hand-deploy-audit.md`；旧工作树和原始报告继续保留。
+- `member-entry-current-area-history` 已补新对局的卡牌身份记录，覆盖位置 / 阵型改变后的
+  当前区域限制、附属 Member 与 Stage 内转移的区分；旧快照缺省仍使用原区域历史。
+  见 `docs/development/member-entry-area-history-verification.md`。
+- 附属 Member 转为顶部时的 `登場` / `own_member_played` / 进入次数仍需独立规则复核：
+  `attachment_promotion_onplay_trigger_and_entry_count_requires_rules_audit`。
+  不把本轮区域记录修正当作这项裁定已经完成；随后继续已有 Member 区域的效果替换登场。
 
 ### AI-DLC Rollout Validation
 

@@ -1964,6 +1964,7 @@ def _redact_opponent_private_cards(state_payload: dict[str, Any], player_id: str
     for opponent_id, player in players.items():
         if opponent_id == player_id or not isinstance(player, dict):
             continue
+        player.pop("member_card_instance_ids_entered_stage_this_turn", None)
         private_ids: list[str] = []
         hand = player.get("hand")
         if isinstance(hand, list):
