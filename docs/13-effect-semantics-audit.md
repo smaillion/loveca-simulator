@@ -1,5 +1,13 @@
 # Effect Semantics Audit
 
+Activated draw checkpoint: exact `PL!SP-bp7-008:1` and `PL!N-bp7-023:1`
+now use existing self-Wait cost / draw / post-draw hand selection operations.
+Registry is902/1212 executable (74.42%),310manual, with no reviewed promotion.
+Shiki's second movement ability and the six occupied-deployment cards remain
+manual. Manual activation placeholders now enter the bound pending flow instead
+of attempting an unsupported automatic operation; legacy structured prefixes
+retain their previous behavior. [Chinese card/state evidence](development/activated-wait-draw-verification.md).
+
 Live boundary checkpoint: 20 post-Heart score/movement regressions now use native
 Actions and individual SQLite Replay assertions. Four synthetic effect fixtures
 do not represent new card support; four Match Point cases retain an explicit

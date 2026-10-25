@@ -1,5 +1,10 @@
 # 分支与工作树清单
 
+起动技能检查点：精确新增四季 `PL!SP-bp7-008:1` 与ミア `PL!N-bp7-023:1`，
+费用与抽后弃牌继续用原生操作；修复manual起动占位操作错误自动执行，保留旧结构化前缀。
+当前902/1212、310manual；四季第2段及六条重叠卡不晋级。原44/6项dirty和ignored报告不动。
+见 `activated-wait-draw-verification.md`。同一Draft PR #54，不合并部署。
+
 Live矩阵检查点：只读核对旧58项核心描述及20项Live原型，迁移Live20项并补原生Action、
 17字段完整预期、实际区域清理与逐项SQLite Replay。4项Match Point措辞待审与4项合成技能
 单独标记，不搬运旧75项完成声明；旧End Phase清理/触发顺序仍待修，原44/6项dirty及报告不改。

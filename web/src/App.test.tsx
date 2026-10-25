@@ -3599,6 +3599,54 @@ describe("App", () => {
     ).toBeInTheDocument();
   });
 
+  it("requires both post-draw discards for Mia without paying the Wait cost again", () => {
+    const onAction = vi.fn();
+    const onManual = vi.fn();
+    const label = "【起動】【ターン1回】このメンバーをウェイトにする：カードを2枚引き、手札を2枚控え室に置く。";
+    const state = {
+      ...INSPECTION_MATCH_PAYLOAD.state,
+      pending_choice: null,
+      cards: {
+        ...INSPECTION_MATCH_PAYLOAD.state.cards,
+        "drawn-second": {
+          ...INSPECTION_CARDS["player_1-M002"], instance_id: "drawn-second",
+          card: { ...INSPECTION_CARDS["player_1-M002"].card, name_ja: "新しく引いたカード" },
+        },
+      },
+      pending_effects: [{
+        invocation_id: "mia-draw-two", effect_id: "PL!N-bp7-023:1",
+        source_card_instance_id: "player_1-M001", player_id: "player_1",
+        trigger_event: "player_activation", trigger_data: {}, resolution_stage: "after_cost",
+      }],
+    };
+    const action = {
+      action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+        invocation_id: "mia-draw-two", effect_id: "PL!N-bp7-023:1",
+        source_card_instance_id: "player_1-M001", label_ja: label,
+        trigger: "player_activation", timing: "activated_main", execution_mode: "prompt_then_resolve",
+        simulation_support: "test_validated_executable", is_optional: false, resolution_stage: "after_cost",
+        choice_type: "post_action_card_from_zone", choice_zone: "hand",
+        card_selection_minimum: 2, card_selection_maximum: 2,
+        candidate_card_instance_ids: ["player_1-M002", "drawn-second"],
+      }] },
+    };
+    render(<EffectResolutionAction action={action as never} state={state as never}
+      loading={false} onAction={onAction} onManual={onManual} />);
+    expect(screen.getByText(label)).toBeInTheDocument();
+    const confirm = screen.getByRole("button", { name: "结算技能" });
+    expect(confirm).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /候補カード/ }));
+    expect(confirm).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /新しく引いたカード/ }));
+    expect(confirm).toBeEnabled();
+    fireEvent.click(confirm);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "mia-draw-two", accepted: true,
+      selected_card_instance_ids: ["player_1-M002", "drawn-second"], energy_instance_ids: [],
+    });
+    expect(onManual).not.toHaveBeenCalled();
+  });
+
   it("shows card details for duplicate waiting-room effect choices", () => {
     const onAction = vi.fn();
     const onManual = vi.fn();

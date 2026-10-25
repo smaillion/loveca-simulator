@@ -23,6 +23,8 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
         "pl_hs_bp6_014_with_target",
         "pl_hs_bp6_014_without_target",
         "pl_hs_sd1_005_same_name_baton_blocked",
+        "activated_wait_draw_shiki",
+        "activated_wait_draw_discard_mia",
     }.issubset(scenario_ids)
     assert "registry_contract_PL!S-sd1-006_1" in scenario_ids
     assert "registry_contract_PL!N-bp5-005_1" in scenario_ids
@@ -60,6 +62,9 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
     assert summary["schema_version"] == "effect_verification_report_v0.4"
     assert summary["dynamic_state_transition_scenarios"] >= 20
     assert summary["passed"] == len(results)
+    assert "若菜四季：自身Wait后抽1张" in zh_markdown
+    assert "ミア：自身Wait后抽2张再弃2张" in zh_markdown
+    assert "后续选择不重复抽牌: OK" in zh_markdown
 
 
 def _write_report_image_fixture(path):

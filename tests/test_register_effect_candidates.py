@@ -7,6 +7,7 @@ import pytest
 
 from tools.ai_sandbox.register_effect_candidates import (
     CandidateRegistrationError,
+    main,
     merge_candidates,
 )
 
@@ -142,6 +143,44 @@ def test_merge_candidates_rejects_manual_replacement_with_changed_revision(tmp_p
             candidates_path,
             replace_matching_manual=True,
         )
+
+
+@pytest.mark.parametrize("add_new", [False, True])
+def test_cli_preserves_raw_untouched_entries_without_materializing_defaults(
+    tmp_path, monkeypatch, add_new
+):
+    registry = tmp_path / "registry.json"
+    candidates = tmp_path / "candidates.json"
+    original = {
+        k: v for k, v in _candidate().items() if k not in {"already_registered", "pattern_id"}
+    }
+    payload = {
+        "registry_version": "effect-registry.v0",
+        "rule_version": "1.06",
+        "effects": [original],
+    }
+    registry.write_text(json.dumps(payload), encoding="utf-8")
+    new = dict(
+        _candidate(), effect_id="TEST-M-002:1", card_code="TEST-M-002", raw_text_hash="b" * 64
+    )
+    candidates.write_text(json.dumps([new] if add_new else []), encoding="utf-8")
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "register_effect_candidates",
+            "--registry",
+            str(registry),
+            "--candidates",
+            str(candidates),
+            "--approve",
+        ],
+    )
+    assert main() == 0
+    saved = json.loads(registry.read_text(encoding="utf-8"))
+    assert saved["effects"][0] == original
+    assert len(saved["effects"]) == 1 + int(add_new)
+    if not add_new:
+        assert saved == payload
 
 
 def _candidate() -> dict[str, object]:

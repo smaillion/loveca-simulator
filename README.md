@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+`PL!SP-bp7-008:1` 若菜四季の自己Wait→1枚ドローと、`PL!N-bp7-023:1` ミアの自己Wait→2枚ドロー後2枚捨てに対応しました。回数制限と選択の前後を区別し、manual起動のエラーも修正しました。四季のエリア移動時の別能力は引き続きmanualです。[カード画像・状態・Replay検証](./docs/development/activated-wait-draw-verification.md)
+
 Liveの得点・成功置き場への移動・勝敗を20場面で回帰検証し、各場面のSQLite Replayも確認します。4場面はPDF 8.4.7.1のエリア表記と既存Match Point解釈の照合が必要です。実装回帰と公式裁定の確認を区別し、エンジンや登録数は変更しません。[検証範囲と未解決点](./docs/development/live-boundary-matrix-verification.md)
 
 効果による登場の監査用基盤で、交代する旧メンバーの自身登場・起動・Live時点能力を別メンバーの登場監視と混同しない方針を追加しました。常時・継承・未登録の原文は引き続き保留し、カードの対応数は増やしません。[検証と制限](./docs/development/disjoint-overlap-source-verification.md)

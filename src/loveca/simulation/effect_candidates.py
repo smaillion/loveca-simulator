@@ -4203,30 +4203,44 @@ def _activated_wait_discard_draw(row: sqlite3.Row) -> EffectCandidate | None:
 
 
 def _activated_wait_draw_then_discard(row: sqlite3.Row) -> EffectCandidate | None:
-    expected = "【起動】【ターン1回】このメンバーをウェイトにする：カードを1枚引き、手札を1枚控え室に置く。"
-    matched = _matching_segment(row, expected)
-    if matched is None:
+    patterns = {
+        "【起動】【ターン1回】このメンバーをウェイトにする：カードを1枚引き、手札を1枚控え室に置く。": (
+            "activated_wait_draw1_then_discard1", "once_per_turn", 1, 1,
+        ),
+        "【起動】【ターン1回】このメンバーをウェイトにする：カードを2枚引き、手札を2枚控え室に置く。": (
+            "activated_wait_draw2_then_discard2", "once_per_turn", 2, 2,
+        ),
+        "【起動】このメンバーをウェイトにする：カードを1枚引く。": (
+            "activated_wait_draw1", "none", 1, 0,
+        ),
+    }
+    match = next(
+        ((matched, spec) for label, spec in patterns.items()
+         if (matched := _matching_segment(row, label)) is not None),
+        None,
+    )
+    if match is None:
         return None
-    effect_index, label = matched
+    (effect_index, label), (pattern_id, frequency, draw, discard) = match
     return EffectCandidate(
-        **_base(row, pattern_id="activated_wait_draw1_then_discard1", effect_index=effect_index),
+        **_base(row, pattern_id=pattern_id, effect_index=effect_index),
         label_ja=label,
         effect_type="activated",
         timing="activated_main",
         trigger="player_activation",
-        frequency_limit="once_per_turn",
+        frequency_limit=frequency,
         is_optional=False,
         condition={"source_zone": "stage", "source_orientation": "active"},
         cost=[{"action_type": "apply_wait", "target": "source"}],
         choice={
             "choice_type": "post_action_card_from_zone",
             "zone": "hand",
-            "minimum": 1,
-            "maximum": 1,
-        },
+            "minimum": discard,
+            "maximum": discard,
+        } if discard else None,
         actions=[
-            {"action_type": "draw_card", "amount": 1},
-            {"action_type": "discard_from_hand"},
+            {"action_type": "draw_card", "amount": draw},
+            *([{"action_type": "discard_from_hand"}] if discard else []),
         ],
         duration=None,
     )

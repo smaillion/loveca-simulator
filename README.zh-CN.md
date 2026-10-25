@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+新增 `PL!SP-bp7-008:1` 若菜四季“自身Wait后抽1”及 `PL!N-bp7-023:1` ミア“自身Wait后抽2、再弃2”。区分次数限制与抽后选择，修复manual起动直接报错；四季移动区域时的另一技能仍需手动处理。[卡图、状态与Replay验证](./docs/development/activated-wait-draw-verification.md)
+
 Live得分、成功区移动及胜负已扩展至20项实现回归，逐项验证SQLite Replay。4项仍需复核PDF 8.4.7.1的区域措辞与现有Match Point解释；不把回归通过当作官方裁定认证，不改引擎或登记率。[验证范围与未解决点](./docs/development/live-boundary-matrix-verification.md)
 
 效果登场的受控底座已区分旧 Member 的自身登场、起动及 Live 时点能力，不再将它们混同为另一 Member 的入场观察者；常时、继承及不完整原文仍保留限制，本轮不增加卡牌支持数。[验证与边界](./docs/development/disjoint-overlap-source-verification.md)

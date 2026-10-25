@@ -105,9 +105,16 @@ A strict match must formally complete within 10 turns, give both players at leas
 
 The strict registry integrity audit reports zero errors and zero warnings across 1,212 effect identities.
 
-* 900 `test_validated_executable`
-* 312 `manual_resolution`
-* 74.26% registry-entry executable coverage
+* 902 `test_validated_executable`
+* 310 `manual_resolution`
+* 74.42% registry-entry executable coverage
+
+The two latest promotions are `PL!SP-bp7-008:1` and `PL!N-bp7-023:1` self-Wait
+activated draws. Their targeted policy tests explicitly distinguish v0 (no
+proactive activation) from v1-series positive-value activation and native
+post-draw resolution. The ten-match regression did not exercise these two
+effects; it is flow evidence only. See
+[the targeted evidence and manual boundaries](development/activated-wait-draw-verification.md).
 
 The lower percentage is caused by the October 2026 full official refresh through
 `CLLS01` / `PBLL02`: all newly discovered timing segments are registered rather

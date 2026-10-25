@@ -59,6 +59,14 @@ def main() -> int:
         return 0
 
     payload = merged.model_dump(mode="json")
+    original = json.loads(args.registry.read_text(encoding="utf-8"))
+    original_by_id = {effect["effect_id"]: effect for effect in original["effects"]}
+    changed_ids = {effect.effect_id for effect in added}
+    # Do not materialize newly introduced model defaults in unrelated snapshots.
+    payload["effects"] = [
+        effect if effect["effect_id"] in changed_ids else original_by_id[effect["effect_id"]]
+        for effect in payload["effects"]
+    ]
     temporary = args.registry.with_suffix(f"{args.registry.suffix}.tmp")
     temporary.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",

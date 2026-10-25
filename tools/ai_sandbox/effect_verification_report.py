@@ -188,6 +188,14 @@ def _v1_1_dynamic_scenarios(
 ) -> list[ScenarioResult]:
     cases = (
         (
+            "activated_wait_draw_shiki", "若菜四季: 自身をウェイトにして1枚引く",
+            "若菜四季：自身Wait后抽1张", "PL!SP-bp7-008:1", _run_activated_wait_draw,
+        ),
+        (
+            "activated_wait_draw_discard_mia", "ミア: 自身をウェイトにして2枚引き2枚捨てる",
+            "ミア：自身Wait后抽2张再弃2张", "PL!N-bp7-023:1", _run_activated_wait_draw,
+        ),
+        (
             "v1_1_static_live_state",
             "静的 Heart・score・登場 cost を実状態から評価",
             "根据实际状态计算常时 Heart、分数与登场费用",
@@ -363,6 +371,39 @@ def _v1_1_dynamic_scenarios(
             )
         )
     return results
+
+
+def _run_activated_wait_draw(effect: EffectDefinition) -> dict[str, bool]:
+    draw, discard = (1, 0) if effect.card_code == "PL!SP-bp7-008" else (2, 2)
+    state = _v1_1_state(
+        {effect.effect_id: effect},
+        [_v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id]),
+         *[_v1_1_member(key, key) for key in ("held", "drawn-1", "drawn-2", "remaining")]],
+        member_area={"left": None, "center": "source", "right": None}, hand=["held"],
+    )
+    state.players["player_1"].main_deck = ["drawn-1", "drawn-2", "remaining"]
+    activated = apply_action(state, ActionRequest(
+        action_type="activate_effect", player_id="player_1", expected_revision=state.revision,
+        payload={"effect_id": effect.effect_id, "source_card_instance_id": "source"},
+    ))
+    after = activated.state
+    checks = {
+        "activation_source_wait_paid": after.cards["source"].orientation == "wait",
+        "activation_draw_count": len(after.players["player_1"].hand) == 1 + draw,
+        "activation_frequency_exact": effect.frequency_limit == ("none" if not discard else "once_per_turn"),
+    }
+    if discard:
+        invocation = after.pending_effects[0]
+        resolved = apply_action(after, ActionRequest(
+            action_type="resolve_effect", player_id="player_1", expected_revision=after.revision,
+            payload={"invocation_id": invocation.invocation_id,
+                     "selected_card_instance_ids": ["drawn-1", "drawn-2"]},
+        ))
+        after = resolved.state
+        checks["activation_discard_drawn_cards"] = after.players["player_1"].waiting_room == ["drawn-1", "drawn-2"]
+        checks["activation_no_second_draw"] = after.players["player_1"].hand == ["held"] and after.players["player_1"].main_deck == ["remaining"]
+    checks["activation_queue_finished"] = not after.pending_effects and after.pending_choice is None
+    return checks
 
 
 def _run_v1_1_static_live_state(effect: EffectDefinition) -> dict[str, bool]:
@@ -983,6 +1024,12 @@ def _load_visuals_for_effect_ids(
 
 
 _V1_1_CHECK_LABELS: dict[str, tuple[str, str]] = {
+    "activation_source_wait_paid": ("起動コストで自身がウェイト", "自身已作为发动费用变为Wait"),
+    "activation_draw_count": ("指定枚数だけ引いた", "准确抽取指定张数"),
+    "activation_frequency_exact": ("記載どおりの回数制限", "仅采用原文规定的次数限制"),
+    "activation_discard_drawn_cards": ("引いたカードも捨てられる", "可弃置本次刚抽到的牌"),
+    "activation_no_second_draw": ("選択後に二重ドローしない", "后续选择不重复抽牌"),
+    "activation_queue_finished": ("未処理の選択を残さない", "结算后无残留选择"),
     "effective_cost_reduced": ("実効登場 cost を状態から算出", "根据状态计算实际登场费用"),
     "static_heart_uses_live_state": ("静的 Heart が現在状態を反映", "常时 Heart 反映当前状态"),
     "static_score_uses_live_state": ("静的 score が現在状態を反映", "常时分数反映当前状态"),

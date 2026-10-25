@@ -1515,6 +1515,10 @@ def _activate_effect(
         operation
         for operation in effect.actions
         if not _operation_requires_pending_effect_choice(effect, operation)
+        and not (
+            effect.simulation_support == "manual_resolution"
+            and operation.action_type == "manual_resolution"
+        )
     ]
     if pre_choice_operations:
         _execute_operations(

@@ -290,6 +290,15 @@
       "acceptance": ["从冻结30Deck的seed9008/9029三次实际manual触发复现PL!N-bp7-027:1，按当前日文原文/revision/hash精确绑定", "选择己方虹咲Member后比较双方Stage其他全部Member的有效Blade，必须严格大于而不是大于等于；加分仅属于来源Live并在成功时/比较胜者前结算", "无符合Member、相等、更低、对手更高、临时Blade、多个Live与非法目标均有真实状态/回滚/Replay/隐私和v1.2选择断言；不凭猜测处理FAQ敏感边界", "用同一冻结牌组和seed做block模式回归，去掉对应manual blocker后才提升test_validated；记录原文和中文报告，不自动提升reviewed"]
     },
     {
+      "id": "activated-wait-draw-exact-text",
+      "priority": 1,
+      "title": "精确适配新卡的自身Wait抽牌与抽后弃牌起动能力",
+      "status": "queued",
+      "depends_on": ["continuous-workflow"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["按固定PDF9.4/9.5与真实日文revision/hash，适配PL!SP-bp7-008:1和PL!N-bp7-023:1；只用已有Wait费用/抽牌/后续手牌选择，不新增模糊匹配", "无回合次数标记的能力不能擅加turn1限制；已有Wait不能支付，Main之外/对手回合不能发动；抽后弃牌能选刚抽到的牌，非法提交不重复抽或支付", "两卡逐项真实状态、SQL Replay、旧manual snapshot、四AI policy、双方隐藏信息与原生UI后续选择契约验证；已测试才提升test_validated，不提升reviewed", "固定AI及针对性技能回归、中日README/Changelog、中文卡图报告、manifest和全部profile通过；重叠/继承六卡仍manual，旧dirty工作树不改"]
+    },
+    {
       "id": "effect-accuracy-loop",
       "priority": 3,
       "title": "按实际触发与规则风险扩展技能支持",

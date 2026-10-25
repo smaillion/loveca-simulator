@@ -2,6 +2,13 @@
 
 ## High Priority
 
+### 新卡起动与未支持段落
+
+- 已适配 `PL!SP-bp7-008:1` / `PL!N-bp7-023:1` 的自身Wait抽牌，见 `docs/development/activated-wait-draw-verification.md`；不把“四季第一段可用”写成整卡全部自动化。
+- `PL!SP-bp7-008:2` 在Wait时移动区域后复原，仍为manual；需单独建模“实际区域移动”触发及继承/附属边界。
+- 重叠登场父任务未完成：不仅旧顶部Member，附属卡/入场卡/其他公开来源的完整文本绑定与真正常时/继承观察者仍需确认。不要用仅有已登记effect IDs等同整段原文安全。
+- 产品默认仍v1.1；旧v0不主动发动技能，v1系列可能因Wait损失过高而合法放弃发动。定向正收益场景与完整对局结果分开统计。
+
 ### Live矩阵与结束阶段规则可信度
 
 - Live得分/移动资格已扩展20项实现回归与逐项SQLite Replay，详见 `docs/development/live-boundary-matrix-verification.md`；4项Match Point解释待审，4项使用合成技能，不能合算成20项官方裁定认证。
