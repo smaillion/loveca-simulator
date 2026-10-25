@@ -8,6 +8,10 @@
 
 ## 現在の状態
 
+新規対戦で `PL!N-pb1-012` 鐘嵐珠が通常交代で離れた後も、誘発済みの Wait Energy 追加を解決します。
+重複処理で戻った下の Energy も利用でき、不足時は結果を明示します。旧 Replay と登録率は変更しません。
+[実際の状態・AI・画面の検証](./docs/development/overlap-energy-observer-verification.md)
+
 新規対戦では複数の待機能力の解決順を選べるようにし、AP / NAP の優先と処理途中の割込み禁止を統一しました。
 旧 Replay は維持します。一般のルール処理全体の完成や登録率の上昇を意味しません。
 [順序・状態・AI の検証](./docs/development/pending-effect-order-verification.md)

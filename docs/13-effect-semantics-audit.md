@@ -18,6 +18,8 @@ This audit does not incorporate FAQ, Q&A, or individual ruling clarifications.
 
 ## Current Repository Snapshot
 
+The latest new-match overlap policy also preserves actual `PL!N-pb1-012:1` fixed self Wait Energy entry observers after normal replacement. Resource availability is deferred until overlap attachment cleanup; insufficient Energy at resolution produces an explicit result instead of a silent skip. None and the earlier fixed-draw policy keep historical Replay behavior. State, native AI, privacy and bilingual result evidence: [Chinese verification](./development/overlap-energy-observer-verification.md). Registry counts and human-review status are unchanged.
+
 New matches now expose own pending-effect ordering after AP/NAP filtering, rechecking priority after each resolution and pinning already-started multi-stage parents. Shared Live phases use the first player as AP, rather than the current UI chooser. Independent optional snapshot policy preserves old Replay behavior; this is not a complete rule-action/check-timing scheduler or a coverage promotion. Actual draw-order, runtime Replay, AI and UI evidence: [Chinese verification](./development/pending-effect-order-verification.md).
 
 New matches explicitly capture bounded fixed-draw entry observers before overlap cleanup, correcting actual `PL!N-pb1-005:1` when replaced by a cost10 Member (not Baton). Old snapshots omit the new MatchState policy and retain historical Replay behavior. Complex source/stage/inherited conditions remain excluded or diagnosed, without registry promotion. See [state and compatibility evidence](./development/overlap-entry-observer-verification.md).

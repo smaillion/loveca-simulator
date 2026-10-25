@@ -43,6 +43,10 @@ Baton 原型检查点：已核对 `07f51e4` 的两个 PR entry，没有直接恢
 
 ## 工作树
 
+Wait Energy 检查点：已修正 `PL!N-pb1-012:1` 在普通替换后漏补能量，包含附属 Energy 先返还、
+费用 / 次数 / 空牌库和顺序消耗资源；新策略保留旧 Replay。见 `overlap-energy-observer-verification.md`。
+旧工作树未修改，六张待审卡仍 manual，完整重叠父任务保留；同一 Draft PR #54，不合并部署。
+
 待机排序检查点：已补同玩家技能顺序、AP/NAP 重检和已开始的费用/双方选择锁定，
 新对局显式启用独立策略，旧 Replay 不变。见 `pending-effect-order-verification.md`。
 完整重叠父任务与六张 manual 卡继续保留；旧 dirty 工作树未动，同一 PR #54 不合并部署。

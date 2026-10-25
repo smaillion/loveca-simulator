@@ -359,7 +359,7 @@ export interface PendingChoice {
 }
 
 export interface MatchState {
-  member_overlap_policy?: "capture_fixed_draw_entry_observers" | null;
+  member_overlap_policy?: "capture_fixed_draw_entry_observers" | "capture_fixed_draw_and_energy_entry_observers" | null;
   effect_order_policy?: "ap_nap_player_choice" | null;
   match_id: string;
   rule_version: string;

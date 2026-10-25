@@ -67,6 +67,10 @@
 - 新对局已补待机队列的 AP/NAP 顺序选择与多步处理锁定：实际抽牌顺序影响最终手牌，
   旧快照保留历史行为，UI / 三种 AI / Replay 已验证。见 `docs/development/pending-effect-order-verification.md`。
   这不是一般规则处理与任意瞬时重叠调度；六张卡继续 manual，父任务尚未完成。
+- 已补 `PL!N-pb1-012:1` 固定 Wait Energy 观察者：普通替换后继续处理，附属能量先返还后可补入；
+  新 overlap policy 保留 None / fixed-draw 旧 Replay，无牌可补有明确结果。见
+  `docs/development/overlap-energy-observer-verification.md`。来源位置/属性、条件式离场、继承与
+  一般瞬时重叠仍在父任务中，六张待审卡不晋级。
 - 已修复：`PL!SP-bp5-111:2` / `PL!SP-pb2-010:1` 的 Energy 回牌库空朝向，
   验证真实费用 / 分支 / runtime Replay；旧坏快照拒绝读取且不改写，API / SSE 错误不泄露私有信息，
   前端显示诊断并停止重试。见 `docs/development/energy-return-replay-verification.md`；不改 schema。

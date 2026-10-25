@@ -205,7 +205,12 @@ class MatchState(BaseModel):
     match_id: str
     rule_version: str = RULE_VERSION
     seed: int
-    member_overlap_policy: Literal["capture_fixed_draw_entry_observers"] | None = None
+    member_overlap_policy: (
+        Literal[
+            "capture_fixed_draw_entry_observers", "capture_fixed_draw_and_energy_entry_observers"
+        ]
+        | None
+    ) = None
     effect_order_policy: Literal["ap_nap_player_choice"] | None = None
     revision: int = 0
     phase: Phase = "setup_choose_first"

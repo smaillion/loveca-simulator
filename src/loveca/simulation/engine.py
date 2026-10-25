@@ -667,7 +667,7 @@ def _play_member(
         )
     )
     if replaced_instance_id is not None and not use_baton_touch:
-        _queue_outgoing_entry_draw_observers(
+        _queue_outgoing_entry_observers(
             state, player_id, replaced_instance_id, instance_id, slot, "hand", events,
         )
         _clean_stage_attachments(
@@ -2936,7 +2936,10 @@ def _effect_unavailable_reason(
             return "phase_mismatch"
     minimum_energy_deck_cards = effect.condition.get("minimum_energy_deck_cards")
     if isinstance(minimum_energy_deck_cards, int):
-        if len(player.energy_deck) < minimum_energy_deck_cards:
+        if (
+            len(player.energy_deck) < minimum_energy_deck_cards
+            and not _deferred_overlap_energy_observer(state, invocation)
+        ):
             return "energy_deck_empty"
     minimum_energy = effect.condition.get("minimum_active_energy")
     if isinstance(minimum_energy, int):
@@ -6734,7 +6737,7 @@ def _deploy_selected_to_stage(
     state.cards[instance_id].face_up = True
     state.cards[instance_id].orientation = operation.orientation
     if old_id:
-        _queue_outgoing_entry_draw_observers(
+        _queue_outgoing_entry_observers(
             state, invocation.player_id, old_id, instance_id, slot, source_zone, events,
         )
         # Bounded overlap cleanup: complex outgoing abilities are excluded before payment.
@@ -6827,12 +6830,11 @@ def _effect_uses_occupied_stage_deployment(effect: Any) -> bool:
 
 def _effect_allows_private_selection_none(effect: Any) -> bool:
     return bool(
-        effect.choice
-        and effect.choice.selection_policy == "private_filtered_may_choose_none"
+        effect.choice and effect.choice.selection_policy == "private_filtered_may_choose_none"
     )
 
 
-def _fixed_draw_entry_observer(effect: Any) -> bool:
+def _fixed_entry_observer(effect: Any, *, include_energy: bool = False) -> bool:
     if (
         effect is None
         or effect.trigger != "own_member_played"
@@ -6845,6 +6847,12 @@ def _fixed_draw_entry_observer(effect: Any) -> bool:
         or not effect.actions
     ):
         return False
+    fixed_energy = (
+        include_energy
+        and effect.effect_type == "triggered"
+        and len(effect.actions) == 1
+        and effect.actions[0].action_type == "place_energy_from_deck"
+    )
     for key, value in effect.condition.items():
         if key == "trigger_member_cost_exact":
             if not isinstance(value, int) or isinstance(value, bool):
@@ -6855,10 +6863,13 @@ def _fixed_draw_entry_observer(effect: Any) -> bool:
         elif key == "trigger_member_not_source":
             if not isinstance(value, bool):
                 return False
+        elif key == "minimum_energy_deck_cards" and fixed_energy:
+            if type(value) is not int or value != 1:
+                return False
         else:
             return False
     return all(
-        op.action_type == "draw_card"
+        (op.action_type == "draw_card" or fixed_energy)
         and op.amount is not None
         and op.amount > 0
         and op.amount_source is None
@@ -6866,11 +6877,22 @@ def _fixed_draw_entry_observer(effect: Any) -> bool:
         and op.branch is None
         and op.value is None
         and op.multiplier is None
+        and (not fixed_energy or (op.amount == 1 and op.orientation == "wait"))
         for op in effect.actions
     )
 
 
-def _queue_outgoing_entry_draw_observers(
+def _deferred_overlap_energy_observer(state: MatchState, invocation: EffectInvocation) -> bool:
+    effect = state.effect_definitions[invocation.effect_id]
+    return (
+        state.member_overlap_policy == "capture_fixed_draw_and_energy_entry_observers"
+        and invocation.trigger_data.get("overlap_observer_before_cleanup") is True
+        and _fixed_entry_observer(effect, include_energy=True)
+        and effect.actions[0].action_type == "place_energy_from_deck"
+    )
+
+
+def _queue_outgoing_entry_observers(
     state: MatchState,
     player_id: str,
     old_id: str,
@@ -6879,8 +6901,9 @@ def _queue_outgoing_entry_draw_observers(
     source_zone: str,
     events: list[GameEvent],
 ) -> None:
-    if state.member_overlap_policy != "capture_fixed_draw_entry_observers":
+    if state.member_overlap_policy is None:
         return
+    include_energy = state.member_overlap_policy == "capture_fixed_draw_and_energy_entry_observers"
     supported: set[str] = set()
     for effect_id in state.cards[old_id].card.effect_ids:
         effect = state.effect_definitions.get(effect_id)
@@ -6904,7 +6927,7 @@ def _queue_outgoing_entry_draw_observers(
             or (filters.get("trigger_member_not_source") is True and old_id == entering_id)
         ):
             continue
-        if _fixed_draw_entry_observer(effect):
+        if _fixed_entry_observer(effect, include_energy=include_energy):
             supported.add(effect_id)
         else:
             events.append(
@@ -6919,7 +6942,7 @@ def _queue_outgoing_entry_draw_observers(
                     },
                 )
             )
-    # Capture only immutable entry filters before cleanup; resolve after this action/parent.
+    # Entry filters are immutable; Energy availability is checked after attachment cleanup.
     _queue_triggered_effects(
         state,
         "own_member_played",
@@ -6962,9 +6985,21 @@ def _occupied_deployment_gaps(
         for effect_id in state.cards[old_id].card.effect_ids:
             effect = state.effect_definitions.get(effect_id)
             if (
-                state.member_overlap_policy == "capture_fixed_draw_entry_observers"
-                and _fixed_draw_entry_observer(effect)
+                state.member_overlap_policy is not None
+                and _fixed_entry_observer(
+                    effect,
+                    include_energy=state.member_overlap_policy
+                    == "capture_fixed_draw_and_energy_entry_observers",
+                )
             ):
+                continue
+            if (
+                state.member_overlap_policy == "capture_fixed_draw_and_energy_entry_observers"
+                and effect is not None
+                and effect.effect_type == "triggered"
+                and effect.trigger == "live_succeeded"
+            ):
+                # This separate ability cannot observe entry, cleanup or leaving Stage.
                 continue
             if (
                 effect is None
@@ -8296,6 +8331,20 @@ def _execute_operations(
             for target_player_id in target_player_ids:
                 target_player = state.players[target_player_id]
                 if len(target_player.energy_deck) < amount:
+                    if _deferred_overlap_energy_observer(state, invocation):
+                        events.append(
+                            GameEvent(
+                                event_type="effect_operation_not_applied",
+                                player_id=target_player_id,
+                                data={
+                                    "invocation_id": invocation.invocation_id,
+                                    "effect_id": invocation.effect_id,
+                                    "operation": operation_type,
+                                    "reason": "energy_deck_insufficient_at_resolution",
+                                },
+                                source="system",
+                            )
+                        )
                     continue
                 _move_energy_to_area(
                     state,

@@ -150,7 +150,7 @@
       "priority": 1,
       "title": "复核完整重叠检查时点及手牌目标可选零张",
       "status": "queued",
-      "depends_on": ["effect-occupied-deployment-foundation", "effect-private-filtered-hand-choice", "overlap-fixed-draw-entry-observer", "pending-effect-apnap-choice"],
+      "depends_on": ["effect-occupied-deployment-foundation", "effect-private-filtered-hand-choice", "overlap-fixed-draw-entry-observer", "pending-effect-apnap-choice", "overlap-fixed-energy-entry-observer"],
       "required_profiles": ["control", "registry", "backend", "web"],
       "acceptance": ["依据 10.1.2/10.4.1/9.7 与 9.6.3.1.4 处理临时重叠、离场观察者、继承及手牌可视性边界", "不得仅把两个 Member 覆盖为一个就宣称所有触发正确；仍不能确认的语义保持能力边界和 unresolved reason", "支持非公开手牌选择零张时的原生UI/AI/费用结果，不把私有筛选等同公开必选目标", "只有逐卡真实状态/Replay/三policy/UI验收后才提升两张PR卡与四条虹咲登记，父任务未完成前不恢复旧标签"]
     },
@@ -180,6 +180,15 @@
       "depends_on": ["overlap-fixed-draw-entry-observer"],
       "required_profiles": ["control", "registry", "backend", "web"],
       "acceptance": ["依据 PDF7.2/9.5.3/9.7.3，新对局在同一玩家有多个待机效果时显式选顺序，不抢先自动执行；AP优先且每次重检，公共Live阶段以先攻为AP", "已开始的费用/分支/检查/多人选择必须先完成，不允许 resolve/skip/manual 绕过；LegalAction只暴露当前可处理组", "新旧快照/Replay 独立策略，无runtime SQL升级；三种AI与前端继续从原生resolve_effect提交，不使用ManualAdjustment冒充排序", "顺序影响真实抽牌结果、非法原子性、双方视角和固定AI回归均验证，六张待审卡不晋级，中文报告明确不代表完整重叠与规则处理调度"]
+    },
+    {
+      "id": "overlap-fixed-energy-entry-observer",
+      "priority": 0,
+      "title": "保留鐘嵐珠重叠清理前已触发的固定 Wait Energy 补充",
+      "status": "queued",
+      "depends_on": ["pending-effect-apnap-choice"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["实际 PL!N-pb1-012:1 普通 cost11 替换后从Energy Deck顶部放置1张Wait Energy，Baton先离场和自身登場对照不触发", "显式新 overlap policy 保留None及旧fixed-draw快照的Replay；不新增SQL迁移，不提升registry状态", "费用不足/非法选择原子拒绝，次数限制、空Energy Deck及附属Energy先返回后供技能使用有真实状态断言，已待机但耗尽时必须显式记录未执行原因", "受控效果登場、AP/NAP续步、真实SQL Replay、三种AI和双方隐藏信息通过；仍不支持复杂条件/继承，六卡manual与父任务保留，中文报告齐全"]
     },
     {
       "id": "effect-deployment-rule-conformance",

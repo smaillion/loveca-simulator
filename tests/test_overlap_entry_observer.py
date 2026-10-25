@@ -273,12 +273,13 @@ def test_new_local_and_room_match_defaults_enable_policy_without_request_changes
             "seed": 1,
         },
     )
-    assert local.status_code == 200 and local.json()["state"][POLICY_FIELD] == POLICY
+    current_policy = "capture_fixed_draw_and_energy_entry_observers"
+    assert local.status_code == 200 and local.json()["state"][POLICY_FIELD] == current_policy
     room = client.post("/api/rooms", json={"player_name": "Host", "deck": deck, "seed": 2}).json()
     joined = client.post(
         f"/api/rooms/{room['room_code']}/join", json={"player_name": "Guest", "deck": deck}
     )
-    assert joined.status_code == 200 and joined.json()["match"]["state"][POLICY_FIELD] == POLICY
+    assert joined.status_code == 200 and joined.json()["match"]["state"][POLICY_FIELD] == current_policy
 
 
 def test_actual_registry_identity_is_unchanged_and_no_manual_deployment_is_promoted():

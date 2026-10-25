@@ -1915,6 +1915,14 @@ const autoResultOperationEvents = new Set([
   "granted_live_success_draw_resolved",
 ]);
 
+function isAutoResultOperation(event: GameEvent): boolean {
+  return autoResultOperationEvents.has(event.event_type)
+    || (event.event_type === "energy_added" && typeof event.data.reason === "string"
+      && event.data.reason.startsWith("effect:"))
+    || (event.event_type === "effect_operation_not_applied"
+      && event.data.reason === "energy_deck_insufficient_at_resolution");
+}
+
 function latestAutoResultNotice(
   events: GameEvent[],
   state: MatchState,
@@ -1922,7 +1930,7 @@ function latestAutoResultNotice(
 ): AutoResultNotice | null {
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const event = events[index];
-    if (!autoResultTerminalEvents.has(event.event_type) && !autoResultOperationEvents.has(event.event_type)) {
+    if (!autoResultTerminalEvents.has(event.event_type) && !isAutoResultOperation(event)) {
       continue;
     }
     const effectId = typeof event.data.effect_id === "string" ? event.data.effect_id : "";
@@ -1930,7 +1938,7 @@ function latestAutoResultNotice(
     const relatedEvents = collectRelatedAutoResultEvents(events, index, effectId, invocationId);
     if (
       event.event_type === "effect_resolved"
-      && !relatedEvents.some((item) => autoResultOperationEvents.has(item.event_type))
+      && !relatedEvents.some(isAutoResultOperation)
     ) {
       continue;
     }
@@ -1992,7 +2000,15 @@ function autoResultLines(
   }
 
   for (const related of relatedEvents) {
-    if (related.event_type === "effect_cards_milled") {
+    if (related.event_type === "energy_added") {
+      const count = stringArray(related.data.instance_ids).length;
+      const orientation = related.data.orientation === "wait" ? "WAIT" : "ACTIVE";
+      lines.push(`${locale === "zh" ? "能量补充" : "エネルギー追加"} ${orientation}: ${count}`);
+    } else if (related.event_type === "effect_operation_not_applied"
+        && related.data.reason === "energy_deck_insufficient_at_resolution") {
+      const summary = eventSummary(related, state, locale);
+      if (summary) lines.push(summary);
+    } else if (related.event_type === "effect_cards_milled") {
       const ids = stringArray(related.data.milled_card_instance_ids);
       const names = ids.map((id) => state.cards[id]?.card.name_ja).filter(Boolean);
       const label = locale === "zh" ? "送入控室" : "控室に置いたカード";
@@ -4164,6 +4180,7 @@ function eventTitle(event: GameEvent, locale: UiLocale): string {
     effect_auto_resolved: ["技能自动发动", "能力の自動解決"],
     effect_resolved: ["技能结算", "能力解決"],
     effect_not_activatable: ["技能未自动处理", "能力の自動処理不可"],
+    effect_operation_not_applied: ["技能部分未执行", "能力の一部未実行"],
     effect_triggered: ["技能触发", "能力誘発"],
     yell_completed: ["应援结算完成", "エール解決完了"],
   };
@@ -4208,6 +4225,12 @@ function describeAiBlocker(
 }
 
 function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): string | null {
+  if (event.event_type === "effect_operation_not_applied"
+      && event.data.reason === "energy_deck_insufficient_at_resolution") {
+    return locale === "zh"
+      ? "结算时能量牌库不足，未放置能量。"
+      : "解決時にエネルギーデッキが足りないため、エネルギーを置きませんでした。";
+  }
   if (event.event_type === "effect_not_activatable"
       && event.data.reason === "overlap_entry_observer_requires_timing_review") {
     return locale === "zh"

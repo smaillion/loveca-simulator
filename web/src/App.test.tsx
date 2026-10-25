@@ -1147,6 +1147,46 @@ describe("App", () => {
     expect(screen.getByText("该登场观察者的重叠时点尚待审核，请手动确认。")).toBeInTheDocument();
   });
 
+  it("shows why a triggered Energy placement did not apply", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const matchCreate = { ...MATCH_PAYLOAD, events: [{
+      event_type: "effect_operation_not_applied", player_id: "player_1", source: "system",
+      data: { effect_id: "PL!N-pb1-012:1", reason: "energy_deck_insufficient_at_resolution" },
+    }] };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    const createButton = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+    await waitFor(() => expect(screen.getByText("技能部分未执行")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("自动效果结果")).toBeInTheDocument());
+    expect(screen.getAllByText("结算时能量牌库不足，未放置能量。").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect(screen.getAllByText("解決時にエネルギーデッキが足りないため、エネルギーを置きませんでした。").length)
+      .toBeGreaterThan(0);
+  });
+
+  it.each(["effect:PL!N-pb1-012:1", "energy_phase"])("only shows an Energy result notice for an effect (%s)", async (reason) => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const matchCreate = { ...MATCH_PAYLOAD, events: [{
+      event_type: "energy_added", player_id: "player_1", source: "system",
+      data: { reason, instance_ids: ["energy-public"], orientation: "wait" },
+    }] };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    const createButton = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+    await screen.findAllByText("第 1 回合");
+    if (reason.startsWith("effect:")) {
+      await waitFor(() => expect(screen.getByText("能量补充 WAIT: 1")).toBeInTheDocument());
+      fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+      expect(screen.getByText("エネルギー追加 WAIT: 1")).toBeInTheDocument();
+    } else {
+      expect(screen.queryByText("自动效果结果")).not.toBeInTheDocument();
+    }
+  });
+
   it("lets the local player expand their waiting room", async () => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const waitingId = "player_1-W001";

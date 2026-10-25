@@ -8,6 +8,10 @@
 
 ## 当前状态
 
+新建对局修正 `PL!N-pb1-012` 鐘嵐珠普通替换离场后漏补 Wait Energy 的问题，
+包含重叠整理返还附属 Energy 后再补入的边界；无牌可补时明确显示结果。旧 Replay 与登记率不变。
+[中文状态 / AI / UI 验证报告](./docs/development/overlap-energy-observer-verification.md)。
+
 新建对局可选择多个待机技能的结算顺序，统一 AP / NAP 优先级并禁止打断已开始的多步处理。
 旧 Replay 不变；这不代表完整规则调度已经完成，技能登记率不变。
 [中文顺序 / 状态 / AI 验证报告](./docs/development/pending-effect-order-verification.md)。
