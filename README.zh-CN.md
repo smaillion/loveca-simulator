@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+新增 `PL!N-bp7-006:1` 近江彼方支付Energy后私下查看并重排顶4张，排序不重复付费；第二段仍需手动处理。登记903/1212（74.50%），309条manual。[卡图、状态与Replay验证](./docs/development/activated-inspection-verification.md)
+
 新增 `PL!SP-bp7-008:1` 若菜四季“自身Wait后抽1”及 `PL!N-bp7-023:1` ミア“自身Wait后抽2、再弃2”。区分次数限制与抽后选择，修复manual起动直接报错；四季移动区域时的另一技能仍需手动处理。[卡图、状态与Replay验证](./docs/development/activated-wait-draw-verification.md)
 
 Live得分、成功区移动及胜负已扩展至20项实现回归，逐项验证SQLite Replay。4项仍需复核PDF 8.4.7.1的区域措辞与现有Match Point解释；不把回归通过当作官方裁定认证，不改引擎或登记率。[验证范围与未解决点](./docs/development/live-boundary-matrix-verification.md)

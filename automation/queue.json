@@ -299,6 +299,24 @@
       "acceptance": ["按固定PDF9.4/9.5与真实日文revision/hash，适配PL!SP-bp7-008:1和PL!N-bp7-023:1；只用已有Wait费用/抽牌/后续手牌选择，不新增模糊匹配", "无回合次数标记的能力不能擅加turn1限制；已有Wait不能支付，Main之外/对手回合不能发动；抽后弃牌能选刚抽到的牌，非法提交不重复抽或支付", "两卡逐项真实状态、SQL Replay、旧manual snapshot、四AI policy、双方隐藏信息与原生UI后续选择契约验证；已测试才提升test_validated，不提升reviewed", "固定AI及针对性技能回归、中日README/Changelog、中文卡图报告、manifest和全部profile通过；重叠/继承六卡仍manual，旧dirty工作树不改"]
     },
     {
+      "id": "activated-energy-inspect4-reorder",
+      "priority": 1,
+      "title": "精确适配支付Energy检查并完整重排牌堆顶4张",
+      "status": "queued",
+      "depends_on": ["continuous-workflow", "activated-wait-draw-exact-text"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["按实际卡文/revision/hash精确适配PL!N-bp7-006:1，仅用已有Energy费用和inspect/reorder，不冒充draw或允许任意弃置", "自己Main、Active Energy、turn1限制正确；费用只支付一次，查看不公开、不加入手牌，全量重排且非法/重复/缺失ID原子拒绝", "不足4张、牌库刷新与空库有真实断言，SQLite Replay、新旧manual snapshot、四AI、双方隐藏信息与原生排序UI契约通过", "中文卡图报告、固定AI及全部profile通过，manifest同步；四季移动复原保留source_object_departure_reentry_requires_review，不宣称重叠/继承完成"]
+    },
+    {
+      "id": "player-payload-deck-privacy-audit",
+      "priority": 0,
+      "title": "审计玩家响应牌库身份与历史ID关联并修复泄露路径",
+      "status": "queued",
+      "depends_on": ["activated-energy-inspect4-reorder"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["先复现完整MatchPayload的main_deck/card map与历史ID关联，不只检查私有pending选项；按PDF公开/隐藏区域记录依据", "REST/SSE/重连历史玩家视角不泄露未知牌身份与私有重排顺序，保留明确公开reveal与原始Replay", "本地轮流操作和四AI不受破坏，对手/牌库隐藏身份替换不影响可见响应或决策，真实状态/Replay/UI回归通过", "不改Card/SQLite schema，不合并部署；无法在有限范围确认的边界明确报告"]
+    },
+    {
       "id": "effect-accuracy-loop",
       "priority": 3,
       "title": "按实际触发与规则风险扩展技能支持",

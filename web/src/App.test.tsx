@@ -3239,6 +3239,43 @@ describe("App", () => {
     });
   });
 
+  it("requires all four inspected cards and submits their edited deck-top order", () => {
+    const onAction = vi.fn();
+    const ids = ["peek-0", "peek-1", "peek-2", "peek-3"];
+    const label = "【起動】【ターン1回】【E】：自分のデッキの上からカードを4枚見る。その後、それらを好きな順番でデッキの上に置く。";
+    const cards = Object.fromEntries(ids.map((id, index) => [id, {
+      ...INSPECTION_CARDS["player_1-M002"], instance_id: id,
+      card: { ...INSPECTION_CARDS["player_1-M002"].card, name_ja: `確認${index + 1}` },
+    }]));
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state,
+      cards: { ...INSPECTION_CARDS, ...cards },
+      effect_definitions: { "PL!N-bp7-006:1": {
+        ...INSPECTION_MATCH_PAYLOAD.state.effect_definitions["PL!-bp6-002:1"],
+        effect_id: "PL!N-bp7-006:1", label_ja: label,
+      } },
+    };
+    const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], options: {
+      effect_id: "PL!N-bp7-006:1", source_card_instance_id: "player_1-M001",
+      inspected_card_instance_ids: ids, candidate_card_instance_ids: ids,
+      minimum: 4, maximum: 4, requires_order: true,
+      selected_destination: "main_deck_top_ordered", reveal_selected_to_opponent: false,
+    } };
+    render(<InspectionChoiceAction action={action as never} state={state as never}
+      loading={false} onAction={onAction} title="检查结果" submitLabel="确认排序" />);
+    expect(screen.getByText(label)).toBeInTheDocument();
+    const confirm = screen.getByRole("button", { name: "确认排序" });
+    for (let i = 0; i < 3; i += 1) fireEvent.click(screen.getByRole("button", { name: new RegExp(`確認${i + 1}`) }));
+    expect(confirm).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /確認4/ }));
+    expect(confirm).toBeEnabled();
+    fireEvent.click(screen.getAllByRole("button", { name: "上移已选卡" })[3]);
+    fireEvent.click(confirm);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_1", {
+      selected_card_instance_ids: ["peek-0", "peek-1", "peek-3", "peek-2"],
+      ordered_card_instance_ids: ["peek-0", "peek-1", "peek-3", "peek-2"],
+    });
+  });
+
   it("requires a waiting-room member and area for simultaneous two-player deployment", () => {
     const onAction = vi.fn();
     const action = {

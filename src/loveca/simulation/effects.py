@@ -277,6 +277,7 @@ class EffectSelectionGroup(BaseModel):
 
 
 class EffectChoice(BaseModel):
+    inspection_activation_policy: Literal["start_after_cost"] | None = None
     choice_type: str
     deployment_policy: Literal["simultaneous_member_area_entry"] | None = None
     selection_policy: Literal["private_filtered_may_choose_none"] | None = None
@@ -355,6 +356,8 @@ class EffectChoice(BaseModel):
     @model_serializer(mode="wrap")
     def serialize_deployment_policy(self, handler) -> dict[str, Any]:
         result = handler(self)
+        if self.inspection_activation_policy is None:
+            result.pop("inspection_activation_policy", None)
         if self.deployment_policy is None:
             result.pop("deployment_policy", None)
         if self.selection_policy is None:
@@ -363,6 +366,15 @@ class EffectChoice(BaseModel):
 
     @model_validator(mode="after")
     def validate_deployment_policy(self) -> EffectChoice:
+        if self.inspection_activation_policy is not None and (
+            self.choice_type != "inspect_top_select" or self.target_player != "self"
+            or self.amount is None or self.amount <= 0
+            or self.amount_source is not None
+            or self.minimum != self.amount or self.maximum != self.amount
+            or not self.requires_order or self.selected_destination != "main_deck_top_ordered"
+            or self.unselected_destination is not None or self.reveal_selected_to_opponent
+        ):
+            raise ValueError("activated inspection policy requires a private full top-deck reorder")
         if self.selection_policy is not None and (
             self.choice_type != "card_from_zone" or self.zone != "hand"
             or self.target_player != "self" or self.card_type != "member"
@@ -437,6 +449,23 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        if any(choice is not None and choice.inspection_activation_policy is not None
+               for choice in (self.cost_choice, self.follow_up_choice)):
+            raise ValueError("inspection activation policy must be the main effect choice")
+        if self.choice is not None and self.choice.inspection_activation_policy is not None and (
+            self.effect_type != "activated" or self.trigger != "player_activation"
+            or self.execution_mode != "prompt_then_resolve"
+            or self.simulation_support == "manual_resolution"
+            or self.cost_choice is not None or self.follow_up_choice is not None
+            or len(self.cost) != 1 or self.cost[0].action_type != "pay_energy"
+            or self.cost[0].amount is None or self.cost[0].amount <= 0
+            or self.cost[0].amount_source is not None
+            or self.cost[0].branch is not None or self.cost[0].target not in {None, "self"}
+            or [op.action_type for op in self.actions] != ["inspect_top_cards", "reorder_deck_top", "move_remaining_cards"]
+            or self.actions[0].amount != self.choice.amount or self.actions[0].amount_source is not None
+            or any(op.branch is not None for op in self.actions)
+        ):
+            raise ValueError("activated inspection policy requires fixed Energy cost and structured reorder")
         if any(op.action_type == "modify_source_score_if_selected_blade_highest" for op in self.actions):
             choice = self.choice
             if (

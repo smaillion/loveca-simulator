@@ -322,3 +322,17 @@ The latest new-match `member_overlap_policy=capture_fixed_draw_and_energy_entry_
 ## Original Overlap Source Member
 
 `EffectOperation.overlap_source_policy=original_stage_member` is an explicit opt-in for a fixed self Blade, Live-duration, positional `own_member_played` observer without choices/costs. Under the existing bounded new-match overlap policy, capture `overlap_source_slot_at_trigger` for this opted-in snapshot only. Qualify the positional trigger using the captured slot, then emit `effect_operation_not_applied / overlap_source_member_departed` instead of modifying the old Stage object after cleanup, even if its persistent instance ID is reused for re-entry. Resolve and record usage normally. Non-overlap object epochs and arbitrary conditional Stage views are not implemented by this policy. None is omitted so old effect snapshots retain shape/hash/Replay; reject use in costs, other targets, variable amounts or other trigger/duration families. A separate triggered Live-start/success ability cannot observe entry/exit and need not exclude the area. Exact representative: `PL!HS-pb1-009:1`; no registry-count or reviewed-status promotion. Evidence: `docs/development/overlap-source-modifier-verification.md`.
+
+## Activated Private Full Reorder
+
+`EffectChoice.inspection_activation_policy=start_after_cost` explicitly starts the
+native inspection flow after one fixed self Energy cost, without executing the
+inspection operations through the immediate-operation executor. Scope is one
+own activated Main ability, no cost/follow-up choice or branch, with fixed full
+inspection, ordering and deck-top return. Partial keep, reveal and discard are
+excluded. The engine clamps required selection to available cards after refresh;
+all inspected cards must return, and subsequent choices cannot pay again.
+Absent/None omits the field and preserves legacy snapshots/hash/behavior, not a
+retroactive repair of old manual abilities. No runtime SQLite migration.
+Representative: `PL!N-bp7-006:1`; its second segment remains manual. Evidence:
+`docs/development/activated-inspection-verification.md`.

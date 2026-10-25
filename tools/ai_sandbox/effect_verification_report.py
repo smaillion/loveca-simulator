@@ -188,6 +188,10 @@ def _v1_1_dynamic_scenarios(
 ) -> list[ScenarioResult]:
     cases = (
         (
+            "activated_energy_inspect4_reorder", "Energyを払い上4枚を非公開で並べ直す",
+            "支付Energy后私下查看并重排顶4张", "PL!N-bp7-006:1", _run_activated_inspection,
+        ),
+        (
             "activated_wait_draw_shiki", "若菜四季: 自身をウェイトにして1枚引く",
             "若菜四季：自身Wait后抽1张", "PL!SP-bp7-008:1", _run_activated_wait_draw,
         ),
@@ -371,6 +375,38 @@ def _v1_1_dynamic_scenarios(
             )
         )
     return results
+
+
+def _run_activated_inspection(effect: EffectDefinition) -> dict[str, bool]:
+    state = _v1_1_state(
+        {effect.effect_id: effect},
+        [_v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id]),
+         _v1_1_energy("energy"), *[_v1_1_member(f"top-{i}", f"top-{i}") for i in range(5)]],
+        member_area={"left": None, "center": "source", "right": None},
+    )
+    player = state.players["player_1"]
+    player.main_deck = [f"top-{i}" for i in range(5)]
+    player.energy_area = ["energy"]
+    activated = apply_action(state, ActionRequest(
+        action_type="activate_effect", player_id="player_1", expected_revision=state.revision,
+        payload={"effect_id": effect.effect_id, "source_card_instance_id": "source", "energy_instance_ids": ["energy"]},
+    ))
+    state = activated.state
+    inspected = state.pending_choice.options["inspected_card_instance_ids"]
+    order = ["top-3", "top-1", "top-0", "top-2"]
+    result = apply_action(state, ActionRequest(
+        action_type="resolve_effect_choice", player_id="player_1", expected_revision=state.revision,
+        payload={"selected_card_instance_ids": order, "ordered_card_instance_ids": order},
+    ))
+    player = result.state.players["player_1"]
+    return {
+        "inspection_exact_four": inspected == ["top-0", "top-1", "top-2", "top-3"],
+        "inspection_energy_paid": result.state.cards["energy"].orientation == "wait",
+        "inspection_order_preserved": player.main_deck == order + ["top-4"],
+        "inspection_no_hand_or_waiting_change": player.hand == [] and player.waiting_room == [],
+        "inspection_private_return": all(not result.state.cards[key].face_up for key in order),
+        "inspection_completed": not result.state.pending_effects and result.state.pending_choice is None,
+    }
 
 
 def _run_activated_wait_draw(effect: EffectDefinition) -> dict[str, bool]:
@@ -1024,6 +1060,12 @@ def _load_visuals_for_effect_ids(
 
 
 _V1_1_CHECK_LABELS: dict[str, tuple[str, str]] = {
+    "inspection_exact_four": ("上から正確に4枚を見る", "准确查看顶4张"),
+    "inspection_energy_paid": ("Energy費用を支払った", "已支付Energy费用"),
+    "inspection_order_preserved": ("指定順でデッキ上へ戻る", "按指定顺序放回牌堆顶"),
+    "inspection_no_hand_or_waiting_change": ("手札と控え室を変えない", "手牌和控室不变"),
+    "inspection_private_return": ("非公開のまま戻る", "以非公开状态放回"),
+    "inspection_completed": ("待機選択が残らない", "无残留待机选择"),
     "activation_source_wait_paid": ("起動コストで自身がウェイト", "自身已作为发动费用变为Wait"),
     "activation_draw_count": ("指定枚数だけ引いた", "准确抽取指定张数"),
     "activation_frequency_exact": ("記載どおりの回数制限", "仅采用原文规定的次数限制"),

@@ -1979,10 +1979,29 @@ def _match_state_payload(
         ]
     return {
         "state": state_payload,
-        "events": [event.model_dump() for event in events],
+        "events": _visible_match_events(events, player_id),
         "legal_actions": [action.model_dump() for action in visible_actions],
         "ruleset_compatibility": compatibility,
     }
+
+
+def _visible_match_events(events: list[GameEvent], player_id: str | None) -> list[dict[str, Any]]:
+    payload = [event.model_dump() for event in events]
+    if player_id is None:
+        return payload
+    for event in payload:
+        data = event["data"]
+        if event["player_id"] == player_id or not (
+            event["event_type"] == "effect_inspection_started"
+            or event["event_type"] == "effect_resolved" and "inspected_card_instance_ids" in data
+        ):
+            continue
+        for key in ("inspected_card_instance_ids", "candidate_card_instance_ids", "ordered_card_instance_ids"):
+            data.pop(key, None)
+        if not data.get("reveal_selected_to_opponent"):
+            data.pop("selected_card_instance_ids", None)
+        data.pop("unselected_card_instance_ids", None)
+    return payload
 
 
 def _redact_opponent_private_cards(state_payload: dict[str, Any], player_id: str) -> None:

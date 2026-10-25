@@ -1,8 +1,19 @@
 # Effect Semantics Audit
 
+Activated inspection checkpoint: exact `PL!N-bp7-006:1` now pays one Active
+Energy, privately inspects four cards and returns all in the selected order.
+`inspection_activation_policy=start_after_cost` is restricted to this structured
+cost/reorder family; absent policies retain old serialization/hash and behavior.
+Registry is903/1212 executable (74.50%),309manual, without reviewed promotion.
+The second segment remains manual. Shiki's movement ability remains manual with
+`source_object_departure_reentry_requires_review`: pending resolution must not
+ready a new Stage object sharing the old instance ID. The current 10-match AI
+regression did not trigger this new inspection effect; targeted tests provide
+the operation evidence. [Chinese card/state evidence](development/activated-inspection-verification.md).
+
 Activated draw checkpoint: exact `PL!SP-bp7-008:1` and `PL!N-bp7-023:1`
 now use existing self-Wait cost / draw / post-draw hand selection operations.
-Registry is902/1212 executable (74.42%),310manual, with no reviewed promotion.
+At that checkpoint, registry was902/1212 executable (74.42%),310manual, with no reviewed promotion.
 Shiki's second movement ability and the six occupied-deployment cards remain
 manual. Manual activation placeholders now enter the bound pending flow instead
 of attempting an unsupported automatic operation; legacy structured prefixes

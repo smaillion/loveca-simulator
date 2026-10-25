@@ -1511,10 +1511,15 @@ def _activate_effect(
         invocation.trigger_data["cost_selected_card_instance_ids"] = list(
             selected_ids
         )
+    start_inspection = bool(
+        effect.choice is not None
+        and effect.choice.inspection_activation_policy == "start_after_cost"
+    )
     pre_choice_operations = [
         operation
         for operation in effect.actions
-        if not _operation_requires_pending_effect_choice(effect, operation)
+        if not start_inspection
+        and not _operation_requires_pending_effect_choice(effect, operation)
         and not (
             effect.simulation_support == "manual_resolution"
             and operation.action_type == "manual_resolution"
@@ -1544,6 +1549,10 @@ def _activate_effect(
             source="player",
         )
     )
+    if start_inspection:
+        state.pending_effects.append(invocation)
+        _begin_effect_inspection_choice(state, invocation, events)
+        return
     if _activated_effect_needs_pending_resolution(state, invocation):
         state.pending_effects.append(invocation)
         return

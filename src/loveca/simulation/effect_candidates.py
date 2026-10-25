@@ -215,6 +215,34 @@ def _matching_segment(
     return None
 
 
+def _activated_pay1_inspect4_reorder(row: sqlite3.Row) -> EffectCandidate | None:
+    label = (
+        "【起動】【ターン1回】【E】：自分のデッキの上からカードを4枚見る。"
+        "その後、それらを好きな順番でデッキの上に置く。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base(row, pattern_id="activated_pay1_inspect4_reorder_all_top", effect_index=effect_index),
+        label_ja=exact_label,
+        effect_type="activated", timing="activated_main", trigger="player_activation",
+        frequency_limit="once_per_turn", is_optional=False,
+        condition={"source_zone": "stage", "minimum_active_energy": 1},
+        cost=[{"action_type": "pay_energy", "amount": 1}],
+        choice={
+            "inspection_activation_policy": "start_after_cost",
+            "choice_type": "inspect_top_select", "amount": 4, "minimum": 4, "maximum": 4,
+            "requires_order": True, "selected_destination": "main_deck_top_ordered",
+            "unselected_destination": None, "reveal_selected_to_opponent": False,
+        },
+        actions=[{"action_type": "inspect_top_cards", "amount": 4},
+                 {"action_type": "reorder_deck_top"}, {"action_type": "move_remaining_cards"}],
+        duration=None,
+    )
+
+
 def _onplay_wait_inspect2_reorder(row: sqlite3.Row) -> EffectCandidate | None:
     text = str(row["raw_effect_text_ja"]).strip()
     prefix = (
@@ -15068,6 +15096,7 @@ def _activated_return_energy_recover_live(row: sqlite3.Row) -> EffectCandidate |
 
 
 _PATTERNS = (
+    _activated_pay1_inspect4_reorder,
     _activated_return_energy_recover_live,
     _edel_note_live_start_deployment,
     _onplay_wait_inspect2_reorder,
