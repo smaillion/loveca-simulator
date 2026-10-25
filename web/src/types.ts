@@ -359,6 +359,7 @@ export interface PendingChoice {
 }
 
 export interface MatchState {
+  member_overlap_policy?: "capture_fixed_draw_entry_observers" | null;
   match_id: string;
   rule_version: string;
   seed: number;

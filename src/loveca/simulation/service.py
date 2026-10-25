@@ -85,6 +85,7 @@ class MatchService:
         state = MatchState(
             match_id=resolved_id,
             seed=resolved_seed,
+            member_overlap_policy="capture_fixed_draw_entry_observers",
             players=player_states,
             cards=cards,
             controllers=_normalize_controllers(controllers),

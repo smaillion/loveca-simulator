@@ -18,6 +18,8 @@ This audit does not incorporate FAQ, Q&A, or individual ruling clarifications.
 
 ## Current Repository Snapshot
 
+New matches explicitly capture bounded fixed-draw entry observers before overlap cleanup, correcting actual `PL!N-pb1-005:1` when replaced by a cost10 Member (not Baton). Old snapshots omit the new MatchState policy and retain historical Replay behavior. Complex source/stage/inherited conditions remain excluded or diagnosed, without registry promotion. See [state and compatibility evidence](./development/overlap-entry-observer-verification.md).
+
 The bounded Stage-deployment foundation now supports an explicit own-hand filtered selection policy with an effective 0–1 choice. It does not waive costs, relax public mandatory targets, alter old snapshots, or register the six pending deployment effects. Native activation, runtime Replay, three AI policies, private views and mobile component evidence are recorded in [the Chinese verification](./development/private-hand-choice-verification.md). Complex check-timing overlap remains unresolved.
 
 Energy return follow-up: actual `PL!SP-bp5-111:2` costs and `PL!SP-pb2-010:1` branches now retain a valid face-down deck representation, preserving JSON/read/replay. Invalid historical snapshots are rejected without mutation or private error details; HTTP/SSE report a stable error and clients stop retrying. Exact candidate recovery does not change registry counts or review status. See [Chinese verification](./development/energy-return-replay-verification.md).

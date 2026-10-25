@@ -205,6 +205,7 @@ class MatchState(BaseModel):
     match_id: str
     rule_version: str = RULE_VERSION
     seed: int
+    member_overlap_policy: Literal["capture_fixed_draw_entry_observers"] | None = None
     revision: int = 0
     phase: Phase = "setup_choose_first"
     first_player_id: str | None = None
@@ -234,6 +235,13 @@ class MatchState(BaseModel):
     live_judgment_summary: dict[str, Any] | None = None
     game_result: GameResult | None = None
     completed_reason: str | None = None
+
+    @model_serializer(mode="wrap")
+    def serialize_overlap_policy(self, handler: Any) -> dict[str, Any]:
+        payload = handler(self)
+        if self.member_overlap_policy is None:
+            payload.pop("member_overlap_policy", None)
+        return payload
 
 
 class ActionRequest(BaseModel):

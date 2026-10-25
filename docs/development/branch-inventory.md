@@ -43,6 +43,10 @@ Baton 原型检查点：已核对 `07f51e4` 的两个 PR entry，没有直接恢
 
 ## 工作树
 
+重叠观察者检查点：真实 `PL!N-pb1-005:1` 的普通替换/费用Baton差异已补有限策略与状态验证，
+新对局启用、旧 Replay 不变；复杂时点父任务保留。见 `overlap-entry-observer-verification.md`。
+未晋级六张手动卡，原工作树和报告不动，继续同一 PR #54，不合并部署。
+
 非公开选择检查点：已拆出并完成 `effect-private-filtered-hand-choice` 的受控零目标语义、
 费用 / 旧 Replay / UI / AI 验证；未迁移或修改旧工作树。完整重叠父任务仍在进行，六张卡保持 manual。
 见 `private-hand-choice-verification.md`；同一 PR #54，不合并部署，Cloud 仍未切换。

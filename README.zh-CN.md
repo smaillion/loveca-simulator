@@ -8,6 +8,10 @@
 
 ## 当前状态
 
+新建对局修正 `PL!N-pb1-005` 宮下愛被 cost10 Member 普通替换时漏抽1的问题；
+Baton 中先作为费用离场的对照不抽。旧 Replay 保留原行为，复杂重叠仍待审计。
+[中文状态与兼容性报告](./docs/development/overlap-entry-observer-verification.md)。
+
 受控效果登場底座已支持按条件筛选非公开手牌时明确选零张：费用不退回，旧快照与公开必选目标不变。
 这是未登记的底座能力，不代表六张待审卡已经自动适配；复杂重叠仍未完成。
 [中文截图与状态验证](./docs/development/private-hand-choice-verification.md)。

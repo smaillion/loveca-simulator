@@ -1131,6 +1131,22 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: "公開テストカード" })).toBeInTheDocument();
   });
 
+  it("shows a readable reason for unsupported overlap observers", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const matchCreate = { ...MATCH_PAYLOAD, events: [{
+      event_type: "effect_not_activatable", player_id: "player_1", source: "system",
+      data: { effect_id: "AUDIT", reason: "overlap_entry_observer_requires_timing_review" },
+    }] };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    await waitFor(() => expect(screen.getByLabelText("玩家 1 牌组")).toBeInTheDocument());
+    const createButton = screen.getByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+    await waitFor(() => expect(screen.getByText("技能未自动处理")).toBeInTheDocument());
+    expect(screen.getByText("该登场观察者的重叠时点尚待审核，请手动确认。")).toBeInTheDocument();
+  });
+
   it("lets the local player expand their waiting room", async () => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const waitingId = "player_1-W001";

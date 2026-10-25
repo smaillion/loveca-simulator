@@ -150,7 +150,7 @@
       "priority": 1,
       "title": "复核完整重叠检查时点及手牌目标可选零张",
       "status": "queued",
-      "depends_on": ["effect-occupied-deployment-foundation", "effect-private-filtered-hand-choice"],
+      "depends_on": ["effect-occupied-deployment-foundation", "effect-private-filtered-hand-choice", "overlap-fixed-draw-entry-observer"],
       "required_profiles": ["control", "registry", "backend", "web"],
       "acceptance": ["依据 10.1.2/10.4.1/9.7 与 9.6.3.1.4 处理临时重叠、离场观察者、继承及手牌可视性边界", "不得仅把两个 Member 覆盖为一个就宣称所有触发正确；仍不能确认的语义保持能力边界和 unresolved reason", "支持非公开手牌选择零张时的原生UI/AI/费用结果，不把私有筛选等同公开必选目标", "只有逐卡真实状态/Replay/三policy/UI验收后才提升两张PR卡与四条虹咲登记，父任务未完成前不恢复旧标签"]
     },
@@ -162,6 +162,15 @@
       "depends_on": ["effect-occupied-deployment-foundation"],
       "required_profiles": ["control", "registry", "backend", "web"],
       "acceptance": ["依据 PDF 9.6.3.1.4 新增显式 snapshot 选择策略，仅限己方非公开手牌按 Member 信息筛选的单卡效果登場，不改变旧 snapshot 或公开必选目标", "有符合卡仍能明确选零张；已支付费用不退回、不重复支付，不接受无目标时伪造区域、非法卡或费用", "真实状态、无目标/无合法区域、旧 Replay、三policy、手牌隐私及前端零张/单张提交均通过", "不恢复六张尚未完整审计的卡牌登记；复杂重叠、离场及继承时点由父任务继续跟踪，不改 Card/SQLite schema"]
+    },
+    {
+      "id": "overlap-fixed-draw-entry-observer",
+      "priority": 0,
+      "title": "修复重叠清理前已触发的固定抽牌登場观察者",
+      "status": "queued",
+      "depends_on": ["effect-private-filtered-hand-choice"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["真实 PL!N-pb1-005:1 在被 cost10 Member 普通替换时仍抽1，Baton 费用离场对照不触发", "新增 None 省略的 MatchState 策略，新建对局启用、旧 snapshot/Replay 保持历史行为，不升级 SQLite", "受控效果登場只扩展固定 draw 且仅用入场卡不可变信息的观察者；复杂条件/继承/常时仍明确拒绝，不冒充完整重叠调度", "非法原子性、次数限制、真实状态/Replay、三policy、隐藏信息与新旧 API 创建均有回归，六张待审卡仍 manual，中文报告和规则引用齐全"]
     },
     {
       "id": "effect-deployment-rule-conformance",

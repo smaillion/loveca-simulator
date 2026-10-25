@@ -61,6 +61,9 @@
 - 非公开手牌零目标已完成独立子切片：显式 snapshot 策略、费用边界、UI / 三种 AI / Replay 与
   双方隐私已验证，见 `docs/development/private-hand-choice-verification.md`。完整重叠 / 离场观察者 /
   继承时点仍由 `effect-overlap-trigger-and-private-choice` 追踪，六张卡未晋级，登记仍899/1212。
+- 已补普通替换清理前的有限固定抽牌观察者：真实 `PL!N-pb1-005:1` 普通替换抽1、Baton 不抽，
+  新对局启用而旧 Replay 保留历史行为。见 `docs/development/overlap-entry-observer-verification.md`。
+  临时场面、条件式/常时/继承与 AP/NAP 排序仍在父任务中，不把该修复当作完整重叠底座。
 - 已修复：`PL!SP-bp5-111:2` / `PL!SP-pb2-010:1` 的 Energy 回牌库空朝向，
   验证真实费用 / 分支 / runtime Replay；旧坏快照拒绝读取且不改写，API / SSE 错误不泄露私有信息，
   前端显示诊断并停止重试。见 `docs/development/energy-return-replay-verification.md`；不改 schema。

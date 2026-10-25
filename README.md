@@ -8,6 +8,10 @@
 
 ## 現在の状態
 
+新規対戦では `PL!N-pb1-005` 宮下愛がコスト10の Member に通常交代された際、
+登場を見た後に控え室へ移っても1枚引きます。バトンタッチでは引きません。
+旧 Replay の挙動は維持し、複雑な重複処理は未対応です。[検証と制限](./docs/development/overlap-entry-observer-verification.md)
+
 効果登場の限定基盤に、非公開手札の条件付き選択を0枚にする明示的な方針を追加しました。
 費用は取り消さず、旧 snapshot と公開領域の必須選択は変えません。正式カードの追加対応ではなく、
 複雑な重複処理は引き続き未対応です。[画面と状態検証](./docs/development/private-hand-choice-verification.md)

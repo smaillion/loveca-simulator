@@ -4163,6 +4163,7 @@ function eventTitle(event: GameEvent, locale: UiLocale): string {
     ai_blocked: ["电脑操作受阻", "CPU操作ブロック"],
     effect_auto_resolved: ["技能自动发动", "能力の自動解決"],
     effect_resolved: ["技能结算", "能力解決"],
+    effect_not_activatable: ["技能未自动处理", "能力の自動処理不可"],
     effect_triggered: ["技能触发", "能力誘発"],
     yell_completed: ["应援结算完成", "エール解決完了"],
   };
@@ -4207,6 +4208,12 @@ function describeAiBlocker(
 }
 
 function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): string | null {
+  if (event.event_type === "effect_not_activatable"
+      && event.data.reason === "overlap_entry_observer_requires_timing_review") {
+    return locale === "zh"
+      ? "该登场观察者的重叠时点尚待审核，请手动确认。"
+      : "重複時の登場誘発は未審査です。手動で確認してください。";
+  }
   if (event.event_type === "ai_action_selected") {
     const actionType = typeof event.data.action_type === "string" ? event.data.action_type : "";
     const reason = typeof event.data.reason === "string" ? event.data.reason : "";

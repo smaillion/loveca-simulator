@@ -667,6 +667,9 @@ def _play_member(
         )
     )
     if replaced_instance_id is not None and not use_baton_touch:
+        _queue_outgoing_entry_draw_observers(
+            state, player_id, replaced_instance_id, instance_id, slot, "hand", events,
+        )
         _clean_stage_attachments(
             state,
             player_id,
@@ -2696,10 +2699,13 @@ def _queue_triggered_effects(
     *,
     source_instance_ids: list[str],
     trigger_data: dict[str, Any],
+    effect_id_filter: set[str] | None = None,
 ) -> None:
     for source_id in source_instance_ids:
         source = state.cards[source_id]
         for effect_id in source.card.effect_ids:
+            if effect_id_filter is not None and effect_id not in effect_id_filter:
+                continue
             effect = state.effect_definitions.get(effect_id)
             if effect is None or trigger not in str(effect.trigger).split("|"):
                 continue
@@ -6667,6 +6673,9 @@ def _deploy_selected_to_stage(
     state.cards[instance_id].face_up = True
     state.cards[instance_id].orientation = operation.orientation
     if old_id:
+        _queue_outgoing_entry_draw_observers(
+            state, invocation.player_id, old_id, instance_id, slot, source_zone, events,
+        )
         # Bounded overlap cleanup: complex outgoing abilities are excluded before payment.
         _clean_stage_attachments(
             state, invocation.player_id, slot, events, reason="effect_member_replaced"
@@ -6762,6 +6771,111 @@ def _effect_allows_private_selection_none(effect: Any) -> bool:
     )
 
 
+def _fixed_draw_entry_observer(effect: Any) -> bool:
+    if (
+        effect is None
+        or effect.trigger != "own_member_played"
+        or effect.execution_mode != "auto_resolve"
+        or effect.is_optional
+        or effect.cost
+        or effect.cost_choice
+        or effect.choice
+        or effect.follow_up_choice
+        or not effect.actions
+    ):
+        return False
+    for key, value in effect.condition.items():
+        if key == "trigger_member_cost_exact":
+            if not isinstance(value, int) or isinstance(value, bool):
+                return False
+        elif key in {"trigger_member_work_key", "trigger_member_unit_key"}:
+            if not isinstance(value, str):
+                return False
+        elif key == "trigger_member_not_source":
+            if not isinstance(value, bool):
+                return False
+        else:
+            return False
+    return all(
+        op.action_type == "draw_card"
+        and op.amount is not None
+        and op.amount > 0
+        and op.amount_source is None
+        and op.target in {None, "self"}
+        and op.branch is None
+        and op.value is None
+        and op.multiplier is None
+        for op in effect.actions
+    )
+
+
+def _queue_outgoing_entry_draw_observers(
+    state: MatchState,
+    player_id: str,
+    old_id: str,
+    entering_id: str,
+    slot: str,
+    source_zone: str,
+    events: list[GameEvent],
+) -> None:
+    if state.member_overlap_policy != "capture_fixed_draw_entry_observers":
+        return
+    supported: set[str] = set()
+    for effect_id in state.cards[old_id].card.effect_ids:
+        effect = state.effect_definitions.get(effect_id)
+        if effect is None or "own_member_played" not in effect.trigger.split("|"):
+            continue
+        entering = state.cards[entering_id].card
+        filters = effect.condition
+        if (
+            (
+                isinstance(filters.get("trigger_member_cost_exact"), int)
+                and (entering.cost or 0) != filters["trigger_member_cost_exact"]
+            )
+            or (
+                isinstance(filters.get("trigger_member_work_key"), str)
+                and filters["trigger_member_work_key"] not in entering.work_keys
+            )
+            or (
+                isinstance(filters.get("trigger_member_unit_key"), str)
+                and filters["trigger_member_unit_key"] not in entering.unit_keys
+            )
+            or (filters.get("trigger_member_not_source") is True and old_id == entering_id)
+        ):
+            continue
+        if _fixed_draw_entry_observer(effect):
+            supported.add(effect_id)
+        else:
+            events.append(
+                GameEvent(
+                    event_type="effect_not_activatable",
+                    player_id=player_id,
+                    data={
+                        "effect_id": effect_id,
+                        "source_card_instance_id": old_id,
+                        "trigger": "own_member_played",
+                        "reason": "overlap_entry_observer_requires_timing_review",
+                    },
+                )
+            )
+    # Capture only immutable entry filters before cleanup; resolve after this action/parent.
+    _queue_triggered_effects(
+        state,
+        "own_member_played",
+        events,
+        source_instance_ids=[old_id],
+        effect_id_filter=supported,
+        trigger_data={
+            "card_instance_id": entering_id,
+            "slot": slot,
+            "source_zone": source_zone,
+            "replacement_card_instance_id": old_id,
+            "used_baton_touch": False,
+            "overlap_observer_before_cleanup": True,
+        },
+    )
+
+
 def _occupied_deployment_gaps(
     state: MatchState,
     invocation: EffectInvocation,
@@ -6786,6 +6900,11 @@ def _occupied_deployment_gaps(
             continue
         for effect_id in state.cards[old_id].card.effect_ids:
             effect = state.effect_definitions.get(effect_id)
+            if (
+                state.member_overlap_policy == "capture_fixed_draw_entry_observers"
+                and _fixed_draw_entry_observer(effect)
+            ):
+                continue
             if (
                 effect is None
                 or effect.trigger != "member_left_stage_to_waiting_room"
