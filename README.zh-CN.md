@@ -8,6 +8,10 @@
 
 ## 当前状态
 
+受控效果登場底座已支持按条件筛选非公开手牌时明确选零张：费用不退回，旧快照与公开必选目标不变。
+这是未登记的底座能力，不代表六张待审卡已经自动适配；复杂重叠仍未完成。
+[中文截图与状态验证](./docs/development/private-hand-choice-verification.md)。
+
 修复 `PL!SP-bp5-111:2` / `PL!SP-pb2-010:1` 将 Energy 返回牌库后无法读取保存状态的问题。
 旧坏快照不自动改写：返回明确错误，停止前端重试并提示新建对局，不提升技能登记率。
 [中文状态 / API / Replay 验证报告](./docs/development/energy-return-replay-verification.md)。

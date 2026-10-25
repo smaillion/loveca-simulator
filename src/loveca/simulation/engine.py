@@ -1696,8 +1696,11 @@ def _resolve_effect(
             and not selected_ids
             and not candidates
         )
+        private_no_target = _effect_allows_private_selection_none(effect) and not selected_ids
+        if private_no_target and selected_position_slot is not None:
+            raise IllegalActionError("a private selection without a target has no deployment area")
         if (
-            not (unavailable_after_cost and selected_position_slot is None)
+            not ((unavailable_after_cost or private_no_target) and selected_position_slot is None)
             and selected_position_slot not in deploy_slots
         ):
             raise IllegalActionError("effect deploy slot selection is not legal")
@@ -4515,6 +4518,7 @@ def _effect_unavailable_reason(
             and invocation.resolution_stage == "initial"
         )
         and effect.choice.minimum > 0
+        and not _effect_allows_private_selection_none(effect)
     ):
         choice_candidates = _effect_choice_candidates(state, invocation)
         if (
@@ -4547,7 +4551,10 @@ def _effect_unavailable_reason(
         _position_change_source_target_slots(state, invocation)
     ):
         return "position_change_unavailable"
-    if _effect_uses_deploy_to_empty_stage_choice(effect, invocation) and (
+    if (
+        _effect_uses_deploy_to_empty_stage_choice(effect, invocation)
+        and not _effect_allows_private_selection_none(effect)
+    ) and (
         not _effect_choice_candidates(state, invocation)
         or not _effect_deployment_slots(state, invocation)
     ):
@@ -4616,6 +4623,8 @@ def _effect_resolution_options(
         options["choice_type"] = choice.choice_type
         options["card_selection_minimum"] = minimum
         options["card_selection_maximum"] = maximum
+        if choice.selection_policy is not None:
+            options["selection_policy"] = choice.selection_policy
         if _effect_uses_grouped_stage_member_choice(effect):
             options["choice_groups"] = _effect_group_choice_options(
                 state, invocation
@@ -4761,6 +4770,8 @@ def _effect_choice_bounds(
 ) -> tuple[int, int]:
     if choice is None:
         return 0, 0
+    if choice.selection_policy == "private_filtered_may_choose_none":
+        return 0, choice.maximum
     if choice.amount_source == "own_stage_member_count":
         player = state.players[invocation.player_id]
         amount = sum(1 for item in player.member_area.values() if item is not None)
@@ -6613,7 +6624,9 @@ def _deploy_selected_to_stage(
     events: list[GameEvent],
 ) -> None:
     player = state.players[invocation.player_id]
-    if not selected_ids and not _effect_choice_candidates(state, invocation):
+    effect = state.effect_definitions[invocation.effect_id]
+    private_no_target = _effect_allows_private_selection_none(effect) and not selected_ids
+    if not selected_ids and (private_no_target or not _effect_choice_candidates(state, invocation)):
         events.append(
             GameEvent(
                 event_type="effect_operation_not_applied",
@@ -6622,7 +6635,8 @@ def _deploy_selected_to_stage(
                     "invocation_id": invocation.invocation_id,
                     "effect_id": invocation.effect_id,
                     "operation": operation.action_type,
-                    "reason": "no_legal_deployment_target_or_area",
+                    "reason": "private_selection_none" if private_no_target
+                    else "no_legal_deployment_target_or_area",
                 },
                 source="system",
             )
@@ -6739,6 +6753,13 @@ def _empty_member_area_slots(player: Any) -> list[str]:
 
 def _effect_uses_occupied_stage_deployment(effect: Any) -> bool:
     return any(op.action_type == "deploy_selected_to_stage" for op in effect.actions)
+
+
+def _effect_allows_private_selection_none(effect: Any) -> bool:
+    return bool(
+        effect.choice
+        and effect.choice.selection_policy == "private_filtered_may_choose_none"
+    )
 
 
 def _occupied_deployment_gaps(

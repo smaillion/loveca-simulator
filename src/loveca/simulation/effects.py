@@ -253,6 +253,7 @@ class EffectSelectionGroup(BaseModel):
 class EffectChoice(BaseModel):
     choice_type: str
     deployment_policy: Literal["simultaneous_member_area_entry"] | None = None
+    selection_policy: Literal["private_filtered_may_choose_none"] | None = None
     zone: str | None = None
     card_type: str | None = None
     orientation: str | None = None
@@ -330,10 +331,18 @@ class EffectChoice(BaseModel):
         result = handler(self)
         if self.deployment_policy is None:
             result.pop("deployment_policy", None)
+        if self.selection_policy is None:
+            result.pop("selection_policy", None)
         return result
 
     @model_validator(mode="after")
     def validate_deployment_policy(self) -> EffectChoice:
+        if self.selection_policy is not None and (
+            self.choice_type != "card_from_zone" or self.zone != "hand"
+            or self.target_player != "self" or self.card_type != "member"
+            or self.minimum != 1 or self.maximum != 1 or self.amount_source is not None
+        ):
+            raise ValueError("private selection only supports one filtered own-hand Member")
         if self.deployment_policy is not None and (
             self.choice_type != "multi_player_deploy_waiting_member"
             or self.zone != "waiting_room" or self.card_type != "member"
@@ -371,6 +380,15 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        if (
+            (self.cost_choice and self.cost_choice.selection_policy is not None)
+            or (self.follow_up_choice and self.follow_up_choice.selection_policy is not None)
+            or (
+                self.choice and self.choice.selection_policy is not None
+                and not any(op.action_type == "deploy_selected_to_stage" for op in self.actions)
+            )
+        ):
+            raise ValueError("private selection policy requires bounded Stage deployment")
         if any(op.action_type == "deploy_selected_to_stage" for op in self.actions):
             if (
                 len(self.actions) != 1 or self.follow_up_choice is not None

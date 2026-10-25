@@ -150,9 +150,18 @@
       "priority": 1,
       "title": "复核完整重叠检查时点及手牌目标可选零张",
       "status": "queued",
-      "depends_on": ["effect-occupied-deployment-foundation"],
+      "depends_on": ["effect-occupied-deployment-foundation", "effect-private-filtered-hand-choice"],
       "required_profiles": ["control", "registry", "backend", "web"],
       "acceptance": ["依据 10.1.2/10.4.1/9.7 与 9.6.3.1.4 处理临时重叠、离场观察者、继承及手牌可视性边界", "不得仅把两个 Member 覆盖为一个就宣称所有触发正确；仍不能确认的语义保持能力边界和 unresolved reason", "支持非公开手牌选择零张时的原生UI/AI/费用结果，不把私有筛选等同公开必选目标", "只有逐卡真实状态/Replay/三policy/UI验收后才提升两张PR卡与四条虹咲登记，父任务未完成前不恢复旧标签"]
+    },
+    {
+      "id": "effect-private-filtered-hand-choice",
+      "priority": 0,
+      "title": "补齐受控效果登場的非公开手牌零目标选择",
+      "status": "queued",
+      "depends_on": ["effect-occupied-deployment-foundation"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["依据 PDF 9.6.3.1.4 新增显式 snapshot 选择策略，仅限己方非公开手牌按 Member 信息筛选的单卡效果登場，不改变旧 snapshot 或公开必选目标", "有符合卡仍能明确选零张；已支付费用不退回、不重复支付，不接受无目标时伪造区域、非法卡或费用", "真实状态、无目标/无合法区域、旧 Replay、三policy、手牌隐私及前端零张/单张提交均通过", "不恢复六张尚未完整审计的卡牌登记；复杂重叠、离场及继承时点由父任务继续跟踪，不改 Card/SQLite schema"]
     },
     {
       "id": "effect-deployment-rule-conformance",

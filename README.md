@@ -8,6 +8,10 @@
 
 ## 現在の状態
 
+効果登場の限定基盤に、非公開手札の条件付き選択を0枚にする明示的な方針を追加しました。
+費用は取り消さず、旧 snapshot と公開領域の必須選択は変えません。正式カードの追加対応ではなく、
+複雑な重複処理は引き続き未対応です。[画面と状態検証](./docs/development/private-hand-choice-verification.md)
+
 `PL!SP-bp5-111:2` / `PL!SP-pb2-010:1` の Energy をデッキへ戻した後に保存データを読めなくなる問題を修正しました。
 既に壊れた保存データは書き換えず、明確なエラーと新規対局の案内を表示し、再試行を停止します。
 [状態・API・Replay の検証](./docs/development/energy-return-replay-verification.md)。登録率は変更していません。

@@ -5018,6 +5018,7 @@ export function EffectResolutionAction({
     position_change_slots_by_candidate?: Record<string, string[]>;
     deployment_choice?: boolean;
     deployment_members_by_slot?: Record<string, string | null>;
+    selection_policy?: "private_filtered_may_choose_none";
     choice_groups?: Array<{
       group_id: string;
       label_ja?: string | null;
@@ -5061,6 +5062,7 @@ export function EffectResolutionAction({
   const minimumCards = usesCardChoice
     ? current.card_selection_minimum ?? (current.candidate_card_instance_ids.length > 0 ? 1 : 0)
     : 0;
+  const allowsPrivateNoTarget = current.selection_policy === "private_filtered_may_choose_none";
   const maximumCards = usesCardChoice
     ? current.card_selection_maximum ?? Math.max(minimumCards, current.candidate_card_instance_ids.length)
     : 0;
@@ -5162,8 +5164,14 @@ export function EffectResolutionAction({
           )}
         </div>
       )}
-      {usesCardChoice && current.candidate_card_instance_ids.length > 0 && (
+      {usesCardChoice && (current.candidate_card_instance_ids.length > 0 || allowsPrivateNoTarget) && (
         <div className="effect-candidates">
+          {allowsPrivateNoTarget && (
+            <button type="button" className={selectedCards.length === 0 ? "selected" : ""}
+              onClick={() => { setSelectedCards([]); setSelectedPositionSlot(""); }}>
+              {tr("不选目标", "選ばない")}
+            </button>
+          )}
           {current.candidate_card_instance_ids.map((instanceId) => (
             <button
               className={selectedCards.includes(instanceId) ? "selected" : ""}
@@ -5369,7 +5377,9 @@ export function EffectResolutionAction({
               onAction(action.action_type, action.player_id, payload);
             }}
           >
-            {tr("结算技能", "能力を解決")}
+            {allowsPrivateNoTarget && selectedCards.length === 0
+              ? tr("不选目标并结算", "対象なしで解決")
+              : tr("结算技能", "能力を解決")}
           </button>
         )}
         {current.is_optional && (

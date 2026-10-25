@@ -3785,6 +3785,43 @@ describe("App", () => {
     });
   });
 
+  it.each([{ hasTarget: true, chooseOne: false }, { hasTarget: false, chooseOne: false },
+    { hasTarget: true, chooseOne: true }])("resolves private hand deployment: %j", ({ hasTarget, chooseOne }) => {
+    const onAction = vi.fn();
+    const action = {
+      action_type: "resolve_effect", player_id: "player_1", label_zh: "技能", label_ja: "能力",
+      options: { invocations: [{
+        invocation_id: "private-deploy", effect_id: "AUDIT", source_card_instance_id: "player_1-M001",
+        label_ja: "手札からメンバーを選び登場させる。", trigger: "member_played", timing: "on_play",
+        execution_mode: "prompt_then_resolve", simulation_support: "test_validated_executable",
+        resolution_stage: "initial", is_optional: false,
+        choice_type: "card_from_zone", choice_zone: "hand",
+        card_selection_minimum: 0, card_selection_maximum: 1,
+        selection_policy: "private_filtered_may_choose_none", deployment_choice: true,
+        candidate_card_instance_ids: hasTarget ? ["player_1-M002"] : [],
+        position_change_slots_by_candidate: { "player_1-M002": ["right"] },
+        energy_instance_ids: ["player_1-E001"], energy_required: 1,
+      }] },
+    };
+    render(<EffectResolutionAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never}
+      loading={false} onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "不选目标并结算" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "能量 E001" }));
+    if (hasTarget) {
+      fireEvent.click(screen.getByRole("button", { name: /候補カード/ }));
+      fireEvent.click(screen.getByRole("button", { name: "右" }));
+      if (!chooseOne) fireEvent.click(screen.getByRole("button", { name: "不选目标" }));
+    }
+    if (!chooseOne) expect(screen.queryByText("登场区域")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: chooseOne ? "结算技能" : "不选目标并结算" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "private-deploy", accepted: true,
+      selected_card_instance_ids: chooseOne ? ["player_1-M002"] : [],
+      energy_instance_ids: ["player_1-E001"],
+      ...(chooseOne ? { to_slot: "right" } : {}),
+    });
+  });
+
   it("submits branch follow-up card choices with the selected branch", () => {
     const onAction = vi.fn();
     const onManual = vi.fn();

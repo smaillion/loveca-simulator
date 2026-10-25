@@ -43,6 +43,10 @@ Baton 原型检查点：已核对 `07f51e4` 的两个 PR entry，没有直接恢
 
 ## 工作树
 
+非公开选择检查点：已拆出并完成 `effect-private-filtered-hand-choice` 的受控零目标语义、
+费用 / 旧 Replay / UI / AI 验证；未迁移或修改旧工作树。完整重叠父任务仍在进行，六张卡保持 manual。
+见 `private-hand-choice-verification.md`；同一 PR #54，不合并部署，Cloud 仍未切换。
+
 Energy Replay 后续检查点：两张卡的空朝向已在真实费用 / 分支路径修复，旧坏快照明确拒绝且不改写。
 API / SSE 返回安全诊断，前端停止永久错误重试；候选恢复为精确文本匹配，登记率不变。
 见 `energy-return-replay-verification.md`。仍使用 PR #54，旧工作树 / 报告未修改，不合并部署。

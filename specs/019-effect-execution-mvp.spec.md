@@ -235,3 +235,7 @@ visible only to the choosing player until their subsequent public movement.
 ## Energy deck return snapshot integrity
 
 `move_selected_energy_to_energy_deck` keeps returned cards face-down with a valid `active` serialization default. Outside Energy Area this value does not make the card usable Energy. Cost and branch paths must survive JSON, runtime reread and Replay. Invalid historical snapshots return `invalid_match_snapshot` without repair or private validation details; clients stop retrying that permanent error. No Card/runtime schema migration or executable-status promotion is implied. Evidence: `docs/development/energy-return-replay-verification.md`.
+
+## Private filtered hand selection
+
+`EffectChoice.selection_policy = private_filtered_may_choose_none` explicitly enables an effective 0–1 target count under rule 9.6.3.1.4. Initial scope is one own-hand Member selected by card information for the single bounded `deploy_selected_to_stage` operation. Cost/follow-up choices, public zones, other players, variable counts and other operations reject this policy. Original minimum/maximum remain 1/1 in the effect snapshot; LegalAction supplies effective bounds. Zero targets must not carry a slot, do not waive/refund costs, and finish with a non-error operation-not-applied event. The UI supports zero and one without ManualAdjustment. None is omitted from serialization to preserve old snapshots and mandatory selections. No card is promoted on foundation tests alone. Evidence: `docs/development/private-hand-choice-verification.md`.
