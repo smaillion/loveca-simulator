@@ -4,6 +4,13 @@
 
 ### Experimental resource-cycle policy
 
+The offline blackbox runner may select a shared product policy explicitly and
+load a frozen deck directory, seed base and one-based match start. Defaults keep
+the historical heuristic. Each decision uses one controlling player's view;
+unsupported mandatory effects stop in block mode or produce explicit error-skip
+events in skip mode. Reports must not equate a not-activatable event or a skip
+with resolved effects, and must count unfinished invocations separately.
+
 `simple_ai_v1_2` is opt-in; new default matches remain `simple_ai_v1_1`.
 It retains v1.1 protections and, only without a Live in hand, may set up to three
 surplus Members offered by LegalActionGenerator, keeping the two highest-valued

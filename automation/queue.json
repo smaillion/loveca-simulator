@@ -241,7 +241,7 @@
       "title": "降低新卡池 AI 长局与 Live 获取停滞",
       "status": "queued",
       "depends_on": ["continuous-workflow", "ai-live-set-resource-cycle"],
-      "required_profiles": ["registry", "backend", "web"],
+      "required_profiles": ["control", "registry", "backend", "web"],
       "acceptance": ["先固定seed12004的19回合与12005/12009单边零成功Live归因，再复核2026-10的旧50局中16个action-cap案例；不得把旧policy结果冒充当前基线", "固定牌组和 seed 比较，保持隐藏手牌独立性", "50 局至少 45 局正式完赛，illegal action / replay error / silent skip 均为零", "保留旧 policy 和中文策略报告，未达目标时如实记录"]
     },
     {
@@ -252,6 +252,15 @@
       "depends_on": ["continuous-workflow"],
       "required_profiles": ["control", "registry", "backend", "web"],
       "acceptance": ["固定PDF8.2.2/8.2.4/10.5.1：无Live时只从合法己方手牌设置最多3张富余Member，保留至少2张Member，不读取牌库顺序或对手手牌", "simple_ai_v1_2独立可选并继承v1.1保护逻辑，默认与旧policy不变，原生Action/补抽/公开清理/Replay有真实断言", "验收工具显式policy，AI-vs-AI按整局已执行AI动作限制初始与后续推进，不能将八批次各自上限冒充整局cap；human-vs-ai保留human driver上限，非法异常/陈旧revision/错误skip不得判通过", "固定相同20Deck池对照10局与50局，记录合法循环数量/长局/零Live与真实Replay，不强行伪造双方成功；中日文案与中文策略报告齐全"]
+    },
+    {
+      "id": "live-success-selected-member-blade-comparison",
+      "priority": 0,
+      "title": "按真实触发复核虹咲Live成功时的跨Stage Blade比较",
+      "status": "queued",
+      "depends_on": ["ai-long-game-reliability"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["从冻结30Deck的seed9008/9029三次实际manual触发复现PL!N-bp7-027:1，按当前日文原文/revision/hash精确绑定", "选择己方虹咲Member后比较双方Stage其他全部Member的有效Blade，必须严格大于而不是大于等于；加分仅属于来源Live并在成功时/比较胜者前结算", "无符合Member、相等、更低、对手更高、临时Blade、多个Live与非法目标均有真实状态/回滚/Replay/隐私和v1.2选择断言；不凭猜测处理FAQ敏感边界", "用同一冻结牌组和seed做block模式回归，去掉对应manual blocker后才提升test_validated；记录原文和中文报告，不自动提升reviewed"]
     },
     {
       "id": "effect-accuracy-loop",

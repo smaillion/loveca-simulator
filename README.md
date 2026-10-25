@@ -126,6 +126,7 @@ mock と実モデルの検証を区別し、context 保存は既定で無効で�
 - Phase 9 / 10 の低コスト online 検証は、Phase 5 と並行して早めに進めます。
 - Simple AI v1.1 は local / Hosted FastAPI で利用でき、Rule Engine の評価値を使って Member、Live、構造化能力を deterministic に採点します。旧 Replay 用の v0 / v1 policy も保持しています。MCTS、Monte Carlo、学習型 AI、勝率エンジンは対象外です。
 - 実験用 `simple_ai_v1_2` は Live がない時に余剰 Member を最大3枚セットして引き直します。同一20デッキ・50局で平均7.64→5.94ターン、先頭10局は全て10ターン以内かつ双方成功Liveあり。既定はv1.1のままです。[検証と制限](docs/development/ai-live-cycle-verification.md)
+- 旧30デッキを固定した別の50局も比較可能になりました。同じ260操作上限で旧heuristic 34完走、v1.1 42、v1.2 48です。v1.2には未対応能力の明示skipが3件あり、完全なルール適合とは別の評価です。[固定デッキ検証](docs/development/ai-frozen-pool-verification.md)
 
 現在のルール検証 UI で確認できる範囲:
 

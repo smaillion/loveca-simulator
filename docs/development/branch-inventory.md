@@ -1,5 +1,10 @@
 # 分支与工作树清单
 
+冻结牌组检查点：同一continuous分支为旧blackbox工具增加可选共用AI策略与原始牌组/seed恢复。
+50局同260步：legacy34 / v1.1 42 / v1.2 48完赛；保留3次manual skip与新2个上限案例。
+下一项为实际触发的 `PL!N-bp7-027:1`，见 `ai-frozen-pool-verification.md`。
+仍只更新Draft PR #54，不合并部署，旧dirty工作树与ignored原始报告保留。
+
 AI换牌检查点：同一continuous分支新增可选v1.2，默认v1.1不变；固定50局平均7.64→5.94回合，
 前10局均在10回合内结束且双方成功Live。旧30套牌脚本仍34/50，父AI可靠性任务继续跟踪。
 见 `ai-live-cycle-verification.md`。只更新Draft PR #54，不合并部署，旧工作树未改动。

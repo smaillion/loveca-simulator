@@ -1,5 +1,11 @@
 # AI and Simulation Notes
 
+Frozen-pool follow-up: the blackbox tool can opt into the shared controller while
+keeping its historical heuristic default. With the same archived 30 decks,
+seeds9000–9049 and 260 actions, completions are 34 legacy / 42 v1.1 / 48 v1.2.
+Three explicit manual skips remain in v1.2; two new capped matches finish under
+an explicitly separate 600-action diagnostic. [Evidence and reproducible commands](development/ai-frozen-pool-verification.md).
+
 Experimental `simple_ai_v1_2` adds legal non-Live resource cycling without changing
 the v1.1 default or historical policies. A paired 50-match sample completes 50/50
 under both policies, reducing mean turns from 7.64 to 5.94 and maximum from 19 to

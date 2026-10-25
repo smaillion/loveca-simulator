@@ -123,6 +123,7 @@ Area 内转移与外部登場，旧 Replay 保留原结果；结算面板显示�
 - Phase 9 / 10 的低成本 online 验证会和 Phase 5 并行提前推进。
 - Simple AI v1.1 已可在 local / Hosted FastAPI 中使用，会基于 Rule Engine 的评估值对 Member、Live 和结构化技能进行 deterministic 评分；旧 Replay 仍保留 v0 / v1 policy。MCTS、Monte Carlo、学习型 AI 和胜率引擎不在本轮范围。
 - 新增可选实验策略 `simple_ai_v1_2`：没有 Live 时最多设置3张富余 Member 换牌，保留2张。同一20套牌的50局平均7.64→5.94回合，前10局全部在10回合内结束且双方有成功Live；默认仍为v1.1。[规则依据、完整结果与限制](docs/development/ai-live-cycle-verification.md)
+- 旧30套牌现可冻结导入并做同池比较：50局、相同260步上限，旧heuristic完成34局、v1.1完成42局、v1.2完成48局。v1.2仍有3次未支持能力的显式skip，不等于全规则合规。[冻结牌组验证报告](docs/development/ai-frozen-pool-verification.md)
 
 当前规则验证器已覆盖:
 

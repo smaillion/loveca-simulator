@@ -284,3 +284,327 @@ def test_explicit_error_skips_never_count_as_clean_acceptance():
         replay_serialization_ok=True,
     )
     assert not acceptance_passed([report])
+
+
+def test_blackbox_default_keeps_historical_action_without_ai_metadata():
+    from loveca.simulation.ai import choose_simple_ai_action
+    from tools.ai_sandbox.blackbox_playtest import choose_action
+
+    state = _state()
+    legal = generate_legal_actions(state)
+    old = choose_simple_ai_action(state, legal, manual_policy="block")
+    assert old is not None
+    assert choose_action(state, legal, manual_policy="block") == old[:3]
+    assert "ai_decision" not in old[2]
+
+
+@pytest.mark.parametrize(
+    "policy", ["simple_ai_v0", "simple_ai_v1", "simple_ai_v1_1", "simple_ai_v1_2"]
+)
+def test_blackbox_product_policy_is_deterministic_private_and_nonmutating(policy):
+    from tools.ai_sandbox.blackbox_playtest import choose_action
+
+    state = _state()
+    before = state.model_dump(mode="json")
+    legal = generate_legal_actions(state)
+    first = choose_action(state, legal, manual_policy="block", policy_version=policy)
+    assert first is not None
+    assert first[0] in {a.action_type for a in legal}
+    assert first[1] == "player_1"
+    assert first[2]["ai_decision"]["policy_version"] == policy
+    assert state.model_dump(mode="json") == before
+    changed = state.model_copy(deep=True)
+    changed.cards["secret"].card.cost = 99
+    changed.players["player_1"].main_deck.reverse()
+    assert choose_action(changed, legal, manual_policy="block", policy_version=policy) == first
+
+
+def test_blackbox_product_policy_isolated_to_one_decision_player():
+    from tools.ai_sandbox.blackbox_playtest import choose_action
+
+    state = _state()
+    own = generate_legal_actions(state)[0]
+    other = own.model_copy(update={"player_id": "player_2"}, deep=True)
+    other.options["hand_instance_ids"] = ["secret"]
+    decision = choose_action(
+        state, [other, own], manual_policy="block", policy_version="simple_ai_v1_2"
+    )
+    assert decision[1] == "player_1"
+    assert "secret" not in str(decision[2])
+
+
+@pytest.mark.parametrize("manual_policy,expected", [("block", None), ("skip", "skip_effect")])
+def test_blackbox_shared_controller_does_not_silently_resolve_manual(manual_policy, expected):
+    from loveca.simulation.models import LegalAction
+    from tools.ai_sandbox.blackbox_playtest import choose_action
+
+    state = _state()
+    invocation = {
+        "effect_id": "manual",
+        "invocation_id": "manual-1",
+        "is_optional": False,
+        "simulation_support": "manual_resolution",
+    }
+    legal = [
+        LegalAction(
+            action_type="resolve_effect",
+            player_id="player_1",
+            label_ja="解決",
+            label_zh="结算",
+            options={"invocations": [invocation]},
+        ),
+        LegalAction(
+            action_type="skip_effect",
+            player_id="player_1",
+            label_ja="スキップ",
+            label_zh="跳过",
+            options={},
+        ),
+    ]
+    decision = choose_action(
+        state, legal, manual_policy=manual_policy, policy_version="simple_ai_v1_2"
+    )
+    assert (decision[0] if decision else None) == expected
+    if decision:
+        assert decision[2]["invocation_id"] == "manual-1"
+        assert decision[2]["error_message"]
+
+
+def test_blackbox_frozen_decks_and_split_run_preserve_seed_pair_and_source(tmp_path):
+    import json
+
+    from tools.ai_sandbox.blackbox_playtest import build_decks, load_frozen_decks, run_matches
+
+    database = Path("data/loveca.sqlite3")
+    decks = build_decks(database, 3)
+    source = tmp_path / "source"
+    source.mkdir()
+    from dataclasses import asdict
+
+    for i, deck in enumerate(decks):
+        (source / f"{i:02d}.json").write_text(json.dumps(asdict(deck)), encoding="utf-8")
+    before = {p.name: p.read_bytes() for p in source.iterdir()}
+    loaded = load_frozen_decks(source, 3)
+    assert loaded == decks
+    full = run_matches(
+        database,
+        loaded,
+        match_count=3,
+        max_actions=3,
+        manual_policy="block",
+        policy_version="simple_ai_v1_2",
+    )
+    split = run_matches(
+        database,
+        loaded,
+        match_count=1,
+        match_start=3,
+        max_actions=3,
+        manual_policy="block",
+        policy_version="simple_ai_v1_2",
+    )
+    assert split == [full[2]]
+    assert split[0].seed == 9002
+    assert split[0].match_index == 3
+    assert split[0].action_count == 3
+    assert split[0].policy_version == "simple_ai_v1_2"
+    assert split[0].replay_ok
+    assert {p.name: p.read_bytes() for p in source.iterdir()} == before
+    with pytest.raises(ValueError, match="frozen decks"):
+        load_frozen_decks(source, 4)
+
+
+@pytest.mark.parametrize(
+    "options",
+    [
+        {"policy_version": "unknown"},
+        {"manual_policy": "unknown"},
+        {"manual_policy": "noop", "policy_version": "simple_ai_v1_2"},
+        {"match_start": 0},
+    ],
+)
+def test_blackbox_rejects_invalid_policy_before_running(options):
+    from tools.ai_sandbox.blackbox_playtest import run_matches
+
+    kwargs = {"manual_policy": "block", **options}
+    with pytest.raises(ValueError):
+        run_matches(Path("not-a-database"), [object()], match_count=1, max_actions=1, **kwargs)
+
+
+@pytest.mark.parametrize("same_directory", [True, False])
+def test_blackbox_cli_cannot_overwrite_frozen_source_directory(
+    tmp_path, monkeypatch, same_directory
+):
+    from tools.ai_sandbox.blackbox_playtest import main
+
+    source = tmp_path / "decks"
+    source.mkdir()
+    original = source / "saved.json"
+    original.write_text("{}", encoding="utf-8")
+    output = source if same_directory else tmp_path
+    monkeypatch.setattr(
+        "sys.argv", ["blackbox", "--deck-directory", str(source), "--output", str(output)]
+    )
+    with pytest.raises(SystemExit) as exc:
+        main()
+    assert exc.value.code == 2
+    assert original.read_text(encoding="utf-8") == "{}"
+
+
+def test_blackbox_report_records_policy_and_never_uses_imported_names_as_paths(tmp_path):
+    import json
+    from dataclasses import replace
+
+    from tools.ai_sandbox.blackbox_playtest import (
+        SandboxMatchSummary,
+        build_decks,
+        summarize_deck,
+        write_outputs,
+    )
+
+    database = Path("data/loveca.sqlite3")
+    source = build_decks(database, 1)[0]
+    decks = [replace(source, name="../escape"), replace(source, name="../escape")]
+    report = SandboxMatchSummary(
+        match_index=1,
+        first_deck=decks[0].name,
+        second_deck=decks[1].name,
+        status="blocked",
+        final_phase="live_set_first",
+        turn_number=1,
+        action_count=3,
+        seed=9000,
+        policy_version="simple_ai_v1_2",
+        decision_reason_counts={"cycle_spare_members_to_find_live": 2},
+    )
+    output = tmp_path / "report"
+    write_outputs(output, decks, [summarize_deck(database, d) for d in decks], [report])
+    assert sorted(p.name for p in (output / "decks").iterdir()) == [
+        "Sandbox Deck 01.json",
+        "Sandbox Deck 02.json",
+    ]
+    assert not (output / "escape.json").exists()
+    data = json.loads((output / "sandbox-summary.json").read_text(encoding="utf-8"))
+    assert data["summary"]["controller_policies"] == {"simple_ai_v1_2": 1}
+    assert data["summary"]["resource_cycle_actions"] == 2
+    assert data["match_summaries"][0]["seed"] == 9000
+
+
+def test_blackbox_effect_accounting_distinguishes_rejection_from_resolution_and_silent_loss():
+    from tools.ai_sandbox.blackbox_playtest import _executable_effect_outcomes
+
+    state = _state()
+    state.effect_definitions = {
+        "executable": SimpleNamespace(simulation_support="test_validated_executable"),
+        "manual": SimpleNamespace(simulation_support="manual_resolution"),
+    }
+    events = []
+    for iid, ending in [
+        ("resolved", "effect_resolved"),
+        ("rejected", "effect_not_activatable"),
+        ("skipped", "effect_skipped_due_to_error"),
+        ("pending", None),
+    ]:
+        data = {"invocation_id": iid, "effect_id": "executable"}
+        events.append(GameEvent(event_type="effect_triggered", data=data))
+        if ending:
+            events.extend([GameEvent(event_type=ending, data=data)] * 2)
+    events.extend(
+        [
+            GameEvent(
+                event_type="effect_not_activatable",
+                data={"invocation_id": "never-triggered", "effect_id": "executable"},
+            ),
+            GameEvent(
+                event_type="effect_triggered",
+                data={"invocation_id": "manual", "effect_id": "manual"},
+            ),
+        ]
+    )
+    assert _executable_effect_outcomes(state, events) == {
+        "triggered": 4,
+        "resolved": 1,
+        "not_activatable": 1,
+        "skipped": 1,
+        "unfinished": 1,
+    }
+
+
+def test_actual_dollchestra_recoveries_record_second_target_exhaustion_and_replay(tmp_path):
+    import json
+
+    from loveca.simulation.effects import EffectDefinition
+    from loveca.simulation.models import EffectInvocation
+    from loveca.simulation.runtime import MatchRepository
+    from tools.ai_sandbox.blackbox_playtest import _executable_effect_outcomes, choose_action
+
+    raw = json.loads(Path("data_sources/effect-registry.v0.json").read_text(encoding="utf-8"))
+    effect = EffectDefinition.model_validate(
+        next(e for e in raw["effects"] if e["effect_id"] == "PL!HS-bp6-005:2")
+    )
+    state = _state()
+    state.effect_order_policy = "ap_nap_player_choice"
+    player = state.players["player_1"]
+    source_ids, target, other = player.hand[:2], player.hand[2], player.hand[3]
+    player.hand = player.hand[4:]
+    player.member_area.update(left=source_ids[0], center=source_ids[1])
+    player.resolution_area = [target, other]
+    state.cards[target].card.unit_keys = ["dollchestra"]
+    state.cards[other].card.unit_keys = ["miracra_park"]
+    state.effect_definitions = {effect.effect_id: effect}
+    for i, source in enumerate(source_ids):
+        state.cards[source].card.effect_ids = [effect.effect_id]
+        state.pending_effects.append(
+            EffectInvocation(
+                invocation_id=f"recover-{i}",
+                effect_id=effect.effect_id,
+                source_card_instance_id=source,
+                player_id="player_1",
+                trigger_event="live_succeeded",
+                trigger_data={"_condition_checked_at_trigger": True},
+            )
+        )
+    repository = MatchRepository(tmp_path / "two-recoveries.sqlite3")
+    events = [
+        GameEvent(
+            event_type="effect_triggered",
+            data={
+                "invocation_id": inv.invocation_id,
+                "effect_id": inv.effect_id,
+            },
+        )
+        for inv in state.pending_effects
+    ]
+    repository.create_match(state, card_database_path=Path("data/loveca.sqlite3"))
+    for _ in range(4):
+        if not state.pending_effects and state.pending_choice is None:
+            break
+        decision = choose_action(
+            state,
+            generate_legal_actions(state),
+            manual_policy="block",
+            policy_version="simple_ai_v1_2",
+        )
+        assert decision is not None
+        result = repository.apply(
+            state.match_id,
+            ActionRequest(
+                action_type=decision[0],
+                player_id=decision[1],
+                expected_revision=state.revision,
+                payload=decision[2],
+            ),
+        )
+        state = result.state
+        events.extend(result.events)
+    assert target in state.players["player_1"].hand
+    assert other in state.players["player_1"].resolution_area
+    assert not state.pending_effects and state.pending_choice is None
+    assert _executable_effect_outcomes(state, events) == {
+        "triggered": 2,
+        "resolved": 1,
+        "not_activatable": 1,
+        "skipped": 0,
+        "unfinished": 0,
+    }
+    assert repository.replay(state.match_id)["final_state"] == state.model_dump(mode="json")

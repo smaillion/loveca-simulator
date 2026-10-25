@@ -18,11 +18,22 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from loveca.decks.analyzer import DECKLIST_VERSION, DeckEntry, DeckList, analyze_deck
-from loveca.simulation.ai import choose_simple_ai_action
+from loveca.decks.analyzer import DECKLIST_VERSION, DeckEntry, DeckList, analyze_deck, load_deck
+from loveca.simulation.ai import (
+    SimpleAIController,
+    SimpleAIDecision,
+    SimpleAIPolicy,
+    choose_simple_ai_action,
+)
 from loveca.simulation.effects import load_effect_registry
 from loveca.simulation.engine import IllegalActionError, generate_legal_actions
-from loveca.simulation.models import ActionRequest, GameEvent, LegalAction, MatchState
+from loveca.simulation.models import (
+    ActionRequest,
+    ControllerPolicyVersion,
+    GameEvent,
+    LegalAction,
+    MatchState,
+)
 from loveca.simulation.service import MatchService
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -58,8 +69,14 @@ class SandboxMatchSummary:
     executable_effects_triggered: int = 0
     executable_effects_completed: int = 0
     executable_effect_completion_rate: float = 1.0
+    executable_effects_not_activatable: int = 0
+    executable_effects_skipped: int = 0
+    executable_effects_unfinished: int = 0
     replay_ok: bool = True
     replay_error: str | None = None
+    seed: int | None = None
+    policy_version: str = "heuristic_legacy"
+    decision_reason_counts: dict[str, int] = field(default_factory=dict)
 
 
 def main() -> int:
@@ -69,6 +86,20 @@ def main() -> int:
     parser.add_argument("--decks", type=int, default=20)
     parser.add_argument("--matches", type=int, default=20)
     parser.add_argument("--max-actions", type=int, default=450)
+    parser.add_argument(
+        "--deck-directory", type=Path,
+        help="Read frozen deck JSONs instead of regenerating decks.",
+    )
+    parser.add_argument("--seed-base", type=int, default=9000)
+    parser.add_argument("--match-start", type=int, default=1)
+    parser.add_argument(
+        "--policy",
+        choices=(
+            "heuristic_legacy", "simple_ai_v0", "simple_ai_v1", "simple_ai_v1_1", "simple_ai_v1_2",
+        ),
+        default="heuristic_legacy",
+        help="Keep the historical heuristic by default; opt into the shared product controller.",
+    )
     parser.add_argument(
         "--manual-policy",
         choices=("block", "noop", "skip"),
@@ -80,11 +111,20 @@ def main() -> int:
         ),
     )
     args = parser.parse_args()
+    if args.deck_directory is not None and (
+        args.output.resolve() == args.deck_directory.resolve()
+        or (args.output / "decks").resolve() == args.deck_directory.resolve()
+    ):
+        parser.error("output must not overwrite the frozen input deck directory")
 
     args.output.mkdir(parents=True, exist_ok=True)
     progress_path = args.output / "sandbox-progress.jsonl"
     progress_path.write_text("", encoding="utf-8")
-    decks = build_decks(args.database, args.decks)
+    decks = (
+        load_frozen_decks(args.deck_directory, args.decks)
+        if args.deck_directory is not None
+        else build_decks(args.database, args.decks)
+    )
     deck_summaries = [
         summarize_deck(args.database, deck)
         for deck in decks
@@ -96,10 +136,22 @@ def main() -> int:
         max_actions=args.max_actions,
         manual_policy=args.manual_policy,
         progress_path=progress_path,
+        policy_version=None if args.policy == "heuristic_legacy" else args.policy,
+        seed_base=args.seed_base,
+        match_start=args.match_start,
     )
     write_outputs(args.output, decks, deck_summaries, match_summaries)
     print(f"Wrote sandbox report to {args.output / 'sandbox-report.md'}")
     return 0
+
+
+def load_frozen_decks(directory: Path, count: int) -> list[DeckList]:
+    if count < 1:
+        raise ValueError("deck count must be positive")
+    paths = sorted(directory.glob("*.json"))
+    if len(paths) < count:
+        raise ValueError(f"expected at least {count} frozen decks, found {len(paths)}")
+    return [load_deck(path) for path in paths[:count]]
 
 
 def build_decks(database: Path, count: int) -> list[DeckList]:
@@ -266,12 +318,25 @@ def run_matches(
     max_actions: int,
     manual_policy: str,
     progress_path: Path | None = None,
+    policy_version: ControllerPolicyVersion | None = None,
+    seed_base: int = 9000,
+    match_start: int = 1,
 ) -> list[SandboxMatchSummary]:
+    if match_start < 1 or max_actions < 0 or not decks:
+        raise ValueError("match_start and deck count must be positive; max_actions non-negative")
+    if policy_version not in {
+        None, "simple_ai_v0", "simple_ai_v1", "simple_ai_v1_1", "simple_ai_v1_2",
+    }:
+        raise ValueError("unknown sandbox controller policy")
+    if manual_policy not in {"block", "noop", "skip"}:
+        raise ValueError("unknown manual policy")
+    if manual_policy == "noop" and policy_version not in {None, "simple_ai_v0"}:
+        raise ValueError("noop is only supported by the historical heuristic and v0")
     results: list[SandboxMatchSummary] = []
     with tempfile.TemporaryDirectory(prefix="loveca-ai-sandbox-") as tmp:
         runtime = Path(tmp) / "matches.sqlite3"
         service = MatchService(database, runtime)
-        for index in range(match_count):
+        for index in range(match_start - 1, match_start - 1 + match_count):
             first = decks[index % len(decks)]
             second = decks[(index * 7 + 3) % len(decks)]
             result = service.create_match(
@@ -279,19 +344,21 @@ def run_matches(
                 first_deck=first,
                 second_name="Sandbox B",
                 second_deck=second,
-                seed=9000 + index,
+                seed=seed_base + index,
                 match_id=f"sandbox-{index + 1:02d}",
             )
             state = result.state
             blocker = None
             blocker_detail: dict[str, Any] = {}
             actions = 0
+            decision_reasons: Counter[str] = Counter()
             while actions < max_actions and state.phase != "complete":
                 legal_actions = generate_legal_actions(state)
                 decision = choose_action(
                     state,
                     legal_actions,
                     manual_policy=manual_policy,
+                    policy_version=policy_version,
                 )
                 if decision is None:
                     blocker = classify_blocker(state, legal_actions)
@@ -318,6 +385,9 @@ def run_matches(
                     break
                 state = applied.state
                 actions += 1
+                metadata = payload.get("ai_decision")
+                if isinstance(metadata, dict):
+                    decision_reasons[str(metadata.get("reason", "unknown"))] += 1
             status = "completed" if state.phase == "complete" else "blocked"
             if actions >= max_actions and state.phase != "complete":
                 legal_actions = generate_legal_actions(state)
@@ -336,9 +406,9 @@ def run_matches(
                 for event in all_events
                 if event.event_type == "effect_skipped_due_to_error"
             ]
-            executable_triggered, executable_completed = (
-                _executable_effect_completion(state, all_events)
-            )
+            outcomes = _executable_effect_outcomes(state, all_events)
+            executable_triggered = outcomes["triggered"]
+            executable_completed = outcomes["resolved"]
             replay_ok = True
             replay_error = None
             try:
@@ -369,8 +439,14 @@ def run_matches(
                     if executable_triggered
                     else 1.0
                 ),
+                executable_effects_not_activatable=outcomes["not_activatable"],
+                executable_effects_skipped=outcomes["skipped"],
+                executable_effects_unfinished=outcomes["unfinished"],
                 replay_ok=replay_ok,
                 replay_error=replay_error,
+                seed=seed_base + index,
+                policy_version=policy_version or "heuristic_legacy",
+                decision_reason_counts=dict(decision_reasons),
             )
             results.append(match_summary)
             if progress_path is not None:
@@ -385,10 +461,22 @@ def _executable_effect_completion(
     state: MatchState,
     events: list[GameEvent],
 ) -> tuple[int, int]:
-    """Count executable invocations that reached a terminal resolution event."""
+    """Preserve the historical triggered/resolved count interface."""
+
+    outcomes = _executable_effect_outcomes(state, events)
+    return outcomes["triggered"], outcomes["resolved"]
+
+
+def _executable_effect_outcomes(
+    state: MatchState,
+    events: list[GameEvent],
+) -> dict[str, int]:
+    """Distinguish actual resolution from explicit rejection, skip and pending work."""
 
     started: set[str] = set()
     completed: set[str] = set()
+    not_activatable: set[str] = set()
+    skipped: set[str] = set()
     for event in events:
         invocation_id = event.data.get("invocation_id")
         effect_id = event.data.get("effect_id")
@@ -405,7 +493,20 @@ def _executable_effect_completion(
             "effect_declined",
         }:
             completed.add(invocation_id)
-    return len(started), len(started.intersection(completed))
+        if event.event_type == "effect_not_activatable":
+            not_activatable.add(invocation_id)
+        if event.event_type == "effect_skipped_due_to_error":
+            skipped.add(invocation_id)
+    resolved = started & completed
+    rejected = (started & not_activatable) - resolved
+    errors = (started & skipped) - resolved - rejected
+    return {
+        "triggered": len(started),
+        "resolved": len(resolved),
+        "not_activatable": len(rejected),
+        "skipped": len(errors),
+        "unfinished": len(started - resolved - rejected - errors),
+    }
 
 
 def choose_action(
@@ -413,7 +514,22 @@ def choose_action(
     legal_actions: list[LegalAction],
     *,
     manual_policy: str,
+    policy_version: ControllerPolicyVersion | None = None,
 ) -> tuple[str, str | None, dict[str, Any]] | None:
+    if policy_version is not None:
+        players = {
+            action.player_id for action in legal_actions if action.player_id in state.players
+        }
+        controlled = {sorted(players)[0]} if players else set(state.players)
+        decision = SimpleAIController(
+            SimpleAIPolicy(
+                manual_effect_policy=manual_policy,  # type: ignore[arg-type]
+                policy_version=policy_version,
+            )
+        ).choose_action(state, legal_actions, controlled_player_ids=controlled)
+        if not isinstance(decision, SimpleAIDecision):
+            return None
+        return decision.action.action_type, decision.action.player_id, decision.action.payload
     decision = choose_simple_ai_action(
         state,
         legal_actions,
@@ -1036,14 +1152,14 @@ def write_outputs(
 ) -> None:
     effect_metadata = _load_effect_metadata(DEFAULT_REGISTRY)
     (output / "decks").mkdir(parents=True, exist_ok=True)
-    for deck in decks:
+    for deck_index, deck in enumerate(decks, 1):
         payload = {
             "version": deck.version,
             "name": deck.name,
             "main_deck": [asdict(entry) for entry in deck.main_deck],
             "energy_deck": [asdict(entry) for entry in deck.energy_deck],
         }
-        (output / "decks" / f"{deck.name}.json").write_text(
+        (output / "decks" / f"Sandbox Deck {deck_index:02d}.json").write_text(
             json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
@@ -1076,7 +1192,19 @@ def write_outputs(
         "executable_effects_triggered": executable_triggered,
         "executable_effects_completed": executable_completed,
         "executable_effect_completion_rate": round(executable_completion_rate, 4),
+        "executable_effects_not_activatable": sum(
+            item.executable_effects_not_activatable for item in match_summaries
+        ),
+        "executable_effects_skipped": sum(item.executable_effects_skipped for item in match_summaries),
+        "executable_effects_unfinished": sum(
+            item.executable_effects_unfinished for item in match_summaries
+        ),
         "replay_errors": replay_errors,
+        "controller_policies": dict(Counter(item.policy_version for item in match_summaries)),
+        "resource_cycle_actions": sum(
+            item.decision_reason_counts.get("cycle_spare_members_to_find_live", 0)
+            for item in match_summaries
+        ),
     }
     (output / "sandbox-summary.json").write_text(
         json.dumps(
@@ -1096,7 +1224,7 @@ def write_outputs(
         "",
         "## Scope",
         "",
-        f"* {len(deck_summaries)} generated legal decklists from the local card DB.",
+        f"* {len(deck_summaries)} legal decklists, generated or loaded from frozen JSONs.",
         f"* {len(match_summaries)} match attempts driven only through LegalAction output.",
         "* In `block` mode, unsupported mandatory manual effects are recorded as blockers.",
         "* In `noop` mode, unsupported mandatory manual effects are advanced with a marked no-op flag for plumbing-only testing.",
@@ -1104,13 +1232,18 @@ def write_outputs(
         "",
         "## Summary",
         "",
-        f"* Decks generated: {len(deck_summaries)}",
+        f"* Decks in pool: {len(deck_summaries)}",
         f"* Matches attempted: {len(match_summaries)}",
         f"* Matches completed: {completed}",
+        f"* Controller policies: {summary['controller_policies']}",
+        f"* Resource-cycle actions: {summary['resource_cycle_actions']}",
         f"* Blockers: {dict(sorted(blockers.items()))}",
         f"* Skipped effects: {dict(skipped_effect_counts.most_common(20))}",
         f"* Executable effects completed: {executable_completed}/{executable_triggered} "
         f"({executable_completion_rate:.2%})",
+        f"* Executable effects explicitly not activatable: {summary['executable_effects_not_activatable']}",
+        f"* Executable effects error-skipped: {summary['executable_effects_skipped']}",
+        f"* Executable effects unfinished: {summary['executable_effects_unfinished']}",
         f"* Replay errors: {replay_errors}",
         f"* Total success Live counts per match: {dict(sorted(total_success_lives.items()))}",
         "",

@@ -1,5 +1,11 @@
 # Effect Semantics Audit
 
+Frozen 30-deck follow-up exposes actual `PL!N-bp7-027:1` manual skips at seeds9008
+and9029, now queued for exact-text adaptation. The existing executable
+`PL!HS-bp6-005:2` ends explicitly not activatable without a DOLLCHESTRA Yell target;
+the report separates this from resolved, skipped and unfinished invocations.
+No registry promotion: still899/1212. [Full comparison and limits](development/ai-frozen-pool-verification.md).
+
 AI resource-cycle checkpoint: opt-in `simple_ai_v1_2` uses the existing legal
 Live Set operation on surplus Members, with native draw/privacy/cleanup/Replay
 assertions. Paired 50-match tests complete 50/50 with no skip or Replay error;
