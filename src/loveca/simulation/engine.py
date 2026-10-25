@@ -883,6 +883,8 @@ def _manual_adjustment(
         )
     if source_invocation_id is not None:
         invocation = _find_pending_invocation(state, source_invocation_id)
+        if state.effect_order_policy is not None:
+            _assert_effect_resolution_turn(state, invocation)
         if source_effect_id != invocation.effect_id:
             raise IllegalActionError("manual adjustment source effect does not match")
         effect = state.effect_definitions.get(invocation.effect_id)
@@ -982,6 +984,10 @@ def _resolve_manual_inspection(
         or action.player_id != pending.player_id
     ):
         raise IllegalActionError("there is no matching manual card inspection")
+    if state.effect_order_policy is not None and pending.options.get("source_invocation_id"):
+        _assert_effect_resolution_turn(
+            state, _find_pending_invocation(state, pending.options["source_invocation_id"])
+        )
     inspected = list(pending.options.get("inspected_card_instance_ids", []))
     selected = action.payload.get("selected_card_instance_ids", [])
     if (
@@ -1065,13 +1071,59 @@ def _resolve_manual_inspection(
     _continue_after_effect_queue(state, events)
 
 
-def _pending_effect_legal_actions(state: MatchState) -> list[LegalAction]:
+def _effect_resolution_lock(state: MatchState) -> EffectInvocation | None:
+    if state.effect_order_policy is None:
+        return None
+    if state.pending_choice:
+        pending_id = state.pending_choice.options.get("invocation_id") or (
+            state.pending_choice.options.get("source_invocation_id")
+        )
+        for invocation in state.pending_effects:
+            if invocation.invocation_id == pending_id:
+                return invocation
+    return next(
+        (item for item in state.pending_effects if item.resolution_stage != "initial"), None
+    )
+
+
+def _effect_active_player_id(state: MatchState) -> str | None:
+    # Live Set / judgment have no designated turn player (rule 7.2.1.2).
+    second_phases = {
+        "second_active",
+        "second_energy",
+        "second_draw",
+        "second_main",
+        "performance_second",
+        "yell_second",
+    }
+    return state.second_player_id if state.phase in second_phases else state.first_player_id
+
+
+def _pending_effect_resolution_batch(state: MatchState) -> list[EffectInvocation]:
+    if not state.pending_effects:
+        return []
+    locked = _effect_resolution_lock(state)
+    if locked:
+        return [locked]
     owner_id = state.pending_effects[0].player_id
-    owned = [
-        invocation
-        for invocation in state.pending_effects
-        if invocation.player_id == owner_id
-    ]
+    if state.effect_order_policy == "ap_nap_player_choice":
+        ap = _effect_active_player_id(state)
+        if any(item.player_id == ap for item in state.pending_effects):
+            owner_id = ap
+    return [item for item in state.pending_effects if item.player_id == owner_id]
+
+
+def _assert_effect_resolution_turn(state: MatchState, invocation: EffectInvocation) -> None:
+    if state.effect_order_policy is None:
+        if invocation.player_id != state.pending_effects[0].player_id:
+            raise IllegalActionError("another player's effects must resolve first")
+    elif invocation not in _pending_effect_resolution_batch(state):
+        raise IllegalActionError("another effect must resolve first")
+
+
+def _pending_effect_legal_actions(state: MatchState) -> list[LegalAction]:
+    owned = _pending_effect_resolution_batch(state)
+    owner_id = owned[0].player_id
     invocations: list[dict[str, Any]] = []
     has_manual = False
     for invocation in owned:
@@ -1089,9 +1141,7 @@ def _pending_effect_legal_actions(state: MatchState) -> list[LegalAction]:
                 "is_optional": effect.is_optional,
                 "simulation_support": effect.simulation_support,
                 "review_status": effect.review_status,
-                "cost_choice": (
-                    effect.cost_choice.model_dump() if effect.cost_choice else None
-                ),
+                "cost_choice": (effect.cost_choice.model_dump() if effect.cost_choice else None),
                 "choice": effect.choice.model_dump() if effect.choice else None,
                 **options,
             }
@@ -1106,6 +1156,11 @@ def _pending_effect_legal_actions(state: MatchState) -> list[LegalAction]:
             options={
                 "invocations": invocations,
                 "owner_player_id": owner_id,
+                **(
+                    {"effect_order_choice": len(owned) > 1}
+                    if state.effect_order_policy is not None
+                    else {}
+                ),
                 "waiting_player_ids": sorted(
                     {
                         invocation.player_id
@@ -1147,7 +1202,11 @@ def _skip_effect_legal_action(state: MatchState, player_id: str | None) -> Legal
             if invocation.effect_id in state.effect_definitions
             else "",
         }
-        for invocation in state.pending_effects
+        for invocation in (
+            _pending_effect_resolution_batch(state)
+            if state.effect_order_policy is not None
+            else state.pending_effects
+        )
     ]
     return LegalAction(
         action_type="skip_effect",
@@ -1156,9 +1215,7 @@ def _skip_effect_legal_action(state: MatchState, player_id: str | None) -> Legal
         label_ja="能力をスキップしてエラーを記録",
         options={
             "invocations": invocations,
-            "pending_choice": (
-                state.pending_choice.model_dump() if state.pending_choice else None
-            ),
+            "pending_choice": (state.pending_choice.model_dump() if state.pending_choice else None),
         },
     )
 
@@ -1519,8 +1576,7 @@ def _resolve_effect(
     invocation = _find_pending_invocation(state, invocation_id)
     if action.player_id != invocation.player_id:
         raise IllegalActionError("only the effect owner may resolve this effect")
-    if invocation.player_id != state.pending_effects[0].player_id:
-        raise IllegalActionError("another player's effects must resolve first")
+    _assert_effect_resolution_turn(state, invocation)
     effect = state.effect_definitions[invocation.effect_id]
     accepted = action.payload.get("accepted", True)
     if not isinstance(accepted, bool):
@@ -2059,7 +2115,9 @@ def _begin_multi_player_effect_choice(
     if state.pending_choice is not None:
         raise IllegalActionError("another choice is already pending")
     first_chooser = invocation.player_id
-    if choice.deployment_policy is not None:
+    if state.effect_order_policy is not None:
+        first_chooser = _effect_active_player_id(state) or invocation.player_id
+    elif choice.deployment_policy is not None:
         first_chooser = state.active_player_id or state.first_player_id or invocation.player_id
     player_order = [
         first_chooser,
@@ -2128,8 +2186,7 @@ def _resolve_effect_choice(
     if action.player_id != pending.player_id:
         raise IllegalActionError("only the effect owner may resolve this choice")
     invocation = _find_pending_invocation(state, pending.options.get("invocation_id"))
-    if invocation.player_id != state.pending_effects[0].player_id:
-        raise IllegalActionError("another player's effects must resolve first")
+    _assert_effect_resolution_turn(state, invocation)
     effect = state.effect_definitions[invocation.effect_id]
     selected_ids = action.payload.get("selected_card_instance_ids", [])
     if not isinstance(selected_ids, list) or any(
@@ -2294,8 +2351,7 @@ def _skip_effect(
     pending_player_id = state.pending_choice.player_id if state.pending_choice else None
     if action.player_id not in {invocation.player_id, pending_player_id}:
         raise IllegalActionError("only the effect owner or pending chooser may skip it")
-    if invocation.player_id != state.pending_effects[0].player_id:
-        raise IllegalActionError("another player's effects must resolve first")
+    _assert_effect_resolution_turn(state, invocation)
 
     pending_choice_type = state.pending_choice.choice_type if state.pending_choice else None
     cleaned_resolution_ids: list[str] = []
@@ -2352,8 +2408,7 @@ def _resolve_multi_player_effect_choice(
     if action.player_id != pending.player_id:
         raise IllegalActionError("only the pending player may resolve this choice")
     invocation = _find_pending_invocation(state, pending.options.get("invocation_id"))
-    if invocation.player_id != state.pending_effects[0].player_id:
-        raise IllegalActionError("another player's effects must resolve first")
+    _assert_effect_resolution_turn(state, invocation)
     choice_type = pending.options.get("multi_player_choice_type")
     if choice_type == "multi_player_deploy_waiting_member":
         _resolve_multi_player_deploy_choice(state, action, pending, events)
@@ -2667,7 +2722,15 @@ def _complete_multi_player_effect_choice(
         )
     state.pending_effects.remove(invocation)
     if simultaneous:
-        active_id = state.active_player_id or state.first_player_id or invocation.player_id
+        active_id = (
+            (
+                _effect_active_player_id(state)
+                if state.effect_order_policy is not None
+                else state.active_player_id
+            )
+            or state.first_player_id
+            or invocation.player_id
+        )
         state.pending_effects.sort(key=lambda item: item.player_id != active_id)
     _record_effect_usage(state, invocation)
     events.append(
@@ -2678,9 +2741,7 @@ def _complete_multi_player_effect_choice(
                 "invocation_id": invocation.invocation_id,
                 "effect_id": invocation.effect_id,
                 "source_card_instance_id": invocation.source_card_instance_id,
-                "multi_player_choice_type": pending.options.get(
-                    "multi_player_choice_type"
-                ),
+                "multi_player_choice_type": pending.options.get("multi_player_choice_type"),
                 "selections": pending.options.get("selections", {}),
                 "trigger": effect.trigger,
                 "timing": effect.timing,
@@ -9596,7 +9657,13 @@ def _resolve_automatic_effects(
     events: list[GameEvent],
 ) -> None:
     while state.pending_effects:
-        invocation = state.pending_effects[0]
+        if state.effect_order_policy is not None:
+            batch = _pending_effect_resolution_batch(state)
+            if state.pending_choice is not None or _effect_resolution_lock(state) or len(batch) > 1:
+                return
+            invocation = batch[0]
+        else:
+            invocation = state.pending_effects[0]
         effect = state.effect_definitions[invocation.effect_id]
         if (
             effect.is_optional
@@ -9612,7 +9679,7 @@ def _resolve_automatic_effects(
             events,
             selected_ids=[],
         )
-        state.pending_effects.pop(0)
+        state.pending_effects.remove(invocation)
         _record_effect_usage(state, invocation)
         events.append(
             GameEvent(

@@ -8,6 +8,10 @@
 
 ## 現在の状態
 
+新規対戦では複数の待機能力の解決順を選べるようにし、AP / NAP の優先と処理途中の割込み禁止を統一しました。
+旧 Replay は維持します。一般のルール処理全体の完成や登録率の上昇を意味しません。
+[順序・状態・AI の検証](./docs/development/pending-effect-order-verification.md)
+
 新規対戦では `PL!N-pb1-005` 宮下愛がコスト10の Member に通常交代された際、
 登場を見た後に控え室へ移っても1枚引きます。バトンタッチでは引きません。
 旧 Replay の挙動は維持し、複雑な重複処理は未対応です。[検証と制限](./docs/development/overlap-entry-observer-verification.md)

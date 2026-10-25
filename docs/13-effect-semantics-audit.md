@@ -18,6 +18,8 @@ This audit does not incorporate FAQ, Q&A, or individual ruling clarifications.
 
 ## Current Repository Snapshot
 
+New matches now expose own pending-effect ordering after AP/NAP filtering, rechecking priority after each resolution and pinning already-started multi-stage parents. Shared Live phases use the first player as AP, rather than the current UI chooser. Independent optional snapshot policy preserves old Replay behavior; this is not a complete rule-action/check-timing scheduler or a coverage promotion. Actual draw-order, runtime Replay, AI and UI evidence: [Chinese verification](./development/pending-effect-order-verification.md).
+
 New matches explicitly capture bounded fixed-draw entry observers before overlap cleanup, correcting actual `PL!N-pb1-005:1` when replaced by a cost10 Member (not Baton). Old snapshots omit the new MatchState policy and retain historical Replay behavior. Complex source/stage/inherited conditions remain excluded or diagnosed, without registry promotion. See [state and compatibility evidence](./development/overlap-entry-observer-verification.md).
 
 The bounded Stage-deployment foundation now supports an explicit own-hand filtered selection policy with an effective 0–1 choice. It does not waive costs, relax public mandatory targets, alter old snapshots, or register the six pending deployment effects. Native activation, runtime Replay, three AI policies, private views and mobile component evidence are recorded in [the Chinese verification](./development/private-hand-choice-verification.md). Complex check-timing overlap remains unresolved.

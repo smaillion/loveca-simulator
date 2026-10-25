@@ -3838,6 +3838,28 @@ describe("App", () => {
     });
   });
 
+  it("lets the controller choose the next automatic effect using resolve_effect", () => {
+    const onAction = vi.fn();
+    const invocations = ["first", "second"].map((id) => ({
+      invocation_id: id, effect_id: `AUDIT-${id}`, source_card_instance_id: "player_1-M001",
+      label_ja: id === "first" ? "カードを1枚引く。" : "手札が4枚になるまでカードを引く。",
+      trigger: "member_played", timing: "on_play", execution_mode: "auto_resolve",
+      simulation_support: "test_validated_executable", resolution_stage: "initial", is_optional: false,
+      candidate_card_instance_ids: [], card_selection_minimum: 0, card_selection_maximum: 0,
+    }));
+    const action = { action_type: "resolve_effect", player_id: "player_1",
+      options: { effect_order_choice: true, invocations, waiting_player_ids: ["player_2"] } };
+    render(<EffectResolutionAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never}
+      loading={false} onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.getByText("选择先结算的技能 (2)")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("先结算的技能"), { target: { value: "second" } });
+    expect(screen.getByText("手札が4枚になるまでカードを引く。")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "second", accepted: true, selected_card_instance_ids: [], energy_instance_ids: [],
+    });
+  });
+
   it("submits branch follow-up card choices with the selected branch", () => {
     const onAction = vi.fn();
     const onManual = vi.fn();

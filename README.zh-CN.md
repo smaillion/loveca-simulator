@@ -8,6 +8,10 @@
 
 ## 当前状态
 
+新建对局可选择多个待机技能的结算顺序，统一 AP / NAP 优先级并禁止打断已开始的多步处理。
+旧 Replay 不变；这不代表完整规则调度已经完成，技能登记率不变。
+[中文顺序 / 状态 / AI 验证报告](./docs/development/pending-effect-order-verification.md)。
+
 新建对局修正 `PL!N-pb1-005` 宮下愛被 cost10 Member 普通替换时漏抽1的问题；
 Baton 中先作为费用离场的对照不抽。旧 Replay 保留原行为，复杂重叠仍待审计。
 [中文状态与兼容性报告](./docs/development/overlap-entry-observer-verification.md)。

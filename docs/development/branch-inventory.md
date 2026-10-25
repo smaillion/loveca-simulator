@@ -43,6 +43,10 @@ Baton 原型检查点：已核对 `07f51e4` 的两个 PR entry，没有直接恢
 
 ## 工作树
 
+待机排序检查点：已补同玩家技能顺序、AP/NAP 重检和已开始的费用/双方选择锁定，
+新对局显式启用独立策略，旧 Replay 不变。见 `pending-effect-order-verification.md`。
+完整重叠父任务与六张 manual 卡继续保留；旧 dirty 工作树未动，同一 PR #54 不合并部署。
+
 重叠观察者检查点：真实 `PL!N-pb1-005:1` 的普通替换/费用Baton差异已补有限策略与状态验证，
 新对局启用、旧 Replay 不变；复杂时点父任务保留。见 `overlap-entry-observer-verification.md`。
 未晋级六张手动卡，原工作树和报告不动，继续同一 PR #54，不合并部署。

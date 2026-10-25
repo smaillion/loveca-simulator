@@ -86,6 +86,7 @@ class MatchService:
             match_id=resolved_id,
             seed=resolved_seed,
             member_overlap_policy="capture_fixed_draw_entry_observers",
+            effect_order_policy="ap_nap_player_choice",
             players=player_states,
             cards=cards,
             controllers=_normalize_controllers(controllers),

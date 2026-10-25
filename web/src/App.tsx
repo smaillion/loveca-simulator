@@ -5120,12 +5120,18 @@ export function EffectResolutionAction({
     <div className="effect-resolution">
       <div className="effect-resolution-header">
         <span>
-          {tr("待结算技能", "解決待ち能力")} {invocations.length > 1 ? `(${invocations.length})` : ""}
+          {action.options.effect_order_choice
+            ? tr("选择先结算的技能", "先に解決する能力") : tr("待结算技能", "解決待ち能力")}
+          {invocations.length > 1 ? ` (${invocations.length})` : ""}
         </span>
         {invocations.length > 1 && (
-          <select value={current.invocation_id} onChange={(event) => setInvocationId(event.target.value)}>
-            {invocations.map((item) => (
+          <select
+            aria-label={action.options.effect_order_choice
+              ? tr("先结算的技能", "先に解決する能力") : tr("选择技能", "能力を選択")}
+            value={current.invocation_id} onChange={(event) => setInvocationId(event.target.value)}>
+            {invocations.map((item, index) => (
               <option key={item.invocation_id} value={item.invocation_id}>
+                {action.options.effect_order_choice ? `${index + 1}. ` : ""}
                 {state.cards[item.source_card_instance_id].card.name_ja}
               </option>
             ))}

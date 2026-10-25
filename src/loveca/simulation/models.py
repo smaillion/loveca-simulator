@@ -206,6 +206,7 @@ class MatchState(BaseModel):
     rule_version: str = RULE_VERSION
     seed: int
     member_overlap_policy: Literal["capture_fixed_draw_entry_observers"] | None = None
+    effect_order_policy: Literal["ap_nap_player_choice"] | None = None
     revision: int = 0
     phase: Phase = "setup_choose_first"
     first_player_id: str | None = None
@@ -241,6 +242,8 @@ class MatchState(BaseModel):
         payload = handler(self)
         if self.member_overlap_policy is None:
             payload.pop("member_overlap_policy", None)
+        if self.effect_order_policy is None:
+            payload.pop("effect_order_policy", None)
         return payload
 
 
