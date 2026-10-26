@@ -148,6 +148,7 @@ class EffectOperation(BaseModel):
     orientation: Literal["active", "wait"] | None = None
     entry_trigger_policy: Literal["member_area_external_only"] | None = None
     overlap_source_policy: Literal["original_stage_member"] | None = None
+    source_object_policy: Literal["original_moved_stage_member"] | None = None
     overlap_observer_policy: Literal["ignore_disjoint_source_triggers"] | None = None
     color_slot: str | None = None
     card_type: str | None = None
@@ -163,12 +164,23 @@ class EffectOperation(BaseModel):
             result.pop("entry_trigger_policy", None)
         if self.overlap_source_policy is None:
             result.pop("overlap_source_policy", None)
+        if self.source_object_policy is None:
+            result.pop("source_object_policy", None)
         if self.overlap_observer_policy is None:
             result.pop("overlap_observer_policy", None)
         return result
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        if self.source_object_policy is not None and (
+            self.action_type != "ready_member" or self.target != "source"
+            or self.amount is not None or self.amount_source is not None
+            or self.branch is not None or self.value is not None
+            or self.multiplier is not None
+            or self.orientation is not None or self.color_slot is not None
+            or self.flag is not None or self.target_hand_size is not None or self.card_type is not None
+        ):
+            raise ValueError("source object policy only supports readying the moved source Member")
         if self.overlap_observer_policy is not None and self.action_type != "deploy_selected_to_stage":
             raise ValueError("overlap observer policy requires bounded Stage deployment")
         if self.action_type == "modify_source_score_if_selected_blade_highest" and (
@@ -449,6 +461,17 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        if any(op.source_object_policy is not None for op in self.cost):
+            raise ValueError("source object policy cannot be a cost")
+        if any(op.source_object_policy is not None for op in self.actions) and (
+            len(self.actions) != 1 or self.effect_type != "triggered"
+            or self.simulation_support == "manual_resolution"
+            or self.trigger != "member_moved" or self.execution_mode != "auto_resolve"
+            or self.condition != {"source_zone": "stage", "source_orientation": "wait"}
+            or self.cost or self.cost_choice or self.choice or self.follow_up_choice
+            or self.is_optional or self.duration is not None or self.frequency_limit != "none"
+        ):
+            raise ValueError("source object policy requires a bounded Wait movement trigger")
         if any(choice is not None and choice.inspection_activation_policy is not None
                for choice in (self.cost_choice, self.follow_up_choice)):
             raise ValueError("inspection activation policy must be the main effect choice")

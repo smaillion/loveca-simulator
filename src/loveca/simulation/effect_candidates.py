@@ -215,6 +215,24 @@ def _matching_segment(
     return None
 
 
+def _wait_moved_source_ready(row: sqlite3.Row) -> EffectCandidate | None:
+    label = "【自動】ウェイト状態のこのメンバーがエリアを移動したとき、このメンバーをアクティブにする。"
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    index, exact_label = matched
+    return EffectCandidate(
+        **_base_with_execution_mode(row, pattern_id="wait_moved_original_source_ready", effect_index=index,
+                          execution_mode="auto_resolve"),
+        label_ja=exact_label, effect_type="triggered", timing="on_member_moved", trigger="member_moved",
+        frequency_limit="none", is_optional=False,
+        condition={"source_zone": "stage", "source_orientation": "wait"},
+        cost=[], choice=None,
+        actions=[{"action_type": "ready_member", "target": "source",
+                  "source_object_policy": "original_moved_stage_member"}], duration=None,
+    )
+
+
 def _activated_pay1_inspect4_reorder(row: sqlite3.Row) -> EffectCandidate | None:
     label = (
         "【起動】【ターン1回】【E】：自分のデッキの上からカードを4枚見る。"
@@ -15096,6 +15114,7 @@ def _activated_return_energy_recover_live(row: sqlite3.Row) -> EffectCandidate |
 
 
 _PATTERNS = (
+    _wait_moved_source_ready,
     _activated_pay1_inspect4_reorder,
     _activated_return_energy_recover_live,
     _edel_note_live_start_deployment,

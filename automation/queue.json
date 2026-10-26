@@ -317,6 +317,15 @@
       "acceptance": ["先复现完整MatchPayload的main_deck/card map与历史ID关联，不只检查私有pending选项；按PDF公开/隐藏区域记录依据", "REST/SSE/重连历史玩家视角不泄露未知牌身份与私有重排顺序，保留明确公开reveal与原始Replay", "本地轮流操作和四AI不受破坏，对手/牌库隐藏身份替换不影响可见响应或决策，真实状态/Replay/UI回归通过", "不改Card/SQLite schema，不合并部署；无法在有限范围确认的边界明确报告"]
     },
     {
+      "id": "moved-source-original-stage-ready",
+      "priority": 1,
+      "title": "固定移动触发来源对象并精确适配四季Wait移动复原",
+      "status": "queued",
+      "depends_on": ["activated-wait-draw-exact-text", "pending-effect-apnap-choice", "stage-departure-modifier-cleanup"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["依据PDF4.1.4/9.7.7/11.10/11.11及实际PL!SP-bp7-008:2精确文本，只处理Wait顶层来源移动后自身ready，不扩展继承或任意目标DSL", "显式operation snapshot policy保留原Stage对象，触发后离场/同ID再入场不ready新对象但正常结束并记录原因，Stage内再移动不误判离场", "支付/次数/非法Action原子性、Position/Formation/manual move、正常替换/Baton/效果离场、旧manual和旧无policy Replay、SQLite/四AI/隐私及中日结果提示有定向断言", "中文卡图报告、固定10局AI、全部profile与manifest通过后才将该段提升test_validated；不提升reviewed，六条重叠卡与父任务继续保留"]
+    },
+    {
       "id": "effect-accuracy-loop",
       "priority": 3,
       "title": "按实际触发与规则风险扩展技能支持",

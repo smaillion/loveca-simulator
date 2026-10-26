@@ -11,7 +11,7 @@
 
 - 已适配 `PL!N-bp7-006:1` 支付Energy后检查并完整重排顶4张，第二段堆墓分支仍manual；见 `docs/development/activated-inspection-verification.md`。
 - 已适配 `PL!SP-bp7-008:1` / `PL!N-bp7-023:1` 的自身Wait抽牌，见 `docs/development/activated-wait-draw-verification.md`；不把“四季第一段可用”写成整卡全部自动化。
-- `PL!SP-bp7-008:2` 在Wait时移动区域后复原，仍为manual。移动事件已有底座，但触发排队后离场/同ID重新入场需区分原Stage对象；unresolved reason为 `source_object_departure_reentry_requires_review`，不能仅检查当前ID或提前复原。继承/附属边界也未完成。
+- `PL!SP-bp7-008:2` 已以显式source object策略适配Wait移动复原，触发后离场/同ID回场不会复原新对象，见 `docs/development/moved-source-ready-verification.md`。原 `source_object_departure_reentry_requires_review` 仅对这一受限家族解除；继承/附属、任意目标与完整重叠边界仍未完成。
 - 重叠登场父任务未完成：不仅旧顶部Member，附属卡/入场卡/其他公开来源的完整文本绑定与真正常时/继承观察者仍需确认。不要用仅有已登记effect IDs等同整段原文安全。
 - 产品默认仍v1.1；旧v0不主动发动技能，v1系列可能因Wait损失过高而合法放弃发动。定向正收益场景与完整对局结果分开统计。
 
@@ -182,7 +182,7 @@
 - Keep `30 decks x 100 matches --manual-policy block` as the standard long-run regression after each executor-pattern expansion.
 - Latest broad Phase 5 long run: `100/100` completed with blocker 0 after the stale-trigger-condition fix.
 - The earlier problem-card blockers `PL!S-bp6-001:1` and `PL!S-pb1-001:1` are now structured. Future targeted pools should be generated from the current 115-entry manual gap report instead of preserving this obsolete blocker list.
-- After the October 2026 full official refresh through CLLS01/PBLL02, static registry coverage is `903 / 1212 = 74.50%`; strict integrity reports zero errors and warnings. The lower percentage reflects every newly discovered timing segment being registered, including 309 intentionally manual entries. Reaching 90% requires real executor patterns and state-transition tests; do not restore the old percentage by hiding or falsely promoting new text.
+- After the October 2026 full official refresh through CLLS01/PBLL02, static registry coverage is `904 / 1212 = 74.59%`; strict integrity reports zero errors and warnings. The lower percentage reflects every newly discovered timing segment being registered, including 308 intentionally manual entries. Reaching 90% requires real executor patterns and state-transition tests; do not restore the old percentage by hiding or falsely promoting new text.
 - Do not mark registry entries executable only to improve coverage numbers.
 - Keep the official-rule AI acceptance gate at 20 attempts / 10 strict qualified matches. The October full-refresh gate completed 20/20, qualified 13/20, and produced 13,539 PASS checks over 61 distinct effects / 212 effect steps with no failure, Replay error, or effect-error skip; two steps remain review annotations.
 - The latest 30-deck / 50-match black-box run completed 314/314 executable effect resolutions with no skipped effect or Replay error, but only 34/50 matches reached a result. Prioritize Live-access and long-game policy diagnostics for the 16 action-cap matches instead of treating them as registry blockers.

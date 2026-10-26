@@ -336,3 +336,19 @@ Absent/None omits the field and preserves legacy snapshots/hash/behavior, not a
 retroactive repair of old manual abilities. No runtime SQLite migration.
 Representative: `PL!N-bp7-006:1`; its second segment remains manual. Evidence:
 `docs/development/activated-inspection-verification.md`.
+
+## Original Moved Source Member
+
+`EffectOperation.source_object_policy=original_moved_stage_member` opts in only
+to a single mandatory, unlimited `member_moved` -> source `ready_member` operation
+with exact Stage/Wait trigger conditions and no costs, choices or duration.
+After successful trigger validation, capture `original_source_stage_object` on
+the invocation. Existing Stage-departure hooks mark pending opted-in invocations
+as departed, independently of modifier-cleanup policy. Internal Stage movement
+does not mark departure. Resolution retains trigger eligibility and records an
+explicit non-applied reason if the source left, even when the same physical ID
+returns; usage and queue completion still occur under9.7.7. Missing trigger
+capture is invalid, not silently guessed. None is omitted from old operation
+snapshots; legacy Replay/manual trigger behavior is preserved. No SQL/Card
+schema changes or general object-epoch/inheritance implementation. Representative:
+`PL!SP-bp7-008:2`. Evidence: `docs/development/moved-source-ready-verification.md`.

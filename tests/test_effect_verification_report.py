@@ -26,6 +26,8 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
         "activated_wait_draw_shiki",
         "activated_wait_draw_discard_mia",
         "activated_energy_inspect4_reorder",
+        "moved_wait_source_ready",
+        "moved_source_departure_reentry",
     }.issubset(scenario_ids)
     assert "registry_contract_PL!S-sd1-006_1" in scenario_ids
     assert "registry_contract_PL!N-bp5-005_1" in scenario_ids

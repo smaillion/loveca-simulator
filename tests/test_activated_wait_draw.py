@@ -102,7 +102,10 @@ def test_exact_candidates_match_real_revision_and_full_skill_segment(card_code):
         ["draw_card"] if card_code == CARDS[0] else ["draw_card", "discard_from_hand"]
     )
     if card_code == CARDS[0]:
-        assert state.effect_definitions[card_code + ":2"].simulation_support == "manual_resolution"
+        moved = state.effect_definitions[card_code + ":2"]
+        assert moved.simulation_support == "test_validated_executable"
+        assert moved.effect_index == 2 and moved.raw_text_hash == candidate.raw_text_hash
+        assert moved.actions[0].source_object_policy == "original_moved_stage_member"
 
 
 @pytest.mark.parametrize("card_code", CARDS)

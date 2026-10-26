@@ -91034,7 +91034,7 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution",
+          "action_type": "ready_member",
           "amount": null,
           "amount_source": null,
           "branch": null,
@@ -91043,32 +91043,36 @@
           "flag": null,
           "multiplier": null,
           "orientation": null,
-          "target": null,
+          "source_object_policy": "original_moved_stage_member",
+          "target": "source",
           "target_hand_size": null,
           "value": null
         }
       ],
       "card_code": "PL!SP-bp7-008",
       "choice": null,
-      "condition": {},
+      "condition": {
+        "source_orientation": "wait",
+        "source_zone": "stage"
+      },
       "cost": [],
       "cost_choice": null,
       "duration": null,
       "effect_id": "PL!SP-bp7-008:2",
       "effect_index": 2,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "follow_up_choice": null,
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【自動】ウェイト状態のこのメンバーがエリアを移動したとき、このメンバーをアクティブにする。",
       "raw_text_hash": "1105aa0ae1ef0d65a9c9856842d388d33aded5b27ba4a34639c225ba1eeb679b",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 895,
-      "timing": "auto_triggered_event",
-      "trigger": "auto_triggered_event"
+      "timing": "on_member_moved",
+      "trigger": "member_moved"
     },
     {
       "actions": [

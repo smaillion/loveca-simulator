@@ -8,11 +8,13 @@
 
 ## 現在の状態
 
+`PL!SP-bp7-008:2` 若菜四季の「ウェイトでエリア移動後に自身をアクティブ」に対応しました。誘発後に離場し同じIDで再登場しても別のカードには復原せず、理由を表示して解決を完了します。登録は904/1212（74.59%）、308件manual。完全な重複・継承の対応ではありません。[カード画像・状態・Replay検証](./docs/development/moved-source-ready-verification.md)
+
 オンラインのプレイヤー応答から、デッキのカード情報・実ID・順序と未公開の能力定義を除き、枚数だけを表示します。自分の手札、公開カードと明示的な公開結果は維持します。完全なReplayは対戦完了/ルーム終了後に出力し、対戦中は無効です。ローカル双人検証と保存データ形式は変更しません。[検証と制限](./docs/development/player-payload-privacy-verification.md)
 
-`PL!N-bp7-006:1` 近江彼方のEnergy支払い後の上4枚確認・並べ直しに対応しました。確認は本人だけに表示し、費用を再度払いません。第二段はmanualのままです。登録は903/1212（74.50%）、309件manual。[カード画像・状態・Replay検証](./docs/development/activated-inspection-verification.md)
+`PL!N-bp7-006:1` 近江彼方のEnergy支払い後の上4枚確認・並べ直しに対応しました。確認は本人だけに表示し、費用を再度払いません。第二段はmanualのままです。[カード画像・状態・Replay検証](./docs/development/activated-inspection-verification.md)
 
-`PL!SP-bp7-008:1` 若菜四季の自己Wait→1枚ドローと、`PL!N-bp7-023:1` ミアの自己Wait→2枚ドロー後2枚捨てに対応しました。回数制限と選択の前後を区別し、manual起動のエラーも修正しました。四季のエリア移動時の別能力は引き続きmanualです。[カード画像・状態・Replay検証](./docs/development/activated-wait-draw-verification.md)
+`PL!SP-bp7-008:1` 若菜四季の自己Wait→1枚ドローと、`PL!N-bp7-023:1` ミアの自己Wait→2枚ドロー後2枚捨てに対応しました。回数制限と選択の前後を区別し、manual起動のエラーも修正しました。[カード画像・状態・Replay検証](./docs/development/activated-wait-draw-verification.md)
 
 Liveの得点・成功置き場への移動・勝敗を20場面で回帰検証し、各場面のSQLite Replayも確認します。4場面はPDF 8.4.7.1のエリア表記と既存Match Point解釈の照合が必要です。実装回帰と公式裁定の確認を区別し、エンジンや登録数は変更しません。[検証範囲と未解決点](./docs/development/live-boundary-matrix-verification.md)
 

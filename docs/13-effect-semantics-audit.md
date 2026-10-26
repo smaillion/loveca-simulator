@@ -1,5 +1,14 @@
 # Effect Semantics Audit
 
+Moved-source checkpoint: exact `PL!SP-bp7-008:2` uses a bounded original-Stage
+object policy for mandatory Wait movement -> source ready. Capture eligibility
+only after the trigger check; mark pending opted-in invocations on departure,
+not on Stage-to-Stage moves. Re-entry cannot ready the new object; finish and
+record usage with an explicit non-applied reason. The previous unresolved reason
+is closed only for this family. Registry904/1212 executable (74.59%),308manual,
+no reviewed promotion. Six occupied-deployment entries and inheritance remain
+manual. [Chinese evidence](development/moved-source-ready-verification.md).
+
 Player-view privacy checkpoint: hidden pile identities/order and unseen effect
 definitions are excluded from room responses, private inspection history and
 other-player pending choices are redacted, and full online Replay is end-only.
@@ -12,7 +21,7 @@ Energy, privately inspects four cards and returns all in the selected order.
 `inspection_activation_policy=start_after_cost` is restricted to this structured
 cost/reorder family; absent policies retain old serialization/hash and behavior.
 Registry is903/1212 executable (74.50%),309manual, without reviewed promotion.
-The second segment remains manual. Shiki's movement ability remains manual with
+At that checkpoint the second segment remained manual. Shiki's movement ability was manual with
 `source_object_departure_reentry_requires_review`: pending resolution must not
 ready a new Stage object sharing the old instance ID. The current 10-match AI
 regression did not trigger this new inspection effect; targeted tests provide

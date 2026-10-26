@@ -1187,6 +1187,8 @@ describe("App", () => {
       "解決時にエネルギーデッキが足りないため、エネルギーを置きませんでした。"],
     ["overlap_source_member_departed", "来源 Member 已离场，此加成不作用于控室或重新登场的卡牌。",
       "誘発元のメンバーは一度ステージを離れたため、控え室や再登場したカードには加算しません。"],
+    ["original_source_stage_member_departed", "来源 Member 曾离开 Stage，不复原控室或重新登场的卡牌；能力已结束。",
+      "誘発元が一度ステージを離れたため、控え室や再登場したカードをアクティブにせず解決しました。"],
   ])("shows why a triggered operation did not apply (%s)", async (reason, zh, ja) => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const matchCreate = { ...MATCH_PAYLOAD, events: [{
@@ -1204,6 +1206,23 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "日本語" }));
     expect(screen.getAllByText(ja).length)
       .toBeGreaterThan(0);
+  });
+
+  it.each([true, false])("shows the moved-source ready result (%s)", async (changed) => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const matchCreate = { ...MATCH_PAYLOAD, events: [{
+      event_type: "effect_source_member_readied", player_id: "player_1", source: "system",
+      data: { effect_id: "PL!SP-bp7-008:2", changed },
+    }] };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    const create = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(create).not.toBeDisabled());
+    fireEvent.click(create);
+    await waitFor(() => expect(screen.getByText("自动效果结果")).toBeInTheDocument());
+    expect(screen.getAllByText(changed ? "移动触发：原来源 Member 已变为 Active。" : "原来源 Member 已是 Active，能力正常结束。").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect(screen.getAllByText(changed ? "エリア移動で誘発し、元のメンバーをアクティブにしました。" : "元のメンバーは既にアクティブです。能力を解決しました。").length).toBeGreaterThan(0);
   });
 
   it("explains departure modifier cleanup without exposing modifier payloads", async () => {

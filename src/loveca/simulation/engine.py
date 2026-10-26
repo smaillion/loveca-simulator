@@ -2846,6 +2846,8 @@ def _queue_triggered_effects(
                     )
                 )
                 continue
+            if _original_moved_source_ready(effect):
+                invocation.trigger_data["original_source_stage_object"] = True
             state.pending_effects.append(invocation)
             events.append(
                 GameEvent(
@@ -2862,6 +2864,12 @@ def _queue_triggered_effects(
                     },
                 )
             )
+
+
+def _original_moved_source_ready(effect: Any) -> bool:
+    return bool(effect and any(
+        op.source_object_policy == "original_moved_stage_member" for op in effect.actions
+    ))
 
 
 def _queue_member_moved_effects(
@@ -2967,6 +2975,12 @@ def _effect_unavailable_reason(
 ) -> str | None:
     effect = state.effect_definitions[invocation.effect_id]
     player = state.players[invocation.player_id]
+    if (
+        _original_moved_source_ready(effect)
+        and invocation.trigger_event == "member_moved"
+        and invocation.trigger_data.get("original_source_stage_object") is True
+    ):
+        return None
     if _entry_count_observer(effect):
         if invocation.trigger_event != "own_member_played":
             return "member_entry_trigger_snapshot_missing"
@@ -8392,6 +8406,23 @@ def _execute_operations(
                     )
                 operation_context["effect_ready_member_count"] = readied_count
             elif operation.target == "source":
+                original_source = operation.source_object_policy == "original_moved_stage_member"
+                if original_source:
+                    if invocation.trigger_data.get("original_source_stage_object") is not True:
+                        raise IllegalActionError("original source Stage snapshot is missing")
+                    if (
+                        invocation.trigger_data.get("original_source_stage_object_departed") is True
+                        or not _is_stage_member_instance(state, invocation.source_card_instance_id)
+                    ):
+                        events.append(GameEvent(
+                            event_type="effect_operation_not_applied", player_id=invocation.player_id,
+                            source="system", data={
+                                "invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                                "source_card_instance_id": invocation.source_card_instance_id,
+                                "operation": operation_type, "reason": "original_source_stage_member_departed",
+                            },
+                        ))
+                        continue
                 if not _is_stage_member_instance(state, invocation.source_card_instance_id):
                     raise IllegalActionError("effect source must be on Stage")
                 previous = state.cards[invocation.source_card_instance_id].orientation
@@ -8403,6 +8434,15 @@ def _execute_operations(
                     ready_type="member",
                     previous_orientation=previous,
                 )
+                if original_source:
+                    events.append(GameEvent(
+                        event_type="effect_source_member_readied", player_id=invocation.player_id,
+                        source="system", data={
+                            "invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                            "source_card_instance_id": invocation.source_card_instance_id,
+                            "previous_orientation": previous, "changed": previous == "wait",
+                        },
+                    ))
             else:
                 for instance_id in operation_selected_ids:
                     if not _is_stage_member_instance(state, instance_id):
@@ -11346,6 +11386,13 @@ def _clear_departed_card_modifiers(
     *,
     reason: str,
 ) -> None:
+    for invocation in state.pending_effects:
+        if (
+            invocation.source_card_instance_id in instance_ids
+            and invocation.trigger_data.get("original_source_stage_object") is True
+            and _original_moved_source_ready(state.effect_definitions.get(invocation.effect_id))
+        ):
+            invocation.trigger_data["original_source_stage_object_departed"] = True
     if state.stage_departure_policy != "clear_departed_card_modifiers":
         return
     departed = set(instance_ids)

@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+移动来源检查点：同一continuous分支精确适配四季`PL!SP-bp7-008:2`，显式policy区分原Stage对象与离场后同ID回场。登记904/1212、308manual；完整重叠/继承与六卡仍保留父任务。见 `moved-source-ready-verification.md`，旧44/6项dirty与ignored报告不改；只更新Draft PR #54，不合并部署。
+
 玩家响应隐私检查点：同一continuous分支修复隐藏牌库card map/真实ID/顺序、未公开技能定义与私有历史输出；在线完整Replay延后至完赛或关闭房间。本地完整视图、原始Replay及SQLite不变。登记903/1212不变，旧44/6项dirty成果不改。见 `player-payload-privacy-verification.md`；只更新Draft PR #54，不合并部署。
 
 起动技能检查点：精确新增四季 `PL!SP-bp7-008:1` 与ミア `PL!N-bp7-023:1`，

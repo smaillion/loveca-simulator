@@ -1920,6 +1920,7 @@ const autoResultTerminalEvents = new Set([
 ]);
 
 const autoResultOperationEvents = new Set([
+  "effect_source_member_readied",
   "effect_blade_comparison_resolved",
   "effect_cards_milled",
   "effect_cards_revealed",
@@ -1937,7 +1938,8 @@ function isAutoResultOperation(event: GameEvent): boolean {
       && event.data.reason.startsWith("effect:"))
     || (event.event_type === "effect_operation_not_applied"
       && (event.data.reason === "energy_deck_insufficient_at_resolution"
-        || event.data.reason === "overlap_source_member_departed"));
+        || event.data.reason === "overlap_source_member_departed"
+        || event.data.reason === "original_source_stage_member_departed"));
 }
 
 function latestAutoResultNotice(
@@ -2017,13 +2019,17 @@ function autoResultLines(
   }
 
   for (const related of relatedEvents) {
-    if (related.event_type === "energy_added") {
+    if (related.event_type === "effect_source_member_readied") {
+      const summary = eventSummary(related, state, locale);
+      if (summary) lines.push(summary);
+    } else if (related.event_type === "energy_added") {
       const count = stringArray(related.data.instance_ids).length;
       const orientation = related.data.orientation === "wait" ? "WAIT" : "ACTIVE";
       lines.push(`${locale === "zh" ? "能量补充" : "エネルギー追加"} ${orientation}: ${count}`);
     } else if (related.event_type === "effect_operation_not_applied"
         && (related.data.reason === "energy_deck_insufficient_at_resolution"
-          || related.data.reason === "overlap_source_member_departed")) {
+          || related.data.reason === "overlap_source_member_departed"
+          || related.data.reason === "original_source_stage_member_departed")) {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
     } else if (related.event_type === "effect_blade_comparison_resolved") {
@@ -4208,6 +4214,7 @@ function eventTitle(event: GameEvent, locale: UiLocale): string {
     effect_resolved: ["技能结算", "能力解決"],
     effect_not_activatable: ["技能未自动处理", "能力の自動処理不可"],
     effect_operation_not_applied: ["技能部分未执行", "能力の一部未実行"],
+    effect_source_member_readied: ["来源角色复原", "誘発元メンバーをアクティブに"],
     stage_card_modifiers_cleared: ["离场加成清理", "離れたカードの補正解除"],
     effect_triggered: ["技能触发", "能力誘発"],
     yell_completed: ["应援结算完成", "エール解決完了"],
@@ -4258,6 +4265,17 @@ function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): st
     return locale === "zh"
       ? `卡牌离开 Stage，解除 ${count} 项卡牌专属补正。`
       : `ステージを離れたカードの補正を${count}件解除しました。`;
+  }
+  if (event.event_type === "effect_source_member_readied") {
+    return event.data.changed === true
+      ? (locale === "zh" ? "移动触发：原来源 Member 已变为 Active。" : "エリア移動で誘発し、元のメンバーをアクティブにしました。")
+      : (locale === "zh" ? "原来源 Member 已是 Active，能力正常结束。" : "元のメンバーは既にアクティブです。能力を解決しました。");
+  }
+  if (event.event_type === "effect_operation_not_applied"
+      && event.data.reason === "original_source_stage_member_departed") {
+    return locale === "zh"
+      ? "来源 Member 曾离开 Stage，不复原控室或重新登场的卡牌；能力已结束。"
+      : "誘発元が一度ステージを離れたため、控え室や再登場したカードをアクティブにせず解決しました。";
   }
   if (event.event_type === "effect_operation_not_applied"
       && event.data.reason === "overlap_source_member_departed") {

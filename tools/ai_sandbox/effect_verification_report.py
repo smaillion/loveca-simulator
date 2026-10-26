@@ -188,6 +188,14 @@ def _v1_1_dynamic_scenarios(
 ) -> list[ScenarioResult]:
     cases = (
         (
+            "moved_wait_source_ready", "四季: ウェイトで移動した元メンバーをアクティブに",
+            "四季：Wait移动后复原原来源Member", "PL!SP-bp7-008:2", _run_moved_source_ready,
+        ),
+        (
+            "moved_source_departure_reentry", "四季: 離場後に同じIDで戻っても復原しない",
+            "四季：离场同ID回场不错误复原", "PL!SP-bp7-008:2", _run_moved_source_departure,
+        ),
+        (
             "activated_energy_inspect4_reorder", "Energyを払い上4枚を非公開で並べ直す",
             "支付Energy后私下查看并重排顶4张", "PL!N-bp7-006:1", _run_activated_inspection,
         ),
@@ -375,6 +383,59 @@ def _v1_1_dynamic_scenarios(
             )
         )
     return results
+
+
+def _moved_source_state(effect: EffectDefinition, *, control: bool = False) -> MatchState:
+    effects = {effect.effect_id: effect}
+    members = [_v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id])]
+    if control:
+        raw = effect.model_dump()
+        raw.update(effect_id="AUDIT-control:1", card_code="AUDIT-control", condition={},
+                   actions=[{"action_type": "manual_resolution"}], execution_mode="manual_resolution",
+                   simulation_support="manual_resolution", review_status="parsed_draft")
+        effects[raw["effect_id"]] = EffectDefinition.model_validate(raw)
+        members.append(_v1_1_member("control", "AUDIT-control", effect_ids=[raw["effect_id"]]))
+    state = _v1_1_state(effects, members, member_area={
+        "left": "control" if control else None, "center": "source", "right": None,
+    })
+    state.effect_order_policy = "ap_nap_player_choice"
+    state.cards["source"].orientation = "wait"
+    return state
+
+
+def _run_moved_source_ready(effect: EffectDefinition) -> dict[str, bool]:
+    state = _moved_source_state(effect)
+    moved = apply_action(state, ActionRequest(action_type="manual_adjustment", player_id="player_1",
+        expected_revision=state.revision, payload={"adjustments": [{"adjustment_type": "position_change",
+            "target_player_id": "player_1", "from_slot": "center", "to_slot": "left"}]})).state
+    invocation = moved.pending_effects[0]
+    result = apply_action(moved, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=moved.revision, payload={"invocation_id": invocation.invocation_id}))
+    return {
+        "moved_source_wait_at_trigger": moved.cards["source"].orientation == "wait",
+        "moved_source_ready": result.state.cards["source"].orientation == "active",
+        "moved_source_finished": not result.state.pending_effects and len(result.state.effect_usage) == 1,
+        "moved_source_result_event": any(e.event_type == "effect_source_member_readied" and e.data["changed"] for e in result.events),
+    }
+
+
+def _run_moved_source_departure(effect: EffectDefinition) -> dict[str, bool]:
+    state = _moved_source_state(effect, control=True)
+    moved = apply_action(state, ActionRequest(action_type="manual_adjustment", player_id="player_1",
+        expected_revision=state.revision, payload={"adjustments": [{"adjustment_type": "position_change",
+            "target_player_id": "player_1", "from_slot": "center", "to_slot": "left"}]})).state
+    invocation = next(i for i in moved.pending_effects if i.effect_id == "AUDIT-control:1")
+    result = apply_action(moved, ActionRequest(action_type="manual_adjustment", player_id="player_1",
+        expected_revision=moved.revision, payload={"source_invocation_id": invocation.invocation_id,
+            "source_effect_id": invocation.effect_id, "source_card_instance_id": "control", "adjustments": [
+                {"adjustment_type": "move_card", "target_player_id": "player_1", "target_card_instance_id": "source", "to_zone": destination}
+                for destination in ("waiting_room", "member_right")]}))
+    return {
+        "moved_source_same_id_returned": result.state.players["player_1"].member_area["right"] == "source",
+        "moved_source_reentry_not_readied": result.state.cards["source"].orientation == "wait",
+        "moved_source_departure_reported": any(e.data.get("reason") == "original_source_stage_member_departed" for e in result.events),
+        "moved_source_finished": not result.state.pending_effects and any(u.effect_id == effect.effect_id for u in result.state.effect_usage),
+    }
 
 
 def _run_activated_inspection(effect: EffectDefinition) -> dict[str, bool]:
@@ -1060,6 +1121,13 @@ def _load_visuals_for_effect_ids(
 
 
 _V1_1_CHECK_LABELS: dict[str, tuple[str, str]] = {
+    "moved_source_wait_at_trigger": ("移動時はウェイト", "移动触发时为Wait"),
+    "moved_source_ready": ("元のメンバーがアクティブ", "原来源Member变为Active"),
+    "moved_source_finished": ("待機能力は正常終了", "待机能力正常结束"),
+    "moved_source_result_event": ("実際の復原結果を記録", "明确记录实际复原结果"),
+    "moved_source_same_id_returned": ("同じIDで再登場", "同一ID重新登场"),
+    "moved_source_reentry_not_readied": ("新しいカードを誤って復原しない", "不错误复原重新入场卡"),
+    "moved_source_departure_reported": ("離場による非適用理由を記録", "记录离场不适用原因"),
     "inspection_exact_four": ("上から正確に4枚を見る", "准确查看顶4张"),
     "inspection_energy_paid": ("Energy費用を支払った", "已支付Energy费用"),
     "inspection_order_preserved": ("指定順でデッキ上へ戻る", "按指定顺序放回牌堆顶"),
