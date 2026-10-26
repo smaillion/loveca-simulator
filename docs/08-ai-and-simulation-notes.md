@@ -1,5 +1,12 @@
 # AI and Simulation Notes
 
+PL!N-sd2-026:1 uses the engine's effective Member Blade (including supported
+static modifiers), not printed Blade or a player-level Yell bonus. Its opt-in
+policy preserves old Replay filtering. Four policies pass current-target and
+hidden-hand invariance tests. Frozen30 improves8→9 completed,21 manual stops,
+158/160 executable completions; defaultv1.1 unchanged.
+[Chinese evidence](development/nijigasaki-blade-four-heart-verification.md).
+
 PL!S-cl1-002:1 delegates original-Yell filtering and ordered bottom return to the
 engine. Four policies retain hidden-hand invariance. Frozen30 completes8/30 with
 22 explicit manual stops,150/154 executable completions and4 pending behind manual.

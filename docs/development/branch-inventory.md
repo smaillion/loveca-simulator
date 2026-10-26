@@ -1,5 +1,9 @@
 # 分支与工作树清单
 
+优先级更新：只读审计发现旧`PL!S-bp3-025:1`有minimum_blade6与通用modify_score登记风险，下一批先真实复现“先选人后判断”与仅来源Live得分；本批不顺手改旧快照，不宣称已经验证。该完整性任务排在lily white新覆盖之前。
+
+有效Blade检查点：精确实现`PL!N-sd2-026:1`，新受限policy使用共享有效Blade含已支持常时修正；旧filter/Replay不变。55专项、148关联回归、3UI交互与187图文通过，918/1212、294manual。同冻结30局完赛8→9、21人工停止，158/160可执行完成，2待机保留，无非法/runtime/Replay/错误skip。见`nijigasaki-blade-four-heart-verification.md`；下一项`PL!-pb2-041:2`lily white成功区条件与来源Live得分。旧44/6 dirty及ignored成果保留，同PR54，不合并部署。
+
 应援入底检查点：`PL!S-cl1-002:1`受限原Yell对象策略，Member/Live0–3张排序、离开回场新对象、旧Replay及隐私42专项和2UI交互通过，183图文（145状态/38契约）。同冻结30局完赛7→8、22人工停止，非法/runtime/Replay/错误skip0；917/1212、295manual。见`aqours-yell-bottom-verification.md`，下一项`PL!N-sd2-026:1`。旧44/6 dirty和ignored成果保留，同PR54，不合并部署。
 
 其他虹咲Heart检查点：`PL!N-PR-036:1`受限策略、cost15信息与支付减费区别、来源离场回场新对象、目标清理、新旧SQL Replay、四AI、隐私及真实UI断言收口。45专项、142关联回归、217前端、180图文（142状态/38契约）；同冻结30局7完赛23人工停止，非法/runtime/Replay0。本段9入队含2个受其他manual阻塞的待机，不虚称全部完成。916/1212、296manual，见`other-nijigasaki-heart-verification.md`；下一切片`PL!S-cl1-002:1`Yell公开历史回收。旧44/6 dirty保留，同PR54，不合并部署。

@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+精确支持「Fire Bird」`PL!N-sd2-026:1`：选择当前有效Blade至少4的己方虹咲Stage成员，给予两颗Heart02；新策略包含已支持常时修正，旧Replay过滤不变。918/1212、294manual。同冻结30牌组9完赛/21明确人工停止，仍非beta门禁。[验证报告](./docs/development/nijigasaki-blade-four-heart-verification.md)
+
 精确支持桜内梨子`PL!S-cl1-002:1`：从原应援公开的Aqours卡中选0–3张任意排序入底，含Member与Live；区分离开后返回的新对象，保持旧Replay及对手不可见的牌库顺序。917/1212、295manual。同冻结30牌组8完赛/22明确人工停止，仍非beta门禁。[验证报告](./docs/development/aqours-yell-bottom-verification.md)
 
 精确支持桜坂しずく`PL!N-PR-036:1`：选择另一名己方虹咲成员，结算时卡牌信息cost至少15则获得两颗Heart03，否则一颗。无目标明确结束；同ID离场回场按新对象处理。登记916/1212（75.58%）、296manual。[目标、Replay及AI验证](./docs/development/other-nijigasaki-heart-verification.md)

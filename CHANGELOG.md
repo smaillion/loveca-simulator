@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 「Fire Bird」`PL!N-sd2-026:1`を精確なsegment/revision/hashで実装。有効Blade4以上の自分の虹ヶ咲Stage Member1人だけにHeart02を2つ付与。新しい限定policyでは既存の共通評価で常時修正も読み、旧minimum_blade filterやmanual Replayは変更しない。対象なしは理由を記録して完了。
+- 中文: 55专项与旧技能回归共148项、3前端交互、187图文（149状态/38契约）通过。相同冻结30牌组完赛8→9、21明确人工停止，可执行待机158/160完成、2随manual保留，无非法/runtime/Replay/错误skip；新增完赛败方无Live，不冒充双方Live验收。登记918/1212、294manual，不提升reviewed、不改Card/SQL schema或默认AI，同PR54不合并部署。
+
 - 桜内梨子`PL!S-cl1-002:1`を精確な本文に限定して実装。エールで公開したAqoursのMember/Liveを0–3枚、任意順でデッキ下へ。新snapshotのみ元のYellオブジェクトを追跡し、領域を離れて戻った同IDを除外。古いmanual Replayと非公開順序を維持し、選択の並べ替えUIを追加。
 - 中文: 42专项、2前端交互及183图文通过，登记917/1212、295manual；同冻结30局完赛7→8，22明确人工停止，可执行待机150/154完成，其余4随manual保留；非法/runtime/Replay/错误skip均0。新增完赛局败方没有成功Live，不冒充双方Live或发布验收。不改Card/SQLite schema、默认AI或reviewed，不合并部署。
 

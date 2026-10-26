@@ -4,6 +4,12 @@
 
 ### Experimental resource-cycle policy
 
+PL!N-sd2-026:1 consumes engine-generated effective-Blade>=4 Nijigasaki targets,
+including supported static modifiers. AI does not duplicate this rule or infer
+eligibility from a player's total Yell bonus. Four policies preserve hidden-hand
+invariance and explicit no-target completion. Frozen30 reaches9 completed/21
+manual stops, not beta acceptance; defaultv1.1 remains unchanged.
+
 PL!S-cl1-002:1 uses current engine-generated original-Yell candidates and ordered
 zero-to-three bottom selection. AI must not inspect opponent hidden identities or
 infer Yell from the entire Resolution Area. Frozen30 reaches8 completed/22 manual

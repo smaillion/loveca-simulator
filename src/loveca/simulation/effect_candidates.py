@@ -628,6 +628,31 @@ def _live_success_aqours_yell_bottom_three(row: sqlite3.Row) -> EffectCandidate 
     )
 
 
+def _live_start_nijigasaki_blade_four_heart(row: sqlite3.Row) -> EffectCandidate | None:
+    label = (
+        "【ライブ開始時】自分のステージにいる【ブレード】を4つ以上持つ『虹ヶ咲』の"
+        "メンバー1人は、ライブ終了時まで、【heart02】【heart02】を得る。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base(
+            row, pattern_id="live_start_nijigasaki_blade_four_heart", effect_index=effect_index,
+        ),
+        label_ja=exact_label, effect_type="triggered", timing="live_start",
+        trigger="live_started", frequency_limit="once_per_live", is_optional=False,
+        condition={}, cost=[], choice={
+            "choice_type": "member_from_stage", "zone": "stage", "card_type": "member",
+            "work_key": "nijigasaki", "minimum_blade": 4, "minimum": 1, "maximum": 1,
+            "selection_policy": "public_nijigasaki_blade_four_heart",
+        },
+        actions=[{"action_type": "gain_heart", "target": "selected", "amount": 2,
+                  "color_slot": "heart02"}], duration="live",
+    )
+
+
 def _live_start_other_nijigasaki_cost_heart(row: sqlite3.Row) -> EffectCandidate | None:
     label = (
         "【ライブ開始時】ライブ終了時まで、自分のステージにいるほかの『虹ヶ咲』のメンバー1人は"
@@ -15376,6 +15401,7 @@ _PATTERNS = (
     _live_start_pay_up_to2_gain_blade_per_energy,
     _live_start_discard_two_same_group_gain_heart_blade,
     _live_start_other_nijigasaki_cost_heart,
+    _live_start_nijigasaki_blade_four_heart,
     _live_success_aqours_yell_bottom_three,
     _live_start_success_muse_two_yell_ten,
     _live_start_reduce_yell_count_by8_if_other_member,

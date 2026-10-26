@@ -4365,6 +4365,35 @@ describe("App", () => {
     });
   });
 
+  it.each([0, 1, 2])("requires a current Blade-four target or explicitly resolves no targets: %s", (count) => {
+    const onAction = vi.fn();
+    const ids = ["player_1-M002", "player_1-M003"].slice(0, count);
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    ids.forEach((id, i) => { state.cards[id] = { ...state.cards[id],
+      card: { ...state.cards[id].card, name_ja: `Blade4-${i}`, blade: 4 } }; });
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "blade-four", effect_id: "PL!N-sd2-026:1", source_card_instance_id: "player_1-M001",
+      label_ja: "【ライブ開始時】ブレード4以上の虹ヶ咲メンバー1人にheart02二つ。",
+      trigger: "live_started", timing: "live_start", execution_mode: "prompt_then_resolve",
+      simulation_support: "test_validated_executable", is_optional: false,
+      choice_type: "member_from_stage", choice_zone: "stage", card_selection_minimum: count ? 1 : 0,
+      card_selection_maximum: count ? 1 : 0, selection_policy: "public_nijigasaki_blade_four_heart",
+      candidate_card_instance_ids: ids,
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false}
+      onAction={onAction} onManual={vi.fn()} />);
+    const resolve = screen.getByRole("button", { name: "结算技能" });
+    if (count) {
+      expect(resolve).toBeDisabled();
+      fireEvent.click(screen.getByRole("button", { name: new RegExp(`Blade4-${count - 1}`) }));
+    } else { expect(resolve).toBeEnabled(); }
+    fireEvent.click(resolve);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "blade-four", accepted: true,
+      selected_card_instance_ids: count ? [ids[count - 1]] : [], energy_instance_ids: [],
+    });
+  });
+
   it.each([false, true])("orders up to three public Yell cards, including choosing zero: %s", (chooseZero) => {
     const onAction = vi.fn();
     const ids = ["player_1-M001", "player_1-M002", "player_1-M003", "extra-yell"];

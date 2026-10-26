@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+「Fire Bird」`PL!N-sd2-026:1`に対応。現在の有効Bladeが4以上の自分の虹ヶ咲Stage Memberを1人選び、Heart02を2つ与えます。新policyだけ常時修正も反映し、旧Replayは維持。918/1212、294manual。同じ30デッキは9完了/21手動停止で、beta合格ではありません。[検証](./docs/development/nijigasaki-blade-four-heart-verification.md)
+
 桜内梨子`PL!S-cl1-002:1`のエール由来Aqoursカード0–3枚を任意順でデッキ下へ戻せます。Member/Live両方、移動後の新オブジェクト、旧Replayと非公開順序を区別。917/1212、295manual。同じ30デッキ診断は8完了/22明示停止で、beta合格ではありません。[検証](./docs/development/aqours-yell-bottom-verification.md)
 
 桜坂しずく`PL!N-PR-036:1`を精確な本文で対応。他の自分の虹ヶ咲Memberを1人選び、解決時のカード情報costが15以上ならHeart03を2つ、それ以外は1つ与えます。対象なしは明示終了し、領域移動後の同IDは新しい対象として扱います。登録916/1212（75.58%）、296manual。[対象・Replay・AI検証](./docs/development/other-nijigasaki-heart-verification.md)

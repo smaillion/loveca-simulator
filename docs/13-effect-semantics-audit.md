@@ -1,5 +1,16 @@
 # Effect Semantics Audit
 
+PL!N-sd2-026:1 revision958 now supports one own Nijigasaki Stage Member with
+effective Blade>=4 and two Heart02. Static Blade is included only by the new
+bounded policy; historical generic filters stay unchanged.55 focused tests,
+4 new illustrated state cases and3 UI cases pass.918/1212 test-validated,294 manual;
+no human-reviewed promotion. [Evidence](development/nijigasaki-blade-four-heart-verification.md).
+
+Follow-up risk: existing PL!S-bp3-025:1 still encodes Blade6 as a target filter
+and uses generic score modification. Its text selects first, then checks Blade,
+and modifies only the source Live. This is queued for priority state reproduction
+and snapshot-safe correction; the current Fire Bird tests do not validate it.
+
 PL!S-cl1-002:1 revision961 uses a bounded original-Yell Aqours0–3 ordered policy.
 Only opted-in snapshots serialize remaining Yell objects; departure invalidates
 eligibility even on same-ID return.42 focused tests,3 new illustrated state cases,

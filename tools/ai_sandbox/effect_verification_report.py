@@ -22,6 +22,7 @@ from loveca.simulation.effects import (
 )
 from loveca.simulation.engine import (
     IllegalActionError,
+    _effective_member_blade,
     _effective_member_play_cost,
     _queue_live_success_effects,
     _resolve_automatic_effects,
@@ -36,6 +37,7 @@ from loveca.simulation.models import (
     CardInstance,
     EffectInvocation,
     GameEvent,
+    ManualModifier,
     MatchState,
     PlayerState,
     SpecialBladeHeart,
@@ -193,6 +195,14 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        ("niji_blade_four_below", "Blade3・対象なし", "Blade3：无目标明确结束",
+         "PL!N-sd2-026:1", lambda effect: _run_niji_blade_four_heart(effect, blade=3)),
+        ("niji_blade_four_exact", "Blade4・Heart二つ", "Blade4：仅目标获得两颗Heart",
+         "PL!N-sd2-026:1", _run_niji_blade_four_heart),
+        ("niji_blade_four_temporary", "Blade3+一時加算1", "基础Blade3加临时1满足条件",
+         "PL!N-sd2-026:1", lambda effect: _run_niji_blade_four_heart(effect, blade=3, temporary=1)),
+        ("niji_blade_four_static", "Blade3+常時加算1", "基础Blade3加常时1满足条件",
+         "PL!N-sd2-026:1", lambda effect: _run_niji_blade_four_heart(effect, blade=3, static=1)),
         ("aqours_yell_bottom_mixed", "エールのMemberとLiveを順番にデッキ下へ",
          "应援公开Member与Live按所选顺序入底", "PL!S-cl1-002:1", _run_aqours_yell_bottom),
         ("aqours_yell_bottom_zero", "エールから零枚を選択", "应援回收明确选择零张",
@@ -487,6 +497,9 @@ def _v1_1_dynamic_scenarios(
                 notes_ja=[f"公式日本語テキスト: {effect.label_ja}"],
                 notes_zh=[f"官方日文效果文本：{effect.label_ja}"],
                 rule_reference_ids=(
+                    ["2.8.1", "2.8.2", "9.9.1.1", "9.9.1.5", "9.6.3.1",
+                     "9.6.3.1.3", "11.5.2", "8.4.11"]
+                    if effect_id == "PL!N-sd2-026:1" else
                     ["8.4.4", "8.4.5", "8.4.8", "11.6.2", "4.1.4", "4.1.5.1", "9.6.3.1.1"]
                     if effect_id == "PL!S-cl1-002:1" else
                     ["8.3.8", "8.3.9", "8.3.10", "8.3.11", "8.4.11", "9.6.2.4.2", "9.7.3"]
@@ -497,6 +510,60 @@ def _v1_1_dynamic_scenarios(
             )
         )
     return results
+
+
+def _run_niji_blade_four_heart(
+    effect: EffectDefinition, *, blade: int = 4, temporary: int = 0, static: int = 0,
+) -> dict[str, bool]:
+    source = _v1_1_live("source", "Source Live", effect_ids=[effect.effect_id])
+    target = _v1_1_member("target", "Nijigasaki", work_keys=["nijigasaki"])
+    target.card.blade = blade
+    wrong = _v1_1_member("wrong", "Other work", work_keys=["aqours"])
+    wrong.card.blade = 20
+    state = _v1_1_state(
+        {effect.effect_id: effect}, [source, target, wrong],
+        member_area={"left": "target", "center": None, "right": "wrong"},
+    )
+    state.players["player_1"].live_area = ["source"]
+    if temporary:
+        state.players["player_1"].manual_modifiers.append(ManualModifier(
+            modifier_id="AUDIT-temporary", modifier_type="blade", amount=temporary,
+            duration="live", created_turn=state.turn_number, target_card_instance_id="target",
+        ))
+    if static:
+        raw = effect.model_dump(mode="json")
+        raw.update(effect_id="AUDIT-static", choice=None, effect_type="continuous",
+                   timing="static_always", trigger="static_always", execution_mode="auto_resolve",
+                   frequency_limit="none", duration=None,
+                   actions=[{"action_type": "gain_blade", "amount": static}])
+        static_effect = EffectDefinition.model_validate(raw)
+        state.effect_definitions[static_effect.effect_id] = static_effect
+        target.card.effect_ids = [static_effect.effect_id]
+    state.phase = "performance_first"
+    started = apply_action(state, ActionRequest(
+        action_type="advance_phase", player_id="player_1", expected_revision=state.revision,
+    ))
+    options = next(
+        a for a in started.legal_actions if a.action_type == "resolve_effect"
+    ).options["invocations"][0]
+    selected = ["target"] if blade + temporary + static >= 4 else []
+    resolved = apply_action(started.state, ActionRequest(
+        action_type="resolve_effect", player_id="player_1",
+        expected_revision=started.state.revision,
+        payload={"invocation_id": started.state.pending_effects[0].invocation_id,
+                 "selected_card_instance_ids": selected},
+    ))
+    hearts = [m for m in resolved.state.players["player_1"].manual_modifiers
+              if m.modifier_type == "heart"]
+    return {
+        "有効Blade / 有效Blade": _effective_member_blade(state, "player_1", "target")
+        == blade + temporary + static,
+        "作品とStage限定 / 作品和Stage限定": options["candidate_card_instance_ids"] == selected,
+        "対象だけHeart二つ / 仅所选目标两颗Heart":
+        [(m.target_card_instance_id, m.color_slot, m.amount, m.duration) for m in hearts]
+        == ([("target", "heart02", 2, "live")] if selected else []),
+        "待機完了 / 待机完成": not resolved.state.pending_effects,
+    }
 
 
 def _run_aqours_yell_bottom(

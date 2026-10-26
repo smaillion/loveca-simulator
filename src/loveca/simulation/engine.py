@@ -5049,6 +5049,7 @@ def _effect_choice_bounds_for_candidates(
     minimum, maximum = _effect_choice_bounds(state, invocation, choice)
     if choice.selection_policy in {
         "public_single_as_much_as_possible", "public_other_nijigasaki_cost_heart",
+        "public_nijigasaki_blade_four_heart",
     }:
         return min(minimum, len(candidates)), min(maximum, len(candidates))
     stale_trigger_can_expire = (
@@ -6129,10 +6130,14 @@ def _effect_candidates_for_choice(
             "player_2" if invocation.player_id == "player_1" else "player_1"
         )
     if getattr(choice, "minimum_blade", None) is not None:
+        # Only this opt-in snapshot includes static Blade; old Replay filters stay unchanged.
         candidates = [
             item
             for item in candidates
             if (
+                _effective_member_blade(state, blade_player_id, item)
+                if getattr(choice, "selection_policy", None)
+                == "public_nijigasaki_blade_four_heart" else
                 _member_base_blade(state, blade_player_id, item)
                 + _target_modifier_total(
                     state.players[blade_player_id], "blade", item
@@ -7014,6 +7019,7 @@ def _effect_allows_private_selection_none(effect: Any) -> bool:
 def _public_single_stage_choice(effect: Any) -> bool:
     return bool(effect.choice and effect.choice.selection_policy in {
         "public_single_as_much_as_possible", "public_other_nijigasaki_cost_heart",
+        "public_nijigasaki_blade_four_heart",
     })
 
 
@@ -8860,9 +8866,7 @@ def _execute_operations(
                     )
                 )
         elif operation_type == "gain_heart":
-            if (effect.choice
-                    and effect.choice.selection_policy == "public_other_nijigasaki_cost_heart"
-                    and not operation_selected_ids):
+            if _public_single_stage_choice(effect) and not operation_selected_ids:
                 events.append(GameEvent(
                     event_type="effect_operation_not_applied", player_id=invocation.player_id,
                     data={"invocation_id": invocation.invocation_id,

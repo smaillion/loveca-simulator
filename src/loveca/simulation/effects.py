@@ -318,6 +318,7 @@ class EffectChoice(BaseModel):
         "private_filtered_may_choose_none", "public_single_as_much_as_possible",
         "public_named_groups_as_much_as_possible", "public_other_nijigasaki_cost_heart",
         "public_yell_aqours_bottom_three",
+        "public_nijigasaki_blade_four_heart",
     ] | None = None
     zone: str | None = None
     card_type: str | None = None
@@ -449,6 +450,14 @@ class EffectChoice(BaseModel):
             }
         ):
             raise ValueError("other Nijigasaki selection requires one other own Stage Member")
+        if self.selection_policy == "public_nijigasaki_blade_four_heart" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "member_from_stage", "zone": "stage", "card_type": "member",
+                "selection_policy": "public_nijigasaki_blade_four_heart",
+                "minimum": 1, "work_key": "nijigasaki", "minimum_blade": 4,
+            }
+        ):
+            raise ValueError("Blade-four selection requires one own Nijigasaki Stage Member")
         if self.selection_policy == "public_single_as_much_as_possible" and (
             self.choice_type != "member_from_stage" or self.zone != "stage"
             or self.target_player != "self" or self.card_type != "member"
@@ -714,6 +723,20 @@ class EffectDefinition(BaseModel):
             }
         ):
             raise ValueError("other Nijigasaki selection only supports bounded cost15 Heart")
+        if (self.choice
+                and self.choice.selection_policy == "public_nijigasaki_blade_four_heart") and (
+            self.cost or self.cost_choice or self.follow_up_choice
+            or self.condition or self.is_optional
+            or self.trigger != "live_started" or self.timing != "live_start"
+            or self.effect_type != "triggered" or self.frequency_limit != "once_per_live"
+            or self.execution_mode != "prompt_then_resolve" or self.duration != "live"
+            or len(self.actions) != 1
+            or self.actions[0].model_dump(exclude_defaults=True, exclude_none=True) != {
+                "action_type": "gain_heart", "target": "selected", "amount": 2,
+                "color_slot": "heart02",
+            }
+        ):
+            raise ValueError("Blade-four selection only supports its mandatory Live-start Heart")
         if self.choice and self.choice.selection_policy == "public_single_as_much_as_possible" and (
             self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
             or self.trigger != "live_started" or self.effect_type != "triggered"

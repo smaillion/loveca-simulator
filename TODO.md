@@ -9,6 +9,10 @@
 
 ### 新卡起动与未支持段落
 
+- 优先审计既有`PL!S-bp3-025:1`：当前登记用minimum_blade6限制候补并使用通用modify_score，但正文是先选Aqours成员再判断Blade，且仅来源Live加分。下一批先真实复现低Blade仍应可选、有效Blade与多Live/来源离开边界，再精确修正或保守manual；不以新Fire Bird测试替代该条验收，旧Replay不追改。
+
+- `PL!N-sd2-026:1`精确支持有效Blade至少4的虹咲目标双Heart02，包含已支持常时修正但不修改旧Replay过滤。55专项、3UI和187图文通过，918/1212、294manual。同冻结30局9完赛/21人工停止，可执行158/160完成，仍非发布门禁。见`docs/development/nijigasaki-blade-four-heart-verification.md`。下一项审计`PL!-pb2-041:2`成功区lily white两张仅来源Live score+1，区分unit/work并保留第一段manual。
+
 - `PL!S-cl1-002:1`原应援Aqours最多3张有序入底有42专项、183图文及排序UI断言；登记917/1212、295manual。同冻结30局8完赛/22人工停止，新增完赛败方无Live，不冒充发布通过。见`docs/development/aqours-yell-bottom-verification.md`。下一项按两次实际阻塞审计`PL!N-sd2-026:1`有效Blade至少4目标与双Heart02，先核对PDF和精确卡文。
 
 - `PL!N-PR-036:1`从本地原型收口：受限其他虹咲选人、cost15信息与支付减费区别、来源新对象、目标离场清理及新旧Replay有45专项。当前916/1212、296manual；同冻结30局7完赛/23人工停止，仍非beta门禁。下一有限切片`PL!S-cl1-002:1`从Yell公开牌中选Aqours最多3张排序入底，先确认历史与公开区边界，不直接把整个resolution_area当Yell。见`docs/development/other-nijigasaki-heart-verification.md`。
