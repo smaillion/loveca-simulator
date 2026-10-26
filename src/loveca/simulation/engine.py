@@ -4663,6 +4663,7 @@ def _effect_unavailable_reason(
         )
         and effect.choice.minimum > 0
         and not _effect_allows_private_selection_none(effect)
+        and not _public_single_stage_choice(effect)
     ):
         choice_candidates = _effect_choice_candidates(state, invocation)
         if (
@@ -4684,6 +4685,7 @@ def _effect_unavailable_reason(
         and effect.choice.maximum > 0
         and effect.choice.minimum > 0
         and effect.choice.zone == "stage"
+        and not _public_single_stage_choice(effect)
         and not _effect_choice_candidates(state, invocation)
     ):
         return "choice_candidates_unavailable"
@@ -4984,6 +4986,8 @@ def _effect_choice_bounds_for_candidates(
     candidates: list[str],
 ) -> tuple[int, int]:
     minimum, maximum = _effect_choice_bounds(state, invocation, choice)
+    if choice.selection_policy == "public_single_as_much_as_possible":
+        return min(minimum, len(candidates)), min(maximum, len(candidates))
     stale_trigger_can_expire = (
         invocation.trigger_data.get("_condition_checked_at_trigger") is True
         and _effect_unavailable_reason(state, invocation)
@@ -6921,6 +6925,10 @@ def _effect_allows_private_selection_none(effect: Any) -> bool:
     )
 
 
+def _public_single_stage_choice(effect: Any) -> bool:
+    return bool(effect.choice and effect.choice.selection_policy == "public_single_as_much_as_possible")
+
+
 def _entry_count_observer(effect: Any) -> bool:
     return effect is not None and "trigger_member_entry_count_exact" in effect.condition
 
@@ -8647,6 +8655,14 @@ def _execute_operations(
                     orientation=operation.orientation or "active",
                 )
         elif operation_type == "gain_blade":
+            if _public_single_stage_choice(effect) and not operation_selected_ids:
+                events.append(GameEvent(
+                    event_type="effect_operation_not_applied", player_id=invocation.player_id,
+                    data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                          "operation": "gain_blade", "reason": "no_legal_stage_member_at_resolution"},
+                    source="system",
+                ))
+                continue
             if _captured_overlap_source_modifier(state, invocation):
                 events.append(
                     GameEvent(

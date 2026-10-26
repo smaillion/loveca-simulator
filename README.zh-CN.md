@@ -8,9 +8,11 @@
 
 ## 当前状态
 
-效果重叠登场的审计底座新增显式来源完整性策略，核对双方公开Stage、表向Live和入场候补的全文/版本/hash。未确认能力导致所有区域不可用时，不扣费用、不冒充无目标结算，而是暂停并提供手动处理入口。旧快照不改，六条复杂登场仍manual，登记仍904/1212。[验证与适用范围](./docs/development/overlap-source-binding-verification.md)
+新增 `PL!SP-bp7-025:1`「Memories」：Live开始时显式选择己方场上一名「嵐 千砂都」，只为选定一人添加持续到Live结束的Blade+1。同名多份不自动取第一张；目标在结算时决定，不存在时明确显示原因并结束。登记905/1212（74.67%），307条manual。[卡图、状态与Replay验证](./docs/development/named-live-blade-verification.md)
 
-新增 `PL!SP-bp7-008:2` 若菜四季“Wait移动区域后自身复原”：已触发后离场、同ID回场不误复原新对象，明确显示原因并正常结束能力。登记904/1212（74.59%），308条manual；不代表完整重叠或继承语义完成。[卡图、状态与Replay验证](./docs/development/moved-source-ready-verification.md)
+效果重叠登场的审计底座新增显式来源完整性策略，核对双方公开Stage、表向Live和入场候补的全文/版本/hash。未确认能力导致所有区域不可用时，不扣费用、不冒充无目标结算，而是暂停并提供手动处理入口。旧快照不改，六条复杂登场仍manual。[验证与适用范围](./docs/development/overlap-source-binding-verification.md)
+
+新增 `PL!SP-bp7-008:2` 若菜四季“Wait移动区域后自身复原”：已触发后离场、同ID回场不误复原新对象，明确显示原因并正常结束能力；不代表完整重叠或继承语义完成。[卡图、状态与Replay验证](./docs/development/moved-source-ready-verification.md)
 
 在线玩家响应不再发送牌库卡面、真实ID/顺序及未公开技能定义，只保留数量；己方手牌、公开区域及明确公开的结果保持可见。完整Replay改为完赛或房间关闭后下载，对局中禁用。本地双人调试及数据格式不变。[验证与限制](./docs/development/player-payload-privacy-verification.md)
 

@@ -16,7 +16,7 @@ import App, {
 } from "./App";
 import { resetRuntimeConfigForTests } from "./api";
 import { CatalogPreviewDialog } from "./deck-builder";
-import type { CatalogCardDetail, CatalogCardSummary, DeckList } from "./types";
+import type { CatalogCardDetail, CatalogCardSummary, DeckList, MatchState } from "./types";
 
 const placements = [
   {
@@ -1192,6 +1192,8 @@ describe("App", () => {
       "誘発元のメンバーは一度ステージを離れたため、控え室や再登場したカードには加算しません。"],
     ["original_source_stage_member_departed", "来源 Member 曾离开 Stage，不复原控室或重新登场的卡牌；能力已结束。",
       "誘発元が一度ステージを離れたため、控え室や再登場したカードをアクティブにせず解決しました。"],
+    ["no_legal_stage_member_at_resolution", "结算时没有合法的场上 Member，此项效果不适用，能力已结束。",
+      "解決時に対象にできるメンバーがいないため、この効果を適用せず解決しました。"],
   ])("shows why a triggered operation did not apply (%s)", async (reason, zh, ja) => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const matchCreate = { ...MATCH_PAYLOAD, events: [{
@@ -4070,6 +4072,34 @@ describe("App", () => {
     expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
       invocation_id: "deploy-001", accepted: true, selected_card_instance_ids: ["player_1-M002"],
       energy_instance_ids: [], to_slot: occupied ? "center" : "right",
+    });
+  });
+
+  it("requires one explicit named Member choice instead of auto-selecting the first copy", () => {
+    const onAction = vi.fn();
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    for (const id of ["player_1-M002", "player_1-M003"] as const) {
+      state.cards[id] = { ...state.cards[id], card: { ...state.cards[id].card, name_ja: "嵐 千砂都" } };
+    }
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "named-live", effect_id: "PL!SP-bp7-025:1", source_card_instance_id: "player_1-M001",
+      label_ja: "【ライブ開始時】ライブ終了時まで、自分のステージにいる「嵐 千砂都」1人は【ブレード】を得る。",
+      trigger: "live_started", timing: "live_start", execution_mode: "prompt_then_resolve",
+      simulation_support: "test_validated_executable", is_optional: false,
+      choice_type: "member_from_stage", choice_zone: "stage", card_selection_minimum: 1, card_selection_maximum: 1,
+      selection_policy: "public_single_as_much_as_possible", candidate_card_instance_ids: ["player_1-M002", "player_1-M003"],
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false}
+      onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+    expect(onAction).not.toHaveBeenCalled();
+    const candidates = screen.getAllByRole("button", { name: /嵐 千砂都/ });
+    expect(candidates).toHaveLength(2);
+    fireEvent.click(candidates[0]);
+    fireEvent.click(candidates[1]);
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "named-live", accepted: true, selected_card_instance_ids: ["player_1-M003"], energy_instance_ids: [],
     });
   });
 

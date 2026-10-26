@@ -1939,7 +1939,8 @@ function isAutoResultOperation(event: GameEvent): boolean {
     || (event.event_type === "effect_operation_not_applied"
       && (event.data.reason === "energy_deck_insufficient_at_resolution"
         || event.data.reason === "overlap_source_member_departed"
-        || event.data.reason === "original_source_stage_member_departed"));
+        || event.data.reason === "original_source_stage_member_departed"
+        || event.data.reason === "no_legal_stage_member_at_resolution"));
 }
 
 function latestAutoResultNotice(
@@ -2029,7 +2030,8 @@ function autoResultLines(
     } else if (related.event_type === "effect_operation_not_applied"
         && (related.data.reason === "energy_deck_insufficient_at_resolution"
           || related.data.reason === "overlap_source_member_departed"
-          || related.data.reason === "original_source_stage_member_departed")) {
+          || related.data.reason === "original_source_stage_member_departed"
+          || related.data.reason === "no_legal_stage_member_at_resolution")) {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
     } else if (related.event_type === "effect_blade_comparison_resolved") {
@@ -4262,6 +4264,12 @@ function describeAiBlocker(
 }
 
 function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): string | null {
+  if (event.event_type === "effect_operation_not_applied"
+      && event.data.reason === "no_legal_stage_member_at_resolution") {
+    return locale === "zh"
+      ? "结算时没有合法的场上 Member，此项效果不适用，能力已结束。"
+      : "解決時に対象にできるメンバーがいないため、この効果を適用せず解決しました。";
+  }
   if (event.event_type === "stage_card_modifiers_cleared") {
     const count = typeof event.data.removed_count === "number" ? event.data.removed_count : 0;
     return locale === "zh"
@@ -5120,7 +5128,7 @@ export function EffectResolutionAction({
     deployment_unsupported_slots?: Record<string, string>;
     deployment_unsupported_slots_by_candidate?: Record<string, Record<string, string>>;
     deployment_requires_manual_resolution?: boolean;
-    selection_policy?: "private_filtered_may_choose_none";
+    selection_policy?: "private_filtered_may_choose_none" | "public_single_as_much_as_possible";
     choice_groups?: Array<{
       group_id: string;
       label_ja?: string | null;

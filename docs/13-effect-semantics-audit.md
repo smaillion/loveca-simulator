@@ -1,5 +1,14 @@
 # Effect Semantics Audit
 
+Named Live target checkpoint: exact `PL!SP-bp7-025:1` snapshots
+`public_single_as_much_as_possible` for one own named Stage Member's Live-duration
+Blade+1. Preserve the trigger even if no target exists yet, choose at resolution,
+and require one target when possible; zero legal targets finish with an explicit
+non-applied result. Earlier ordered abilities may change the candidates. Absent
+policy and old manual snapshots retain historical behavior. Registry905/1212
+(74.67%),307manual; only test_validated, not reviewed. Full overlap/inheritance
+remains unresolved. [Chinese card/state evidence](development/named-live-blade-verification.md).
+
 Complete-source checkpoint: explicit `require_complete_source_bindings` bounds
 occupied effect deployment to complete text/identity bindings across both public
 Stages, attachments, face-up Live Areas and the selected incoming candidate.

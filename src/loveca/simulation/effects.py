@@ -294,7 +294,9 @@ class EffectChoice(BaseModel):
     inspection_activation_policy: Literal["start_after_cost"] | None = None
     choice_type: str
     deployment_policy: Literal["simultaneous_member_area_entry"] | None = None
-    selection_policy: Literal["private_filtered_may_choose_none"] | None = None
+    selection_policy: Literal[
+        "private_filtered_may_choose_none", "public_single_as_much_as_possible"
+    ] | None = None
     zone: str | None = None
     card_type: str | None = None
     orientation: str | None = None
@@ -389,7 +391,14 @@ class EffectChoice(BaseModel):
             or self.unselected_destination is not None or self.reveal_selected_to_opponent
         ):
             raise ValueError("activated inspection policy requires a private full top-deck reorder")
-        if self.selection_policy is not None and (
+        if self.selection_policy == "public_single_as_much_as_possible" and (
+            self.choice_type != "member_from_stage" or self.zone != "stage"
+            or self.target_player != "self" or self.card_type != "member"
+            or self.minimum != 1 or self.maximum != 1 or self.amount_source is not None
+            or len(self.name_ja_any) != 1 or not self.name_ja_any[0].strip() or self.condition
+        ):
+            raise ValueError("public single selection requires one named own Stage Member")
+        if self.selection_policy == "private_filtered_may_choose_none" and (
             self.choice_type != "card_from_zone" or self.zone != "hand"
             or self.target_player != "self" or self.card_type != "member"
             or self.minimum != 1 or self.maximum != 1 or self.amount_source is not None
@@ -533,11 +542,21 @@ class EffectDefinition(BaseModel):
             (self.cost_choice and self.cost_choice.selection_policy is not None)
             or (self.follow_up_choice and self.follow_up_choice.selection_policy is not None)
             or (
-                self.choice and self.choice.selection_policy is not None
+                self.choice and self.choice.selection_policy == "private_filtered_may_choose_none"
                 and not any(op.action_type == "deploy_selected_to_stage" for op in self.actions)
             )
         ):
             raise ValueError("private selection policy requires bounded Stage deployment")
+        if self.choice and self.choice.selection_policy == "public_single_as_much_as_possible" and (
+            self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
+            or self.trigger != "live_started" or self.effect_type != "triggered"
+            or self.execution_mode != "prompt_then_resolve" or self.duration != "live"
+            or len(self.actions) != 1 or self.actions[0].action_type != "gain_blade"
+            or self.actions[0].target != "selected" or self.actions[0].amount != 1
+            or self.actions[0].amount_source is not None or self.actions[0].value is not None
+            or self.actions[0].branch is not None
+        ):
+            raise ValueError("public single selection only supports a mandatory named Live-start Blade")
         if any(op.action_type == "deploy_selected_to_stage" for op in self.actions):
             if (
                 len(self.actions) != 1 or self.follow_up_choice is not None

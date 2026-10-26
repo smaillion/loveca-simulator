@@ -10394,6 +10394,25 @@ def _live_start_left_liella_heart02_blade(row: sqlite3.Row) -> EffectCandidate |
     )
 
 
+def _live_start_named_chisato_selected_blade(row: sqlite3.Row) -> EffectCandidate | None:
+    label = "【ライブ開始時】ライブ終了時まで、自分のステージにいる「嵐 千砂都」1人は【ブレード】を得る。"
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base(row, pattern_id="live_start_named_chisato_selected_blade", effect_index=effect_index),
+        label_ja=exact_label,
+        effect_type="triggered", timing="live_start", trigger="live_started",
+        frequency_limit="once_per_live", is_optional=False, condition={}, cost=[],
+        choice={"choice_type": "member_from_stage", "zone": "stage", "card_type": "member",
+                "name_ja_any": ["嵐 千砂都"], "minimum": 1, "maximum": 1,
+                "selection_policy": "public_single_as_much_as_possible"},
+        actions=[{"action_type": "gain_blade", "target": "selected", "amount": 1}],
+        duration="live",
+    )
+
+
 def _live_start_named_superstar_members_gain_heart_and_blade(
     row: sqlite3.Row,
 ) -> EffectCandidate | None:
@@ -15256,6 +15275,7 @@ _PATTERNS = (
     _pbsp02_structured_exact_effects,
     _live_success_aqours_heart05_opponent_no_excess_score2,
     _live_start_opponent_wait_count_return_nijigasaki_members_to_deck_top,
+    _live_start_named_chisato_selected_blade,
     _live_start_named_superstar_members_gain_heart_and_blade,
     _live_start_grouped_superstar_members_gain_blade,
     _live_start_grouped_edel_note_blade_and_heart06,

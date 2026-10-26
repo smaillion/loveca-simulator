@@ -188,6 +188,10 @@ def _v1_1_dynamic_scenarios(
 ) -> list[ScenarioResult]:
     cases = (
         (
+            "live_start_named_chisato_selected_blade", "Memories: 同名の千砂都から1人だけ選ぶ",
+            "Memories：同名千砂都中显式选择一人加Blade", "PL!SP-bp7-025:1", _run_named_chisato_blade,
+        ),
+        (
             "moved_wait_source_ready", "四季: ウェイトで移動した元メンバーをアクティブに",
             "四季：Wait移动后复原原来源Member", "PL!SP-bp7-008:2", _run_moved_source_ready,
         ),
@@ -383,6 +387,32 @@ def _v1_1_dynamic_scenarios(
             )
         )
     return results
+
+
+def _run_named_chisato_blade(effect: EffectDefinition) -> dict[str, bool]:
+    source = _v1_1_live("source", "Memories", effect_ids=[effect.effect_id])
+    source.card.card_code = effect.card_code
+    state = _v1_1_state({effect.effect_id: effect}, [source,
+        _v1_1_member("chisato-a", "嵐 千砂都"), _v1_1_member("chisato-b", "嵐 千砂都")],
+        member_area={"left": "chisato-a", "center": None, "right": "chisato-b"})
+    state.phase = "performance_first"
+    state.players["player_1"].live_area = ["source"]
+    state.cards["source"].face_up = False
+    started = apply_action(state, ActionRequest(action_type="advance_phase", player_id="player_1", expected_revision=0))
+    invocation = started.state.pending_effects[0]
+    options = next(a for a in started.legal_actions if a.action_type == "resolve_effect").options["invocations"][0]
+    result = apply_action(started.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=started.state.revision, payload={"invocation_id": invocation.invocation_id,
+                                                          "selected_card_instance_ids": ["chisato-b"]}))
+    modifiers = result.state.players["player_1"].manual_modifiers
+    return {
+        "named_live_triggered": invocation.effect_id == effect.effect_id,
+        "named_live_candidates": set(options["candidate_card_instance_ids"]) == {"chisato-a", "chisato-b"},
+        "named_live_no_auto_first": not started.state.players["player_1"].manual_modifiers,
+        "named_live_one_selected": len(modifiers) == 1 and modifiers[0].target_card_instance_id == "chisato-b",
+        "named_live_blade_duration": len(modifiers) == 1 and modifiers[0].amount == 1 and modifiers[0].duration == "live",
+        "named_live_finished": not result.state.pending_effects and result.state.phase == "yell_first",
+    }
 
 
 def _moved_source_state(effect: EffectDefinition, *, control: bool = False) -> MatchState:
@@ -1121,6 +1151,12 @@ def _load_visuals_for_effect_ids(
 
 
 _V1_1_CHECK_LABELS: dict[str, tuple[str, str]] = {
+    "named_live_triggered": ("実際のLive開始で誘発", "真实Live开始时触发"),
+    "named_live_candidates": ("同名メンバー2人を候補として表示", "两名同名Member均作为候选"),
+    "named_live_no_auto_first": ("最初の候補を自動で選ばない", "不自动选择第一名候选"),
+    "named_live_one_selected": ("選んだ1人だけに加算", "只为选定一人添加加成"),
+    "named_live_blade_duration": ("Blade+1はLive終了まで", "Blade+1持续到Live结束"),
+    "named_live_finished": ("選択後にエールへ進行", "选择后正常进入应援"),
     "moved_source_wait_at_trigger": ("移動時はウェイト", "移动触发时为Wait"),
     "moved_source_ready": ("元のメンバーがアクティブ", "原来源Member变为Active"),
     "moved_source_finished": ("待機能力は正常終了", "待机能力正常结束"),

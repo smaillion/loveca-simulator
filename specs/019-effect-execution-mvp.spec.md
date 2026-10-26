@@ -1,5 +1,22 @@
 # 019 Effect Execution MVP Specification
 
+## Public Named Single Target At Resolution
+
+`EffectChoice.selection_policy=public_single_as_much_as_possible` is restricted
+to a mandatory, costless Live-start ability selecting one own top Stage Member
+by one exact normalized name, then giving only that selected Member Blade+1 for
+the Live. It is invalid in cost/follow-up choices or other operations. No SQL or
+Card Schema change is involved; None remains omitted for old snapshots.
+
+The trigger queues even with no currently eligible target. Native resolution
+recomputes candidates: exactly one must be chosen if possible; if none exists,
+the bounds become zero and the ability ends with
+`effect_operation_not_applied/no_legal_stage_member_at_resolution`. This is not
+optional decline or the private-hand permission to choose none despite eligible
+cards. Other ordered effects can introduce or remove a target before selection.
+Old structured snapshots without this policy retain their historical queue
+eligibility checks, and old manual snapshots stay manual.
+
 ## Bounded Occupied Deployment Observer Policy
 
 The additional explicit value `require_complete_source_bindings` includes the

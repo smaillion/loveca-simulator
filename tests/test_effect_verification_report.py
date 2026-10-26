@@ -28,6 +28,7 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
         "activated_energy_inspect4_reorder",
         "moved_wait_source_ready",
         "moved_source_departure_reentry",
+        "live_start_named_chisato_selected_blade",
     }.issubset(scenario_ids)
     assert "registry_contract_PL!S-sd1-006_1" in scenario_ids
     assert "registry_contract_PL!N-bp5-005_1" in scenario_ids

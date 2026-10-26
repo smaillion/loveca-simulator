@@ -335,6 +335,24 @@
       "acceptance": ["先复现入场/附属/其他公开来源的未绑定技能被当作无技能，记录PDF9.3.4/9.7.2/10.1.2/10.4.1依据", "显式operation策略在已有Member区域登场前核对双方Stage及表向Live有效来源全文和identity，未知/常时/继承/未支持跨玩家时点拒绝且不支付费用", "保留旧operation和Replay行为，真实状态/SQL Replay/四AI/隐藏信息及中日UI限制说明有断言", "不晋级六张重叠卡，不改Card/SQL schema或旧dirty工作树，固定AI及全部profiles通过，只更新Draft PR54"]
     },
     {
+      "id": "live-start-named-chisato-selected-blade",
+      "priority": 0,
+      "title": "精确适配Live开始时指定姓名一人获得临时Blade",
+      "status": "queued",
+      "depends_on": ["moved-source-original-stage-ready", "overlap-complete-public-source-binding"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["按实际PL!SP-bp7-025:1全文/revision/hash绑定，不模糊姓名匹配、不把一人解释为所有或自动取第一张", "真实Live开始入队、合法目标显式选择、多份同名/Wait/对手/附属/手牌排除、零目标明确结果、非法目标原子性和Live清理有状态断言", "旧manual snapshot及SQLite Replay、四AI/双方隐藏信息与既有UI选择契约验证；新增图文状态场景与固定10局AI回归", "六条复杂登场继续逐项登记临时场面/继承未解决原因，不晋级；只将此段在专项通过后标test_validated，更新manifest和中日文档，同一Draft PR54不合并部署"]
+    },
+    {
+      "id": "named-multi-member-selection-audit",
+      "priority": 0,
+      "title": "审计两个姓名分别获得加成时的自动首目标选择",
+      "status": "queued",
+      "depends_on": ["live-start-named-chisato-selected-blade"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["先用实际PL!SP-bp1-024:1和PDF9.6.3.1复现同名多份自动选第一张的风险，不只检查候选字段", "有界实现两姓名独立选择与部分姓名无目标的结算，或证据不足时降级manual并明确原因；不得套用单目标policy伪造支持", "Heart/Blade选中目标一致，目标出现/离场/Live清理、非法选择原子性、旧snapshot/SQL Replay/四AI/隐藏信息和原生UI均有断言", "更新中文卡图报告、当前真实覆盖率和manifest，固定AI与全部profile通过，同一Draft PR54不合并部署"]
+    },
+    {
       "id": "effect-accuracy-loop",
       "priority": 3,
       "title": "按实际触发与规则风险扩展技能支持",

@@ -3,8 +3,8 @@
   "branch": "codex/continuous-development",
   "base_ref": "origin/develop",
   "pull_request": 54,
-  "source_head": "e7158ef2978f2510d474361e77cd6512bfede644",
-  "generated_at": "2026-10-26T01:13:28.071552+00:00",
+  "source_head": "7c74cd9c4bc6c583f944242a8725950054fcd9cb",
+  "generated_at": "2026-10-26T02:03:23.948372+00:00",
   "task_states": {
     "codex-cloud-handoff-preparation": "done",
     "ci-card-preview-printing-race": "done",
@@ -42,7 +42,9 @@
     "activated-energy-inspect4-reorder": "done",
     "player-payload-deck-privacy-audit": "done",
     "moved-source-original-stage-ready": "done",
-    "overlap-complete-public-source-binding": "in_progress",
+    "overlap-complete-public-source-binding": "done",
+    "live-start-named-chisato-selected-blade": "in_progress",
+    "named-multi-member-selection-audit": "queued",
     "effect-accuracy-loop": "queued",
     "phase6-conformance-matrix": "queued"
   }

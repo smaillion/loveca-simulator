@@ -91748,8 +91748,8 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution",
-          "amount": null,
+          "action_type": "gain_blade",
+          "amount": 1,
           "amount_source": null,
           "branch": null,
           "card_type": null,
@@ -91757,13 +91757,21 @@
           "flag": null,
           "multiplier": null,
           "orientation": null,
-          "target": null,
+          "target": "selected",
           "target_hand_size": null,
           "value": null
         }
       ],
       "card_code": "PL!SP-bp7-025",
-      "choice": null,
+      "choice": {
+        "card_type": "member",
+        "choice_type": "member_from_stage",
+        "maximum": 1,
+        "minimum": 1,
+        "name_ja_any": ["嵐 千砂都"],
+        "selection_policy": "public_single_as_much_as_possible",
+        "zone": "stage"
+      },
       "condition": {},
       "cost": [],
       "cost_choice": null,
@@ -91771,15 +91779,15 @@
       "effect_id": "PL!SP-bp7-025:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "prompt_then_resolve",
       "follow_up_choice": null,
       "frequency_limit": "once_per_live",
       "is_optional": false,
       "label_ja": "【ライブ開始時】ライブ終了時まで、自分のステージにいる「嵐 千砂都」1人は【ブレード】を得る。",
       "raw_text_hash": "76ad7caa94837eb2944d4236b2339690552e985a14129513e981c03cf8e0ad39",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 928,
       "timing": "live_start",
       "trigger": "live_started"
