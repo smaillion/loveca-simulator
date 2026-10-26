@@ -7421,6 +7421,11 @@ def _inspection_choice_candidates(
             for item in candidates
             if choice.work_key in state.cards[item].card.work_keys
         ]
+    if getattr(choice, "exclude_blade_heart", False):
+        candidates = [
+            item for item in candidates
+            if not _card_has_blade_heart(state.cards[item].card)
+        ]
     if choice.unit_key:
         candidates = [
             item

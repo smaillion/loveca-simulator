@@ -3288,6 +3288,27 @@ describe("App", () => {
     });
   });
 
+  it.each(["PL!N-sd2-009:1", "PL!N-sd2-012:1", "PL!N-sd2-014:1", "PL!N-bp7-018:1"])("allows keeping zero inspected cards for %s without selecting an ineligible card", (effectId) => {
+    const onAction = vi.fn();
+    const label = "【登場】『虹ヶ咲』のカードを1枚公開して手札に加えてもよい。";
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, effect_definitions: {
+      [effectId]: { ...INSPECTION_MATCH_PAYLOAD.state.effect_definitions["PL!-bp6-002:1"], effect_id: effectId, label_ja: label },
+    } };
+    const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], options: {
+      ...INSPECTION_MATCH_PAYLOAD.legal_actions[0].options, effect_id: effectId,
+    } };
+    render(<InspectionChoiceAction action={action as never} state={state as never} loading={false}
+      onAction={onAction} title="检查结果" submitLabel="确认检索" />);
+    expect(screen.getByText(label)).toBeInTheDocument();
+    expect(screen.getByText("不符合条件")).toBeInTheDocument();
+    const confirm = screen.getByRole("button", { name: "确认检索" });
+    expect(confirm).toBeEnabled();
+    fireEvent.click(confirm);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_1", {
+      selected_card_instance_ids: [], ordered_card_instance_ids: undefined,
+    });
+  });
+
   it("requires all four inspected cards and submits their edited deck-top order", () => {
     const onAction = vi.fn();
     const ids = ["peek-0", "peek-1", "peek-2", "peek-3"];

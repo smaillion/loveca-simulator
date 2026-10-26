@@ -35,6 +35,10 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
         "live_start_discard2_decline",
         "live_start_wait_nijigasaki_blade",
         "live_start_wait_nijigasaki_heart",
+        "onplay_nijigasaki_inspect_009",
+        "onplay_nijigasaki_inspect_012",
+        "onplay_nijigasaki_inspect_014",
+        "onplay_nijigasaki_no_blade_heart",
     }.issubset(scenario_ids)
     assert "registry_contract_PL!S-sd1-006_1" in scenario_ids
     assert "registry_contract_PL!N-bp5-005_1" in scenario_ids

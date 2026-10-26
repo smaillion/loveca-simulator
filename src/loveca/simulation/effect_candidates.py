@@ -2619,6 +2619,35 @@ def _onplay_optional_discard_inspect_keep1_any(
     )
 
 
+def _nijigasaki_onplay_inspection(row: sqlite3.Row) -> EffectCandidate | None:
+    patterns = {
+        "【登場】自分のデッキの上からカードを3枚見る。その中から『虹ヶ咲』のカードを1枚公開して手札に加えてもよい。残りを控え室に置く。": (3, False, False),
+        "【登場】手札を1枚控え室に置いてもよい：自分のデッキの上からカードを3枚見る。その中から『虹ヶ咲』のカードを1枚公開して手札に加えてもよい。残りを控え室に置く。": (3, True, False),
+        "【登場】手札を1枚控え室に置いてもよい：自分のデッキの上からカードを5枚見る。その中からブレードハートを持たない『虹ヶ咲』のメンバーカードを1枚公開して手札に加えてもよい。残りを控え室に置く。": (5, True, True),
+    }
+    for label, (amount, discard, no_blade_heart) in patterns.items():
+        matched = _matching_segment(row, label)
+        if matched is None:
+            continue
+        choice = {
+            "choice_type": "inspect_top_select", "amount": amount, "minimum": 0, "maximum": 1,
+            "requires_order": False, "work_key": "nijigasaki", "selected_destination": "hand",
+            "unselected_destination": "waiting_room", "reveal_selected_to_opponent": True,
+        }
+        if no_blade_heart:
+            choice.update(card_type="member", exclude_blade_heart=True)
+        return EffectCandidate(
+            **_base(row, pattern_id=f"nijigasaki_onplay_inspect{amount}_discard{int(discard)}_no_blade_heart{int(no_blade_heart)}", effect_index=matched[0]),
+            label_ja=label, effect_type="triggered", timing="on_play", trigger="member_played",
+            frequency_limit="none", is_optional=discard, condition={},
+            cost=[{"action_type": "discard_from_hand"}] if discard else [],
+            cost_choice={"choice_type": "card_from_zone", "zone": "hand", "minimum": 1, "maximum": 1} if discard else None,
+            choice=choice, actions=[{"action_type": "inspect_top_cards", "amount": amount},
+                {"action_type": "select_to_hand_from_inspected"}, {"action_type": "move_remaining_cards"}], duration=None,
+        )
+    return None
+
+
 def _onplay_optional_discard_inspect_keep1_filtered(
     row: sqlite3.Row,
 ) -> EffectCandidate | None:
@@ -15211,6 +15240,7 @@ _PATTERNS = (
     _onplay_draw_then_discard_one,
     _onplay_named_baton_draw_then_discard,
     _onplay_optional_discard_inspect_keep1_any,
+    _nijigasaki_onplay_inspection,
     _onplay_optional_discard_inspect_keep1_filtered,
     _onplay_inspect_keep_filtered,
     _onplay_inspect_keep_more_filtered,

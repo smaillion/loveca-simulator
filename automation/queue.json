@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "nijigasaki-onplay-inspection-family",
+      "priority": 0,
+      "title": "精确适配虹咲登场检索及可选费用与公开边界",
+      "status": "queued",
+      "depends_on": ["live-start-wait-nijigasaki-source-bonus"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["按当前revision/hash精确绑定PL!N-sd2-009:1、012:1、014:1及PL!N-bp7-018:1，不模糊匹配，不升级reviewed", "真实登场、可选弃牌费用、可选零张、作品及无Blade Heart筛选有状态断言，非法选择原子拒绝", "私有查看仅自己可见，最终公开卡能被对手确认；四AI只提交LegalAction，SQL Replay及旧manual快照不变", "图文报告逐卡展示真实状态转换，固定AI十局回归不冒充新卡随机触发；保留复杂重叠unresolved与旧dirty工作树"]
+    },
+    {
       "id": "codex-cloud-handoff-preparation",
       "priority": -3,
       "title": "准备 Codex Cloud 单写者交接与可移植进度",

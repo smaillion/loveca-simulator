@@ -38,6 +38,7 @@ from loveca.simulation.models import (
     GameEvent,
     MatchState,
     PlayerState,
+    SpecialBladeHeart,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -187,6 +188,10 @@ def _v1_1_dynamic_scenarios(
     database_path: Path,
 ) -> list[ScenarioResult]:
     cases = (
+        ("onplay_nijigasaki_inspect_009", "虹咲3枚確認・任意公開", "虹咲：查看3张并可选公开回收", "PL!N-sd2-009:1", _run_nijigasaki_inspection),
+        ("onplay_nijigasaki_inspect_012", "手札費用・虹咲3枚確認", "虹咲：弃牌费用后查看3张", "PL!N-sd2-012:1", _run_nijigasaki_inspection),
+        ("onplay_nijigasaki_inspect_014", "同文別カードの虹咲確認", "虹咲：相同文本另一张卡的真实结算", "PL!N-sd2-014:1", _run_nijigasaki_inspection),
+        ("onplay_nijigasaki_no_blade_heart", "Blade Heartなしの虹咲Member検索", "虹咲：排除全部Blade Heart的Member检索", "PL!N-bp7-018:1", _run_nijigasaki_inspection),
         (
             "live_start_wait_nijigasaki_blade", "彼方: 自身を費用でウェイトにしBlade2",
             "彼方：自身作Wait费用获得Blade2，但不贡献应援", "PL!N-sd2-006:1", _run_live_wait_bonus,
@@ -411,6 +416,41 @@ def _v1_1_dynamic_scenarios(
             )
         )
     return results
+
+
+def _run_nijigasaki_inspection(effect: EffectDefinition) -> dict[str, bool]:
+    from loveca.webapp import _match_state_payload
+    source = _v1_1_member("source", effect.card_code, cost=0, card_code=effect.card_code, effect_ids=[effect.effect_id])
+    cards = [source, *[_v1_1_member(key, "AUDIT-" + key, work_keys=["nijigasaki"])
+                       for key in ("cost", "good", "special", "wrong", "other", "tail", "last")]]
+    for item in cards[1:]:
+        item.face_up = False
+    cards[3].card.special_blade_hearts = [SpecialBladeHeart(effect_type="draw", value=1, source_alt="ドロー")]
+    cards[4].card.work_keys = ["love_live_superstar"]
+    state = _v1_1_state({effect.effect_id: effect}, cards, hand=["source", "cost"])
+    state.players["player_1"].main_deck = ["good", "special", "wrong", "other", "tail", "last"]
+    played = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1", expected_revision=0,
+        payload={"card_instance_id": "source", "slot": "center", "energy_instance_ids": [], "use_baton_touch": False}))
+    cost_ids = ["cost"] if effect.cost else []
+    inspected = apply_action(played.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=played.state.revision, payload={"invocation_id": played.state.pending_effects[0].invocation_id,
+            "accepted": True, "selected_card_instance_ids": cost_ids}))
+    choice = inspected.state.pending_choice
+    other = _match_state_payload(inspected.state, events=inspected.events, legal_actions=inspected.legal_actions, player_id="player_2")
+    result = apply_action(inspected.state, ActionRequest(action_type="resolve_effect_choice", player_id="player_1",
+        expected_revision=inspected.state.revision, payload={"selected_card_instance_ids": ["good"]}))
+    visible = _match_state_payload(result.state, events=result.events, legal_actions=result.legal_actions, player_id="player_2")
+    count = effect.choice.amount
+    return {
+        "niji_native_onplay": played.state.pending_effects[0].effect_id == effect.effect_id,
+        "niji_cost_before_look": ("cost" in inspected.state.players["player_1"].waiting_room) == bool(effect.cost),
+        "niji_exact_inspected": choice.options["inspected_card_instance_ids"] == state.players["player_1"].main_deck[:count],
+        "niji_filter": "wrong" not in choice.options["candidate_card_instance_ids"] and ("special" in choice.options["candidate_card_instance_ids"]) == (not effect.choice.exclude_blade_heart),
+        "niji_private_look": "good" not in other["state"]["cards"],
+        "niji_selected_public": any(c.get("instance_id") == "good" for e in visible["events"] for c in e["data"].get("revealed_cards", [])),
+        "niji_final_zones": result.state.players["player_1"].hand == (["cost", "good"] if not effect.cost else ["good"]) and set(result.state.players["player_1"].waiting_room) == (set(state.players["player_1"].main_deck[:count]) - {"good"}) | set(cost_ids),
+        "niji_finished": not result.state.pending_effects and result.state.pending_choice is None,
+    }
 
 
 def _run_live_wait_bonus(effect: EffectDefinition) -> dict[str, bool]:
@@ -1276,6 +1316,14 @@ def _load_visuals_for_effect_ids(
 
 
 _V1_1_CHECK_LABELS: dict[str, tuple[str, str]] = {
+    "niji_native_onplay": ("登場から正しい能力が待機", "实际登场后正确技能待机"),
+    "niji_cost_before_look": ("確認前に手札費用を支払い", "先支付弃牌费用再查看"),
+    "niji_exact_inspected": ("指定枚数だけ確認", "准确查看指定顶牌"),
+    "niji_filter": ("作品とBlade Heart条件を照合", "正确筛选作品与Blade Heart条件"),
+    "niji_private_look": ("確認中のカードは相手に非公開", "查看中的卡牌不泄露给对手"),
+    "niji_selected_public": ("選んだ1枚は相手にも公開", "对手能确认最终公开的一张"),
+    "niji_final_zones": ("選択は手札・残りは控室", "选定卡进手牌，其余进控室"),
+    "niji_finished": ("確認後に待機が残らない", "处理后无残留选择或待机"),
     "wait_cost_only_selected": ("費用の1人だけウェイト", "只有选定费用成员变为Wait"),
     "wait_bonus_source_only": ("費用対象でなく誘発元だけ加算", "加成只给来源，不误给费用目标"),
     "wait_blade_not_yelled": ("ウェイトのBladeをエール枚数に加えない", "Wait成员的Blade不计应援张数"),

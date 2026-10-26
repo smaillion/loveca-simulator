@@ -3,9 +3,10 @@
   "branch": "codex/continuous-development",
   "base_ref": "origin/develop",
   "pull_request": 54,
-  "source_head": "ad82696739ccabe2963f5fe596ecc72ec7e3f91b",
-  "generated_at": "2026-10-26T03:40:26.212431+00:00",
+  "source_head": "53b9b13533734c710b45a83774b3d0aada2df74b",
+  "generated_at": "2026-10-26T04:16:18.768861+00:00",
   "task_states": {
+    "nijigasaki-onplay-inspection-family": "in_progress",
     "codex-cloud-handoff-preparation": "done",
     "ci-card-preview-printing-race": "done",
     "ci-clean-runner-temp-parent": "done",
@@ -46,7 +47,7 @@
     "live-start-named-chisato-selected-blade": "done",
     "named-multi-member-selection-audit": "done",
     "live-start-discard2-choose-heart": "done",
-    "live-start-wait-nijigasaki-source-bonus": "in_progress",
+    "live-start-wait-nijigasaki-source-bonus": "done",
     "effect-accuracy-loop": "queued",
     "phase6-conformance-matrix": "queued"
   }

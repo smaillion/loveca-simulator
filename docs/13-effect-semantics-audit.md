@@ -1,5 +1,16 @@
 # Effect Semantics Audit
 
+Nijigasaki on-play inspection checkpoint: exact segments `PL!N-sd2-009:1`,
+`PL!N-sd2-012:1`, `PL!N-sd2-014:1` and `PL!N-bp7-018:1` now execute native
+private look / optional public keep / discard remaining. The inspected-card
+candidate path now honors the existing `exclude_blade_heart` field; no previous
+official inspection snapshot used true. Colored and special Blade Hearts are
+excluded. Optional cost and optional keep are separate; rejected costs are atomic.
+102 targeted tests, 76 illustrated scenarios (37 state / 39 contract), 124 frontend
+tests. Registry912/1212 (75.25%),300manual; no reviewed promotion. The fixed10
+AI matches do not exercise these four effects and are regression evidence only.
+[Chinese evidence](development/nijigasaki-inspection-verification.md).
+
 Nijigasaki Wait-cost checkpoint: exact `PL!N-sd2-006:1` and
 `PL!N-bp7-012:1` use one own Active Stage Member as cost and source-only
 Blade2/chosen Heart1. The bounded `original_live_start_wait_cost_source`

@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+新增虹咲登场检索4段（`PL!N-sd2-009/012/014:1`、`PL!N-bp7-018:1`）：区分可选弃牌费用、允许选零张、无Blade Heart条件。查看中的卡只有本人能看到，最终公开的一张能由对手确认。登记912/1212（75.25%），300条manual。[卡图与真实状态验证](./docs/development/nijigasaki-inspection-verification.md)
+
 新增 `PL!N-sd2-006:1` 近江彼方、`PL!N-bp7-012:1` 鐘 嵐珠：选择己方Active虹咲成员Wait作费用，仅给来源自身Blade+2或指定颜色Heart+1。可以选择来源自身，但Wait成员的Blade不计应援；离场同ID回场不继承加成。登记908/1212（74.92%），304条manual。[卡图与验证](./docs/development/live-wait-cost-verification.md)
 
 新增 `PL!N-sd2-005:1` 宮下 愛的“弃两张手牌，选择一种颜色获得两颗Heart”。费用卡与颜色一起确认，同时修复已有四条同类能力缺少颜色控件的问题。来源离场后同ID回场不会继承加成。登记906/1212（74.75%），306条manual。[卡图与验证](./docs/development/live-discard-color-verification.md)

@@ -4,6 +4,13 @@
 
 ### Experimental resource-cycle policy
 
+All policies use the native inspected candidate set, including work / Member /
+Blade Heart filters, and may keep zero when the ability says optional. Paying a
+hand cost and choosing an inspected card remain separate decisions; the cost is
+never paid twice. An opponent's hidden cards and private inspection options must
+not affect decisions. Four Nijigasaki on-play effects have per-policy state tests;
+the fixed10 benchmark does not contain their triggers and is not strength evidence.
+
 Native `original_live_start_wait_cost_source` effects may offer one own Active
 Nijigasaki Stage Member as a cost, including the source. Costs are not modifier
 targets. AI must consume the native candidate list and optional color flag;
