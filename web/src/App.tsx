@@ -4283,6 +4283,11 @@ function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): st
   }
   if (event.event_type === "effect_operation_not_applied"
       && event.data.reason === "original_source_stage_member_departed") {
+    if (event.data.operation === "gain_heart") {
+      return locale === "zh"
+        ? "来源 Member 曾离开 Stage，不向控室或重新登场的卡牌添加 Heart；能力已结束。"
+        : "誘発元が一度ステージを離れたため、控え室や再登場したカードにハートを加えず解決しました。";
+    }
     return locale === "zh"
       ? "来源 Member 曾离开 Stage，不复原控室或重新登场的卡牌；能力已结束。"
       : "誘発元が一度ステージを離れたため、控え室や再登場したカードをアクティブにせず解決しました。";
@@ -5117,6 +5122,7 @@ export function EffectResolutionAction({
     choice_zone?: string;
     choice_orientation?: string;
     color_slots?: string[];
+    requires_color_choice?: boolean;
     energy_instance_ids?: string[];
     energy_required?: number;
     branch_ids?: string[];
@@ -5177,7 +5183,7 @@ export function EffectResolutionAction({
     ? current.card_selection_maximum ?? Math.max(minimumCards, current.candidate_card_instance_ids.length)
     : 0;
   const colorSlots = current.color_slots ?? [];
-  const requiresColor = choiceType === "choose_color";
+  const requiresColor = choiceType === "choose_color" || current.requires_color_choice === true;
   const requiresCount = choiceType === "choose_count";
   const branchIds = current.branch_ids ?? [];
   const isBranchChoice = choiceType === "choose_effect_branch";

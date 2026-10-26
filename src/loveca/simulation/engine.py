@@ -2855,7 +2855,7 @@ def _queue_triggered_effects(
                     )
                 )
                 continue
-            if _original_moved_source_ready(effect):
+            if _captures_original_stage_source(effect):
                 invocation.trigger_data["original_source_stage_object"] = True
             state.pending_effects.append(invocation)
             events.append(
@@ -2879,6 +2879,12 @@ def _original_moved_source_ready(effect: Any) -> bool:
     return bool(effect and any(
         op.source_object_policy == "original_moved_stage_member" for op in effect.actions
     ))
+
+
+def _captures_original_stage_source(effect: Any) -> bool:
+    return bool(effect and any(op.source_object_policy in {
+        "original_moved_stage_member", "original_live_start_heart_source",
+    } for op in effect.actions))
 
 
 def _queue_member_moved_effects(
@@ -4755,6 +4761,9 @@ def _effect_resolution_options(
         options["card_selection_minimum"] = effect.cost_choice.minimum
         options["card_selection_maximum"] = effect.cost_choice.maximum
         options["cost_choice"] = effect.cost_choice.model_dump()
+        if _effect_accepts_color_choice(effect):
+            options["requires_color_choice"] = True
+            options["color_slots"] = list(effect.choice.color_slots)
     elif (
         follow_up_choice is not None
         or (effect.choice is not None and not _effect_uses_inspection_choice(effect))
@@ -7562,6 +7571,16 @@ def _execute_operations(
             selected_ids,
             selected_ids_by_group,
         )
+        if operation.source_object_policy == "original_live_start_heart_source":
+            if invocation.trigger_data.get("original_source_stage_object") is not True:
+                raise IllegalActionError("original source Stage snapshot is missing")
+            if (invocation.trigger_data.get("original_source_stage_object_departed") is True
+                    or not _is_stage_member_instance(state, invocation.source_card_instance_id)):
+                events.append(GameEvent(event_type="effect_operation_not_applied", player_id=invocation.player_id,
+                    data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                          "source_card_instance_id": invocation.source_card_instance_id,
+                          "operation": operation_type, "reason": "original_source_stage_member_departed"}, source="system"))
+                continue
         if (effect.choice and effect.choice.selection_policy == "public_named_groups_as_much_as_possible"
                 and not operation_selected_ids):
             events.append(GameEvent(
@@ -11528,7 +11547,7 @@ def _clear_departed_card_modifiers(
         if (
             invocation.source_card_instance_id in instance_ids
             and invocation.trigger_data.get("original_source_stage_object") is True
-            and _original_moved_source_ready(state.effect_definitions.get(invocation.effect_id))
+            and _captures_original_stage_source(state.effect_definitions.get(invocation.effect_id))
         ):
             invocation.trigger_data["original_source_stage_object_departed"] = True
     if state.stage_departure_policy != "clear_departed_card_modifiers":

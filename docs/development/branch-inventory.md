@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+弃牌选色检查点：同一continuous分支新增`PL!N-sd2-005:1`，来源对象快照防止离场同ID再入场误加成；费用与颜色组合UI同时修复既有四条登记。906/1212、306manual，48专项、70图文、固定10局AI合格，见`live-discard-color-verification.md`。重叠父任务和旧44/6项dirty仍保留，不合并部署，只更新Draft PR54。
+
 双姓名Live检查点：同一continuous分支修复Tiny Stars `PL!SP-bp1-024:1` 自动首张选择，改为两组独立显式选人；缺席组不取消另一组，旧auto Replay保留。登记仍905/1212、307manual；68图文场景，固定10局AI合格。见 `named-live-group-verification.md`。六条复杂登场、旧44/6项dirty与ignored报告不改，只更新Draft PR54，不合并部署。
 
 公开来源检查点：同一continuous分支为受控重叠登场增加显式完整绑定策略，核对双方公开Stage/附属/表向Live与入场候补，不读隐藏手牌/牌库/背面Live。来源未知导致全区域受阻时不支付费用，原生手动处理与AI可读暂停均有验证。见 `overlap-source-binding-verification.md`；904/1212不变，六卡仍manual，完整继承父任务继续。原44/6项dirty不改，只更新Draft PR54，不合并部署。

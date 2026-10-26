@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+新增 `PL!N-sd2-005:1` 宮下 愛的“弃两张手牌，选择一种颜色获得两颗Heart”。费用卡与颜色一起确认，同时修复已有四条同类能力缺少颜色控件的问题。来源离场后同ID回场不会继承加成。登记906/1212（74.75%），306条manual。[卡图与验证](./docs/development/live-discard-color-verification.md)
+
 修复 `PL!SP-bp1-024:1`「Tiny Stars」自动选择首张同名卡的问题：分别选择一名「澁谷かのん」与「唐 可可」，各自的Heart和Blade作用于同一选定目标。一方不在场时仍结算另一方，旧Replay行为保留。登记仍905/1212，属于准确性修正而非新增覆盖。[卡图与验证结果](./docs/development/named-live-group-verification.md)
 
 新增 `PL!SP-bp7-025:1`「Memories」：Live开始时显式选择己方场上一名「嵐 千砂都」，只为选定一人添加持续到Live结束的Blade+1。同名多份不自动取第一张；目标在结算时决定，不存在时明确显示原因并结束。登记905/1212（74.67%），307条manual。[卡图、状态与Replay验证](./docs/development/named-live-blade-verification.md)

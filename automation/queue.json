@@ -353,6 +353,15 @@
       "acceptance": ["先用实际PL!SP-bp1-024:1和PDF9.6.3.1复现同名多份自动选第一张的风险，不只检查候选字段", "有界实现两姓名独立选择与部分姓名无目标的结算，或证据不足时降级manual并明确原因；不得套用单目标policy伪造支持", "Heart/Blade选中目标一致，目标出现/离场/Live清理、非法选择原子性、旧snapshot/SQL Replay/四AI/隐藏信息和原生UI均有断言", "更新中文卡图报告、当前真实覆盖率和manifest，固定AI与全部profile通过，同一Draft PR54不合并部署"]
     },
     {
+      "id": "live-start-discard2-choose-heart",
+      "priority": 0,
+      "title": "精确适配Live开始弃两张手牌选择颜色获得两颗Heart",
+      "status": "queued",
+      "depends_on": ["continuous-workflow"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["用实际PL!N-sd2-005:1全文/revision/hash复现manual，精确登记既有弃手牌费用/颜色选择/自身Heart操作，不扩展重叠或继承", "Live开始、可选拒绝、费用恰好2张且只支付一次、六种颜色、非法颜色/重复费用原子拒绝、手牌不足和期限/来源离场均有状态断言", "新旧快照及SQLite Replay、四AI/隐藏信息、原生费用与颜色同次确认UI通过，图文报告和固定10局AI不冒充本卡随机实战覆盖", "全部profile及manifest/pre-push通过后才晋级test_validated；六条重叠卡保留temporary_overlap_stage_view_and_inheritance_unresolved，父任务未完成，不合并部署"]
+    },
+    {
       "id": "effect-accuracy-loop",
       "priority": 3,
       "title": "按实际触发与规则风险扩展技能支持",

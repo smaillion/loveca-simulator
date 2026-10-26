@@ -1,5 +1,15 @@
 # Effect Semantics Audit
 
+Optional discard/color checkpoint: exact `PL!N-sd2-005:1` uses two hand-card
+costs and one of six colors for two source Hearts through Live end. The bounded
+`original_live_start_heart_source` operation snapshot captures original Stage
+identity; a departed/re-entered source is not modified. Old snapshots retain
+their shape and behavior. Native cost options now expose required color input
+also used by four existing effects; this is not a new timing step. Registry
+906/1212 (74.75%),306manual,70 report scenarios (31 state/39 contract).
+The overlap parent remains unresolved under10.1.2/10.4.1/9.9.3; no six-card promotion.
+[Chinese card/state evidence](development/live-discard-color-verification.md).
+
 Independent named-group checkpoint: `PL!SP-bp1-024:1` now requires explicit
 selection for each named own Stage Member instead of taking the first copy.
 The opt-in `public_named_groups_as_much_as_possible` snapshot is restricted to

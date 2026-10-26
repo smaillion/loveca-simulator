@@ -31,6 +31,8 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
         "live_start_named_chisato_selected_blade",
         "live_start_named_kanon_keke_groups",
         "live_start_named_missing_group",
+        "live_start_discard2_choose_heart",
+        "live_start_discard2_decline",
     }.issubset(scenario_ids)
     assert "registry_contract_PL!S-sd1-006_1" in scenario_ids
     assert "registry_contract_PL!N-bp5-005_1" in scenario_ids

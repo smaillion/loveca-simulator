@@ -188,6 +188,14 @@ def _v1_1_dynamic_scenarios(
 ) -> list[ScenarioResult]:
     cases = (
         (
+            "live_start_discard2_choose_heart", "手札2枚を払い好きな色のハート2つ",
+            "弃两张手牌选择颜色获得两颗Heart", "PL!N-sd2-005:1", _run_live_discard_color,
+        ),
+        (
+            "live_start_discard2_decline", "手札2枚の任意費用を払わず終了",
+            "拒绝可选弃两张费用并正常结束", "PL!N-sd2-005:1", _run_live_discard_color_decline,
+        ),
+        (
             "live_start_named_kanon_keke_groups", "かのん・可可: 名前ごとに1人を選ぶ",
             "かのん与可可：分别选择一人获得Heart与Blade", "PL!SP-bp1-024:1", _run_named_live_groups,
         ),
@@ -395,6 +403,38 @@ def _v1_1_dynamic_scenarios(
             )
         )
     return results
+
+
+def _run_live_discard_color(effect: EffectDefinition, *, decline: bool = False) -> dict[str, bool]:
+    source = _v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id])
+    source.card.card_code = effect.card_code
+    state = _v1_1_state({effect.effect_id: effect}, [source, _v1_1_live("live", "監査Live"),
+        *[_v1_1_member(f"hand-{i}", f"費用候補{i}") for i in range(3)]],
+        member_area={"left": None, "center": "source", "right": None}, hand=[f"hand-{i}" for i in range(3)])
+    state.phase = "performance_first"
+    state.players["player_1"].live_area = ["live"]
+    state.cards["live"].face_up = False
+    started = apply_action(state, ActionRequest(action_type="advance_phase", player_id="player_1", expected_revision=0))
+    invocation = started.state.pending_effects[0]
+    options = next(a for a in started.legal_actions if a.action_type == "resolve_effect").options["invocations"][0]
+    result = apply_action(started.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=started.state.revision, payload={"invocation_id": invocation.invocation_id,
+            "accepted": not decline, "selected_card_instance_ids": [] if decline else ["hand-0", "hand-1"],
+            **({} if decline else {"selected_color_slot": "heart06"})}))
+    player = result.state.players["player_1"]
+    return {
+        "color_cost_controls": options.get("requires_color_choice") is True and len(options["color_slots"]) == 6,
+        "color_cost_exact": len(player.hand) == (3 if decline else 1) and len(player.waiting_room) == (0 if decline else 2),
+        "color_cost_modifier": not player.manual_modifiers if decline else (
+            len(player.manual_modifiers) == 1 and player.manual_modifiers[0].color_slot == "heart06"
+            and player.manual_modifiers[0].amount == 2 and player.manual_modifiers[0].target_card_instance_id == "source"
+            and player.manual_modifiers[0].duration == "live"),
+        "named_live_finished": not result.state.pending_effects and result.state.phase == "yell_first",
+    }
+
+
+def _run_live_discard_color_decline(effect: EffectDefinition) -> dict[str, bool]:
+    return _run_live_discard_color(effect, decline=True)
 
 
 def _run_named_live_groups(effect: EffectDefinition, *, partial: bool = False) -> dict[str, bool]:
@@ -1195,6 +1235,9 @@ def _load_visuals_for_effect_ids(
 
 
 _V1_1_CHECK_LABELS: dict[str, tuple[str, str]] = {
+    "color_cost_controls": ("費用カードと6色を同時に選べる", "费用卡与六种颜色可同时选择"),
+    "color_cost_exact": ("承諾時だけ手札2枚を払う", "仅同意时恰好弃两张手牌"),
+    "color_cost_modifier": ("指定色2個・自身・Live期限を照合", "核对指定色两颗、自身目标与Live期限"),
     "named_groups_bounds": ("不在の名前だけ選択数0", "只有缺席姓名的选择数为0"),
     "named_groups_exact_modifiers": ("名前別の同一対象にHeartとBlade", "每组Heart与Blade准确作用于同一选中目标"),
     "named_groups_missing_reason": ("不在の理由を明示し残りを解決", "记录无目标原因且继续结算另一组"),

@@ -1192,13 +1192,15 @@ describe("App", () => {
       "誘発元のメンバーは一度ステージを離れたため、控え室や再登場したカードには加算しません。"],
     ["original_source_stage_member_departed", "来源 Member 曾离开 Stage，不复原控室或重新登场的卡牌；能力已结束。",
       "誘発元が一度ステージを離れたため、控え室や再登場したカードをアクティブにせず解決しました。"],
+    ["original_source_stage_member_departed", "来源 Member 曾离开 Stage，不向控室或重新登场的卡牌添加 Heart；能力已结束。",
+      "誘発元が一度ステージを離れたため、控え室や再登場したカードにハートを加えず解決しました。", "gain_heart"],
     ["no_legal_stage_member_at_resolution", "结算时没有合法的场上 Member，此项效果不适用，能力已结束。",
       "解決時に対象にできるメンバーがいないため、この効果を適用せず解決しました。"],
-  ])("shows why a triggered operation did not apply (%s)", async (reason, zh, ja) => {
+  ])("shows why a triggered operation did not apply (%s)", async (reason, zh, ja, operation = "") => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const matchCreate = { ...MATCH_PAYLOAD, events: [{
       event_type: "effect_operation_not_applied", player_id: "player_1", source: "system",
-      data: { effect_id: "AUDIT-result", reason },
+      data: { effect_id: "AUDIT-result", reason, operation },
     }] };
     vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
     render(<App />);
@@ -4107,6 +4109,34 @@ describe("App", () => {
         ...(!partial ? { kanon: ["player_1-M002"] } : {}), ...(partial !== "none" ? { keke: ["player_1-M003"] } : {}),
       },
     }));
+  });
+
+  it("requires both discard cards and an explicit Heart color in the same cost confirmation", () => {
+    const onAction = vi.fn();
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    for (const [id, name] of [["player_1-M002", "費用A"], ["player_1-M003", "費用B"]]) {
+      state.cards[id] = { ...state.cards[id], card: { ...state.cards[id].card, name_ja: name } };
+    }
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "discard-color", effect_id: "PL!N-sd2-005:1", source_card_instance_id: "player_1-M001",
+      label_ja: "【ライブ開始時】手札を2枚控え室に置いてもよい：好きなハートの色を1つ指定する。",
+      execution_mode: "prompt_then_resolve", is_optional: true, simulation_support: "test_validated_executable",
+      choice_type: "card_from_zone", choice_zone: "hand", requires_color_choice: true,
+      candidate_card_instance_ids: ["player_1-M002", "player_1-M003"], card_selection_minimum: 2, card_selection_maximum: 2,
+      color_slots: ["heart01", "heart02", "heart03", "heart04", "heart05", "heart06"],
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false}
+      onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /費用A/ }));
+    fireEvent.click(screen.getByRole("button", { name: /費用B/ }));
+    expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "紫色" }));
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "discard-color", accepted: true, selected_card_instance_ids: ["player_1-M002", "player_1-M003"],
+      energy_instance_ids: [], selected_color_slot: "heart06",
+    });
   });
 
   it("requires one explicit named Member choice instead of auto-selecting the first copy", () => {

@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+`PL!N-sd2-005:1` 宮下 愛の「手札2枚→指定色のハート2つ」に対応しました。費用カードと色を同時に確認できるようにし、同じUI不足があった既存4能力も修正しました。元のメンバーが離場して再登場した場合は加算しません。登録906/1212（74.75%）、306件manual。[カード画像・検証](./docs/development/live-discard-color-verification.md)
+
 `PL!SP-bp1-024:1`「Tiny Stars」の自動先頭選択を修正しました。「澁谷かのん」と「唐 可可」を名前ごとに1人選び、同じ対象にHeartとBladeを付与します。一方が不在でも他方を解決し、旧Replayは維持します。登録数は905/1212のままです。[カード画像・検証結果](./docs/development/named-live-group-verification.md)
 
 `PL!SP-bp7-025:1`「Memories」に対応しました。ライブ開始時、同名の「嵐 千砂都」が複数いても1人を明示的に選び、そのメンバーだけがLive終了までBlade+1を得ます。対象は解決時に選び、不在なら理由を表示して終了します。登録905/1212（74.67%）、307件manual。[カード画像・状態・Replay検証](./docs/development/named-live-blade-verification.md)

@@ -4,6 +4,12 @@
 
 ### Experimental resource-cycle policy
 
+Cost-card choices may additionally require `requires_color_choice` and expose
+`color_slots` in the same LegalAction. All policies must submit a legal cost and
+color atomically or decline an optional ability; no engine payment occurs during
+selection. Original-source departure is an explicit non-applied operation, not
+an AI error-skip. Default policy remains unchanged.
+
 All four policies consume native grouped bounds for
 `public_named_groups_as_much_as_possible`: one candidate for each present name,
 zero for an absent name. They must not bypass a required group, infer hidden

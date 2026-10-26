@@ -6304,6 +6304,15 @@ def _live_start_simple_modifiers(row: sqlite3.Row) -> EffectCandidate | None:
             "duration": "live",
             "is_optional": True,
         },
+        "【ライブ開始時】手札を2枚控え室に置いてもよい：好きなハートの色を1つ指定する。ライブ終了時まで、そのハートを2つ得る。": {
+            "suffix": "discard2_choose_any_heart2",
+            "cost": [{"action_type": "discard_from_hand"}],
+            "cost_choice": {"choice_type": "card_from_zone", "zone": "hand", "minimum": 2, "maximum": 2},
+            "choice": {"choice_type": "choose_color", "color_slots": ["heart01", "heart02", "heart03", "heart04", "heart05", "heart06"]},
+            "actions": [{"action_type": "gain_heart", "target": "source", "amount": 2,
+                         "source_object_policy": "original_live_start_heart_source"}],
+            "duration": "live", "is_optional": True,
+        },
         (
             "【ライブ開始時】手札のライブカードを1枚控え室に置いてもよい："
             "好きなハートの色を1つ指定する。"
