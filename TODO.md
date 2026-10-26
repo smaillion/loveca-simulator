@@ -9,6 +9,7 @@
 
 ### 新卡起动与未支持段落
 
+- `PL!S-bp2-005:1`独立审计完成，因“持有Heart”范围与最大3张专用处理缺证据，保守降为manual并记录`printed_heart_icon_scope_and_multi_keep_executor_unresolved`。21卡牌专项+5关联回归、214前端、173图文通过；真实覆盖914/1212、298manual，见`docs/development/multi-keep-inspection-audit.md`。这不是该技能已支持；旧Replay不改，后续需独立规则证据与受限新策略。下一批按实际manual触发重新取样，不能只重复低风险固定池或按牌组出现次数晋级。
 - 已复核三条`PL!S-pb1-013/014/015:1`混合Heart检索，165专项（含72颜色/数量/类型交叉边界）、213前端、172图文通过。筛选原实现正确，本批修正费用不足结束路径；见`docs/development/mixed-heart-inspection-audit.md`。本轮单弃牌扫描仅余`PL!S-bp2-005:1`独立待审：最多取3张不适用现有policy，且“持有”与“ハートに”文义及Blade Heart范围要先核对PDF，不能为覆盖率猜测实现。
 - 已复核5条Member/Liella费用兄弟文本，165专项、207前端、166图文通过；顶4/5/6、类型/作品和公开零张有逐卡断言。固定10局中`PL!SP-bp1-005:1`实际支付/查看/结算各5次。见`docs/development/member-liella-inspection-audit.md`。后续三条混合Heart已独立验收见上条，`PL!S-bp2-005:1`最多取3张继续单独待审。
 - 已复核六条作品/组合检索，192专项、197前端、156图文通过，见`docs/development/work-unit-inspection-audit.md`。费用不足可结束；明确作品/组合筛选、Member/Live、公开零张、四AI与旧SQL Replay。后续5条Member/Liella已单独验收见上条；其余3条混合Heart筛选及1条最多取3张另审，不扩大既有policy边界。

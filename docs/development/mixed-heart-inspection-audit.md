@@ -1,5 +1,7 @@
 # Member与Live混合Heart检索审计
 
+后续顶7最多取3张审计已完成保守隔离，见[报告](multi-keep-inspection-audit.md)；它没有继承本批信息栏结论，登记已相应下调。此文件保留历史数字。
+
 ## 本批结论
 
 三条已有可执行技能接入已验证的`triggered_inspection`费用检查。

@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+渡辺曜`PL!S-bp2-005:1`は「Heartを持つ」の範囲と上7枚から最大3枚取得の専用処理が未確認のため、保守的に手動へ戻しました。費用・確認は自動実行せず、任意辞退または手動処理を選べます。旧Replayは維持。正確な登録は914/1212（75.41%）、298manualです。[理由と互換性検証](./docs/development/multi-keep-inspection-audit.md)
+
 `PL!S-pb1-013/014/015:1`の登場時検索3件を再検証。MemberのHeartとLiveの必要Heartを区別し、指定色2以上・任意公開取得・費用不足時の終了を確認しました。165項の専用回帰と172項の図解検証、登録915/1212は据え置きです。[カードと検証範囲](./docs/development/mixed-heart-inspection-audit.md)
 
 Member/Liella!の登場時確認5件を再検証し、上4/5/6枚・カード種・作品指定と費用不足時の終了を確認しました。165項の専用回帰、166項の図解検証。固定10試合では葉月恋`PL!SP-bp1-005:1`の支払い・確認・解決を各5回記録。登録915/1212は据え置きです。[カードと証拠](./docs/development/member-liella-inspection-audit.md)

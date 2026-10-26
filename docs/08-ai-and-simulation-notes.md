@@ -1,5 +1,12 @@
 # AI and Simulation Notes
 
+Multi-keep audit: PL!S-bp2-005:1 is manual, not an automatically executable skill.
+Four policy versions explicitly decline its optional cost and persist the reason;
+there is no silent error-skip or private inspection.21 targeted card tests retain
+old SQL behavior as compatibility evidence only. Fixed10 does not trigger this
+card. Coverage is corrected to914/1212,298manual; defaultv1.1 stays unchanged.
+[Reason and audit limits](development/multi-keep-inspection-audit.md).
+
 Mixed-Heart follow-up:165 targeted assertions for three exact identities include
 four-policy paid/unpayable completion, privacy invariance and SQL Replay. Fixed10
 qualifies in3-9 turns but does not trigger these three.172 illustrated scenarios

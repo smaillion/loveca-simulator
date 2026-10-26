@@ -88,7 +88,6 @@ class RegistryContractScenario:
 _PHASE5_V1_CONTRACTS = (
     RegistryContractScenario("PL!-bp5-014:1", "上から見る・選択", "查看牌堆顶并选择", "member_played", "inspect_top_select", ("inspect_top_cards", "select_to_hand_from_inspected", "move_remaining_cards")),
     RegistryContractScenario("PL!HS-sd1-002:1", "Live 開始時の上から見る", "Live 开始时查看牌堆顶", "live_started", "inspect_top_select", ("inspect_top_cards", "select_to_hand_from_inspected", "move_remaining_cards", "gain_heart", "gain_blade")),
-    RegistryContractScenario("PL!S-bp2-005:1", "公開して手札へ", "公开后加入手牌", "member_played", "inspect_top_select", ("inspect_top_cards", "select_to_hand_from_inspected", "move_remaining_cards")),
     RegistryContractScenario("PL!S-bp6-005:1", "条件付き検索", "带条件检索", "member_played", "inspect_top_select", ("inspect_top_cards", "select_to_hand_from_inspected", "move_remaining_cards")),
     RegistryContractScenario("PL!SP-bp4-002:1", "必要 Heart 検索", "按所需 Heart 检索", "member_played", "inspect_top_select", ("inspect_top_cards", "select_to_hand_from_inspected", "move_remaining_cards")),
     RegistryContractScenario("PL!SP-sd1-009:1", "上から見る・残り控室", "查看牌堆顶并将其余送控室", "member_played", "inspect_top_select", ("inspect_top_cards", "select_to_hand_from_inspected", "move_remaining_cards")),
@@ -193,6 +192,8 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        ("multi_keep_manual_with_hand", "未確認の文義・手札ありでも手動", "文义待审：有费用也不自动执行", "PL!S-bp2-005:1", _run_multi_keep_manual_with_hand),
+        ("multi_keep_manual_empty_hand", "未確認の文義・手札なしは任意辞退", "文义待审：无手牌可明确拒绝", "PL!S-bp2-005:1", _run_multi_keep_manual_empty_hand),
         *(("mixed_heart_inspection_" + code, "MemberのHeart・Liveの必要Heartを区別 " + code,
            "区分Member持有Heart与Live必要Heart " + code, code + ":1", _run_adjacent_discard_inspection)
           for code in ("PL!S-pb1-013", "PL!S-pb1-014", "PL!S-pb1-015")),
@@ -466,6 +467,41 @@ def _v1_1_dynamic_scenarios(
             )
         )
     return results
+
+
+def _run_multi_keep_manual_boundary(effect: EffectDefinition, empty: bool) -> dict[str, bool]:
+    state = _v1_1_state({effect.effect_id: effect}, [
+        _v1_1_member("source", effect.card_code, cost=0, effect_ids=[effect.effect_id]),
+        _v1_1_member("hand-cost", "AUDIT-cost"), _v1_1_member("private-top", "AUDIT-private")],
+        hand=["source"] if empty else ["source", "hand-cost"])
+    state.players["player_1"].main_deck = ["private-top"]
+    played = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1", expected_revision=0,
+        payload={"card_instance_id": "source", "slot": "center", "energy_instance_ids": [], "use_baton_touch": False}))
+    action = ActionRequest(action_type="resolve_effect", player_id="player_1", expected_revision=played.state.revision,
+        payload={"invocation_id": played.state.pending_effects[0].invocation_id})
+    before = played.state.model_dump(mode="json")
+    rejected = False
+    try:
+        apply_action(played.state, action)
+    except IllegalActionError:
+        rejected = played.state.model_dump(mode="json") == before
+    action.payload["accepted"] = False
+    result = apply_action(played.state, action)
+    return {
+        "multi_keep_explicit_manual": effect.simulation_support == effect.execution_mode == "manual_resolution" and effect.review_status == "parsed_draft",
+        "multi_keep_auto_rejected": rejected,
+        "multi_keep_no_automatic_cost_or_peek": not any(e.event_type in {"effect_cost_paid", "effect_inspection_started", "effect_skipped"} for e in result.events),
+        "multi_keep_decline_no_zone_changes": result.state.players["player_1"].main_deck == ["private-top"] and result.state.players["player_1"].hand == ([] if empty else ["hand-cost"]),
+        "multi_keep_decline_finishes": not result.state.pending_effects and result.state.pending_choice is None,
+    }
+
+
+def _run_multi_keep_manual_with_hand(effect: EffectDefinition) -> dict[str, bool]:
+    return _run_multi_keep_manual_boundary(effect, False)
+
+
+def _run_multi_keep_manual_empty_hand(effect: EffectDefinition) -> dict[str, bool]:
+    return _run_multi_keep_manual_boundary(effect, True)
 
 
 def _run_private3_inspection(effect: EffectDefinition) -> dict[str, bool]:
@@ -1589,6 +1625,11 @@ def _load_visuals_for_effect_ids(
 
 
 _V1_1_CHECK_LABELS: dict[str, tuple[str, str]] = {
+    "multi_keep_explicit_manual": ("未確認範囲を手動登録", "未确认范围明确登记人工处理"),
+    "multi_keep_auto_rejected": ("自動解決を状態不変で拒否", "自动结算原子拒绝、状态不变"),
+    "multi_keep_no_automatic_cost_or_peek": ("費用・確認・エラーskipを自動実行しない", "不自动付费、查看或错误skip"),
+    "multi_keep_decline_no_zone_changes": ("辞退して手札と山札を保持", "拒绝后手牌与牌库保持"),
+    "multi_keep_decline_finishes": ("任意能力の辞退で待機を終了", "拒绝可选技能后结束待机"),
     "private3_all_types": ("作品・Member/Liveを制限せず選ぶ", "不同作品的Member或Live均可选"),
     "private3_exact_top": ("デッキ上3枚だけを確認", "只查看实际牌顶3张"),
     "private3_mandatory_keep": ("費用後は非公開で必ず1枚", "付款后必须私下取得1张"),

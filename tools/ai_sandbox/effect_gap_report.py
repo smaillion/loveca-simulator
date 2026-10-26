@@ -17,7 +17,11 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from loveca.simulation.effect_candidates import BATON_LOWER_COST_HAND_DEPLOY_TEXT
+from loveca.simulation.effect_candidates import (
+    BATON_LOWER_COST_HAND_DEPLOY_TEXT,
+    MULTI_KEEP_ICON_SCOPE_REASON,
+    MULTI_KEEP_ICON_SCOPE_TEXT,
+)
 from loveca.simulation.effects import (
     DEFAULT_EFFECT_REGISTRY,
     EffectDefinition,
@@ -246,6 +250,8 @@ def group_manual_effects(
 def classify_unresolved_reason(trigger: str, timing: str, label_ja: str) -> str:
     """Return a controlled reason instead of implying every manual effect is forgotten work."""
 
+    if label_ja == MULTI_KEEP_ICON_SCOPE_TEXT:
+        return MULTI_KEEP_ICON_SCOPE_REASON
     if label_ja == BATON_LOWER_COST_HAND_DEPLOY_TEXT:
         return "member_deployment_area_orientation_ui_ai_not_rules_conformant"
     if label_ja in UNRESTRICTED_NAMED_HAND_DEPLOY_TEXTS:
@@ -291,6 +297,8 @@ def priority_for_trigger(trigger: str, timing: str) -> int:
 
 
 def suggest_next_step(trigger: str, timing: str, label_ja: str) -> str:
+    if label_ja == MULTI_KEEP_ICON_SCOPE_TEXT:
+        return "review_printed_icon_scope_then_add_bounded_multi_keep_snapshot_policy"
     if label_ja == BATON_LOWER_COST_HAND_DEPLOY_TEXT:
         return "implement_rule_9_6_2_1_2_deployment_then_revalidate_exact_text"
     if "相手" in label_ja and ("選ぶ" in label_ja or "見る" in label_ja):

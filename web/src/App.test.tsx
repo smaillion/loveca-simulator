@@ -3703,6 +3703,27 @@ describe("App", () => {
   const memberLiellaInspectionEffectIds = ["PL!S-bp3-004:1", "PL!S-bp3-009:1", "PL!SP-bp1-005:1", "PL!SP-bp2-007:1", "PL!SP-pb2-017:1"];
   const mixedHeartInspectionEffectIds = ["PL!S-pb1-013:1", "PL!S-pb1-014:1", "PL!S-pb1-015:1"];
 
+  it("shows the exact multi-keep card text with manual control instead of automatic execution", () => {
+    const onAction = vi.fn();
+    const onManual = vi.fn();
+    const source = { invocation_id: "multi-keep-review", effect_id: "PL!S-bp2-005:1", source_card_instance_id: "player_1-M001", player_id: "player_1" };
+    const label = "【登場】手札を1枚控え室に置いてもよい：自分のデッキの上からカードを7枚見る。その中から【heart02】か【heart04】か【heart05】を持つメンバーカードを3枚まで公開して手札に加えてもよい。残りを控え室に置く。";
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, pending_effects: [source] };
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      ...source, label_ja: label, trigger: "member_played", timing: "on_play", execution_mode: "manual_resolution",
+      simulation_support: "manual_resolution", is_optional: true, candidate_card_instance_ids: [],
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false} onAction={onAction} onManual={onManual} />);
+    expect(document.body.textContent).toContain("カードを7枚見る");
+    expect(document.body.textContent).toContain("メンバーカードを3枚まで");
+    expect(screen.queryByRole("button", { name: "结算技能" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "结构化人工处理" }));
+    expect(onManual).toHaveBeenCalledWith(source);
+    expect(onAction).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "不使用" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", { invocation_id: "multi-keep-review", accepted: false });
+  });
+
   it.each(["PL!-bp3-010:1", "PL!-bp5-014:1", "PL!-bp6-004:1", "PL!-pb1-016:1", "PL!-sd1-011:1", "PL!-sd1-012:1", ...private3FamilyEffectIds, ...inspectionSiblingEffectIds, ...workUnitInspectionEffectIds, ...memberLiellaInspectionEffectIds, ...mixedHeartInspectionEffectIds])("can explicitly end the optional unpayable hand cost for %s", (effectId) => {
     const onAction = vi.fn();
     const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{

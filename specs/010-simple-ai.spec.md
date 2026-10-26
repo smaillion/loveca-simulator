@@ -4,6 +4,13 @@
 
 ### Experimental resource-cycle policy
 
+PL!S-bp2-005:1 is explicitly manual pending icon-scope review and a bounded
+multi-keep executor. All four policies legally decline this optional effect with
+reason decline_optional_manual_effect in persisted ai_action_selected events;
+they do not pay, inspect or label it automatically resolved. SQL Replay preserves
+old executable snapshots without reinterpreting their historical filters.
+Product defaultv1.1 is unchanged; this quarantine lowers coverage to914/1212.
+
 Three mixed-Heart inspection identities use explicit hand-cost availability.
 Four policy versions have paid/unpayable, privacy and non-mutation assertions.
 Member Heart and Live required Heart are separate card information; the legal

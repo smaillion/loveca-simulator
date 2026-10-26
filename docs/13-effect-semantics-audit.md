@@ -1,5 +1,15 @@
 # Effect Semantics Audit
 
+Multi-keep checkpoint: PL!S-bp2-005:1 is conservatively quarantined as manual,
+not asserted rules-correct. PDF2.1.3/2.7/2.9 alone does not settle its unqualified
+icon wording for this audit; no bounded up-to3 cost policy was added. Exact-text
+manual discovery and gap reason prevent automatic re-promotion.21 card tests and
+5 related regressions cover new manual guard/decline/control, four-policy decision
+logs and old SQL Replay; historical0-3 behavior is compatibility evidence only.
+214 frontend tests/build,173 illustrated cases (135 state/38 contract); fixed10
+does not trigger this card. Coverage914/1212 (75.41%),298manual; no engine/schema
+change or reviewed promotion. [Chinese evidence](development/multi-keep-inspection-audit.md).
+
 Mixed-Heart inspection checkpoint: three exact identities opt into the bounded
 hand-cost policy. Existing filtering correctly uses a Member's Heart field or a
 Live's required-Heart field, not Blade Heart/ALL or the other field.165 targeted

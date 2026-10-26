@@ -57,6 +57,8 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
         "work_unit_inspection_PL!HS-bp1-009",
         "member_liella_inspection_PL!S-bp3-004",
         "mixed_heart_inspection_PL!S-pb1-013",
+        "multi_keep_manual_with_hand",
+        "multi_keep_manual_empty_hand",
         "mixed_heart_inspection_PL!S-pb1-014",
         "mixed_heart_inspection_PL!S-pb1-015",
         "mixed_heart_unpayable_PL!S-pb1-013",

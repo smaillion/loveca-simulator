@@ -19,6 +19,12 @@ SOURCE_REFERENCE = (
     "Official card text; comprehensive rules ver. 1.06 restricted executor pattern"
 )
 
+MULTI_KEEP_ICON_SCOPE_TEXT = (
+    "【登場】手札を1枚控え室に置いてもよい：自分のデッキの上からカードを7枚見る。"
+    "その中から【heart02】か【heart04】か【heart05】を持つメンバーカードを3枚まで公開して手札に加えてもよい。残りを控え室に置く。"
+)
+MULTI_KEEP_ICON_SCOPE_REASON = "printed_heart_icon_scope_and_multi_keep_executor_unresolved"
+
 BATON_LOWER_COST_HAND_DEPLOY_TEXT = (
     "【登場】このメンバーよりコストが低いメンバーからバトンタッチして"
     "登場した場合、自分の手札からコスト4以下のメンバーカードを1枚"
@@ -2619,6 +2625,21 @@ def _onplay_optional_discard_inspect_keep1_any(
         ],
         duration=None,
     )
+
+
+def _onplay_multi_keep_icon_scope_manual(row: sqlite3.Row) -> EffectCandidate | None:
+    if row["card_code"] != "PL!S-bp2-005":
+        return None
+    matched = _matching_segment(row, MULTI_KEEP_ICON_SCOPE_TEXT)
+    if matched is None:
+        return None
+    base = _base_with_execution_mode(row, pattern_id="multi_keep_icon_scope_manual",
+                                    effect_index=matched[0], execution_mode="manual_resolution")
+    base.update(simulation_support="manual_resolution", review_status="parsed_draft",
+                source_reference=f"Official card text; unresolved_reason={MULTI_KEEP_ICON_SCOPE_REASON}; rules 1.06 2.1.3/2.7/2.9; docs/development/multi-keep-inspection-audit.md")
+    return EffectCandidate(**base, label_ja=matched[1], effect_type="triggered", timing="on_play",
+                           trigger="member_played", frequency_limit="none", is_optional=True,
+                           condition={}, cost=[], choice=None, actions=[{"action_type": "manual_resolution"}], duration=None)
 
 
 def _onplay_audited_discard_inspection(row: sqlite3.Row) -> EffectCandidate | None:
@@ -13484,30 +13505,6 @@ def _phase5_v1_inspection_effects(row: sqlite3.Row) -> EffectCandidate | None:
                 "reveal_selected_to_opponent": True,
             },
         },
-        "【登場】手札を1枚控え室に置いてもよい：自分のデッキの上からカードを7枚見る。その中から【heart02】か【heart04】か【heart05】を持つメンバーカードを3枚まで公開して手札に加えてもよい。残りを控え室に置く。": {
-            "suffix": "discard1_inspect7_colored_member_up_to3",
-            "timing": "on_play",
-            "trigger": "member_played",
-            "is_optional": True,
-            "cost": [{"action_type": "discard_from_hand"}],
-            "cost_choice": {
-                "choice_type": "card_from_zone",
-                "zone": "hand",
-                "minimum": 1,
-                "maximum": 1,
-            },
-            "choice": {
-                "choice_type": "inspect_top_select",
-                "amount": 7,
-                "card_type": "member",
-                "heart_color_slots_any": ["heart02", "heart04", "heart05"],
-                "minimum": 0,
-                "maximum": 3,
-                "selected_destination": "hand",
-                "unselected_destination": "waiting_room",
-                "reveal_selected_to_opponent": True,
-            },
-        },
         "【登場】自分のデッキの上からカードを2枚見る。その中から【heart02】と【heart04】と【heart05】をすべて持つメンバーカードを1枚公開して手札に加えてもよい。残りを控え室に置く。": {
             "suffix": "inspect2_member_all_three_hearts",
             "timing": "on_play",
@@ -15345,6 +15342,7 @@ _PATTERNS = (
     _onplay_baton_liella_energy7_place_two_wait_energy,
     _onplay_draw_then_discard_one,
     _onplay_named_baton_draw_then_discard,
+    _onplay_multi_keep_icon_scope_manual,
     _onplay_audited_discard_inspection,
     _onplay_optional_discard_inspect_keep1_any,
     _nijigasaki_onplay_inspection,

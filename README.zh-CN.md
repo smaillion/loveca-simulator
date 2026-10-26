@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+渡边曜`PL!S-bp2-005:1`的“持有Heart”范围及顶7最多取3张专用处理尚缺确认，已保守转回人工处理，不再自动付款或查看；可明确不使用，旧Replay保留。真实登记调整为914/1212（75.41%）、298manual。[原因与兼容性证据](./docs/development/multi-keep-inspection-audit.md)
+
 复核`PL!S-pb1-013/014/015:1`三条混合Heart检索：区分Member持有Heart与Live必要Heart，验证指定色至少2及公开零张，修正费用不足结束路径。165项专项、172项图文通过；登记仍915/1212。[卡图与证据](./docs/development/mixed-heart-inspection-audit.md)
 
 复核五条Member／Liella检索的顶4/5/6张、类型／作品筛选与费用不足结束路径。165项专项、166项图文验证通过；固定十局中叶月恋`PL!SP-bp1-005:1`真实支付、查看、结算各5次。登记仍915/1212。[卡图与逐卡证据](./docs/development/member-liella-inspection-audit.md)
