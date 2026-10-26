@@ -1,5 +1,15 @@
 # AI and Simulation Notes
 
+Manual-focused diagnostics are opt-in (`--manual-focus`), leaving the default pool
+and product policy unchanged.30 legal decks/30 matches produce6 completions and24
+explicit mandatory-manual stops. Current manual skills have80 queue events over42
+effect IDs,51 declines and28 blocked invocations; no error skips, illegal actions,
+runtime exceptions or Replay errors. Queue events are not proof that official
+conditions held. See the [Chinese report](development/manual-trigger-observation-audit.md).
+Gapv0.3 separates outcomes and legacy skip evidence instead of relabeling skips
+as triggers. Provenance binds src/sandbox Python, card DB, registry and manifest;
+it does not include credentials or hidden hands. Defaultv1.1 is unchanged.
+
 Multi-keep audit: PL!S-bp2-005:1 is manual, not an automatically executable skill.
 Four policy versions explicitly decline its optional cost and persist the reason;
 there is no silent error-skip or private inspection.21 targeted card tests retain

@@ -1,5 +1,16 @@
 # Effect Semantics Audit
 
+Actual-observation checkpoint: gapv0.3 ranks current manual entries by engine
+effect_triggered events, separating declines/error skips/manual blockers and
+legacy skip evidence.30 focused legal decks yield6 finished matches/24 explicit
+manual stops,80 manual queue events over42 IDs,51 declines and28 blocked
+invocations.125/127 executable invocations resolve;2 remain pending at blockers,
+not silent skips. This is not rules or release acceptance.12 observation tests
+plus existing gap/sandbox regressions cover privacy, non-mutation, log contracts,
+source fingerprints and deck legality. Registry914/1212 unchanged; next bounded
+audit is PL!-pb2-039:1 condition and Yell+10.
+[Chinese results and limits](development/manual-trigger-observation-audit.md).
+
 Multi-keep checkpoint: PL!S-bp2-005:1 is conservatively quarantined as manual,
 not asserted rules-correct. PDF2.1.3/2.7/2.9 alone does not settle its unqualified
 icon wording for this audit; no bounded up-to3 cost policy was added. Exact-text

@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+真实manual统计检查点：修正旧skip摘要不能代表触发，新增只输出effect ID/计数的事件观察与可选技能密集池。30合法牌组/30局，6完赛24人工停止，42种manual入队80次/辞退51/强制待机28，无非法/runtime/Replay错误。源码指纹和seed/牌组已记录；不作为发布门禁通过，登记914/1212不变。下一切片`PL!-pb2-039:1`条件和Yell+10，见`manual-trigger-observation-audit.md`；同PR54，旧44/6 dirty保留，不合并部署。
+
 最多取3张审计检查点：`PL!S-bp2-005:1`全文/revision/hash及cost13核对；文义范围与专用策略缺证据，保守回退manual，不猜测实现。21专项+5关联回归、214前端、173图文通过，新对局不自动付费/查看，四AI明确辞退，旧SQL Replay保留。登记下调914/1212、298manual，后续按实际manual触发取样，见`multi-keep-inspection-audit.md`。同Draft PR54，旧44/6 dirty及报告不动，不合并部署。
 
 混合Heart检索检查点：三条精确费用快照、165专项（72交叉边界）、213前端、172图文通过。固定10局均合格但三条未触发；登记915/1212不变，不改engine/Card/SQL schema与旧Replay。单弃牌扫描余1条`PL!S-bp2-005:1`独立审计多张取得及Blade Heart文义，不能直接扩大policy。见`mixed-heart-inspection-audit.md`；旧44/6 dirty和报告保留，同Draft PR54，不合并部署。

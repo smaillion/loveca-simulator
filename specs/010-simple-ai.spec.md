@@ -4,6 +4,15 @@
 
 ### Experimental resource-cycle policy
 
+Offline manual-focus diagnostics enrich the test pool without changing product
+policy or the default blackbox pool. Decision counts and deck frequency must not
+be called triggers: effect_triggered queue events, optional declines, explicit
+error skips and available mandatory-manual blockers are separate metrics.
+Observation code exports only effect IDs/counts, not private cards or action
+payloads. Provenance binds diagnostic inputs/code with deck/seed/policy details.
+30 focused matches:6 complete,24 manual stops,0 illegal/runtime/Replay errors;
+this does not satisfy a complete-game release gate. Defaultv1.1 stays unchanged.
+
 PL!S-bp2-005:1 is explicitly manual pending icon-scope review and a bounded
 multi-keep executor. All four policies legally decline this optional effect with
 reason decline_optional_manual_effect in persisted ai_action_selected events;

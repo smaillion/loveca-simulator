@@ -35,6 +35,7 @@ from loveca.simulation.models import (
     MatchState,
 )
 from loveca.simulation.service import MatchService
+from tools.ai_sandbox.effect_observations import diagnostic_source_fingerprint, observe_effects
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_REGISTRY = PROJECT_ROOT / "data_sources" / "effect-registry.v0.json"
@@ -77,6 +78,8 @@ class SandboxMatchSummary:
     seed: int | None = None
     policy_version: str = "heuristic_legacy"
     decision_reason_counts: dict[str, int] = field(default_factory=dict)
+    effect_observations: dict[str, dict[str, int]] = field(default_factory=dict)
+    source_fingerprint: str | None = None
 
 
 def main() -> int:
@@ -84,6 +87,10 @@ def main() -> int:
     parser.add_argument("--database", type=Path, default=Path("data/loveca.sqlite3"))
     parser.add_argument("--output", type=Path, default=Path("logs/ai_sandbox"))
     parser.add_argument("--decks", type=int, default=20)
+    parser.add_argument(
+        "--manual-focus", action="store_true",
+        help="Bias the offline deck pool toward manual skills without changing the default pool.",
+    )
     parser.add_argument("--matches", type=int, default=20)
     parser.add_argument("--max-actions", type=int, default=450)
     parser.add_argument(
@@ -123,12 +130,24 @@ def main() -> int:
     decks = (
         load_frozen_decks(args.deck_directory, args.decks)
         if args.deck_directory is not None
-        else build_decks(args.database, args.decks)
+        else build_decks(args.database, args.decks, manual_focus=args.manual_focus)
     )
     deck_summaries = [
         summarize_deck(args.database, deck)
         for deck in decks
     ]
+    source_fingerprint = diagnostic_source_fingerprint(PROJECT_ROOT)
+    (args.output / "provenance.json").write_text(
+        json.dumps({
+            "schema_version": "sandbox_provenance.v1",
+            "fingerprint_scope": "src-python+sandbox-python+card-db+registry+manifest",
+            "source_fingerprint": source_fingerprint,
+            "policy": args.policy, "manual_policy": args.manual_policy,
+            "manual_focus": args.manual_focus, "seed_base": args.seed_base,
+            "max_actions": args.max_actions, "decks": [asdict(deck) for deck in decks],
+        }, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
     match_summaries = run_matches(
         args.database,
         decks,
@@ -139,6 +158,7 @@ def main() -> int:
         policy_version=None if args.policy == "heuristic_legacy" else args.policy,
         seed_base=args.seed_base,
         match_start=args.match_start,
+        source_fingerprint=source_fingerprint,
     )
     write_outputs(args.output, decks, deck_summaries, match_summaries)
     print(f"Wrote sandbox report to {args.output / 'sandbox-report.md'}")
@@ -154,8 +174,12 @@ def load_frozen_decks(directory: Path, count: int) -> list[DeckList]:
     return [load_deck(path) for path in paths[:count]]
 
 
-def build_decks(database: Path, count: int) -> list[DeckList]:
+def build_decks(database: Path, count: int, *, manual_focus: bool = False) -> list[DeckList]:
     effect_priority = _load_effect_priority(DEFAULT_REGISTRY)
+    if manual_focus:
+        for effect in load_effect_registry(DEFAULT_REGISTRY).effects:
+            if effect.simulation_support == "manual_resolution":
+                effect_priority[effect.card_code] = 8
     members = _load_card_pool(database, "member", effect_priority)
     lives = _load_card_pool(database, "live", effect_priority)
     energies = _load_card_pool(database, "energy", effect_priority)
@@ -184,6 +208,18 @@ def build_decks(database: Path, count: int) -> list[DeckList]:
                 ),
             )
             live_codes = _window(live_source, work_cycle * 3, 3)
+            if manual_focus:
+                manual_lives = sorted(
+                    live_source,
+                    key=lambda item: (
+                        -effect_priority.get(item["card_code"], 0),
+                        _live_progress_cost(item), item["card_code"],
+                    ),
+                )
+                selected = [
+                    live_codes[0], *_window(manual_lives, work_cycle * 2, len(manual_lives)),
+                ]
+                live_codes = list({item["card_code"]: item for item in selected}.values())[:3]
             required_colors = _required_color_profile(live_codes)
             member_codes = _select_member_cards_for_progress(
                 member_by_work[work_key],
@@ -213,7 +249,7 @@ def build_decks(database: Path, count: int) -> list[DeckList]:
         decks.append(
             DeckList(
                 version=DECKLIST_VERSION,
-                name=f"Sandbox Deck {index + 1:02d}",
+                name=f"{'Manual' if manual_focus else 'Sandbox'} Deck {index + 1:02d}",
                 main_deck=tuple(
                     [
                         *(
@@ -321,6 +357,7 @@ def run_matches(
     policy_version: ControllerPolicyVersion | None = None,
     seed_base: int = 9000,
     match_start: int = 1,
+    source_fingerprint: str | None = None,
 ) -> list[SandboxMatchSummary]:
     if match_start < 1 or max_actions < 0 or not decks:
         raise ValueError("match_start and deck count must be positive; max_actions non-negative")
@@ -375,8 +412,11 @@ def run_matches(
                             payload=payload,
                         ),
                     )
-                except IllegalActionError as exc:
-                    blocker = "illegal_action"
+                except Exception as exc:
+                    blocker = (
+                        "illegal_action" if isinstance(exc, IllegalActionError)
+                        else "runtime_exception"
+                    )
                     blocker_detail = {
                         **describe_state(state, legal_actions),
                         "attempted_action": action_type,
@@ -447,6 +487,15 @@ def run_matches(
                 seed=seed_base + index,
                 policy_version=policy_version or "heuristic_legacy",
                 decision_reason_counts=dict(decision_reasons),
+                effect_observations=observe_effects(
+                    [event.model_dump(mode="json") for event in all_events],
+                    [item for action in legal_actions if action.action_type == "resolve_effect"
+                     for item in action.options.get("invocations", [])
+                     if item.get("simulation_support") == "manual_resolution"
+                     and not item.get("is_optional")]
+                    if blocker == "mandatory_manual_resolution" else [],
+                ),
+                source_fingerprint=source_fingerprint,
             )
             results.append(match_summary)
             if progress_path is not None:

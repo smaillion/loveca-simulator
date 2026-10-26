@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+新增技能密集30牌组诊断：6局正式完赛、24局停在明确人工技能；分别统计80次引擎入队、51次辞退、28个强制人工待机，不再把旧skip次数当触发。结果用于选择下一批技能，并非发布验收通过。[中文诊断报告](./docs/development/manual-trigger-observation-audit.md)
+
 渡边曜`PL!S-bp2-005:1`的“持有Heart”范围及顶7最多取3张专用处理尚缺确认，已保守转回人工处理，不再自动付款或查看；可明确不使用，旧Replay保留。真实登记调整为914/1212（75.41%）、298manual。[原因与兼容性证据](./docs/development/multi-keep-inspection-audit.md)
 
 复核`PL!S-pb1-013/014/015:1`三条混合Heart检索：区分Member持有Heart与Live必要Heart，验证指定色至少2及公开零张，修正费用不足结束路径。165项专项、172项图文通过；登记仍915/1212。[卡图与证据](./docs/development/mixed-heart-inspection-audit.md)
