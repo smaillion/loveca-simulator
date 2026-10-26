@@ -193,6 +193,12 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *(("work_unit_inspection_" + code, "作品・ユニット検索と手札費用 " + code,
+           "作品/组合检索及手牌费用 " + code, code + ":1", _run_adjacent_discard_inspection)
+          for code in ("PL!HS-bp1-009", "PL!HS-pb1-018", "PL!N-bp3-012", "PL!SP-pb1-015", "PL!SP-pb1-016", "PL!SP-pb1-017")),
+        *(("work_unit_unpayable_" + code, "費用不足・確認せず待機取消 " + code,
+           "费用不足时不查看并结束待机 " + code, code + ":1", _run_inspection_unpayable)
+          for code in ("PL!HS-bp1-009", "PL!HS-pb1-018", "PL!N-bp3-012", "PL!SP-pb1-015", "PL!SP-pb1-016", "PL!SP-pb1-017")),
         *(("inspection_sibling_" + code, "手札費用・上5枚の公開/上2枚の非公開 " + code,
            "顶5公开或顶2私下取得 " + code, code + ":1", _run_adjacent_discard_inspection)
           for code in ("PL!-sd1-015", "PL!HS-bp2-010", "PL!HS-bp1-011", "PL!HS-bp6-022", "PL!N-pb1-028", "PL!N-pb1-035")),
@@ -495,6 +501,22 @@ def _run_adjacent_discard_inspection(effect: EffectDefinition) -> dict[str, bool
     by_id["adj-blade"].card.blade_heart_color_slot = "heart05"
     by_id["adj-live"].card.work_keys, by_id["adj-live"].card.unit_keys = ["love_live"], ["lily_white"]
     by_id["adj-live"].card.required_hearts = {"heart05": 5}
+    work_unit = {
+        "PL!HS-bp1-009": ("hasunosora", "miracra_park"),
+        "PL!HS-pb1-018": ("hasunosora", "dollchestra"),
+        "PL!N-bp3-012": ("nijigasaki", None),
+        "PL!SP-pb1-015": ("love_live_superstar", "catchu"),
+        "PL!SP-pb1-016": ("love_live_superstar", "kaleidoscore"),
+        "PL!SP-pb1-017": ("love_live_superstar", "5yncri5e"),
+    }.get(effect.card_code)
+    if work_unit is not None:
+        work, unit = work_unit
+        for key in ("member", "live", "wrong", "blade", "tail"):
+            by_id["adj-" + key].card.work_keys = [work]
+            by_id["adj-" + key].card.unit_keys = [unit or "a_zu_na"]
+        by_id["adj-wrong"].card.work_keys, by_id["adj-wrong"].card.unit_keys = ["love_live"], ["other"]
+        by_id["adj-blade"].card.unit_keys = ["other"]
+        by_id["adj-tail"].card.unit_keys = ["other", unit or "qu4rtz"]
     for c in cards[1:]:
         c.face_up = False
     state = _v1_1_state({effect.effect_id: effect}, cards, hand=["source", "adj-cost"])
@@ -507,6 +529,12 @@ def _run_adjacent_discard_inspection(effect: EffectDefinition) -> dict[str, bool
             "selected_card_instance_ids": ["adj-cost"]}))
     before_public = _match_state_payload(inspected.state, events=inspected.events, legal_actions=inspected.legal_actions, player_id="player_2")
     expected = {
+        "PL!HS-bp1-009": {"adj-member", "adj-live", "adj-tail"},
+        "PL!HS-pb1-018": {"adj-member", "adj-live", "adj-tail"},
+        "PL!N-bp3-012": {"adj-member", "adj-live", "adj-blade"},
+        "PL!SP-pb1-015": {"adj-member", "adj-live", "adj-tail"},
+        "PL!SP-pb1-016": {"adj-member", "adj-live", "adj-tail"},
+        "PL!SP-pb1-017": {"adj-member", "adj-live", "adj-tail"},
         "PL!-bp3-010": {"adj-live"}, "PL!-bp5-014": {"adj-member", "adj-wrong"},
         "PL!-bp6-004": {"adj-member", "adj-blade", "adj-tail"},
         "PL!-pb1-016": {"adj-member", "adj-live", "adj-blade"},

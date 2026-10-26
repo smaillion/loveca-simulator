@@ -9,7 +9,8 @@
 
 ### 新卡起动与未支持段落
 
-- 已复核六条Member/Live顶5与私下顶2检索，174专项、185前端、144图文通过。费用不足可正常结束，付款后公开可选零张和私下必取1张分开；见`docs/development/inspection-siblings-audit.md`。剩余15条扫描候选不是15条已确认错误，下一项先审计六条作品/组合检索，混合费用、条件和多张取得另行处理。
+- 已复核六条作品/组合检索，192专项、197前端、156图文通过，见`docs/development/work-unit-inspection-audit.md`。费用不足可结束；明确作品/组合筛选、Member/Live、公开零张、四AI与旧SQL Replay。余9条扫描不等于9条已确认错误，下一项仅5条Member/Liella兄弟文本；其余3条混合Heart筛选及1条最多取3张另审，不扩大既有policy边界。
+- 已复核六条Member/Live顶5与私下顶2检索，174专项、185前端、144图文通过。费用不足可正常结束，付款后公开可选零张和私下必取1张分开；见`docs/development/inspection-siblings-audit.md`。后续六条作品/组合已单独验收见上条，混合费用、条件和多张取得另行处理。
 - 已逐卡复核15条同文顶3私下取1：435项专项、173前端、132图文通过，费用不足可正常结束；同卡后续Live段不混入。见`docs/development/private3-inspection-family-audit.md`。后续六条顶5/顶2已单独验收见上条；保留其他条件、混合/Energy费用及多张取得待审。
 - 已复核六条相邻单弃牌检索，177专项、143前端及102图文通过，费用不足可正常结束，公开零张与私下必取1张分开；见`docs/development/adjacent-inspection-cost-audit.md`。后续15条同文顶3费用审计已单独验收见上条，不将其他混合费用/条件/Energy语义一键套用。
 - 已审计并修复既有7条自身Wait与3条虹咲弃牌检索的费用边界，166项专项、90项图文及固定10局AI回归见`docs/development/existing-inspection-cost-audit.md`。相邻6条后续已验收见上条，不将其余候选或混合/Energy费用一键套用策略；登记仍915/1212。

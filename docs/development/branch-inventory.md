@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+作品/组合检索检查点：六条精确文本采用已验证费用策略，192专项、197前端、156图文通过。固定十局AI均3–9回合且双方成功Live，但本批六条未触发；登记915/1212不变，不改engine/Card/SQL schema或旧Replay。余9扫描下一批仅5条Member/Liella；见`work-unit-inspection-audit.md`。旧44/6项dirty及ignored报告不动，同Draft PR54，不合并部署。
+
 顶5/顶2检查点：同一continuous分支修正六条Member/Live公开顶5及私下顶2的费用路径，174专项、185前端及144图文通过；固定10局AI合格但未触发这六条。登记仍915/1212、297manual，engine/SQL/Card schema与旧snapshot不改；下一批六条作品/组合筛选。见`inspection-siblings-audit.md`，旧44/6项dirty与ignored成果保持，同Draft PR54，不合并部署。
 
 同文顶3检查点：同一continuous分支接入15条单独核对revision/hash的私下取1费用快照，435专项、173前端及132图文通过；固定10局AI合格但本批未触发。登记915/1212、297manual不变，后续Live段不动；下一批六条顶5/顶2同类。见`private3-inspection-family-audit.md`；原44/6项dirty和ignored成果不改，同Draft PR54，不合并部署。

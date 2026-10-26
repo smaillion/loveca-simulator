@@ -4,6 +4,12 @@
 
 ### Experimental resource-cycle policy
 
+Six work/unit inspection identities now use explicit cost availability. All four
+policies finish paid or unpayable choices without error-skip and without opponent
+hidden-hand identity dependence. Work and unit filters must not be conflated;
+both Member and Live may match.192 targeted state tests are separate from fixed10
+matches, which do not trigger these six. Product defaultv1.1 is unchanged.
+
 Six peek5/peek2 siblings use native hand-cost options. Public Member/Live peek5
 may keep zero but must use the generated card-type filter; private unfiltered
 peek2 must keep one after paying. A cost may be supplied by another pending

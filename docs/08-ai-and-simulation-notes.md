@@ -1,5 +1,12 @@
 # AI and Simulation Notes
 
+Work/unit inspection follow-up: six exact cost snapshots have192 per-card native
+action assertions including four-policy privacy invariance, real fee4 and SQL
+Replay. Fixed10 again qualifies in3–9 turns with both players succeeding at Live,
+but these six do not trigger. This is workflow regression, not evidence of
+improved AI strength or full card coverage. Defaultv1.1 remains unchanged.
+[Chinese scope and evidence](development/work-unit-inspection-audit.md).
+
 Frozen-pool follow-up: the blackbox tool can opt into the shared controller while
 keeping its historical heuristic default. With the same archived 30 decks,
 seeds9000–9049 and 260 actions, completions are 34 legacy / 42 v1.1 / 48 v1.2.

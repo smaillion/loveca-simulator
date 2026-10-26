@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+复核六条作品／组合指定的登场检索：费用不足可不查看并结束，Member与Live候补、可选公开取得和旧Replay均保留。192项专项、156项图文验证通过；登记仍915/1212，不冒充新增覆盖。[卡图与逐卡证据](./docs/development/work-unit-inspection-audit.md)
+
 修正六条顶5／顶2检索的费用不足结束路径：顶5按Member或Live筛选并可选零张公开取得，顶2付款后必须私下取1张。174项专项、144项图文验证通过，旧Replay保持不变；登记仍915/1212。[卡图与逐卡核对](./docs/development/inspection-siblings-audit.md)
 
 逐卡修正15条同文“弃1、看顶3、私下取1”的费用不足结束路径：付款可拒绝，但付款后必须取1张；不改同卡后续Live能力或旧快照。435项专项、132项图文验证通过；登记仍915/1212（75.50%）。[卡图、名单与审计边界](./docs/development/private3-inspection-family-audit.md)

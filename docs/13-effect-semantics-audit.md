@@ -1,5 +1,14 @@
 # Effect Semantics Audit
 
+Work/unit checkpoint: six exact official segments opt into the bounded hand-cost
+policy.192 targeted native-action tests distinguish work from unit, Member from
+Live, multi-unit membership, optional zero keep, private inspection and public
+keep. Old/new SQL Replay and four AI policies pass.156 illustrated scenarios
+(117 state/39 contract),197 frontend tests/build; fixed10 qualifies but does not
+trigger these six. Registry915/1212 unchanged, no reviewed promotion or schema
+change. Nine scan hits remain; five simple Member/Liella texts are queued, not
+bulk approved. [Chinese evidence](development/work-unit-inspection-audit.md).
+
 Peek5/peek2 sibling checkpoint: six exact identities opt into the existing hand
 cost policy. Two Member and two Live peek5 texts retain optional public keep0-1;
 two unfiltered peek2 texts retain mandatory private keep1.174 targeted tests,

@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "inspection-member-liella-cost-siblings",
+      "priority": 0,
+      "title": "逐卡核对五条Member与Liella检索费用兄弟文本",
+      "status": "queued",
+      "depends_on": ["inspection-work-unit-filtered-siblings"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["精确核对PL!S-bp3-004:1、PL!S-bp3-009:1、PL!SP-bp1-005:1、PL!SP-bp2-007:1、PL!SP-pb2-017:1完整段/revision/hash及真实费用，区别顶4/5/6、Member/任意卡和Aqours/Liella作品", "先复现无费用及待机补费用，再采用适用的显式费用策略，验证公开零张、筛选、费用/刷新顺序、原子拒绝、新旧SQL Replay和双方私有信息", "四种AI、原生UI、图文与固定AI分别记录定向及实际触发证据；全部profile和manifest/pre-push通过，不改schema或reviewed", "余4扫描包含3条Member/Live混合Heart筛选与1条最多取3张，另行审查而不扩大policy；保留旧dirty和同Draft PR54，不合并部署"]
+    },
+    {
       "id": "inspection-work-unit-filtered-siblings",
       "priority": 0,
       "title": "逐卡审计六条作品和组合检索的费用与候补筛选",
