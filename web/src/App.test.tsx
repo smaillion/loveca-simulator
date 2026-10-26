@@ -2176,6 +2176,8 @@ describe("App", () => {
     fireEvent.click(createRoomButton);
 
     await waitFor(() => expect(screen.getByTitle("退出在线房间")).toBeInTheDocument());
+    expect(screen.getByTitle("对局结束后可导出完整回放，避免泄露隐藏牌")).toBeDisabled();
+    expect(screen.queryByTitle("导出在线回放 JSON")).not.toBeInTheDocument();
     fireEvent.click(screen.getByTitle("退出在线房间"));
 
     await waitFor(() =>
@@ -2187,6 +2189,25 @@ describe("App", () => {
         }),
       ),
     );
+  });
+
+  it("enables full online replay download only after completion", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const runtimeConfig = { mode: "release" as const, browserPreview: false,
+      apiBaseUrl: "https://api.test", publicMatchHistory: false, cardDatabaseFingerprint: "test" };
+    const completedRoom = { ...roomPayload("active"), match: {
+      ...MATCH_PAYLOAD, state: { ...MATCH_PAYLOAD.state, phase: "complete" }, legal_actions: [],
+    } };
+    vi.stubGlobal("fetch", createFetchMock({ runtimeConfig, roomCreate: completedRoom, roomPoll: completedRoom }));
+    resetRuntimeConfigForTests(runtimeConfig);
+    render(<App />);
+    await waitFor(() => expect(screen.getByText("在线测试房间")).toBeInTheDocument());
+    const create = screen.getByRole("button", { name: "房间创建" });
+    await waitFor(() => expect(create).not.toBeDisabled());
+    fireEvent.click(create);
+    await waitFor(() => expect(screen.getByTitle("导出在线回放 JSON")).toHaveAttribute(
+      "href", "https://api.test/api/rooms/ABC123/replay?player_token=host-token",
+    ));
   });
 
   it.each([true, false])("stops corrupt-snapshot retries but keeps transient fallback (%s)", async (terminal) => {

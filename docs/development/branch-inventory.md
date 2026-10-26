@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+玩家响应隐私检查点：同一continuous分支修复隐藏牌库card map/真实ID/顺序、未公开技能定义与私有历史输出；在线完整Replay延后至完赛或关闭房间。本地完整视图、原始Replay及SQLite不变。登记903/1212不变，旧44/6项dirty成果不改。见 `player-payload-privacy-verification.md`；只更新Draft PR #54，不合并部署。
+
 起动技能检查点：精确新增四季 `PL!SP-bp7-008:1` 与ミア `PL!N-bp7-023:1`，
 费用与抽后弃牌继续用原生操作；修复manual起动占位操作错误自动执行，保留旧结构化前缀。
 当前902/1212、310manual；四季第2段及六条重叠卡不晋级。原44/6项dirty和ignored报告不动。

@@ -1,5 +1,12 @@
 # Effect Semantics Audit
 
+Player-view privacy checkpoint: hidden pile identities/order and unseen effect
+definitions are excluded from room responses, private inspection history and
+other-player pending choices are redacted, and full online Replay is end-only.
+Public reveals, local debug views, runtime snapshots and registry status are
+unchanged:903/1212 executable,309manual. This is response isolation, not complete
+anti-cheat or a rules-certification claim. [Evidence](development/player-payload-privacy-verification.md).
+
 Activated inspection checkpoint: exact `PL!N-bp7-006:1` now pays one Active
 Energy, privately inspects four cards and returns all in the selected order.
 `inspection_activation_policy=start_after_cost` is restricted to this structured

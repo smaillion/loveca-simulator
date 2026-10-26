@@ -2,9 +2,10 @@
 
 ## High Priority
 
-### 玩家响应的牌库隐私审计（线上发布前）
+### 玩家响应的牌库隐私审计
 
-- 检查事件已过滤对手私有检查/排序ID，但需继续审计完整MatchPayload中牌库card map、顺序ID与历史公开ID的关联；不能只检查pending choice选项。对本地轮流视角、room REST/SSE、重连历史和四AI分别做未知牌替换不变性断言，保留原始Replay，不将已有隐私局部测试当作全部认证。
+- 已修复当前MatchPayload的牌库card map、真实ID/顺序、未公开技能定义、对手pending候选与检查历史旁路。22项定向/REST/SSE/重连/Replay/四AI测试见 `docs/development/player-payload-privacy-verification.md`；在线完整Replay改为结束后下载，原始runtime和本地调试不改。
+- 发布前人工复核双浏览器的显式公开提示、私有排序、多人选择和结束后导出。手动调试权限、已知调试seed、旧客户端已缓存的信息不属于完整防作弊保证；生产环境须禁用公开debug Match端点，不将此次响应隔离当作恶意请求防护。
 
 ### 新卡起动与未支持段落
 

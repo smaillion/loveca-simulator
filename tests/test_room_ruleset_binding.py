@@ -89,7 +89,10 @@ def test_room_pins_ruleset_without_changing_decks_or_sqlite_schema(tmp_path, exp
         view = payload["match"]["state"]
         assert set(view["players"][player]["hand"]).issubset(view["cards"])
         assert set(view["players"][other]["hand"]).isdisjoint(view["cards"])
-    replay = client.get(f"/api/rooms/{room['room_code']}/replay", params={"player_token": room["player_token"]}).json()
+    url = f"/api/rooms/{room['room_code']}/replay"
+    assert client.get(url, params={"player_token": room["player_token"]}).status_code == 409
+    client.post(f"/api/rooms/{room['room_code']}/leave", json={"player_token": room["player_token"]})
+    replay = client.get(url, params={"player_token": room["player_token"]}).json()
     assert all(replay["metadata"][key] == value for key, value in identity.items())
     assert replay["metadata"]["ruleset_identity_verified"] is True
 

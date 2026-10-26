@@ -48,7 +48,7 @@ from loveca.simulation.models import (
     MatchState,
 )
 from loveca.simulation.online import card_database_fingerprint, effect_registry_hash
-from loveca.simulation.visibility import private_inspection_card_ids
+from loveca.simulation.visibility import redact_hidden_references, redact_player_state
 from loveca.simulation.rooms import (
     RoomError,
     RoomNotFoundError,
@@ -475,6 +475,9 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
             )
             if room.match_id is None:
                 raise RoomStateError("room does not have an active match")
+            state = service.repository.get_state(room.match_id)
+            if state.phase != "complete" and room.status != "expired":
+                raise RoomStateError("full online replay is available only after the match ends")
             return service.repository.replay(room.match_id)
         except RoomNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -1965,69 +1968,51 @@ def _match_state_payload(
     state_payload = state.model_dump()
     compatibility = match_ruleset_report(state)
     visible_actions = legal_actions if compatibility["can_execute"] else []
+    hidden_ids: set[str] = set()
     if player_id is not None:
-        private_inspected = private_inspection_card_ids(state, player_id)
-        for instance_id in private_inspected:
-            state_payload["cards"].pop(instance_id, None)
-        if private_inspected and state_payload["pending_choice"]:
-            state_payload["pending_choice"]["options"] = {}
-        _redact_opponent_private_cards(state_payload, player_id)
         visible_actions = [
             action
             for action in visible_actions
             if action.player_id is None or action.player_id == player_id
         ]
+        hidden_ids = redact_player_state(state, state_payload, player_id, visible_actions)
     return {
         "state": state_payload,
-        "events": _visible_match_events(events, player_id),
+        "events": _visible_match_events(events, player_id, hidden_ids),
         "legal_actions": [action.model_dump() for action in visible_actions],
         "ruleset_compatibility": compatibility,
     }
 
 
-def _visible_match_events(events: list[GameEvent], player_id: str | None) -> list[dict[str, Any]]:
+def _visible_match_events(
+    events: list[GameEvent], player_id: str | None, hidden_ids: set[str] | None = None,
+) -> list[dict[str, Any]]:
     payload = [event.model_dump() for event in events]
     if player_id is None:
         return payload
     for event in payload:
         data = event["data"]
+        if event["event_type"] == "cards_drawn" and event["player_id"] != player_id:
+            data["instance_ids"] = ["__hidden__"] * len(data.get("instance_ids", []))
+        if event["event_type"] == "ai_blocked" and event["player_id"] != player_id:
+            for key in ("action_payload", "pending_choice", "decision_reason", "error"):
+                data.pop(key, None)
         if event["player_id"] == player_id or not (
-            event["event_type"] == "effect_inspection_started"
-            or event["event_type"] == "effect_resolved" and "inspected_card_instance_ids" in data
+            event["event_type"] in {"effect_inspection_started", "manual_card_inspection_started"}
+            or event["event_type"] in {"effect_resolved", "manual_card_inspection_resolved"}
+            and "inspected_card_instance_ids" in data
         ):
             continue
         for key in ("inspected_card_instance_ids", "candidate_card_instance_ids", "ordered_card_instance_ids"):
             data.pop(key, None)
-        if not data.get("reveal_selected_to_opponent"):
+        for key in ("minimum", "maximum"):
+            data.pop(key, None)
+        if not data.get("reveal_selected_to_opponent") and data.get("selected_destination") not in {
+            "waiting_room", "success_live_area", "member_area", "energy_area",
+        }:
             data.pop("selected_card_instance_ids", None)
         data.pop("unselected_card_instance_ids", None)
-    return payload
-
-
-def _redact_opponent_private_cards(state_payload: dict[str, Any], player_id: str) -> None:
-    players = state_payload.get("players")
-    cards = state_payload.get("cards")
-    if not isinstance(players, dict) or not isinstance(cards, dict):
-        return
-    for opponent_id, player in players.items():
-        if opponent_id == player_id or not isinstance(player, dict):
-            continue
-        player.pop("member_card_instance_ids_entered_stage_this_turn", None)
-        private_ids: list[str] = []
-        hand = player.get("hand")
-        if isinstance(hand, list):
-            private_ids.extend(instance_id for instance_id in hand if isinstance(instance_id, str))
-        live_area = player.get("live_area")
-        if isinstance(live_area, list):
-            for instance_id in live_area:
-                if not isinstance(instance_id, str):
-                    continue
-                card = cards.get(instance_id)
-                if isinstance(card, dict) and card.get("face_up") is False:
-                    private_ids.append(instance_id)
-        for instance_id in private_ids:
-            if isinstance(instance_id, str):
-                cards.pop(instance_id, None)
+    return redact_hidden_references(payload, hidden_ids or set())
 
 
 def _reject_public_room_match(app: FastAPI, match_id: str) -> None:

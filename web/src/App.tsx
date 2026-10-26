@@ -1080,7 +1080,15 @@ export default function App() {
           >
             <ClipboardList size={18} />
           </button>
-          {onlineSession ? (
+          {onlineSession && match.state.phase !== "complete" ? (
+            <button
+              className="icon-button"
+              disabled
+              title={locale === "zh" ? "对局结束后可导出完整回放，避免泄露隐藏牌" : "非公開カード保護のため、リプレイ出力は対戦終了後です"}
+            >
+              <Download size={18} />
+            </button>
+          ) : onlineSession ? (
             <a
               className="icon-button"
               href={roomReplayUrl(onlineSession.roomCode, onlineSession.playerToken)}

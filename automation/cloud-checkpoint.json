@@ -3,8 +3,8 @@
   "branch": "codex/continuous-development",
   "base_ref": "origin/develop",
   "pull_request": 54,
-  "source_head": "a9d4239256e94f36eca16cadb0f7f3b3ec7d9c4c",
-  "generated_at": "2026-10-25T23:30:45.642434+00:00",
+  "source_head": "3be69fb9c0dab7defaa1dd4fa1506e56977e6d2b",
+  "generated_at": "2026-10-25T23:56:44.206351+00:00",
   "task_states": {
     "codex-cloud-handoff-preparation": "done",
     "ci-card-preview-printing-race": "done",
@@ -39,8 +39,8 @@
     "ai-live-set-resource-cycle": "done",
     "live-success-selected-member-blade-comparison": "done",
     "activated-wait-draw-exact-text": "done",
-    "activated-energy-inspect4-reorder": "in_progress",
-    "player-payload-deck-privacy-audit": "queued",
+    "activated-energy-inspect4-reorder": "done",
+    "player-payload-deck-privacy-audit": "in_progress",
     "effect-accuracy-loop": "queued",
     "phase6-conformance-matrix": "queued"
   }

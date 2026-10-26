@@ -262,6 +262,9 @@ def test_hosted_room_api_create_join_act_and_replay(tmp_path):
     )
 
     replay = client.get(f"/api/rooms/{room_code}/replay?player_token={host_token}")
+    assert replay.status_code == 409
+    client.post(f"/api/rooms/{room_code}/leave", json={"player_token": host_token})
+    replay = client.get(f"/api/rooms/{room_code}/replay?player_token={host_token}")
     assert replay.status_code == 200
     assert replay.json()["final_state"]["revision"] == 2
     metadata = replay.json()["metadata"]
@@ -352,6 +355,9 @@ def test_ruleset_mismatch_room_is_read_only_without_private_hand_leak(tmp_path):
     with sqlite3.connect(tmp_path / "matches.sqlite3") as connection:
         assert [line for line in connection.iterdump() if '"hosted_rooms"' not in line] == match_before
         assert connection.execute("SELECT sql FROM sqlite_master ORDER BY name").fetchall() == schema_before
+    exported = client.get(f"/api/rooms/{code}/replay", params={"player_token": host_token})
+    assert exported.status_code == 409
+    client.post(f"/api/rooms/{code}/leave", json={"player_token": host_token})
     exported = client.get(f"/api/rooms/{code}/replay", params={"player_token": host_token})
     assert exported.status_code == 200
     assert exported.json()["metadata"]["deterministic_replay_verified"] is False
@@ -487,7 +493,7 @@ def test_player_specific_payload_hides_opponent_face_down_live_cards():
         player_id="player_2",
     )
 
-    assert payload["state"]["players"]["player_1"]["live_area"] == ["live-1"]
+    assert payload["state"]["players"]["player_1"]["live_area"] == ["__hidden__/player_1/live_area/0"]
     assert "live-1" not in payload["state"]["cards"]
 
 

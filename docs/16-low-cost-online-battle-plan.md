@@ -12,6 +12,16 @@ This document is both the long-term planning reference and the status note for t
 
 ## 1A. Current Implementation Status
 
+Player-response privacy checkpoint (2026-10-26): room GET/action responses expose
+only visible cards and owned legal choices, not hidden pile identities/order,
+the actual shuffle seed or unseen effect definitions. Hidden arrays retain their
+length through non-actionable placeholders. SSE still carries only revision
+signals; reconnects fetch the same projected view. Full online Replay returns409
+until the match completes or the room expires/closes. Local trusted debug views
+and stored Replay remain complete; no SQLite migration. Public debug endpoints,
+chosen deterministic debug seeds and permissive manual tools are not anti-cheat
+guarantees. See `development/player-payload-privacy-verification.md`.
+
 As of `v0.4.2-alpha.1` development, the first hosted slice exists:
 
 * room creation by host deck payload
