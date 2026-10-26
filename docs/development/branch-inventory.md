@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+Stage Wait费用检查点：同一continuous分支精确新增彼方`PL!N-sd2-006:1`和嵐珠`PL!N-bp7-012:1`，费用Member与来源加成分离，自费Wait不贡献Blade应援，原来源离场后同ID回场不继承。908/1212、304manual；63定向、72图文、固定10局AI合格，见`live-wait-cost-verification.md`。旧44/6dirty、复杂重叠父任务保留，不合并部署，同一Draft PR54。
+
 弃牌选色检查点：同一continuous分支新增`PL!N-sd2-005:1`，来源对象快照防止离场同ID再入场误加成；费用与颜色组合UI同时修复既有四条登记。906/1212、306manual，48专项、70图文、固定10局AI合格，见`live-discard-color-verification.md`。重叠父任务和旧44/6项dirty仍保留，不合并部署，只更新Draft PR54。
 
 双姓名Live检查点：同一continuous分支修复Tiny Stars `PL!SP-bp1-024:1` 自动首张选择，改为两组独立显式选人；缺席组不取消另一组，旧auto Replay保留。登记仍905/1212、307manual；68图文场景，固定10局AI合格。见 `named-live-group-verification.md`。六条复杂登场、旧44/6项dirty与ignored报告不改，只更新Draft PR54，不合并部署。

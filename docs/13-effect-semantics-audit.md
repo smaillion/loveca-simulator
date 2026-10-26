@@ -1,5 +1,15 @@
 # Effect Semantics Audit
 
+Nijigasaki Wait-cost checkpoint: exact `PL!N-sd2-006:1` and
+`PL!N-bp7-012:1` use one own Active Stage Member as cost and source-only
+Blade2/chosen Heart1. The bounded `original_live_start_wait_cost_source`
+snapshot opts into Stage cost validation and original-object capture; old
+cost choices retain their behavior. Selected cost IDs are cleared before the
+source modifier. Self-cost is legal, but a Wait source's Blade is excluded
+from native Yell under8.3.10. Registry908/1212 (74.92%),304manual, no reviewed
+promotion;72 illustrated scenarios include33 state transitions and39 contracts.
+[Chinese evidence](development/live-wait-cost-verification.md).
+
 Optional discard/color checkpoint: exact `PL!N-sd2-005:1` uses two hand-card
 costs and one of six colors for two source Hearts through Live end. The bounded
 `original_live_start_heart_source` operation snapshot captures original Stage

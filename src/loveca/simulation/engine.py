@@ -2884,6 +2884,7 @@ def _original_moved_source_ready(effect: Any) -> bool:
 def _captures_original_stage_source(effect: Any) -> bool:
     return bool(effect and any(op.source_object_policy in {
         "original_moved_stage_member", "original_live_start_heart_source",
+        "original_live_start_wait_cost_source",
     } for op in effect.actions))
 
 
@@ -6371,7 +6372,12 @@ def _post_action_choice_should_continue(
 
 
 def _effect_uses_cost_card_choice(effect: Any) -> bool:
-    return bool(effect.cost_choice and effect.cost_choice.zone in {"hand", "energy_area"})
+    return bool(effect.cost_choice and (
+        effect.cost_choice.zone in {"hand", "energy_area"}
+        or (effect.cost_choice.zone == "stage" and any(
+            op.source_object_policy == "original_live_start_wait_cost_source" for op in effect.actions
+        ))
+    ))
 
 
 def _required_cost_choice_available(
@@ -7571,7 +7577,7 @@ def _execute_operations(
             selected_ids,
             selected_ids_by_group,
         )
-        if operation.source_object_policy == "original_live_start_heart_source":
+        if operation.source_object_policy in {"original_live_start_heart_source", "original_live_start_wait_cost_source"}:
             if invocation.trigger_data.get("original_source_stage_object") is not True:
                 raise IllegalActionError("original source Stage snapshot is missing")
             if (invocation.trigger_data.get("original_source_stage_object_departed") is True

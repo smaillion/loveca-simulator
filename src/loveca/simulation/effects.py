@@ -148,7 +148,10 @@ class EffectOperation(BaseModel):
     orientation: Literal["active", "wait"] | None = None
     entry_trigger_policy: Literal["member_area_external_only"] | None = None
     overlap_source_policy: Literal["original_stage_member"] | None = None
-    source_object_policy: Literal["original_moved_stage_member", "original_live_start_heart_source"] | None = None
+    source_object_policy: Literal[
+        "original_moved_stage_member", "original_live_start_heart_source",
+        "original_live_start_wait_cost_source",
+    ] | None = None
     overlap_observer_policy: Literal[
         "ignore_disjoint_source_triggers", "require_complete_source_bindings"
     ] | None = None
@@ -190,6 +193,14 @@ class EffectOperation(BaseModel):
             or self.flag is not None or self.target_hand_size is not None or self.card_type is not None
         ):
             raise ValueError("Live Heart source policy only supports two chosen-color source Hearts")
+        if self.source_object_policy == "original_live_start_wait_cost_source" and (
+            (self.action_type, self.amount) not in {("gain_blade", 2), ("gain_heart", 1)}
+            or self.target != "source" or self.amount_source is not None or self.branch is not None
+            or self.value is not None or self.multiplier is not None or self.orientation is not None
+            or self.color_slot is not None or self.flag is not None or self.target_hand_size is not None
+            or self.card_type is not None
+        ):
+            raise ValueError("Wait cost source policy requires source Blade2 or chosen Heart1")
         if self.overlap_observer_policy is not None and self.action_type != "deploy_selected_to_stage":
             raise ValueError("overlap observer policy requires bounded Stage deployment")
         if self.action_type == "modify_source_score_if_selected_blade_highest" and (
@@ -517,6 +528,23 @@ class EffectDefinition(BaseModel):
             or set(self.choice.color_slots) != {f"heart0{i}" for i in range(1, 7)}
         ):
             raise ValueError("Live Heart source policy requires optional discard-two then choose-color")
+        if any(op.source_object_policy == "original_live_start_wait_cost_source" for op in self.actions) and (
+            len(self.actions) != 1 or self.effect_type != "triggered" or self.trigger != "live_started"
+            or self.execution_mode != "prompt_then_resolve" or self.simulation_support == "manual_resolution"
+            or self.condition or not self.is_optional or self.duration != "live" or self.follow_up_choice
+            or len(self.cost) != 1 or self.cost[0].action_type != "apply_wait_member"
+            or self.cost[0].target != "selected" or self.cost[0].amount_source is not None
+            or self.cost_choice is None or self.cost_choice.choice_type != "member_from_stage"
+            or self.cost_choice.zone != "stage" or self.cost_choice.target_player != "self"
+            or self.cost_choice.card_type != "member" or self.cost_choice.work_key != "nijigasaki"
+            or self.cost_choice.orientation != "active" or self.cost_choice.exclude_source
+            or self.cost_choice.minimum != 1 or self.cost_choice.maximum != 1
+            or (self.actions[0].action_type == "gain_blade" and self.choice is not None)
+            or (self.actions[0].action_type == "gain_heart" and (
+                self.choice is None or self.choice.choice_type != "choose_color"
+                or set(self.choice.color_slots) != {f"heart0{i}" for i in range(1, 7)}))
+        ):
+            raise ValueError("Wait cost source policy requires one optional Active Nijigasaki Member cost")
         if any(choice is not None and choice.inspection_activation_policy is not None
                for choice in (self.cost_choice, self.follow_up_choice)):
             raise ValueError("inspection activation policy must be the main effect choice")

@@ -9,6 +9,7 @@
 
 ### 新卡起动与未支持段落
 
+- 已适配`PL!N-sd2-006:1`和`PL!N-bp7-012:1`的己方Active虹咲Member Wait费用，来源自身可作费用但Blade不计应援，费用目标与受益来源分离；见`docs/development/live-wait-cost-verification.md`。费用Stage选择仅显式策略启用，不改变旧snapshot的选择语义。
 - 已适配 `PL!N-sd2-005:1` 宮下 愛的弃2选色Heart+2，原子确认费用与颜色、原来源离场同ID回场保护，并补另外四条已登记能力的颜色选项/UI；见 `docs/development/live-discard-color-verification.md`。
 - 本轮按PDF10.1.2/10.4.1/9.9.3重审重叠父任务：仍缺完整临时多Member场面与常时/继承观察者，保留`temporary_overlap_stage_view_and_inheritance_unresolved`。六条正式登场卡不晋级，父任务保持in_progress，不能把受控底座当作实装完成。
 - 已适配 `PL!SP-bp7-025:1`「Memories」显式选择一名「嵐 千砂都」获得Live临时Blade，结算时选择而非触发时锁定，零目标正常结束并中日显示结果；见 `docs/development/named-live-blade-verification.md`。

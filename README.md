@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+`PL!N-sd2-006:1` 近江彼方と`PL!N-bp7-012:1` 鐘 嵐珠に対応しました。自分のアクティブな虹ヶ咲メンバー1人を費用でウェイトにし、誘発元だけにBlade+2／指定色Heart+1を加算します。自身を費用にすることもでき、ウェイトのBladeはエールに数えません。登録908/1212（74.92%）、304件manual。[カード画像・検証](./docs/development/live-wait-cost-verification.md)
+
 `PL!N-sd2-005:1` 宮下 愛の「手札2枚→指定色のハート2つ」に対応しました。費用カードと色を同時に確認できるようにし、同じUI不足があった既存4能力も修正しました。元のメンバーが離場して再登場した場合は加算しません。登録906/1212（74.75%）、306件manual。[カード画像・検証](./docs/development/live-discard-color-verification.md)
 
 `PL!SP-bp1-024:1`「Tiny Stars」の自動先頭選択を修正しました。「澁谷かのん」と「唐 可可」を名前ごとに1人選び、同じ対象にHeartとBladeを付与します。一方が不在でも他方を解決し、旧Replayは維持します。登録数は905/1212のままです。[カード画像・検証結果](./docs/development/named-live-group-verification.md)

@@ -4,6 +4,13 @@
 
 ### Experimental resource-cycle policy
 
+Native `original_live_start_wait_cost_source` effects may offer one own Active
+Nijigasaki Stage Member as a cost, including the source. Costs are not modifier
+targets. AI must consume the native candidate list and optional color flag;
+Waiting Members are ineligible costs and their Blade does not fund Yell. This
+source-object strategy is explicit; historical Stage-cost snapshots are not
+silently upgraded. Default policy remains v1.1.
+
 Cost-card choices may additionally require `requires_color_choice` and expose
 `color_slots` in the same LegalAction. All policies must submit a legal cost and
 color atomically or decline an optional ability; no engine payment occurs during

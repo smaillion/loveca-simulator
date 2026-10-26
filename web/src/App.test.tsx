@@ -1194,6 +1194,8 @@ describe("App", () => {
       "誘発元が一度ステージを離れたため、控え室や再登場したカードをアクティブにせず解決しました。"],
     ["original_source_stage_member_departed", "来源 Member 曾离开 Stage，不向控室或重新登场的卡牌添加 Heart；能力已结束。",
       "誘発元が一度ステージを離れたため、控え室や再登場したカードにハートを加えず解決しました。", "gain_heart"],
+    ["original_source_stage_member_departed", "来源 Member 曾离开 Stage，不向控室或重新登场的卡牌添加 Blade；能力已结束。",
+      "誘発元が一度ステージを離れたため、控え室や再登場したカードにブレードを加えず解決しました。", "gain_blade"],
     ["no_legal_stage_member_at_resolution", "结算时没有合法的场上 Member，此项效果不适用，能力已结束。",
       "解決時に対象にできるメンバーがいないため、この効果を適用せず解決しました。"],
   ])("shows why a triggered operation did not apply (%s)", async (reason, zh, ja, operation = "") => {
@@ -4109,6 +4111,33 @@ describe("App", () => {
         ...(!partial ? { kanon: ["player_1-M002"] } : {}), ...(partial !== "none" ? { keke: ["player_1-M003"] } : {}),
       },
     }));
+  });
+
+  it.each([false, true])("selects a Stage Member Wait cost and optional Heart color: %s", (heart) => {
+    const onAction = vi.fn();
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    state.cards["player_1-M002"] = { ...state.cards["player_1-M002"], card: { ...state.cards["player_1-M002"].card, name_ja: "費用メンバー" } };
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "wait-cost", effect_id: heart ? "PL!N-bp7-012:1" : "PL!N-sd2-006:1", source_card_instance_id: "player_1-M001",
+      label_ja: "【ライブ開始時】『虹ヶ咲』のメンバー1人をウェイトにしてもよい：自身に加算。",
+      execution_mode: "prompt_then_resolve", is_optional: true, simulation_support: "test_validated_executable",
+      choice_type: "member_from_stage", choice_zone: "stage", requires_color_choice: heart,
+      candidate_card_instance_ids: ["player_1-M002"], card_selection_minimum: 1, card_selection_maximum: 1,
+      color_slots: heart ? ["heart01", "heart02", "heart03", "heart04", "heart05", "heart06"] : [],
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false}
+      onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /費用メンバー/ }));
+    if (heart) {
+      expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+      fireEvent.click(screen.getByRole("button", { name: "黄色" }));
+    }
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "wait-cost", accepted: true, selected_card_instance_ids: ["player_1-M002"], energy_instance_ids: [],
+      ...(heart ? { selected_color_slot: "heart03" } : {}),
+    });
   });
 
   it("requires both discard cards and an explicit Heart color in the same cost confirmation", () => {

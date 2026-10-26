@@ -188,6 +188,14 @@ def _v1_1_dynamic_scenarios(
 ) -> list[ScenarioResult]:
     cases = (
         (
+            "live_start_wait_nijigasaki_blade", "彼方: 自身を費用でウェイトにしBlade2",
+            "彼方：自身作Wait费用获得Blade2，但不贡献应援", "PL!N-sd2-006:1", _run_live_wait_bonus,
+        ),
+        (
+            "live_start_wait_nijigasaki_heart", "嵐珠: 別メンバーを費用に自身のHeart1",
+            "嵐珠：Wait另一成员作费用，自身获得选色Heart1", "PL!N-bp7-012:1", _run_live_wait_bonus,
+        ),
+        (
             "live_start_discard2_choose_heart", "手札2枚を払い好きな色のハート2つ",
             "弃两张手牌选择颜色获得两颗Heart", "PL!N-sd2-005:1", _run_live_discard_color,
         ),
@@ -403,6 +411,39 @@ def _v1_1_dynamic_scenarios(
             )
         )
     return results
+
+
+def _run_live_wait_bonus(effect: EffectDefinition) -> dict[str, bool]:
+    blade = effect.card_code == "PL!N-sd2-006"
+    source = _v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id], work_keys=["nijigasaki"])
+    source.card.card_code = effect.card_code
+    source.card.blade = 1
+    cost_member = _v1_1_member("cost", "費用メンバー", work_keys=["nijigasaki"])
+    cost_member.card.blade = 1
+    state = _v1_1_state({effect.effect_id: effect}, [source, cost_member, _v1_1_live("live", "監査Live"),
+        _v1_1_member("deck", "応援カード")], member_area={"left": "cost", "center": "source", "right": None})
+    state.phase = "performance_first"
+    state.players["player_1"].live_area = ["live"]
+    state.players["player_1"].main_deck = ["deck"]
+    state.cards["live"].face_up = False
+    started = apply_action(state, ActionRequest(action_type="advance_phase", player_id="player_1", expected_revision=0))
+    invocation = started.state.pending_effects[0]
+    target = "source" if blade else "cost"
+    result = apply_action(started.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=started.state.revision, payload={"invocation_id": invocation.invocation_id, "accepted": True,
+            "selected_card_instance_ids": [target], **({} if blade else {"selected_color_slot": "heart03"})}))
+    modifiers = result.state.players["player_1"].manual_modifiers
+    yelled = apply_action(result.state, ActionRequest(action_type="advance_phase", player_id="player_1", expected_revision=result.state.revision))
+    event = next(e for e in yelled.events if e.event_type == "yell_completed")
+    return {
+        "wait_cost_only_selected": result.state.cards[target].orientation == "wait" and result.state.cards["cost" if blade else "source"].orientation == "active",
+        "wait_bonus_source_only": len(modifiers) == 1 and modifiers[0].target_card_instance_id == "source"
+            and modifiers[0].amount == (2 if blade else 1) and modifiers[0].duration == "live"
+            and modifiers[0].modifier_type == ("blade" if blade else "heart")
+            and modifiers[0].color_slot == (None if blade else "heart03"),
+        "wait_blade_not_yelled": event.data["raw_blade_count"] == 1,
+        "wait_heart_still_available": blade or yelled.state.players["player_1"].live_result.manual_hearts == {"heart03": 1},
+    }
 
 
 def _run_live_discard_color(effect: EffectDefinition, *, decline: bool = False) -> dict[str, bool]:
@@ -1235,6 +1276,10 @@ def _load_visuals_for_effect_ids(
 
 
 _V1_1_CHECK_LABELS: dict[str, tuple[str, str]] = {
+    "wait_cost_only_selected": ("費用の1人だけウェイト", "只有选定费用成员变为Wait"),
+    "wait_bonus_source_only": ("費用対象でなく誘発元だけ加算", "加成只给来源，不误给费用目标"),
+    "wait_blade_not_yelled": ("ウェイトのBladeをエール枚数に加えない", "Wait成员的Blade不计应援张数"),
+    "wait_heart_still_available": ("獲得HeartをLive所有ハートへ加算", "获得的Heart实际计入Live所有Heart"),
     "color_cost_controls": ("費用カードと6色を同時に選べる", "费用卡与六种颜色可同时选择"),
     "color_cost_exact": ("承諾時だけ手札2枚を払う", "仅同意时恰好弃两张手牌"),
     "color_cost_modifier": ("指定色2個・自身・Live期限を照合", "核对指定色两颗、自身目标与Live期限"),

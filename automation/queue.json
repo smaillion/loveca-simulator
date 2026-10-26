@@ -362,6 +362,15 @@
       "acceptance": ["用实际PL!N-sd2-005:1全文/revision/hash复现manual，精确登记既有弃手牌费用/颜色选择/自身Heart操作，不扩展重叠或继承", "Live开始、可选拒绝、费用恰好2张且只支付一次、六种颜色、非法颜色/重复费用原子拒绝、手牌不足和期限/来源离场均有状态断言", "新旧快照及SQLite Replay、四AI/隐藏信息、原生费用与颜色同次确认UI通过，图文报告和固定10局AI不冒充本卡随机实战覆盖", "全部profile及manifest/pre-push通过后才晋级test_validated；六条重叠卡保留temporary_overlap_stage_view_and_inheritance_unresolved，父任务未完成，不合并部署"]
     },
     {
+      "id": "live-start-wait-nijigasaki-source-bonus",
+      "priority": 0,
+      "title": "适配Live开始选择虹咲Member作Wait费用获得自身加成",
+      "status": "queued",
+      "depends_on": ["live-start-discard2-choose-heart"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["按实际PL!N-sd2-006:1与PL!N-bp7-012:1全文/revision/hash绑定，精确选择己方Active虹咲Member一人Wait作费用，拒绝可选能力不支付", "Blade+2或六色Heart+1只给原来源Member而非费用目标；费用目标为来源自身时合法，Wait Member不贡献Yell，来源离场/同ID回场不继承加成", "实际Live触发、非法目标/费用/颜色原子性、Live清理、新旧snapshot/SQL Replay、四AI/隐私与原生UI有断言；固定10局和图文报告不冒充随机触发覆盖", "全部profile/manifest/pre-push通过才晋级test_validated，不提升reviewed；六条重叠/继承卡保持manual，原dirty工作树不改，同一Draft PR54不合并部署"]
+    },
+    {
       "id": "effect-accuracy-loop",
       "priority": 3,
       "title": "按实际触发与规则风险扩展技能支持",

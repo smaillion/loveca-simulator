@@ -4283,6 +4283,11 @@ function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): st
   }
   if (event.event_type === "effect_operation_not_applied"
       && event.data.reason === "original_source_stage_member_departed") {
+    if (event.data.operation === "gain_blade") {
+      return locale === "zh"
+        ? "来源 Member 曾离开 Stage，不向控室或重新登场的卡牌添加 Blade；能力已结束。"
+        : "誘発元が一度ステージを離れたため、控え室や再登場したカードにブレードを加えず解決しました。";
+    }
     if (event.data.operation === "gain_heart") {
       return locale === "zh"
         ? "来源 Member 曾离开 Stage，不向控室或重新登场的卡牌添加 Heart；能力已结束。"
