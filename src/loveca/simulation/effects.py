@@ -295,7 +295,8 @@ class EffectChoice(BaseModel):
     choice_type: str
     deployment_policy: Literal["simultaneous_member_area_entry"] | None = None
     selection_policy: Literal[
-        "private_filtered_may_choose_none", "public_single_as_much_as_possible"
+        "private_filtered_may_choose_none", "public_single_as_much_as_possible",
+        "public_named_groups_as_much_as_possible",
     ] | None = None
     zone: str | None = None
     card_type: str | None = None
@@ -398,6 +399,19 @@ class EffectChoice(BaseModel):
             or len(self.name_ja_any) != 1 or not self.name_ja_any[0].strip() or self.condition
         ):
             raise ValueError("public single selection requires one named own Stage Member")
+        if self.selection_policy == "public_named_groups_as_much_as_possible" and (
+            self.choice_type != "member_group_from_stage" or self.zone != "stage"
+            or self.card_type != "member" or self.target_player != "self" or self.condition
+            or self.amount_source is not None or len(self.selection_groups) != 2
+            or len({g.group_id for g in self.selection_groups}) != 2
+            or any(not g.group_id or g.zone != "stage" or g.card_type != "member"
+                   or g.minimum != 1 or g.maximum != 1 or len(g.name_ja_any) != 1
+                   or not g.name_ja_any[0].strip() or g.exclude_group_ids or g.exclude_group_names
+                   or g.work_key or g.unit_key or g.exclude_name_ja_any for g in self.selection_groups)
+            or len({"".join(g.name_ja_any[0].split()) for g in self.selection_groups
+                    if g.name_ja_any}) != 2
+        ):
+            raise ValueError("public named groups require two independent named own Stage Members")
         if self.selection_policy == "private_filtered_may_choose_none" and (
             self.choice_type != "card_from_zone" or self.zone != "hand"
             or self.target_player != "self" or self.card_type != "member"
@@ -557,6 +571,27 @@ class EffectDefinition(BaseModel):
             or self.actions[0].branch is not None
         ):
             raise ValueError("public single selection only supports a mandatory named Live-start Blade")
+        if self.choice and self.choice.selection_policy == "public_named_groups_as_much_as_possible":
+            group_ids = {g.group_id for g in self.choice.selection_groups}
+            if (
+                self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
+                or self.trigger != "live_started" or self.effect_type != "triggered"
+                or self.execution_mode != "prompt_then_resolve" or self.duration != "live"
+                or len(self.actions) != 4
+                or any(op.action_type not in {"gain_heart", "gain_blade"}
+                       or op.target != "selected" or op.amount != 1 or op.amount_source is not None
+                       or op.multiplier is not None or op.orientation is not None
+                       or op.branch is not None or not isinstance(op.value, dict)
+                       or set(op.value) != {"target_group_id"}
+                       or op.value.get("target_group_id") not in group_ids
+                       or (op.action_type == "gain_heart" and not op.color_slot)
+                       or (op.action_type == "gain_blade" and op.color_slot is not None)
+                       for op in self.actions)
+                or any(sorted(op.action_type for op in self.actions
+                              if isinstance(op.value, dict) and op.value.get("target_group_id") == group_id)
+                       != ["gain_blade", "gain_heart"] for group_id in group_ids)
+            ):
+                raise ValueError("public named groups only support one Heart and Blade per Live-start target")
         if any(op.action_type == "deploy_selected_to_stage" for op in self.actions):
             if (
                 len(self.actions) != 1 or self.follow_up_choice is not None

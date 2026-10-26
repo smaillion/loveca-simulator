@@ -188,6 +188,14 @@ def _v1_1_dynamic_scenarios(
 ) -> list[ScenarioResult]:
     cases = (
         (
+            "live_start_named_kanon_keke_groups", "かのん・可可: 名前ごとに1人を選ぶ",
+            "かのん与可可：分别选择一人获得Heart与Blade", "PL!SP-bp1-024:1", _run_named_live_groups,
+        ),
+        (
+            "live_start_named_missing_group", "かのん不在でも可可の加算を解決",
+            "缺少かのん时仍为可可结算加成", "PL!SP-bp1-024:1", _run_named_live_partial_group,
+        ),
+        (
             "live_start_named_chisato_selected_blade", "Memories: 同名の千砂都から1人だけ選ぶ",
             "Memories：同名千砂都中显式选择一人加Blade", "PL!SP-bp7-025:1", _run_named_chisato_blade,
         ),
@@ -387,6 +395,42 @@ def _v1_1_dynamic_scenarios(
             )
         )
     return results
+
+
+def _run_named_live_groups(effect: EffectDefinition, *, partial: bool = False) -> dict[str, bool]:
+    source = _v1_1_live("source", effect.card_code, effect_ids=[effect.effect_id])
+    source.card.card_code = effect.card_code
+    state = _v1_1_state({effect.effect_id: effect}, [source,
+        _v1_1_member("kanon-a", "別名" if partial else "澁谷かのん"),
+        _v1_1_member("kanon-b", "別名" if partial else "澁谷かのん"),
+        _v1_1_member("keke", "唐 可可")],
+        member_area={"left": "kanon-a", "center": "kanon-b", "right": "keke"})
+    state.phase = "performance_first"
+    state.players["player_1"].live_area = ["source"]
+    state.cards["source"].face_up = False
+    started = apply_action(state, ActionRequest(action_type="advance_phase", player_id="player_1", expected_revision=0))
+    invocation = started.state.pending_effects[0]
+    options = next(a for a in started.legal_actions if a.action_type == "resolve_effect").options["invocations"][0]
+    result = apply_action(started.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=started.state.revision, payload={"invocation_id": invocation.invocation_id,
+            "selected_card_instance_ids_by_group": {"kanon": [] if partial else ["kanon-b"], "keke": ["keke"]}}))
+    modifiers = result.state.players["player_1"].manual_modifiers
+    actual = {(m.modifier_type, m.target_card_instance_id, m.color_slot, m.amount, m.duration) for m in modifiers}
+    expected = {("heart", "keke", "heart01", 1, "live"), ("blade", "keke", None, 1, "live")}
+    if not partial:
+        expected |= {("heart", "kanon-b", "heart05", 1, "live"), ("blade", "kanon-b", None, 1, "live")}
+    return {
+        "named_live_no_auto_first": not started.state.players["player_1"].manual_modifiers,
+        "named_groups_bounds": options["choice_groups"][0]["minimum"] == (0 if partial else 1),
+        "named_groups_exact_modifiers": actual == expected and len(modifiers) == len(expected),
+        "named_groups_missing_reason": not partial or any(e.data.get("group_id") == "kanon"
+            and e.data.get("reason") == "no_legal_stage_member_at_resolution" for e in result.events),
+        "named_live_finished": not result.state.pending_effects and result.state.phase == "yell_first",
+    }
+
+
+def _run_named_live_partial_group(effect: EffectDefinition) -> dict[str, bool]:
+    return _run_named_live_groups(effect, partial=True)
 
 
 def _run_named_chisato_blade(effect: EffectDefinition) -> dict[str, bool]:
@@ -1151,6 +1195,9 @@ def _load_visuals_for_effect_ids(
 
 
 _V1_1_CHECK_LABELS: dict[str, tuple[str, str]] = {
+    "named_groups_bounds": ("不在の名前だけ選択数0", "只有缺席姓名的选择数为0"),
+    "named_groups_exact_modifiers": ("名前別の同一対象にHeartとBlade", "每组Heart与Blade准确作用于同一选中目标"),
+    "named_groups_missing_reason": ("不在の理由を明示し残りを解決", "记录无目标原因且继续结算另一组"),
     "named_live_triggered": ("実際のLive開始で誘発", "真实Live开始时触发"),
     "named_live_candidates": ("同名メンバー2人を候補として表示", "两名同名Member均作为候选"),
     "named_live_no_auto_first": ("最初の候補を自動で選ばない", "不自动选择第一名候选"),

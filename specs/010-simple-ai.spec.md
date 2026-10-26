@@ -4,6 +4,12 @@
 
 ### Experimental resource-cycle policy
 
+All four policies consume native grouped bounds for
+`public_named_groups_as_much_as_possible`: one candidate for each present name,
+zero for an absent name. They must not bypass a required group, infer hidden
+identities or reuse the old automatic first-match rule. This is a Rule Engine
+accuracy fix; default policy and strategy version remain unchanged.
+
 The offline blackbox runner may select a shared product policy explicitly and
 load a frozen deck directory, seed base and one-based match start. Defaults keep
 the historical heuristic. Each decision uses one controlling player's view;

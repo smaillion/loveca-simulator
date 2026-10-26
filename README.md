@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+`PL!SP-bp1-024:1`「Tiny Stars」の自動先頭選択を修正しました。「澁谷かのん」と「唐 可可」を名前ごとに1人選び、同じ対象にHeartとBladeを付与します。一方が不在でも他方を解決し、旧Replayは維持します。登録数は905/1212のままです。[カード画像・検証結果](./docs/development/named-live-group-verification.md)
+
 `PL!SP-bp7-025:1`「Memories」に対応しました。ライブ開始時、同名の「嵐 千砂都」が複数いても1人を明示的に選び、そのメンバーだけがLive終了までBlade+1を得ます。対象は解決時に選び、不在なら理由を表示して終了します。登録905/1212（74.67%）、307件manual。[カード画像・状態・Replay検証](./docs/development/named-live-blade-verification.md)
 
 効果による重複登場の監査基盤に、双方の公開Stage・表向きLive・登場候補の全文/版/ハッシュを確認する明示的な方針を追加しました。未確認能力で全エリアが利用できない場合は費用を払わず停止し、手動処理へ案内します。旧snapshotは維持し、6件の複雑な登場能力はmanualのままです。[検証と適用範囲](./docs/development/overlap-source-binding-verification.md)

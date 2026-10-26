@@ -83154,76 +83154,31 @@
     {
       "actions": [
         {
-          "action_type": "gain_heart_to_stage_members",
-          "amount": 1,
-          "amount_source": null,
-          "branch": null,
-          "card_type": null,
-          "color_slot": "heart05",
-          "flag": null,
-          "multiplier": null,
-          "orientation": null,
-          "target": null,
-          "target_hand_size": null,
-          "value": {
-            "maximum": 1,
-            "name_ja": "澁谷かのん"
-          }
+          "action_type": "gain_heart", "target": "selected", "amount": 1,
+          "color_slot": "heart05", "value": {"target_group_id": "kanon"}
         },
         {
-          "action_type": "gain_blade_to_stage_members",
-          "amount": 1,
-          "amount_source": null,
-          "branch": null,
-          "card_type": null,
-          "color_slot": null,
-          "flag": null,
-          "multiplier": null,
-          "orientation": null,
-          "target": null,
-          "target_hand_size": null,
-          "value": {
-            "maximum": 1,
-            "name_ja": "澁谷かのん"
-          }
+          "action_type": "gain_blade", "target": "selected", "amount": 1,
+          "value": {"target_group_id": "kanon"}
         },
         {
-          "action_type": "gain_heart_to_stage_members",
-          "amount": 1,
-          "amount_source": null,
-          "branch": null,
-          "card_type": null,
-          "color_slot": "heart01",
-          "flag": null,
-          "multiplier": null,
-          "orientation": null,
-          "target": null,
-          "target_hand_size": null,
-          "value": {
-            "maximum": 1,
-            "name_ja": "唐 可可"
-          }
+          "action_type": "gain_heart", "target": "selected", "amount": 1,
+          "color_slot": "heart01", "value": {"target_group_id": "keke"}
         },
         {
-          "action_type": "gain_blade_to_stage_members",
-          "amount": 1,
-          "amount_source": null,
-          "branch": null,
-          "card_type": null,
-          "color_slot": null,
-          "flag": null,
-          "multiplier": null,
-          "orientation": null,
-          "target": null,
-          "target_hand_size": null,
-          "value": {
-            "maximum": 1,
-            "name_ja": "唐 可可"
-          }
+          "action_type": "gain_blade", "target": "selected", "amount": 1,
+          "value": {"target_group_id": "keke"}
         }
       ],
       "card_code": "PL!SP-bp1-024",
-      "choice": null,
+      "choice": {
+        "choice_type": "member_group_from_stage", "zone": "stage", "card_type": "member",
+        "selection_policy": "public_named_groups_as_much_as_possible",
+        "selection_groups": [
+          {"group_id": "kanon", "label_ja": "澁谷かのん", "zone": "stage", "card_type": "member", "name_ja_any": ["澁谷かのん"], "minimum": 1, "maximum": 1},
+          {"group_id": "keke", "label_ja": "唐 可可", "zone": "stage", "card_type": "member", "name_ja_any": ["唐 可可"], "minimum": 1, "maximum": 1}
+        ]
+      },
       "condition": {},
       "cost": [],
       "cost_choice": null,
@@ -83231,7 +83186,7 @@
       "effect_id": "PL!SP-bp1-024:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "auto_resolve",
+      "execution_mode": "prompt_then_resolve",
       "follow_up_choice": null,
       "frequency_limit": "once_per_live",
       "is_optional": false,

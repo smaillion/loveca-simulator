@@ -4075,6 +4075,40 @@ describe("App", () => {
     });
   });
 
+  it.each([false, true, "none"])("submits independent named groups including absent names: %s", (partial) => {
+    const onAction = vi.fn();
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    state.cards["player_1-M002"] = { ...state.cards["player_1-M002"], card: { ...state.cards["player_1-M002"].card, name_ja: "澁谷かのん" } };
+    state.cards["player_1-M003"] = { ...state.cards["player_1-M003"], card: { ...state.cards["player_1-M003"].card, name_ja: "唐 可可" } };
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "named-groups", effect_id: "PL!SP-bp1-024:1", source_card_instance_id: "player_1-M001",
+      label_ja: "【ライブ開始時】かのんと可可を1人ずつ選ぶ。", trigger: "live_started", timing: "live_start",
+      execution_mode: "prompt_then_resolve", simulation_support: "test_validated_executable", is_optional: false,
+      choice_type: "member_group_from_stage", selection_policy: "public_named_groups_as_much_as_possible",
+      candidate_card_instance_ids: [], card_selection_minimum: 0, card_selection_maximum: 0,
+      choice_groups: [
+        { group_id: "kanon", label_ja: "かのん", candidate_card_instance_ids: partial ? [] : ["player_1-M002"], minimum: partial ? 0 : 1, maximum: partial ? 0 : 1 },
+        { group_id: "keke", label_ja: "可可", candidate_card_instance_ids: partial === "none" ? [] : ["player_1-M003"], minimum: partial === "none" ? 0 : 1, maximum: partial === "none" ? 0 : 1 },
+      ],
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false}
+      onAction={onAction} onManual={vi.fn()} />);
+    if (!partial) {
+      expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+      fireEvent.click(screen.getByRole("button", { name: /澁谷かのん/ }));
+    }
+    if (partial !== "none") {
+      expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+      fireEvent.click(screen.getByRole("button", { name: /唐 可可/ }));
+    }
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", expect.objectContaining({
+      invocation_id: "named-groups", selected_card_instance_ids_by_group: {
+        ...(!partial ? { kanon: ["player_1-M002"] } : {}), ...(partial !== "none" ? { keke: ["player_1-M003"] } : {}),
+      },
+    }));
+  });
+
   it("requires one explicit named Member choice instead of auto-selecting the first copy", () => {
     const onAction = vi.fn();
     const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;

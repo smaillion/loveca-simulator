@@ -1,5 +1,15 @@
 # Effect Semantics Audit
 
+Independent named-group checkpoint: `PL!SP-bp1-024:1` now requires explicit
+selection for each named own Stage Member instead of taking the first copy.
+The opt-in `public_named_groups_as_much_as_possible` snapshot is restricted to
+two independent names, one Heart and one Blade per target, mandatory costless
+Live-start resolution. A missing group has zero bounds and explicit non-applied
+events; the other group still resolves. Old auto snapshots and their Replay
+hashes are unchanged. This corrects an existing registration, not a promotion:
+905/1212 executable,307 manual;68 illustrated scenarios include29 actual state
+transitions and39 registry contracts. [Chinese evidence](development/named-live-group-verification.md).
+
 Named Live target checkpoint: exact `PL!SP-bp7-025:1` snapshots
 `public_single_as_much_as_possible` for one own named Stage Member's Live-duration
 Blade+1. Preserve the trigger even if no target exists yet, choose at resolution,

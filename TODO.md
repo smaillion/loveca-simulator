@@ -10,7 +10,7 @@
 ### 新卡起动与未支持段落
 
 - 已适配 `PL!SP-bp7-025:1`「Memories」显式选择一名「嵐 千砂都」获得Live临时Blade，结算时选择而非触发时锁定，零目标正常结束并中日显示结果；见 `docs/development/named-live-blade-verification.md`。
-- 同类型待审：`PL!SP-bp1-024:1` 当前多姓名固定上限自动操作可能在同名多份时绕过玩家选择。后续先复现，再处理“部分姓名组没有目标”与显式分组选人，不能直接套本批单目标policy或宣称已修复。
+- 已复现并修复 `PL!SP-bp1-024:1` 自动取首张同名卡：显式两组独立选人，部分或全部姓名无目标时只忽略相应操作，保留旧auto快照；见 `docs/development/named-live-group-verification.md`。不扩大为任意多组/不同条件DSL，也不宣称所有旧自动目标技能已审查。
 - 已适配 `PL!N-bp7-006:1` 支付Energy后检查并完整重排顶4张，第二段堆墓分支仍manual；见 `docs/development/activated-inspection-verification.md`。
 - 已适配 `PL!SP-bp7-008:1` / `PL!N-bp7-023:1` 的自身Wait抽牌，见 `docs/development/activated-wait-draw-verification.md`；不把“四季第一段可用”写成整卡全部自动化。
 - `PL!SP-bp7-008:2` 已以显式source object策略适配Wait移动复原，触发后离场/同ID回场不会复原新对象，见 `docs/development/moved-source-ready-verification.md`。原 `source_object_departure_reentry_requires_review` 仅对这一受限家族解除；继承/附属、任意目标与完整重叠边界仍未完成。

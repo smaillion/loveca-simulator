@@ -5519,6 +5519,12 @@ def _branch_unavailable_reason(
     return None
 
 
+def _group_choice_bounds(effect: Any, group: Any, candidates: list[str]) -> tuple[int, int]:
+    if effect.choice.selection_policy == "public_named_groups_as_much_as_possible":
+        return min(group.minimum, len(candidates)), min(group.maximum, len(candidates))
+    return group.minimum, group.maximum
+
+
 def _effect_group_choice_options(
     state: MatchState,
     invocation: EffectInvocation,
@@ -5544,6 +5550,7 @@ def _effect_group_choice_options(
             for item in _choice_candidates_for_group(state, invocation, group)
             if item not in excluded and state.cards[item].card.name_ja not in excluded_names
         ]
+        minimum, maximum = _group_choice_bounds(effect, group, candidates)
         options.append(
             {
                 "group_id": group.group_id,
@@ -5551,8 +5558,8 @@ def _effect_group_choice_options(
                 "candidate_card_instance_ids": candidates,
                 "exclude_group_ids": list(group.exclude_group_ids),
                 "exclude_group_names": list(group.exclude_group_names),
-                "minimum": group.minimum,
-                "maximum": group.maximum,
+                "minimum": minimum,
+                "maximum": maximum,
             }
         )
         selected_by_group[group.group_id] = []
@@ -5597,9 +5604,10 @@ def _validate_grouped_stage_member_choice(
             for item in _choice_candidates_for_group(state, invocation, group)
             if item not in excluded and state.cards[item].card.name_ja not in excluded_names
         ]
+        minimum, maximum = _group_choice_bounds(effect, group, candidates)
         if (
-            len(selected) < group.minimum
-            or len(selected) > group.maximum
+            len(selected) < minimum
+            or len(selected) > maximum
             or len(selected) != len(set(selected))
             or any(item not in candidates for item in selected)
             or any(item in all_selected for item in selected)
@@ -5640,20 +5648,21 @@ def _grouped_stage_member_choice_has_legal_assignment(
             and state.cards[item].card.name_ja not in excluded_names
             and item not in used
         ]
-        if len(candidates) < group.minimum:
+        minimum, maximum = _group_choice_bounds(effect, group, candidates)
+        if len(candidates) < minimum:
             return False
-        if group.minimum == 0:
+        if minimum == 0:
             selected_by_group[group.group_id] = []
             if backtrack(index + 1, selected_by_group, used):
                 return True
-        if group.minimum == 1 and group.maximum == 1:
+        if minimum == 1 and maximum == 1:
             for candidate in candidates:
                 selected_by_group[group.group_id] = [candidate]
                 if backtrack(index + 1, selected_by_group, {*used, candidate}):
                     return True
             selected_by_group.pop(group.group_id, None)
             return False
-        selected = candidates[: group.minimum]
+        selected = candidates[:minimum]
         selected_by_group[group.group_id] = selected
         return backtrack(index + 1, selected_by_group, {*used, *selected})
 
@@ -7553,6 +7562,15 @@ def _execute_operations(
             selected_ids,
             selected_ids_by_group,
         )
+        if (effect.choice and effect.choice.selection_policy == "public_named_groups_as_much_as_possible"
+                and not operation_selected_ids):
+            events.append(GameEvent(
+                event_type="effect_operation_not_applied", player_id=invocation.player_id,
+                data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                      "operation": operation_type, "group_id": operation.value["target_group_id"],
+                      "reason": "no_legal_stage_member_at_resolution"}, source="system",
+            ))
+            continue
         if operation.target == "cost_selected":
             operation_selected_ids = [
                 item

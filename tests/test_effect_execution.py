@@ -2725,28 +2725,30 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
         if candidate.effect_id == "PL!SP-bp1-024:1"
     )
     assert named_superstar_candidate.simulation_support == "test_validated_executable"
+    assert named_superstar_candidate.execution_mode == "prompt_then_resolve"
+    assert named_superstar_candidate.choice["selection_policy"] == "public_named_groups_as_much_as_possible"
     assert named_superstar_candidate.actions == [
         {
-            "action_type": "gain_heart_to_stage_members",
+            "action_type": "gain_heart", "target": "selected",
             "amount": 1,
             "color_slot": "heart05",
-            "value": {"name_ja": "澁谷かのん", "maximum": 1},
+            "value": {"target_group_id": "kanon"},
         },
         {
-            "action_type": "gain_blade_to_stage_members",
+            "action_type": "gain_blade", "target": "selected",
             "amount": 1,
-            "value": {"name_ja": "澁谷かのん", "maximum": 1},
+            "value": {"target_group_id": "kanon"},
         },
         {
-            "action_type": "gain_heart_to_stage_members",
+            "action_type": "gain_heart", "target": "selected",
             "amount": 1,
             "color_slot": "heart01",
-            "value": {"name_ja": "唐 可可", "maximum": 1},
+            "value": {"target_group_id": "keke"},
         },
         {
-            "action_type": "gain_blade_to_stage_members",
+            "action_type": "gain_blade", "target": "selected",
             "amount": 1,
-            "value": {"name_ja": "唐 可可", "maximum": 1},
+            "value": {"target_group_id": "keke"},
         },
     ]
     distinct_units_candidate = next(
