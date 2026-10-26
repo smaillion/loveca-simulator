@@ -4,6 +4,13 @@
 
 ### Experimental resource-cycle policy
 
+Six peek5/peek2 siblings use native hand-cost options. Public Member/Live peek5
+may keep zero but must use the generated card-type filter; private unfiltered
+peek2 must keep one after paying. A cost may be supplied by another pending
+invocation, and an unpayable cost ends without peeking or error-skip. All four
+policies have per-card paid/unpayable and hidden-hand invariance assertions;
+fixed10 does not trigger these six. Defaultv1.1 and old snapshots are unchanged.
+
 Fifteen separately verified private peek3 identities now opt into the existing
 cost policy. AI may decline the optional hand cost but, once paid, must keep one
 inspected card regardless of work or Member/Live type; neither look nor keep is

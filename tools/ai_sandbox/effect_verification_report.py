@@ -193,6 +193,12 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *(("inspection_sibling_" + code, "手札費用・上5枚の公開/上2枚の非公開 " + code,
+           "顶5公开或顶2私下取得 " + code, code + ":1", _run_adjacent_discard_inspection)
+          for code in ("PL!-sd1-015", "PL!HS-bp2-010", "PL!HS-bp1-011", "PL!HS-bp6-022", "PL!N-pb1-028", "PL!N-pb1-035")),
+        *(("inspection_sibling_unpayable_" + code, "費用不足は確認せず待機取消 " + code,
+           "费用不足时不查看并结束待机 " + code, code + ":1", _run_inspection_unpayable)
+          for code in ("PL!-sd1-015", "PL!HS-bp2-010", "PL!HS-bp1-011", "PL!HS-bp6-022", "PL!N-pb1-028", "PL!N-pb1-035")),
         *(("private3_native_" + code, "手札1枚・上3枚から非公開で1枚 " + code,
            "弃手牌1张，顶3私下取1 " + code, code + ":1", _run_private3_inspection) for code in private3_codes),
         *(("private3_unpayable_" + code, "手札不足・確認せず待機取消 " + code,
@@ -506,13 +512,17 @@ def _run_adjacent_discard_inspection(effect: EffectDefinition) -> dict[str, bool
         "PL!-pb1-016": {"adj-member", "adj-live", "adj-blade"},
         "PL!-sd1-011": {"adj-member", "adj-live", "adj-wrong"},
         "PL!-sd1-012": {"adj-member", "adj-live", "adj-wrong"},
+        "PL!-sd1-015": {"adj-member", "adj-wrong", "adj-blade", "adj-tail"},
+        "PL!HS-bp2-010": {"adj-member", "adj-wrong", "adj-blade", "adj-tail"},
+        "PL!HS-bp1-011": {"adj-live"}, "PL!HS-bp6-022": {"adj-live"},
+        "PL!N-pb1-028": {"adj-member", "adj-live"}, "PL!N-pb1-035": {"adj-member", "adj-live"},
     }[effect.card_code]
-    target = "adj-live" if effect.card_code == "PL!-bp3-010" else "adj-member"
+    target = "adj-live" if effect.card_code in {"PL!-bp3-010", "PL!HS-bp1-011", "PL!HS-bp6-022"} else "adj-member"
     result = apply_action(inspected.state, ActionRequest(action_type="resolve_effect_choice", player_id="player_1",
         expected_revision=inspected.state.revision, payload={"selected_card_instance_ids": [target]}))
     public = _match_state_payload(result.state, events=result.events, legal_actions=result.legal_actions, player_id="player_2")
     revealed = [c["instance_id"] for e in public["events"] for c in e["data"].get("revealed_cards", [])]
-    private = effect.card_code in {"PL!-sd1-011", "PL!-sd1-012"}
+    private = effect.card_code in {"PL!-sd1-011", "PL!-sd1-012", "PL!N-pb1-028", "PL!N-pb1-035"}
     return {
         "adjacent_cost_once": "adj-cost" in inspected.state.players["player_1"].waiting_room and sum(e.event_type == "effect_cost_paid" for e in inspected.events) == 1 and not any(e.event_type == "effect_cost_paid" for e in result.events),
         "adjacent_inspection_count": inspected.state.pending_choice.options["inspected_card_instance_ids"] == deck[:effect.choice.amount],

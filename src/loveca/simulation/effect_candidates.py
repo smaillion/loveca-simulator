@@ -2623,7 +2623,10 @@ def _onplay_optional_discard_inspect_keep1_any(
 
 def _onplay_audited_discard_inspection(row: sqlite3.Row) -> EffectCandidate | None:
     patterns = (
-        ({"PL!-bp3-010"}, 5, "ライブカードを1枚公開して手札に加えてもよい。", {"card_type": "live"}, 0, True),
+        ({"PL!-bp3-010", "PL!HS-bp1-011", "PL!HS-bp6-022"},
+         5, "ライブカードを1枚公開して手札に加えてもよい。", {"card_type": "live"}, 0, True),
+        ({"PL!-sd1-015", "PL!HS-bp2-010"},
+         5, "メンバーカードを1枚公開して手札に加えてもよい。", {"card_type": "member"}, 0, True),
         ({"PL!-bp5-014"}, 4, "ハートに【heart05】か【heart06】を持つメンバーカードを1枚公開して手札に加えてもよい。",
          {"card_type": "member", "heart_color_slots_any": ["heart05", "heart06"]}, 0, True),
         ({"PL!-bp6-004"}, 5, "『μ's』のメンバーカードを1枚公開して手札に加えてもよい。",
@@ -2634,6 +2637,7 @@ def _onplay_audited_discard_inspection(row: sqlite3.Row) -> EffectCandidate | No
           "PL!N-PR-004", "PL!N-PR-006", "PL!N-PR-013", "PL!N-bp1-007", "PL!N-bp1-010",
           "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019"},
          3, "1枚を手札に加え、", {}, 1, False),
+        ({"PL!N-pb1-028", "PL!N-pb1-035"}, 2, "1枚を手札に加え、", {}, 1, False),
     )
     for codes, amount, selection, filters, minimum, public in patterns:
         if row["card_code"] not in codes:

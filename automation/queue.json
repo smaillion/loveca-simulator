@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "inspection-work-unit-filtered-siblings",
+      "priority": 0,
+      "title": "逐卡审计六条作品和组合检索的费用与候补筛选",
+      "status": "queued",
+      "depends_on": ["inspection-member-live5-private2-siblings"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!HS-bp1-009:1、PL!HS-pb1-018:1、PL!N-bp3-012:1、PL!SP-pb1-015/016/017:1的完整日文段/revision/hash及实际费用，不按名称模糊匹配", "先复现无费用与待机补费用，逐卡验证作品/组合对Member和Live的筛选、可选零张、公开取得与私有查看，不能把作品当组合或漏筛选", "只为规则明确且适用的exact-text采用显式费用策略，新旧SQL Replay、原子拒绝、双方隐私、四AI和UI有真实断言，不提升reviewed、不改schema", "固定AI与图文报告明确实际触发与定向覆盖，余15扫描/混合费用/多张取得不批量晋级，旧dirty与同Draft PR54保留，不合并部署"]
+    },
+    {
       "id": "inspection-member-live5-private2-siblings",
       "priority": 0,
       "title": "复核六条Member或Live顶5与私下顶2检索兄弟文本",

@@ -53,6 +53,9 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
         "private3_native_PL!HS-cl1-007",
         "private3_native_PL!N-PR-013",
         "private3_unpayable_PL!S-PR-019",
+        "inspection_sibling_PL!-sd1-015",
+        "inspection_sibling_PL!N-pb1-028",
+        "inspection_sibling_unpayable_PL!HS-bp6-022",
     }.issubset(scenario_ids)
     assert "registry_contract_PL!S-sd1-006_1" in scenario_ids
     assert "registry_contract_PL!N-bp5-005_1" in scenario_ids

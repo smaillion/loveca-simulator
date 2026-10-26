@@ -3288,7 +3288,7 @@ describe("App", () => {
     });
   });
 
-  it.each(["PL!N-sd2-009:1", "PL!N-sd2-012:1", "PL!N-sd2-014:1", "PL!N-bp7-018:1", "PL!-bp3-010:1", "PL!-bp5-014:1", "PL!-bp6-004:1", "PL!-pb1-016:1"])("allows keeping zero inspected cards for %s without selecting an ineligible card", (effectId) => {
+  it.each(["PL!N-sd2-009:1", "PL!N-sd2-012:1", "PL!N-sd2-014:1", "PL!N-bp7-018:1", "PL!-bp3-010:1", "PL!-bp5-014:1", "PL!-bp6-004:1", "PL!-pb1-016:1", "PL!-sd1-015:1", "PL!HS-bp2-010:1", "PL!HS-bp1-011:1", "PL!HS-bp6-022:1"])("allows keeping zero inspected cards for %s without selecting an ineligible card", (effectId) => {
     const onAction = vi.fn();
     const label = "【登場】『虹ヶ咲』のカードを1枚公開して手札に加えてもよい。";
     const state = { ...INSPECTION_MATCH_PAYLOAD.state, effect_definitions: {
@@ -3698,7 +3698,9 @@ describe("App", () => {
     "PL!N-sd1-002:1", "PL!N-sd1-003:1", "PL!S-PR-013:1", "PL!S-PR-019:1",
   ];
 
-  it.each(["PL!-bp3-010:1", "PL!-bp5-014:1", "PL!-bp6-004:1", "PL!-pb1-016:1", "PL!-sd1-011:1", "PL!-sd1-012:1", ...private3FamilyEffectIds])("can explicitly end the optional unpayable hand cost for %s", (effectId) => {
+  const inspectionSiblingEffectIds = ["PL!-sd1-015:1", "PL!HS-bp2-010:1", "PL!HS-bp1-011:1", "PL!HS-bp6-022:1", "PL!N-pb1-028:1", "PL!N-pb1-035:1"];
+
+  it.each(["PL!-bp3-010:1", "PL!-bp5-014:1", "PL!-bp6-004:1", "PL!-pb1-016:1", "PL!-sd1-011:1", "PL!-sd1-012:1", ...private3FamilyEffectIds, ...inspectionSiblingEffectIds])("can explicitly end the optional unpayable hand cost for %s", (effectId) => {
     const onAction = vi.fn();
     const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
       invocation_id: "no-hand-cost", effect_id: effectId, source_card_instance_id: "player_1-M001",
@@ -3718,7 +3720,7 @@ describe("App", () => {
     });
   });
 
-  it.each(["PL!SP-bp7-018:1", "PL!-sd1-011:1", "PL!-sd1-012:1", ...private3FamilyEffectIds])("requires exactly one private kept card after paying the cost for %s", (effectId) => {
+  it.each(["PL!SP-bp7-018:1", "PL!-sd1-011:1", "PL!-sd1-012:1", ...private3FamilyEffectIds, "PL!N-pb1-028:1", "PL!N-pb1-035:1"])("requires exactly one private kept card after paying the cost for %s", (effectId) => {
     const onAction = vi.fn();
     const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], options: {
       ...INSPECTION_MATCH_PAYLOAD.legal_actions[0].options, effect_id: effectId, minimum: 1, maximum: 1, reveal_selected_to_opponent: false,

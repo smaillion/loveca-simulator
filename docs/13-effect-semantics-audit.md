@@ -1,5 +1,15 @@
 # Effect Semantics Audit
 
+Peek5/peek2 sibling checkpoint: six exact identities opt into the existing hand
+cost policy. Two Member and two Live peek5 texts retain optional public keep0-1;
+two unfiltered peek2 texts retain mandatory private keep1.174 targeted tests,
+185 frontend tests/build,144 illustrated scenarios (105 state/39 contract).
+Fixed10 AI matches qualify without triggering these six; native state tests are
+separate evidence. Registry915/1212 (75.50%),297manual unchanged; no reviewed
+promotion, engine/SQLite/Card schema change or old snapshot rewrite.15 remaining
+scan candidates require individual review; six work/unit texts are queued next.
+[Chinese evidence](development/inspection-siblings-audit.md).
+
 Private peek3 family checkpoint:15 exact identities independently opt into the
 existing inspection cost policy. Per-card revisions/hashes and real source costs
 are tested, including three whole-text hash variants with additional Live-start
