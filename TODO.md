@@ -9,6 +9,7 @@
 
 ### 新卡起动与未支持段落
 
+- `PL!N-PR-036:1`从本地原型收口：受限其他虹咲选人、cost15信息与支付减费区别、来源新对象、目标离场清理及新旧Replay有45专项。当前916/1212、296manual；同冻结30局7完赛/23人工停止，仍非beta门禁。下一有限切片`PL!S-cl1-002:1`从Yell公开牌中选Aqours最多3张排序入底，先确认历史与公开区边界，不直接把整个resolution_area当Yell。见`docs/development/other-nijigasaki-heart-verification.md`。
 - 已精确实现`PL!-pb2-039:1`：正文条件在结算时检查，成功区μs两张时Yell+10、Stage Blade不变；第二段仍manual。28专项、4新增图文场景，当前915/1212及297manual。同冻结30牌组7完赛/23明确人工阻塞；下一有限切片审计`PL!N-PR-036:1`选另一虹咲Member并按cost追加Heart，不能按频次自动晋级。见`docs/development/live-yell-ten-verification.md`。
 - 已按真实引擎入队重建manual优先级，修正旧gap仅用skip摘要冒充触发的问题。30套技能密集合法牌组诊断6完赛/24人工阻塞，42种manual共80入队、51辞退、28强制待机；见`docs/development/manual-trigger-observation-audit.md`及含源码指纹/seed/牌组的离线报告。这不是30局发布通过；下一项仅审计`PL!-pb2-039:1`成功Live条件与Yell+10，先验证false条件不应卡住，再实现明确语义。914/1212和298manual不变。
 - `PL!S-bp2-005:1`独立审计完成，因“持有Heart”范围与最大3张专用处理缺证据，保守降为manual并记录`printed_heart_icon_scope_and_multi_keep_executor_unresolved`。21卡牌专项+5关联回归、214前端、173图文通过；真实覆盖914/1212、298manual，见`docs/development/multi-keep-inspection-audit.md`。这不是该技能已支持；旧Replay不改，后续需独立规则证据与受限新策略。下一批按实际manual触发重新取样，不能只重复低风险固定池或按牌组出现次数晋级。

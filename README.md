@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+桜坂しずく`PL!N-PR-036:1`を精確な本文で対応。他の自分の虹ヶ咲Memberを1人選び、解決時のカード情報costが15以上ならHeart03を2つ、それ以外は1つ与えます。対象なしは明示終了し、領域移動後の同IDは新しい対象として扱います。登録916/1212（75.58%）、296manual。[対象・Replay・AI検証](./docs/development/other-nijigasaki-heart-verification.md)
+
 「僕たちはひとつの光」`PL!-pb2-039:1`を正確な本文に限定して対応。解決時に成功置き場のμ'sを数え、2枚以上ならエールを10枚追加します。MemberのBladeは変更しません。第2段は手動のまま。登録915/1212（75.50%）、297manual。同じ30デッキの診断は6→7試合完了、残り23試合は明示的な手動停止です。リリース合格ではありません。[カード別検証](./docs/development/live-yell-ten-verification.md)
 
 渡辺曜`PL!S-bp2-005:1`は「Heartを持つ」の範囲と上7枚から最大3枚取得の専用処理が未確認のため、保守的に手動へ戻しました。費用・確認は自動実行せず、任意辞退または手動処理を選べます。旧Replayは維持。その監査時点では914/1212、298manualです。[理由と互換性検証](./docs/development/multi-keep-inspection-audit.md)

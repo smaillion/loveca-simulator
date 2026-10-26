@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "live-success-aqours-yell-bottom-three",
+      "priority": 0,
+      "title": "精确审计Yell公开Aqours最多三张排序入底",
+      "status": "queued",
+      "depends_on": ["live-start-other-nijigasaki-cost-heart"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!S-cl1-002:1全文/revision/hash及PDF8.4.4-8.4.8/11.6，先复现三次实际强制待机；不可把整个resolution_area无条件当Yell历史，或把Aqours卡限成Member", "只在语义明确时用受限公开选择/顺序操作，验证零到三张、非法四张/重复/异作品、Live与Member、不是Yell的公开牌、已被其他效果移走、短牌库及多阶段公开/清理时点", "真实状态、旧manual/新SQL Replay、双方隐私、四AI、排序UI及图文通过；旧策略不全局放宽，不晋级reviewed，不改Card/SQLite schema或默认AI", "同冻结30技能密集池复跑，保留准确入队/辞退/错误skip/人工待机与完赛诊断，执行全部profiles/manifest/prepush；同Draft PR54不合并部署，旧dirty和PL!S-bp2-005待审保留"]
+    },
+    {
       "id": "live-start-other-nijigasaki-cost-heart",
       "priority": 0,
       "title": "按实际人工待机审计另一虹咲成员按cost加Heart",

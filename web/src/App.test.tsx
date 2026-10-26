@@ -4333,6 +4333,38 @@ describe("App", () => {
     });
   });
 
+  it.each([
+    { empty: false, returned: false }, { empty: true, returned: false },
+    { empty: false, returned: true },
+  ])("handles other-Nijigasaki selection %j", ({ empty, returned }) => {
+    const onAction = vi.fn();
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    const id = returned ? "player_1-M001" : "player_1-M002";
+    state.cards[id] = { ...state.cards[id], card: { ...state.cards[id].card, name_ja: "桜坂しずく", cost: 15 } };
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "other-niji", effect_id: "PL!N-PR-036:1", source_card_instance_id: "player_1-M001",
+      label_ja: "【ライブ開始時】ほかの虹ヶ咲メンバー1人にHeart。cost15以上ならさらにHeart。",
+      trigger: "live_started", timing: "live_start", execution_mode: "prompt_then_resolve",
+      simulation_support: "test_validated_executable", is_optional: false,
+      choice_type: "member_from_stage", choice_zone: "stage", card_selection_minimum: empty ? 0 : 1,
+      card_selection_maximum: empty ? 0 : 1, selection_policy: "public_other_nijigasaki_cost_heart",
+      candidate_card_instance_ids: empty ? [] : [id],
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false}
+      onAction={onAction} onManual={vi.fn()} />);
+    const resolve = screen.getByRole("button", { name: "结算技能" });
+    if (empty) {
+      expect(resolve).toBeEnabled();
+    } else {
+      expect(resolve).toBeDisabled();
+      fireEvent.click(screen.getByRole("button", { name: /桜坂しずく/ }));
+    }
+    fireEvent.click(resolve);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "other-niji", accepted: true, selected_card_instance_ids: empty ? [] : [id], energy_instance_ids: [],
+    });
+  });
+
   it.each(["overlap_source_binding_incomplete", "overlap_attached_ability_requires_review",
     "overlap_public_ability_requires_timing_review"])("offers manual processing for an unresolved overlap source: %s", (reason) => {
     const onAction = vi.fn();

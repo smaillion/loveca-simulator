@@ -141,6 +141,7 @@ class EffectOperation(BaseModel):
         "source_attached_energy_count_plus",
         "source_attached_member_count",
         "selected_member_matching_source_attribute_count",
+        "selected_member_cost15_heart_amount",
         "success_live_score_card_count_capped",
     ] | None = None
     branch: str | None = None
@@ -315,7 +316,7 @@ class EffectChoice(BaseModel):
     deployment_policy: Literal["simultaneous_member_area_entry"] | None = None
     selection_policy: Literal[
         "private_filtered_may_choose_none", "public_single_as_much_as_possible",
-        "public_named_groups_as_much_as_possible",
+        "public_named_groups_as_much_as_possible", "public_other_nijigasaki_cost_heart",
     ] | None = None
     zone: str | None = None
     card_type: str | None = None
@@ -431,6 +432,14 @@ class EffectChoice(BaseModel):
             or self.unselected_destination is not None or self.reveal_selected_to_opponent
         ):
             raise ValueError("activated inspection policy requires a private full top-deck reorder")
+        if self.selection_policy == "public_other_nijigasaki_cost_heart" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "member_from_stage", "zone": "stage", "card_type": "member",
+                "selection_policy": "public_other_nijigasaki_cost_heart",
+                "minimum": 1, "work_key": "nijigasaki", "exclude_source": True,
+            }
+        ):
+            raise ValueError("other Nijigasaki selection requires one other own Stage Member")
         if self.selection_policy == "public_single_as_much_as_possible" and (
             self.choice_type != "member_from_stage" or self.zone != "stage"
             or self.target_player != "self" or self.card_type != "member"
@@ -660,6 +669,28 @@ class EffectDefinition(BaseModel):
             )
         ):
             raise ValueError("private selection policy requires bounded Stage deployment")
+        if any(op.amount_source == "selected_member_cost15_heart_amount"
+               for op in [*self.cost, *self.actions]) and (
+            not self.choice or self.choice.selection_policy != "public_other_nijigasaki_cost_heart"
+        ):
+            raise ValueError("cost15 Heart amount requires its bounded selection policy")
+        if (self.choice
+                and self.choice.selection_policy == "public_other_nijigasaki_cost_heart") and (
+            self.cost or self.cost_choice or self.follow_up_choice
+            or self.condition or self.is_optional
+            or self.trigger != "live_started" or self.effect_type != "triggered"
+            or self.execution_mode != "prompt_then_resolve" or self.duration != "live"
+            or len(self.actions) != 1 or self.actions[0].action_type != "gain_heart"
+            or self.actions[0].target != "selected" or self.actions[0].amount is not None
+            or self.actions[0].amount_source != "selected_member_cost15_heart_amount"
+            or self.actions[0].color_slot != "heart03" or self.actions[0].value is not None
+            or self.actions[0].multiplier is not None or self.actions[0].branch is not None
+            or self.actions[0].model_dump(exclude_defaults=True, exclude_none=True) != {
+                "action_type": "gain_heart", "target": "selected", "color_slot": "heart03",
+                "amount_source": "selected_member_cost15_heart_amount",
+            }
+        ):
+            raise ValueError("other Nijigasaki selection only supports bounded cost15 Heart")
         if self.choice and self.choice.selection_policy == "public_single_as_much_as_possible" and (
             self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
             or self.trigger != "live_started" or self.effect_type != "triggered"

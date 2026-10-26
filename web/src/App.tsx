@@ -5147,7 +5147,7 @@ export function EffectResolutionAction({
     deployment_unsupported_slots?: Record<string, string>;
     deployment_unsupported_slots_by_candidate?: Record<string, Record<string, string>>;
     deployment_requires_manual_resolution?: boolean;
-    selection_policy?: "private_filtered_may_choose_none" | "public_single_as_much_as_possible" | "public_named_groups_as_much_as_possible";
+    selection_policy?: "private_filtered_may_choose_none" | "public_single_as_much_as_possible" | "public_named_groups_as_much_as_possible" | "public_other_nijigasaki_cost_heart";
     choice_groups?: Array<{
       group_id: string;
       label_ja?: string | null;

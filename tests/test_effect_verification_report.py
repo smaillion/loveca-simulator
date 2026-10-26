@@ -16,6 +16,7 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
 
     scenario_ids = {result.scenario_id for result in results}
     assert {
+        "other_nijigasaki_cost14", "other_nijigasaki_cost15", "other_nijigasaki_no_target",
         "muse_yell_zero_success",
         "muse_yell_one_success",
         "muse_yell_two_success",

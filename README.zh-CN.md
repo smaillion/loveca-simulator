@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+精确支持桜坂しずく`PL!N-PR-036:1`：选择另一名己方虹咲成员，结算时卡牌信息cost至少15则获得两颗Heart03，否则一颗。无目标明确结束；同ID离场回场按新对象处理。登记916/1212（75.58%）、296manual。[目标、Replay及AI验证](./docs/development/other-nijigasaki-heart-verification.md)
+
 精确支持「僕たちはひとつの光」`PL!-pb2-039:1`：结算时检查成功区μs至少两张，只将应援公开数量加十，不改变成员Blade；第二段继续人工。登记915/1212（75.50%）、297manual。同一30牌组诊断从6局完赛升至7局，其余23局明确人工停止，尚未达到发布门禁。[卡图与验证报告](./docs/development/live-yell-ten-verification.md)
 
 渡边曜`PL!S-bp2-005:1`的“持有Heart”范围及顶7最多取3张专用处理尚缺确认，已保守转回人工处理，不再自动付款或查看；可明确不使用，旧Replay保留。该次审计基线为914/1212、298manual。[原因与兼容性证据](./docs/development/multi-keep-inspection-audit.md)

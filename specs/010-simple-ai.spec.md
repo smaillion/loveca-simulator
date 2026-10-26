@@ -4,6 +4,12 @@
 
 ### Experimental resource-cycle policy
 
+PL!N-PR-036:1 delegates target and cost15 Heart calculation to the shared engine.
+Four policies must choose from current public candidates, including zero only
+when no legal target remains. Source departure/reentry is tracked as object
+identity, not inferred from card ID equality. Frozen30 remains7 completed/23
+explicit manual stops, not release acceptance; defaultv1.1 is unchanged.
+
 PL!-pb2-039:1 uses the shared engine's resolution-time success-zone condition
 and Yell-count modifier; AI does not reproduce these rules. Four policies and
 both viewer payloads remain compatible. The frozen30 diagnostic finishes7/30,

@@ -2904,6 +2904,9 @@ def _captures_original_stage_source(effect: Any) -> bool:
         "original_moved_stage_member", "original_live_start_heart_source",
         "original_live_start_wait_cost_source",
     } for op in effect.actions) or (
+        effect.choice is not None
+        and effect.choice.selection_policy == "public_other_nijigasaki_cost_heart"
+    ) or (
         effect.choice is not None and effect.choice.cost_payment_policy in {"triggered_inspection", "triggered_inspection_reorder"}
         and len(effect.cost) == 1 and effect.cost[0].action_type == "apply_wait"
     )))
@@ -5042,7 +5045,9 @@ def _effect_choice_bounds_for_candidates(
     candidates: list[str],
 ) -> tuple[int, int]:
     minimum, maximum = _effect_choice_bounds(state, invocation, choice)
-    if choice.selection_policy == "public_single_as_much_as_possible":
+    if choice.selection_policy in {
+        "public_single_as_much_as_possible", "public_other_nijigasaki_cost_heart",
+    }:
         return min(minimum, len(candidates)), min(maximum, len(candidates))
     stale_trigger_can_expire = (
         invocation.trigger_data.get("_condition_checked_at_trigger") is True
@@ -6051,7 +6056,11 @@ def _effect_candidates_for_choice(
             target_player.member_area.get(slot) for slot in excluded_position_slots
         }
         candidates = [item for item in candidates if item not in excluded_ids]
-    if choice.exclude_source:
+    exclude_original_source = choice.exclude_source and not (
+        getattr(choice, "selection_policy", None) == "public_other_nijigasaki_cost_heart"
+        and invocation.trigger_data.get("original_source_stage_object_departed") is True
+    )
+    if exclude_original_source:
         candidates = [
             item for item in candidates if item != invocation.source_card_instance_id
         ]
@@ -6996,7 +7005,9 @@ def _effect_allows_private_selection_none(effect: Any) -> bool:
 
 
 def _public_single_stage_choice(effect: Any) -> bool:
-    return bool(effect.choice and effect.choice.selection_policy == "public_single_as_much_as_possible")
+    return bool(effect.choice and effect.choice.selection_policy in {
+        "public_single_as_much_as_possible", "public_other_nijigasaki_cost_heart",
+    })
 
 
 def _entry_count_observer(effect: Any) -> bool:
@@ -8842,6 +8853,17 @@ def _execute_operations(
                     )
                 )
         elif operation_type == "gain_heart":
+            if (effect.choice
+                    and effect.choice.selection_policy == "public_other_nijigasaki_cost_heart"
+                    and not operation_selected_ids):
+                events.append(GameEvent(
+                    event_type="effect_operation_not_applied", player_id=invocation.player_id,
+                    data={"invocation_id": invocation.invocation_id,
+                          "effect_id": invocation.effect_id, "operation": "gain_heart",
+                          "reason": "no_legal_stage_member_at_resolution"},
+                    source="system",
+                ))
+                continue
             color_slot = operation.color_slot or selected_color_slot
             if not isinstance(color_slot, str):
                 raise IllegalActionError("effect requires a selected Heart color")
@@ -9382,6 +9404,12 @@ def _operation_amount(
     operation_context: dict[str, Any] | None = None,
 ) -> int:
     multiplier = operation.multiplier if isinstance(operation.multiplier, int) else 1
+    if operation.amount_source == "selected_member_cost15_heart_amount":
+        selected = (operation_context or {}).get("selected_card_instance_ids", [])
+        if (state is None or len(selected) != 1 or selected[0] not in state.cards
+                or state.cards[selected[0]].card.card_type != "member"):
+            raise IllegalActionError("cost15 Heart amount requires one selected Member")
+        return 2 if (state.cards[selected[0]].card.cost or 0) >= 15 else 1
     if isinstance(operation.amount, int):
         return operation.amount * multiplier
     if operation.amount_source == "all_energy_active_bonus" and player is not None:

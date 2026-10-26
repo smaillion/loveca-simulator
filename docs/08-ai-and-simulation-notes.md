@@ -1,5 +1,13 @@
 # AI and Simulation Notes
 
+PL!N-PR-036:1 now uses a bounded other-Nijigasaki target policy and the engine's
+resolution-time card information cost, not Member payment reduction. Four AI
+policies, hidden-hand substitutions and returned-source targeting are tested.
+Frozen30 diagnostics still finish7, with23 explicit manual stops and no illegal,
+runtime or Replay errors. Its9 queued invocations include2 still pending behind
+another manual effect, not9 confirmed completions. Product policy stays v1.1.
+See [the Chinese audit](development/other-nijigasaki-heart-verification.md).
+
 The next evidence-led fix supports only PL!-pb2-039:1. Its body condition is
 evaluated at resolution; two successful μ's Live cards grant +10 Yell reveals,
 not Stage Blade. The same frozen 30-deck diagnostic improves from 6 to 7 finished

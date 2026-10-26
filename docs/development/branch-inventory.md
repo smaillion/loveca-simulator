@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+其他虹咲Heart检查点：`PL!N-PR-036:1`受限策略、cost15信息与支付减费区别、来源离场回场新对象、目标清理、新旧SQL Replay、四AI、隐私及真实UI断言收口。45专项、142关联回归、217前端、180图文（142状态/38契约）；同冻结30局7完赛23人工停止，非法/runtime/Replay0。本段9入队含2个受其他manual阻塞的待机，不虚称全部完成。916/1212、296manual，见`other-nijigasaki-heart-verification.md`；下一切片`PL!S-cl1-002:1`Yell公开历史回收。旧44/6 dirty保留，同PR54，不合并部署。
+
 Yell加十检查点：精确实现`PL!-pb2-039:1`，正文条件在结算时检查成功区μs两张，不加Stage Blade；第二段保留manual。28专项、177图文（139状态/38契约），同冻结30局完赛6→7、23明确人工停止，非法/runtime/Replay错误0；未达双方均成功Live及发布门禁。登记915/1212、297manual，见`live-yell-ten-verification.md`。下一项`PL!N-PR-036:1`；旧44/6 dirty保留，同PR54，不合并部署。
 
 真实manual统计检查点：修正旧skip摘要不能代表触发，新增只输出effect ID/计数的事件观察与可选技能密集池。30合法牌组/30局，6完赛24人工停止，42种manual入队80次/辞退51/强制待机28，无非法/runtime/Replay错误。源码指纹和seed/牌组已记录；不作为发布门禁通过，登记914/1212不变。下一切片`PL!-pb2-039:1`条件和Yell+10，见`manual-trigger-observation-audit.md`；同PR54，旧44/6 dirty保留，不合并部署。

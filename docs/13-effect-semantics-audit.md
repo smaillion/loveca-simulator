@@ -1,5 +1,15 @@
 # Effect Semantics Audit
 
+PL!N-PR-036:1: revision1225/hash efcae675449686825bdddf0b5f7a013d74837a06441dfa296f1677bed2d04ab4.
+Other own top-level Nijigasaki Member selection is mandatory when possible, with
+explicit zero-target resolution otherwise. A dedicated snapshot policy preserves
+the old named-Blade behavior and captures the original source Stage object.
+45 targeted tests and the legacy named-group suites cover current cost14/15/16,
+payment reduction versus card information, departure/reentry, SQL Replay and AI.
+The report has180 cases,142 actual state/boundary cases and38 contracts.
+916/1212 test-validated,296 manual; no human-reviewed promotion or schema change.
+[Chinese scope and evidence](development/other-nijigasaki-heart-verification.md).
+
 PL!-pb2-039:1 now uses an exact-segment automatic candidate, revision1018 and hash
 c64c225ab648e5389537066b41874ad2905e24eb668f1a651fde9bd7b45780f9.
 The success-Live work count is an operation condition, not a trigger filter:

@@ -193,6 +193,13 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        ("other_nijigasaki_cost14", "他の虹咲cost14・Heart一つ", "其他虹咲cost14：一颗Heart",
+         "PL!N-PR-036:1", lambda effect: _run_other_nijigasaki_heart(effect, cost=14)),
+        ("other_nijigasaki_cost15", "他の虹咲cost15・Heart二つ", "其他虹咲cost15：两颗Heart",
+         "PL!N-PR-036:1", _run_other_nijigasaki_heart),
+        ("other_nijigasaki_no_target", "他の虹咲なし・対象なしで完了",
+         "没有其他虹咲：明确结束不回退自身",
+         "PL!N-PR-036:1", lambda effect: _run_other_nijigasaki_heart(effect, empty=True)),
         ("muse_yell_zero_success", "成功μ'sゼロ・追加なし", "成功区零张μs：不追加应援",
          "PL!-pb2-039:1", lambda effect: _run_muse_yell_ten(effect, count=0)),
         ("muse_yell_one_success", "成功μ's一枚・追加なし", "成功区一张μs：不追加应援",
@@ -475,11 +482,58 @@ def _v1_1_dynamic_scenarios(
                 notes_zh=[f"官方日文效果文本：{effect.label_ja}"],
                 rule_reference_ids=(
                     ["8.3.8", "8.3.9", "8.3.10", "8.3.11", "8.4.11", "9.6.2.4.2", "9.7.3"]
-                    if effect_id == "PL!-pb2-039:1" else []
+                    if effect_id == "PL!-pb2-039:1" else
+                    ["2.6.1", "9.6.3.1", "9.6.3.1.3", "11.5.2", "8.4.11", "4.1.4"]
+                    if effect_id == "PL!N-PR-036:1" else []
                 ),
             )
         )
     return results
+
+
+def _run_other_nijigasaki_heart(
+    effect: EffectDefinition, *, cost: int = 15, empty: bool = False,
+) -> dict[str, bool]:
+    source = _v1_1_member(
+        "source", "桜坂しずく", cost=2, work_keys=["nijigasaki"],
+        effect_ids=[effect.effect_id], card_code=effect.card_code,
+    )
+    target = _v1_1_member(
+        "target", "AUDIT-target", cost=cost,
+        work_keys=["hasunosora"] if empty else ["nijigasaki"],
+    )
+    live = _v1_1_live("live", "AUDIT-live")
+    state = _v1_1_state(
+        {effect.effect_id: effect}, [source, target, live],
+        member_area={"left": "target", "center": "source", "right": None},
+    )
+    state.phase = "performance_first"
+    state.players["player_1"].live_area = ["live"]
+    started = apply_action(state, ActionRequest(
+        action_type="advance_phase", player_id="player_1", expected_revision=state.revision,
+    ))
+    invocation = started.state.pending_effects[0]
+    options = next(
+        a for a in started.legal_actions if a.action_type == "resolve_effect"
+    ).options["invocations"][0]
+    result = apply_action(started.state, ActionRequest(
+        action_type="resolve_effect", player_id="player_1",
+        expected_revision=started.state.revision,
+        payload={"invocation_id": invocation.invocation_id,
+                 "selected_card_instance_ids": [] if empty else ["target"]},
+    ))
+    modifiers = result.state.players["player_1"].manual_modifiers
+    return {
+        "other_nijigasaki_candidates": options["candidate_card_instance_ids"]
+        == ([] if empty else ["target"]),
+        "other_nijigasaki_amount": [
+            (m.target_card_instance_id, m.amount, m.color_slot) for m in modifiers
+        ] == ([] if empty else [("target", 2 if cost >= 15 else 1, "heart03")]),
+        "other_nijigasaki_no_duplicate_modifier": len({m.modifier_id for m in modifiers})
+        == len(modifiers),
+        "other_nijigasaki_finished": not result.state.pending_effects
+        and result.state.phase == "yell_first",
+    }
 
 
 def _run_muse_yell_ten(
@@ -1671,6 +1725,10 @@ def _load_visuals_for_effect_ids(
 
 
 _V1_1_CHECK_LABELS: dict[str, tuple[str, str]] = {
+    "other_nijigasaki_candidates": ("自分以外の虹咲だけを選択", "只选择其他己方虹咲"),
+    "other_nijigasaki_amount": ("cost14は一つ・15以上は二つ", "cost14给一颗、15以上给两颗"),
+    "other_nijigasaki_no_duplicate_modifier": ("修正IDに重複なし", "修正值ID不重复"),
+    "other_nijigasaki_finished": ("エールへ正常進行", "正常进入应援"),
     "muse_yell_no_manual_block": ("手動待機せずエールへ進行", "正常进入应援，没有人工阻塞"),
     "muse_yell_body_condition": ("成功置き場・作品・枚数を確認", "按成功Live区、作品与张数判定"),
     "muse_yell_not_stage_blade": ("MemberのBladeは一つのまま", "成员Blade仍为一，不误加十"),
