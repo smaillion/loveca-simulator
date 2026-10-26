@@ -1,5 +1,7 @@
 # 作品与组合检索：六条费用路径审计
 
+后续五条Member/Liella已单独验收，见[报告](member-liella-inspection-audit.md)；本文件保留该批历史证据。
+
 ## 结论与范围
 
 六条已有可执行登记接入已有`triggered_inspection`费用检查；不是新增六条技能覆盖。

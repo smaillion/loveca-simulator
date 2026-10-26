@@ -1,5 +1,11 @@
 # AI and Simulation Notes
 
+Member/Liella follow-up:165 targeted assertions cover five exact identities and
+their real fees2/5/7/9. All four policies finish safely without hidden-hand
+dependence. Fixed10 qualifies in3-9 turns and PL!SP-bp1-005:1 has five actual
+cost/inspection/resolution events each; the other four do not trigger. No strategy
+strength claim or defaultv1.1 change. [Chinese evidence](development/member-liella-inspection-audit.md).
+
 Work/unit inspection follow-up: six exact cost snapshots have192 per-card native
 action assertions including four-policy privacy invariance, real fee4 and SQL
 Replay. Fixed10 again qualifies in3–9 turns with both players succeeding at Live,

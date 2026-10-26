@@ -4,6 +4,12 @@
 
 ### Experimental resource-cycle policy
 
+Five Member/Liella inspection identities use the bounded hand-cost policy. All
+four AI versions have native paid/unpayable and hidden-hand invariance tests.
+Fixed10 qualifies in3-9 turns; PL!SP-bp1-005:1 pays/inspects/resolves five times
+each, not evidence for the remaining four.165 targeted assertions cover all five.
+The product defaultv1.1 and historical policy/snapshot behavior are unchanged.
+
 Six work/unit inspection identities now use explicit cost availability. All four
 policies finish paid or unpayable choices without error-skip and without opponent
 hidden-hand identity dependence. Work and unit filters must not be conflated;

@@ -1,5 +1,14 @@
 # Effect Semantics Audit
 
+Member/Liella checkpoint: five exact official identities opt into the bounded
+hand-cost policy, retaining peek4/5/6, type and work filters, public keep0-1.
+165 targeted tests,207 frontend tests/build,166 illustrated scenarios
+(127 state/39 contract). Fixed10 qualifies; PL!SP-bp1-005:1 actually pays,
+inspects and resolves five times each, while the other four remain targeted-only.
+Registry915/1212 unchanged, no reviewed promotion or schema change. Three mixed
+Member/Live Heart filters are queued next; one keep-up-to3 text remains separate.
+[Chinese evidence](development/member-liella-inspection-audit.md).
+
 Work/unit checkpoint: six exact official segments opt into the bounded hand-cost
 policy.192 targeted native-action tests distinguish work from unit, Member from
 Live, multi-unit membership, optional zero keep, private inspection and public

@@ -2623,6 +2623,12 @@ def _onplay_optional_discard_inspect_keep1_any(
 
 def _onplay_audited_discard_inspection(row: sqlite3.Row) -> EffectCandidate | None:
     patterns = (
+        ({"PL!S-bp3-004"}, 4, "メンバーカードを1枚公開して手札に加えてもよい。", {"card_type": "member"}, 0, True),
+        ({"PL!S-bp3-009"}, 6, "『Aqours』のメンバーカードを1枚公開して手札に加えてもよい。",
+         {"card_type": "member", "work_key": "love_live_sunshine"}, 0, True),
+        ({"PL!SP-bp1-005"}, 5, "『Liella!』のカードを1枚まで公開して手札に加えてもよい。", {"work_key": "love_live_superstar"}, 0, True),
+        ({"PL!SP-bp2-007", "PL!SP-pb2-017"}, 5, "『Liella!』のメンバーカードを1枚公開して手札に加えてもよい。",
+         {"card_type": "member", "work_key": "love_live_superstar"}, 0, True),
         ({"PL!HS-bp1-009"}, 5, "『みらくらぱーく！』のカードを1枚公開して手札に加えてもよい。", {"unit_key": "miracra_park"}, 0, True),
         ({"PL!HS-pb1-018"}, 5, "『DOLLCHESTRA』のカードを1枚公開して手札に加えてもよい。", {"unit_key": "dollchestra"}, 0, True),
         ({"PL!N-bp3-012"}, 4, "『虹ヶ咲』のカードを1枚公開して手札に加えてもよい。", {"work_key": "nijigasaki"}, 0, True),

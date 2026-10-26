@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "inspection-mixed-member-live-heart-filters",
+      "priority": 0,
+      "title": "逐卡审计三条Member与Live混合Heart筛选和费用边界",
+      "status": "queued",
+      "depends_on": ["inspection-member-liella-cost-siblings"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["精确核对PL!S-pb1-013/014/015:1完整日文段/revision/hash与实际费用，区分Member持有Heart和Live必要Heart，颜色heart04/02/05且至少2，不按名称或模糊前缀绑定", "先复现费用不足及0/1/2/3 Heart、不同颜色、Blade Heart/ALL/临时modifier和跨类型候补边界，以PDF及官方卡文判断基础还是有效Heart，不能猜测FAQ", "仅适用的明确单弃牌费用采用bounded policy，公开零张、待机补费用、刷新、非法原子性、新旧SQL Replay、四AI、双方隐私和UI均有状态断言，不提升reviewed或改schema", "全部profiles/manifest/pre-push、图文与固定AI有实际证据，明确实际触发次数；PL!S-bp2-005:1最多取3张独立待审，不顺手扩大policy，原dirty和同Draft PR54保留，不合并部署"]
+    },
+    {
       "id": "inspection-member-liella-cost-siblings",
       "priority": 0,
       "title": "逐卡核对五条Member与Liella检索费用兄弟文本",

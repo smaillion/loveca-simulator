@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+Member/Liella检索检查点：五条精确费用快照、165专项、207前端、166图文通过。固定10局合格，`PL!SP-bp1-005:1`真实支付/查看/结算各5次，其他四条专项覆盖；登记915/1212不变，不改engine/Card/SQL schema和旧Replay。余4扫描下轮仅3条混合Heart筛选，最多取3张另审。见`member-liella-inspection-audit.md`；旧44/6 dirty及报告不动，同Draft PR54，不合并部署。
+
 作品/组合检索检查点：六条精确文本采用已验证费用策略，192专项、197前端、156图文通过。固定十局AI均3–9回合且双方成功Live，但本批六条未触发；登记915/1212不变，不改engine/Card/SQL schema或旧Replay。余9扫描下一批仅5条Member/Liella；见`work-unit-inspection-audit.md`。旧44/6项dirty及ignored报告不动，同Draft PR54，不合并部署。
 
 顶5/顶2检查点：同一continuous分支修正六条Member/Live公开顶5及私下顶2的费用路径，174专项、185前端及144图文通过；固定10局AI合格但未触发这六条。登记仍915/1212、297manual，engine/SQL/Card schema与旧snapshot不改；下一批六条作品/组合筛选。见`inspection-siblings-audit.md`，旧44/6项dirty与ignored成果保持，同Draft PR54，不合并部署。
