@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "inspection-member-live5-private2-siblings",
+      "priority": 0,
+      "title": "复核六条Member或Live顶5与私下顶2检索兄弟文本",
+      "status": "queued",
+      "depends_on": ["inspection-private3-identical-text-family"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["逐卡核对PL!-sd1-015:1、PL!HS-bp2-010:1、PL!HS-bp1-011:1、PL!HS-bp6-022:1、PL!N-pb1-028:1、PL!N-pb1-035:1的完整段/revision/hash与真实费用，不因同文复用整卡审核", "先复现无费用及待机补费用；区分公开Member/Live筛选与可选零张，私下顶2必须取一张，余牌/刷新顺序有真实断言", "仅采用适用的显式snapshot费用策略，新旧SQL Replay、双方隐私、四AI和UI通过，不改engine/Card/SQL schema或提升reviewed", "固定AI与图文报告分别记录实际触发与定向证据，余21扫描/复杂费用不批量晋级，旧dirty与同一Draft PR54保留，不合并部署"]
+    },
+    {
       "id": "inspection-private3-identical-text-family",
       "priority": 0,
       "title": "逐卡复核同文顶3私下取1的十五条费用快照",

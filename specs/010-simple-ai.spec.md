@@ -4,6 +4,13 @@
 
 ### Experimental resource-cycle policy
 
+Fifteen separately verified private peek3 identities now opt into the existing
+cost policy. AI may decline the optional hand cost but, once paid, must keep one
+inspected card regardless of work or Member/Live type; neither look nor keep is
+public. Explicit keep minimum and public reveal are independent pattern fields.
+All four policies have per-card paid/unpayable, privacy and SQL tests. Fixed10
+does not trigger these15 and is not coverage evidence. Defaultv1.1 is unchanged.
+
 Six audited single-discard on-play snapshots additionally use
 `triggered_inspection`: own hand Member or Live can pay; lack of cards is checked
 at selected resolution, not at trigger. Four public filtered keeps allow zero;

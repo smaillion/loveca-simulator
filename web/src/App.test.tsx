@@ -3692,7 +3692,13 @@ describe("App", () => {
     });
   });
 
-  it.each(["PL!-bp3-010:1", "PL!-bp5-014:1", "PL!-bp6-004:1", "PL!-pb1-016:1", "PL!-sd1-011:1", "PL!-sd1-012:1"])("can explicitly end the optional unpayable hand cost for %s", (effectId) => {
+  const private3FamilyEffectIds = [
+    "PL!-sd1-016:1", "PL!HS-PR-001:1", "PL!HS-PR-002:1", "PL!HS-PR-005:1", "PL!HS-cl1-007:1", "PL!HS-pb1-011:1",
+    "PL!N-PR-004:1", "PL!N-PR-006:1", "PL!N-PR-013:1", "PL!N-bp1-007:1", "PL!N-bp1-010:1",
+    "PL!N-sd1-002:1", "PL!N-sd1-003:1", "PL!S-PR-013:1", "PL!S-PR-019:1",
+  ];
+
+  it.each(["PL!-bp3-010:1", "PL!-bp5-014:1", "PL!-bp6-004:1", "PL!-pb1-016:1", "PL!-sd1-011:1", "PL!-sd1-012:1", ...private3FamilyEffectIds])("can explicitly end the optional unpayable hand cost for %s", (effectId) => {
     const onAction = vi.fn();
     const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
       invocation_id: "no-hand-cost", effect_id: effectId, source_card_instance_id: "player_1-M001",
@@ -3712,7 +3718,7 @@ describe("App", () => {
     });
   });
 
-  it.each(["PL!SP-bp7-018:1", "PL!-sd1-011:1", "PL!-sd1-012:1"])("requires exactly one private kept card after paying the cost for %s", (effectId) => {
+  it.each(["PL!SP-bp7-018:1", "PL!-sd1-011:1", "PL!-sd1-012:1", ...private3FamilyEffectIds])("requires exactly one private kept card after paying the cost for %s", (effectId) => {
     const onAction = vi.fn();
     const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], options: {
       ...INSPECTION_MATCH_PAYLOAD.legal_actions[0].options, effect_id: effectId, minimum: 1, maximum: 1, reveal_selected_to_opponent: false,

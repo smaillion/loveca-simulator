@@ -2623,15 +2623,19 @@ def _onplay_optional_discard_inspect_keep1_any(
 
 def _onplay_audited_discard_inspection(row: sqlite3.Row) -> EffectCandidate | None:
     patterns = (
-        ({"PL!-bp3-010"}, 5, "ライブカードを1枚公開して手札に加えてもよい。", {"card_type": "live"}, True),
+        ({"PL!-bp3-010"}, 5, "ライブカードを1枚公開して手札に加えてもよい。", {"card_type": "live"}, 0, True),
         ({"PL!-bp5-014"}, 4, "ハートに【heart05】か【heart06】を持つメンバーカードを1枚公開して手札に加えてもよい。",
-         {"card_type": "member", "heart_color_slots_any": ["heart05", "heart06"]}, True),
+         {"card_type": "member", "heart_color_slots_any": ["heart05", "heart06"]}, 0, True),
         ({"PL!-bp6-004"}, 5, "『μ's』のメンバーカードを1枚公開して手札に加えてもよい。",
-         {"card_type": "member", "work_key": "love_live"}, True),
-        ({"PL!-pb1-016"}, 4, "『lily white』のカードを1枚公開して手札に加えてもよい。", {"unit_key": "lily_white"}, True),
-        ({"PL!-sd1-011", "PL!-sd1-012"}, 3, "1枚を手札に加え、", {}, False),
+         {"card_type": "member", "work_key": "love_live"}, 0, True),
+        ({"PL!-pb1-016"}, 4, "『lily white』のカードを1枚公開して手札に加えてもよい。", {"unit_key": "lily_white"}, 0, True),
+        ({"PL!-sd1-011", "PL!-sd1-012", "PL!-sd1-016",
+          "PL!HS-PR-001", "PL!HS-PR-002", "PL!HS-PR-005", "PL!HS-cl1-007", "PL!HS-pb1-011",
+          "PL!N-PR-004", "PL!N-PR-006", "PL!N-PR-013", "PL!N-bp1-007", "PL!N-bp1-010",
+          "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019"},
+         3, "1枚を手札に加え、", {}, 1, False),
     )
-    for codes, amount, selection, filters, public in patterns:
+    for codes, amount, selection, filters, minimum, public in patterns:
         if row["card_code"] not in codes:
             continue
         label = ("【登場】手札を1枚控え室に置いてもよい："
@@ -2646,7 +2650,7 @@ def _onplay_audited_discard_inspection(row: sqlite3.Row) -> EffectCandidate | No
             cost=[{"action_type": "discard_from_hand"}],
             cost_choice={"choice_type": "card_from_zone", "zone": "hand", "minimum": 1, "maximum": 1},
             choice={"cost_payment_policy": "triggered_inspection", "choice_type": "inspect_top_select",
-                    "amount": amount, "minimum": 0 if public else 1, "maximum": 1, "requires_order": False,
+                    "amount": amount, "minimum": minimum, "maximum": 1, "requires_order": False,
                     "selected_destination": "hand", "unselected_destination": "waiting_room",
                     "reveal_selected_to_opponent": public, **filters},
             actions=[{"action_type": "inspect_top_cards", "amount": amount},

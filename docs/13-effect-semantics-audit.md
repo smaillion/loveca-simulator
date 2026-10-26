@@ -1,5 +1,16 @@
 # Effect Semantics Audit
 
+Private peek3 family checkpoint:15 exact identities independently opt into the
+existing inspection cost policy. Per-card revisions/hashes and real source costs
+are tested, including three whole-text hash variants with additional Live-start
+segments left untouched. Optional payment, mandatory keep1 and no public reveal
+are independent.435 targeted tests,173 frontend tests/build,132 illustrated cases
+(93 state/39 contract). Fixed10 AI matches qualify without triggering these15;
+they are regression only. Registry915/1212 (75.50%),297manual unchanged, no human
+review promotion or runtime schema change.21 scan candidates remain unaudited;
+the next bounded slice covers six Member/Live peek5 and private peek2 siblings.
+[Chinese evidence](development/private3-inspection-family-audit.md).
+
 Adjacent discard checkpoint: six exact identities (`PL!-bp3-010:1`,
 `PL!-bp5-014:1`, `PL!-bp6-004:1`, `PL!-pb1-016:1`, `PL!-sd1-011:1`,
 `PL!-sd1-012:1`) opt into the existing bounded inspection cost policy.

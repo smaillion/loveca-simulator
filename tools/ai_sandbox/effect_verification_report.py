@@ -187,7 +187,16 @@ def _v1_1_dynamic_scenarios(
     effects: dict[str, EffectDefinition],
     database_path: Path,
 ) -> list[ScenarioResult]:
+    private3_codes = (
+        "PL!-sd1-016", "PL!HS-PR-001", "PL!HS-PR-002", "PL!HS-PR-005", "PL!HS-cl1-007", "PL!HS-pb1-011",
+        "PL!N-PR-004", "PL!N-PR-006", "PL!N-PR-013", "PL!N-bp1-007", "PL!N-bp1-010",
+        "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
+    )
     cases = (
+        *(("private3_native_" + code, "手札1枚・上3枚から非公開で1枚 " + code,
+           "弃手牌1张，顶3私下取1 " + code, code + ":1", _run_private3_inspection) for code in private3_codes),
+        *(("private3_unpayable_" + code, "手札不足・確認せず待機取消 " + code,
+           "手牌不足时不查看并结束待机 " + code, code + ":1", _run_inspection_unpayable) for code in private3_codes),
         *(("adjacent_discard_inspection_" + code, "手札費用・公開/非公開取得 " + code,
            "弃牌费用与公开/私下取得 " + code, code + ":1", _run_adjacent_discard_inspection)
           for code in ("PL!-bp3-010", "PL!-bp5-014", "PL!-bp6-004", "PL!-pb1-016", "PL!-sd1-011", "PL!-sd1-012")),
@@ -433,6 +442,37 @@ def _v1_1_dynamic_scenarios(
             )
         )
     return results
+
+
+def _run_private3_inspection(effect: EffectDefinition) -> dict[str, bool]:
+    from loveca.webapp import _match_state_payload
+    cards = [_v1_1_member("source", effect.card_code, card_code=effect.card_code, cost=0, effect_ids=[effect.effect_id]),
+             _v1_1_member("p3-cost", "AUDIT-cost"), _v1_1_member("p3-member", "AUDIT-member", work_keys=["love_live"]),
+             _v1_1_live("p3-live", "AUDIT-Live"), _v1_1_member("p3-other", "AUDIT-other", work_keys=["nijigasaki"]),
+             _v1_1_member("p3-tail", "AUDIT-tail")]
+    for item in cards[1:]:
+        item.face_up = False
+    state = _v1_1_state({effect.effect_id: effect}, cards, hand=["source", "p3-cost"])
+    state.players["player_1"].main_deck = ["p3-member", "p3-live", "p3-other", "p3-tail"]
+    played = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1", expected_revision=0,
+        payload={"card_instance_id": "source", "slot": "center", "energy_instance_ids": [], "use_baton_touch": False}))
+    inspected = apply_action(played.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=played.state.revision, payload={"invocation_id": played.state.pending_effects[0].invocation_id,
+            "selected_card_instance_ids": ["p3-cost"]}))
+    before_public = _match_state_payload(inspected.state, events=inspected.events, legal_actions=inspected.legal_actions, player_id="player_2")
+    result = apply_action(inspected.state, ActionRequest(action_type="resolve_effect_choice", player_id="player_1",
+        expected_revision=inspected.state.revision, payload={"selected_card_instance_ids": ["p3-live"]}))
+    after_public = _match_state_payload(result.state, events=result.events, legal_actions=result.legal_actions, player_id="player_2")
+    choice = inspected.state.pending_choice.options
+    return {
+        "adjacent_cost_once": "p3-cost" in inspected.state.players["player_1"].waiting_room and sum(e.event_type == "effect_cost_paid" for e in inspected.events) == 1 and not any(e.event_type == "effect_cost_paid" for e in result.events),
+        "private3_all_types": set(choice["candidate_card_instance_ids"]) == {"p3-member", "p3-live", "p3-other"},
+        "private3_exact_top": choice["inspected_card_instance_ids"] == ["p3-member", "p3-live", "p3-other"],
+        "private3_mandatory_keep": choice["minimum"] == choice["maximum"] == 1 and choice["reveal_selected_to_opponent"] is False,
+        "private3_hidden": all(key not in json.dumps(before_public) for key in ("p3-member", "p3-live", "p3-other")) and "p3-live" not in json.dumps(after_public),
+        "private3_final_zones": result.state.players["player_1"].hand == ["p3-live"] and result.state.players["player_1"].main_deck == ["p3-tail"] and set(result.state.players["player_1"].waiting_room) == {"p3-cost", "p3-member", "p3-other"},
+        "typed_finished": result.state.pending_choice is None and not result.state.pending_effects,
+    }
 
 
 def _run_adjacent_discard_inspection(effect: EffectDefinition) -> dict[str, bool]:
@@ -1477,6 +1517,11 @@ def _load_visuals_for_effect_ids(
 
 
 _V1_1_CHECK_LABELS: dict[str, tuple[str, str]] = {
+    "private3_all_types": ("作品・Member/Liveを制限せず選ぶ", "不同作品的Member或Live均可选"),
+    "private3_exact_top": ("デッキ上3枚だけを確認", "只查看实际牌顶3张"),
+    "private3_mandatory_keep": ("費用後は非公開で必ず1枚", "付款后必须私下取得1张"),
+    "private3_hidden": ("確認中と取得後の私有情報を相手に出さない", "检查中与取得后均不泄露私有牌"),
+    "private3_final_zones": ("選択1枚は手札・残り2枚は控室", "选中1张入手，其余2张进控室，牌顶尾部不变"),
     "adjacent_cost_once": ("手札1枚だけを費用にし再払いしない", "只支付一张手牌，后续选择不重复付款"),
     "adjacent_inspection_count": ("指定枚数のみ確認", "准确查看卡文指定数量"),
     "adjacent_candidates_exact": ("Live/メンバーのHeart/作品/ユニットを区別", "准确区分Live、Member心、作品与组合筛选"),

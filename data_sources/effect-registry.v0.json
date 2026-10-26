@@ -20048,6 +20048,7 @@
       ],
       "card_code": "PL!-sd1-016",
       "choice": {
+        "cost_payment_policy": "triggered_inspection",
         "ability_bucket": [],
         "amount": 3,
         "amount_source": null,
@@ -20425,6 +20426,7 @@
       ],
       "card_code": "PL!HS-PR-001",
       "choice": {
+        "cost_payment_policy": "triggered_inspection",
         "ability_bucket": [],
         "amount": 3,
         "amount_source": null,
@@ -20690,6 +20692,7 @@
       ],
       "card_code": "PL!HS-PR-002",
       "choice": {
+        "cost_payment_policy": "triggered_inspection",
         "ability_bucket": [],
         "amount": 3,
         "amount_source": null,
@@ -20955,6 +20958,7 @@
       ],
       "card_code": "PL!HS-PR-005",
       "choice": {
+        "cost_payment_policy": "triggered_inspection",
         "ability_bucket": [],
         "amount": 3,
         "amount_source": null,
@@ -34216,6 +34220,7 @@
       ],
       "card_code": "PL!HS-cl1-007",
       "choice": {
+        "cost_payment_policy": "triggered_inspection",
         "ability_bucket": [],
         "amount": 3,
         "amount_source": null,
@@ -36526,6 +36531,7 @@
       ],
       "card_code": "PL!HS-pb1-011",
       "choice": {
+        "cost_payment_policy": "triggered_inspection",
         "ability_bucket": [],
         "amount": 3,
         "amount_source": null,
@@ -40881,6 +40887,7 @@
       ],
       "card_code": "PL!N-PR-004",
       "choice": {
+        "cost_payment_policy": "triggered_inspection",
         "ability_bucket": [],
         "amount": 3,
         "amount_source": null,
@@ -41205,6 +41212,7 @@
       ],
       "card_code": "PL!N-PR-006",
       "choice": {
+        "cost_payment_policy": "triggered_inspection",
         "ability_bucket": [],
         "amount": 3,
         "amount_source": null,
@@ -42149,6 +42157,7 @@
       ],
       "card_code": "PL!N-PR-013",
       "choice": {
+        "cost_payment_policy": "triggered_inspection",
         "ability_bucket": [],
         "amount": 3,
         "amount_source": null,
@@ -44355,6 +44364,7 @@
       ],
       "card_code": "PL!N-bp1-007",
       "choice": {
+        "cost_payment_policy": "triggered_inspection",
         "ability_bucket": [],
         "amount": 3,
         "amount_source": null,
@@ -44939,6 +44949,7 @@
       ],
       "card_code": "PL!N-bp1-010",
       "choice": {
+        "cost_payment_policy": "triggered_inspection",
         "ability_bucket": [],
         "amount": 3,
         "amount_source": null,
@@ -60816,6 +60827,7 @@
       ],
       "card_code": "PL!N-sd1-002",
       "choice": {
+        "cost_payment_policy": "triggered_inspection",
         "ability_bucket": [],
         "amount": 3,
         "amount_source": null,
@@ -61024,6 +61036,7 @@
       ],
       "card_code": "PL!N-sd1-003",
       "choice": {
+        "cost_payment_policy": "triggered_inspection",
         "ability_bucket": [],
         "amount": 3,
         "amount_source": null,
@@ -64786,6 +64799,7 @@
       ],
       "card_code": "PL!S-PR-013",
       "choice": {
+        "cost_payment_policy": "triggered_inspection",
         "ability_bucket": [],
         "amount": 3,
         "amount_source": null,
@@ -65090,6 +65104,7 @@
       ],
       "card_code": "PL!S-PR-019",
       "choice": {
+        "cost_payment_policy": "triggered_inspection",
         "ability_bucket": [],
         "amount": 3,
         "amount_source": null,

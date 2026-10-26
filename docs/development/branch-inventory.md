@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+同文顶3检查点：同一continuous分支接入15条单独核对revision/hash的私下取1费用快照，435专项、173前端及132图文通过；固定10局AI合格但本批未触发。登记915/1212、297manual不变，后续Live段不动；下一批六条顶5/顶2同类。见`private3-inspection-family-audit.md`；原44/6项dirty和ignored成果不改，同Draft PR54，不合并部署。
+
 相邻弃牌检索检查点：同一continuous分支将六条精确卡文接入已有费用策略，不改engine/SQL/Card schema；177专项、143前端和102图文通过，固定10局AI均合格但未触发本批六条。登记仍915/1212、297manual；下一批同文顶3私下取1逐卡审计。旧44/6项dirty与ignored成果不变，仅更新Draft PR54，不合并部署；见`adjacent-inspection-cost-audit.md`。
 
 既有检索费用检查点：同一continuous分支修正7条自身Wait和3条虹咲弃牌费用，166专项、90图文、131前端通过；固定10局均3–9回合，唐可可实际检索4次。登记仍915/1212、297manual，旧snapshot不追改，原44/6项dirty与ignored成果不改。见`existing-inspection-cost-audit.md`；只更新Draft PR54，不合并部署。
