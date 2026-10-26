@@ -1,5 +1,17 @@
 # Effect Semantics Audit
 
+Adjacent discard checkpoint: six exact identities (`PL!-bp3-010:1`,
+`PL!-bp5-014:1`, `PL!-bp6-004:1`, `PL!-pb1-016:1`, `PL!-sd1-011:1`,
+`PL!-sd1-012:1`) opt into the existing bounded inspection cost policy.
+Four public optional keeps differ from two mandatory private keeps after payment.
+177 targeted tests cover real source costs, card filters, refresh, original SQL
+snapshots and all four AI versions.143 frontend tests and production build pass;
+102 illustrated scenarios include63 state transitions and39 contracts. Fixed10 AI
+matches qualify but do not trigger these six effects. Registry915/1212 (75.50%),
+297manual unchanged.36 remaining scan candidates are not confirmed violations;
+the next finite audit covers15 identical private peek3 texts.
+[Chinese evidence](development/adjacent-inspection-cost-audit.md).
+
 Existing inspection cost checkpoint: seven source-Wait and three Nijigasaki
 discard entries now opt into resolution-time cost checks. Six exact peek2 texts
 use `triggered_inspection_reorder` (private0-2 top-order, source Wait only).

@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "inspection-private3-identical-text-family",
+      "priority": 0,
+      "title": "逐卡复核同文顶3私下取1的十五条费用快照",
+      "status": "queued",
+      "depends_on": ["inspection-adjacent-discard-cost-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["精确核对PL!-sd1-016:1、PL!HS-PR-001/002/005:1、PL!HS-cl1-007:1、PL!HS-pb1-011:1、PL!N-PR-004/006/013:1、PL!N-bp1-007/010:1、PL!N-sd1-002/003:1、PL!S-PR-013/019:1的独立revision/hash与技能段，不因同文假设整卡其他能力受支持", "先复现无费用、等待中资源变化、可选付款但付款后必取一张、私有取得及刷新边界，再逐卡采用已验证费用策略或明确unresolved", "新旧SQL Replay、原子拒绝、双方响应、四AI及UI有真实断言，同文可共享语义证据但不自动提升人工reviewed", "固定AI与图文报告分别记录实际触发和定向场景，其他36条扫描/混合费用不得批量晋级；旧dirty与同一Draft PR54保留，不合并部署"]
+    },
+    {
       "id": "inspection-adjacent-discard-cost-audit",
       "priority": 0,
       "title": "逐卡审计相邻六条单弃牌检索费用与公开边界",

@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+相邻弃牌检索检查点：同一continuous分支将六条精确卡文接入已有费用策略，不改engine/SQL/Card schema；177专项、143前端和102图文通过，固定10局AI均合格但未触发本批六条。登记仍915/1212、297manual；下一批同文顶3私下取1逐卡审计。旧44/6项dirty与ignored成果不变，仅更新Draft PR54，不合并部署；见`adjacent-inspection-cost-audit.md`。
+
 既有检索费用检查点：同一continuous分支修正7条自身Wait和3条虹咲弃牌费用，166专项、90图文、131前端通过；固定10局均3–9回合，唐可可实际检索4次。登记仍915/1212、297manual，旧snapshot不追改，原44/6项dirty与ignored成果不改。见`existing-inspection-cost-audit.md`；只更新Draft PR54，不合并部署。
 
 检索费用检查点：同一continuous分支新增`PL!-pb2-032:1 / PL!SP-bp7-018:1 / PL!-pb2-008:1`，显式新snapshot重检费用、明确取消不可支付待机、区分公开与私下保留。105专项、80图文、四AI及固定10局回归；915/1212、297manual。见`typed-inspection-cost-verification.md`。既有单Wait检索另排审计，旧44/6dirty和复杂重叠限制不改；同Draft PR54，不合并部署。

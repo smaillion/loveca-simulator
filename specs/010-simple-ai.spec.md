@@ -4,6 +4,14 @@
 
 ### Experimental resource-cycle policy
 
+Six audited single-discard on-play snapshots additionally use
+`triggered_inspection`: own hand Member or Live can pay; lack of cards is checked
+at selected resolution, not at trigger. Four public filtered keeps allow zero;
+two unfiltered private peek3 effects require one after payment. Policies must not
+mistake optional payment for an optional post-payment keep, or read opponent
+private inspection data. Defaultv1.1 and historical snapshots remain unchanged.
+Fixed10 is regression only here: none of these six effects was triggered.
+
 `triggered_inspection_reorder` is limited to source-Wait/on-play/private peek2:
 zero, one or two cards may be returned in explicit order, and the rest go to the
 Waiting Room. All four policies use the generated candidates/order and can end an

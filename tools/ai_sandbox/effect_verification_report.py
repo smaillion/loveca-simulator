@@ -188,6 +188,12 @@ def _v1_1_dynamic_scenarios(
     database_path: Path,
 ) -> list[ScenarioResult]:
     cases = (
+        *(("adjacent_discard_inspection_" + code, "手札費用・公開/非公開取得 " + code,
+           "弃牌费用与公开/私下取得 " + code, code + ":1", _run_adjacent_discard_inspection)
+          for code in ("PL!-bp3-010", "PL!-bp5-014", "PL!-bp6-004", "PL!-pb1-016", "PL!-sd1-011", "PL!-sd1-012")),
+        *(("adjacent_discard_unpayable_" + code, "手札なし・確認せず待機取消 " + code,
+           "手牌不足时不查看并结束待机 " + code, code + ":1", _run_inspection_unpayable)
+          for code in ("PL!-bp3-010", "PL!-bp5-014", "PL!-bp6-004", "PL!-pb1-016", "PL!-sd1-011", "PL!-sd1-012")),
         *(("existing_wait_reorder_" + code, "自身Wait・上2枚の任意並べ直し " + code,
            "自身Wait后查看顶2张、任选排序 " + code, code + ":1", _run_wait_reorder)
           for code in ("PL!-bp3-014", "PL!-bp3-017", "PL!-bp3-018", "PL!N-bp3-022", "PL!N-bp4-016", "PL!S-bp6-018")),
@@ -427,6 +433,55 @@ def _v1_1_dynamic_scenarios(
             )
         )
     return results
+
+
+def _run_adjacent_discard_inspection(effect: EffectDefinition) -> dict[str, bool]:
+    from loveca.webapp import _match_state_payload
+    source = _v1_1_member("source", effect.card_code, card_code=effect.card_code, cost=0, effect_ids=[effect.effect_id])
+    cards = [source, *[_v1_1_member("adj-" + key, "AUDIT-" + key, work_keys=["love_live"], unit_keys=["lily_white"])
+                       for key in ("cost", "member", "wrong", "blade", "tail", "spare")], _v1_1_live("adj-live", "AUDIT-Live")]
+    by_id = {c.instance_id: c for c in cards}
+    by_id["adj-wrong"].card.work_keys, by_id["adj-wrong"].card.unit_keys = ["nijigasaki"], ["other"]
+    by_id["adj-tail"].card.unit_keys = ["other"]
+    for key, hearts in (("member", {"heart05": 1}), ("wrong", {"heart06": 1}),
+                        ("blade", {"heart01": 1}), ("tail", {"heart06": 1})):
+        by_id["adj-" + key].card.basic_hearts = hearts
+    by_id["adj-blade"].card.blade_heart_color_slot = "heart05"
+    by_id["adj-live"].card.work_keys, by_id["adj-live"].card.unit_keys = ["love_live"], ["lily_white"]
+    by_id["adj-live"].card.required_hearts = {"heart05": 5}
+    for c in cards[1:]:
+        c.face_up = False
+    state = _v1_1_state({effect.effect_id: effect}, cards, hand=["source", "adj-cost"])
+    deck = ["adj-member", "adj-live", "adj-wrong", "adj-blade", "adj-tail", "adj-spare"]
+    state.players["player_1"].main_deck = deck
+    played = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1", expected_revision=0,
+        payload={"card_instance_id": "source", "slot": "center", "energy_instance_ids": [], "use_baton_touch": False}))
+    inspected = apply_action(played.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=played.state.revision, payload={"invocation_id": played.state.pending_effects[0].invocation_id,
+            "selected_card_instance_ids": ["adj-cost"]}))
+    before_public = _match_state_payload(inspected.state, events=inspected.events, legal_actions=inspected.legal_actions, player_id="player_2")
+    expected = {
+        "PL!-bp3-010": {"adj-live"}, "PL!-bp5-014": {"adj-member", "adj-wrong"},
+        "PL!-bp6-004": {"adj-member", "adj-blade", "adj-tail"},
+        "PL!-pb1-016": {"adj-member", "adj-live", "adj-blade"},
+        "PL!-sd1-011": {"adj-member", "adj-live", "adj-wrong"},
+        "PL!-sd1-012": {"adj-member", "adj-live", "adj-wrong"},
+    }[effect.card_code]
+    target = "adj-live" if effect.card_code == "PL!-bp3-010" else "adj-member"
+    result = apply_action(inspected.state, ActionRequest(action_type="resolve_effect_choice", player_id="player_1",
+        expected_revision=inspected.state.revision, payload={"selected_card_instance_ids": [target]}))
+    public = _match_state_payload(result.state, events=result.events, legal_actions=result.legal_actions, player_id="player_2")
+    revealed = [c["instance_id"] for e in public["events"] for c in e["data"].get("revealed_cards", [])]
+    private = effect.card_code in {"PL!-sd1-011", "PL!-sd1-012"}
+    return {
+        "adjacent_cost_once": "adj-cost" in inspected.state.players["player_1"].waiting_room and sum(e.event_type == "effect_cost_paid" for e in inspected.events) == 1 and not any(e.event_type == "effect_cost_paid" for e in result.events),
+        "adjacent_inspection_count": inspected.state.pending_choice.options["inspected_card_instance_ids"] == deck[:effect.choice.amount],
+        "adjacent_candidates_exact": set(inspected.state.pending_choice.options["candidate_card_instance_ids"]) == expected,
+        "adjacent_private_look": '"adj-member"' not in json.dumps(before_public) and '"adj-live"' not in json.dumps(before_public),
+        "adjacent_keep_bounds": inspected.state.pending_choice.options["minimum"] == (1 if private else 0),
+        "adjacent_reveal_distinct": (target in revealed) == (not private) and (not private or target not in json.dumps(public)),
+        "typed_finished": result.state.players["player_1"].hand == [target] and result.state.pending_choice is None and not result.state.pending_effects,
+    }
 
 
 def _run_wait_reorder(effect: EffectDefinition) -> dict[str, bool]:
@@ -1422,6 +1477,12 @@ def _load_visuals_for_effect_ids(
 
 
 _V1_1_CHECK_LABELS: dict[str, tuple[str, str]] = {
+    "adjacent_cost_once": ("手札1枚だけを費用にし再払いしない", "只支付一张手牌，后续选择不重复付款"),
+    "adjacent_inspection_count": ("指定枚数のみ確認", "准确查看卡文指定数量"),
+    "adjacent_candidates_exact": ("Live/メンバーのHeart/作品/ユニットを区別", "准确区分Live、Member心、作品与组合筛选"),
+    "adjacent_private_look": ("確認中のカードは相手に見せない", "对手完整响应不含私有检查牌"),
+    "adjacent_keep_bounds": ("0枚可と必ず1枚を区別", "区分可选零张与必须取得一张"),
+    "adjacent_reveal_distinct": ("公開指定のある取得だけ相手に公開", "仅卡文指定公开的入手牌向对手公开"),
     "wait_reorder_keep_0": ("0枚を戻して2枚を控室へ・非公開", "保留0张，其余进控室，不泄露牌顶"),
     "wait_reorder_keep_1": ("1枚を戻して残りを控室へ・非公開", "保留1张，其余进控室，不泄露牌顶"),
     "wait_reorder_keep_2": ("2枚を逆順に戻す・非公開", "保留2张并反向排序，不泄露牌顶"),

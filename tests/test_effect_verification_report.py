@@ -47,6 +47,9 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
         "existing_wait_reorder_PL!-bp3-014",
         "existing_wait_reorder_PL!S-bp6-018",
         "existing_hand_cost_unavailable_PL!N-bp7-018",
+        "adjacent_discard_inspection_PL!-bp5-014",
+        "adjacent_discard_inspection_PL!-sd1-011",
+        "adjacent_discard_unpayable_PL!-pb1-016",
     }.issubset(scenario_ids)
     assert "registry_contract_PL!S-sd1-006_1" in scenario_ids
     assert "registry_contract_PL!N-bp5-005_1" in scenario_ids

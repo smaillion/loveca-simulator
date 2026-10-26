@@ -2621,6 +2621,41 @@ def _onplay_optional_discard_inspect_keep1_any(
     )
 
 
+def _onplay_audited_discard_inspection(row: sqlite3.Row) -> EffectCandidate | None:
+    patterns = (
+        ({"PL!-bp3-010"}, 5, "ライブカードを1枚公開して手札に加えてもよい。", {"card_type": "live"}, True),
+        ({"PL!-bp5-014"}, 4, "ハートに【heart05】か【heart06】を持つメンバーカードを1枚公開して手札に加えてもよい。",
+         {"card_type": "member", "heart_color_slots_any": ["heart05", "heart06"]}, True),
+        ({"PL!-bp6-004"}, 5, "『μ's』のメンバーカードを1枚公開して手札に加えてもよい。",
+         {"card_type": "member", "work_key": "love_live"}, True),
+        ({"PL!-pb1-016"}, 4, "『lily white』のカードを1枚公開して手札に加えてもよい。", {"unit_key": "lily_white"}, True),
+        ({"PL!-sd1-011", "PL!-sd1-012"}, 3, "1枚を手札に加え、", {}, False),
+    )
+    for codes, amount, selection, filters, public in patterns:
+        if row["card_code"] not in codes:
+            continue
+        label = ("【登場】手札を1枚控え室に置いてもよい："
+                 f"自分のデッキの上からカードを{amount}枚見る。その中から{selection}残りを控え室に置く。")
+        matched = _matching_segment(row, label)
+        if matched is None:
+            return None
+        return EffectCandidate(
+            **_base(row, pattern_id=f"audited_discard_inspection_{row['card_code']}", effect_index=matched[0]),
+            label_ja=label, effect_type="triggered", timing="on_play", trigger="member_played",
+            frequency_limit="none", is_optional=True, condition={},
+            cost=[{"action_type": "discard_from_hand"}],
+            cost_choice={"choice_type": "card_from_zone", "zone": "hand", "minimum": 1, "maximum": 1},
+            choice={"cost_payment_policy": "triggered_inspection", "choice_type": "inspect_top_select",
+                    "amount": amount, "minimum": 0 if public else 1, "maximum": 1, "requires_order": False,
+                    "selected_destination": "hand", "unselected_destination": "waiting_room",
+                    "reveal_selected_to_opponent": public, **filters},
+            actions=[{"action_type": "inspect_top_cards", "amount": amount},
+                     {"action_type": "select_to_hand_from_inspected"}, {"action_type": "move_remaining_cards"}],
+            duration=None,
+        )
+    return None
+
+
 def _onplay_typed_cost_inspection(row: sqlite3.Row) -> EffectCandidate | None:
     hand_cost = {"choice_type": "card_from_zone", "zone": "hand", "minimum": 1, "maximum": 1}
     patterns = {
@@ -15286,6 +15321,7 @@ _PATTERNS = (
     _onplay_baton_liella_energy7_place_two_wait_energy,
     _onplay_draw_then_discard_one,
     _onplay_named_baton_draw_then_discard,
+    _onplay_audited_discard_inspection,
     _onplay_optional_discard_inspect_keep1_any,
     _nijigasaki_onplay_inspection,
     _onplay_typed_cost_inspection,
