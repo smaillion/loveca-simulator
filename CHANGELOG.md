@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 桜内梨子`PL!S-cl1-002:1`を精確な本文に限定して実装。エールで公開したAqoursのMember/Liveを0–3枚、任意順でデッキ下へ。新snapshotのみ元のYellオブジェクトを追跡し、領域を離れて戻った同IDを除外。古いmanual Replayと非公開順序を維持し、選択の並べ替えUIを追加。
+- 中文: 42专项、2前端交互及183图文通过，登记917/1212、295manual；同冻结30局完赛7→8，22明确人工停止，可执行待机150/154完成，其余4随manual保留；非法/runtime/Replay/错误skip均0。新增完赛局败方没有成功Live，不冒充双方Live或发布验收。不改Card/SQLite schema、默认AI或reviewed，不合并部署。
+
 - 桜坂しずく`PL!N-PR-036:1`を精確なsegment/revision/hashで対応。自分以外の虹ヶ咲Stage Memberだけを選び、card cost15境界を解決時に評価。新しい受限policyと単一Heart修正を使い、旧の姓名Blade policyや手動Replayは変更しない。來源の同ID離場/復帰とStage内移動を実際のAction/SQL Replayで区別。
 - 中文: 45项专项与旧技能/图文回归共142项通过，前端217项，图文180项（142状态/38契约）。冻结同30牌组正式完赛仍7局、23明确人工停止，无非法动作/runtime/Replay/错误skip；本段9次入队，2个待机随另一人工技能保留，不能称全部完成。修复诊断发现的旧临时选择对象缺少selection_policy导致异常，加入两项兼容回归。登记916/1212、296manual；不改Card/SQLite schema或默认AI，未提升reviewed，同Draft PR54不合并部署。
 

@@ -1,5 +1,11 @@
 # AI and Simulation Notes
 
+PL!S-cl1-002:1 delegates original-Yell filtering and ordered bottom return to the
+engine. Four policies retain hidden-hand invariance. Frozen30 completes8/30 with
+22 explicit manual stops,150/154 executable completions and4 pending behind manual.
+No illegal/runtime/Replay/error-skip failures; defaultv1.1 unchanged.
+See [the Chinese audit](development/aqours-yell-bottom-verification.md).
+
 PL!N-PR-036:1 now uses a bounded other-Nijigasaki target policy and the engine's
 resolution-time card information cost, not Member payment reduction. Four AI
 policies, hidden-hand substitutions and returned-source targeting are tested.

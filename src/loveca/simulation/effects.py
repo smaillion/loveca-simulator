@@ -317,6 +317,7 @@ class EffectChoice(BaseModel):
     selection_policy: Literal[
         "private_filtered_may_choose_none", "public_single_as_much_as_possible",
         "public_named_groups_as_much_as_possible", "public_other_nijigasaki_cost_heart",
+        "public_yell_aqours_bottom_three",
     ] | None = None
     zone: str | None = None
     card_type: str | None = None
@@ -432,6 +433,14 @@ class EffectChoice(BaseModel):
             or self.unselected_destination is not None or self.reveal_selected_to_opponent
         ):
             raise ValueError("activated inspection policy requires a private full top-deck reorder")
+        if self.selection_policy == "public_yell_aqours_bottom_three" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "card_from_zone", "zone": "resolution_area",
+                "selection_policy": "public_yell_aqours_bottom_three", "maximum": 3,
+                "work_key": "aqours", "requires_order": True,
+            }
+        ):
+            raise ValueError("Yell bottom selection requires zero to three own Aqours cards")
         if self.selection_policy == "public_other_nijigasaki_cost_heart" and (
             self.model_dump(exclude_defaults=True, exclude_none=True) != {
                 "choice_type": "member_from_stage", "zone": "stage", "card_type": "member",
@@ -669,6 +678,20 @@ class EffectDefinition(BaseModel):
             )
         ):
             raise ValueError("private selection policy requires bounded Stage deployment")
+        if self.choice and self.choice.selection_policy == "public_yell_aqours_bottom_three" and (
+            self.cost or self.cost_choice or self.follow_up_choice
+            or self.condition or self.is_optional
+            or self.trigger != "live_succeeded" or self.effect_type != "triggered"
+            or self.timing != "live_success" or self.frequency_limit != "once_per_live"
+            or self.execution_mode != "prompt_then_resolve" or self.duration is not None
+            or len(self.actions) != 1
+            or self.actions[0].model_dump(exclude_defaults=True, exclude_none=True) != {
+                "action_type": "move_selected_to_deck_bottom",
+            }
+        ):
+            raise ValueError(
+                "Yell bottom selection only supports mandatory Live-success bottom return"
+            )
         if any(op.amount_source == "selected_member_cost15_heart_amount"
                for op in [*self.cost, *self.actions]) and (
             not self.choice or self.choice.selection_policy != "public_other_nijigasaki_cost_heart"

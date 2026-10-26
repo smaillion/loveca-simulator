@@ -4,6 +4,11 @@
 
 ### Experimental resource-cycle policy
 
+PL!S-cl1-002:1 uses current engine-generated original-Yell candidates and ordered
+zero-to-three bottom selection. AI must not inspect opponent hidden identities or
+infer Yell from the entire Resolution Area. Frozen30 reaches8 completed/22 manual
+stops, not release acceptance; defaultv1.1 and historical policies remain unchanged.
+
 PL!N-PR-036:1 delegates target and cost15 Heart calculation to the shared engine.
 Four policies must choose from current public candidates, including zero only
 when no legal target remains. Source departure/reentry is tracked as object

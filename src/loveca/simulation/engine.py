@@ -1013,7 +1013,7 @@ def _resolve_manual_inspection(
     if any(item not in player.resolution_area for item in inspected):
         raise IllegalActionError("inspected cards must remain in Resolution Area")
     for instance_id in inspected:
-        player.resolution_area.remove(instance_id)
+        _remove_resolution_card(player, instance_id)
         if instance_id in selected:
             player.hand.append(instance_id)
             state.cards[instance_id].face_up = True
@@ -2281,10 +2281,10 @@ def _resolve_effect_choice(
     unselected_ids = [item for item in inspected_ids if item not in selected_set]
     for instance_id in selected_ids:
         if instance_id in player.resolution_area:
-            player.resolution_area.remove(instance_id)
+            _remove_resolution_card(player, instance_id)
     for instance_id in unselected_ids:
         if instance_id in player.resolution_area:
-            player.resolution_area.remove(instance_id)
+            _remove_resolution_card(player, instance_id)
 
     if selected_destination == "hand":
         for instance_id in selected_ids:
@@ -2407,7 +2407,7 @@ def _skip_effect(
             player = state.players[invocation.player_id]
             for instance_id in inspected:
                 if isinstance(instance_id, str) and instance_id in player.resolution_area:
-                    player.resolution_area.remove(instance_id)
+                    _remove_resolution_card(player, instance_id)
                     player.waiting_room.append(instance_id)
                     state.cards[instance_id].face_up = True
                     cleaned_resolution_ids.append(instance_id)
@@ -4830,6 +4830,8 @@ def _effect_resolution_options(
         options["card_selection_maximum"] = maximum
         if choice.selection_policy is not None:
             options["selection_policy"] = choice.selection_policy
+        if choice.selection_policy == "public_yell_aqours_bottom_three":
+            options["card_selection_requires_order"] = True
         if _effect_uses_grouped_stage_member_choice(effect):
             options["choice_groups"] = _effect_group_choice_options(
                 state, invocation
@@ -5927,6 +5929,11 @@ def _effect_candidates_for_choice(
         candidates = list(player.member_area_attachments[source_slot])
     else:
         return []
+    if getattr(choice, "selection_policy", None) == "public_yell_aqours_bottom_three":
+        original_yell = player.live_result.remaining_yell_instance_ids
+        if original_yell is None:
+            raise IllegalActionError("original Yell object snapshot is missing")
+        candidates = [item for item in candidates if item in original_yell]
     if choice.card_type:
         candidates = [
             item
@@ -8313,7 +8320,7 @@ def _execute_operations(
         elif operation_type == "move_selected_to_hand":
             for instance_id in operation_selected_ids:
                 if instance_id in player.resolution_area:
-                    player.resolution_area.remove(instance_id)
+                    _remove_resolution_card(player, instance_id)
                 elif instance_id in player.waiting_room:
                     player.waiting_room.remove(instance_id)
                 else:
@@ -8327,7 +8334,7 @@ def _execute_operations(
                 if instance_id in player.hand:
                     player.hand.remove(instance_id)
                 elif instance_id in player.resolution_area:
-                    player.resolution_area.remove(instance_id)
+                    _remove_resolution_card(player, instance_id)
                 elif instance_id in player.waiting_room:
                     player.waiting_room.remove(instance_id)
                 else:
@@ -8585,7 +8592,7 @@ def _execute_operations(
                         raise IllegalActionError(
                             "effect deck-top target must be in Resolution Area"
                         )
-                    player.resolution_area.remove(instance_id)
+                    _remove_resolution_card(player, instance_id)
                 else:
                     if instance_id not in player.waiting_room:
                         raise IllegalActionError(
@@ -10460,6 +10467,11 @@ def _run_current_yell(
     player.live_result = LivePerformanceResult(
         blade_count=blade_count,
         revealed_instance_ids=revealed,
+        remaining_yell_instance_ids=(list(revealed) if any(
+            effect.choice is not None
+            and effect.choice.selection_policy == "public_yell_aqours_bottom_three"
+            for effect in state.effect_definitions.values()
+        ) else None),
         member_hearts=dict(sorted(member_hearts.items())),
         manual_hearts=dict(sorted(manual_hearts.items())),
         yell_hearts=dict(sorted(yell_hearts.items())),
@@ -10913,6 +10925,8 @@ def _complete_live_judgment(
     for player in state.players.values():
         for zone in (player.live_area, player.resolution_area):
             for instance_id in list(zone):
+                if zone is player.resolution_area:
+                    _forget_yell_object(player, instance_id)
                 zone.remove(instance_id)
                 player.waiting_room.append(instance_id)
     for player_id in state.players:
@@ -11195,7 +11209,9 @@ def _manual_move_card(
             events,
             reason="manual_move_off_stage",
         )
-    _remove_from_player_zones(player, instance_id)
+    _remove_from_player_zones(
+        player, instance_id, preserve_yell_object=to_zone == "resolution_area"
+    )
     simple_zones = {
         "hand": player.hand,
         "main_deck": player.main_deck,
@@ -11701,7 +11717,22 @@ def _clean_stage_attachments(
     )
 
 
-def _remove_from_player_zones(player: Any, instance_id: str) -> None:
+def _forget_yell_object(player: Any, instance_id: str) -> None:
+    tracked = getattr(getattr(player, "live_result", None), "remaining_yell_instance_ids", None)
+    if tracked is not None and instance_id in tracked:
+        tracked.remove(instance_id)
+
+
+def _remove_resolution_card(player: Any, instance_id: str) -> None:
+    player.resolution_area.remove(instance_id)
+    _forget_yell_object(player, instance_id)
+
+
+def _remove_from_player_zones(
+    player: Any, instance_id: str, *, preserve_yell_object: bool = False,
+) -> None:
+    if instance_id in player.resolution_area and not preserve_yell_object:
+        _forget_yell_object(player, instance_id)
     if instance_id in player.live_area:
         _clear_live_card_score(player, instance_id)
     for zone in (

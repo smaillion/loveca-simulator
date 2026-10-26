@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "live-start-nijigasaki-blade-four-heart",
+      "priority": 0,
+      "title": "按实际阻塞审计有效Blade至少四的虹咲目标双Heart",
+      "status": "queued",
+      "depends_on": ["live-success-aqours-yell-bottom-three"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!N-sd2-026:1完整日文/revision/hash与本地PDF Blade信息及选择目标条款，先复现冻结池两次mandatory待机；区分基础Blade与当前有效Blade，不能猜测FAQ", "明确时仅精确绑定一名己方虹咲Stage Member，验证Blade3/4/5、临时/静态修正、非虹咲/对手/附属/手牌、无候补及待机后变化，双Heart02只给所选对象并按Live期限清理", "真实状态、新旧SQL Replay、四AI隐藏身份不变、原子拒绝、UI及双语图文通过；不扩大旧策略、不改Card/SQLite schema或默认AI、不晋级reviewed", "同冻结30技能密集牌组有界复跑，记录实际触发/完成/待机/skip/正式完赛和源码指纹；全部profiles及pre-push通过，同Draft PR54不合并部署，旧dirty及未确认语义保留"]
+    },
+    {
       "id": "live-success-aqours-yell-bottom-three",
       "priority": 0,
       "title": "精确审计Yell公开Aqours最多三张排序入底",

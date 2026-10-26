@@ -1,5 +1,11 @@
 # Effect Semantics Audit
 
+PL!S-cl1-002:1 revision961 uses a bounded original-Yell Aqours0–3 ordered policy.
+Only opted-in snapshots serialize remaining Yell objects; departure invalidates
+eligibility even on same-ID return.42 focused tests,3 new illustrated state cases,
+old/new SQL Replay and4 AI policies pass.917/1212 test-validated,295 manual.
+No human-reviewed promotion. [Evidence](development/aqours-yell-bottom-verification.md).
+
 PL!N-PR-036:1: revision1225/hash efcae675449686825bdddf0b5f7a013d74837a06441dfa296f1677bed2d04ab4.
 Other own top-level Nijigasaki Member selection is mandatory when possible, with
 explicit zero-target resolution otherwise. A dedicated snapshot policy preserves

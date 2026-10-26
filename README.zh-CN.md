@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+精确支持桜内梨子`PL!S-cl1-002:1`：从原应援公开的Aqours卡中选0–3张任意排序入底，含Member与Live；区分离开后返回的新对象，保持旧Replay及对手不可见的牌库顺序。917/1212、295manual。同冻结30牌组8完赛/22明确人工停止，仍非beta门禁。[验证报告](./docs/development/aqours-yell-bottom-verification.md)
+
 精确支持桜坂しずく`PL!N-PR-036:1`：选择另一名己方虹咲成员，结算时卡牌信息cost至少15则获得两颗Heart03，否则一颗。无目标明确结束；同ID离场回场按新对象处理。登记916/1212（75.58%）、296manual。[目标、Replay及AI验证](./docs/development/other-nijigasaki-heart-verification.md)
 
 精确支持「僕たちはひとつの光」`PL!-pb2-039:1`：结算时检查成功区μs至少两张，只将应援公开数量加十，不改变成员Blade；第二段继续人工。登记915/1212（75.50%）、297manual。同一30牌组诊断从6局完赛升至7局，其余23局明确人工停止，尚未达到发布门禁。[卡图与验证报告](./docs/development/live-yell-ten-verification.md)

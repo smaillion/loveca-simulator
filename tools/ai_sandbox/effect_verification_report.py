@@ -193,6 +193,12 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        ("aqours_yell_bottom_mixed", "エールのMemberとLiveを順番にデッキ下へ",
+         "应援公开Member与Live按所选顺序入底", "PL!S-cl1-002:1", _run_aqours_yell_bottom),
+        ("aqours_yell_bottom_zero", "エールから零枚を選択", "应援回收明确选择零张",
+         "PL!S-cl1-002:1", lambda effect: _run_aqours_yell_bottom(effect, zero=True)),
+        ("aqours_yell_bottom_no_target", "別作品と非エールを除外", "排除异作品与非应援公开牌",
+         "PL!S-cl1-002:1", lambda effect: _run_aqours_yell_bottom(effect, empty=True)),
         ("other_nijigasaki_cost14", "他の虹咲cost14・Heart一つ", "其他虹咲cost14：一颗Heart",
          "PL!N-PR-036:1", lambda effect: _run_other_nijigasaki_heart(effect, cost=14)),
         ("other_nijigasaki_cost15", "他の虹咲cost15・Heart二つ", "其他虹咲cost15：两颗Heart",
@@ -481,6 +487,8 @@ def _v1_1_dynamic_scenarios(
                 notes_ja=[f"公式日本語テキスト: {effect.label_ja}"],
                 notes_zh=[f"官方日文效果文本：{effect.label_ja}"],
                 rule_reference_ids=(
+                    ["8.4.4", "8.4.5", "8.4.8", "11.6.2", "4.1.4", "4.1.5.1", "9.6.3.1.1"]
+                    if effect_id == "PL!S-cl1-002:1" else
                     ["8.3.8", "8.3.9", "8.3.10", "8.3.11", "8.4.11", "9.6.2.4.2", "9.7.3"]
                     if effect_id == "PL!-pb2-039:1" else
                     ["2.6.1", "9.6.3.1", "9.6.3.1.3", "11.5.2", "8.4.11", "4.1.4"]
@@ -489,6 +497,56 @@ def _v1_1_dynamic_scenarios(
             )
         )
     return results
+
+
+def _run_aqours_yell_bottom(
+    effect: EffectDefinition, *, zero: bool = False, empty: bool = False,
+) -> dict[str, bool]:
+    source = _v1_1_member("source", "Source", effect_ids=[effect.effect_id])
+    source.card.blade = 3
+    member = _v1_1_member("member", "Aqours Member", work_keys=["aqours"])
+    live = _v1_1_live("live", "Aqours Live")
+    live.card.work_keys = ["aqours"]
+    other = _v1_1_member("other", "Other", work_keys=["nijigasaki"])
+    extra = _v1_1_member("extra", "Non-Yell", work_keys=["aqours"])
+    if empty:
+        member.card.work_keys = live.card.work_keys = ["nijigasaki"]
+    state = _v1_1_state(
+        {effect.effect_id: effect},
+        [source, member, live, other, extra, _v1_1_live("plan", "Live")],
+        member_area={"left": None, "center": "source", "right": None},
+    )
+    player = state.players["player_1"]
+    player.main_deck = ["member", "live", "other"]
+    player.live_area = ["plan"]
+    player.resolution_area = ["extra"]
+    state.phase, state.active_player_id = "performance_first", "player_1"
+    for _ in range(6):
+        state = apply_action(state, ActionRequest(
+            action_type="advance_phase", expected_revision=state.revision,
+        )).state
+        if state.pending_effects:
+            break
+    options = next(
+        a for a in generate_legal_actions(state) if a.action_type == "resolve_effect"
+    ).options["invocations"][0]
+    selected = [] if zero or empty else ["live", "member"]
+    resolved = apply_action(state, ActionRequest(
+        action_type="resolve_effect", player_id="player_1", expected_revision=state.revision,
+        payload={"invocation_id": state.pending_effects[0].invocation_id,
+                 "selected_card_instance_ids": selected},
+    ))
+    player = resolved.state.players["player_1"]
+    return {
+        "Yell限定候補 / 仅应援候补": set(options["candidate_card_instance_ids"])
+        == (set() if empty else {"member", "live"}),
+        "指定順のデッキ下 / 指定顺序入底": player.main_deck == selected,
+        "裏向き / 入底背面": all(not resolved.state.cards[key].face_up for key in selected),
+        "非選択の清理 / 未选择牌清理": not player.resolution_area
+        and not set(selected).intersection(player.waiting_room),
+        "Live判定を維持 / 保留Live判定": player.live_result.requirements_satisfied is True,
+        "待機完了 / 待机完成": not resolved.state.pending_effects,
+    }
 
 
 def _run_other_nijigasaki_heart(

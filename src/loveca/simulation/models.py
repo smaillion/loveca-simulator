@@ -100,6 +100,8 @@ class CardInstance(BaseModel):
 class LivePerformanceResult(BaseModel):
     blade_count: int = 0
     revealed_instance_ids: list[str] = Field(default_factory=list)
+    # Only new Yell-object policies opt in; omit this from historical snapshots.
+    remaining_yell_instance_ids: list[str] | None = None
     member_hearts: dict[str, int] = Field(default_factory=dict)
     manual_hearts: dict[str, int] = Field(default_factory=dict)
     yell_hearts: dict[str, int] = Field(default_factory=dict)
@@ -112,6 +114,13 @@ class LivePerformanceResult(BaseModel):
     base_score: int = 0
     requirements_satisfied: bool | None = None
     total_score: int = 0
+
+    @model_serializer(mode="wrap")
+    def serialize_yell_objects(self, handler: Any) -> dict[str, Any]:
+        payload = handler(self)
+        if self.remaining_yell_instance_ids is None:
+            payload.pop("remaining_yell_instance_ids", None)
+        return payload
 
 
 class ManualModifier(BaseModel):

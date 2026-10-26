@@ -5132,6 +5132,7 @@ export function EffectResolutionAction({
     choice_type?: string;
     card_selection_minimum?: number;
     card_selection_maximum?: number;
+    card_selection_requires_order?: boolean;
     choice_zone?: string;
     choice_orientation?: string;
     color_slots?: string[];
@@ -5147,7 +5148,7 @@ export function EffectResolutionAction({
     deployment_unsupported_slots?: Record<string, string>;
     deployment_unsupported_slots_by_candidate?: Record<string, Record<string, string>>;
     deployment_requires_manual_resolution?: boolean;
-    selection_policy?: "private_filtered_may_choose_none" | "public_single_as_much_as_possible" | "public_named_groups_as_much_as_possible" | "public_other_nijigasaki_cost_heart";
+    selection_policy?: "private_filtered_may_choose_none" | "public_single_as_much_as_possible" | "public_named_groups_as_much_as_possible" | "public_other_nijigasaki_cost_heart" | "public_yell_aqours_bottom_three";
     choice_groups?: Array<{
       group_id: string;
       label_ja?: string | null;
@@ -5349,6 +5350,27 @@ export function EffectResolutionAction({
             {selectedCards.length} / {maximumCards}
             {minimumCards > 0 ? ` · ${tr("至少", "最低")} ${minimumCards}` : ""}
           </span>
+        </div>
+      )}
+      {current.card_selection_requires_order && selectedCards.length > 0 && (
+        <div className="order-action">
+          {selectedCards.map((id, index) => (
+            <span key={id}>
+              {index + 1}. {state.cards[id].card.name_ja}
+              <button type="button" className="mini-icon" disabled={index === 0}
+                aria-label={tr("上移已选卡", "選択カードを上へ")}
+                title={tr("上移已选卡", "選択カードを上へ")}
+                onClick={() => setSelectedCards(moveItem(selectedCards, index, index - 1))}>
+                <ChevronUp size={14} />
+              </button>
+              <button type="button" className="mini-icon" disabled={index === selectedCards.length - 1}
+                aria-label={tr("下移已选卡", "選択カードを下へ")}
+                title={tr("下移已选卡", "選択カードを下へ")}
+                onClick={() => setSelectedCards(moveItem(selectedCards, index, index + 1))}>
+                <ChevronDown size={14} />
+              </button>
+            </span>
+          ))}
         </div>
       )}
       {requiresPositionSlot && (

@@ -4365,6 +4365,39 @@ describe("App", () => {
     });
   });
 
+  it.each([false, true])("orders up to three public Yell cards, including choosing zero: %s", (chooseZero) => {
+    const onAction = vi.fn();
+    const ids = ["player_1-M001", "player_1-M002", "player_1-M003", "extra-yell"];
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    ids.forEach((id, index) => {
+      state.cards[id] = { ...state.cards["player_1-M001"], instance_id: id,
+        card: { ...state.cards["player_1-M001"].card, name_ja: `Yell ${index + 1}` } };
+    });
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "aqours-bottom", effect_id: "PL!S-cl1-002:1", source_card_instance_id: "player_1-M001",
+      label_ja: "【ライブ成功時】Aqoursのエール3枚までを好きな順でデッキの下に置く。",
+      trigger: "live_succeeded", timing: "live_success", execution_mode: "prompt_then_resolve",
+      simulation_support: "test_validated_executable", is_optional: false, choice_type: "card_from_zone",
+      choice_zone: "resolution_area", card_selection_minimum: 0, card_selection_maximum: 3,
+      card_selection_requires_order: true, selection_policy: "public_yell_aqours_bottom_three",
+      candidate_card_instance_ids: ids,
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false}
+      onAction={onAction} onManual={vi.fn()} />);
+    if (!chooseZero) {
+      ids.slice(0, 3).forEach((_, i) => fireEvent.click(screen.getByRole("button", { name: new RegExp(`Yell ${i + 1}`) })));
+      fireEvent.click(screen.getByRole("button", { name: /Yell 4/ }));
+      expect(screen.getAllByRole("button", { name: "上移已选卡" })).toHaveLength(3);
+      expect(screen.getAllByRole("button", { name: "上移已选卡" })[0]).toBeDisabled();
+      fireEvent.click(screen.getAllByRole("button", { name: "下移已选卡" })[0]);
+    }
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "aqours-bottom", accepted: true,
+      selected_card_instance_ids: chooseZero ? [] : [ids[1], ids[0], ids[2]], energy_instance_ids: [],
+    });
+  });
+
   it.each(["overlap_source_binding_incomplete", "overlap_attached_ability_requires_review",
     "overlap_public_ability_requires_timing_review"])("offers manual processing for an unresolved overlap source: %s", (reason) => {
     const onAction = vi.fn();
