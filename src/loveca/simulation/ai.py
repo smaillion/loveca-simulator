@@ -76,6 +76,14 @@ class SimpleAIController:
         ]
         if not available:
             return None
+        invocations = [item for action in available if action.action_type == "resolve_effect"
+                       for item in action.options.get("invocations", [])]
+        if invocations and all(item.get("deployment_requires_manual_resolution") for item in invocations):
+            return SimpleAIBlocker(
+                reason="overlap_source_requires_manual_review",
+                legal_action_types=[action.action_type for action in available],
+                player_ids=[action.player_id for action in available],
+            )
         if self.policy.policy_version == "simple_ai_v0":
             decision = choose_simple_ai_action(
                 state,

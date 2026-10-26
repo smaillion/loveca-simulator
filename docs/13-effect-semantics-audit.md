@@ -1,5 +1,16 @@
 # Effect Semantics Audit
 
+Complete-source checkpoint: explicit `require_complete_source_bindings` bounds
+occupied effect deployment to complete text/identity bindings across both public
+Stages, attachments, face-up Live Areas and the selected incoming candidate.
+Unknown/static/inherited or unsupported cross-player observers remain excluded;
+when no safe area remains, a public-target effect pauses before costs and exposes
+native manual resolution rather than resolving an invented empty target. Hidden
+cards are not scanned; private filtered no-target choices and old snapshots retain
+their semantics. This is controlled foundation evidence, not six newly executable
+entries:904/1212 (74.59%),308manual, no reviewed promotion.
+[Chinese state/Replay/AI evidence](development/overlap-source-binding-verification.md).
+
 Moved-source checkpoint: exact `PL!SP-bp7-008:2` uses a bounded original-Stage
 object policy for mandatory Wait movement -> source ready. Capture eligibility
 only after the trigger check; mark pending opted-in invocations on departure,

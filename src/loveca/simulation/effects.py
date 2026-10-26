@@ -149,7 +149,9 @@ class EffectOperation(BaseModel):
     entry_trigger_policy: Literal["member_area_external_only"] | None = None
     overlap_source_policy: Literal["original_stage_member"] | None = None
     source_object_policy: Literal["original_moved_stage_member"] | None = None
-    overlap_observer_policy: Literal["ignore_disjoint_source_triggers"] | None = None
+    overlap_observer_policy: Literal[
+        "ignore_disjoint_source_triggers", "require_complete_source_bindings"
+    ] | None = None
     color_slot: str | None = None
     card_type: str | None = None
     flag: str | None = None

@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+公开来源检查点：同一continuous分支为受控重叠登场增加显式完整绑定策略，核对双方公开Stage/附属/表向Live与入场候补，不读隐藏手牌/牌库/背面Live。来源未知导致全区域受阻时不支付费用，原生手动处理与AI可读暂停均有验证。见 `overlap-source-binding-verification.md`；904/1212不变，六卡仍manual，完整继承父任务继续。原44/6项dirty不改，只更新Draft PR54，不合并部署。
+
 移动来源检查点：同一continuous分支精确适配四季`PL!SP-bp7-008:2`，显式policy区分原Stage对象与离场后同ID回场。登记904/1212、308manual；完整重叠/继承与六卡仍保留父任务。见 `moved-source-ready-verification.md`，旧44/6项dirty与ignored报告不改；只更新Draft PR #54，不合并部署。
 
 玩家响应隐私检查点：同一continuous分支修复隐藏牌库card map/真实ID/顺序、未公开技能定义与私有历史输出；在线完整Replay延后至完赛或关闭房间。本地完整视图、原始Replay及SQLite不变。登记903/1212不变，旧44/6项dirty成果不改。见 `player-payload-privacy-verification.md`；只更新Draft PR #54，不合并部署。

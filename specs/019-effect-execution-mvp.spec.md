@@ -2,6 +2,26 @@
 
 ## Bounded Occupied Deployment Observer Policy
 
+The additional explicit value `require_complete_source_bindings` includes the
+disjoint classification below and audits the full text plus card code, revision,
+raw hash, consecutive segment indexes and binding status for both public Stages,
+their attachments, face-up Live Areas and the incoming candidate. Hidden hands,
+decks and face-down Live identities are not observer inputs. Missing text is only
+a blank ability when no effect IDs/errors exist and `ability_bucket=none`.
+
+Attached abilities, static/combined/unknown and unsupported cross-player or
+Live-Area entry observers stay unresolved even when their text is fully bound.
+This is a conservative safety gate, not a general trigger scheduler. Empty areas
+do not require a temporary-overlap proof. The prior policy keeps its old scope.
+
+If all candidates for a public selection lose all areas to one of these new gaps,
+LegalAction reports `deployment_requires_manual_resolution`. Native resolution
+rejects before costs; native manual resolution becomes available for that exact
+pending source, while every AI policy reports an explicit blocker. Optional
+decline and private-filtered no-target selection keep their existing rules. No
+registry effect currently opts into the new value; the six pending entries stay
+manual until individual operation and timing verification is complete.
+
 `deploy_selected_to_stage` may explicitly snapshot
 `overlap_observer_policy=ignore_disjoint_source_triggers`. Missing policy retains
 the historical conservative area exclusions and serialization shape. The field

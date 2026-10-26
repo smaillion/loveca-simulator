@@ -12,7 +12,8 @@
 - 已适配 `PL!N-bp7-006:1` 支付Energy后检查并完整重排顶4张，第二段堆墓分支仍manual；见 `docs/development/activated-inspection-verification.md`。
 - 已适配 `PL!SP-bp7-008:1` / `PL!N-bp7-023:1` 的自身Wait抽牌，见 `docs/development/activated-wait-draw-verification.md`；不把“四季第一段可用”写成整卡全部自动化。
 - `PL!SP-bp7-008:2` 已以显式source object策略适配Wait移动复原，触发后离场/同ID回场不会复原新对象，见 `docs/development/moved-source-ready-verification.md`。原 `source_object_departure_reentry_requires_review` 仅对这一受限家族解除；继承/附属、任意目标与完整重叠边界仍未完成。
-- 重叠登场父任务未完成：不仅旧顶部Member，附属卡/入场卡/其他公开来源的完整文本绑定与真正常时/继承观察者仍需确认。不要用仅有已登记effect IDs等同整段原文安全。
+- 已补显式重叠来源全文/identity门禁，覆盖双方公开Stage/附属/表向Live和入场候补，未知来源全区域受阻时暂停而不付费；见 `docs/development/overlap-source-binding-verification.md`。新策略仅受控底座启用，六张正式卡仍manual，下一步仍需逐卡采用和时点验收。
+- 重叠登场父任务未完成：真正常时/继承/跨玩家观察者的临时场面语义仍需确认，不能把来源完整绑定等同技能已正确执行。手动调试、非Stage特殊有效区域与一般检查时点调度也未由本批实现。
 - 产品默认仍v1.1；旧v0不主动发动技能，v1系列可能因Wait损失过高而合法放弃发动。定向正收益场景与完整对局结果分开统计。
 
 ### Live矩阵与结束阶段规则可信度

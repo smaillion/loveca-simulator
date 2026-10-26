@@ -891,7 +891,10 @@ def _manual_adjustment(
         if source_effect_id != invocation.effect_id:
             raise IllegalActionError("manual adjustment source effect does not match")
         effect = state.effect_definitions.get(invocation.effect_id)
-        if effect is None or effect.simulation_support != "manual_resolution":
+        if effect is None or (
+            effect.simulation_support != "manual_resolution"
+            and not _overlap_deployment_requires_manual_resolution(state, invocation)
+        ):
             raise IllegalActionError("pending effect does not allow manual resolution")
         if action.payload.get("source_card_instance_id") != invocation.source_card_instance_id:
             raise IllegalActionError("manual adjustment source card does not match")
@@ -1149,7 +1152,10 @@ def _pending_effect_legal_actions(state: MatchState) -> list[LegalAction]:
                 **options,
             }
         )
-        has_manual = has_manual or effect.simulation_support == "manual_resolution"
+        has_manual = (
+            has_manual or effect.simulation_support == "manual_resolution"
+            or options.get("deployment_requires_manual_resolution", False)
+        )
     actions = [
         LegalAction(
             action_type="resolve_effect",
@@ -1186,6 +1192,7 @@ def _pending_effect_legal_actions(state: MatchState) -> list[LegalAction]:
                         item
                         for item in invocations
                         if item["simulation_support"] == "manual_resolution"
+                        or item.get("deployment_requires_manual_resolution")
                     ]
                 },
             )
@@ -1623,6 +1630,8 @@ def _resolve_effect(
         raise IllegalActionError(
             "manual_resolution effects require a ManualAdjustmentAction"
         )
+    if _overlap_deployment_requires_manual_resolution(state, invocation):
+        raise IllegalActionError("overlap source abilities require manual resolution before deployment")
 
     selected_ids = action.payload.get("selected_card_instance_ids", [])
     selected_ids_by_group: dict[str, list[str]] | None = None
@@ -4850,6 +4859,8 @@ def _effect_resolution_options(
                     item: _occupied_deployment_gaps(state, invocation, item)
                     for item in _effect_candidates_for_choice(state, invocation, choice)
                 }
+                if _overlap_deployment_requires_manual_resolution(state, invocation):
+                    options["deployment_requires_manual_resolution"] = True
             options["deployment_choice"] = True
             options["position_change_slots_by_candidate"] = {
                 instance_id: _effect_deployment_slots(state, invocation, instance_id)
@@ -7071,6 +7082,73 @@ def _queue_outgoing_entry_observers(
     )
 
 
+def _complete_overlap_source_binding(state: MatchState, source_id: str) -> bool:
+    card = state.cards[source_id].card
+    raw_text = "".join((card.raw_effect_text_ja or "").split())
+    effects = [state.effect_definitions.get(key) for key in card.effect_ids]
+    if card.effect_registry_errors or any(effect is None for effect in effects):
+        return False
+    if not raw_text and not effects:
+        return card.ability_bucket == "none"
+    if not raw_text or card.effect_registry_status != "supported":
+        return False
+    if any(
+        effect.card_code != card.card_code
+        or effect.text_revision_id != card.text_revision_id
+        or effect.raw_text_hash != card.raw_text_hash
+        for effect in effects
+    ):
+        return False
+    ordered = sorted(effects, key=lambda effect: effect.effect_index)
+    return (
+        [effect.effect_index for effect in ordered] == list(range(1, len(ordered) + 1))
+        and raw_text == "".join("".join(effect.label_ja.split()) for effect in ordered)
+    )
+
+
+def _public_overlap_source_gap(
+    state: MatchState, player_id: str, old_id: str, candidate_id: str | None,
+) -> str | None:
+    # Inspect public active regions only; never infer restrictions from hidden cards.
+    sources = [(candidate_id, player_id, "incoming")] if candidate_id else []
+    for owner_id, player in state.players.items():
+        sources.extend((item, owner_id, "stage") for item in player.member_area.values() if item)
+        sources.extend(
+            (item, owner_id, "attached")
+            for items in player.member_area_attachments.values() for item in items
+        )
+        sources.extend(
+            (item, owner_id, "live") for item in player.live_area
+            if state.cards[item].face_up
+        )
+    for source_id, owner_id, zone in sources:
+        if not _complete_overlap_source_binding(state, source_id):
+            return "overlap_source_binding_incomplete"
+        effects = [state.effect_definitions[key] for key in state.cards[source_id].card.effect_ids]
+        if zone == "attached" and effects:
+            return "overlap_attached_ability_requires_review"
+        for effect in effects:
+            disjoint = (
+                effect.effect_type == "activated" and effect.trigger == "player_activation"
+            ) or (
+                effect.effect_type == "triggered"
+                and effect.trigger in {"member_played", "live_started", "live_succeeded"}
+            )
+            if disjoint:
+                continue
+            if (
+                owner_id == player_id and zone in {"stage", "incoming"}
+                and effect.effect_type == "triggered"
+                and (effect.trigger == "own_member_played" or (
+                    source_id == old_id and effect.trigger == "member_left_stage_to_waiting_room"
+                ))
+            ):
+                # Existing per-source filters below still validate the temporary Stage view.
+                continue
+            return "overlap_public_ability_requires_timing_review"
+    return None
+
+
 def _occupied_deployment_gaps(
     state: MatchState,
     invocation: EffectInvocation,
@@ -7078,10 +7156,12 @@ def _occupied_deployment_gaps(
 ) -> dict[str, str]:
     player = state.players[invocation.player_id]
     gaps: dict[str, str] = {}
-    classify_disjoint = any(
-        op.overlap_observer_policy == "ignore_disjoint_source_triggers"
-        for op in state.effect_definitions[invocation.effect_id].actions
-    )
+    observer_policies = {
+        op.overlap_observer_policy for op in state.effect_definitions[invocation.effect_id].actions
+    }
+    classify_disjoint = bool(observer_policies & {
+        "ignore_disjoint_source_triggers", "require_complete_source_bindings",
+    })
     for slot, old_id in player.member_area.items():
         if _member_area_blocks_entry(player, slot):
             gaps[slot] = "member_entered_stage_this_turn"
@@ -7090,6 +7170,11 @@ def _occupied_deployment_gaps(
             if player.member_area_attachments[slot]:
                 gaps[slot] = "orphan_attachments_require_rule_check"
             continue
+        if "require_complete_source_bindings" in observer_policies:
+            source_gap = _public_overlap_source_gap(state, invocation.player_id, old_id, candidate_id)
+            if source_gap:
+                gaps[slot] = source_gap
+                continue
         attached = player.member_area_attachments[slot]
         if any(state.cards[item].card.card_type not in {"member", "energy"} for item in attached):
             gaps[slot] = "invalid_attached_card_requires_rule_check"
@@ -7206,6 +7291,25 @@ def _effect_deployment_slots(
         return _empty_member_area_slots(player)
     gaps = _occupied_deployment_gaps(state, invocation, candidate_id)
     return [slot for slot in ("left", "center", "right") if slot not in gaps]
+
+
+def _overlap_deployment_requires_manual_resolution(
+    state: MatchState, invocation: EffectInvocation,
+) -> bool:
+    effect = state.effect_definitions[invocation.effect_id]
+    if (
+        not any(op.overlap_observer_policy == "require_complete_source_bindings" for op in effect.actions)
+        or effect.choice is None or _effect_allows_private_selection_none(effect)
+    ):
+        return False
+    candidates = _effect_candidates_for_choice(state, invocation, effect.choice)
+    if not candidates or any(_effect_deployment_slots(state, invocation, item) for item in candidates):
+        return False
+    return any(
+        reason in {"overlap_source_binding_incomplete", "overlap_attached_ability_requires_review",
+                   "overlap_public_ability_requires_timing_review"}
+        for item in candidates for reason in _occupied_deployment_gaps(state, invocation, item).values()
+    )
 
 
 def _position_change_source_target_slots(

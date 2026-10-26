@@ -4229,6 +4229,8 @@ function describeAiBlocker(
   const reason = typeof event.data.reason === "string" ? event.data.reason : "";
   const reasonLabels: Record<string, [string, string]> = {
     no_safe_ai_action: ["电脑找不到可安全执行的合法操作。", "CPU が安全に実行できる操作を選べません。"],
+    overlap_source_requires_manual_review: ["重叠登场涉及未确认能力，电脑已暂停，请手动确认。",
+      "重複登場に未確認の能力が関係するため、CPUを停止しました。手動で確認してください。"],
     ai_illegal_action: ["电脑生成的操作未通过规则验证。", "CPU の操作がルール検証を通過しませんでした。"],
     ai_action_error: ["电脑处理操作时发生错误。", "CPU の操作処理中にエラーが発生しました。"],
     ai_action_cap_reached: ["电脑连续操作达到安全上限。", "CPU の連続操作が安全上限に達しました。"],
@@ -5115,6 +5117,9 @@ export function EffectResolutionAction({
     position_change_slots_by_candidate?: Record<string, string[]>;
     deployment_choice?: boolean;
     deployment_members_by_slot?: Record<string, string | null>;
+    deployment_unsupported_slots?: Record<string, string>;
+    deployment_unsupported_slots_by_candidate?: Record<string, Record<string, string>>;
+    deployment_requires_manual_resolution?: boolean;
     selection_policy?: "private_filtered_may_choose_none";
     choice_groups?: Array<{
       group_id: string;
@@ -5152,7 +5157,7 @@ export function EffectResolutionAction({
   const source = state.pending_effects.find(
     (item) => item.invocation_id === current.invocation_id,
   );
-  const manual = current.simulation_support === "manual_resolution";
+  const manual = current.simulation_support === "manual_resolution" || current.deployment_requires_manual_resolution;
   const choiceType = current.choice_type ?? "";
   const usesCardChoice = ["card_from_zone", "energy_from_area", "member_from_stage"].includes(choiceType)
     || Boolean(current.choice_zone && current.candidate_card_instance_ids.length > 0);
@@ -5174,6 +5179,11 @@ export function EffectResolutionAction({
   const resolvedBranch = current.selected_branch || selectedBranch;
   const requiresBranch = isBranchChoice && !current.selected_branch;
   const positionSlotsByCandidate = current.position_change_slots_by_candidate ?? {};
+  const incompleteOverlapSources = current.deployment_choice && [
+    ...Object.values(current.deployment_unsupported_slots ?? {}),
+    ...Object.values(current.deployment_unsupported_slots_by_candidate ?? {}).flatMap(Object.values),
+  ].some((reason) => ["overlap_source_binding_incomplete", "overlap_attached_ability_requires_review",
+    "overlap_public_ability_requires_timing_review"].includes(reason));
   const selectedPositionCandidates = selectedCards.filter((instanceId) =>
     Object.prototype.hasOwnProperty.call(positionSlotsByCandidate, instanceId),
   );
@@ -5245,6 +5255,12 @@ export function EffectResolutionAction({
         </div>
       )}
       <p>{formatEffectText(current.label_ja, locale)}</p>
+      {incompleteOverlapSources && (
+        <p role="status" className="effect-stage-hint">
+          {tr("部分登场区域涉及未确认能力，未自动处理；请使用手动调整。",
+            "未確認の能力が関係する登場エリアは自動処理できません。手動調整で確認してください。")}
+        </p>
+      )}
       {isBranchChoice && (
         <div className="effect-candidates effect-branch-choices">
           {!current.branch_from_cost && branchIds.map((branchId) => (

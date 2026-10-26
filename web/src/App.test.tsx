@@ -945,7 +945,10 @@ describe("App", () => {
     });
   });
 
-  it("shows persisted simple AI blocker context and a recovery action", async () => {
+  it.each([
+    ["no_safe_ai_action", "电脑找不到可安全执行的合法操作。"],
+    ["overlap_source_requires_manual_review", "重叠登场涉及未确认能力，电脑已暂停，请手动确认。"],
+  ])("shows persisted simple AI blocker context and a recovery action: %s", async (reason, summary) => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const blockedMatch = {
       ...MATCH_PAYLOAD,
@@ -962,7 +965,7 @@ describe("App", () => {
           player_id: "player_2",
           source: "system",
           data: {
-            reason: "no_safe_ai_action",
+            reason,
             state_revision: 9,
             phase: "first_main",
             turn_number: 1,
@@ -998,7 +1001,7 @@ describe("App", () => {
     fireEvent.click(createButton);
 
     expect(
-      await screen.findByText("电脑找不到可安全执行的合法操作。"),
+      await screen.findByText(summary),
     ).toBeInTheDocument();
     expect(screen.getByText("安養寺 姫芽 · activated · 【起動】テスト能力")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "查看可处理操作" })).toBeInTheDocument();
@@ -4068,6 +4071,52 @@ describe("App", () => {
       invocation_id: "deploy-001", accepted: true, selected_card_instance_ids: ["player_1-M002"],
       energy_instance_ids: [], to_slot: occupied ? "center" : "right",
     });
+  });
+
+  it.each(["overlap_source_binding_incomplete", "overlap_attached_ability_requires_review",
+    "overlap_public_ability_requires_timing_review"])("offers manual processing for an unresolved overlap source: %s", (reason) => {
+    const onAction = vi.fn();
+    const onManual = vi.fn();
+    const source = { invocation_id: "review-deploy", effect_id: "AUDIT", source_card_instance_id: "player_1-M001", player_id: "player_1" };
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, pending_effects: [source] };
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      ...source, label_ja: "監査用の効果登場", trigger: "member_played", timing: "on_play",
+      execution_mode: "prompt_then_resolve", simulation_support: "test_validated_executable",
+      is_optional: false, candidate_card_instance_ids: [], deployment_choice: true,
+      deployment_requires_manual_resolution: true,
+      deployment_unsupported_slots_by_candidate: { "player_1-M002": { right: reason } },
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never}
+      loading={false} onAction={onAction} onManual={onManual} />);
+    expect(screen.getByRole("status")).toHaveTextContent("部分登场区域涉及未确认能力");
+    expect(screen.queryByRole("button", { name: "结算技能" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "结构化人工处理" }));
+    expect(onManual).toHaveBeenCalledWith(source);
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
+  it("translates the overlap review notice and preserves its manual entry", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const source = { invocation_id: "review-deploy", effect_id: "AUDIT", source_card_instance_id: "player_1-M001", player_id: "player_1" };
+    const matchCreate = { ...INSPECTION_MATCH_PAYLOAD,
+      state: { ...INSPECTION_MATCH_PAYLOAD.state, pending_choice: null, pending_effects: [source] },
+      legal_actions: [{ action_type: "resolve_effect", player_id: "player_1", label_zh: "处理技能", label_ja: "能力",
+        options: { invocations: [{ ...source, label_ja: "監査用の効果登場", trigger: "member_played", timing: "on_play",
+          execution_mode: "prompt_then_resolve", simulation_support: "test_validated_executable", is_optional: false,
+          candidate_card_instance_ids: [], deployment_choice: true, deployment_requires_manual_resolution: true,
+          deployment_unsupported_slots: { right: "overlap_source_binding_incomplete" },
+        }] } }],
+    };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    const create = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(create).not.toBeDisabled());
+    fireEvent.click(create);
+    await screen.findByText("部分登场区域涉及未确认能力，未自动处理；请使用手动调整。");
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect(screen.getByText("未確認の能力が関係する登場エリアは自動処理できません。手動調整で確認してください。"))
+      .toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "構造化手動処理" })).toBeEnabled();
   });
 
   it.each([{ hasTarget: true, chooseOne: false }, { hasTarget: false, chooseOne: false },
