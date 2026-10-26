@@ -4,6 +4,14 @@
 
 ### Experimental resource-cycle policy
 
+For `cost_payment_policy=triggered_inspection`, an invocation can expose
+`cost_payment_unavailable_reason` instead of impossible choice requirements.
+All policies can submit an empty native resolution (or decline optional cost)
+to cancel it without payment/look/debug skip. Availability is rechecked after
+any other pending invocation, not cached at trigger; original source reentry is
+not a payable original Wait source. This does not upgrade older snapshots or
+change the default v1.1 policy.
+
 All policies use the native inspected candidate set, including work / Member /
 Blade Heart filters, and may keep zero when the ability says optional. Paying a
 hand cost and choosing an inspected card remain separate decisions; the cost is

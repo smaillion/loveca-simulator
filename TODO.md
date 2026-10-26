@@ -9,7 +9,8 @@
 
 ### 新卡起动与未支持段落
 
-- 已适配虹咲检索`PL!N-sd2-009:1 / 012:1 / 014:1`和`PL!N-bp7-018:1`，补上查看牌选择漏用无Blade Heart筛选的问题。102项定向验证、四AI、双视角与旧manual SQL Replay见`docs/development/nijigasaki-inspection-verification.md`。`PL!-pb2-032:1`的强制弃牌与`PL!SP-bp7-018:1`的Live卡费用仍需分别验收，不自动套用本批标签。
+- 已适配`PL!-pb2-032:1 / PL!SP-bp7-018:1 / PL!-pb2-008:1`，用显式新snapshot策略重检费用、不可支付取消待机、原来源身份与私下保留；见`docs/development/typed-inspection-cost-verification.md`。扫描发现既有7条单独自身Wait检索及其他手牌/混合费用仍需逐卡复核，已排`inspection-existing-cost-safety-audit`；登记率不是这批旧语义已正确的证明。
+- 已适配虹咲检索`PL!N-sd2-009:1 / 012:1 / 014:1`和`PL!N-bp7-018:1`，补上查看牌选择漏用无Blade Heart筛选的问题。102项定向验证、四AI、双视角与旧manual SQL Replay见`docs/development/nijigasaki-inspection-verification.md`。相邻强制弃牌/Live费用已单独验收，未把本批旧snapshot无条件升级。
 - 已适配`PL!N-sd2-006:1`和`PL!N-bp7-012:1`的己方Active虹咲Member Wait费用，来源自身可作费用但Blade不计应援，费用目标与受益来源分离；见`docs/development/live-wait-cost-verification.md`。费用Stage选择仅显式策略启用，不改变旧snapshot的选择语义。
 - 已适配 `PL!N-sd2-005:1` 宮下 愛的弃2选色Heart+2，原子确认费用与颜色、原来源离场同ID回场保护，并补另外四条已登记能力的颜色选项/UI；见 `docs/development/live-discard-color-verification.md`。
 - 本轮按PDF10.1.2/10.4.1/9.9.3重审重叠父任务：仍缺完整临时多Member场面与常时/继承观察者，保留`temporary_overlap_stage_view_and_inheritance_unresolved`。六条正式登场卡不晋级，父任务保持in_progress，不能把受控底座当作实装完成。

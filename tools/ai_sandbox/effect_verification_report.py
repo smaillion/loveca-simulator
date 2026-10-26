@@ -188,6 +188,10 @@ def _v1_1_dynamic_scenarios(
     database_path: Path,
 ) -> list[ScenarioResult]:
     cases = (
+        ("onplay_mandatory_hand_inspection", "強制手札費用・μ's Member確認", "强制弃手牌后检索无Blade Heart的μ's Member", "PL!-pb2-032:1", _run_typed_inspection),
+        ("onplay_live_cost_private_keep", "Live費用・非公開で1枚を手札へ", "Live卡费用后必须私下保留一张", "PL!SP-bp7-018:1", _run_typed_inspection),
+        ("onplay_wait_cost_heart8_live", "自身Wait・必要ハート8以上のLive", "自身Wait后检索必要Heart总数8以上的Live", "PL!-pb2-008:1", _run_typed_inspection),
+        ("onplay_inspection_unpayable_cost", "費用不足は確認せず待機取消", "费用不足时不查看，明确取消待机", "PL!-pb2-032:1", _run_inspection_unpayable),
         ("onplay_nijigasaki_inspect_009", "虹咲3枚確認・任意公開", "虹咲：查看3张并可选公开回收", "PL!N-sd2-009:1", _run_nijigasaki_inspection),
         ("onplay_nijigasaki_inspect_012", "手札費用・虹咲3枚確認", "虹咲：弃牌费用后查看3张", "PL!N-sd2-012:1", _run_nijigasaki_inspection),
         ("onplay_nijigasaki_inspect_014", "同文別カードの虹咲確認", "虹咲：相同文本另一张卡的真实结算", "PL!N-sd2-014:1", _run_nijigasaki_inspection),
@@ -416,6 +420,63 @@ def _v1_1_dynamic_scenarios(
             )
         )
     return results
+
+
+def _run_typed_inspection(effect: EffectDefinition) -> dict[str, bool]:
+    from loveca.webapp import _match_state_payload
+    wait = effect.cost[0].action_type == "apply_wait"
+    private_keep = not effect.choice.reveal_selected_to_opponent
+    source = _v1_1_member("source", effect.card_code, card_code=effect.card_code, cost=0, effect_ids=[effect.effect_id])
+    cards = [source, *[_v1_1_member(k, "AUDIT-" + k, work_keys=["love_live"])
+                       for k in ("cost", "good", "wrong", "special", "other", "tail")], _v1_1_live("good-live", "AUDIT-Live")]
+    if private_keep:
+        cards[1].card.card_type = "live"
+    cards[3].card.work_keys = ["nijigasaki"]
+    cards[4].card.special_blade_hearts = [SpecialBladeHeart(effect_type="draw", source_alt="ドロー")]
+    cards[-1].card.work_keys, cards[-1].card.required_hearts = ["love_live"], {"heart01": 3, "heart0": 5}
+    for item in cards[1:]:
+        item.face_up = False
+    state = _v1_1_state({effect.effect_id: effect}, cards, hand=["source", "cost"])
+    state.players["player_1"].main_deck = ["good", "good-live", "wrong", "special", "other", "tail"]
+    played = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1", expected_revision=0,
+        payload={"card_instance_id": "source", "slot": "center", "energy_instance_ids": [], "use_baton_touch": False}))
+    inspected = apply_action(played.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=played.state.revision, payload={"invocation_id": played.state.pending_effects[0].invocation_id,
+            "accepted": True, "selected_card_instance_ids": [] if wait else ["cost"]}))
+    choice = inspected.state.pending_choice
+    candidates = set(choice.options["candidate_card_instance_ids"])
+    expected_candidates = {"good-live"} if wait else ({"good", "good-live", "wrong", "special", "other"} if private_keep else {"good", "other"})
+    target = "good-live" if wait else "good"
+    result = apply_action(inspected.state, ActionRequest(action_type="resolve_effect_choice", player_id="player_1",
+        expected_revision=inspected.state.revision, payload={"selected_card_instance_ids": [target]}))
+    visible = _match_state_payload(result.state, events=result.events, legal_actions=result.legal_actions, player_id="player_2")
+    revealed = [c["instance_id"] for e in visible["events"] for c in e["data"].get("revealed_cards", [])]
+    return {
+        "typed_cost_applied": inspected.state.cards["source"].orientation == ("wait" if wait else "active") and ("cost" in inspected.state.players["player_1"].waiting_room) == (not wait),
+        "typed_inspection_exact": choice.options["inspected_card_instance_ids"] == state.players["player_1"].main_deck[:effect.choice.amount],
+        "typed_candidates_exact": candidates == expected_candidates,
+        "typed_optional_distinct": effect.is_optional == (effect.card_code != "PL!-pb2-032") and choice.options["minimum"] == (1 if private_keep else 0),
+        "typed_reveal_distinct": (target in revealed) == (not private_keep) and (not private_keep or target not in visible["state"]["cards"]),
+        "typed_finished": result.state.pending_choice is None and not result.state.pending_effects and result.state.players["player_1"].hand == (["cost", target] if wait else [target]),
+    }
+
+
+def _run_inspection_unpayable(effect: EffectDefinition) -> dict[str, bool]:
+    state = _v1_1_state({effect.effect_id: effect}, [
+        _v1_1_member("source", effect.card_code, card_code=effect.card_code, cost=0, effect_ids=[effect.effect_id]),
+        _v1_1_member("top", "AUDIT-top")], hand=["source"])
+    state.players["player_1"].main_deck = ["top"]
+    played = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1", expected_revision=0,
+        payload={"card_instance_id": "source", "slot": "center", "energy_instance_ids": [], "use_baton_touch": False}))
+    options = next(a for a in played.legal_actions if a.action_type == "resolve_effect").options["invocations"][0]
+    result = apply_action(played.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=played.state.revision, payload={"invocation_id": played.state.pending_effects[0].invocation_id}))
+    return {
+        "typed_unavailable_visible": options["cost_payment_unavailable_reason"] == "inspection_cost_candidates_unavailable",
+        "typed_no_payment_or_look": not any(e.event_type in {"effect_cost_paid", "effect_inspection_started", "effect_skipped"} for e in result.events) and result.state.players["player_1"].main_deck == ["top"],
+        "typed_unavailable_recorded": any(e.event_type == "effect_not_activatable" for e in result.events),
+        "typed_finished": result.state.pending_choice is None and not result.state.pending_effects,
+    }
 
 
 def _run_nijigasaki_inspection(effect: EffectDefinition) -> dict[str, bool]:
@@ -1316,6 +1377,15 @@ def _load_visuals_for_effect_ids(
 
 
 _V1_1_CHECK_LABELS: dict[str, tuple[str, str]] = {
+    "typed_cost_applied": ("手札費用と自身Waitを区別", "区分弃手牌与自身Wait费用"),
+    "typed_inspection_exact": ("費用後に指定枚数だけ確認", "费用后准确查看指定张数"),
+    "typed_candidates_exact": ("作品・種類・Blade Heart・必要ハート条件", "准确筛选作品、卡种、Blade Heart与必要Heart"),
+    "typed_optional_distinct": ("任意費用と任意取得を区別", "区分可选费用和可选保留数量"),
+    "typed_reveal_distinct": ("公開指定のある取得だけ相手へ公開", "只在卡文指定公开时展示给对手"),
+    "typed_unavailable_visible": ("費用不足を選択前に表示", "选择前明确显示费用不足"),
+    "typed_no_payment_or_look": ("支払い・確認・デバッグskipなし", "不付费、不查看、不走错误跳过"),
+    "typed_unavailable_recorded": ("待機取消理由を記録", "记录取消待机的明确原因"),
+    "typed_finished": ("正しい手札・待機完了", "手牌正确且无残留待机"),
     "niji_native_onplay": ("登場から正しい能力が待機", "实际登场后正确技能待机"),
     "niji_cost_before_look": ("確認前に手札費用を支払い", "先支付弃牌费用再查看"),
     "niji_exact_inspected": ("指定枚数だけ確認", "准确查看指定顶牌"),

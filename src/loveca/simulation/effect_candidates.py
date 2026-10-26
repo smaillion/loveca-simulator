@@ -2619,6 +2619,38 @@ def _onplay_optional_discard_inspect_keep1_any(
     )
 
 
+def _onplay_typed_cost_inspection(row: sqlite3.Row) -> EffectCandidate | None:
+    hand_cost = {"choice_type": "card_from_zone", "zone": "hand", "minimum": 1, "maximum": 1}
+    patterns = {
+        (
+            "【登場】手札を1枚控え室に置く：自分のデッキの上からカードを5枚見る。"
+            "その中からブレードハートを持たない『μ's』のメンバーカードを1枚公開して手札に加えてもよい。残りを控え室に置く。"
+        ): {"amount": 5, "minimum": 0, "maximum": 1, "is_optional": False,
+            "cost": [{"action_type": "discard_from_hand"}], "cost_choice": hand_cost,
+            "card_type": "member", "work_key": "love_live", "exclude_blade_heart": True},
+        (
+            "【登場】手札のライブカードを1枚控え室に置いてもよい：自分のデッキの上からカードを5枚見る。"
+            "その中から1枚を手札に加え、残りを控え室に置く。"
+        ): {"amount": 5, "minimum": 1, "maximum": 1, "is_optional": True,
+            "cost": [{"action_type": "discard_from_hand"}], "cost_choice": {**hand_cost, "card_type": "live"},
+            "reveal_selected_to_opponent": False},
+        (
+            "【登場】このメンバーをウェイトにしてもよい：自分のデッキの上からカードを4枚見る。"
+            "その中から必要ハートの合計が8以上の『μ's』のライブカードを1枚公開して手札に加えてもよい。残りを控え室に置く。"
+        ): {"amount": 4, "minimum": 0, "maximum": 1, "is_optional": True,
+            "cost": [{"action_type": "apply_wait", "target": "source"}],
+            "card_type": "live", "work_key": "love_live", "minimum_required_heart_total": 8},
+    }
+    for label, values in patterns.items():
+        matched = _matching_segment(row, label)
+        if matched is not None:
+            return _inspection_keep_candidate(
+                row, pattern_id=f"onplay_typed_inspection_{row['card_code']}", effect_index=matched[0],
+                label=label, timing="on_play", trigger="member_played", cost_payment_policy="triggered_inspection", **values,
+            )
+    return None
+
+
 def _nijigasaki_onplay_inspection(row: sqlite3.Row) -> EffectCandidate | None:
     patterns = {
         "【登場】自分のデッキの上からカードを3枚見る。その中から『虹ヶ咲』のカードを1枚公開して手札に加えてもよい。残りを控え室に置く。": (3, False, False),
@@ -2857,6 +2889,10 @@ def _inspection_keep_candidate(
     maximum_cost: int | None = None,
     minimum_score: int | None = None,
     maximum_score: int | None = None,
+    exclude_blade_heart: bool = False,
+    minimum_required_heart_total: int | None = None,
+    reveal_selected_to_opponent: bool = True,
+    cost_payment_policy: str | None = None,
 ) -> EffectCandidate:
     choice: dict[str, Any] = {
         "choice_type": "inspect_top_select",
@@ -2866,8 +2902,14 @@ def _inspection_keep_candidate(
         "requires_order": False,
         "selected_destination": "hand",
         "unselected_destination": "waiting_room",
-        "reveal_selected_to_opponent": True,
+        "reveal_selected_to_opponent": reveal_selected_to_opponent,
     }
+    if exclude_blade_heart:
+        choice["exclude_blade_heart"] = True
+    if cost_payment_policy is not None:
+        choice["cost_payment_policy"] = cost_payment_policy
+    if minimum_required_heart_total is not None:
+        choice["minimum_required_heart_total"] = minimum_required_heart_total
     if card_type:
         choice["card_type"] = card_type
     if work_key:
@@ -15241,6 +15283,7 @@ _PATTERNS = (
     _onplay_named_baton_draw_then_discard,
     _onplay_optional_discard_inspect_keep1_any,
     _nijigasaki_onplay_inspection,
+    _onplay_typed_cost_inspection,
     _onplay_optional_discard_inspect_keep1_filtered,
     _onplay_inspect_keep_filtered,
     _onplay_inspect_keep_more_filtered,

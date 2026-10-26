@@ -1,5 +1,17 @@
 # Effect Semantics Audit
 
+Typed inspection costs: `PL!-pb2-032:1`, `PL!SP-bp7-018:1`, `PL!-pb2-008:1`
+now use an explicit bounded `cost_payment_policy=triggered_inspection` snapshot.
+The selected invocation rechecks hand resources/type or the original Active Stage
+source before payment. Unpayable invocations are cancelled with a reason, not an
+error skip; they are not deleted at trigger because another pending effect can
+provide the cost. Public vs private keep and minimum0 vs1 remain independent.
+Old snapshots omit this field and keep historical behavior.105 targeted tests,
+80 report scenarios (41 state /39 contract),128 frontend tests. Registry915/1212
+(75.50%),297manual. Seven existing single-Wait inspection entries and adjacent
+hand-cost entries are queued for audit; this registration ratio is not proof that
+all legacy cost semantics conform. [Chinese evidence](development/typed-inspection-cost-verification.md).
+
 Nijigasaki on-play inspection checkpoint: exact segments `PL!N-sd2-009:1`,
 `PL!N-sd2-012:1`, `PL!N-sd2-014:1` and `PL!N-bp7-018:1` now execute native
 private look / optional public keep / discard remaining. The inspected-card

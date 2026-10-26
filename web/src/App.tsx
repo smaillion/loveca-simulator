@@ -4310,6 +4310,13 @@ function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): st
       : "解決時にエネルギーデッキが足りないため、エネルギーを置きませんでした。";
   }
   if (event.event_type === "effect_not_activatable"
+      && ["inspection_cost_candidates_unavailable", "inspection_source_not_active",
+          "inspection_source_not_on_stage", "inspection_source_object_unavailable"].includes(String(event.data.reason))) {
+    return locale === "zh"
+      ? "无法支付检索费用，未查看牌库；本次待机已结束。"
+      : "確認能力の費用を払えないため、デッキを見ずに今回の待機を取り消しました。";
+  }
+  if (event.event_type === "effect_not_activatable"
       && event.data.reason === "overlap_entry_observer_requires_timing_review") {
     return locale === "zh"
       ? "该登场观察者的重叠时点尚待审核，请手动确认。"
@@ -5120,6 +5127,7 @@ export function EffectResolutionAction({
     is_optional: boolean;
     simulation_support: string;
     resolution_stage?: string;
+    cost_payment_unavailable_reason?: string;
     candidate_card_instance_ids: string[];
     choice_type?: string;
     card_selection_minimum?: number;
@@ -5274,6 +5282,11 @@ export function EffectResolutionAction({
         </div>
       )}
       <p>{formatEffectText(current.label_ja, locale)}</p>
+      {current.cost_payment_unavailable_reason && (
+        <p role="status" className="effect-stage-hint">
+          {tr("无法支付费用。结束本次待机，不查看牌库。", "費用を払えません。デッキを見ずに今回の待機を取り消します。")}
+        </p>
+      )}
       {incompleteOverlapSources && (
         <p role="status" className="effect-stage-hint">
           {tr("部分登场区域涉及未确认能力，未自动处理；请使用手动调整。",
@@ -5515,7 +5528,9 @@ export function EffectResolutionAction({
               onAction(action.action_type, action.player_id, payload);
             }}
           >
-            {allowsPrivateNoTarget && selectedCards.length === 0
+            {current.cost_payment_unavailable_reason
+              ? tr("结束此能力", "待機を取り消す")
+              : allowsPrivateNoTarget && selectedCards.length === 0
               ? tr("不选目标并结算", "対象なしで解決")
               : tr("结算技能", "能力を解決")}
           </button>

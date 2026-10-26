@@ -309,6 +309,7 @@ class EffectSelectionGroup(BaseModel):
 
 
 class EffectChoice(BaseModel):
+    cost_payment_policy: Literal["triggered_inspection"] | None = None
     inspection_activation_policy: Literal["start_after_cost"] | None = None
     choice_type: str
     deployment_policy: Literal["simultaneous_member_area_entry"] | None = None
@@ -391,6 +392,8 @@ class EffectChoice(BaseModel):
     @model_serializer(mode="wrap")
     def serialize_deployment_policy(self, handler) -> dict[str, Any]:
         result = handler(self)
+        if self.cost_payment_policy is None:
+            result.pop("cost_payment_policy", None)
         if self.inspection_activation_policy is None:
             result.pop("inspection_activation_policy", None)
         if self.deployment_policy is None:
@@ -401,6 +404,14 @@ class EffectChoice(BaseModel):
 
     @model_validator(mode="after")
     def validate_deployment_policy(self) -> EffectChoice:
+        if self.cost_payment_policy is not None and (
+            self.choice_type != "inspect_top_select" or self.target_player != "self"
+            or self.amount is None or self.amount <= 0 or self.amount_source is not None
+            or self.minimum not in {0, 1} or self.maximum != 1 or self.requires_order
+            or self.selected_destination != "hand" or self.unselected_destination != "waiting_room"
+            or self.inspection_activation_policy is not None or self.selection_policy is not None
+        ):
+            raise ValueError("triggered inspection cost policy requires fixed private look and hand selection")
         if self.inspection_activation_policy is not None and (
             self.choice_type != "inspect_top_select" or self.target_player != "self"
             or self.amount is None or self.amount <= 0
@@ -470,6 +481,34 @@ class EffectDefinition(BaseModel):
     simulation_support: str
     review_status: str
     source_reference: str
+
+    @model_validator(mode="after")
+    def validate_triggered_inspection_cost(self) -> EffectDefinition:
+        if any(c is not None and c.cost_payment_policy is not None for c in (self.cost_choice, self.follow_up_choice)):
+            raise ValueError("inspection cost policy must be the main effect choice")
+        if self.choice is None or self.choice.cost_payment_policy is None:
+            return self
+        if (
+            self.effect_type != "triggered" or self.timing != "on_play" or self.trigger != "member_played"
+            or self.condition
+            or self.execution_mode != "prompt_then_resolve" or self.simulation_support == "manual_resolution"
+            or self.frequency_limit != "none" or self.duration is not None or self.follow_up_choice is not None
+            or len(self.cost) != 1
+            or [op.action_type for op in self.actions] != ["inspect_top_cards", "select_to_hand_from_inspected", "move_remaining_cards"]
+            or self.actions[0].amount != self.choice.amount
+            or any(op.amount_source is not None or op.branch is not None for op in [*self.cost, *self.actions])
+        ):
+            raise ValueError("triggered inspection cost policy requires one fixed on-play cost")
+        cost = self.cost[0]
+        hand = self.cost_choice
+        discard = (cost.action_type == "discard_from_hand" and cost.target is None
+                   and hand is not None and hand.choice_type == "card_from_zone" and hand.zone == "hand"
+                   and hand.target_player == "self" and hand.minimum == hand.maximum == 1
+                   and hand.card_type in {None, "live"} and not hand.condition and not hand.selection_groups)
+        wait = (cost.action_type == "apply_wait" and cost.target == "source" and hand is None and self.is_optional)
+        if not (discard or wait) or cost.amount is not None or cost.value is not None:
+            raise ValueError("triggered inspection cost policy only supports one hand discard or source Wait")
+        return self
 
     @model_validator(mode="after")
     def validate_entry_count_snapshot(self) -> EffectDefinition:

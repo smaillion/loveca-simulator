@@ -3645,6 +3645,45 @@ describe("App", () => {
     expect(onManual).not.toHaveBeenCalled();
   });
 
+  it.each(["inspection_cost_candidates_unavailable", "inspection_source_not_active", "inspection_source_object_unavailable"])("can cancel an unpayable inspection without choosing a nonexistent cost: %s", (reason) => {
+    const onAction = vi.fn();
+    const label = "【登場】手札を1枚控え室に置く：自分のデッキの上からカードを5枚見る。";
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "effect-001", effect_id: "PL!-pb2-032:1", source_card_instance_id: "player_1-M001",
+      label_ja: label, trigger: "member_played", timing: "on_play", execution_mode: "prompt_then_resolve",
+      is_optional: false, simulation_support: "test_validated_executable", candidate_card_instance_ids: [],
+      cost_payment_unavailable_reason: reason, resolution_stage: "initial",
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never}
+      loading={false} onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.getByText(label)).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("无法支付费用");
+    expect(screen.queryByRole("button", { name: "不使用" })).not.toBeInTheDocument();
+    const confirm = screen.getByRole("button", { name: "结束此能力" });
+    expect(confirm).toBeEnabled();
+    fireEvent.click(confirm);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "effect-001", accepted: true, selected_card_instance_ids: [], energy_instance_ids: [],
+    });
+  });
+
+  it("requires exactly one private kept card after paying a Live hand cost", () => {
+    const onAction = vi.fn();
+    const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], options: {
+      ...INSPECTION_MATCH_PAYLOAD.legal_actions[0].options, minimum: 1, maximum: 1, reveal_selected_to_opponent: false,
+    } };
+    render(<InspectionChoiceAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never}
+      loading={false} onAction={onAction} title="检查结果" submitLabel="加入手牌" />);
+    const confirm = screen.getByRole("button", { name: "加入手牌" });
+    expect(confirm).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /候補カード/ }));
+    expect(confirm).toBeEnabled();
+    fireEvent.click(confirm);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_1", {
+      selected_card_instance_ids: ["player_1-M002"], ordered_card_instance_ids: undefined,
+    });
+  });
+
   it("shows a continuation hint for multi-step effects after cost handling", () => {
     const onAction = vi.fn();
     const onManual = vi.fn();

@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+新增 `PL!-pb2-032:1` 星空凛、`PL!SP-bp7-018:1` 米女メイ、`PL!-pb2-008:1` 小泉花陽的登场检索：分别处理强制手牌、Live手牌和自身Wait费用，区分公开与私下取得。新快照在结算时重检费用，不可支付可明确结束待机，不查看牌库。登记915/1212（75.50%），297条manual。[验证与既有技能待审风险](./docs/development/typed-inspection-cost-verification.md)
+
 新增虹咲登场检索4段（`PL!N-sd2-009/012/014:1`、`PL!N-bp7-018:1`）：区分可选弃牌费用、允许选零张、无Blade Heart条件。查看中的卡只有本人能看到，最终公开的一张能由对手确认。登记912/1212（75.25%），300条manual。[卡图与真实状态验证](./docs/development/nijigasaki-inspection-verification.md)
 
 新增 `PL!N-sd2-006:1` 近江彼方、`PL!N-bp7-012:1` 鐘 嵐珠：选择己方Active虹咲成员Wait作费用，仅给来源自身Blade+2或指定颜色Heart+1。可以选择来源自身，但Wait成员的Blade不计应援；离场同ID回场不继承加成。登记908/1212（74.92%），304条manual。[卡图与验证](./docs/development/live-wait-cost-verification.md)

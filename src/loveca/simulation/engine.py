@@ -1630,6 +1630,24 @@ def _resolve_effect(
         raise IllegalActionError(
             "manual_resolution effects require a ManualAdjustmentAction"
         )
+    cost_unavailable = _inspection_cost_unavailable_reason(state, invocation)
+    if cost_unavailable is not None:
+        if any(not isinstance(action.payload.get(key, []), list) or action.payload.get(key, [])
+               for key in ("selected_card_instance_ids", "energy_instance_ids")) or any(
+            action.payload.get(key) is not None for key in (
+                "selected_card_instance_ids_by_group", "selected_branch", "selected_color_slot",
+                "selected_count", "to_slot", "selected_position_slot", "selected_destination",
+            )
+        ):
+            raise IllegalActionError("an unavailable inspection cost cannot accept selections")
+        state.pending_effects.remove(invocation)
+        events.append(GameEvent(event_type="effect_not_activatable", player_id=invocation.player_id,
+            data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                  "source_card_instance_id": invocation.source_card_instance_id, "reason": cost_unavailable,
+                  "trigger": effect.trigger, "timing": effect.timing}, source="system"))
+        _resolve_automatic_effects(state, events)
+        _continue_after_effect_queue(state, events)
+        return
     if _overlap_deployment_requires_manual_resolution(state, invocation):
         raise IllegalActionError("overlap source abilities require manual resolution before deployment")
 
@@ -2882,10 +2900,13 @@ def _original_moved_source_ready(effect: Any) -> bool:
 
 
 def _captures_original_stage_source(effect: Any) -> bool:
-    return bool(effect and any(op.source_object_policy in {
+    return bool(effect and (any(op.source_object_policy in {
         "original_moved_stage_member", "original_live_start_heart_source",
         "original_live_start_wait_cost_source",
-    } for op in effect.actions))
+    } for op in effect.actions) or (
+        effect.choice is not None and effect.choice.cost_payment_policy == "triggered_inspection"
+        and len(effect.cost) == 1 and effect.cost[0].action_type == "apply_wait"
+    )))
 
 
 def _queue_member_moved_effects(
@@ -4722,11 +4743,36 @@ def _effect_unavailable_reason(
     return None
 
 
+def _inspection_cost_unavailable_reason(state: MatchState, invocation: EffectInvocation) -> str | None:
+    effect = state.effect_definitions[invocation.effect_id]
+    if (invocation.resolution_stage != "initial" or effect.choice is None
+            or effect.choice.cost_payment_policy != "triggered_inspection"):
+        return None
+    if effect.cost[0].action_type == "discard_from_hand":
+        if not _required_cost_choice_available(state, invocation, effect):
+            return "inspection_cost_candidates_unavailable"
+    elif effect.cost[0].action_type == "apply_wait":
+        player = state.players[invocation.player_id]
+        source_id = invocation.source_card_instance_id
+        if (invocation.trigger_data.get("original_source_stage_object") is not True
+                or invocation.trigger_data.get("original_source_stage_object_departed") is True):
+            return "inspection_source_object_unavailable"
+        if source_id not in player.member_area.values():
+            return "inspection_source_not_on_stage"
+        if state.cards[source_id].orientation != "active":
+            return "inspection_source_not_active"
+    return None
+
+
 def _effect_resolution_options(
     state: MatchState,
     invocation: EffectInvocation,
 ) -> dict[str, Any]:
     effect = state.effect_definitions[invocation.effect_id]
+    cost_unavailable = _inspection_cost_unavailable_reason(state, invocation)
+    if cost_unavailable is not None:
+        return {"candidate_card_instance_ids": [], "resolution_stage": invocation.resolution_stage,
+                "cost_payment_unavailable_reason": cost_unavailable}
     candidate_ids: list[str] = []
     follow_up_choice = _effect_follow_up_choice(effect, invocation)
     if follow_up_choice is not None:

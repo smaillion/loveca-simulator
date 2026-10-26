@@ -2,6 +2,24 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "inspection-existing-cost-safety-audit",
+      "priority": 0,
+      "title": "逐卡复核既有检索费用与不可支付待机边界",
+      "status": "queued",
+      "depends_on": ["typed-onplay-inspection-costs"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["先复核七条单独自身Wait检索PL!-bp3-014/017/018:1、PL!N-bp3-022:1、PL!N-bp4-016:1、PL!S-bp6-018:1、PL!SP-bp4-002:1的实际卡文和费用边界，不把扫描命中当作已确认违规", "核对三条虹咲手牌费用PL!N-sd2-012/014:1、PL!N-bp7-018:1及相邻同类，先复现无费用与待机中资源变化，再按适用范围逐条采用明确snapshot策略或记录unresolved", "不可支付在选择该待机时判断，不在触发时提前删除；费用不重复、来源身份、SQL Replay、四AI及UI均有真实断言", "保留旧snapshot与dirty成果，不为登记率跳过混合费用/条件等超出策略的语义，中文图文报告明确剩余风险"]
+    },
+    {
+      "id": "typed-onplay-inspection-costs",
+      "priority": 0,
+      "title": "区分强制手牌、Live手牌与自身Wait的登场检索费用",
+      "status": "queued",
+      "depends_on": ["nijigasaki-onplay-inspection-family"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["精确绑定PL!-pb2-032:1、PL!SP-bp7-018:1、PL!-pb2-008:1的当前全文段/revision/hash，不自动提升reviewed", "真实登场验证强制弃牌不可拒绝、Live费用不能弃Member、自身Wait不误等于选择Stage目标；非法操作原子拒绝", "区分任选0张与必须取1张，按作品/Member/无Blade Heart/必要Heart总数筛选；短牌库刷新、无费用、双视角与旧manual SQL Replay可核对", "四AI提交原生合法操作，图文逐卡状态和固定十局回归均报告实际触发；旧dirty工作树和复杂重叠限制保留"]
+    },
+    {
       "id": "nijigasaki-onplay-inspection-family",
       "priority": 0,
       "title": "精确适配虹咲登场检索及可选费用与公开边界",

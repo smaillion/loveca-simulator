@@ -39,6 +39,10 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
         "onplay_nijigasaki_inspect_012",
         "onplay_nijigasaki_inspect_014",
         "onplay_nijigasaki_no_blade_heart",
+        "onplay_mandatory_hand_inspection",
+        "onplay_live_cost_private_keep",
+        "onplay_wait_cost_heart8_live",
+        "onplay_inspection_unpayable_cost",
     }.issubset(scenario_ids)
     assert "registry_contract_PL!S-sd1-006_1" in scenario_ids
     assert "registry_contract_PL!N-bp5-005_1" in scenario_ids

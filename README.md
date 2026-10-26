@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+登場時検索の`PL!-pb2-032:1` 星空凛、`PL!SP-bp7-018:1` 米女メイ、`PL!-pb2-008:1` 小泉花陽に対応しました。強制手札/Live手札/自身Waitの費用と、公開/非公開の取得を区別します。新snapshotでは解決時に費用を再確認し、不可能ならデッキを見ずに待機を取り消せます。登録915/1212（75.50%）、297件manual。[検証と既存能力の残リスク](./docs/development/typed-inspection-cost-verification.md)
+
 虹ヶ咲の登場時検索4件（`PL!N-sd2-009/012/014:1`、`PL!N-bp7-018:1`）に対応しました。任意の手札費用、公開せず0枚を選ぶ処理、Blade Heartなしの条件を区別します。確認中は本人だけが見え、選んだ1枚は相手にも公開されます。登録912/1212（75.25%）、300件manual。[カード画像・状態検証](./docs/development/nijigasaki-inspection-verification.md)
 
 `PL!N-sd2-006:1` 近江彼方と`PL!N-bp7-012:1` 鐘 嵐珠に対応しました。自分のアクティブな虹ヶ咲メンバー1人を費用でウェイトにし、誘発元だけにBlade+2／指定色Heart+1を加算します。自身を費用にすることもでき、ウェイトのBladeはエールに数えません。登録908/1212（74.92%）、304件manual。[カード画像・検証](./docs/development/live-wait-cost-verification.md)
