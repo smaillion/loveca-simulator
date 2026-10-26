@@ -1,5 +1,14 @@
 # AI and Simulation Notes
 
+The next evidence-led fix supports only PL!-pb2-039:1. Its body condition is
+evaluated at resolution; two successful μ's Live cards grant +10 Yell reveals,
+not Stage Blade. The same frozen 30-deck diagnostic improves from 6 to 7 finished
+matches, with 23 explicit manual stops and no illegal/runtime/Replay errors.
+Seed18026 finishes on turn5, but the losing side has no successful Live, so this
+does not meet the two-sided Live acceptance target. Seed18029 reaches a different
+manual blocker on turn2. Product AI remains v1.1; segment2 remains manual.
+See [the Chinese verification](development/live-yell-ten-verification.md).
+
 Manual-focused diagnostics are opt-in (`--manual-focus`), leaving the default pool
 and product policy unchanged.30 legal decks/30 matches produce6 completions and24
 explicit mandatory-manual stops. Current manual skills have80 queue events over42

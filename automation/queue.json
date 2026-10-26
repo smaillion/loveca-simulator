@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "live-start-other-nijigasaki-cost-heart",
+      "priority": 0,
+      "title": "按实际人工待机审计另一虹咲成员按cost加Heart",
+      "status": "queued",
+      "depends_on": ["live-start-success-muse-yell-ten"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!N-PR-036:1完整日文/revision/hash及PDF选目标与Live期限条款；先复现当前强制人工待机，不据入队频次冒充官方条件或整卡已审核", "只在语义明确时精确支持另一名己方虹咲Stage顶层Member，验证自身/他人/附属/手牌/异作品、无目标与cost14/15/16、有效费用变化和目标离场边界；Heart03仅给目标，追加条件在结算时取值", "真实状态、四AI、隐藏手牌替换、双视角UI、新旧SQL Replay、原子拒绝、Live清理及图文场景通过；不改默认策略/schema，不晋级reviewed，不扩展未确认FAQ", "同冻结30技能密集牌组复跑，分列入队/辞退/错误skip/人工待机及完赛/上限，按实际阻塞选择下一有限切片；全部profiles/manifest/pre-push通过，同Draft PR54，不合并部署，旧dirty和PL!S-bp2-005待审保留"]
+    },
+    {
       "id": "live-start-success-muse-yell-ten",
       "priority": 0,
       "title": "按实际阻塞审计成功Live两张μs的Yell加十",

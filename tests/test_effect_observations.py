@@ -114,7 +114,13 @@ def test_gap_filters_current_manual_and_sorts_by_real_trigger_counts(tmp_path):
         },
         top=40,
     )
-    assert report["manual_resolution"] == 298 and report["test_validated_executable"] == 914
+    registry = load_effect_registry()
+    assert report["manual_resolution"] == sum(
+        e.simulation_support == "manual_resolution" for e in registry.effects
+    )
+    assert report["test_validated_executable"] == sum(
+        e.simulation_support == "test_validated_executable" for e in registry.effects
+    )
     assert report["actual_trigger_samples"] == 2
     assert report["top_manual_patterns"][0]["sample_effect_ids"] == [CODE + ":1"]
     assert report["top_manual_patterns"][0]["optional_decline_count"] == 1

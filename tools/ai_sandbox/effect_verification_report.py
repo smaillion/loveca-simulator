@@ -73,6 +73,7 @@ class ScenarioResult:
     visuals: list[CardVisual] = field(default_factory=list)
     notes_ja: list[str] = field(default_factory=list)
     notes_zh: list[str] = field(default_factory=list)
+    rule_reference_ids: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -192,6 +193,14 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        ("muse_yell_zero_success", "成功μ'sゼロ・追加なし", "成功区零张μs：不追加应援",
+         "PL!-pb2-039:1", lambda effect: _run_muse_yell_ten(effect, count=0)),
+        ("muse_yell_one_success", "成功μ's一枚・追加なし", "成功区一张μs：不追加应援",
+         "PL!-pb2-039:1", lambda effect: _run_muse_yell_ten(effect, count=1)),
+        ("muse_yell_two_success", "成功μ's二枚・エール十枚追加", "成功区两张μs：应援加十而非Blade",
+         "PL!-pb2-039:1", _run_muse_yell_ten),
+        ("muse_yell_wrong_work", "別作品二枚・追加なし", "成功区两张其他作品：不追加应援",
+         "PL!-pb2-039:1", lambda effect: _run_muse_yell_ten(effect, work="nijigasaki")),
         ("multi_keep_manual_with_hand", "未確認の文義・手札ありでも手動", "文义待审：有费用也不自动执行", "PL!S-bp2-005:1", _run_multi_keep_manual_with_hand),
         ("multi_keep_manual_empty_hand", "未確認の文義・手札なしは任意辞退", "文义待审：无手牌可明确拒绝", "PL!S-bp2-005:1", _run_multi_keep_manual_empty_hand),
         *(("mixed_heart_inspection_" + code, "MemberのHeart・Liveの必要Heartを区別 " + code,
@@ -464,9 +473,46 @@ def _v1_1_dynamic_scenarios(
                 visuals=[visual],
                 notes_ja=[f"公式日本語テキスト: {effect.label_ja}"],
                 notes_zh=[f"官方日文效果文本：{effect.label_ja}"],
+                rule_reference_ids=(
+                    ["8.3.8", "8.3.9", "8.3.10", "8.3.11", "8.4.11", "9.6.2.4.2", "9.7.3"]
+                    if effect_id == "PL!-pb2-039:1" else []
+                ),
             )
         )
     return results
+
+
+def _run_muse_yell_ten(
+    effect: EffectDefinition, *, count: int = 2, work: str = "love_live",
+) -> dict[str, bool]:
+    source = _v1_1_live("source", effect.card_code, effect_ids=[effect.effect_id])
+    source.card.card_code = effect.card_code
+    member = _v1_1_member("member", "AUDIT-Member")
+    member.card.blade = 1
+    successes = [_v1_1_live(f"success-{i}", "AUDIT-success") for i in range(count)]
+    for card in successes:
+        card.card.work_keys = [work]
+    deck = [_v1_1_member(f"deck-{i}", "AUDIT-deck") for i in range(20)]
+    state = _v1_1_state({effect.effect_id: effect}, [source, member, *successes, *deck],
+                         member_area={"left": None, "center": "member", "right": None})
+    player = state.players["player_1"]
+    player.success_live_area = [card.instance_id for card in successes]
+    player.main_deck = [card.instance_id for card in deck]
+    player.live_area = ["source"]
+    state.phase = "performance_first"
+    started = apply_action(state, ActionRequest(action_type="advance_phase", player_id="player_1",
+                                                expected_revision=state.revision))
+    result = apply_action(started.state, ActionRequest(action_type="advance_phase",
+        player_id="player_1", expected_revision=started.state.revision))
+    expected = 10 if count >= 2 and work == "love_live" else 0
+    event = next(e for e in result.events if e.event_type == "yell_completed")
+    return {
+        "muse_yell_no_manual_block": not started.state.pending_effects,
+        "muse_yell_body_condition": event.data["yell_count_modifier"] == expected,
+        "muse_yell_not_stage_blade": event.data["raw_blade_count"] == 1,
+        "muse_yell_actual_reveals": len(result.state.players["player_1"].resolution_area)
+        == 1 + expected,
+    }
 
 
 def _run_multi_keep_manual_boundary(effect: EffectDefinition, empty: bool) -> dict[str, bool]:
@@ -1625,6 +1671,10 @@ def _load_visuals_for_effect_ids(
 
 
 _V1_1_CHECK_LABELS: dict[str, tuple[str, str]] = {
+    "muse_yell_no_manual_block": ("手動待機せずエールへ進行", "正常进入应援，没有人工阻塞"),
+    "muse_yell_body_condition": ("成功置き場・作品・枚数を確認", "按成功Live区、作品与张数判定"),
+    "muse_yell_not_stage_blade": ("MemberのBladeは一つのまま", "成员Blade仍为一，不误加十"),
+    "muse_yell_actual_reveals": ("実際の公開枚数を検証", "核对应援实际公开牌数"),
     "multi_keep_explicit_manual": ("未確認範囲を手動登録", "未确认范围明确登记人工处理"),
     "multi_keep_auto_rejected": ("自動解決を状態不変で拒否", "自动结算原子拒绝、状态不变"),
     "multi_keep_no_automatic_cost_or_peek": ("費用・確認・エラーskipを自動実行しない", "不自动付费、查看或错误skip"),

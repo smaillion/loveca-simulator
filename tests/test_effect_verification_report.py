@@ -16,6 +16,10 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
 
     scenario_ids = {result.scenario_id for result in results}
     assert {
+        "muse_yell_zero_success",
+        "muse_yell_one_success",
+        "muse_yell_two_success",
+        "muse_yell_wrong_work",
         "baton_repeat_prevention",
         "pl_hs_bp2_026_live_start_score_modifier",
         "pl_hs_bp6_006_cost_reduction",

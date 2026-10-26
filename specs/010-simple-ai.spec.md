@@ -4,6 +4,12 @@
 
 ### Experimental resource-cycle policy
 
+PL!-pb2-039:1 uses the shared engine's resolution-time success-zone condition
+and Yell-count modifier; AI does not reproduce these rules. Four policies and
+both viewer payloads remain compatible. The frozen30 diagnostic finishes7/30,
+with23 explainable manual stops. This is targeted progress, not beta acceptance
+or an AI-strength claim; the product default remains simple_ai_v1_1.
+
 Offline manual-focus diagnostics enrich the test pool without changing product
 policy or the default blackbox pool. Decision counts and deck frequency must not
 be called triggers: effect_triggered queue events, optional declines, explicit

@@ -606,6 +606,39 @@ def _live_start_discard_two_same_group_gain_heart_blade(
     return None
 
 
+def _live_start_success_muse_two_yell_ten(row: sqlite3.Row) -> EffectCandidate | None:
+    label = (
+        "【ライブ開始時】自分の成功ライブカード置き場に『μ's』のカードが2枚以上ある場合、"
+        "ライブ終了時まで、エールによって公開される自分のカードの枚数が10枚増える。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base_with_execution_mode(
+            row, pattern_id="live_start_success_muse_two_yell_ten",
+            effect_index=effect_index, execution_mode="auto_resolve",
+        ),
+        label_ja=exact_label,
+        effect_type="triggered",
+        timing="live_start",
+        trigger="live_started",
+        frequency_limit="once_per_live",
+        is_optional=False,
+        condition={},
+        cost=[],
+        choice=None,
+        actions=[{
+            "action_type": "modify_yell_count", "amount": 10,
+            "value": {"condition": {
+                "success_live_work_count_at_least": {"work_key": "love_live", "count": 2},
+            }},
+        }],
+        duration="live",
+    )
+
+
 def _live_start_reduce_yell_count_by8_if_other_member(
     row: sqlite3.Row,
 ) -> EffectCandidate | None:
@@ -15297,6 +15330,7 @@ _PATTERNS = (
     _live_start_pay_energy_gain_blade,
     _live_start_pay_up_to2_gain_blade_per_energy,
     _live_start_discard_two_same_group_gain_heart_blade,
+    _live_start_success_muse_two_yell_ten,
     _live_start_reduce_yell_count_by8_if_other_member,
     _live_start_inspect4_nakasu_kasumi_gain_selected_heart_colors,
     _live_start_reveal_top_cost9_member_to_hand_position_change,

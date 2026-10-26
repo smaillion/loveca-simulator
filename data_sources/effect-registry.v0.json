@@ -18155,8 +18155,8 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution",
-          "amount": null,
+          "action_type": "modify_yell_count",
+          "amount": 10,
           "amount_source": null,
           "branch": null,
           "card_type": null,
@@ -18166,7 +18166,14 @@
           "orientation": null,
           "target": null,
           "target_hand_size": null,
-          "value": null
+          "value": {
+            "condition": {
+              "success_live_work_count_at_least": {
+                "count": 2,
+                "work_key": "love_live"
+              }
+            }
+          }
         }
       ],
       "card_code": "PL!-pb2-039",
@@ -18178,15 +18185,15 @@
       "effect_id": "PL!-pb2-039:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "follow_up_choice": null,
       "frequency_limit": "once_per_live",
       "is_optional": false,
       "label_ja": "【ライブ開始時】自分の成功ライブカード置き場に『μ's』のカードが2枚以上ある場合、ライブ終了時まで、エールによって公開される自分のカードの枚数が10枚増える。",
       "raw_text_hash": "c64c225ab648e5389537066b41874ad2905e24eb668f1a651fde9bd7b45780f9",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 1018,
       "timing": "live_start",
       "trigger": "live_started"

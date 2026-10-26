@@ -1,5 +1,15 @@
 # Effect Semantics Audit
 
+PL!-pb2-039:1 now uses an exact-segment automatic candidate, revision1018 and hash
+c64c225ab648e5389537066b41874ad2905e24eb668f1a651fde9bd7b45780f9.
+The success-Live work count is an operation condition, not a trigger filter:
+ordered effects can change the public zone before resolution.28 state/contract
+tests cover both condition directions, 0/1/2 and wrong work, Yell versus Blade,
+refresh, duration, SQL Replay, four policies and player payloads. Segment2 stays
+manual.915/1212 executable is test evidence, not human-reviewed adjudication.
+The illustrated report has177 cases,139 state transitions; see
+[scope and limitations](development/live-yell-ten-verification.md).
+
 Actual-observation checkpoint: gapv0.3 ranks current manual entries by engine
 effect_triggered events, separating declines/error skips/manual blockers and
 legacy skip evidence.30 focused legal decks yield6 finished matches/24 explicit
