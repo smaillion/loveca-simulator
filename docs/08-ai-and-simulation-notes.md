@@ -1,5 +1,11 @@
 # AI and Simulation Notes
 
+Mixed-Heart follow-up:165 targeted assertions for three exact identities include
+four-policy paid/unpayable completion, privacy invariance and SQL Replay. Fixed10
+qualifies in3-9 turns but does not trigger these three.172 illustrated scenarios
+pass, not proof of universal rules correctness or stronger AI. Defaultv1.1 stays.
+[Chinese evidence](development/mixed-heart-inspection-audit.md).
+
 Member/Liella follow-up:165 targeted assertions cover five exact identities and
 their real fees2/5/7/9. All four policies finish safely without hidden-hand
 dependence. Fixed10 qualifies in3-9 turns and PL!SP-bp1-005:1 has five actual

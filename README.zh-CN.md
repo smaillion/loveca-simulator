@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+复核`PL!S-pb1-013/014/015:1`三条混合Heart检索：区分Member持有Heart与Live必要Heart，验证指定色至少2及公开零张，修正费用不足结束路径。165项专项、172项图文通过；登记仍915/1212。[卡图与证据](./docs/development/mixed-heart-inspection-audit.md)
+
 复核五条Member／Liella检索的顶4/5/6张、类型／作品筛选与费用不足结束路径。165项专项、166项图文验证通过；固定十局中叶月恋`PL!SP-bp1-005:1`真实支付、查看、结算各5次。登记仍915/1212。[卡图与逐卡证据](./docs/development/member-liella-inspection-audit.md)
 
 复核六条作品／组合指定的登场检索：费用不足可不查看并结束，Member与Live候补、可选公开取得和旧Replay均保留。192项专项、156项图文验证通过；登记仍915/1212，不冒充新增覆盖。[卡图与逐卡证据](./docs/development/work-unit-inspection-audit.md)

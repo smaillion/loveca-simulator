@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+`PL!S-pb1-013/014/015:1`の登場時検索3件を再検証。MemberのHeartとLiveの必要Heartを区別し、指定色2以上・任意公開取得・費用不足時の終了を確認しました。165項の専用回帰と172項の図解検証、登録915/1212は据え置きです。[カードと検証範囲](./docs/development/mixed-heart-inspection-audit.md)
+
 Member/Liella!の登場時確認5件を再検証し、上4/5/6枚・カード種・作品指定と費用不足時の終了を確認しました。165項の専用回帰、166項の図解検証。固定10試合では葉月恋`PL!SP-bp1-005:1`の支払い・確認・解決を各5回記録。登録915/1212は据え置きです。[カードと証拠](./docs/development/member-liella-inspection-audit.md)
 
 作品/ユニット指定の登場時確認6件を再検証。費用不足時は確認せず終了し、Member/Live両方の候補・任意公開取得・旧Replayを維持します。192項の専用回帰と156項の図解検証、登録915/1212は据え置きです。[対象カードと検証範囲](./docs/development/work-unit-inspection-audit.md)

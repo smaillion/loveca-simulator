@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "inspection-multi-keep-heart-wording-audit",
+      "priority": 0,
+      "title": "独立审计顶7最多取3张的费用及Heart持有文义",
+      "status": "queued",
+      "depends_on": ["inspection-mixed-member-live-heart-filters"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!S-bp2-005:1完整官方段/revision/hash与实际cost，按本地PDF2.1.3/2.7/2.9核对没有『ハートに』限定的『heart02/04/05を持つ』是否含Blade Heart，不能猜测FAQ；不足以确认则记录unresolved并保留明确人工边界", "先复现不可支付及顶7/取0至3/非法4张/重复/跨类型和颜色，区别单张Member持有条件与任意色或Live需求；不能把既有最多1张snapshot policy直接放宽而改变旧Replay", "规则明确才增加受限新snapshot策略或适用的精确版本；有真实状态、短牌库刷新、待机补费用、四AI、UI、隐私、新旧SQL Replay断言；不虚标reviewed或可执行率，不改schema", "全部profiles/manifest/pre-push和图文/固定AI记录真实触发，若仍有语义不明明确降级或隔离而不静默通过；旧dirty和同Draft PR54保留，不合并部署"]
+    },
+    {
       "id": "inspection-mixed-member-live-heart-filters",
       "priority": 0,
       "title": "逐卡审计三条Member与Live混合Heart筛选和费用边界",

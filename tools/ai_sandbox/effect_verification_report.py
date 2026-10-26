@@ -193,6 +193,12 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *(("mixed_heart_inspection_" + code, "MemberのHeart・Liveの必要Heartを区別 " + code,
+           "区分Member持有Heart与Live必要Heart " + code, code + ":1", _run_adjacent_discard_inspection)
+          for code in ("PL!S-pb1-013", "PL!S-pb1-014", "PL!S-pb1-015")),
+        *(("mixed_heart_unpayable_" + code, "費用不足・確認せず待機取消 " + code,
+           "费用不足时不查看并结束待机 " + code, code + ":1", _run_inspection_unpayable)
+          for code in ("PL!S-pb1-013", "PL!S-pb1-014", "PL!S-pb1-015")),
         *(("member_liella_inspection_" + code, "Member・作品検索と手札費用 " + code,
            "Member/作品检索及手牌费用 " + code, code + ":1", _run_adjacent_discard_inspection)
           for code in ("PL!S-bp3-004", "PL!S-bp3-009", "PL!SP-bp1-005", "PL!SP-bp2-007", "PL!SP-pb2-017")),
@@ -528,6 +534,15 @@ def _run_adjacent_discard_inspection(effect: EffectDefinition) -> dict[str, bool
         by_id["adj-wrong"].card.work_keys, by_id["adj-wrong"].card.unit_keys = ["love_live"], ["other"]
         by_id["adj-blade"].card.unit_keys = ["other"]
         by_id["adj-tail"].card.unit_keys = ["other", unit or "qu4rtz"]
+    mixed_color = {"PL!S-pb1-013": "heart04", "PL!S-pb1-014": "heart02", "PL!S-pb1-015": "heart05"}.get(effect.card_code)
+    if mixed_color is not None:
+        by_id["adj-member"].card.basic_hearts = {mixed_color: 2}
+        by_id["adj-live"].card.required_hearts = {mixed_color: 2}
+        by_id["adj-wrong"].card.basic_hearts = {"heart01": 3}
+        by_id["adj-blade"].card.basic_hearts = {mixed_color: 1}
+        by_id["adj-blade"].card.blade_heart_color_slot = mixed_color
+        by_id["adj-blade"].card.special_blade_hearts = [SpecialBladeHeart(effect_type="all_color", source_alt="ALL", value=3)]
+        by_id["adj-tail"].card.basic_hearts = {mixed_color: 3}
     for c in cards[1:]:
         c.face_up = False
     state = _v1_1_state({effect.effect_id: effect}, cards, hand=["source", "adj-cost"])
@@ -540,6 +555,9 @@ def _run_adjacent_discard_inspection(effect: EffectDefinition) -> dict[str, bool
             "selected_card_instance_ids": ["adj-cost"]}))
     before_public = _match_state_payload(inspected.state, events=inspected.events, legal_actions=inspected.legal_actions, player_id="player_2")
     expected = {
+        "PL!S-pb1-013": {"adj-member", "adj-live"},
+        "PL!S-pb1-014": {"adj-member", "adj-live"},
+        "PL!S-pb1-015": {"adj-member", "adj-live"},
         "PL!S-bp3-004": {"adj-member", "adj-wrong", "adj-blade"},
         "PL!S-bp3-009": {"adj-member", "adj-blade", "adj-tail", "adj-spare"},
         "PL!SP-bp1-005": {"adj-member", "adj-live", "adj-blade", "adj-tail"},
@@ -561,7 +579,7 @@ def _run_adjacent_discard_inspection(effect: EffectDefinition) -> dict[str, bool
         "PL!HS-bp1-011": {"adj-live"}, "PL!HS-bp6-022": {"adj-live"},
         "PL!N-pb1-028": {"adj-member", "adj-live"}, "PL!N-pb1-035": {"adj-member", "adj-live"},
     }[effect.card_code]
-    target = "adj-live" if effect.card_code in {"PL!-bp3-010", "PL!HS-bp1-011", "PL!HS-bp6-022"} else "adj-member"
+    target = "adj-live" if effect.card_code in {"PL!-bp3-010", "PL!HS-bp1-011", "PL!HS-bp6-022", "PL!S-pb1-013", "PL!S-pb1-014", "PL!S-pb1-015"} else "adj-member"
     result = apply_action(inspected.state, ActionRequest(action_type="resolve_effect_choice", player_id="player_1",
         expected_revision=inspected.state.revision, payload={"selected_card_instance_ids": [target]}))
     public = _match_state_payload(result.state, events=result.events, legal_actions=result.legal_actions, player_id="player_2")

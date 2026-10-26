@@ -1385,7 +1385,9 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
         "live_start_deep_choose_aqours_member_blade6_score1",
         "onplay_named_baton_nakasu_kasumi_draw2_discard1",
         "activated_discard2_return_live_required_heart03_3",
-        "onplay_optional_discard1_inspect4_keep1_heart04_2_member_or_live",
+        "audited_discard_inspection_PL!S-pb1-013",
+        "audited_discard_inspection_PL!S-pb1-014",
+        "audited_discard_inspection_PL!S-pb1-015",
         "onplay_other_nijigasaki_ready_energy",
         "onplay_named_stage_ready_energy_return_hasu_live",
         "onplay_optional_discard1_mill2_return_member",
@@ -2893,6 +2895,7 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
         if candidate.effect_id == "PL!S-pb1-013:1"
     )
     assert heart_inspect_candidate.choice == {
+        "cost_payment_policy": "triggered_inspection",
         "choice_type": "inspect_top_select",
         "amount": 4,
         "minimum": 0,

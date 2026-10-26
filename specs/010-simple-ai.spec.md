@@ -4,6 +4,13 @@
 
 ### Experimental resource-cycle policy
 
+Three mixed-Heart inspection identities use explicit hand-cost availability.
+Four policy versions have paid/unpayable, privacy and non-mutation assertions.
+Member Heart and Live required Heart are separate card information; the legal
+choice does not aggregate Yell icons or global performance bonuses.165 targeted
+tests cover all three; fixed10 does not trigger them. Product defaultv1.1 and
+legacy snapshots remain unchanged.
+
 Five Member/Liella inspection identities use the bounded hand-cost policy. All
 four AI versions have native paid/unpayable and hidden-hand invariance tests.
 Fixed10 qualifies in3-9 turns; PL!SP-bp1-005:1 pays/inspects/resolves five times

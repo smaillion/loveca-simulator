@@ -1,5 +1,7 @@
 # Member与Liella检索：五条费用路径审计
 
+后续三条混合Heart检索已另行验收，见[独立报告](mixed-heart-inspection-audit.md)；本文件保留该批历史证据。
+
 ## 本批范围
 
 五条已有可执行技能接入已验证的`triggered_inspection`费用检查，不是增加五条覆盖。

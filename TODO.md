@@ -9,7 +9,8 @@
 
 ### 新卡起动与未支持段落
 
-- 已复核5条Member/Liella费用兄弟文本，165专项、207前端、166图文通过；顶4/5/6、类型/作品和公开零张有逐卡断言。固定10局中`PL!SP-bp1-005:1`实际支付/查看/结算各5次。见`docs/development/member-liella-inspection-audit.md`。余4扫描不等于4条已确认错误：下轮仅审计`PL!S-pb1-013/014/015:1`的Member/Live混合Heart筛选；`PL!S-bp2-005:1`最多取3张继续独立待审。
+- 已复核三条`PL!S-pb1-013/014/015:1`混合Heart检索，165专项（含72颜色/数量/类型交叉边界）、213前端、172图文通过。筛选原实现正确，本批修正费用不足结束路径；见`docs/development/mixed-heart-inspection-audit.md`。本轮单弃牌扫描仅余`PL!S-bp2-005:1`独立待审：最多取3张不适用现有policy，且“持有”与“ハートに”文义及Blade Heart范围要先核对PDF，不能为覆盖率猜测实现。
+- 已复核5条Member/Liella费用兄弟文本，165专项、207前端、166图文通过；顶4/5/6、类型/作品和公开零张有逐卡断言。固定10局中`PL!SP-bp1-005:1`实际支付/查看/结算各5次。见`docs/development/member-liella-inspection-audit.md`。后续三条混合Heart已独立验收见上条，`PL!S-bp2-005:1`最多取3张继续单独待审。
 - 已复核六条作品/组合检索，192专项、197前端、156图文通过，见`docs/development/work-unit-inspection-audit.md`。费用不足可结束；明确作品/组合筛选、Member/Live、公开零张、四AI与旧SQL Replay。后续5条Member/Liella已单独验收见上条；其余3条混合Heart筛选及1条最多取3张另审，不扩大既有policy边界。
 - 已复核六条Member/Live顶5与私下顶2检索，174专项、185前端、144图文通过。费用不足可正常结束，付款后公开可选零张和私下必取1张分开；见`docs/development/inspection-siblings-audit.md`。后续六条作品/组合已单独验收见上条，混合费用、条件和多张取得另行处理。
 - 已逐卡复核15条同文顶3私下取1：435项专项、173前端、132图文通过，费用不足可正常结束；同卡后续Live段不混入。见`docs/development/private3-inspection-family-audit.md`。后续六条顶5/顶2已单独验收见上条；保留其他条件、混合/Energy费用及多张取得待审。

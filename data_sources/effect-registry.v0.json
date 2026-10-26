@@ -77870,6 +77870,7 @@
       ],
       "card_code": "PL!S-pb1-013",
       "choice": {
+        "cost_payment_policy": "triggered_inspection",
         "ability_bucket": [],
         "amount": 4,
         "amount_source": null,
@@ -78078,6 +78079,7 @@
       ],
       "card_code": "PL!S-pb1-014",
       "choice": {
+        "cost_payment_policy": "triggered_inspection",
         "ability_bucket": [],
         "amount": 4,
         "amount_source": null,
@@ -78286,6 +78288,7 @@
       ],
       "card_code": "PL!S-pb1-015",
       "choice": {
+        "cost_payment_policy": "triggered_inspection",
         "ability_bucket": [],
         "amount": 4,
         "amount_source": null,

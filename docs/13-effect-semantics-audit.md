@@ -1,5 +1,15 @@
 # Effect Semantics Audit
 
+Mixed-Heart inspection checkpoint: three exact identities opt into the bounded
+hand-cost policy. Existing filtering correctly uses a Member's Heart field or a
+Live's required-Heart field, not Blade Heart/ALL or the other field.165 targeted
+tests include72 type/color/count boundaries;213 frontend tests/build and172
+illustrated scenarios (133 state/39 contract) pass. Fixed10 qualifies without
+triggering these three. Registry915/1212 unchanged; no reviewed promotion or
+engine/schema change. One scan hit remains: PL!S-bp2-005:1 needs an independent
+up-to3 and wording/Blade-Heart audit, not an automatic policy extension.
+[Chinese evidence](development/mixed-heart-inspection-audit.md).
+
 Member/Liella checkpoint: five exact official identities opt into the bounded
 hand-cost policy, retaining peek4/5/6, type and work filters, public keep0-1.
 165 targeted tests,207 frontend tests/build,166 illustrated scenarios

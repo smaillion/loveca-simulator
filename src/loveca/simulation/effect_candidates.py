@@ -2623,6 +2623,10 @@ def _onplay_optional_discard_inspect_keep1_any(
 
 def _onplay_audited_discard_inspection(row: sqlite3.Row) -> EffectCandidate | None:
     patterns = (
+        *(({code}, 4,
+           f"ハートに【{color}】を2個以上持つメンバーカードか、必要ハートに【{color}】を2以上含むライブカードを1枚公開して手札に加えてもよい。",
+           {"heart_color_slot": color, "minimum_heart_count": 2}, 0, True)
+          for code, color in (("PL!S-pb1-013", "heart04"), ("PL!S-pb1-014", "heart02"), ("PL!S-pb1-015", "heart05"))),
         ({"PL!S-bp3-004"}, 4, "メンバーカードを1枚公開して手札に加えてもよい。", {"card_type": "member"}, 0, True),
         ({"PL!S-bp3-009"}, 6, "『Aqours』のメンバーカードを1枚公開して手札に加えてもよい。",
          {"card_type": "member", "work_key": "love_live_sunshine"}, 0, True),
