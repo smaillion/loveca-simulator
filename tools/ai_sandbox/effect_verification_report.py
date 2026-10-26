@@ -188,6 +188,13 @@ def _v1_1_dynamic_scenarios(
     database_path: Path,
 ) -> list[ScenarioResult]:
     cases = (
+        *(("existing_wait_reorder_" + code, "自身Wait・上2枚の任意並べ直し " + code,
+           "自身Wait后查看顶2张、任选排序 " + code, code + ":1", _run_wait_reorder)
+          for code in ("PL!-bp3-014", "PL!-bp3-017", "PL!-bp3-018", "PL!N-bp3-022", "PL!N-bp4-016", "PL!S-bp6-018")),
+        ("existing_wait_liella_heart8", "自身Wait・Liella!の必要Heart8以上", "自身Wait后检索Liella!必要Heart总数8以上", "PL!SP-bp4-002:1", _run_typed_inspection),
+        *(("existing_hand_cost_unavailable_" + code, "手札費用なし・確認せず待機取消 " + code,
+           "没有手牌费用时不查看并结束待机 " + code, code + ":1", _run_inspection_unpayable)
+          for code in ("PL!N-sd2-012", "PL!N-sd2-014", "PL!N-bp7-018")),
         ("onplay_mandatory_hand_inspection", "強制手札費用・μ's Member確認", "强制弃手牌后检索无Blade Heart的μ's Member", "PL!-pb2-032:1", _run_typed_inspection),
         ("onplay_live_cost_private_keep", "Live費用・非公開で1枚を手札へ", "Live卡费用后必须私下保留一张", "PL!SP-bp7-018:1", _run_typed_inspection),
         ("onplay_wait_cost_heart8_live", "自身Wait・必要ハート8以上のLive", "自身Wait后检索必要Heart总数8以上的Live", "PL!-pb2-008:1", _run_typed_inspection),
@@ -422,6 +429,42 @@ def _v1_1_dynamic_scenarios(
     return results
 
 
+def _run_wait_reorder(effect: EffectDefinition) -> dict[str, bool]:
+    from loveca.webapp import _match_state_payload
+    checks = {}
+    for keep in (0, 1, 2):
+        state = _v1_1_state({effect.effect_id: effect}, [
+            _v1_1_member("source", effect.card_code, card_code=effect.card_code, cost=0, effect_ids=[effect.effect_id]),
+            *[_v1_1_member(key, "AUDIT-" + key) for key in ("top-a", "top-b", "tail")]], hand=["source"])
+        for key in ("top-a", "top-b", "tail"):
+            state.cards[key].face_up = False
+        state.players["player_1"].main_deck = ["top-a", "top-b", "tail"]
+        played = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1", expected_revision=0,
+            payload={"card_instance_id": "source", "slot": "center", "energy_instance_ids": [], "use_baton_touch": False}))
+        inspected = apply_action(played.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+            expected_revision=played.state.revision, payload={"invocation_id": played.state.pending_effects[0].invocation_id}))
+        ids = list(reversed(["top-a", "top-b"][:keep]))
+        result = apply_action(inspected.state, ActionRequest(action_type="resolve_effect_choice", player_id="player_1",
+            expected_revision=inspected.state.revision, payload={"selected_card_instance_ids": ids, "ordered_card_instance_ids": ids}))
+        other = _match_state_payload(result.state, events=result.events, legal_actions=result.legal_actions, player_id="player_2")
+        checks["wait_reorder_keep_" + str(keep)] = (
+            inspected.state.cards["source"].orientation == "wait"
+            and sum(e.event_type == "effect_cost_paid" for e in inspected.events) == 1
+            and result.state.players["player_1"].main_deck == ids + ["tail"]
+            and set(result.state.players["player_1"].waiting_room) == {"top-a", "top-b"} - set(ids)
+            and result.state.pending_choice is None and not result.state.pending_effects
+            and all(key not in json.dumps(other) for key in ids))
+        waited = played.state.model_copy(deep=True)
+        waited.cards["source"].orientation = "wait"
+        canceled = apply_action(waited, ActionRequest(action_type="resolve_effect", player_id="player_1",
+            expected_revision=waited.revision, payload={"invocation_id": waited.pending_effects[0].invocation_id}))
+        checks["wait_reorder_cannot_pay_twice"] = (
+            canceled.state.pending_choice is None and not canceled.state.pending_effects
+            and canceled.state.players["player_1"].main_deck == ["top-a", "top-b", "tail"]
+            and not any(e.event_type in {"effect_cost_paid", "effect_inspection_started", "effect_skipped"} for e in canceled.events))
+    return checks
+
+
 def _run_typed_inspection(effect: EffectDefinition) -> dict[str, bool]:
     from loveca.webapp import _match_state_payload
     wait = effect.cost[0].action_type == "apply_wait"
@@ -434,6 +477,8 @@ def _run_typed_inspection(effect: EffectDefinition) -> dict[str, bool]:
     cards[3].card.work_keys = ["nijigasaki"]
     cards[4].card.special_blade_hearts = [SpecialBladeHeart(effect_type="draw", source_alt="ドロー")]
     cards[-1].card.work_keys, cards[-1].card.required_hearts = ["love_live"], {"heart01": 3, "heart0": 5}
+    if effect.card_code == "PL!SP-bp4-002":
+        cards[-1].card.work_keys = ["love_live_superstar"]
     for item in cards[1:]:
         item.face_up = False
     state = _v1_1_state({effect.effect_id: effect}, cards, hand=["source", "cost"])
@@ -1377,6 +1422,10 @@ def _load_visuals_for_effect_ids(
 
 
 _V1_1_CHECK_LABELS: dict[str, tuple[str, str]] = {
+    "wait_reorder_keep_0": ("0枚を戻して2枚を控室へ・非公開", "保留0张，其余进控室，不泄露牌顶"),
+    "wait_reorder_keep_1": ("1枚を戻して残りを控室へ・非公開", "保留1张，其余进控室，不泄露牌顶"),
+    "wait_reorder_keep_2": ("2枚を逆順に戻す・非公開", "保留2张并反向排序，不泄露牌顶"),
+    "wait_reorder_cannot_pay_twice": ("既にWaitなら費用を払わず確認しない", "已Wait时不再支付、不查看、不记错误跳过"),
     "typed_cost_applied": ("手札費用と自身Waitを区別", "区分弃手牌与自身Wait费用"),
     "typed_inspection_exact": ("費用後に指定枚数だけ確認", "费用后准确查看指定张数"),
     "typed_candidates_exact": ("作品・種類・Blade Heart・必要ハート条件", "准确筛选作品、卡种、Blade Heart与必要Heart"),

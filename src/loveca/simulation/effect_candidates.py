@@ -262,18 +262,19 @@ def _activated_pay1_inspect4_reorder(row: sqlite3.Row) -> EffectCandidate | None
 
 
 def _onplay_wait_inspect2_reorder(row: sqlite3.Row) -> EffectCandidate | None:
-    text = str(row["raw_effect_text_ja"]).strip()
     prefix = (
         "【登場】このメンバーをウェイトにしてもよい："
         "自分のデッキの上からカードを2枚見る。"
         "その中から好きな枚数を好きな順番でデッキの上に置き、"
         "残りを控え室に置く。"
     )
-    if not text.startswith(prefix):
+    label = prefix + "（ウェイト状態のメンバーが持つ【ブレード】は、エールで公開する枚数を増やさない。）"
+    matched = _matching_segment(row, label)
+    if matched is None:
         return None
     return EffectCandidate(
-        **_base(row, pattern_id="onplay_wait_inspect2_reorder_rest_wr", effect_index=1),
-        label_ja=prefix,
+        **_base(row, pattern_id="onplay_wait_inspect2_reorder_rest_wr", effect_index=matched[0]),
+        label_ja=label,
         effect_type="triggered",
         timing="on_play",
         trigger="member_played",
@@ -282,6 +283,7 @@ def _onplay_wait_inspect2_reorder(row: sqlite3.Row) -> EffectCandidate | None:
         condition={},
         cost=[{"action_type": "apply_wait", "target": "source"}],
         choice={
+            "cost_payment_policy": "triggered_inspection_reorder",
             "choice_type": "inspect_top_select",
             "amount": 2,
             "minimum": 0,
@@ -2668,6 +2670,8 @@ def _nijigasaki_onplay_inspection(row: sqlite3.Row) -> EffectCandidate | None:
         }
         if no_blade_heart:
             choice.update(card_type="member", exclude_blade_heart=True)
+        if discard:
+            choice["cost_payment_policy"] = "triggered_inspection"
         return EffectCandidate(
             **_base(row, pattern_id=f"nijigasaki_onplay_inspect{amount}_discard{int(discard)}_no_blade_heart{int(no_blade_heart)}", effect_index=matched[0]),
             label_ja=label, effect_type="triggered", timing="on_play", trigger="member_played",
@@ -13466,9 +13470,10 @@ def _phase5_v1_inspection_effects(row: sqlite3.Row) -> EffectCandidate | None:
             "timing": "on_play",
             "trigger": "member_played",
             "is_optional": True,
-            "condition": {"source_orientation": "active"},
+            "condition": {},
             "cost": [{"action_type": "apply_wait", "target": "source"}],
             "choice": {
+                "cost_payment_policy": "triggered_inspection",
                 "choice_type": "inspect_top_select",
                 "amount": 4,
                 "card_type": "live",

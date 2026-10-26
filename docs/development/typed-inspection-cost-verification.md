@@ -1,5 +1,8 @@
 # 登场检索：三种费用与无法支付时的正确结束
 
+后续更新：本报告列出的7条单Wait及3条虹咲手牌费用已逐卡复现并修正，
+见[既有检索费用审计](existing-inspection-cost-audit.md)。以下保留本批历史证据，不代表剩余检索均已正确。
+
 ## 本批结果
 
 新登记3段`test_validated_executable / test_validated`，不提升人工reviewed。

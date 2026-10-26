@@ -1,5 +1,17 @@
 # Effect Semantics Audit
 
+Existing inspection cost checkpoint: seven source-Wait and three Nijigasaki
+discard entries now opt into resolution-time cost checks. Six exact peek2 texts
+use `triggered_inspection_reorder` (private0-2 top-order, source Wait only).
+The Liella Heart8 source-Active condition is replaced by the actual payable-cost
+check; source departure/reentry cannot pay, Stage-internal movement can. Costs may
+become available after another pending invocation.166 targeted tests,90 illustrated
+scenarios (51 state/39 contract),131 frontend tests. Fixed10 AI matches all qualify;
+Liella inspection actually completed four times, other nine are targeted only.
+Registry915/1212 (75.50%),297manual unchanged.42 adjacent one-discard entries are
+unreviewed scan candidates, not42 proven violations; six are queued first.
+[Chinese evidence](development/existing-inspection-cost-audit.md).
+
 Typed inspection costs: `PL!-pb2-032:1`, `PL!SP-bp7-018:1`, `PL!-pb2-008:1`
 now use an explicit bounded `cost_payment_policy=triggered_inspection` snapshot.
 The selected invocation rechecks hand resources/type or the original Active Stage
@@ -8,9 +20,10 @@ error skip; they are not deleted at trigger because another pending effect can
 provide the cost. Public vs private keep and minimum0 vs1 remain independent.
 Old snapshots omit this field and keep historical behavior.105 targeted tests,
 80 report scenarios (41 state /39 contract),128 frontend tests. Registry915/1212
-(75.50%),297manual. Seven existing single-Wait inspection entries and adjacent
-hand-cost entries are queued for audit; this registration ratio is not proof that
-all legacy cost semantics conform. [Chinese evidence](development/typed-inspection-cost-verification.md).
+(75.50%),297manual. This previous batch's seven single-Wait follow-ups are now
+covered by the checkpoint above; other hand/mixed costs remain separate audits.
+The registration ratio is not proof that all legacy costs conform.
+[Chinese evidence](development/typed-inspection-cost-verification.md).
 
 Nijigasaki on-play inspection checkpoint: exact segments `PL!N-sd2-009:1`,
 `PL!N-sd2-012:1`, `PL!N-sd2-014:1` and `PL!N-bp7-018:1` now execute native

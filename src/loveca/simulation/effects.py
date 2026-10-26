@@ -309,7 +309,7 @@ class EffectSelectionGroup(BaseModel):
 
 
 class EffectChoice(BaseModel):
-    cost_payment_policy: Literal["triggered_inspection"] | None = None
+    cost_payment_policy: Literal["triggered_inspection", "triggered_inspection_reorder"] | None = None
     inspection_activation_policy: Literal["start_after_cost"] | None = None
     choice_type: str
     deployment_policy: Literal["simultaneous_member_area_entry"] | None = None
@@ -404,7 +404,7 @@ class EffectChoice(BaseModel):
 
     @model_validator(mode="after")
     def validate_deployment_policy(self) -> EffectChoice:
-        if self.cost_payment_policy is not None and (
+        if self.cost_payment_policy == "triggered_inspection" and (
             self.choice_type != "inspect_top_select" or self.target_player != "self"
             or self.amount is None or self.amount <= 0 or self.amount_source is not None
             or self.minimum not in {0, 1} or self.maximum != 1 or self.requires_order
@@ -412,6 +412,16 @@ class EffectChoice(BaseModel):
             or self.inspection_activation_policy is not None or self.selection_policy is not None
         ):
             raise ValueError("triggered inspection cost policy requires fixed private look and hand selection")
+        if self.cost_payment_policy == "triggered_inspection_reorder" and (
+            self.choice_type != "inspect_top_select" or self.target_player != "self"
+            or self.amount != 2 or self.amount_source is not None
+            or self.minimum != 0 or self.maximum != 2 or not self.requires_order
+            or self.selected_destination != "main_deck_top_ordered" or self.unselected_destination != "waiting_room"
+            or self.reveal_selected_to_opponent or self.card_type is not None or self.work_key is not None
+            or self.condition or self.selection_groups or self.name_ja_any or self.unit_key is not None
+            or self.inspection_activation_policy is not None or self.selection_policy is not None
+        ):
+            raise ValueError("triggered inspection cost policy requires a private two-card reorder")
         if self.inspection_activation_policy is not None and (
             self.choice_type != "inspect_top_select" or self.target_player != "self"
             or self.amount is None or self.amount <= 0
@@ -488,13 +498,15 @@ class EffectDefinition(BaseModel):
             raise ValueError("inspection cost policy must be the main effect choice")
         if self.choice is None or self.choice.cost_payment_policy is None:
             return self
+        reorder = self.choice.cost_payment_policy == "triggered_inspection_reorder"
+        expected_actions = ["inspect_top_cards", "reorder_deck_top" if reorder else "select_to_hand_from_inspected", "move_remaining_cards"]
         if (
             self.effect_type != "triggered" or self.timing != "on_play" or self.trigger != "member_played"
             or self.condition
             or self.execution_mode != "prompt_then_resolve" or self.simulation_support == "manual_resolution"
             or self.frequency_limit != "none" or self.duration is not None or self.follow_up_choice is not None
             or len(self.cost) != 1
-            or [op.action_type for op in self.actions] != ["inspect_top_cards", "select_to_hand_from_inspected", "move_remaining_cards"]
+            or [op.action_type for op in self.actions] != expected_actions
             or self.actions[0].amount != self.choice.amount
             or any(op.amount_source is not None or op.branch is not None for op in [*self.cost, *self.actions])
         ):
@@ -506,7 +518,7 @@ class EffectDefinition(BaseModel):
                    and hand.target_player == "self" and hand.minimum == hand.maximum == 1
                    and hand.card_type in {None, "live"} and not hand.condition and not hand.selection_groups)
         wait = (cost.action_type == "apply_wait" and cost.target == "source" and hand is None and self.is_optional)
-        if not (discard or wait) or cost.amount is not None or cost.value is not None:
+        if not (wait or (discard and not reorder)) or cost.amount is not None or cost.value is not None:
             raise ValueError("triggered inspection cost policy only supports one hand discard or source Wait")
         return self
 

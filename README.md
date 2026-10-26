@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+既存の登場時確認10件の費用を修正しました。自身Wait7件は既にWait・離場後の別オブジェクトから費用を払えず、虹咲手札費用3件は手札不足時に確認せず待機取消できます。上2枚の0–2枚並べ直し、非公開順序、旧Replayも検証。登録は915/1212（75.50%）のままです。[カード画像と監査結果](./docs/development/existing-inspection-cost-audit.md)
+
 登場時検索の`PL!-pb2-032:1` 星空凛、`PL!SP-bp7-018:1` 米女メイ、`PL!-pb2-008:1` 小泉花陽に対応しました。強制手札/Live手札/自身Waitの費用と、公開/非公開の取得を区別します。新snapshotでは解決時に費用を再確認し、不可能ならデッキを見ずに待機を取り消せます。登録915/1212（75.50%）、297件manual。[検証と既存能力の残リスク](./docs/development/typed-inspection-cost-verification.md)
 
 虹ヶ咲の登場時検索4件（`PL!N-sd2-009/012/014:1`、`PL!N-bp7-018:1`）に対応しました。任意の手札費用、公開せず0枚を選ぶ処理、Blade Heartなしの条件を区別します。確認中は本人だけが見え、選んだ1枚は相手にも公開されます。登録912/1212（75.25%）、300件manual。[カード画像・状態検証](./docs/development/nijigasaki-inspection-verification.md)

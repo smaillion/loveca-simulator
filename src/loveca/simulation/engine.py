@@ -2904,7 +2904,7 @@ def _captures_original_stage_source(effect: Any) -> bool:
         "original_moved_stage_member", "original_live_start_heart_source",
         "original_live_start_wait_cost_source",
     } for op in effect.actions) or (
-        effect.choice is not None and effect.choice.cost_payment_policy == "triggered_inspection"
+        effect.choice is not None and effect.choice.cost_payment_policy in {"triggered_inspection", "triggered_inspection_reorder"}
         and len(effect.cost) == 1 and effect.cost[0].action_type == "apply_wait"
     )))
 
@@ -4746,7 +4746,7 @@ def _effect_unavailable_reason(
 def _inspection_cost_unavailable_reason(state: MatchState, invocation: EffectInvocation) -> str | None:
     effect = state.effect_definitions[invocation.effect_id]
     if (invocation.resolution_stage != "initial" or effect.choice is None
-            or effect.choice.cost_payment_policy != "triggered_inspection"):
+            or effect.choice.cost_payment_policy not in {"triggered_inspection", "triggered_inspection_reorder"}):
         return None
     if effect.cost[0].action_type == "discard_from_hand":
         if not _required_cost_choice_available(state, invocation, effect):

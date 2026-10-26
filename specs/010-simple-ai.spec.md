@@ -4,6 +4,16 @@
 
 ### Experimental resource-cycle policy
 
+`triggered_inspection_reorder` is limited to source-Wait/on-play/private peek2:
+zero, one or two cards may be returned in explicit order, and the rest go to the
+Waiting Room. All four policies use the generated candidates/order and can end an
+unpayable invocation without looking or error-skipping. Seven existing Wait and
+three Nijigasaki discard snapshots opt in; old executable SQL snapshots do not.
+Source departure/reentry invalidates payment, but Stage-internal movement does not.
+The fixed10 pool actually completes four Liella Heart8 inspections; the other nine
+effects have targeted state tests, not random-match coverage. Product defaultv1.1
+and controller API remain unchanged.
+
 For `cost_payment_policy=triggered_inspection`, an invocation can expose
 `cost_payment_unavailable_reason` instead of impossible choice requirements.
 All policies can submit an empty native resolution (or decline optional cost)

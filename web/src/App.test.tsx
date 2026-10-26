@@ -3309,6 +3309,31 @@ describe("App", () => {
     });
   });
 
+  it.each([0, 1, 2])("allows a paid Wait inspection to return %s cards in chosen order", (keep) => {
+    const onAction = vi.fn();
+    const ids = ["player_1-M002", "player_1-M003"] as const;
+    const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], options: {
+      ...INSPECTION_MATCH_PAYLOAD.legal_actions[0].options,
+      effect_id: "PL!-bp3-014:1", inspected_card_instance_ids: ids, candidate_card_instance_ids: ids,
+      minimum: 0, maximum: 2, requires_order: true,
+      selected_destination: "main_deck_top_ordered", unselected_destination: "waiting_room",
+      reveal_selected_to_opponent: false,
+    } };
+    render(<InspectionChoiceAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never}
+      loading={false} onAction={onAction} title="检查结果" submitLabel="确认排序" />);
+    const confirm = screen.getByRole("button", { name: "确认排序" });
+    expect(confirm).toBeEnabled();
+    for (const id of ids.slice(0, keep)) {
+      fireEvent.click(screen.getByRole("button", { name: new RegExp(INSPECTION_CARDS[id].card.name_ja) }));
+    }
+    if (keep === 2) fireEvent.click(screen.getAllByRole("button", { name: "上移已选卡" })[1]);
+    fireEvent.click(confirm);
+    const selected = keep === 2 ? [...ids].reverse() : ids.slice(0, keep);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_1", {
+      selected_card_instance_ids: selected, ordered_card_instance_ids: selected,
+    });
+  });
+
   it("requires all four inspected cards and submits their edited deck-top order", () => {
     const onAction = vi.fn();
     const ids = ["peek-0", "peek-1", "peek-2", "peek-3"];

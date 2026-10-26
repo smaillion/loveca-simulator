@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "inspection-adjacent-discard-cost-audit",
+      "priority": 0,
+      "title": "逐卡审计相邻六条单弃牌检索费用与公开边界",
+      "status": "queued",
+      "depends_on": ["inspection-existing-cost-safety-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["先复核PL!-bp3-010:1、PL!-bp5-014:1、PL!-bp6-004:1、PL!-pb1-016:1、PL!-sd1-011:1、PL!-sd1-012:1的全文/revision/hash和真实费用，42条扫描候选不视为42条已确认违规", "逐卡复现无费用、待机资源变化、仅自己资源付费，区分公开取得与未写公开、可选零张与必须取得一张", "仅安全exact-text采用显式新snapshot费用策略，混合/Energy/额外动作与未确认条件记录unresolved，不虚增登记率", "真实状态、SQL Replay、隐藏信息、四AI/UI和中文图文报告通过，旧dirty与同一Draft PR54保持，不合并部署"]
+    },
+    {
       "id": "inspection-existing-cost-safety-audit",
       "priority": 0,
       "title": "逐卡复核既有检索费用与不可支付待机边界",

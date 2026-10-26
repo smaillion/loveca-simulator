@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+既有检索费用检查点：同一continuous分支修正7条自身Wait和3条虹咲弃牌费用，166专项、90图文、131前端通过；固定10局均3–9回合，唐可可实际检索4次。登记仍915/1212、297manual，旧snapshot不追改，原44/6项dirty与ignored成果不改。见`existing-inspection-cost-audit.md`；只更新Draft PR54，不合并部署。
+
 检索费用检查点：同一continuous分支新增`PL!-pb2-032:1 / PL!SP-bp7-018:1 / PL!-pb2-008:1`，显式新snapshot重检费用、明确取消不可支付待机、区分公开与私下保留。105专项、80图文、四AI及固定10局回归；915/1212、297manual。见`typed-inspection-cost-verification.md`。既有单Wait检索另排审计，旧44/6dirty和复杂重叠限制不改；同Draft PR54，不合并部署。
 
 虹咲检索检查点：同一continuous分支新增`PL!N-sd2-009/012/014:1`和`PL!N-bp7-018:1`。完整技能段匹配，补查看选择的无Blade Heart筛选，102专项覆盖真实登场/费用/零张/刷新/四AI/双视角/SQL Replay；76图文、固定10局AI回归，登记912/1212、300manual。见`nijigasaki-inspection-verification.md`。六条复杂重叠仍manual，旧44/6dirty不改，同一Draft PR54，不合并部署。

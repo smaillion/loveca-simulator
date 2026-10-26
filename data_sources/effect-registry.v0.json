@@ -5558,6 +5558,7 @@
       ],
       "card_code": "PL!-bp3-014",
       "choice": {
+        "cost_payment_policy": "triggered_inspection_reorder",
         "ability_bucket": [],
         "amount": 2,
         "amount_source": null,
@@ -5703,6 +5704,7 @@
       ],
       "card_code": "PL!-bp3-017",
       "choice": {
+        "cost_payment_policy": "triggered_inspection_reorder",
         "ability_bucket": [],
         "amount": 2,
         "amount_source": null,
@@ -5848,6 +5850,7 @@
       ],
       "card_code": "PL!-bp3-018",
       "choice": {
+        "cost_payment_policy": "triggered_inspection_reorder",
         "ability_bucket": [],
         "amount": 2,
         "amount_source": null,
@@ -48018,6 +48021,7 @@
       ],
       "card_code": "PL!N-bp3-022",
       "choice": {
+        "cost_payment_policy": "triggered_inspection_reorder",
         "ability_bucket": [],
         "amount": 2,
         "amount_source": null,
@@ -50387,6 +50391,7 @@
       ],
       "card_code": "PL!N-bp4-016",
       "choice": {
+        "cost_payment_policy": "triggered_inspection_reorder",
         "ability_bucket": [],
         "amount": 2,
         "amount_source": null,
@@ -55771,6 +55776,7 @@
       ],
       "card_code": "PL!N-bp7-018",
       "choice": {
+        "cost_payment_policy": "triggered_inspection",
         "ability_bucket": [],
         "amount": 5,
         "amount_source": null,
@@ -63449,6 +63455,7 @@
       ],
       "card_code": "PL!N-sd2-012",
       "choice": {
+        "cost_payment_policy": "triggered_inspection",
         "ability_bucket": [],
         "amount": 3,
         "amount_source": null,
@@ -63739,6 +63746,7 @@
       ],
       "card_code": "PL!N-sd2-014",
       "choice": {
+        "cost_payment_policy": "triggered_inspection",
         "ability_bucket": [],
         "amount": 3,
         "amount_source": null,
@@ -74270,6 +74278,7 @@
       ],
       "card_code": "PL!S-bp6-018",
       "choice": {
+        "cost_payment_policy": "triggered_inspection_reorder",
         "ability_bucket": [],
         "amount": 2,
         "amount_source": null,
@@ -86210,6 +86219,7 @@
       ],
       "card_code": "PL!SP-bp4-002",
       "choice": {
+        "cost_payment_policy": "triggered_inspection",
         "ability_bucket": [],
         "amount": 4,
         "amount_source": null,
@@ -86273,9 +86283,7 @@
         "work_key": "love_live_superstar",
         "zone": null
       },
-      "condition": {
-        "source_orientation": "active"
-      },
+      "condition": {},
       "cost": [
         {
           "action_type": "apply_wait",
