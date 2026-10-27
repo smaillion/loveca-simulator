@@ -217,6 +217,9 @@ def _v1_1_dynamic_scenarios(
         *((f"muse_granted_blade_{case}", f"μ's常時Blade付与 {case}", f"μ's临时常时Blade {case}",
            "PL!-pb2-005:1", lambda effect, case=case: _run_muse_granted_blade(effect, case))
           for case in ("score_icon", "numeric_only", "wrong_work", "late_member", "source_leave", "source_position")),
+        *((f"both_center_position_{first}_{second}", f"両者中央の移動 {first}/{second}", f"双方中央移动 {first}/{second}",
+           "PL!SP-bp5-010:1", lambda effect, first=first, second=second: _run_both_center_position(effect, first, second))
+          for first, second in ((False, False), (False, True), (True, False), (True, True))),
         *((f"both_waiting_live_{first}_{second}", f"両者控室回収 {first}/{second}", f"双方控室回收 {first}/{second}",
            "PL!N-bp4-007:1", lambda effect, first=first, second=second: _run_both_waiting_live_recovery(effect, first, second))
           for first, second in ((0, 0), (0, 2), (2, 0), (2, 2))),
@@ -749,6 +752,36 @@ def _run_muse_granted_blade(effect: EffectDefinition, case: str) -> dict[str, bo
         "図柄条件 / 图标条件": granted.data["aura_delta"] == int(matched),
         "現在の発生源 / 当前原来源": _effective_member_blade(result.state, "player_1", "source") == int(matched and case != "source_leave"),
         "後から登場 / 后续入场": case != "late_member" or _effective_member_blade(result.state, "player_1", "late") == 1,
+        "待機完了 / 待机完成": not result.state.pending_effects and result.state.pending_choice is None,
+    }
+
+
+def _run_both_center_position(effect: EffectDefinition, first: bool, second: bool) -> dict[str, bool]:
+    source = _v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id], cost=0)
+    cards = [source, _v1_1_member("tail", "Hidden Tail")]
+    for player_id in ("player_1", "player_2"):
+        for slot in ("center", "right"):
+            item = _v1_1_member(player_id + slot, "Center Audit")
+            item.owner_id, item.orientation = player_id, "wait"
+            cards.append(item)
+    state = _v1_1_state({effect.effect_id: effect}, cards, hand=["source"])
+    state.players["player_1"].main_deck = ["tail"]
+    for player_id, present in (("player_1", first), ("player_2", second)):
+        state.players[player_id].member_area = {"left": None, "center": player_id + "center" if present else None,
+                                               "right": player_id + "right"}
+    result = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1",
+        expected_revision=state.revision, payload={"card_instance_id": "source", "slot": "left",
+        "energy_instance_ids": [], "use_baton_touch": False}))
+    result = apply_action(result.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=result.state.revision, payload={"invocation_id": result.state.pending_effects[0].invocation_id}))
+    while result.state.pending_choice:
+        result = apply_action(result.state, ActionRequest(action_type="resolve_effect_choice",
+            player_id=result.state.pending_choice.player_id, expected_revision=result.state.revision, payload={"slot": "right"}))
+    return {
+        "各自の中央だけ移動 / 各自移动中央": all(result.state.players[p].member_area["right"] ==
+            p + ("center" if present else "right") for p, present in (("player_1", first), ("player_2", second))),
+        "占有先のグループを交換 / 占位组交换": all(result.state.players[p].member_area["center"] ==
+            (p + "right" if present else None) for p, present in (("player_1", first), ("player_2", second))),
         "待機完了 / 待机完成": not result.state.pending_effects and result.state.pending_choice is None,
     }
 

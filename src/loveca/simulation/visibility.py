@@ -76,6 +76,22 @@ def redact_player_state(
     payload["seed"] = 0
     if state.pending_choice is not None and state.pending_choice.player_id != viewer_id:
         payload["pending_choice"]["options"] = {}
+        choice = state.pending_choice
+        effect = state.effect_definitions.get(choice.options.get("effect_id"))
+        if (effect is not None and effect.choice is not None
+                and effect.choice.choice_type == "multi_player_center_position_change"
+                and effect.choice.selection_policy == "public_both_center_position_sequential"
+                and choice.options.get("selection_policy") == effect.choice.selection_policy):
+            selections = choice.options.get("selections", {})
+            payload["pending_choice"]["options"] = {
+                "selections": {
+                    player_id: {key: value for key, value in selection.items()
+                                if (key == "to_slot" and value in ("left", "right"))
+                                or (key == "skipped" and value is True)}
+                    for player_id, selection in selections.items()
+                    if player_id in state.players and isinstance(selection, dict)
+                } if isinstance(selections, dict) else {},
+            }
     hidden_ids = set(state.cards) - visible_ids
     for field in ("pending_choice", "pending_effects", "effect_usage"):
         payload[field] = redact_hidden_references(payload[field], hidden_ids)

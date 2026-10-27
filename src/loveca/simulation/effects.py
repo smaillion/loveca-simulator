@@ -410,6 +410,7 @@ class EffectChoice(BaseModel):
         "private_ten_minus_hand_keep_two",
         "private_three_top_bottom_order",
         "public_both_waiting_live_one",
+        "public_both_center_position_sequential",
     ] | None = None
     zone: str | None = None
     card_type: str | None = None
@@ -498,6 +499,13 @@ class EffectChoice(BaseModel):
 
     @model_validator(mode="after")
     def validate_deployment_policy(self) -> EffectChoice:
+        if self.selection_policy == "public_both_center_position_sequential" and self.model_dump(exclude_defaults=True, exclude_none=True) != {
+            "choice_type": "multi_player_center_position_change", "selection_policy": "public_both_center_position_sequential",
+            "zone": "stage", "card_type": "member", "minimum": 1,
+        }:
+            raise ValueError("center position choice requires its fixed public two-player policy")
+        if self.choice_type == "multi_player_center_position_change" and self.selection_policy != "public_both_center_position_sequential":
+            raise ValueError("center position choice requires its explicit snapshot policy")
         if self.selection_policy == "public_both_waiting_live_one" and (
             self.model_dump(exclude_defaults=True, exclude_none=True) != {
                 "choice_type": "multi_player_waiting_live_recovery",
@@ -717,6 +725,13 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        if self.choice and self.choice.selection_policy == "public_both_center_position_sequential" and (
+            self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
+            or self.effect_type != "triggered" or self.timing != "on_play" or self.trigger != "member_played"
+            or self.execution_mode != "prompt_then_resolve" or self.frequency_limit != "none"
+            or self.duration is not None or self.actions or self.simulation_support == "manual_resolution"
+        ):
+            raise ValueError("center position choice requires the fixed mandatory on-play sequence")
         mirrored = "opposing_member_cost_greater_than_source_mirrored_v1"
         if mirrored in self.condition and (
             self.condition != {mirrored: True} or self.condition[mirrored] is not True

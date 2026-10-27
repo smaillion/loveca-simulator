@@ -1426,6 +1426,9 @@ def payload_example_for_action(action: LegalAction) -> dict[str, Any]:
             else {}
         )
     if action.action_type == "resolve_effect_choice":
+        if options.get("multi_player_choice_type") == "multi_player_center_position_change":
+            slots = first_n_strings(options.get("available_slots"), 1)
+            return {"slot": slots[0]} if slots else {}
         minimum = options.get("minimum", 0)
         count = minimum if isinstance(minimum, int) else 0
         selected = first_n_strings(

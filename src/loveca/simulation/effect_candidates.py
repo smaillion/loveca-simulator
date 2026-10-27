@@ -2803,6 +2803,21 @@ def _onplay_optional_discard_inspect_keep1_any(
     )
 
 
+def _onplay_both_center_position(row: sqlite3.Row) -> EffectCandidate | None:
+    text = "【登場】自分と相手は、自身のステージのセンターにいるメンバーをポジションチェンジする。(センターにいるメンバーを今いるエリア以外のエリアに移動させる。そのエリアにメンバーがいる場合、そのメンバーはセンターエリアに移動させる。)"
+    if (row["card_code"] != "PL!SP-bp5-010" or row["text_revision_id"] != 215
+            or row["raw_text_hash"] != "a99058a753bf9e71a54740c7db2fe2e3ca2d5b5a8c6bf42387de11c4122caaf8"
+            or row["raw_effect_text_ja"] != text):
+        return None
+    return EffectCandidate(
+        **_base(row, pattern_id="onplay_both_center_position_sequential", effect_index=1),
+        label_ja=text, effect_type="triggered", timing="on_play", trigger="member_played",
+        frequency_limit="none", is_optional=False, condition={}, cost=[], duration=None,
+        choice={"choice_type": "multi_player_center_position_change", "selection_policy": "public_both_center_position_sequential",
+                "zone": "stage", "card_type": "member", "minimum": 1, "maximum": 1}, actions=[],
+    )
+
+
 def _onplay_both_waiting_live(row: sqlite3.Row) -> EffectCandidate | None:
     if (row["card_code"] != "PL!N-bp4-007" or row["text_revision_id"] != 363
             or row["raw_text_hash"] != "7076ae1f8dd1872704b75e15e069471bcc1d8ee6dcf21abb1b2cd4521ed3fe94"
@@ -15615,6 +15630,7 @@ def _activated_return_energy_recover_live(row: sqlite3.Row) -> EffectCandidate |
 
 
 _PATTERNS = (
+    _onplay_both_center_position,
     _static_mirrored_front_cost_heart,
     _wait_moved_source_ready,
     _activated_pay1_inspect4_reorder,

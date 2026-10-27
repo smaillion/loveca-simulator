@@ -5677,6 +5677,7 @@ export function InspectionChoiceAction({
   const multiChoiceType = String(action.options.multi_player_choice_type ?? "");
   const isMultiChoice = multiChoiceType.startsWith("multi_player_");
   const isMemberDeployment = multiChoiceType === "multi_player_deploy_waiting_member";
+  const centerPosition = multiChoiceType === "multi_player_center_position_change";
   const publicRecoveries = multiChoiceType === "multi_player_waiting_live_recovery"
     ? Object.entries((action.options.selections ?? {}) as Record<string, Record<string, unknown>>) : [];
   const slotOptions = stringArray(action.options.available_slots);
@@ -5709,7 +5710,7 @@ export function InspectionChoiceAction({
     setBottomOrder(stringArray(action.options.inspected_card_instance_ids));
   }, [state.revision, action.action_type, action.player_id]);
 
-  const isValidSelection =
+  const isValidSelection = centerPosition ? slotOptions.includes(selectedSlot) :
     selected.length >= minimum &&
     selected.length <= maximum &&
     selected.every((item) => candidates.has(item)) &&
@@ -5726,6 +5727,10 @@ export function InspectionChoiceAction({
       {isMultiChoice && (
         <small>{tr("选择玩家", "選択するプレイヤー")}: {state.players[action.player_id ?? ""]?.name ?? tr("对战玩家", "プレイヤー")}</small>
       )}
+      {centerPosition && Object.entries((action.options.selections ?? {}) as Record<string, Record<string, unknown>>).map(([playerId, choice]) => (
+        <small key={playerId}>{state.players[playerId]?.name ?? playerId}: {choice.skipped
+          ? tr("中央无成员", "センターにメンバーなし") : memberSlotLabel(String(choice.to_slot ?? ""), locale)}</small>
+      ))}
       {publicRecoveries.map(([playerId, selection]) => (
         <small key={playerId}>{state.players[playerId]?.name ?? playerId}: {stringArray(selection.selected_card_instance_ids)
           .map((id) => state.cards[id]?.card.name_ja ?? id).join(" / ") || "0 Live"}</small>
@@ -5743,12 +5748,12 @@ export function InspectionChoiceAction({
           <p>{formatEffectText(effectDefinition.label_ja, locale)}</p>
         </div>
       )}
-      <span>
+      {!centerPosition && <span>
         {tr("选择", "選択")} {minimum}–{maximum} {tr("张", "枚")}
         {action.options.reveal_selected_to_opponent
           ? tr("，选中的卡会公开给对手", "。選んだカードは相手に公開されます")
           : ""}
-      </span>
+      </span>}
       {selectedDestination === "main_deck_top_ordered" && (
         <small>
           {tr(
@@ -5810,8 +5815,8 @@ export function InspectionChoiceAction({
           ))}
         </div>
       )}
-      {isMemberDeployment && selected.length === 1 && (
-        <div className="effect-candidates effect-position-choices" role="group" aria-label={tr("登场区域", "登場エリア")}>
+      {(centerPosition || (isMemberDeployment && selected.length === 1)) && (
+        <div className="effect-candidates effect-position-choices" role="group" aria-label={centerPosition ? tr("移动目的地", "移動先") : tr("登场区域", "登場エリア")}>
           {slotOptions.map((slot) => (
             <button key={slot} type="button" aria-pressed={selectedSlot === slot}
               className={selectedSlot === slot ? "selected" : ""} onClick={() => setSelectedSlot(slot)}>
@@ -5847,7 +5852,7 @@ export function InspectionChoiceAction({
         disabled={loading || !isValidSelection}
         onClick={() =>
           onAction(action.action_type, action.player_id, {
-            ...(isMemberDeployment
+            ...(centerPosition ? { slot: selectedSlot } : isMemberDeployment
               ? selected.length === 1 ? { selected_card_instance_id: selected[0], slot: selectedSlot } : {}
               : { selected_card_instance_ids: selected,
                   ordered_card_instance_ids: requiresOrder ? selected : undefined,

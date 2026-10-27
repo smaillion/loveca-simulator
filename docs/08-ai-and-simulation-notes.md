@@ -1,5 +1,13 @@
 # AI and Simulation Notes
 
+The bounded both-center choice lets each of four AI versions submit only its
+own destination. Existing ai_decision metadata is retained but cannot change
+the movement target. Hidden identity substitution and input immutability are
+tested. Previous public destinations do not authorize hidden card faces.
+Final frozen30 evidence and limitations are linked from
+development/both-center-position-verification.md; intermediate runs are not
+reused after source changes. Default policy selection is unchanged.
+
 The second Hime static segment uses the bounded mirrored-front snapshot.
 All four AI rule views agree with native Yell; the first manual segment still
 blocks.105 targeted tests and46 SQL cases preserve old replay, hidden identity

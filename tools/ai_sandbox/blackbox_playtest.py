@@ -602,6 +602,9 @@ def choose_action(
         action = by_type["resolve_effect_choice"]
         options = action.options
         candidates = list(options.get("candidate_card_instance_ids", []))
+        if options.get("multi_player_choice_type") == "multi_player_center_position_change":
+            slots = list(options.get("available_slots", []))
+            return action.action_type, action.player_id, ({"slot": slots[0]} if slots else {})
         if (
             options.get("multi_player_choice_type")
             == "multi_player_deploy_waiting_member"
@@ -724,6 +727,7 @@ def choose_action(
             "multi_player_discard_to_hand_size_then_draw",
             "multi_player_draw_then_discard",
             "multi_player_deploy_waiting_member",
+            "multi_player_center_position_change",
         }:
             return action.action_type, action.player_id, payload
         if choice_type == "member_group_from_stage":

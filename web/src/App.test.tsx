@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App, {
   EffectResolutionAction,
@@ -3588,6 +3588,24 @@ describe("App", () => {
     expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_2", {
       selected_card_instance_ids: ["player_1-M003"], ordered_card_instance_ids: undefined,
     });
+  });
+
+  it.each(["left", "right"])("submits only the current player's center destination %s", (slot) => {
+    const onAction = vi.fn();
+    const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], player_id: "player_2", options: {
+      effect_id: "PL!SP-bp5-010:1", multi_player_choice_type: "multi_player_center_position_change",
+      selection_policy: "public_both_center_position_sequential", available_slots: ["left", "right"],
+      candidate_card_instance_ids: [], minimum: 1, maximum: 1,
+      selections: { player_1: { to_slot: "right" } },
+    } };
+    render(<InspectionChoiceAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never}
+      loading={false} onAction={onAction} title="中央移动" submitLabel="确认移动" />);
+    const confirm = screen.getByRole("button", { name: "确认移动" });
+    expect(confirm).toBeDisabled();
+    const group = screen.getByRole("group", { name: "移动目的地" });
+    fireEvent.click(within(group).getByRole("button", { name: slot === "left" ? "左" : "右" }));
+    fireEvent.click(confirm);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_2", { slot });
   });
 
   it("renders structured effect inspection choices and submits the selected kept card", async () => {

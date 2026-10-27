@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-27 双方中央位置选择：固定分支/工作树，仅PL!SP-bp5-010:1精确限定新快照，旧多玩家/manual不变。69专项、22种SQL、251图文；完整profiles与最终冻结另存`both-center-position-verification.md`验收入口，不拼接旧证据。旧44/6 dirty、stash与ignored保留；不push，后续PR目标待批。下方“不得先领取双方中央”是镜像任务未完成时的历史。
+
 2026-10-27 镜像常时恢复验收：仅PL!HS-pb1-014:2条件切换为精确限定新snapshot，旧Replay和第1段manual保持。105专项、46种SQL及247图文已有证据；旧pattern名契约同步后144项定向复验通过。本轮独立执行全部profiles，最终验收/提交结果见`mirrored-cost-heart-verification.md`的验收入口，下方未完成状态为历史。冻结仍15完赛，927/1212不增加。固定分支/工作树，旧44/6 dirty、stash及ignored均保留，不push，后续PR目标待批；当前任务验收前不领双方中央移动。
 
 2026-10-27 固定正面移动审计：PL!HS-pb1-014:1继续manual并登记目标资格/来源最后位置未解决；第2段既有左右镜像bug有独立原生SQL红证据，尚未修复。37边界保护，不改变应用/registry/manifest或927/1212登记，不重复冻结池。下一独立最高优先级修复镜像常时；固定分支/工作树、旧44/6 dirty、stash和ignored均保留，不push。见`mirakura-front-position-unresolved.md`。

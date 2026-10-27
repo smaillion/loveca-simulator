@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+ウィーン・マルガレーテ`PL!SP-bp5-010:1`を全文/revision/hash限定で対応。Q223と通則1.3.4.1に基づき各自が中央の移動先を選び、選択を伴う処理は主动側から順に実行する。占有先の交換/附属/移動誘発の待機、旧manual Replayと非公開情報を保護。69専用テストと251図解を検証し、完全門禁・固定30試合・提出結果は独立記録を参照。未push、後続PR承認待ち。[検証と範囲](./docs/development/both-center-position-verification.md)
+
 安養寺姫芽`PL!HS-pb1-014:2`の左右正面比較を限定snapshotで修正。105専用/46種SQL/247図解と旧pattern名契約の更新を検証し、完全な門禁は同じソースで再確認する。第1段manual、旧Replay、927/1212を維持し、固定30試合も15完了のまま。最終結果は検証記録を参照。下段の未修正記述は履歴。[修正と検証](./docs/development/mirrored-cost-heart-verification.md)
 
 安養寺姫芽`PL!HS-pb1-014:1`は固定正面への移動対象/発生源の最終位置が未解決で手動のまま。37境界テストを追加し、第2常時の左右鏡像参照に既存不具合を原生SQLで発見した。第2段は本輪未修正、次の最優先修正として分離。927/1212は変更しない。[監査と既知不具合](./docs/development/mirakura-front-position-unresolved.md)

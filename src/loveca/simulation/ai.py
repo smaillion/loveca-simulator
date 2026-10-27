@@ -311,6 +311,9 @@ def _choose_follow_up_effect_choice_v1(
 ) -> AICandidate:
     options = action.options
     candidates = list(options.get("candidate_card_instance_ids", []))
+    if options.get("multi_player_choice_type") == "multi_player_center_position_change":
+        return AICandidate(action.action_type, action.player_id,
+            {"slot": _preferred_slot(list(options.get("available_slots", [])))}, 650, "choose_own_center_position")
     if options.get("multi_player_choice_type") == "multi_player_deploy_waiting_member":
         slots = list(options.get("available_slots", []))
         selected = _rank_card_ids(observation, candidates, descending=True)
@@ -850,6 +853,7 @@ def _structured_effect_payload_v1(
         "multi_player_draw_then_discard",
         "multi_player_deploy_waiting_member",
         "multi_player_waiting_live_recovery",
+        "multi_player_center_position_change",
     }:
         return payload
     if choice_type in {"member_group_from_stage", "card_groups_from_zone"}:
@@ -1389,6 +1393,9 @@ def choose_simple_ai_action(
         action = by_type["resolve_effect_choice"]
         options = action.options
         candidates = list(options.get("candidate_card_instance_ids", []))
+        if options.get("multi_player_choice_type") == "multi_player_center_position_change":
+            slots = list(options.get("available_slots", []))
+            return action.action_type, action.player_id, {"slot": slots[0]}, "choose_own_center_position"
         if options.get("multi_player_choice_type") == "multi_player_deploy_waiting_member":
             slots = list(options.get("available_slots", []))
             payload: dict[str, Any] = {}
@@ -1539,6 +1546,7 @@ def _choose_effect_resolution(
         "multi_player_draw_then_discard",
         "multi_player_deploy_waiting_member",
         "multi_player_waiting_live_recovery",
+        "multi_player_center_position_change",
     }:
         return action.action_type, action.player_id, payload, "resolve_multi_player_effect"
     if choice_type in {"member_group_from_stage", "card_groups_from_zone"}:

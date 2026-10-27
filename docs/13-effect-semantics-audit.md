@@ -1,5 +1,13 @@
 # Effect Semantics Audit
 
+PL!SP-bp5-010:1 uses an exact full-text/revision/hash center-position snapshot.
+Q223 establishes each player's own destination choice. Sequential execution is
+derived from rule1.3.4.1 for choice-bearing processes, not a card-specific timing
+FAQ. New movement triggers wait until the parent finishes; old multiplayer and
+manual replay remain unchanged.69 targeted tests/22 SQL cases/251 illustrated
+scenarios are not complete human adjudication. Full acceptance is linked in
+development/both-center-position-verification.md. No publish is authorized.
+
 PL!HS-pb1-014:2 uses an exact full-text/revision/hash repair for new games with the
 bound opposing_member_cost_greater_than_source_mirrored_v1 condition. Old
 same-slot snapshots keep their deterministic replay behavior, not a claim of

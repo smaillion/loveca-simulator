@@ -872,7 +872,7 @@ def _manual_adjustment(
     events: list[GameEvent],
 ) -> None:
     if (state.pending_choice is not None
-            and state.pending_choice.options.get("multi_player_choice_type") == "multi_player_waiting_live_recovery"):
+            and state.pending_choice.options.get("multi_player_choice_type") in {"multi_player_waiting_live_recovery", "multi_player_center_position_change"}):
         raise IllegalActionError("structured public recovery must be resolved before manual adjustment")
     if (
         state.pending_choice is not None
@@ -1222,7 +1222,7 @@ def _skip_effect_legal_action(state: MatchState, player_id: str | None) -> Legal
         )
     ]
     if (state.pending_choice is not None
-            and state.pending_choice.options.get("multi_player_choice_type") == "multi_player_waiting_live_recovery"):
+            and state.pending_choice.options.get("multi_player_choice_type") in {"multi_player_waiting_live_recovery", "multi_player_center_position_change"}):
         for invocation in invocations:
             invocation.pop("source_card_instance_id", None)
     return LegalAction(
@@ -2251,7 +2251,7 @@ def _begin_multi_player_effect_choice(
     if state.pending_choice is not None:
         raise IllegalActionError("another choice is already pending")
     first_chooser = invocation.player_id
-    if choice.choice_type == "multi_player_waiting_live_recovery":
+    if choice.choice_type in {"multi_player_waiting_live_recovery", "multi_player_center_position_change"}:
         first_chooser = _effect_active_player_id(state) or invocation.player_id
     elif state.effect_order_policy is not None:
         first_chooser = _effect_active_player_id(state) or invocation.player_id
@@ -2279,6 +2279,9 @@ def _begin_multi_player_effect_choice(
         options.update(deployment_policy=choice.deployment_policy, orientation=choice.orientation)
     if choice.choice_type == "multi_player_waiting_live_recovery":
         options.update(selected_destination="hand", selection_policy="public_both_waiting_live_one")
+        options.pop("source_card_instance_id", None)
+    if choice.choice_type == "multi_player_center_position_change":
+        options.update(selection_policy="public_both_center_position_sequential")
         options.pop("source_card_instance_id", None)
     if choice.choice_type == "multi_player_draw_then_discard":
         amount = choice.amount or 0
@@ -2312,7 +2315,7 @@ def _begin_multi_player_effect_choice(
         )
     )
 
-    if choice.choice_type == "multi_player_waiting_live_recovery" and not options["minimum"]:
+    if choice.choice_type in {"multi_player_waiting_live_recovery", "multi_player_center_position_change"} and not options["minimum"]:
         state.pending_choice.options["current_index"] = -1
         _advance_multi_player_effect_choice(state, events)
 
@@ -2499,6 +2502,9 @@ def _skip_effect(
     action: ActionRequest,
     events: list[GameEvent],
 ) -> None:
+    if (state.pending_choice is not None
+            and state.pending_choice.options.get("multi_player_choice_type") == "multi_player_center_position_change"):
+        raise IllegalActionError("a mandatory center position choice cannot be skipped")
     if not state.pending_effects:
         raise IllegalActionError("there is no pending effect to skip")
     invocation_id = action.payload.get("invocation_id")
@@ -2569,7 +2575,23 @@ def _resolve_multi_player_effect_choice(
     invocation = _find_pending_invocation(state, pending.options.get("invocation_id"))
     _assert_effect_resolution_turn(state, invocation)
     choice_type = pending.options.get("multi_player_choice_type")
-    if choice_type == "multi_player_waiting_live_recovery":
+    if choice_type == "multi_player_center_position_change":
+        definition = state.effect_definitions[invocation.effect_id].choice
+        if (definition is None or definition.choice_type != choice_type
+                or definition.selection_policy != "public_both_center_position_sequential"):
+            raise IllegalActionError("center position choice requires its actual snapshot definition")
+        slot = action.payload.get("slot")
+        if (set(action.payload) - {"slot", "ai_decision"}
+                or not isinstance(slot, str) or slot not in {"left", "right"}
+                or state.players[pending.player_id].member_area["center"] is None
+                or action.payload.get("selected_card_instance_ids") not in (None, [])
+                or action.payload.get("selected_card_instance_id") is not None
+                or action.payload.get("ordered_card_instance_ids") not in (None, [])
+                or action.payload.get("to_slot") is not None):
+            raise IllegalActionError("choose exactly one own center destination")
+        _position_change(state, pending.player_id, {"from_slot": "center", "to_slot": slot}, events, source="player")
+        _record_multi_player_selection(pending, pending.player_id, {"from_slot": "center", "to_slot": slot})
+    elif choice_type == "multi_player_waiting_live_recovery":
         definition = state.effect_definitions[invocation.effect_id].choice
         if (definition is None or definition.choice_type != choice_type
                 or definition.selection_policy != "public_both_waiting_live_one"):
@@ -2846,7 +2868,12 @@ def _refresh_multi_player_choice_options(
         return
     player = state.players[player_id]
     choice_type = options.get("multi_player_choice_type")
-    if choice_type == "multi_player_waiting_live_recovery":
+    if choice_type == "multi_player_center_position_change":
+        center = player.member_area.get("center")
+        options["center_card_instance_id"] = center
+        options["available_slots"] = ["left", "right"] if center is not None else []
+        options["minimum"] = options["maximum"] = int(center is not None)
+    elif choice_type == "multi_player_waiting_live_recovery":
         candidates = _waiting_live_recovery_candidates(state, player_id)
         options["candidate_card_instance_ids"] = candidates
         options["minimum"] = options["maximum"] = int(bool(candidates))
@@ -2940,11 +2967,11 @@ def _complete_multi_player_effect_choice(
             selected_ids=[],
         )
     state.pending_effects.remove(invocation)
-    if simultaneous:
+    if simultaneous or pending.options.get("multi_player_choice_type") == "multi_player_center_position_change":
         active_id = (
             (
                 _effect_active_player_id(state)
-                if state.effect_order_policy is not None
+                if state.effect_order_policy is not None or pending.options.get("multi_player_choice_type") == "multi_player_center_position_change"
                 else state.active_player_id
             )
             or state.first_player_id
@@ -6539,6 +6566,7 @@ def _effect_uses_multi_player_choice(effect: Any) -> bool:
             "multi_player_discard_to_hand_size_then_draw",
             "multi_player_draw_then_discard",
             "multi_player_waiting_live_recovery",
+            "multi_player_center_position_change",
         }
     )
 
@@ -11895,6 +11923,8 @@ def _position_change(
     player_id: str,
     adjustment: dict[str, Any],
     events: list[GameEvent],
+    *,
+    source: str = "manual",
 ) -> None:
     player = state.players[player_id]
     from_slot = adjustment.get("from_slot")
@@ -11939,7 +11969,7 @@ def _position_change(
                 "moving_attached_card_instance_ids": moving_attachments,
                 "target_attached_card_instance_ids": target_attachments,
             },
-            source="manual",
+            source=source,
         )
     )
     moved_entries = [(moving_id, str(from_slot), str(to_slot))]
