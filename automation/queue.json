@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "continuous-draft-pr-target-pin",
+      "priority": 0,
+      "title": "固定已批准新Draft PR55的真实编号并重新验收",
+      "status": "queued",
+      "depends_on": ["live-success-opponent-cost4-wait-or-draw-next-active"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["维护者明确批准修改发布目标并新建Draft PR；本轮已真实创建https://github.com/smaillion/loveca-simulator/pull/55，核对OPEN/isDraft=true/head codex/continuous-development/base develop，再固定policy.pull_request=55。只能更新同一固定Draft，若关闭或合并不得自动新建替代，合并和部署仍需另行批准", "持有本任务租约时更新policy和checkpoint，保留allow_merge=false/allow_deploy=false、现有分支和工作树，不修改应用源码或手工篡改运行状态", "源码指纹因配置变更失效，必须重新全部control/registry/backend/web及pre-push，不能复用上一功能任务passed=true或拼接旧结果；应用诊断指纹仍一致时只核对原30局绑定。审查diff后只提交已验证配置，complete后publish更新同一Draft PR55", "读取新PR真实CI状态，pending不声称通过，失败优先读日志修复；不force-push、不直接push develop/main/preview、不合并部署。本任务完整done之后才领取WATER BLUE NEW WORLD的有限提案"]
+    },
+    {
       "id": "live-success-opponent-cost4-wait-or-draw-next-active",
       "priority": 0,
       "title": "审计Live成功选择对手低费Member待机并限制下回合Active或抽一张",

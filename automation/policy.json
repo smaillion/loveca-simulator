@@ -4,6 +4,7 @@
   "base_branch": "develop",
   "branch": "codex/continuous-development",
   "active_environment": "local",
+  "pull_request": 55,
   "checkpoint": "automation/cloud-checkpoint.json",
   "workspace_relative": ".tmp/continuous-development",
   "runtime_relative": ".tmp/development-loop",

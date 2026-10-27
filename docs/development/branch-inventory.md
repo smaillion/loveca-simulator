@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-28 JST：恢复同一`continuous-draft-pr-target-pin`，保留原3项配置WIP，将固定目标55与授权说明独立验收。仍仅使用`codex/continuous-development`和既有工作树；旧44/6 dirty、stash及ignored不动，不新建分支/PR，不合并部署。门禁、实际提交与PR更新结果见`draft-pr55-target-verification.md`验收入口。
+
 2026-10-27 对手成员下回合限制：固定工作树/分支，仅PL!S-bp7-025:1受限新快照，85专项/34 SQL、四AI/隐私、271图文/7原生UI。原目标移区/场内移动与期限分开，旧快照不追改；最终完整门禁/冻结证据见`opponent-member-next-active-verification.md`。本轮维护者明确批准修改目标并新建Draft PR，旧检查已停止后纳入policy变更重验；合并上线仍另批，旧44/6 dirty与stash/ignored保留。
 
 2026-10-27 宮下愛Energy双分支：固定分支/工作树，仅PL!N-bp7-005:1精确新快照，异名条件结算时判断、从Energy Deck直接附属。84专项/22 SQL、四AI/隐私、266图文/6双语UI；最终完整门禁和新源码冻结结果见`diverdiva-energy-choice-verification.md`验收入口。旧44/6 dirty、stash与ignored保留，不push，后续PR目标待批；其他blocked不自动恢复。

@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+持续开发审查目标固定为[Draft PR #55](https://github.com/smaillion/loveca-simulator/pull/55)。按已获得的明确批准，编号配置独立重新验收后只更新同一分支与PR；[验收记录](./docs/development/draft-pr55-target-verification.md)。合并和上线仍需另行批准。
+
 `PL!S-bp7-025:1`按完整全文/revision/hash限定支持：选择对手费用4以下0至2名成员Wait并限制下个游戏回合Active复原，或抽一张。原对象离场清理、场内移动保留，旧快照不改。85专项/34 SQL、四AI/隐私、271图文/7 UI；完整门禁及同牌组30局见[验收记录](./docs/development/opponent-member-next-active-verification.md)。维护者已批准新Draft PR，合并上线仍需另行批准。
 
 宮下愛`PL!N-bp7-005:1`按全文/revision/hash限定实现：结算时确认两名异名DiverDiva，选择按可能范围复原两Energy，或从Energy Deck直接附属一张到虹ヶ咲成员下。84专项/22种SQL、四AI/隐私、266图文及双语UI保护，旧快照和既有blocked不变。最终完整门禁与新源码冻结结果见[验证记录](./docs/development/diverdiva-energy-choice-verification.md)，仅本地开发。
