@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-28 JST 共同Heart与Yell回收：仅PL!S-cl1-011:1受限新policy，现有分支/工作树，不新建分支。96专项/38 SQL、四AI/双视角、281图文/5 UI；当前颜色交集和原Yell对象资格分开，旧快照/默认AI/schema不改。最终四组门禁和同30牌组证据见`aqours-shared-heart-yell-verification.md`验收入口；仅本地提交，不push或改PR55，旧44/6 dirty、stash/ignored与blocked保留。
+
 2026-10-28 JST WATER BLUE：继续现有固定分支/工作树，仅PL!S-cl1-013:1受限新快照；78专项/31 SQL、四AI/隐私、276图文/7 UI。实际洗回数量与洗后隐藏顺序分开，受益对象移区清理，旧amount_source/随机/manual保持；最终门禁和同牌组30局见`water-blue-bottom-heart-verification.md`验收入口。本切片只本地提交、不push；PR55远程91e48d3所有现有检查只读确认SUCCESS，未合并部署，旧44/6 dirty、stash及ignored保留。
 
 2026-10-28 JST：恢复同一`continuous-draft-pr-target-pin`，保留原3项配置WIP，将固定目标55与授权说明独立验收。仍仅使用`codex/continuous-development`和既有工作树；旧44/6 dirty、stash及ignored不动，不新建分支/PR，不合并部署。门禁、实际提交与PR更新结果见`draft-pr55-target-verification.md`验收入口。

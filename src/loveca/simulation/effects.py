@@ -443,6 +443,7 @@ class EffectChoice(BaseModel):
         "public_diverdiva_energy_modes",
         "public_opponent_cost4_wait_or_draw",
         "public_water_blue_bottom_heart",
+        "public_aqours_shared_heart_yell_one",
     ] | None = None
     zone: str | None = None
     card_type: str | None = None
@@ -765,6 +766,20 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        if self.choice is not None and self.choice.selection_policy == "public_aqours_shared_heart_yell_one" and (
+            self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
+            or self.effect_type != "triggered" or self.timing != "live_success" or self.trigger != "live_succeeded"
+            or self.execution_mode != "prompt_then_resolve" or self.frequency_limit != "once_per_live" or self.duration is not None
+            or self.simulation_support == "manual_resolution"
+            or self.choice.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "card_from_zone", "selection_policy": "public_aqours_shared_heart_yell_one",
+                "zone": "resolution_area", "card_type": "member", "work_key": "love_live_sunshine", "minimum": 1,
+            }
+            or [op.model_dump(exclude_defaults=True, exclude_none=True) for op in self.actions] != [
+                {"action_type": "move_selected_to_hand"},
+            ]
+        ):
+            raise ValueError("shared-Heart Yell recovery requires its fixed mandatory one-card snapshot")
         water_blue = self.choice is not None and self.choice.selection_policy == "public_water_blue_bottom_heart"
         if any(op.action_type == "shuffle_waiting_aqours_for_selected_heart" for op in [*self.cost, *self.actions]) and not water_blue:
             raise ValueError("WATER BLUE operation requires its exact bounded snapshot")

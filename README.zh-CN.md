@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+想いよひとつになれ `PL!S-cl1-011:1`按全文/revision/hash限定实现：结算时三名Aqours成员当前Heart取共同色，仅回收本次原Yell中匹配基本Heart的Aqours Member一张。96专项/38 SQL、四AI/隐私、281图文/5 UI；完整门禁及随机实际分支见[验证记录](./docs/development/aqours-shared-heart-yell-verification.md)。旧快照和未解决边界不改，本切片仅本地提交。
+
 WATER BLUE NEW WORLD `PL!S-cl1-013:1`按全文/revision/hash限定实现：控室0至6张无Blade Heart的Aqours Member洗回库底，每满两张给后续所选Aqours成员粉Heart两颗。洗后顺序隐藏，原受益对象移区不继承；78专项/31 SQL、四AI/隐私、276图文与7 UI，完整门禁及随机实际分支见[验证记录](./docs/development/water-blue-bottom-heart-verification.md)。本切片仅本地验收，不推送或上线。
 
 持续开发审查目标固定为[Draft PR #55](https://github.com/smaillion/loveca-simulator/pull/55)。按已获得的明确批准，编号配置独立重新验收后只更新同一分支与PR；[验收记录](./docs/development/draft-pr55-target-verification.md)。合并和上线仍需另行批准。

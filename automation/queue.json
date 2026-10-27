@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "live-success-aqours-shared-heart-yell-recovery-audit",
+      "priority": 0,
+      "title": "审计Aqours三人共同Heart颜色与本次Yell公开Member回收",
+      "status": "queued",
+      "depends_on": ["live-start-waiting-six-shuffle-bottom-selected-aqours-heart"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["精确核对PL!S-cl1-011:1完整全文/revision970/hashb56ab4b40570e38e542e3d9613235c13e595d323ea45853c4b94a54fc874a806；当前冻结seed18027第2回合45动作实际mandatory manual，不把其他共同待机历史或牌组频次算实际触发", "先查官方三名Aqours顶层Member、共同颜色与普通/有效Heart及Blade Heart范围、多共同颜色的合法处理、正文条件结算时点和真实Yell历史；不能以颜色并集、全resolution_area、作品外Member或语言直觉替代，不明则manual/unresolved", "明确才精确受限新snapshot：双方0/2/3名、异作品/附属/Wait、多色交集/无共同色、条件变化、本次公开Yell中符合颜色与Aqours Member的一张本人回收、已移走/无目标/非法原子性、来源离场返回、新旧SQL、四AI隐藏身份不变和完整双视角/UI图文须验证；旧snapshot不追改", "新源码原30牌组冻结和全部profiles/pre-push后只本地提交，不提升reviewed、不改默认AI或Card/SQL schema、不恢复其他blocked；本提案不含push/publish、新PR、合并部署或主机许可"]
+    },
+    {
       "id": "live-start-waiting-six-shuffle-bottom-selected-aqours-heart",
       "priority": 0,
       "title": "审计控室无Blade Heart的Aqours最多六张洗回库底与指定成员Heart",

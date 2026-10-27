@@ -1,5 +1,13 @@
 # AI and Simulation Notes
 
+The exact shared-Heart Yell recovery uses the existing public-card choice and
+move-to-hand operation. All four AI versions complete either body branch with
+both owners without hidden identity dependence or input mutation. Candidate
+identity comes from the current original-Yell tracker, not the whole public
+resolution area; public recovery history does not grant current hand access.
+Frozen seed18027 actually resolved a false condition, not a positive recovery.
+See development/aqours-shared-heart-yell-verification.md for final gate evidence.
+
 The exact WATER BLUE snapshot uses two existing generic selection stages. Four
 AI versions submit both with either owner, without hidden identity dependence
 or input mutation. Only the chosen waiting set is public; shuffled order and

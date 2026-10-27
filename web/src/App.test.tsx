@@ -4932,6 +4932,35 @@ describe("App", () => {
     });
   });
 
+  it.each([0, 2])("requires one matching public shared-Heart Yell Member when available: %s", (count) => {
+    const onAction = vi.fn();
+    const action = {action_type:"resolve_effect",player_id:"player_1",options:{invocations:[{
+      invocation_id:"shared-yell",effect_id:"PL!S-cl1-011:1",source_card_instance_id:"hidden-source",label_ja:"想いよひとつになれ",
+      trigger:"live_succeeded",timing:"live_success",execution_mode:"prompt_then_resolve",simulation_support:"test_validated_executable",
+      is_optional:false,choice_type:"card_from_zone",choice_zone:"resolution_area",resolution_stage:"initial",
+      selection_policy:"public_aqours_shared_heart_yell_one",card_selection_minimum:count ? 1 : 0,card_selection_maximum:count ? 1 : 0,
+      candidate_card_instance_ids:count ? ["player_1-M002","player_1-M003"] : [],
+    }]}};
+    render(<EffectResolutionAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never} loading={false} onAction={onAction} onManual={vi.fn()} />);
+    if(count){
+      expect(screen.getByRole("button",{name:"结算技能"})).toBeDisabled();
+      fireEvent.click(screen.getByRole("button",{name:/候補カード/}));
+    }
+    fireEvent.click(screen.getByRole("button",{name:"结算技能"}));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect","player_1",{invocation_id:"shared-yell",accepted:true,selected_card_instance_ids:count ? ["player_1-M002"] : [],energy_instance_ids:[]});
+  });
+
+  it.each([[false,0],[true,0],[true,1]] as const)("shows shared-Heart Yell result %s/%s in both languages", async (condition, count) => {
+    seedSavedDecks([{path:"test.json",deck:SAMPLE_DECK}]);
+    const data={invocation_id:"shared-yell",effect_id:"PL!S-cl1-011:1",condition_met:condition,recovered_count:count};
+    vi.stubGlobal("fetch",createFetchMock({matchCreate:{...MATCH_PAYLOAD,events:[{event_type:"effect_aqours_shared_yell_recovered",player_id:"player_1",source:"system",data},{event_type:"effect_resolved",player_id:"player_1",source:"system",data}]}}));
+    render(<App />);
+    const create=await screen.findByRole("button",{name:"创建对局"});await waitFor(()=>expect(create).not.toBeDisabled());fireEvent.click(create);
+    expect((await screen.findAllByText(`Aqours 共同 Heart 条件${condition ? "满足" : "未满足"} · 本次应援回收 ${count} 张`)).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button",{name:"日本語"}));
+    expect((await screen.findAllByText(`Aqoursの共通ハート条件${condition ? "成立" : "不成立"} · 今回のエールから${count}枚回収`)).length).toBeGreaterThan(0);
+  });
+
   it.each([0, 2, 6])("submits WATER BLUE unordered public selection %s", (count) => {
     const onAction = vi.fn();
     const state = structuredClone(INSPECTION_MATCH_PAYLOAD.state) as unknown as MatchState;

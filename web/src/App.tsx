@@ -1920,6 +1920,7 @@ const autoResultTerminalEvents = new Set([
 ]);
 
 const autoResultOperationEvents = new Set([
+  "effect_aqours_shared_yell_recovered",
   "effect_water_blue_cards_returned",
   "effect_water_blue_heart_resolved",
   "effect_opponent_member_next_active_resolved",
@@ -2056,7 +2057,7 @@ function autoResultLines(
       if (summary) lines.push(summary);
       if (related.data.source_available === false) lines.push(locale === "zh"
         ? "原来源 Live 已离场，未减需" : "元のライブが離れたため必要ハートを減らさない");
-    } else if (related.event_type === "effect_waiting_lives_recovered" || related.event_type === "effect_opponent_live_recovered") {
+    } else if (related.event_type === "effect_waiting_lives_recovered" || related.event_type === "effect_opponent_live_recovered" || related.event_type === "effect_aqours_shared_yell_recovered") {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
     } else if (related.event_type === "effect_milled_blade_colors_resolved" || related.event_type === "effect_muse_blade_aura_resolved" || related.event_type === "effect_bottom_live_heart_resolved" || related.event_type === "effect_bottom_aqours_heart_resolved" || related.event_type === "effect_bottom_five_members_resolved" || related.event_type === "effect_opponent_success_draw_resolved" || related.event_type === "effect_wait_energy_next_active_resolved") {
@@ -4253,6 +4254,7 @@ function eventTitle(event: GameEvent, locale: UiLocale): string {
     effect_bottom_aqours_heart_resolved: ["底三张Aqours判定", "下三枚のAqours判定"],
     effect_bottom_five_members_resolved: ["底五次Member与Live得分", "下五回のメンバーとライブ得点"],
     effect_bottom_aqours_requirement_resolved: ["底牌与原Live必要Heart", "下のカードと元ライブの必要ハート"],
+    effect_aqours_shared_yell_recovered: ["共同Heart的Aqours应援回收", "共通ハートのAqoursエール回収"],
     effect_water_blue_cards_returned: ["控室洗回库底", "控室からシャッフルしてデッキの下へ"],
     effect_water_blue_heart_resolved: ["所选成员粉Heart", "選んだメンバーのピンクハート"],
     effect_diverdiva_energy_resolved: ["DiverDiva Energy分支", "DiverDivaエネルギー分岐"],
@@ -4399,6 +4401,11 @@ function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): st
     return locale === "zh"
       ? `对手成员 Wait ${Number(event.data.waited_count)} 人 · 下回合不复原 ${Number(event.data.restricted_count)} 人 · 抽 ${Number(event.data.drawn_count)} 张`
       : `相手メンバー${Number(event.data.waited_count)}人をウェイト · 次ターンにアクティブしない${Number(event.data.restricted_count)}人 · ${Number(event.data.drawn_count)}枚ドロー`;
+  }
+  if (event.event_type === "effect_aqours_shared_yell_recovered") {
+    return locale === "zh"
+      ? `Aqours 共同 Heart 条件${event.data.condition_met ? "满足" : "未满足"} · 本次应援回收 ${Number(event.data.recovered_count)} 张`
+      : `Aqoursの共通ハート条件${event.data.condition_met ? "成立" : "不成立"} · 今回のエールから${Number(event.data.recovered_count)}枚回収`;
   }
   if (event.event_type === "effect_water_blue_cards_returned") {
     return locale === "zh"

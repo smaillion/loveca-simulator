@@ -1,5 +1,14 @@
 # Effect Semantics Audit
 
+2026-10-28 JST: PL!S-cl1-011:1 uses a bounded shared-Heart original-Yell policy.
+Q149 clarifies Stage Member Heart terminology and Q124 explicitly excludes Blade
+Hearts from another card's Member filter. Combined with PDF2.9/9.9, current
+effective Stage Heart colors are intersected; off-Stage Yell targets use basic
+Heart and the original-object tracker. Multiple common colors form the eligible
+card set, not a new invented color action. These are rule/text derivations, not
+a card-specific FAQ or full human review. Other unresolved families stay manual.
+See development/aqours-shared-heart-yell-verification.md for scope and limits.
+
 2026-10-28 JST: WATER BLUE PL!S-cl1-013:1 has a bounded six-card waiting shuffle
 and subsequent single-recipient Heart snapshot. PDF5.5.1.2 counts zero/one as a
 shuffle; zero Heart skips a zero-value operation under1.3.2.2. This is a general

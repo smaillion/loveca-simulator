@@ -1649,6 +1649,9 @@ def _resolve_effect(
     if _water_blue_snapshot(effect):
         _resolve_water_blue(state, invocation, action, events)
         return
+    if _aqours_shared_yell_snapshot(effect):
+        _resolve_aqours_shared_yell(state, invocation, action, events)
+        return
     if _opponent_wait_modes(effect):
         if (set(action.payload) - {"invocation_id", "accepted", "selected_branch", "selected_card_instance_ids", "energy_instance_ids", "ai_decision"}
                 or action.payload.get("energy_instance_ids") not in (None, [])):
@@ -5032,6 +5035,7 @@ def _effect_unavailable_reason(
         and effect.choice.minimum > 0
         and not _effect_allows_private_selection_none(effect)
         and not _public_single_stage_choice(effect)
+        and not _aqours_shared_yell_snapshot(effect)
     ):
         choice_candidates = _effect_choice_candidates(state, invocation)
         if (
@@ -5392,6 +5396,7 @@ def _effect_choice_bounds_for_candidates(
 ) -> tuple[int, int]:
     minimum, maximum = _effect_choice_bounds(state, invocation, choice)
     if choice.selection_policy in {
+        "public_aqours_shared_heart_yell_one",
         "public_single_as_much_as_possible", "public_other_nijigasaki_cost_heart",
         "public_nijigasaki_blade_four_heart",
         "public_aqours_blade_six_source_score",
@@ -6287,6 +6292,13 @@ def _effect_candidates_for_choice(
         if original_yell is None:
             raise IllegalActionError("original Yell object snapshot is missing")
         candidates = [item for item in candidates if item in original_yell]
+    if getattr(choice, "selection_policy", None) == "public_aqours_shared_heart_yell_one":
+        original_yell = player.live_result.remaining_yell_instance_ids
+        if original_yell is None:
+            raise IllegalActionError("shared-Heart original Yell object snapshot is missing")
+        colors = _aqours_shared_heart_colors(state, invocation.player_id)
+        candidates = [item for item in candidates if item in original_yell
+                      and any(state.cards[item].card.basic_hearts.get(color, 0) > 0 for color in colors)]
     if choice.card_type:
         candidates = [
             item
@@ -7046,6 +7058,44 @@ def _record_effect_ready_flag(
 
 def _effect_uses_branch_choice(effect: Any) -> bool:
     return bool(effect.choice and effect.choice.choice_type == "choose_effect_branch")
+
+
+def _aqours_shared_yell_snapshot(effect: Any) -> bool:
+    return getattr(getattr(effect, "choice", None), "selection_policy", None) == "public_aqours_shared_heart_yell_one"
+
+
+def _aqours_shared_heart_colors(state: MatchState, player_id: str) -> list[str]:
+    members = [item for item in state.players[player_id].member_area.values() if item is not None
+               and state.cards[item].card.card_type == "member" and "love_live_sunshine" in state.cards[item].card.work_keys]
+    if len(members) < 3:
+        return []
+    return [f"heart0{i}" for i in range(1, 7)
+            if all(_member_heart_count(state, player_id, item, f"heart0{i}") > 0 for item in members)]
+
+
+def _resolve_aqours_shared_yell(state: MatchState, invocation: EffectInvocation, action: ActionRequest, events: list[GameEvent]) -> None:
+    effect = state.effect_definitions[invocation.effect_id]
+    ids = action.payload.get("selected_card_instance_ids", [])
+    if (invocation.resolution_stage != "initial"
+            or set(action.payload) - {"invocation_id", "accepted", "selected_card_instance_ids", "energy_instance_ids", "ai_decision"}
+            or action.payload.get("energy_instance_ids") not in (None, [])
+            or not isinstance(ids, list) or any(not isinstance(i, str) for i in ids) or len(ids) != len(set(ids))):
+        raise IllegalActionError("shared-Heart recovery accepts only its current public Yell selection")
+    candidates = _effect_choice_candidates(state, invocation)
+    if len(ids) != min(1, len(candidates)) or any(item not in candidates for item in ids):
+        raise IllegalActionError("shared-Heart recovery requires one matching original Yell Member when available")
+    colors = _aqours_shared_heart_colors(state, invocation.player_id)
+    revealed = [state.cards[item].model_dump(mode="json") for item in ids]
+    _execute_operations(state, invocation, effect.actions, events, selected_ids=ids)
+    state.pending_effects.remove(invocation)
+    _record_effect_usage(state, invocation)
+    events.append(GameEvent(event_type="effect_aqours_shared_yell_recovered", player_id=invocation.player_id,
+        data={"effect_id": effect.effect_id, "invocation_id": invocation.invocation_id, "condition_met": bool(colors),
+              "shared_heart_color_slots": colors, "recovered_count": len(ids), "revealed_cards": revealed}, source="system"))
+    events.append(GameEvent(event_type="effect_resolved", player_id=invocation.player_id,
+        data={"effect_id": effect.effect_id, "invocation_id": invocation.invocation_id}, source="system"))
+    _resolve_automatic_effects(state, events)
+    _continue_after_effect_queue(state, events)
 
 
 def _water_blue_snapshot(effect: Any) -> bool:
@@ -11257,7 +11307,7 @@ def _run_current_yell(
         revealed_instance_ids=revealed,
         remaining_yell_instance_ids=(list(revealed) if any(
             effect.choice is not None
-            and effect.choice.selection_policy == "public_yell_aqours_bottom_three"
+            and effect.choice.selection_policy in {"public_yell_aqours_bottom_three", "public_aqours_shared_heart_yell_one"}
             for effect in state.effect_definitions.values()
         ) else None),
         member_hearts=dict(sorted(member_hearts.items())),

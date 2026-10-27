@@ -39,6 +39,7 @@ from loveca.simulation.models import (
     CardInstance,
     EffectInvocation,
     GameEvent,
+    LivePerformanceResult,
     ManualModifier,
     MatchState,
     PlayerState,
@@ -197,6 +198,9 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *((f"aqours_shared_yell_{case}", f"共通ハートとエール {case}", f"共同Heart与应援 {case}",
+           "PL!S-cl1-011:1", lambda effect, case=case: _run_aqours_shared_yell(effect, case))
+          for case in ("red", "green", "no_common", "two_members", "no_target")),
         *((f"water_blue_bottom_{count}", f"控室から下へ {count}", f"控室洗回库底 {count}",
            "PL!S-cl1-013:1", lambda effect, count=count: _run_water_blue(effect, count))
           for count in (0, 1, 2, 5, 6)),
@@ -660,6 +664,34 @@ def _run_opponent_success_draw(effect: EffectDefinition, case: str) -> dict[str,
         "条件成立時だけ必須一枚 / 条件成立才必选一张": len(final.state.players["player_1"].hand) == expected_draw - int(both and bool(hand_before)),
         "待機完了 / 待机完成": not final.state.pending_effects,
     }
+
+
+def _run_aqours_shared_yell(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    source = _v1_1_live("source", effect.card_code, effect_ids=[effect.effect_id])
+    members = [_v1_1_member(f"member-{i}", f"MEMBER-{i}") for i in range(3)]
+    for member in members:
+        member.card.work_keys = ["love_live_sunshine"]
+        member.card.basic_hearts = {"heart02": 1, "heart04": 1}
+    if case == "no_common":
+        members[-1].card.basic_hearts = {"heart06": 1}
+    target = _v1_1_member("target", "YELL")
+    target.card.work_keys = ["love_live_sunshine"]
+    target.card.basic_hearts = {"heart04" if case == "green" else "heart06" if case == "no_target" else "heart02": 1}
+    state = _v1_1_state({effect.effect_id: effect}, [source, *members, target], hand=[])
+    p = state.players["player_1"]
+    p.live_area, p.member_area = ["source"], {"left": "member-0", "center": "member-1", "right": None if case == "two_members" else "member-2"}
+    p.resolution_area = ["target"]
+    p.live_result = LivePerformanceResult(revealed_instance_ids=["target"], remaining_yell_instance_ids=["target"])
+    state.pending_effects = [EffectInvocation(invocation_id="shared-yell", effect_id=effect.effect_id,
+        player_id="player_1", source_card_instance_id="source", trigger_event="live_succeeded")]
+    selected = ["target"] if case in {"red", "green"} else []
+    result = apply_action(state, ActionRequest(action_type="resolve_effect", player_id="player_1", expected_revision=state.revision,
+        payload={"invocation_id": "shared-yell", "selected_card_instance_ids": selected}))
+    data = next(e.data for e in result.events if e.event_type == "effect_aqours_shared_yell_recovered")
+    return {"交集而非并集 / 共通色のみ": data["condition_met"] == (case not in {"no_common", "two_members"}),
+        "原应援Member / 元のエールメンバー": data["recovered_count"] == int(bool(selected)),
+        "仅本人手牌 / 自分の手札のみ": result.state.players["player_1"].hand == selected,
+        "待機完了 / 待机完成": not result.state.pending_effects}
 
 
 def _run_water_blue(effect: EffectDefinition, count: int) -> dict[str, bool]:

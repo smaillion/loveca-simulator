@@ -655,6 +655,22 @@ def _live_start_discard_two_same_group_gain_heart_blade(
     return None
 
 
+def _live_success_aqours_shared_heart_yell(row: sqlite3.Row) -> EffectCandidate | None:
+    text = "【ライブ成功時】自分のステージに『Aqours』のメンバーが3人以上おり、かつ、それらのメンバーが同じ色のハートを持つ場合、エールにより公開された自分のカードの中から、その色のハートを持つ『Aqours』のメンバーカード1枚を手札に加える。"
+    if (row["card_code"] != "PL!S-cl1-011" or row["text_revision_id"] != 970
+            or row["raw_text_hash"] != "b56ab4b40570e38e542e3d9613235c13e595d323ea45853c4b94a54fc874a806"
+            or row["raw_effect_text_ja"] != text):
+        return None
+    return EffectCandidate(
+        **_base(row, pattern_id="live_success_aqours_shared_heart_yell", effect_index=1), label_ja=text,
+        effect_type="triggered", timing="live_success", trigger="live_succeeded", frequency_limit="once_per_live",
+        is_optional=False, condition={}, cost=[], duration=None,
+        choice={"choice_type": "card_from_zone", "selection_policy": "public_aqours_shared_heart_yell_one",
+                "zone": "resolution_area", "card_type": "member", "work_key": "love_live_sunshine", "minimum": 1, "maximum": 1},
+        actions=[{"action_type": "move_selected_to_hand"}],
+    )
+
+
 def _live_success_aqours_yell_bottom_three(row: sqlite3.Row) -> EffectCandidate | None:
     label = (
         "【ライブ成功時】エールにより公開された自分のカードの中から、"
@@ -15803,6 +15819,7 @@ _PATTERNS = (
     _onplay_diverdiva_energy_modes,
     _live_success_opponent_cost4_wait_or_draw,
     _live_start_water_blue_bottom_heart,
+    _live_success_aqours_shared_heart_yell,
     _onplay_audited_discard_inspection,
     _onplay_optional_discard_inspect_keep1_any,
     _nijigasaki_onplay_inspection,
