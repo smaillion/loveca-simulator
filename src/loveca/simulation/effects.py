@@ -39,6 +39,7 @@ SUPPORTED_EFFECT_ACTIONS = {
     "manual_resolution",
     "modify_score",
     "modify_source_score_if_selected_blade_highest",
+    "modify_source_score_if_selected_blade_six",
     "modify_required_heart",
     "modify_yell_count",
     "move_remaining_cards",
@@ -319,6 +320,7 @@ class EffectChoice(BaseModel):
         "public_named_groups_as_much_as_possible", "public_other_nijigasaki_cost_heart",
         "public_yell_aqours_bottom_three",
         "public_nijigasaki_blade_four_heart",
+        "public_aqours_blade_six_source_score",
     ] | None = None
     zone: str | None = None
     card_type: str | None = None
@@ -450,6 +452,14 @@ class EffectChoice(BaseModel):
             }
         ):
             raise ValueError("other Nijigasaki selection requires one other own Stage Member")
+        if self.selection_policy == "public_aqours_blade_six_source_score" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "member_from_stage", "zone": "stage", "card_type": "member",
+                "selection_policy": "public_aqours_blade_six_source_score",
+                "minimum": 1, "work_key": "aqours",
+            }
+        ):
+            raise ValueError("Aqours Blade-six selection must not pre-filter the body condition")
         if self.selection_policy == "public_nijigasaki_blade_four_heart" and (
             self.model_dump(exclude_defaults=True, exclude_none=True) != {
                 "choice_type": "member_from_stage", "zone": "stage", "card_type": "member",
@@ -723,6 +733,25 @@ class EffectDefinition(BaseModel):
             }
         ):
             raise ValueError("other Nijigasaki selection only supports bounded cost15 Heart")
+        if any(op.action_type == "modify_source_score_if_selected_blade_six"
+               for op in self.actions) and (
+            not self.choice
+            or self.choice.selection_policy != "public_aqours_blade_six_source_score"
+        ):
+            raise ValueError("Blade-six source score requires its bounded selection policy")
+        if (self.choice
+                and self.choice.selection_policy == "public_aqours_blade_six_source_score") and (
+            self.cost or self.cost_choice or self.follow_up_choice
+            or self.condition or self.is_optional
+            or self.trigger != "live_started" or self.timing != "live_start"
+            or self.effect_type != "triggered" or self.frequency_limit != "once_per_live"
+            or self.execution_mode != "prompt_then_resolve" or self.duration != "live"
+            or len(self.actions) != 1
+            or self.actions[0].model_dump(exclude_defaults=True, exclude_none=True) != {
+                "action_type": "modify_source_score_if_selected_blade_six", "amount": 1,
+            }
+        ):
+            raise ValueError("Aqours Blade-six policy only supports source Live score +1")
         if (self.choice
                 and self.choice.selection_policy == "public_nijigasaki_blade_four_heart") and (
             self.cost or self.cost_choice or self.follow_up_choice

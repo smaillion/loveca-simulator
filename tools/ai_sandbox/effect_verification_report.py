@@ -22,6 +22,7 @@ from loveca.simulation.effects import (
 )
 from loveca.simulation.engine import (
     IllegalActionError,
+    _card_score,
     _effective_member_blade,
     _effective_member_play_cost,
     _queue_live_success_effects,
@@ -195,6 +196,16 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        ("aqours_blade_six_low", "Blade5も選べる・score加算なし", "Blade5仍可选但不加分",
+         "PL!S-bp3-025:1", lambda effect: _run_aqours_blade_six_source_score(effect, blade=5)),
+        ("aqours_blade_six_exact", "Blade6・発生源Liveだけscore+1", "Blade6仅来源Live加1分",
+         "PL!S-bp3-025:1", _run_aqours_blade_six_source_score),
+        ("aqours_blade_six_static", "Blade5+常時1・発生源score", "基础Blade5加常时1后来源加分",
+         "PL!S-bp3-025:1", lambda effect: _run_aqours_blade_six_source_score(
+             effect, blade=5, static=1)),
+        ("aqours_blade_six_departed", "発生源離脱・別Liveに加算しない",
+         "来源离开后不把分数留给其他Live", "PL!S-bp3-025:1",
+         lambda effect: _run_aqours_blade_six_source_score(effect, departed=True)),
         ("niji_blade_four_below", "Blade3・対象なし", "Blade3：无目标明确结束",
          "PL!N-sd2-026:1", lambda effect: _run_niji_blade_four_heart(effect, blade=3)),
         ("niji_blade_four_exact", "Blade4・Heart二つ", "Blade4：仅目标获得两颗Heart",
@@ -497,6 +508,9 @@ def _v1_1_dynamic_scenarios(
                 notes_ja=[f"公式日本語テキスト: {effect.label_ja}"],
                 notes_zh=[f"官方日文效果文本：{effect.label_ja}"],
                 rule_reference_ids=(
+                    ["2.8.1", "2.10.1", "4.1.4", "8.3.8", "8.4.2", "9.6.3.1",
+                     "9.6.3.1.3", "9.9.1.5"]
+                    if effect_id == "PL!S-bp3-025:1" else
                     ["2.8.1", "2.8.2", "9.9.1.1", "9.9.1.5", "9.6.3.1",
                      "9.6.3.1.3", "11.5.2", "8.4.11"]
                     if effect_id == "PL!N-sd2-026:1" else
@@ -510,6 +524,65 @@ def _v1_1_dynamic_scenarios(
             )
         )
     return results
+
+
+def _run_aqours_blade_six_source_score(
+    effect: EffectDefinition, *, blade: int = 6, static: int = 0, departed: bool = False,
+) -> dict[str, bool]:
+    source = _v1_1_live("source", "Source Live", effect_ids=[effect.effect_id])
+    other_live = _v1_1_live("other-live", "Other Live")
+    target = _v1_1_member("target", "Aqours", work_keys=["aqours"])
+    target.card.blade = blade
+    state = _v1_1_state(
+        {effect.effect_id: effect}, [source, other_live, target],
+        member_area={"left": "target", "center": None, "right": None},
+    )
+    state.players["player_1"].live_area = ["source", "other-live"]
+    if static:
+        raw = effect.model_dump(mode="json")
+        raw.update(effect_id="AUDIT-static", choice=None, effect_type="continuous",
+                   timing="static_always", trigger="static_always", execution_mode="auto_resolve",
+                   frequency_limit="none", duration=None,
+                   actions=[{"action_type": "gain_blade", "amount": static}])
+        static_effect = EffectDefinition.model_validate(raw)
+        state.effect_definitions[static_effect.effect_id] = static_effect
+        target.card.effect_ids = [static_effect.effect_id]
+    state.phase = "performance_first"
+    started = apply_action(state, ActionRequest(
+        action_type="advance_phase", player_id="player_1", expected_revision=state.revision,
+    ))
+    options = next(
+        a for a in started.legal_actions if a.action_type == "resolve_effect"
+    ).options["invocations"][0]
+    resolved = apply_action(started.state, ActionRequest(
+        action_type="resolve_effect", player_id="player_1",
+        expected_revision=started.state.revision,
+        payload={"invocation_id": started.state.pending_effects[0].invocation_id,
+                 "selected_card_instance_ids": ["target"]},
+    ))
+    source_expected = 1 + int(blade + static >= 6)
+    if departed:
+        resolved = apply_action(resolved.state, ActionRequest(
+            action_type="manual_adjustment", player_id="player_1",
+            expected_revision=resolved.state.revision,
+            payload={"adjustments": [{
+                "adjustment_type": "move_card", "target_player_id": "player_1",
+                "target_card_instance_id": "source", "to_zone": "waiting_room",
+            }]},
+        ))
+        source_expected = 1
+    return {
+        "閾値で選択を制限しない / 不按阈值限制选择":
+        options["candidate_card_instance_ids"] == ["target"],
+        "発生源だけ加算 / 仅来源加分":
+        _card_score(resolved.state, "player_1", "source") == source_expected,
+        "他Live不変 / 其他Live不变": _card_score(resolved.state, "player_1", "other-live") == 1,
+        "全体scoreなし / 无全局分数": all(
+            m.modifier_type != "score"
+            for m in resolved.state.players["player_1"].manual_modifiers
+        ),
+        "待機完了 / 待机完成": not resolved.state.pending_effects,
+    }
 
 
 def _run_niji_blade_four_heart(

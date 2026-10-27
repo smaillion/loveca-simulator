@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+`PL!S-bp3-025:1`はAqoursを先に選択し、解決時に有効Blade6以上なら元のLiveだけscore+1。低Bladeも選択可能で、離場後の同IDは再接続しません。旧Replay維持、266関連テスト・191図解を検証。同じ30デッキは9完了/21手動停止、本カードの実入隊は0で完走率の改善とはしません。[検証](./docs/development/aqours-blade-six-score-verification.md)
+
 継続開発のblockedタスクは、承認済みの原因解消を記録する`requeue`で復帰できます。有効な作業リースや未完了の依存を回避せず、古い検証結果も再利用しません。[開発手順](./docs/21-continuous-development.md)
 
 「Fire Bird」`PL!N-sd2-026:1`に対応。現在の有効Bladeが4以上の自分の虹ヶ咲Stage Memberを1人選び、Heart02を2つ与えます。新policyだけ常時修正も反映し、旧Replayは維持。918/1212、294manual。同じ30デッキは9完了/21手動停止で、beta合格ではありません。[検証](./docs/development/nijigasaki-blade-four-heart-verification.md)

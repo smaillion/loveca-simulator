@@ -70593,7 +70593,7 @@
     {
       "actions": [
         {
-          "action_type": "modify_score",
+          "action_type": "modify_source_score_if_selected_blade_six",
           "amount": 1,
           "amount_source": null,
           "branch": null,
@@ -70642,7 +70642,7 @@
         "maximum_original_blade": null,
         "maximum_score": null,
         "minimum": 1,
-        "minimum_blade": 6,
+        "minimum_blade": null,
         "minimum_cost": null,
         "minimum_heart_count": null,
         "minimum_original_blade": null,
@@ -70661,6 +70661,7 @@
         "same_name_as_stage": false,
         "selected_destination": null,
         "selection_groups": [],
+        "selection_policy": "public_aqours_blade_six_source_score",
         "share_unit_with_cost_selected": false,
         "share_unit_with_stage": false,
         "target_hand_size": null,
@@ -70669,7 +70670,7 @@
         "unit_keys_any": [],
         "unselected_destination": null,
         "value": null,
-        "work_key": "love_live_sunshine",
+        "work_key": "aqours",
         "zone": "stage"
       },
       "condition": {},

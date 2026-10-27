@@ -1,5 +1,9 @@
 # 分支与工作树清单
 
+2026-10-26T16:17Z：Aqours Blade6切片因限定恢复审批连续三轮缺失登记为blocked，仅保存状态，不再重试被拒绝的修改。现有PR54/90a10c6五项CI仍绿；本地225前端单测通过但完整build的数据导出因registry破损失败。依赖任务及全局门禁均不能绕过；等待已发出的限定审批，不新增分支、不提交推送。
+
+本地未提交检查点：Aqours Blade6/source score两项旧规则错误已真实复现，原型63专项及225前端通过；登记补丁重复上下文误写两个LL-bp5条目，安全检查拒绝自动恢复，已请求维护者限定批准。全局registry暂不能加载，不提交、不推送、不宣称门禁通过。恢复先读`aqours-blade-six-score-progress.md`，未批准不重试被拒绝的恢复；最后已发布90a10c6五项CI全绿，同PR54，旧dirty保留。
+
 优先级更新：只读审计发现旧`PL!S-bp3-025:1`有minimum_blade6与通用modify_score登记风险，下一批先真实复现“先选人后判断”与仅来源Live得分；本批不顺手改旧快照，不宣称已经验证。该完整性任务排在lily white新覆盖之前。
 
 有效Blade检查点：精确实现`PL!N-sd2-026:1`，新受限policy使用共享有效Blade含已支持常时修正；旧filter/Replay不变。55专项、148关联回归、3UI交互与187图文通过，918/1212、294manual。同冻结30局完赛8→9、21人工停止，158/160可执行完成，2待机保留，无非法/runtime/Replay/错误skip。见`nijigasaki-blade-four-heart-verification.md`；下一项`PL!-pb2-041:2`lily white成功区条件与来源Live得分。旧44/6 dirty及ignored成果保留，同PR54，不合并部署。
@@ -182,6 +186,8 @@ Replay 缺陷已复现并列最高优先级。见 `occupied-deployment-foundatio
 | `codex/simple-ai-v1-1-registry-integrity` | 0 / 3 | 0 | 已合并历史，报告核对后归档 | `E:\Repository\loveca-simulation\.tmp\simple-ai-v1-1-registry-integrity` |
 | `codex/simple-ai-v1-effect-accuracy` | 0 / 6 | 0 | 已合并历史，报告核对后归档 | `E:\Repository\loveca-simulation\.tmp\simple-ai-v1-effect-accuracy` |
 | `codex/v0-9-card-sync-effects-ai-reliability` | 3 / 0 | 0 | 有独有提交，待对比迁移 | `E:\Repository\loveca-simulation\.tmp\v0-9-card-sync-effects-ai-reliability` |
+
+2026-10-27 恢复补充：PR54已获维护者批准合并上线；固定工作树保存全部15项WIP后快进到`ca3aec4`，Git内容逐项核对一致，备份stash保留。协调器恢复入口已提交`122fd48`，原Aqours任务已通过显式requeue恢复；不把旧表格中的PR54开放状态当作当前事实。其他旧dirty工作树和ignored报告未动，新PR目标仍待单独确认。
 
 ## 分支
 

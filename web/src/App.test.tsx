@@ -4365,6 +4365,36 @@ describe("App", () => {
     });
   });
 
+  it.each(["low", "high", "empty"])("allows a low Blade Aqours choice before checking the score condition: %s", (mode) => {
+    const onAction = vi.fn();
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    const ids = mode === "empty" ? [] : ["player_1-M002", "player_1-M003"];
+    ids.forEach((id, i) => { state.cards[id] = { ...state.cards[id],
+      card: { ...state.cards[id].card, name_ja: `Aqours Blade ${i + 5}`, blade: i + 5 } }; });
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "aqours-six", effect_id: "PL!S-bp3-025:1", source_card_instance_id: "player_1-M001",
+      label_ja: "【ライブ開始時】Aqours1人を選ぶ。そのBladeが6以上ならこのLiveのscore+1。",
+      trigger: "live_started", timing: "live_start", execution_mode: "prompt_then_resolve",
+      simulation_support: "test_validated_executable", is_optional: false, choice_type: "member_from_stage",
+      choice_zone: "stage", card_selection_minimum: ids.length ? 1 : 0, card_selection_maximum: ids.length ? 1 : 0,
+      selection_policy: "public_aqours_blade_six_source_score", candidate_card_instance_ids: ids,
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false}
+      onAction={onAction} onManual={vi.fn()} />);
+    const resolve = screen.getByRole("button", { name: "结算技能" });
+    if (ids.length) {
+      expect(resolve).toBeDisabled();
+      const low = screen.getByRole("button", { name: /Aqours Blade 5/ });
+      expect(low).toBeEnabled();
+      fireEvent.click(mode === "low" ? low : screen.getByRole("button", { name: /Aqours Blade 6/ }));
+    }
+    fireEvent.click(resolve);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "aqours-six", accepted: true,
+      selected_card_instance_ids: ids.length ? [ids[mode === "low" ? 0 : 1]] : [], energy_instance_ids: [],
+    });
+  });
+
   it.each([0, 1, 2])("requires a current Blade-four target or explicitly resolves no targets: %s", (count) => {
     const onAction = vi.fn();
     const ids = ["player_1-M002", "player_1-M003"].slice(0, count);

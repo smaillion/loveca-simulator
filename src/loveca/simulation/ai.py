@@ -833,7 +833,10 @@ def _structured_effect_payload_v1(
     choice_type = invocation.get("choice_type") or choice.get("choice_type")
     candidates = list(invocation.get("candidate_card_instance_ids", []))
     if candidates and any(
-        op.action_type == "modify_source_score_if_selected_blade_highest"
+        op.action_type in {
+            "modify_source_score_if_selected_blade_highest",
+            "modify_source_score_if_selected_blade_six",
+        }
         for op in effect.actions
     ):
         blade_counts = invocation.get("candidate_blade_counts", {})
@@ -1139,7 +1142,10 @@ def _operation_value_without_observation(
         base = 6 * amount
     elif action_type in {"gain_heart", "gain_heart_to_stage_members"}:
         base = 7 * amount
-    elif action_type in {"modify_score", "replace_score", "modify_source_score_if_selected_blade_highest"}:
+    elif action_type in {
+        "modify_score", "replace_score", "modify_source_score_if_selected_blade_highest",
+        "modify_source_score_if_selected_blade_six",
+    }:
         base = 11 * amount
     elif action_type in {"return_from_waiting_room", "move_selected_to_hand"}:
         base = 7 * amount

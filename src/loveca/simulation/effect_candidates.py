@@ -628,6 +628,30 @@ def _live_success_aqours_yell_bottom_three(row: sqlite3.Row) -> EffectCandidate 
     )
 
 
+def _live_start_aqours_selected_blade_six_source_score(row: sqlite3.Row) -> EffectCandidate | None:
+    label = (
+        "【ライブ開始時】自分のステージにいる『Aqours』のメンバー1人を選ぶ。"
+        "そのメンバーが持つ【ブレード】が6つ以上の場合、このカードのスコアを＋１する。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base(row, pattern_id="live_start_aqours_selected_blade_six_source_score",
+                effect_index=effect_index),
+        label_ja=exact_label, effect_type="triggered", timing="live_start",
+        trigger="live_started", frequency_limit="once_per_live", is_optional=False,
+        condition={}, cost=[], choice={
+            "choice_type": "member_from_stage", "zone": "stage", "card_type": "member",
+            "work_key": "aqours", "minimum": 1, "maximum": 1,
+            "selection_policy": "public_aqours_blade_six_source_score",
+        },
+        actions=[{"action_type": "modify_source_score_if_selected_blade_six", "amount": 1}],
+        duration="live",
+    )
+
+
 def _live_start_nijigasaki_blade_four_heart(row: sqlite3.Row) -> EffectCandidate | None:
     label = (
         "【ライブ開始時】自分のステージにいる【ブレード】を4つ以上持つ『虹ヶ咲』の"
@@ -8841,20 +8865,6 @@ def _live_start_deep_modifiers(row: sqlite3.Row) -> EffectCandidate | None:
             "actions": [{"action_type": "gain_blade", "amount": 1}],
             "duration": "live",
         },
-        "【ライブ開始時】自分のステージにいる『Aqours』のメンバー1人を選ぶ。そのメンバーが持つ【ブレード】が6つ以上の場合、このカードのスコアを＋１する。": {
-            "suffix": "choose_aqours_member_blade6_score1",
-            "choice": {
-                "choice_type": "member_from_stage",
-                "zone": "stage",
-                "card_type": "member",
-                "work_key": "love_live_sunshine",
-                "minimum_blade": 6,
-                "minimum": 1,
-                "maximum": 1,
-            },
-            "actions": [{"action_type": "modify_score", "amount": 1}],
-            "duration": "live",
-        },
         "【ライブ開始時】自分の成功ライブカード置き場にカードがある場合、【heart01】か【heart03】か【heart06】のうち、1つを選ぶ。ライブ終了時まで、自分のステージにいる『μ's』のメンバー1人は、選んだハートを1つ得る。": {
             "suffix": "success_exists_choose_muse_member_heart1",
             "condition": {"success_live_count_at_least": 1},
@@ -15402,6 +15412,7 @@ _PATTERNS = (
     _live_start_discard_two_same_group_gain_heart_blade,
     _live_start_other_nijigasaki_cost_heart,
     _live_start_nijigasaki_blade_four_heart,
+    _live_start_aqours_selected_blade_six_source_score,
     _live_success_aqours_yell_bottom_three,
     _live_start_success_muse_two_yell_ten,
     _live_start_reduce_yell_count_by8_if_other_member,

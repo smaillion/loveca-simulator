@@ -6,10 +6,13 @@ bounded policy; historical generic filters stay unchanged.55 focused tests,
 4 new illustrated state cases and3 UI cases pass.918/1212 test-validated,294 manual;
 no human-reviewed promotion. [Evidence](development/nijigasaki-blade-four-heart-verification.md).
 
-Follow-up risk: existing PL!S-bp3-025:1 still encodes Blade6 as a target filter
-and uses generic score modification. Its text selects first, then checks Blade,
-and modifies only the source Live. This is queued for priority state reproduction
-and snapshot-safe correction; the current Fire Bird tests do not validate it.
+PL!S-bp3-025:1 revision504 corrects the reproduced Blade6 pre-filter and global
+score errors with a new bounded snapshot. It selects first, then checks effective
+Blade, and modifies only the original Live while preserving old Replay snapshots.
+63 dedicated cases/266 related tests and191 illustrated cases pass. Frozen30 did
+not trigger this effect, so its proof is targeted state/SQL/four-policy/UI tests,
+not random-match frequency. Registry remains918/1212 with294 manual and no human
+review promotion. [Evidence](development/aqours-blade-six-score-verification.md).
 
 PL!S-cl1-002:1 revision961 uses a bounded original-Yell Aqours0–3 ordered policy.
 Only opted-in snapshots serialize remaining Yell objects; departure invalidates

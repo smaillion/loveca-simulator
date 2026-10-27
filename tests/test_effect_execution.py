@@ -1382,7 +1382,7 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
         "live_start_wait_opponent_original_blade3_non_dollchestra_member",
         "live_start_draw1_wait_opponent_cost9_member_up_to1",
         "live_start_stage_total_heart5_wait_opponent_cost2_member",
-        "live_start_deep_choose_aqours_member_blade6_score1",
+        "live_start_aqours_selected_blade_six_source_score",
         "onplay_named_baton_nakasu_kasumi_draw2_discard1",
         "activated_discard2_return_live_required_heart03_3",
         "audited_discard_inspection_PL!S-pb1-013",
@@ -3585,13 +3585,13 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
         "choice_type": "member_from_stage",
         "zone": "stage",
         "card_type": "member",
-        "work_key": "love_live_sunshine",
-        "minimum_blade": 6,
+        "work_key": "aqours",
+        "selection_policy": "public_aqours_blade_six_source_score",
         "minimum": 1,
         "maximum": 1,
     }
     assert aqours_blade_choice_candidate.actions == [
-        {"action_type": "modify_score", "amount": 1}
+        {"action_type": "modify_source_score_if_selected_blade_six", "amount": 1}
     ]
     success_score_candidate = next(
         candidate

@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+`PL!S-bp3-025:1`改为先选择Aqours成员，结算时有效Blade至少6才给原来源Live加1分；低Blade仍可选，同ID离场返回不重绑。保留旧Replay，266项相关回归、191图文通过。同冻结30局仍9完赛/21人工停止，本卡实际触发0次，不冒充完赛率提升。[验证报告](./docs/development/aqours-blade-six-score-verification.md)
+
 持续开发新增显式`requeue`恢复入口：记录已获批准的阻塞解除原因，不绕过有效写入租约或未完成依赖，不复用旧测试授权。[开发流程](./docs/21-continuous-development.md)
 
 精确支持「Fire Bird」`PL!N-sd2-026:1`：选择当前有效Blade至少4的己方虹咲Stage成员，给予两颗Heart02；新策略包含已支持常时修正，旧Replay过滤不变。918/1212、294manual。同冻结30牌组9完赛/21明确人工停止，仍非beta门禁。[验证报告](./docs/development/nijigasaki-blade-four-heart-verification.md)

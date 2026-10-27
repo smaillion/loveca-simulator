@@ -1,5 +1,12 @@
 # AI and Simulation Notes
 
+PL!S-bp3-025:1 now selects an own Aqours Stage Member before testing effective
+Blade>=6, scoring only its original Live object. Four policies and hidden-hand
+invariance have targeted assertions. Frozen30 remains9 completed/21 manual stops,
+158/160 executable completions; this effect actually triggered0 times in that pool.
+Defaultv1.1 and historical Replay snapshots stay unchanged.
+[Chinese evidence](development/aqours-blade-six-score-verification.md).
+
 PL!N-sd2-026:1 uses the engine's effective Member Blade (including supported
 static modifiers), not printed Blade or a player-level Yell bonus. Its opt-in
 policy preserves old Replay filtering. Four policies pass current-target and

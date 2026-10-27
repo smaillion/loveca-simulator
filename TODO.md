@@ -9,7 +9,7 @@
 
 ### 新卡起动与未支持段落
 
-- 优先审计既有`PL!S-bp3-025:1`：当前登记用minimum_blade6限制候补并使用通用modify_score，但正文是先选Aqours成员再判断Blade，且仅来源Live加分。下一批先真实复现低Blade仍应可选、有效Blade与多Live/来源离开边界，再精确修正或保守manual；不以新Fire Bird测试替代该条验收，旧Replay不追改。
+- `PL!S-bp3-025:1`已在本地修正先选人后判Blade六及仅原来源Live加分，有266相关/191图文、新旧SQL Replay、四AI及隐私断言。冻结30局仍9完赛/21人工停止，本卡实际触发0，不宣称完赛改善。最终门禁独立保存；下一项为`PL!-pb2-041:2`的lily white成功区两张与来源score，复杂第一段manual。见`docs/development/aqours-blade-six-score-verification.md`。新PR发布目标另待明确确认，不复用关闭的54。
 
 - `PL!N-sd2-026:1`精确支持有效Blade至少4的虹咲目标双Heart02，包含已支持常时修正但不修改旧Replay过滤。55专项、3UI和187图文通过，918/1212、294manual。同冻结30局9完赛/21人工停止，可执行158/160完成，仍非发布门禁。见`docs/development/nijigasaki-blade-four-heart-verification.md`。下一项审计`PL!-pb2-041:2`成功区lily white两张仅来源Live score+1，区分unit/work并保留第一段manual。
 

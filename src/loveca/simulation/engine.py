@@ -848,7 +848,7 @@ def _resolve_live_requirements(
         if selected not in choices:
             raise IllegalActionError("success Live choice must select an offered card")
         player = state.players[pending.player_id]
-        player.live_area.remove(selected)
+        _remove_live_area_card(state, player.player_id, selected)
         player.success_live_area.append(selected)
         _record_success_live_move(state, player.player_id, selected)
         events.append(
@@ -2875,6 +2875,11 @@ def _queue_triggered_effects(
                 continue
             if _captures_original_stage_source(effect):
                 invocation.trigger_data["original_source_stage_object"] = True
+            if _captures_original_live_source(effect):
+                invocation.trigger_data["original_source_live_object"] = (
+                    source_id in state.players[source.owner_id].live_area
+                    and source.card.card_type == "live"
+                )
             state.pending_effects.append(invocation)
             events.append(
                 GameEvent(
@@ -2891,6 +2896,12 @@ def _queue_triggered_effects(
                     },
                 )
             )
+
+
+def _captures_original_live_source(effect: Any) -> bool:
+    return getattr(getattr(effect, "choice", None), "selection_policy", None) == (
+        "public_aqours_blade_six_source_score"
+    )
 
 
 def _original_moved_source_ready(effect: Any) -> bool:
@@ -4970,7 +4981,10 @@ def _effect_resolution_options(
         ]
         options["energy_required_source"] = "selected_count"
     if any(
-        op.action_type == "modify_source_score_if_selected_blade_highest"
+        op.action_type in {
+            "modify_source_score_if_selected_blade_highest",
+            "modify_source_score_if_selected_blade_six",
+        }
         for op in effect.actions
     ):
         options["candidate_blade_counts"] = {
@@ -5050,6 +5064,7 @@ def _effect_choice_bounds_for_candidates(
     if choice.selection_policy in {
         "public_single_as_much_as_possible", "public_other_nijigasaki_cost_heart",
         "public_nijigasaki_blade_four_heart",
+        "public_aqours_blade_six_source_score",
     }:
         return min(minimum, len(candidates)), min(maximum, len(candidates))
     stale_trigger_can_expire = (
@@ -7020,6 +7035,7 @@ def _public_single_stage_choice(effect: Any) -> bool:
     return bool(effect.choice and effect.choice.selection_policy in {
         "public_single_as_much_as_possible", "public_other_nijigasaki_cost_heart",
         "public_nijigasaki_blade_four_heart",
+        "public_aqours_blade_six_source_score",
     })
 
 
@@ -7706,7 +7722,7 @@ def _execute_operations(
             if state.cards[source_instance_id].card.card_type != "live":
                 raise IllegalActionError("effect source must be a Live card")
             _clear_live_card_score(player, source_instance_id)
-            player.live_area.remove(source_instance_id)
+            _remove_live_area_card(state, invocation.player_id, source_instance_id)
             player.hand.append(source_instance_id)
             state.cards[source_instance_id].face_up = True
             events.append(
@@ -9039,6 +9055,38 @@ def _execute_operations(
                     ),
                 )
             )
+        elif operation_type == "modify_source_score_if_selected_blade_six":
+            if "original_source_live_object" not in invocation.trigger_data:
+                raise IllegalActionError("original Live source object snapshot is missing")
+            selected_blade = (
+                _effective_member_blade(state, invocation.player_id, operation_selected_ids[0])
+                if operation_selected_ids else None
+            )
+            source_id = invocation.source_card_instance_id
+            available = (
+                invocation.trigger_data["original_source_live_object"] is True
+                and not invocation.trigger_data.get("original_source_live_object_departed", False)
+                and source_id in player.live_area
+                and state.cards[source_id].card.card_type == "live"
+            )
+            condition_met = selected_blade is not None and selected_blade >= 6
+            amount = 1 if available and condition_met else 0
+            if amount:
+                player.manual_modifiers.append(ManualModifier(
+                    modifier_id=f"effect:{invocation.invocation_id}:blade-six-live-card-score",
+                    modifier_type="live_card_score", duration="live",
+                    created_turn=state.turn_number,
+                    amount=1, target_card_instance_id=source_id,
+                ))
+            events.append(GameEvent(
+                event_type="effect_selected_blade_threshold_resolved",
+                player_id=invocation.player_id,
+                data={"invocation_id": invocation.invocation_id, "effect_id": effect.effect_id,
+                      "selected_card_instance_ids": operation_selected_ids,
+                      "source_card_instance_id": source_id, "selected_blade": selected_blade,
+                      "threshold": 6, "condition_met": condition_met, "source_available": available,
+                      "score_delta": amount}, source="system",
+            ))
         elif operation_type == "modify_source_score_if_selected_blade_highest":
             if len(operation_selected_ids) != 1:
                 raise IllegalActionError("Blade comparison requires exactly one Stage Member")
@@ -10370,7 +10418,7 @@ def _reveal_current_live_cards(
         if card.card.card_type == "live":
             revealed_live_ids.append(instance_id)
         else:
-            player.live_area.remove(instance_id)
+            _remove_live_area_card(state, player_id, instance_id)
             player.waiting_room.append(instance_id)
             discarded_ids.append(instance_id)
     events.append(
@@ -10591,7 +10639,7 @@ def _apply_live_requirements(
     player.live_result.requirements_satisfied = satisfied
     if not satisfied:
         for instance_id in list(player.live_area):
-            player.live_area.remove(instance_id)
+            _remove_live_area_card(state, player_id, instance_id)
             player.waiting_room.append(instance_id)
     else:
         player.live_result.base_score = sum(
@@ -10895,7 +10943,8 @@ def _finish_judgment_choices(
         player_id = remaining_winners.pop(0)
         player = state.players[player_id]
         if len(player.live_area) == 1:
-            selected = player.live_area.pop()
+            selected = player.live_area[-1]
+            _remove_live_area_card(state, player_id, selected)
             player.success_live_area.append(selected)
             _record_success_live_move(state, player_id, selected)
             events.append(
@@ -10929,6 +10978,8 @@ def _complete_live_judgment(
     for player in state.players.values():
         for zone in (player.live_area, player.resolution_area):
             for instance_id in list(zone):
+                if zone is player.live_area:
+                    _on_live_card_departure(state, player.player_id, instance_id)
                 if zone is player.resolution_area:
                     _forget_yell_object(player, instance_id)
                 zone.remove(instance_id)
@@ -11213,8 +11264,12 @@ def _manual_move_card(
             events,
             reason="manual_move_off_stage",
         )
+    if instance_id in player.live_area and to_zone != "live_area":
+        _on_live_card_departure(state, player_id, instance_id)
     _remove_from_player_zones(
-        player, instance_id, preserve_yell_object=to_zone == "resolution_area"
+        player, instance_id, preserve_yell_object=to_zone == "resolution_area",
+        preserve_live_card_score=(to_zone == "live_area"
+                                  and _new_live_source_score_card(state, instance_id)),
     )
     simple_zones = {
         "hand": player.hand,
@@ -11721,6 +11776,30 @@ def _clean_stage_attachments(
     )
 
 
+def _new_live_source_score_card(state: MatchState, instance_id: str) -> bool:
+    if instance_id not in state.cards:
+        return False
+    return any(_captures_original_live_source(state.effect_definitions.get(effect_id))
+               for effect_id in getattr(state.cards[instance_id].card, "effect_ids", []))
+
+
+def _on_live_card_departure(state: MatchState, player_id: str, instance_id: str) -> None:
+    for invocation in state.pending_effects:
+        if (invocation.player_id == player_id and invocation.source_card_instance_id == instance_id
+                and invocation.trigger_data.get("original_source_live_object") is True
+                and _captures_original_live_source(
+                    state.effect_definitions.get(invocation.effect_id)
+                )):
+            invocation.trigger_data["original_source_live_object_departed"] = True
+    if _new_live_source_score_card(state, instance_id):
+        _clear_live_card_score(state.players[player_id], instance_id)
+
+
+def _remove_live_area_card(state: MatchState, player_id: str, instance_id: str) -> None:
+    _on_live_card_departure(state, player_id, instance_id)
+    state.players[player_id].live_area.remove(instance_id)
+
+
 def _forget_yell_object(player: Any, instance_id: str) -> None:
     tracked = getattr(getattr(player, "live_result", None), "remaining_yell_instance_ids", None)
     if tracked is not None and instance_id in tracked:
@@ -11734,10 +11813,11 @@ def _remove_resolution_card(player: Any, instance_id: str) -> None:
 
 def _remove_from_player_zones(
     player: Any, instance_id: str, *, preserve_yell_object: bool = False,
+    preserve_live_card_score: bool = False,
 ) -> None:
     if instance_id in player.resolution_area and not preserve_yell_object:
         _forget_yell_object(player, instance_id)
-    if instance_id in player.live_area:
+    if instance_id in player.live_area and not preserve_live_card_score:
         _clear_live_card_score(player, instance_id)
     for zone in (
         player.main_deck,
