@@ -14,6 +14,7 @@ DEFAULT_EFFECT_REGISTRY = (
 )
 
 SUPPORTED_EFFECT_ACTIONS = {
+    "mill_bottom_one_aqours_source_requirement",
     "mill_bottom_five_members_draw_source_score",
     "mill_bottom_three_aqours_source_heart",
     "place_wait_energy_skip_next_turn_active",
@@ -165,6 +166,7 @@ class EffectOperation(BaseModel):
         "original_live_start_bottom_source",
         "original_live_start_bottom_three_source",
         "original_live_start_bottom_five_source",
+        "original_live_start_bottom_aqours_requirement",
     ] | None = None
     overlap_observer_policy: Literal[
         "ignore_disjoint_source_triggers", "require_complete_source_bindings"
@@ -191,6 +193,15 @@ class EffectOperation(BaseModel):
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        bounded = "mill_bottom_one_aqours_source_requirement"
+        policy = "original_live_start_bottom_aqours_requirement"
+        if self.action_type == bounded and self.model_dump(exclude_defaults=True, exclude_none=True) != {
+            "action_type": bounded, "amount": 1, "target": "source", "color_slot": "heart0",
+            "source_object_policy": policy,
+        }:
+            raise ValueError("bottom Aqours requirement requires its fixed source-only sequence")
+        if self.source_object_policy == policy and self.action_type != bounded:
+            raise ValueError("bottom Aqours requirement policy requires its bounded operation")
         if self.action_type == "mill_bottom_five_members_draw_source_score" and (
             self.model_dump(exclude_defaults=True, exclude_none=True) != {
                 "action_type": "mill_bottom_five_members_draw_source_score", "amount": 5,
@@ -337,6 +348,7 @@ class EffectOperation(BaseModel):
                 f"orientation is not supported for effect operation {self.action_type}"
             )
         if self.color_slot is not None and self.action_type not in {
+            "mill_bottom_one_aqours_source_requirement",
             "gain_heart",
             "gain_heart_to_stage_members",
             "gain_heart_if_milled_all_have_heart",
@@ -734,6 +746,17 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        bounded = "mill_bottom_one_aqours_source_requirement"
+        if any(op.action_type == bounded for op in self.cost):
+            raise ValueError("bottom Aqours requirement cannot be a cost")
+        if any(op.action_type == bounded for op in self.actions) and (
+            self.cost or self.cost_choice or self.choice or self.follow_up_choice or self.condition
+            or self.is_optional or self.effect_type != "triggered" or self.timing != "live_start"
+            or self.trigger != "live_started" or self.frequency_limit != "once_per_live"
+            or self.duration != "game" or self.execution_mode != "auto_resolve"
+            or self.simulation_support == "manual_resolution" or len(self.actions) != 1
+        ):
+            raise ValueError("bottom Aqours requirement requires its fixed mandatory Live-start sequence")
         if self.choice and self.choice.selection_policy == "public_two_distinct_live_opponent_one" and (
             self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
             or self.effect_type != "triggered" or self.timing != "on_play" or self.trigger != "member_played"

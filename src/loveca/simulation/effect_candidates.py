@@ -2880,6 +2880,23 @@ def _live_success_opponent_draw_discard(row: sqlite3.Row) -> EffectCandidate | N
     )
 
 
+def _live_start_bottom_aqours_requirement(row: sqlite3.Row) -> EffectCandidate | None:
+    first = "【ライブ開始時】自分のステージにいるすべてのメンバーがアクティブ状態の場合、このカードの必要ハートを【heart0】減らす。"
+    text = "【ライブ開始時】自分のデッキの下からカードを1枚控え室に置く。それが『Aqours』のメンバーカードの場合、このカードの必要ハートを【heart0】減らす。"
+    if (row["card_code"] != "PL!S-bp7-020" or row["text_revision_id"] != 912
+            or row["raw_text_hash"] != "2762be94925766143618a17b7a60b0cb252f776311eaf3f8198af0c49a60d046"
+            or row["raw_effect_text_ja"] != first + " " + text):
+        return None
+    return EffectCandidate(
+        **_base_with_execution_mode(row, pattern_id="live_start_bottom_aqours_source_requirement", effect_index=2,
+                                   execution_mode="auto_resolve"),
+        label_ja=text, effect_type="triggered", timing="live_start", trigger="live_started",
+        frequency_limit="once_per_live", is_optional=False, condition={}, cost=[], choice=None, duration="game",
+        actions=[{"action_type": "mill_bottom_one_aqours_source_requirement", "amount": 1, "target": "source",
+                  "color_slot": "heart0", "source_object_policy": "original_live_start_bottom_aqours_requirement"}],
+    )
+
+
 def _live_start_bottom_five_member_score(row: sqlite3.Row) -> EffectCandidate | None:
     if (row["card_code"] != "PL!S-bp7-021" or row["text_revision_id"] != 913
             or row["raw_text_hash"] != "4abd5654a85639e01eb2721a21df5439f133589eeccd1238c04944fb4a0b6261"
@@ -15718,6 +15735,7 @@ _PATTERNS = (
     _live_start_bottom_one_heart,
     _live_start_bottom_three_aqours_heart,
     _live_start_bottom_five_member_score,
+    _live_start_bottom_aqours_requirement,
     _onplay_mill_three_blade_colors,
     _onplay_muse_granted_blade,
     _onplay_both_waiting_live,

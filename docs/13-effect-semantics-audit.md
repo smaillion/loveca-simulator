@@ -1,5 +1,12 @@
 # Effect Semantics Audit
 
+PL!S-bp7-020:2 has a full two-segment/revision912/hash-bound operation for
+one actual bottom Aqours Member and only the original Live's generic requirement.
+Rule9.2.1.2 makes the unspecified duration game, not live; an own-policy marker
+is cleared on zone departure under4.1.4, without reinterpreting old modifiers.
+Segment1 stays manual.52 targeted/17 SQL and262 illustrated scenarios are not
+complete human adjudication. See development/bottom-one-aqours-requirement-verification.md.
+
 PL!SP-bp2-011:1 is exact full-text/revision565/hash-bound. OfficialQ118
 requires two distinct names before the opponent can choose a Live to recover.
 The new snapshot has owner-first roles, current public Waiting Room candidates,

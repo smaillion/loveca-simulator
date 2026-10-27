@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "live-start-bottom-one-aqours-source-live-requirement",
+      "priority": 0,
+      "title": "审计底一张Aqours Member与仅原来源Live必要Heart减少",
+      "status": "queued",
+      "depends_on": ["onplay-two-different-live-opponent-choice"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["精确核对PL!S-bp7-020:2，完整双段revision912/hash2762be94925766143618a17b7a60b0cb252f776311eaf3f8198af0c49a60d046；当前冻结seed18012第1回合17动作与第1段共同mandatory manual，不是唯一阻塞，不自动晋级第1段", "第2段全文为【ライブ開始時】自分のデッキの下からカードを1枚控え室に置く。それが『Aqours』のメンバーカードの場合、このカードの必要ハートを【heart0】減らす。先核对必要Heart来源范围/无明确期限语义、实际底牌与空库刷新、Aqours作品和Member限定；不猜测FAQ、不用普通Heart补正或全局减需替代", "明确后仅使用独立受限snapshot，验证Live/Member/错误work/空库与恰一张、刷新后实际移动Card、多个Live仅原来源减需、来源离场同ID返回/Live Area内移动、清理/期限及新旧SQL Replay；第1段逐项保持，不扩大旧milling/必要Heart快照或追改旧Replay", "真实四AI/隐藏信息/公开历史与当前牌库隔离、必要原生UI/图文和全部四profiles/pre-push、新源码原30牌组冻结诊断后只本地提交，不提升reviewed/改默认AI或Card/SQL schema；语义不明保留unresolved/manual，不改policy、不push、新建PR、合并部署"]
+    },
+    {
       "id": "onplay-two-different-live-opponent-choice",
       "priority": 0,
       "title": "审计两张不同名控室Live由对手选择一张回手牌",

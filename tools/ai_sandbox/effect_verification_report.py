@@ -25,6 +25,7 @@ from loveca.simulation.engine import (
     _card_score,
     _effective_member_blade,
     _effective_member_play_cost,
+    _effective_required_hearts,
     _queue_live_success_effects,
     _resolve_automatic_effects,
     _static_heart_bonus,
@@ -196,6 +197,9 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *((f"bottom_aqours_requirement_{case}", f"下のAqoursと必要ハート {case}", f"底牌Aqours与必要Heart {case}",
+           "PL!S-bp7-020:2", lambda effect, case=case: _run_bottom_aqours_requirement(effect, case))
+          for case in ("member", "live", "wrong_work", "one", "empty")),
         *((f"mirrored_cost_heart_{slot}_{cost}", f"正面のコスト比較 {slot}/{cost}", f"镜像正面费用比较 {slot}/{cost}",
            "PL!HS-pb1-014:2", lambda effect, slot=slot, cost=cost: _run_mirrored_cost_heart(effect, slot, cost))
           for slot, cost in (("left", 10), ("right", 10), ("center", 10), ("left", 4), ("right", 9))),
@@ -646,6 +650,28 @@ def _run_opponent_success_draw(effect: EffectDefinition, case: str) -> dict[str,
         "先に引いてから選ぶ / 先抽后选": len(hand_before) == expected_draw,
         "条件成立時だけ必須一枚 / 条件成立才必选一张": len(final.state.players["player_1"].hand) == expected_draw - int(both and bool(hand_before)),
         "待機完了 / 待机完成": not final.state.pending_effects,
+    }
+
+
+def _run_bottom_aqours_requirement(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    source = _v1_1_live("source", effect.card_code, effect_ids=[effect.effect_id])
+    source.card.required_hearts = {"heart0": 2, "heart02": 1}
+    bottom = _v1_1_live("bottom", "Bottom Live") if case == "live" else _v1_1_member("bottom", "Bottom Member")
+    bottom.card.work_keys = ["love_live"] if case == "wrong_work" else ["love_live_sunshine"]
+    state = _v1_1_state({effect.effect_id: effect}, [source, bottom, _v1_1_member("tail", "Hidden Tail")], hand=[])
+    p = state.players["player_1"]
+    p.live_area = ["source"]
+    p.main_deck = [] if case == "empty" else ["bottom"] if case == "one" else ["tail", "bottom"]
+    state.phase = "performance_first"
+    result = apply_action(state, ActionRequest(action_type="advance_phase", player_id="player_1", expected_revision=state.revision))
+    data = next(e.data for e in result.events if e.event_type == "effect_bottom_aqours_requirement_resolved")
+    delta = int(case in {"member", "one"})
+    requirements = _effective_required_hearts(result.state.players["player_1"], "source", source.card.required_hearts)
+    return {
+        "实际底一张 / 実際の下の一枚": data["milled_count"] == int(case != "empty"),
+        "Member和作品 / メンバーと作品": data["required_heart_delta"] == -delta,
+        "只减原Live无色需求 / 元ライブの無色だけ": requirements == {"heart0": 2-delta, "heart02": 1},
+        "无多余确认 / 追加選択なし": not result.state.pending_effects and result.state.pending_choice is None,
     }
 
 

@@ -1,5 +1,12 @@
 # AI and Simulation Notes
 
+PL!S-bp7-020:2 uses a mandatory source-only auto operation without new AI policy.
+Four versions execute both native Live-start and isolated pending actions with
+hidden instance/name/code/Blade invariance and unchanged input. Official segment1
+remains manual and may block the pair; enqueueing segment2 is not completion.
+New same-deck frozen evidence is bound separately in
+development/bottom-one-aqours-requirement-verification.md. Default AI is unchanged.
+
 The bounded public Live-offer choice supports all four AI versions, including
 the initial pending effect. The owner proposes distinct public names and the
 opponent chooses only within that pair. Hidden card identities and input state

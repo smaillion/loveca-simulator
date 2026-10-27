@@ -1920,6 +1920,7 @@ const autoResultTerminalEvents = new Set([
 ]);
 
 const autoResultOperationEvents = new Set([
+  "effect_bottom_aqours_requirement_resolved",
   "effect_muse_blade_aura_resolved",
   "effect_bottom_live_heart_resolved",
   "effect_bottom_aqours_heart_resolved",
@@ -2043,6 +2044,11 @@ function autoResultLines(
           || related.data.reason === "no_legal_stage_member_at_resolution")) {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
+    } else if (related.event_type === "effect_bottom_aqours_requirement_resolved") {
+      const summary = eventSummary(related, state, locale);
+      if (summary) lines.push(summary);
+      if (related.data.source_available === false) lines.push(locale === "zh"
+        ? "原来源 Live 已离场，未减需" : "元のライブが離れたため必要ハートを減らさない");
     } else if (related.event_type === "effect_waiting_lives_recovered" || related.event_type === "effect_opponent_live_recovered") {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
@@ -4239,6 +4245,7 @@ function eventTitle(event: GameEvent, locale: UiLocale): string {
     effect_bottom_live_heart_resolved: ["牌库底Live判定", "デッキ下のライブ判定"],
     effect_bottom_aqours_heart_resolved: ["底三张Aqours判定", "下三枚のAqours判定"],
     effect_bottom_five_members_resolved: ["底五次Member与Live得分", "下五回のメンバーとライブ得点"],
+    effect_bottom_aqours_requirement_resolved: ["底牌与原Live必要Heart", "下のカードと元ライブの必要ハート"],
     effect_opponent_success_draw_resolved: ["对方本回合成功判定", "相手の今ターン成功判定"],
     effect_wait_energy_next_active_resolved: ["新Energy下回合限制", "新エネルギーの次ターン制限"],
     effect_waiting_lives_recovered: ["双方控室 Live 回收", "両者の控室ライブ回収"],
@@ -4376,6 +4383,11 @@ function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): st
     return locale === "zh"
       ? `对方本回合成功：${event.data.condition_met ? "是" : "否"} · 追加抽 ${count} 张 · ${event.data.discard_required ? "需弃 1 张" : "无需弃牌"}`
       : `相手の今ターン成功：${event.data.condition_met ? "あり" : "なし"} · 追加${count}枚ドロー · ${event.data.discard_required ? "手札を1枚控室へ" : "手札を控室に置かない"}`;
+  }
+  if (event.event_type === "effect_bottom_aqours_requirement_resolved") {
+    return locale === "zh"
+      ? `底部移动 ${Number(event.data.milled_count)} 张 · Aqours Member：${event.data.condition_met ? "是" : "否"} · 原来源 Live 无色必要 Heart ${Number(event.data.required_heart_delta)}`
+      : `下から${Number(event.data.milled_count)}枚移動 · Aqoursメンバー：${event.data.condition_met ? "はい" : "いいえ"} · 元のライブの無色必要ハート ${Number(event.data.required_heart_delta)}`;
   }
   if (event.event_type === "effect_bottom_five_members_resolved") {
     return locale === "zh"

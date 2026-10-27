@@ -3192,7 +3192,8 @@ def _queue_triggered_effects(
 
 
 def _captures_original_live_source(effect: Any) -> bool:
-    return bool(effect and any(op.source_object_policy == "original_live_start_bottom_five_source"
+    return bool(effect and any(op.source_object_policy in {
+        "original_live_start_bottom_five_source", "original_live_start_bottom_aqours_requirement"}
                                for op in effect.actions)) or getattr(getattr(effect, "choice", None), "selection_policy", None) == (
         "public_aqours_blade_six_source_score"
     )
@@ -9766,6 +9767,40 @@ def _execute_operations(
                     events,
                     reason=f"effect:{invocation.effect_id}",
                 )
+        elif operation_type == "mill_bottom_one_aqours_source_requirement":
+            if type(invocation.trigger_data.get("original_source_live_object")) is not bool:
+                raise IllegalActionError("original bottom Aqours Live source snapshot is missing")
+            _refresh_main_deck(state, invocation.player_id, events)
+            moved = 0
+            matched = False
+            if player.main_deck:
+                item = player.main_deck.pop()
+                card = state.cards[item]
+                matched = card.card.card_type == "member" and "love_live_sunshine" in card.card.work_keys
+                moved = 1
+                player.waiting_room.append(item)
+                card.face_up = True
+                events.append(GameEvent(event_type="effect_cards_milled", player_id=invocation.player_id,
+                    data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                          "milled_card_instance_ids": [item], "source": "deck_bottom",
+                          "revealed_cards": [_public_card_snapshot(state, item)]}, source="system"))
+                _refresh_main_deck(state, invocation.player_id, events)
+            source_id = invocation.source_card_instance_id
+            available = (invocation.trigger_data["original_source_live_object"] is True
+                         and not invocation.trigger_data.get("original_source_live_object_departed", False)
+                         and source_id in player.live_area and state.cards[source_id].card.card_type == "live")
+            delta = -int(matched and available)
+            if delta:
+                player.manual_modifiers.append(ManualModifier(
+                    modifier_id=f"effect:{invocation.invocation_id}:bottom-aqours-requirement",
+                    modifier_type="required_heart", duration="game", created_turn=state.turn_number,
+                    amount=-1, color_slot="heart0", target_card_instance_id=source_id,
+                    value={"policy": "original_live_start_bottom_aqours_requirement"},
+                ))
+            events.append(GameEvent(event_type="effect_bottom_aqours_requirement_resolved", player_id=invocation.player_id,
+                data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                      "source_card_instance_id": source_id, "milled_count": moved, "condition_met": matched,
+                      "source_available": available, "required_heart_delta": delta, "color_slot": "heart0"}, source="system"))
         elif operation_type == "mill_bottom_five_members_draw_source_score":
             if type(invocation.trigger_data.get("original_source_live_object")) is not bool:
                 raise IllegalActionError("original bottom-five Live source snapshot is missing")
@@ -12307,6 +12342,7 @@ def _new_live_source_score_card(state: MatchState, instance_id: str) -> bool:
 
 
 def _on_live_card_departure(state: MatchState, player_id: str, instance_id: str) -> None:
+    _clear_original_live_requirement(state.players[player_id], instance_id)
     for invocation in state.pending_effects:
         if (invocation.player_id == player_id and invocation.source_card_instance_id == instance_id
                 and invocation.trigger_data.get("original_source_live_object") is True
@@ -12344,6 +12380,7 @@ def _remove_from_player_zones(
         _forget_yell_object(player, instance_id)
     if instance_id in player.live_area and not preserve_live_card_score:
         _clear_live_card_score(player, instance_id)
+        _clear_original_live_requirement(player, instance_id)
     for zone in (
         player.main_deck,
         player.energy_deck,
@@ -13157,6 +13194,13 @@ def _card_score(state: MatchState, player_id: str, instance_id: str) -> int:
     if instance_id in state.players[player_id].live_area:
         score += _target_modifier_total(state.players[player_id], "live_card_score", instance_id)
     return score
+
+
+def _clear_original_live_requirement(player: PlayerState, instance_id: str) -> None:
+    player.manual_modifiers = [m for m in player.manual_modifiers if not (
+        m.modifier_type == "required_heart" and m.target_card_instance_id == instance_id
+        and isinstance(m.value, dict) and m.value.get("policy") == "original_live_start_bottom_aqours_requirement"
+    )]
 
 
 def _clear_live_card_score(player: PlayerState, instance_id: str) -> None:
