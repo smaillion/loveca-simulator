@@ -73,6 +73,7 @@ SUPPORTED_EFFECT_ACTIONS = {
     "ready_member",
     "ready_member_with_provenance_v1",
     "ready_member_after_source_wait_provenance_v1",
+    "ready_member_from_departed_source_provenance_v1",
     "reorder_deck_top",
     "replace_score",
     "replace_yell_blade_hearts",
@@ -201,7 +202,7 @@ class EffectOperation(BaseModel):
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
-        if self.action_type in {"ready_member_with_provenance_v1", "ready_member_after_source_wait_provenance_v1"}:
+        if self.action_type in {"ready_member_with_provenance_v1", "ready_member_after_source_wait_provenance_v1", "ready_member_from_departed_source_provenance_v1"}:
             if (set(self.model_dump(exclude_defaults=True, exclude_none=True)) - {"action_type", "target", "value"}
                     or self.target not in {None, "selected", "source", "self_stage_all", "self_stage_unit"}
                     or self.amount is not None or self.amount_source is not None or self.source_object_policy is not None
@@ -209,7 +210,7 @@ class EffectOperation(BaseModel):
                         or set(self.value) != {"unit_key"} or not isinstance(self.value["unit_key"], str)))
                     or (self.target != "self_stage_unit" and self.value is not None)):
                 raise ValueError("ready provenance v1 only supports its explicit top-level Member operation")
-            if self.action_type == "ready_member_after_source_wait_provenance_v1" and self.target != "selected":
+            if self.action_type in {"ready_member_after_source_wait_provenance_v1", "ready_member_from_departed_source_provenance_v1"} and self.target != "selected":
                 raise ValueError("source Wait ready prototype only supports a selected other Member")
         bounded = "gain_source_score_if_current_yell_live"
         policy = "original_live_success_yell_source"
@@ -791,8 +792,19 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
-        if any(op.action_type in {"ready_member_with_provenance_v1", "ready_member_after_source_wait_provenance_v1"} for op in self.cost):
+        if any(op.action_type in {"ready_member_with_provenance_v1", "ready_member_after_source_wait_provenance_v1", "ready_member_from_departed_source_provenance_v1"} for op in self.cost):
             raise ValueError("ready provenance is an effect operation, not a cost")
+        departed_ready = "ready_member_from_departed_source_provenance_v1"
+        if any(op.action_type == departed_ready for op in self.actions):
+            expected_choice = EffectChoice(choice_type="member_from_stage", zone="stage", card_type="member",
+                target_player="self", orientation="wait", minimum=0, maximum=1)
+            if (self.actions != [EffectOperation(action_type=departed_ready, target="selected")]
+                    or self.cost or self.cost_choice or self.follow_up_choice or self.choice != expected_choice or self.condition
+                    or self.effect_type != "triggered" or self.timing != "auto_triggered_event"
+                    or self.trigger != "member_left_stage_to_waiting_room" or self.frequency_limit != "none"
+                    or not self.is_optional or self.duration is not None or self.execution_mode != "prompt_then_resolve"
+                    or self.simulation_support == "manual_resolution"):
+                raise ValueError("departed ready prototype only supports its fixed own-stage departure and optional own-Member choice")
         bounded_ready = "ready_member_after_source_wait_provenance_v1"
         if any(op.action_type == bounded_ready for op in self.actions):
             expected_choice = EffectChoice(choice_type="member_from_stage", zone="stage", card_type="member",

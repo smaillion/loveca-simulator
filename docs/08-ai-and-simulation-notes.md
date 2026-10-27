@@ -1,5 +1,10 @@
 # AI and Simulation Notes
 
+The departed-source prototype captures Stage information before movement and binds
+it only to the actual post-movement invocation. Four controllers submit real choices
+with hidden-source invariance; no official producer or consumer is enabled.
+See [bounded departure](development/ready-departed-source-probe.md).
+
 The source-Wait-cost ready prototype has a separate bounded operation and private
 server payment evidence. Three controllers activate within a restricted legal set;
 v0 keeps its no-activation behavior, and all four submit the subsequent target.

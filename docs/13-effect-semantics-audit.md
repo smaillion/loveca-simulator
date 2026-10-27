@@ -1,5 +1,10 @@
 # Effect Semantics Audit
 
+The departed-source operation has separate pre-move evidence. Old v1 still rejects
+an initially departed source, and the cost path retains its payment requirements.
+Neither this metadata nor its slot field certifies Hime's target/LKI rules.
+See [limits](development/ready-departed-source-probe.md).
+
 A separate unregistered source-Wait-cost operation preserves the no-cost v1 guard.
 Modern paid parents remain locked; departed-source tests explicitly use legacy-order
 diagnostic checkpoints, not natural interruptions. No official producer is enabled.

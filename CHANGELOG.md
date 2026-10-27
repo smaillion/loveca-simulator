@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 元Stage Memberが控室に置かれた後の復原を、離区前情報と実際のinvocationで結ぶ限定原型として追加。旧v1の初期発生源制限は維持し、正式カードには接続しない。
+- 中文: 100专项/54 SQL、315关联、四AI/完整双视角/provider构造隐私及4 UI。原来源返回不覆盖旧信息，目标移区不继承旧token；不恢复穂乃果、不算manual晋级。最终门禁及同牌组证据见[记录](./docs/development/ready-departed-source-probe.md)，仅本地提交。
+
 - 自分の元Stage発生源によるWait費用後の限定復原原型を別操作で追加。支払済みinvocation/turnを照合し、旧無費用v1とReplayを維持。正式カード未接続。
 - 中文: 71专项/20 SQL、四AI后续选择、双方/provider构造隐私及2 UI；v0不主动起动与旧顺序来源检查点边界如实记录，不放宽父能力锁或恢复穂乃果。最终门禁与同30牌组见[验证](./docs/development/ready-source-wait-cost-probe.md)，只本地提交。
 

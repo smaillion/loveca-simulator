@@ -6,9 +6,35 @@ from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
 
 OPERATION = "ready_member_with_provenance_v1"
 SOURCE_WAIT_OPERATION = "ready_member_after_source_wait_provenance_v1"
-PROVENANCE_OPERATIONS = frozenset({OPERATION, SOURCE_WAIT_OPERATION})
+DEPARTED_OPERATION = "ready_member_from_departed_source_provenance_v1"
+PROVENANCE_OPERATIONS = frozenset({OPERATION, SOURCE_WAIT_OPERATION, DEPARTED_OPERATION})
 SOURCE_KEY = "ready_source_lki_v1"
 COST_KEY = "ready_source_wait_cost_v1"
+DEPARTED_KEY = "ready_departed_source_v1"
+
+
+class StageReadyDepartureV1(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    instance_id: str
+    owner_id: str
+    turn_number: StrictInt = Field(ge=1)
+    from_slot: Literal["left", "center", "right"]
+    unit_keys: list[str]
+    work_keys: list[str]
+    effect_ids: list[str]
+
+
+class ReadyDepartedSourceV1(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    policy: Literal["stage_to_waiting_ready_v1"] = "stage_to_waiting_ready_v1"
+    invocation_id: str
+    effect_id: str
+    instance_id: str
+    owner_id: str
+    turn_number: StrictInt = Field(ge=1)
+    from_slot: Literal["left", "center", "right"]
+    unit_keys: list[str]
+    work_keys: list[str]
 
 
 class ReadySourceWaitCostV1(BaseModel):
@@ -62,6 +88,60 @@ def uses_source_wait_cost(effect: Any) -> bool:
     return any(op.action_type == SOURCE_WAIT_OPERATION for op in getattr(effect, "actions", []))
 
 
+def uses_departed_source(effect: Any) -> bool:
+    return any(op.action_type == DEPARTED_OPERATION for op in getattr(effect, "actions", []))
+
+
+def capture_ready_departure(state: Any, player_id: str, instance_id: str) -> dict[str, Any] | None:
+    card = state.cards[instance_id]
+    effect_ids = [key for key in card.card.effect_ids if uses_departed_source(state.effect_definitions.get(key))]
+    if not effect_ids:
+        return None
+    slot = next((k for k, value in state.players[player_id].member_area.items() if value == instance_id), None)
+    if card.owner_id != player_id or card.card.card_type != "member" or slot is None:
+        raise ValueError("departed ready source must be its own original top-level Stage Member")
+    return StageReadyDepartureV1(instance_id=instance_id, owner_id=player_id, turn_number=state.turn_number,
+        from_slot=slot, unit_keys=list(card.card.unit_keys), work_keys=list(card.card.work_keys), effect_ids=effect_ids).model_dump(mode="json")
+
+
+def bind_departed_ready_source(state: Any, invocation: Any, captured: Any) -> None:
+    data = StageReadyDepartureV1.model_validate(captured)
+    if (type(state.turn_number) is not int or data.turn_number != state.turn_number
+            or data.instance_id != invocation.source_card_instance_id or data.owner_id != invocation.player_id
+            or invocation.effect_id not in data.effect_ids or invocation.trigger_event != "member_left_stage_to_waiting_room"
+            or invocation.trigger_data.get("to_zone") != "waiting_room"
+            or invocation.trigger_data.get("from_slot") != data.from_slot
+            or type(invocation.trigger_data.get("turn_number")) is not int
+            or invocation.trigger_data["turn_number"] != data.turn_number
+            or data.instance_id not in state.players[data.owner_id].waiting_room):
+        raise ValueError("departed ready source requires its actual captured Stage-to-waiting transition")
+    begin_ready_tracking(state)
+    proof = ReadyDepartedSourceV1(invocation_id=invocation.invocation_id, effect_id=invocation.effect_id,
+        **data.model_dump(exclude={"effect_ids"}))
+    invocation.trigger_data[DEPARTED_KEY] = proof.model_dump(mode="json")
+    invocation.trigger_data[SOURCE_KEY] = ReadySourceV1(invocation_id=proof.invocation_id, effect_id=proof.effect_id,
+        instance_id=proof.instance_id, effect_player_id=proof.owner_id, owner_id=proof.owner_id,
+        turn_number=proof.turn_number, zone="stage", unit_keys=proof.unit_keys, work_keys=proof.work_keys,
+        departed=True).model_dump(mode="json")
+
+
+def validate_departed_ready_source(state: Any, invocation: Any) -> None:
+    proof = ReadyDepartedSourceV1.model_validate(invocation.trigger_data.get(DEPARTED_KEY))
+    source = ReadySourceV1.model_validate(invocation.trigger_data.get(SOURCE_KEY))
+    if (type(state.turn_number) is not int or proof.turn_number != state.turn_number
+            or invocation.resolution_stage not in {"initial", "after_cost"} or invocation.trigger_event != "member_left_stage_to_waiting_room"
+            or (proof.invocation_id, proof.effect_id, proof.instance_id, proof.owner_id)
+            != (invocation.invocation_id, invocation.effect_id, invocation.source_card_instance_id, invocation.player_id)
+            or invocation.trigger_data.get("from_slot") != proof.from_slot
+            or invocation.trigger_data.get("to_zone") != "waiting_room"
+            or type(invocation.trigger_data.get("turn_number")) is not int
+            or invocation.trigger_data["turn_number"] != proof.turn_number
+            or source != ReadySourceV1(invocation_id=proof.invocation_id, effect_id=proof.effect_id,
+                instance_id=proof.instance_id, effect_player_id=proof.owner_id, owner_id=proof.owner_id,
+                turn_number=proof.turn_number, zone="stage", unit_keys=proof.unit_keys, work_keys=proof.work_keys, departed=True)):
+        raise ValueError("departed ready source requires its exact original invocation and last information")
+
+
 def prepare_source_wait_cost(state: Any, invocation: Any) -> None:
     if not uses_source_wait_cost(state.effect_definitions.get(invocation.effect_id)):
         return
@@ -113,8 +193,11 @@ def _source_zone(state: Any, instance_id: str) -> str | None:
     return None
 
 
-def prepare_ready_source(state: Any, invocation: Any) -> None:
+def prepare_ready_source(state: Any, invocation: Any, departure: Any = None) -> None:
     if not uses_ready_provenance(state.effect_definitions.get(invocation.effect_id)):
+        return
+    if uses_departed_source(state.effect_definitions.get(invocation.effect_id)):
+        bind_departed_ready_source(state, invocation, departure)
         return
     zone = _source_zone(state, invocation.source_card_instance_id)
     if zone is None:
@@ -153,6 +236,8 @@ def mark_ready_departure(state: Any, instance_ids: list[str], zone: str) -> None
 def record_member_ready(state: Any, invocation: Any, target_id: str, previous: str) -> None:
     if uses_source_wait_cost(state.effect_definitions.get(invocation.effect_id)):
         validate_source_wait_cost(state, invocation)
+    if uses_departed_source(state.effect_definitions.get(invocation.effect_id)):
+        validate_departed_ready_source(state, invocation)
     history = getattr(state, "member_ready_history", None)
     source = ReadySourceV1.model_validate(invocation.trigger_data.get(SOURCE_KEY))
     if (history is None or history.turn_number != state.turn_number

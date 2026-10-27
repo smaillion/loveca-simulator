@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+Stage離場後の復原元情報を離区前に採取し、実際の待機生成時に結ぶ限定unregistered原型を追加。100専用/54 SQL、四AI・秘匿、4 UI、旧v1/費用経路/Replay維持。正式カード未接続。[検証](./docs/development/ready-departed-source-probe.md)。ローカルのみ。
+
 本人Stage発生源のWait費用後に別メンバーを復原する限定unregistered原型を追加。旧無費用v1は維持し、支払証拠は非公開。71専用/20 SQL、四AI後続選択、2 UI。正式カード未接続、穂乃果manual維持。[検証](./docs/development/ready-source-wait-cost-probe.md)。ローカルのみ。
 
 実際のPrintemps発生源5件を監査し、南ことり`PL!-pb1-012:1`の対象unit漏れだけを修正。費用・離場源・履歴coverageは未認証、正式v1生産者0/5、穂乃果manual維持。[監査記録](./docs/development/printemps-producer-coverage-audit.md)。ローカルのみ。

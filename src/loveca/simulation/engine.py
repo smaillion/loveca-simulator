@@ -10,9 +10,10 @@ from types import SimpleNamespace
 from typing import Any
 
 from loveca.simulation.ready_history import (
-    OPERATION as READY_PROVENANCE_OPERATION, PROVENANCE_OPERATIONS, SOURCE_WAIT_OPERATION,
+    OPERATION as READY_PROVENANCE_OPERATION, PROVENANCE_OPERATIONS, SOURCE_WAIT_OPERATION, DEPARTED_OPERATION,
     begin_ready_tracking, mark_ready_departure, prepare_ready_source, record_member_ready,
     uses_source_wait_cost, prepare_source_wait_cost, finish_source_wait_cost, validate_source_wait_cost,
+    capture_ready_departure, uses_departed_source, validate_departed_ready_source,
 )
 
 from loveca.simulation.models import (
@@ -650,6 +651,8 @@ def _play_member(
                 source="player",
             )
         )
+    ready_departure = (_ready_departure_snapshot(state, player_id, replaced_instance_id)
+                       if replaced_instance_id is not None and not use_baton_touch else None)
     player.hand.remove(instance_id)
     player.member_area[slot] = instance_id
     _record_external_member_card_entry(player, instance_id)
@@ -707,6 +710,7 @@ def _play_member(
                 "replacement_card_instance_id": instance_id,
                 "used_baton_touch": False,
             },
+            ready_departure=ready_departure,
         )
         events.append(
             GameEvent(
@@ -1763,6 +1767,8 @@ def _resolve_effect(
         _ready_history_call(validate_source_wait_cost, state, invocation)
         if action.payload.get("accepted") is False:
             raise IllegalActionError("the paid ready effect requires its mandatory target selection")
+    if uses_departed_source(effect):
+        _ready_history_call(validate_departed_ready_source, state, invocation)
     if _waiting_nine_live_top_snapshot(effect):
         _resolve_waiting_nine_live_top(state, invocation, action, events)
         return
@@ -3285,6 +3291,7 @@ def _queue_triggered_effects(
     source_instance_ids: list[str],
     trigger_data: dict[str, Any],
     effect_id_filter: set[str] | None = None,
+    ready_departure: dict[str, Any] | None = None,
 ) -> None:
     for source_id in source_instance_ids:
         source = state.cards[source_id]
@@ -3342,7 +3349,7 @@ def _queue_triggered_effects(
                     "_condition_checked_at_trigger": True,
                 },
             )
-            _ready_history_call(prepare_ready_source, state, invocation)
+            _ready_history_call(prepare_ready_source, state, invocation, ready_departure)
             unavailable_reason = _effect_unavailable_reason(state, invocation)
             if unavailable_reason is not None:
                 events.append(
@@ -6796,6 +6803,7 @@ def _operation_requires_selected_choice(operation: Any) -> bool:
     return operation.action_type in {
         READY_PROVENANCE_OPERATION,
         SOURCE_WAIT_OPERATION,
+        DEPARTED_OPERATION,
         "wait_opponent_cost4_skip_next_turn_active",
         "attach_energy_deck_to_selected_nijigasaki",
         "apply_wait_energy",
@@ -7581,6 +7589,7 @@ def _deploy_selected_to_stage(
         raise IllegalActionError("effect Stage deployment Member is not legal")
     old_id = player.member_area[slot]
     attached = list(player.member_area_attachments[slot]) if old_id else []
+    ready_departure = _ready_departure_snapshot(state, invocation.player_id, old_id) if old_id else None
     source.remove(instance_id)
     player.member_area[slot] = instance_id
     _record_external_member_card_entry(player, instance_id)
@@ -7621,6 +7630,7 @@ def _deploy_selected_to_stage(
                 "replacement_card_instance_id": instance_id,
                 "used_baton_touch": False,
             },
+            ready_departure=ready_departure,
         )
         events.append(
             GameEvent(
@@ -12303,6 +12313,7 @@ def _manual_move_card(
         )
     stage_slot = _top_member_slot(player, instance_id)
     was_on_stage = stage_slot is not None
+    ready_departure = _ready_departure_snapshot(state, player_id, instance_id) if was_on_stage and to_zone == "waiting_room" else None
     if stage_slot is not None and to_zone not in {
         "member_left",
         "member_center",
@@ -12352,6 +12363,7 @@ def _manual_move_card(
                     "from_slot": stage_slot,
                     "to_zone": to_zone,
                 },
+                ready_departure=ready_departure,
             )
         return
     if to_zone in {"member_left", "member_center", "member_right"}:
@@ -12715,6 +12727,13 @@ def _rotate_stage_member_groups(
     )
 
 
+def _ready_departure_snapshot(state: MatchState, player_id: str, instance_id: str) -> dict[str, Any] | None:
+    try:
+        return capture_ready_departure(state, player_id, instance_id)
+    except ValueError as exc:
+        raise IllegalActionError(str(exc)) from exc
+
+
 def _move_top_member_off_stage(
     state: MatchState,
     player_id: str,
@@ -12729,6 +12748,7 @@ def _move_top_member_off_stage(
     instance_id = player.member_area[slot]
     if instance_id is None:
         raise IllegalActionError("Member Area slot is empty")
+    ready_departure = _ready_departure_snapshot(state, player_id, instance_id)
     _clean_stage_attachments(state, player_id, slot, events, reason=reason)
     player.member_area[slot] = None
     if to_zone != "waiting_room":
@@ -12746,6 +12766,7 @@ def _move_top_member_off_stage(
             "to_zone": to_zone,
             **(trigger_data or {}),
         },
+        ready_departure=ready_departure,
     )
     return instance_id
 

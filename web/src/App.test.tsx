@@ -4824,6 +4824,26 @@ describe("App", () => {
     });
   });
 
+  it.each([[false, 0], [false, 1], [true, 0], [true, 1]])("submits bounded departed-source choices hidden=%s count=%s", (hidden, count) => {
+    const onAction = vi.fn();
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    state.cards["player_1-M002"] = { ...state.cards["player_1-M002"], card: { ...state.cards["player_1-M002"].card, name_ja: "DEPARTED PROBE TARGET" } };
+    if (hidden) delete state.cards["player_1-M001"];
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "departed-probe", effect_id: "UNREGISTERED-DEPARTED-READY:1", source_card_instance_id: "player_1-M001",
+      label_ja: "AUDIT unregistered departed-source probe", execution_mode: "prompt_then_resolve", is_optional: true,
+      simulation_support: "test_validated_executable", choice_type: "member_from_stage", choice_zone: "stage",
+      candidate_card_instance_ids: ["player_1-M002"], card_selection_minimum: 0, card_selection_maximum: 1,
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false} onAction={onAction} onManual={vi.fn()} />);
+    expect(onAction).not.toHaveBeenCalled();
+    if (count) fireEvent.click(screen.getByRole("button", { name: /DEPARTED PROBE TARGET/ }));
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "departed-probe", accepted: true, selected_card_instance_ids: count ? ["player_1-M002"] : [], energy_instance_ids: [],
+    });
+  });
+
   it("requires one explicit named Member choice instead of auto-selecting the first copy", () => {
     const onAction = vi.fn();
     const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;

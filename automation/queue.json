@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "effect-ready-departed-source-lki-probe",
+      "priority": 1,
+      "title": "限定Stage离场到控室后触发的复原来源原型",
+      "status": "queued",
+      "depends_on": ["effect-ready-source-wait-cost-provenance-probe"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["仅unregistered probe，不绑定PL!-PR-001或任何正式卡、不requeue穂乃果", "显式新操作/快照：本人原Stage顶层Member进入本人控室后无费用触发，离区前绑定来源/所有者/unit/work/回合，不全局放宽旧v1或从返回新卡面猜历史", "来源移区返回/旧信息和目标原对象、现代结算锁及旧顺序检查点边界真实验证", "旧JSON/Replay/flags/未知coverage保持，限定来源覆盖账本另审，不称五条生产者完整覆盖", "双方原生离场SQL/四AI实际支持范围/完整隐私/必要UI及全部profiles、新源码同原30牌组冻结；仅本地提交不发布或操作主机"]
+    },
+    {
       "id": "effect-ready-source-wait-cost-provenance-probe",
       "priority": 1,
       "title": "限定本人Wait费用后的成员复原来源原型",

@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-28 JST 已离场复原来源原型：同一固定分支/工作树，100专项/54 SQL、315关联、四AI/完整隐私和4 UI；四处入口离区前采集，真实入队后绑定，现代结算锁不改。仅新unregistered操作，正式生产者0/5、穂乃果及其他blocked保持。最终门禁/同牌组见`ready-departed-source-probe.md`。不push/改PR55或合并部署，44/6 dirty/stash/ignored保留。
+
 2026-10-28 JST 本人Wait费用复原原型：同一固定分支/工作树，71专项/20 SQL、四AI后续/完整隐私及2 UI；现代父能力锁保持，旧顺序来源检查点不冒充自然中断。仅新unregistered操作，正式生产者0/5、消费者仍blocked；最终门禁/同牌组证据见`ready-source-wait-cost-probe.md`。不push/改PR55、合并部署，其他blocked/44/6 dirty/stash/ignored保留。
 
 2026-10-28 JST Printemps生产者覆盖审计：同一固定分支/工作树，5条真实来源清单，单修PL!-pb1-012:1目标unit遗漏，42专项/24 SQL、四AI/隐私与2 UI。旧ready操作不升级，正式v1生产者0/5，消费者仍blocked；最终门禁/同30牌组见`printemps-producer-coverage-audit.md`。不push/改PR55、合并部署，其他blocked/44/6 dirty/stash/ignored保留。
