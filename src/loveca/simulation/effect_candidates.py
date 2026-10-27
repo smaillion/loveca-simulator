@@ -2933,6 +2933,31 @@ def _onplay_mill_three_blade_colors(row: sqlite3.Row) -> EffectCandidate | None:
     )
 
 
+PRIVATE_THREE_TOP_BOTTOM_TEXT = (
+    "【登場】自分のデッキの上からカードを3枚見る。その中から好きな枚数を好きな順番でデッキの上に置き、残りを好きな順番でデッキの下に置く。"
+)
+PRIVATE_THREE_TOP_BOTTOM_FULL_TEXT = PRIVATE_THREE_TOP_BOTTOM_TEXT + (
+    " 【ライブ開始時】自分のデッキの一番下のカードを控え室に置いてもよい。それが「松浦果南」か「黒澤ダイヤ」の場合、それを手札に加える。"
+)
+
+
+def _onplay_private_three_top_bottom(row: sqlite3.Row) -> EffectCandidate | None:
+    if (row["card_code"] != "PL!S-bp7-008" or row["text_revision_id"] != 853
+            or row["raw_text_hash"] != "1de3807181773c1f9c909324ecf5885928876ce992a6ed6f4d93e2f000a63f6b"
+            or row["raw_effect_text_ja"] != PRIVATE_THREE_TOP_BOTTOM_FULL_TEXT):
+        return None
+    return EffectCandidate(
+        **_base(row, pattern_id="onplay_private_three_top_bottom", effect_index=1),
+        label_ja=PRIVATE_THREE_TOP_BOTTOM_TEXT, effect_type="triggered", timing="on_play",
+        trigger="member_played", frequency_limit="none", is_optional=False, condition={}, cost=[],
+        choice={"choice_type": "inspect_top_select", "selection_policy": "private_three_top_bottom_order",
+                "amount": 3, "minimum": 0, "maximum": 3, "requires_order": True,
+                "selected_destination": "main_deck_top_ordered", "unselected_destination": "main_deck_bottom"},
+        actions=[{"action_type": "inspect_top_cards", "amount": 3},
+                 {"action_type": "reorder_deck_top"}, {"action_type": "move_remaining_cards"}], duration=None,
+    )
+
+
 def _onplay_ten_minus_hand_private_two(row: sqlite3.Row) -> EffectCandidate | None:
     if (row["card_code"] != "PL!SP-PR-028" or row["text_revision_id"] != 1232
             or row["raw_text_hash"] != "4e93a5a5a79f7b2afe0fba115053b86de413fd60bd6f84d34fdadb84676fe116"
@@ -15636,6 +15661,7 @@ _PATTERNS = (
     _onplay_draw_then_discard_one,
     _onplay_named_baton_draw_then_discard,
     _onplay_multi_keep_icon_scope_manual,
+    _onplay_private_three_top_bottom,
     _onplay_ten_minus_hand_private_two,
     _onplay_wait_energy_next_active,
     _live_success_opponent_draw_discard,

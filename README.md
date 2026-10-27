@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+小原鞠莉`PL!S-bp7-008:1`を全文/revision/hash限定で対応。私見三枚を任意に分け、上と下を独立に並べる。第2段は手動のまま。88専用、242図解、269フロントを検証し、固定30試合は14→15完了。ただし追加局は0:3 Liveで、双方Liveの長局達成ではない。[検証と境界](./docs/development/private-three-top-bottom-verification.md)
+
 Live`PL!S-bp7-021:1`を全文/revision/hash限定で対応。解決時のステージ三人条件、下五回のMember履歴、追加一枚ドローと元Liveだけのscore+1を区別する。82専用、238図解、263フロントを検証。固定30試合は14完了のまま、実際の二回は条件不成立/Member三枚ドローであり、無作為のscore+1実績ではない。[検証と限界](./docs/development/bottom-five-member-score-verification.md)
 
 津島善子`PL!S-bp7-006:1`の既存処理を修正。下から三回の移動履歴でAqoursメンバー条件を判定し、元の発生源だけに緑Heartを与える。離場後の同ID復帰への誤適用を原生Action/SQLで再現・保護し、旧snapshotは維持。実行可能数925/1212は変えない。固定30試合は14完了/16手動停止のまま、正条件の単独SQL分岐は別証拠。[検証と範囲](./docs/development/bottom-three-aqours-heart-verification.md)

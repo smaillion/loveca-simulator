@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+小原鞠莉`PL!S-bp7-008:1`已按全文/revision/hash限定适配：私看三张后任意分组、分别排列库顶库底，第2段仍manual。88专项、242图文、269前端通过；冻结30局完赛14→15，但新增局Live0:3，不称双方Live长局。[验证与边界](./docs/development/private-three-top-bottom-verification.md)
+
 Live`PL!S-bp7-021:1`已限定适配：结算时检查三名成员，记录底五次Member移动，至少三次才抽一张，全部为Member才仅原来源Live score+1。82专项、238图文和263前端通过。冻结30局仍14完赛，本卡两次实际完成分别为三人条件失败、三Member抽一张，不称随机加分正条件覆盖。[验证与边界](./docs/development/bottom-five-member-score-verification.md)
 
 津島善子`PL!S-bp7-006:1`既有实现已修正：按底部三次实际移动判断Aqours Member，仅原来源获得绿Heart，离场同ID返回不继承。原生动作/SQL红测试复现旧错误，旧快照继续兼容。登记仍925/1212，不算新增覆盖。冻结30局仍14完赛/16人工停止，正条件单独SQL分支另列。[验证与边界](./docs/development/bottom-three-aqours-heart-verification.md)

@@ -3468,6 +3468,72 @@ describe("App", () => {
     });
   });
 
+  it.each([0, 1, 2])("orders the top and bottom groups independently with %s top cards", (count) => {
+    const onAction = vi.fn();
+    const ids = ["player_1-M002", "player_1-M003"] as const;
+    const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], options: {
+      ...INSPECTION_MATCH_PAYLOAD.legal_actions[0].options,
+      effect_id: "PL!S-bp7-008:1", selection_policy: "private_three_top_bottom_order",
+      inspected_card_instance_ids: ids, candidate_card_instance_ids: ids,
+      minimum: 0, maximum: 3, requires_order: true, reveal_selected_to_opponent: false,
+      selected_destination: "main_deck_top_ordered", unselected_destination: "main_deck_bottom",
+    } };
+    render(<InspectionChoiceAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never}
+      loading={false} onAction={onAction} title="查看结果" submitLabel="确认排列" />);
+    for (const id of ids.slice(0, count)) {
+      fireEvent.click(screen.getByRole("button", { name: new RegExp(INSPECTION_CARDS[id].card.name_ja) }));
+    }
+    if (count === 0) fireEvent.click(screen.getAllByRole("button", { name: "下移库底卡" })[0]);
+    if (count === 2) fireEvent.click(screen.getAllByRole("button", { name: "下移已选卡" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "确认排列" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_1", {
+      selected_card_instance_ids: count === 2 ? [...ids].reverse() : ids.slice(0, count),
+      ordered_card_instance_ids: count === 2 ? [...ids].reverse() : ids.slice(0, count),
+      bottom_ordered_card_instance_ids: count === 0 ? [...ids].reverse() : ids.slice(count),
+    });
+    expect(screen.queryByText(/选中的卡会公开给对手/)).not.toBeInTheDocument();
+  });
+
+  it.each([false, true])("renders native split-order controls in both languages with empty=%s", async (empty) => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const ids = empty ? [] : ["player_1-M002", "player_1-M003"];
+    const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], options: {
+      ...INSPECTION_MATCH_PAYLOAD.legal_actions[0].options, selection_policy: "private_three_top_bottom_order",
+      inspected_card_instance_ids: ids, candidate_card_instance_ids: ids,
+      minimum: 0, maximum: ids.length, requires_order: true, selected_destination: "main_deck_top_ordered",
+      unselected_destination: "main_deck_bottom", reveal_selected_to_opponent: false,
+    } };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate: { ...INSPECTION_MATCH_PAYLOAD, legal_actions: [action] } }));
+    render(<App />);
+    const create = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(create).not.toBeDisabled()); fireEvent.click(create);
+    expect(await screen.findByRole("group", { name: "牌库底" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect(await screen.findByRole("group", { name: "デッキ下" })).toBeInTheDocument();
+    if (!empty) expect(screen.getAllByRole("button", { name: "デッキ下のカードを下へ" })).toHaveLength(2);
+  });
+
+  it("returns a top card to the bottom group without losing it", () => {
+    const onAction = vi.fn();
+    const ids = ["player_1-M002", "player_1-M003"];
+    const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], options: {
+      ...INSPECTION_MATCH_PAYLOAD.legal_actions[0].options,
+      selection_policy: "private_three_top_bottom_order", inspected_card_instance_ids: ids,
+      candidate_card_instance_ids: ids, minimum: 0, maximum: 3, requires_order: true,
+      selected_destination: "main_deck_top_ordered", unselected_destination: "main_deck_bottom",
+    } };
+    render(<InspectionChoiceAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never}
+      loading={false} onAction={onAction} title="查看结果" submitLabel="确认排列" />);
+    const card = screen.getByRole("button", { name: new RegExp(INSPECTION_CARDS["player_1-M002"].card.name_ja) });
+    fireEvent.click(card);
+    fireEvent.click(card);
+    fireEvent.click(screen.getByRole("button", { name: "确认排列" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_1", {
+      selected_card_instance_ids: [], ordered_card_instance_ids: [],
+      bottom_ordered_card_instance_ids: [...ids].reverse(),
+    });
+  });
+
   it.each([10, 11])("finishes an empty private inspection with %s cards in hand", () => {
     const onAction = vi.fn();
     const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], options: {

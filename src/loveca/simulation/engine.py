@@ -2102,6 +2102,8 @@ def _begin_effect_inspection_choice(
             "reveal_selected_to_opponent": choice.reveal_selected_to_opponent,
         },
     )
+    if getattr(choice, "selection_policy", None) == "private_three_top_bottom_order":
+        state.pending_choice.options["selection_policy"] = choice.selection_policy
     events.append(
         GameEvent(
             event_type="effect_inspection_started",
@@ -2382,6 +2384,14 @@ def _resolve_effect_choice(
     unselected_destination = pending.options.get("unselected_destination")
     selected_set = set(selected_ids)
     unselected_ids = [item for item in inspected_ids if item not in selected_set]
+    if getattr(effect.choice, "selection_policy", None) == "private_three_top_bottom_order":
+        bottom_order = action.payload.get("bottom_ordered_card_instance_ids")
+        if (not isinstance(bottom_order, list)
+                or any(not isinstance(item, str) for item in bottom_order)
+                or len(bottom_order) != len(unselected_ids)
+                or set(bottom_order) != set(unselected_ids)):
+            raise IllegalActionError("bottom ordering must contain every unselected inspected card exactly once")
+        unselected_ids = list(bottom_order)
     for instance_id in selected_ids:
         if instance_id in player.resolution_area:
             _remove_resolution_card(player, instance_id)

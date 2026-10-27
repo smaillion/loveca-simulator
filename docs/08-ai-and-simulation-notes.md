@@ -1,5 +1,12 @@
 # AI and Simulation Notes
 
+PL!S-bp7-008:1 adds bounded private top/bottom partition ordering to all four
+controllers, legacy sandbox payloads and semantic hints/examples, without changing
+the default policy.88 targeted and242 illustrated cases protect hidden identities
+and old snapshots. Frozen30 advances14 to15 completions,208/210 invocations; the
+one actual resolution puts all three on top. Its0:3 Live finish is not bilateral
+Live long-game acceptance. [Evidence](development/private-three-top-bottom-verification.md).
+
 PL!S-bp7-021:1 checks three top-level Stage Members when resolving (Q120/Q119
 analogy), records five bottom moves across immediate refresh, draws once for at
 least three Member moves and grants only the original Live score+1 for all five.

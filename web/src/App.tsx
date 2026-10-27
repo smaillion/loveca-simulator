@@ -5691,6 +5691,7 @@ export function InspectionChoiceAction({
   const minimum = Number(action.options.minimum ?? 0);
   const maximum = Number(action.options.maximum ?? 0);
   const requiresOrder = Boolean(action.options.requires_order);
+  const splitOrder = action.options.selection_policy === "private_three_top_bottom_order";
   const selectedDestination = String(action.options.selected_destination ?? "");
   const effectId = typeof action.options.effect_id === "string" ? action.options.effect_id : "";
   const sourceCardId = typeof action.options.source_card_instance_id === "string"
@@ -5700,10 +5701,12 @@ export function InspectionChoiceAction({
   const sourceCard = sourceCardId ? state.cards[sourceCardId] : undefined;
   const [selected, setSelected] = useState<string[]>([]);
   const [selectedSlot, setSelectedSlot] = useState("");
+  const [bottomOrder, setBottomOrder] = useState<string[]>([]);
 
   useEffect(() => {
     setSelected([]);
     setSelectedSlot("");
+    setBottomOrder(stringArray(action.options.inspected_card_instance_ids));
   }, [state.revision, action.action_type, action.player_id]);
 
   const isValidSelection =
@@ -5713,7 +5716,7 @@ export function InspectionChoiceAction({
     (!isMemberDeployment || selected.length === 0 || slotOptions.includes(selectedSlot));
 
   return (
-    <div className="effect-resolution">
+    <div className={splitOrder ? "effect-resolution split-order-resolution" : "effect-resolution"}>
       <strong>{title}</strong>
       {action.options.public_reveal_policy === "public_four_lily_white_live" && (
         <small>{action.options.condition_met
@@ -5766,17 +5769,24 @@ export function InspectionChoiceAction({
               badge={
                 candidate ? undefined : locale === "zh" ? "不符合条件" : "条件外"
               }
-              onSelect={() =>
-                candidate
-                  ? toggleSelected(selected, instanceId, setSelected, maximum)
-                  : undefined
-              }
+              onSelect={() => {
+                if (!candidate) return;
+                if (splitOrder) {
+                  if (selected.includes(instanceId)) {
+                    setSelected(selected.filter((id) => id !== instanceId));
+                    setBottomOrder([...bottomOrder, instanceId]);
+                  } else if (selected.length < maximum) {
+                    setSelected([...selected, instanceId]);
+                    setBottomOrder(bottomOrder.filter((id) => id !== instanceId));
+                  }
+                } else toggleSelected(selected, instanceId, setSelected, maximum);
+              }}
             />
           );
         })}
       </div>
       {requiresOrder && selected.length > 0 && (
-        <div className="order-action">
+        <div className={splitOrder ? "order-action split-order" : "order-action"}>
           {selected.map((id, index) => (
             <span key={id}>
               {state.cards[id].card.name_ja}
@@ -5810,6 +5820,28 @@ export function InspectionChoiceAction({
           ))}
         </div>
       )}
+      {splitOrder && (
+        <div className="order-action split-order" role="group" aria-label={tr("牌库底", "デッキ下")}>
+          <strong>{tr("牌库底", "デッキ下")}</strong>
+          {bottomOrder.map((id, index) => (
+            <span key={id}>
+              {state.cards[id]?.card.name_ja ?? id}
+              <button className="mini-icon" disabled={index === 0}
+                aria-label={tr("上移库底卡", "デッキ下のカードを上へ")}
+                title={tr("上移库底卡", "デッキ下のカードを上へ")}
+                onClick={() => setBottomOrder(moveItem(bottomOrder, index, index - 1))}>
+                <ChevronUp size={14} />
+              </button>
+              <button className="mini-icon" disabled={index === bottomOrder.length - 1}
+                aria-label={tr("下移库底卡", "デッキ下のカードを下へ")}
+                title={tr("下移库底卡", "デッキ下のカードを下へ")}
+                onClick={() => setBottomOrder(moveItem(bottomOrder, index, index + 1))}>
+                <ChevronDown size={14} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
       <button
         className="primary-button"
         disabled={loading || !isValidSelection}
@@ -5818,7 +5850,8 @@ export function InspectionChoiceAction({
             ...(isMemberDeployment
               ? selected.length === 1 ? { selected_card_instance_id: selected[0], slot: selectedSlot } : {}
               : { selected_card_instance_ids: selected,
-                  ordered_card_instance_ids: requiresOrder ? selected : undefined }),
+                  ordered_card_instance_ids: requiresOrder ? selected : undefined,
+                  ...(splitOrder ? { bottom_ordered_card_instance_ids: bottomOrder } : {}) }),
           })
         }
       >

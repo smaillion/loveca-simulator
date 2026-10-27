@@ -1,5 +1,12 @@
 # Effect Semantics Audit
 
+PL!S-bp7-008:1 binds complete two-segment revision853/hash to the bounded
+private_three_top_bottom_order snapshot. Top and bottom groups are independent
+ordered partitions of the actual inspected cards; Q85/Q86/Q122 cover private
+short-deck/exact-deck refresh, not simultaneous public reveal. Legacy snapshots
+and the second manual segment remain unchanged.927/1212 is executable registry
+coverage, not human-reviewed rulings. [Evidence](development/private-three-top-bottom-verification.md).
+
 PL!S-bp7-021:1 binds complete text/revision913/hash to a single bounded Live
 operation. Its Stage condition is in the resolving body, never a trigger filter.
 Q120/Q119 support resolution-time conditions; Q104 supports sequential milling

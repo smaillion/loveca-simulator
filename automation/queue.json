@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "onplay-mirakura-opponent-front-position",
+      "priority": 0,
+      "title": "按实际待机审计仅みらくらぱーく条件与对手正面移动",
+      "status": "queued",
+      "depends_on": ["onplay-private-three-top-bottom-order"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!HS-pb1-014:1完整双段/revision130/hash542b68ba2435dd4aafaaf2f88d9fc0d75cf33321d245934e772175c21e009591，seed18005实际mandatory manual；仅审计第1登场段，第2常时不自动晋级", "先查官方仅某unit条件、正文结算时点及对手正面Position Change规则，区分stage顶层/附属、unit/work、来源离场的正面参照及有成员的目的地；不能猜测或替代为登场/Formation/全体移动，不明记unresolved", "有限实现须真实验证本人舞台纯/混合/空、对手0/1/多候补、左右镜像/中央/同区域、来源离场返回和换位、非法/非所有者原子性、新旧SQL、四AI/双视角/UI图文；不扩大旧Position Change快照或常时框架", "全部profiles/pre-push与新源码同牌组冻结诊断后只本地提交，不提升reviewed、不改默认AI/schema；后续PR目标待明确批准，不改policy、不推送、新建PR、合并部署"]
+    },
+    {
       "id": "onplay-private-three-top-bottom-order",
       "priority": 0,
       "title": "按实际待机审计私看三张后分别排库顶库底",

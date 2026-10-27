@@ -408,6 +408,7 @@ class EffectChoice(BaseModel):
         "public_aqours_blade_six_source_score",
         "public_four_lily_white_live",
         "private_ten_minus_hand_keep_two",
+        "private_three_top_bottom_order",
         "public_both_waiting_live_one",
     ] | None = None
     zone: str | None = None
@@ -507,6 +508,14 @@ class EffectChoice(BaseModel):
             raise ValueError("both-player recovery requires one public Waiting Room Live per player")
         if self.choice_type == "multi_player_waiting_live_recovery" and self.selection_policy != "public_both_waiting_live_one":
             raise ValueError("both-player recovery requires its explicit snapshot policy")
+        if self.selection_policy == "private_three_top_bottom_order" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "inspect_top_select", "amount": 3, "maximum": 3,
+                "selection_policy": "private_three_top_bottom_order", "requires_order": True,
+                "selected_destination": "main_deck_top_ordered", "unselected_destination": "main_deck_bottom",
+            }
+        ):
+            raise ValueError("private split reorder requires exactly three private cards and two ordered groups")
         if self.selection_policy == "private_ten_minus_hand_keep_two" and (
             self.model_dump(exclude_defaults=True, exclude_none=True) != {
                 "choice_type": "inspect_top_select",
@@ -801,6 +810,17 @@ class EffectDefinition(BaseModel):
             or self.actions[1].action_type != "gain_source_heart_if_milled_member_blade_colors"
         ):
             raise ValueError("milled Member Blade colors require the fixed on-play mill-three sequence")
+        if self.choice and self.choice.selection_policy == "private_three_top_bottom_order" and (
+            self.cost or self.cost_choice or self.follow_up_choice or self.condition
+            or self.is_optional or self.effect_type != "triggered" or self.timing != "on_play"
+            or self.trigger != "member_played" or self.frequency_limit != "none"
+            or self.duration is not None or self.execution_mode != "prompt_then_resolve"
+            or [op.model_dump(exclude_defaults=True, exclude_none=True) for op in self.actions] != [
+                {"action_type": "inspect_top_cards", "amount": 3},
+                {"action_type": "reorder_deck_top"}, {"action_type": "move_remaining_cards"},
+            ]
+        ):
+            raise ValueError("private split reorder only supports its fixed on-play sequence")
         if self.choice and self.choice.selection_policy == "private_ten_minus_hand_keep_two" and (
             self.cost or self.cost_choice or self.follow_up_choice or self.condition
             or self.is_optional or self.effect_type != "triggered" or self.timing != "on_play"

@@ -220,6 +220,9 @@ def _v1_1_dynamic_scenarios(
         *((f"mill_blade_colors_{case}", f"控室三枚・Blade Heart色条件 {case}", f"顶三控室与Blade Heart颜色 {case}",
            "PL!N-bp7-020:1", lambda effect, case=case: _run_mill_blade_colors(effect, case=case))
           for case in ("none", "same", "two", "three", "all_green", "live_excluded")),
+        *((f"private_three_split_{count}", f"三枚を上下に分割 {count}", f"私看三张分库顶库底 {count}",
+           "PL!S-bp7-008:1", lambda effect, count=count: _run_private_three_split(effect, count))
+          for count in (0, 1, 2, 3)),
         *((f"ten_minus_hand_{hand}", f"手札{hand}枚・上から確認して最大二枚", f"手牌{hand}张：私看并最多取二",
            "PL!SP-PR-028:1", lambda effect, hand=hand: _run_ten_minus_hand_inspection(effect, hand=hand))
           for hand in (0, 1, 9, 10, 11)),
@@ -819,6 +822,32 @@ def _run_mill_blade_colors(effect: EffectDefinition, *, case: str) -> dict[str, 
         "発生源だけHeart / 只有来源获得Heart": len(mods) == delta and all(
             m.target_card_instance_id == "source" and m.color_slot == "heart04" and m.amount == 1 and m.duration == "live" for m in mods),
         "自動処理完了 / 自动处理完成": not result.state.pending_effects and result.state.pending_choice is None,
+    }
+
+
+def _run_private_three_split(effect: EffectDefinition, count: int) -> dict[str, bool]:
+    from loveca.webapp import _match_state_payload
+
+    deck = [f"split-{i}" for i in range(5)]
+    cards = [_v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id]),
+             *[_v1_1_member(key, "AUDIT-" + key) for key in deck]]
+    state = _v1_1_pending_state(effect, cards, main_deck=deck)
+    inspected = _v1_1_resolve(state)
+    order = deck[:3][::-1]
+    top, bottom = order[:count], order[count:]
+    public = _match_state_payload(inspected.state, events=inspected.events,
+        legal_actions=inspected.legal_actions, player_id="player_2")
+    result = apply_action(inspected.state, ActionRequest(action_type="resolve_effect_choice",
+        player_id="player_1", expected_revision=inspected.state.revision, payload={
+            "selected_card_instance_ids": top, "ordered_card_instance_ids": top,
+            "bottom_ordered_card_instance_ids": bottom}))
+    final = result.state.players["player_1"]
+    return {
+        "三枚だけ私見 / 仅私看三张": inspected.state.pending_choice.options["inspected_card_instance_ids"] == deck[:3],
+        "相手に非公開 / 对手不可见": not set(deck).intersection(public["state"]["cards"]),
+        "両グループの順序 / 两组顺序": final.main_deck == top + deck[3:] + bottom,
+        "手札控室不変 / 手牌控室不变": not final.hand and not final.waiting_room,
+        "待機完了 / 待机完成": not result.state.pending_effects and result.state.pending_choice is None,
     }
 
 

@@ -620,6 +620,8 @@ def choose_action(
         payload = {"selected_card_instance_ids": selected}
         if options.get("requires_order"):
             payload["ordered_card_instance_ids"] = list(selected)
+        if options.get("selection_policy") == "private_three_top_bottom_order":
+            payload["bottom_ordered_card_instance_ids"] = [item for item in candidates if item not in selected]
         return action.action_type, action.player_id, payload
     if "resolve_live_requirements" in by_type:
         action = by_type["resolve_live_requirements"]

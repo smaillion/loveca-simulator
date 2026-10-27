@@ -1339,6 +1339,13 @@ def legal_action_hint(action: LegalAction) -> dict[str, Any]:
 
 
 def payload_hint_for_action(action: LegalAction) -> dict[str, Any]:
+    if (action.action_type == "resolve_effect_choice"
+            and action.options.get("selection_policy") == "private_three_top_bottom_order"):
+        return {
+            "selected_card_instance_ids": "any inspected subset to put on top",
+            "ordered_card_instance_ids": "selected subset in top-to-bottom order",
+            "bottom_ordered_card_instance_ids": "every remaining inspected id exactly once in top-to-bottom order",
+        }
     hints: dict[str, dict[str, Any]] = {
         "choose_first_player": {
             "first_player_id": "one id from options.player_ids"
@@ -1428,6 +1435,10 @@ def payload_example_for_action(action: LegalAction) -> dict[str, Any]:
         payload: dict[str, Any] = {"selected_card_instance_ids": selected}
         if options.get("requires_order"):
             payload["ordered_card_instance_ids"] = list(selected)
+        if options.get("selection_policy") == "private_three_top_bottom_order":
+            payload["bottom_ordered_card_instance_ids"] = [
+                item for item in options.get("candidate_card_instance_ids", []) if item not in selected
+            ]
         return payload
     if action.action_type == "resolve_live_requirements":
         if isinstance(options.get("live_instance_ids"), list):
