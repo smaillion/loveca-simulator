@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 新snapshot専用Member ready provenance v1底座。元対象・発生源LKI・turnを記録し、旧ready/Replayを維持、正式カード未接続。
+- 中文: 62专项/34 SQL、四AI/双视角/provider构造隐私，未知不作零；新源码同30牌组绑定以最终验收为准，不宣称随机原型覆盖，见[验证](./docs/development/member-ready-provenance-foundation.md)。不自动恢复blocked。
+
 - `PL!-pb2-010:1`のPrintemps実復原履歴を監査。作品別ブール記録では人数・unit・元対象を証明できず、manualのまま。40専用/24 SQL、四AI秘匿と2 UI。
 - 中文: 记录`printemps_member_ready_target_object_provenance_unmodeled`依赖，不新增半支持登记，不重跑无变化冻结或虚报执行率，见[边界报告](./docs/development/printemps-ready-history-unresolved.md)。
 

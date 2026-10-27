@@ -1,5 +1,10 @@
 # AI and Simulation Notes
 
+The opt-in ready provenance prototype has actual four-controller target choices
+and hidden-identity invariance. Internal history is absent from player/provider
+views; unknown producer coverage is not zero. No official card is enabled.
+See [foundation](development/member-ready-provenance-foundation.md).
+
 PL!-pb2-010:1 remains manual: the work-level ready flag cannot establish the
 Printemps effect source, target count or original Member object. Four controllers
 retain their actual blocker under hidden-identity changes, without input mutation.

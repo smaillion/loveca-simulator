@@ -71,6 +71,7 @@ SUPPORTED_EFFECT_ACTIONS = {
     "prevent_source_active_phase_ready",
     "ready_energy",
     "ready_member",
+    "ready_member_with_provenance_v1",
     "reorder_deck_top",
     "replace_score",
     "replace_yell_blade_hearts",
@@ -199,6 +200,14 @@ class EffectOperation(BaseModel):
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        if self.action_type == "ready_member_with_provenance_v1":
+            if (set(self.model_dump(exclude_defaults=True, exclude_none=True)) - {"action_type", "target", "value"}
+                    or self.target not in {None, "selected", "source", "self_stage_all", "self_stage_unit"}
+                    or self.amount is not None or self.amount_source is not None or self.source_object_policy is not None
+                    or (self.target == "self_stage_unit" and (not isinstance(self.value, dict)
+                        or set(self.value) != {"unit_key"} or not isinstance(self.value["unit_key"], str)))
+                    or (self.target != "self_stage_unit" and self.value is not None)):
+                raise ValueError("ready provenance v1 only supports its explicit top-level Member operation")
         bounded = "gain_source_score_if_current_yell_live"
         policy = "original_live_success_yell_source"
         if self.action_type == bounded and self.model_dump(exclude_defaults=True, exclude_none=True) != {
@@ -779,6 +788,11 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        if any(op.action_type == "ready_member_with_provenance_v1" for op in self.cost):
+            raise ValueError("ready provenance is an effect operation, not a cost")
+        if any(op.action_type == "ready_member_with_provenance_v1" for op in self.actions) and (
+                self.cost or self.cost_choice or self.follow_up_choice or self.simulation_support == "manual_resolution"):
+            raise ValueError("ready provenance prototype does not support costs, follow-up choices or manual execution")
         if getattr(self.choice, "selection_policy", None) == "public_waiting_nine_live_three_private_top":
             expected_choice = EffectChoice(choice_type="card_from_zone", zone="waiting_room", card_type="live", minimum=0, maximum=3,
                 requires_order=True, selected_destination="main_deck_top_ordered", selection_policy="public_waiting_nine_live_three_private_top")

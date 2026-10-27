@@ -27,6 +27,7 @@ from loveca.simulation.service import MatchService
 from loveca.simulation.visibility import (
     owner_manual_source_handles,
     player_visible_card_ids,
+    public_invocation_payload,
     private_inspection_card_ids,
     redact_hidden_references,
 )
@@ -1147,7 +1148,7 @@ def build_api_play_context(
             "acting_player_id": acting_player_id,
             "revision": state.revision,
             "pending_choice": pending_choice_context(state, acting_player_id),
-            "pending_effects": [effect.model_dump() for effect in state.pending_effects],
+            "pending_effects": [public_invocation_payload(effect) for effect in state.pending_effects],
         },
         "strategy": api_play_strategy_summary(
             state,

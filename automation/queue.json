@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "effect-ready-member-object-provenance-foundation",
+      "priority": 1,
+      "title": "建立显式新快照的成员复原来源与对象历史底座",
+      "status": "queued",
+      "depends_on": ["live-start-waiting-nine-live-three-top-order"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["先读Printemps边界和provenance-gap，底座不依赖blocked消费者，不直接requeue或晋级正式卡，不改旧ready flags", "显式版本化新快照记录实际Wait到Active、游戏回合、真实来源invocation/effect/所有者和当时unit/作品、目标原Member对象；重复计数去重，已有Active不记，Stage换位保持，离区同ID返回不继承，不从裸ID倒推", "只用unregistered probe验收，不绑定正式卡；旧快照不加键/改Replay，覆盖来源离场LKI/目标移区附属/双方角色/Active阶段排除/回合清理/SQL/四AI/完整隐私和全部profiles，应用变化重绑同原30牌组冻结", "底座通过仍需单独显式requeue消费者并逐卡验收，不把底座绿色当整卡实现；仅本地提交，不push/publish、新PR、合并部署或主机操作"]
+    },
+    {
       "id": "live-start-printemps-ready-history-source-blade-audit",
       "priority": 1,
       "title": "审计Printemps效果实际复原历史与原来源Blade",

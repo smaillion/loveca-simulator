@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+新增显式新快照的成员实际复原历史底座，绑定原对象、来源LKI与回合，未知不当零；62专项/34 SQL、四AI/隐私，旧ready/Replay保持，不绑定正式卡或恢复穂乃果。[底座验证](./docs/development/member-ready-provenance-foundation.md)。仅本地提交。
+
 高坂穂乃果`PL!-pb2-010:1`完成Printemps实际Wait→Active历史边界审计。作品级标志无法证明人数和原成员对象，保留manual；40专项/24 SQL、四AI隐私及2 UI，不晋级。[执行模型依赖](./docs/development/printemps-ready-history-unresolved.md)。仅本地提交。
 
 黒澤ルビィ`PL!S-PR-048:1`按全文/revision/hash限定实现：结算时控室总数九张以下，0至3张Live按私有顺序回库顶。公开集合不泄露实际顺序，旧快照保持；89专项/51 SQL、四AI/隐私、301图文/6 UI。[验证记录](./docs/development/waiting-nine-live-top-order-verification.md)。仅本地提交，不推送或上线。

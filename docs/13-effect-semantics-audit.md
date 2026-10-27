@@ -1,5 +1,10 @@
 # Effect Semantics Audit
 
+Ready provenance v1 records actual transitions with original Member object tokens
+and source last information. It is a separate snapshot operation, not a rewrite
+of legacy ready or work flags. Missing or incomplete coverage stays unknown.
+See [prototype scope](development/member-ready-provenance-foundation.md).
+
 The Printemps ready-history audit preserves PL!-pb2-010:1 as manual. Native
 zero/one/three ready operations demonstrate that the old work-level Boolean
 does not encode source units or original target objects. This is an execution

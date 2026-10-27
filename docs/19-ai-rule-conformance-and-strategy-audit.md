@@ -1,5 +1,10 @@
 # AI Rule Conformance and Strategy Audit
 
+The ready provenance foundation is validated with unregistered probes only.
+The 30 formal-card summaries are unchanged except for source fingerprint;
+neither prototype random coverage nor consumer promotion is claimed.
+See [evidence](development/member-ready-provenance-foundation.md).
+
 The Printemps history boundary adds no executable promotion or random outcome.
 Four-policy blockers, source handles and full hidden-zone projections are tested;
 the unchanged application fingerprint reuses the prior 30-match diagnostic only

@@ -5,6 +5,12 @@ from typing import Any
 from loveca.simulation.models import LegalAction, MatchState
 
 
+def public_invocation_payload(invocation: Any) -> dict[str, Any]:
+    payload = invocation.model_dump()
+    payload.get("trigger_data", {}).pop("ready_source_lki_v1", None)
+    return payload
+
+
 def public_inspection_card_ids(state: MatchState) -> set[str]:
     choice = state.pending_choice
     if choice is None or choice.choice_type != "effect_inspection_selection":
@@ -47,6 +53,9 @@ def redact_player_state(
     legal_actions: list[LegalAction],
 ) -> set[str]:
     """Project a player response; never serialize hidden pile identities or order."""
+    payload.pop("member_ready_history", None)
+    for invocation in payload.get("pending_effects", []):
+        invocation.get("trigger_data", {}).pop("ready_source_lki_v1", None)
     visible_ids = player_visible_card_ids(state, viewer_id)
     for player_id, player in state.players.items():
         own = player_id == viewer_id

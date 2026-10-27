@@ -7,6 +7,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, model_serializer
 
 from loveca.simulation.effects import EffectDefinition
+from loveca.simulation.ready_history import MemberReadyHistoryV1
 
 RULE_VERSION = "1.06"
 MATCH_RUNTIME_SCHEMA_VERSION = 2
@@ -217,6 +218,7 @@ class GameResult(BaseModel):
 
 class MatchState(BaseModel):
     match_id: str
+    member_ready_history: MemberReadyHistoryV1 | None = None
     rule_version: str = RULE_VERSION
     ruleset_id: str | None = None
     ruleset_fingerprint: str | None = None
@@ -263,6 +265,8 @@ class MatchState(BaseModel):
     @model_serializer(mode="wrap")
     def serialize_overlap_policy(self, handler: Any) -> dict[str, Any]:
         payload = handler(self)
+        if self.member_ready_history is None:
+            payload.pop("member_ready_history", None)
         for field in ("ruleset_id", "ruleset_fingerprint", "ruling_pack_version"):
             if getattr(self, field) is None:
                 payload.pop(field, None)
