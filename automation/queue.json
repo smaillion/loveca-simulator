@@ -38,6 +38,15 @@
       "acceptance": ["只为已有至少四张牌库的原型增加受限snapshot策略，不改官方registry或generator，不提高执行率；不足四张在修改状态前明确拒绝，正式PL!-pb2-013仍manual", "公开不改变牌库对象及顺序；全四张lily_white才必须选其中Live一张并丢弃其余，否则无选择且原牌库不变；无Live时明确零张；验证公开/私看隔离、原对象、非法选择原子性和离开返回", "真实状态、SQL Replay、四AI及隐藏信息、原生UI有断言；旧私看快照维持原状。全部profiles/pre-push和新源码绑定的冻结30局通过，中文报告区分原型验证与正式卡裁定", "保留公开短牌库与刷新语义unresolved，不套用私看10.2.2.2，也不把逐张公开FAQ直接当成同时公开四张裁定；未获新PR目标批准前不改policy、不推送、不合并部署"]
     },
     {
+      "id": "onplay-mill-three-blade-color-heart",
+      "priority": 0,
+      "title": "按两次实际待机审计顶三控室的Blade Heart颜色条件",
+      "status": "queued",
+      "depends_on": ["onplay-ten-minus-hand-private-two"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!N-bp7-020:1全文/revision883/hash 1fd519f551bd331e61e6a8fa1d9cfada8390c609ae73319768e4e7d30701ea04；冻结池两次实际mandatory manual，不按持有频次宣称触发", "先确认官方Blade Heart颜色定义、特殊/无色图标与Member限定，再实现顶三控室中颜色去重达到两种时仅原来源获得Heart04至Live结束；不能用普通Heart或Live牌的图标凑数，未确认保留unresolved", "短牌库及途中刷新、0/1/2种颜色、重复色、混合Member/Live、来源离开返回及清理有真实状态、旧新SQL Replay、四AI、隐藏信息和必要UI/图文断言；不扩大旧snapshot", "按同牌组seed绑定新源码冻结诊断并完成全部profiles/pre-push；普通本地验证提交获授权，新PR目标未批准前不改policy、不推送、新建PR、合并部署，不提升reviewed或改默认AI/schema"]
+    },
+    {
       "id": "onplay-ten-minus-hand-private-two",
       "priority": 0,
       "title": "按实际待机审计10减当前手牌的私看最多取二",

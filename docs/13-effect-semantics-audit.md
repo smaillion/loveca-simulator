@@ -1,5 +1,14 @@
 # Effect Semantics Audit
 
+PL!SP-PR-028:1 uses an exact revision/hash-bound private ten-minus-current-hand
+snapshot. Quantity is evaluated after source play and other pending changes;
+old amount_source/fixed inspection/manual Replay behavior is unchanged.
+Zero to two cards may be kept without revealing them; only discards become public.
+Rules1.3.2.2/5.7.1/9.6.3.1.1/10.2.2.2/10.2.3 support this bounded private path,
+not simultaneous public-four semantics.59 dedicated tests and5 dynamic illustrated
+scenarios are automated implementation evidence, not full human rule certification.
+[Evidence](development/ten-minus-hand-private-two-verification.md).
+
 PL!-pb2-013:1 remains manual: simultaneous public-reveal short-deck refresh semantics
 are unresolved. The separate public-four snapshot prototype requires at least4 cards,
 keeps original deck objects, retains the deck on a false condition, and never promotes

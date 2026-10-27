@@ -82634,23 +82634,20 @@
     },
     {
       "actions": [
-        {
-          "action_type": "manual_resolution",
-          "amount": null,
-          "amount_source": null,
-          "branch": null,
-          "card_type": null,
-          "color_slot": null,
-          "flag": null,
-          "multiplier": null,
-          "orientation": null,
-          "target": null,
-          "target_hand_size": null,
-          "value": null
-        }
+        {"action_type": "inspect_top_cards"},
+        {"action_type": "select_to_hand_from_inspected"},
+        {"action_type": "move_remaining_cards"}
       ],
       "card_code": "PL!SP-PR-028",
-      "choice": null,
+      "choice": {
+        "choice_type": "inspect_top_select",
+        "selection_policy": "private_ten_minus_hand_keep_two",
+        "minimum": 0,
+        "maximum": 2,
+        "selected_destination": "hand",
+        "unselected_destination": "waiting_room",
+        "reveal_selected_to_opponent": false
+      },
       "condition": {},
       "cost": [],
       "cost_choice": null,
@@ -82658,15 +82655,15 @@
       "effect_id": "PL!SP-PR-028:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "prompt_then_resolve",
       "follow_up_choice": null,
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【登場】自分のデッキの上から、10から自分の手札の枚数を引いた数に等しい枚数のカードを見る。その中から2枚まで手札に加える。残りを控え室に置く。",
       "raw_text_hash": "4e93a5a5a79f7b2afe0fba115053b86de413fd60bd6f84d34fdadb84676fe116",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 1232,
       "timing": "on_play",
       "trigger": "member_played"

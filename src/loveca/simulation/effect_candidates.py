@@ -37,6 +37,11 @@ NIJIGASAKI_SELECTED_BLADE_SCORE_TEXT = (
     "【ブレード】を持つ場合、このカードのスコアを＋１する。"
 )
 
+TEN_MINUS_HAND_PRIVATE_TWO_TEXT = (
+    "【登場】自分のデッキの上から、10から自分の手札の枚数を引いた数に等しい枚数のカードを見る。"
+    "その中から2枚まで手札に加える。残りを控え室に置く。"
+)
+
 
 @dataclass(frozen=True)
 class EffectCandidate:
@@ -2751,6 +2756,25 @@ def _onplay_optional_discard_inspect_keep1_any(
             {"action_type": "move_remaining_cards"},
         ],
         duration=None,
+    )
+
+
+def _onplay_ten_minus_hand_private_two(row: sqlite3.Row) -> EffectCandidate | None:
+    if (row["card_code"] != "PL!SP-PR-028" or row["text_revision_id"] != 1232
+            or row["raw_text_hash"] != "4e93a5a5a79f7b2afe0fba115053b86de413fd60bd6f84d34fdadb84676fe116"
+            or row["raw_effect_text_ja"] != TEN_MINUS_HAND_PRIVATE_TWO_TEXT):
+        return None
+    return EffectCandidate(
+        **_base(row, pattern_id="onplay_ten_minus_hand_private_two", effect_index=1),
+        label_ja=TEN_MINUS_HAND_PRIVATE_TWO_TEXT, effect_type="triggered", timing="on_play",
+        trigger="member_played", frequency_limit="none", is_optional=False,
+        condition={}, cost=[], choice={
+            "choice_type": "inspect_top_select", "selection_policy": "private_ten_minus_hand_keep_two",
+            "minimum": 0, "maximum": 2, "selected_destination": "hand",
+            "unselected_destination": "waiting_room", "reveal_selected_to_opponent": False,
+        }, actions=[{"action_type": "inspect_top_cards"},
+                    {"action_type": "select_to_hand_from_inspected"},
+                    {"action_type": "move_remaining_cards"}], duration=None,
     )
 
 
@@ -15461,6 +15485,7 @@ _PATTERNS = (
     _onplay_draw_then_discard_one,
     _onplay_named_baton_draw_then_discard,
     _onplay_multi_keep_icon_scope_manual,
+    _onplay_ten_minus_hand_private_two,
     _onplay_audited_discard_inspection,
     _onplay_optional_discard_inspect_keep1_any,
     _nijigasaki_onplay_inspection,

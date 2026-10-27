@@ -196,6 +196,9 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *((f"ten_minus_hand_{hand}", f"手札{hand}枚・上から確認して最大二枚", f"手牌{hand}张：私看并最多取二",
+           "PL!SP-PR-028:1", lambda effect, hand=hand: _run_ten_minus_hand_inspection(effect, hand=hand))
+          for hand in (0, 1, 9, 10, 11)),
         ("aqours_blade_six_low", "Blade5も選べる・score加算なし", "Blade5仍可选但不加分",
          "PL!S-bp3-025:1", lambda effect: _run_aqours_blade_six_source_score(effect, blade=5)),
         ("aqours_blade_six_exact", "Blade6・発生源Liveだけscore+1", "Blade6仅来源Live加1分",
@@ -508,6 +511,8 @@ def _v1_1_dynamic_scenarios(
                 notes_ja=[f"公式日本語テキスト: {effect.label_ja}"],
                 notes_zh=[f"官方日文效果文本：{effect.label_ja}"],
                 rule_reference_ids=(
+                    ["1.3.2.2", "5.7.1", "9.6.3.1.1", "10.2.2.2", "10.2.3"]
+                    if effect_id == "PL!SP-PR-028:1" else
                     ["2.8.1", "2.10.1", "4.1.4", "8.3.8", "8.4.2", "9.6.3.1",
                      "9.6.3.1.3", "9.9.1.5"]
                     if effect_id == "PL!S-bp3-025:1" else
@@ -524,6 +529,34 @@ def _v1_1_dynamic_scenarios(
             )
         )
     return results
+
+
+def _run_ten_minus_hand_inspection(effect: EffectDefinition, *, hand: int) -> dict[str, bool]:
+    from loveca.webapp import _match_state_payload
+    deck = [f"ten-peek-{i}" for i in range(12)]
+    hand_ids = [f"ten-hand-{i}" for i in range(hand)]
+    cards = [_v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id]),
+             *[_v1_1_member(key, "AUDIT-" + key) for key in [*deck, *hand_ids]]]
+    state = _v1_1_pending_state(effect, cards, hand=hand_ids, main_deck=deck)
+    inspected = _v1_1_resolve(state)
+    count = max(0, 10 - hand)
+    selected = deck[:min(2, count)]
+    public = _match_state_payload(inspected.state, events=inspected.events,
+                                  legal_actions=inspected.legal_actions, player_id="player_2")
+    result = apply_action(inspected.state, ActionRequest(action_type="resolve_effect_choice",
+        player_id="player_1", expected_revision=inspected.state.revision,
+        payload={"selected_card_instance_ids": selected}))
+    final = result.state.players["player_1"]
+    return {
+        "解決時手札で計算 / 按结算时手牌计算":
+        inspected.state.pending_choice.options["inspected_card_instance_ids"] == deck[:count],
+        "確認は非公開 / 查看不向对手公开":
+        not set(deck).intersection(public["state"]["cards"]),
+        "最大二枚を手札 / 最多两张入手": final.hand == hand_ids + selected,
+        "残り控室・後尾不変 / 余牌控室且尾牌不变":
+        final.waiting_room == deck[len(selected):count] and final.main_deck == deck[count:],
+        "待機完了 / 待机完成": not result.state.pending_effects and result.state.pending_choice is None,
+    }
 
 
 def _run_aqours_blade_six_source_score(

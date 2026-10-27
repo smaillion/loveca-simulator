@@ -3292,6 +3292,49 @@ describe("App", () => {
     });
   });
 
+  it.each([0, 1, 2])("privately keeps %s cards from the ten-minus-hand inspection", (keep) => {
+    const onAction = vi.fn();
+    const ids = ["player_1-M002", "player_1-M003"] as const;
+    const effectId = "PL!SP-PR-028:1";
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, effect_definitions: {
+      [effectId]: { ...INSPECTION_MATCH_PAYLOAD.state.effect_definitions["PL!-bp6-002:1"],
+        effect_id: effectId, label_ja: "【登場】自分のデッキの上から、10から自分の手札の枚数を引いた数に等しい枚数のカードを見る。その中から2枚まで手札に加える。残りを控え室に置く。" },
+    } };
+    const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], options: {
+      ...INSPECTION_MATCH_PAYLOAD.legal_actions[0].options, effect_id: effectId,
+      inspected_card_instance_ids: ids, candidate_card_instance_ids: ids,
+      minimum: 0, maximum: 2, requires_order: false, reveal_selected_to_opponent: false,
+      selected_destination: "hand", unselected_destination: "waiting_room",
+    } };
+    render(<InspectionChoiceAction action={action as never} state={state as never}
+      loading={false} onAction={onAction} title="查看结果" submitLabel="确认取得" />);
+    expect(screen.queryByText(/选中的卡会公开给对手/)).not.toBeInTheDocument();
+    const confirm = screen.getByRole("button", { name: "确认取得" });
+    expect(confirm).toBeEnabled();
+    for (const id of ids.slice(0, keep)) {
+      fireEvent.click(screen.getByRole("button", { name: new RegExp(INSPECTION_CARDS[id].card.name_ja) }));
+    }
+    fireEvent.click(confirm);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_1", {
+      selected_card_instance_ids: ids.slice(0, keep), ordered_card_instance_ids: undefined,
+    });
+  });
+
+  it.each([10, 11])("finishes an empty private inspection with %s cards in hand", () => {
+    const onAction = vi.fn();
+    const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], options: {
+      ...INSPECTION_MATCH_PAYLOAD.legal_actions[0].options, effect_id: "PL!SP-PR-028:1",
+      inspected_card_instance_ids: [], candidate_card_instance_ids: [],
+      minimum: 0, maximum: 0, requires_order: false, reveal_selected_to_opponent: false,
+    } };
+    render(<InspectionChoiceAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never}
+      loading={false} onAction={onAction} title="查看结果" submitLabel="确认取得" />);
+    fireEvent.click(screen.getByRole("button", { name: "确认取得" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_1", {
+      selected_card_instance_ids: [], ordered_card_instance_ids: undefined,
+    });
+  });
+
   it("renders structured effect inspection choices and submits the selected kept card", async () => {
     const onAction = vi.fn();
     render(

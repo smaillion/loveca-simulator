@@ -1,5 +1,13 @@
 # AI and Simulation Notes
 
+PL!SP-PR-028:1 privately inspects max(0,10-current hand) at resolution, keeping0–2.
+Four-policy native follow-up/invariance tests and old/new SQL Replay pass.
+The same source-bound frozen30 now completes11 games (previously9), with19 manual
+stops and162/164 executable completions. The card actually triggers twice;
+seed18025 finishes2:3 Live, while18028 finishes3:0, not a bilateral-Live success.
+No default-policy change, error skip, or release claim.
+[Chinese evidence](development/ten-minus-hand-private-two-verification.md).
+
 The unregistered public-four prototype uses only offered public cards. Four-policy
 choice/invariance and SQL Replay tests cover it; old private snapshots stay private.
 New source-bound frozen30 remains9 complete/21 manual,158/160 executable completions,

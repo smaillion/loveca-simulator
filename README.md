@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+米女メイ`PL!SP-PR-028:1`を本文/revision/hash限定で対応。解決時の手札枚数から確認数を計算し、非公開で0–2枚取得、残りは控室へ。59専用テストと196図解検証。同じ30デッキで9→11試合完了、本能力は実際に2回誘発。登録919/1212、293manual。公開四枚・成功置き場の未解決能力は昇格しません。[検証と制限](./docs/development/ten-minus-hand-private-two-verification.md)
+
 四枚の公開選択prototypeを追加。条件不成立なら元のデッキに残し、従来の非公開確認は維持します。四枚未満は未解決として拒否し、公式`PL!-pb2-013:1`には登録しません。実行率の追加なし。[限定底座](./docs/development/public-four-reveal-foundation.md)
 
 「春情ロマンティック」`PL!-pb2-041:2`は成功置き場の枚数を二枚扱いにする第1能力に依存するため、両段ともmanualを維持。12境界テストで実際の待機・四AI・SQL Replayを確認し、単純な実枚数での自動化は行いません。[未解決監査](./docs/development/lily-white-source-score-unresolved.md)

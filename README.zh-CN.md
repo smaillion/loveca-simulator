@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+米女メイ`PL!SP-PR-028:1`已按全文/revision/hash精确适配：结算时按10减当前手牌私看，最多取两张且不公开，余牌控室。59项专项、196图文通过；同冻结30牌组完赛9→11，本卡实际触发两次。登记919/1212、293manual；公开四张及成功区特殊计数仍未解决，不冒充完整规则或发布验收。[证据与边界](./docs/development/ten-minus-hand-private-two-verification.md)
+
 新增四张公开选择原型：条件失败保留原牌库，旧私看保持隔离；不足四张明确拒绝，正式`PL!-pb2-013:1`仍manual，不增加覆盖率。[受限底座报告](./docs/development/public-four-reveal-foundation.md)
 
 「春情ロマンティック」`PL!-pb2-041:2`依赖同卡第一段的成功区按两张计数，暂保留两段manual。12项边界测试确认真实待机、四AI与SQL Replay，不用实体牌数冒充完整计数规则。[未解决审计](./docs/development/lily-white-source-score-unresolved.md)

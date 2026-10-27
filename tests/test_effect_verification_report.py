@@ -16,6 +16,7 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
 
     scenario_ids = {result.scenario_id for result in results}
     assert {
+        "ten_minus_hand_0", "ten_minus_hand_1", "ten_minus_hand_9", "ten_minus_hand_10", "ten_minus_hand_11",
         "aqours_blade_six_low", "aqours_blade_six_exact", "aqours_blade_six_static", "aqours_blade_six_departed",
         "niji_blade_four_below", "niji_blade_four_exact", "niji_blade_four_temporary", "niji_blade_four_static",
         "aqours_yell_bottom_mixed", "aqours_yell_bottom_zero", "aqours_yell_bottom_no_target",

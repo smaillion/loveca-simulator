@@ -322,6 +322,7 @@ class EffectChoice(BaseModel):
         "public_nijigasaki_blade_four_heart",
         "public_aqours_blade_six_source_score",
         "public_four_lily_white_live",
+        "private_ten_minus_hand_keep_two",
     ] | None = None
     zone: str | None = None
     card_type: str | None = None
@@ -410,6 +411,14 @@ class EffectChoice(BaseModel):
 
     @model_validator(mode="after")
     def validate_deployment_policy(self) -> EffectChoice:
+        if self.selection_policy == "private_ten_minus_hand_keep_two" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "inspect_top_select",
+                "selection_policy": "private_ten_minus_hand_keep_two", "maximum": 2,
+                "selected_destination": "hand", "unselected_destination": "waiting_room",
+            }
+        ):
+            raise ValueError("ten-minus-hand inspection requires a private zero-to-two choice")
         if self.selection_policy == "public_four_lily_white_live" and (
             self.model_dump(exclude_defaults=True, exclude_none=True) != {
                 "choice_type": "inspect_top_select", "amount": 4,
@@ -603,6 +612,18 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        if self.choice and self.choice.selection_policy == "private_ten_minus_hand_keep_two" and (
+            self.cost or self.cost_choice or self.follow_up_choice or self.condition
+            or self.is_optional or self.effect_type != "triggered" or self.timing != "on_play"
+            or self.trigger != "member_played" or self.frequency_limit != "none"
+            or self.duration is not None or self.execution_mode != "prompt_then_resolve"
+            or [op.model_dump(exclude_defaults=True, exclude_none=True) for op in self.actions] != [
+                {"action_type": "inspect_top_cards"},
+                {"action_type": "select_to_hand_from_inspected"},
+                {"action_type": "move_remaining_cards"},
+            ]
+        ):
+            raise ValueError("ten-minus-hand inspection only supports its fixed on-play sequence")
         if self.choice and self.choice.selection_policy == "public_four_lily_white_live" and (
             self.cost or self.cost_choice or self.follow_up_choice or self.condition
             or self.is_optional or self.effect_type != "triggered" or self.timing != "on_play"

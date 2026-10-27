@@ -2048,7 +2048,9 @@ def _begin_effect_inspection_choice(
         return
     player = state.players[invocation.player_id]
     amount = choice.amount or 0
-    if choice.amount_source == "own_stage_member_count_plus_2":
+    if getattr(choice, "selection_policy", None) == "private_ten_minus_hand_keep_two":
+        amount = max(0, 10 - len(player.hand))
+    elif choice.amount_source == "own_stage_member_count_plus_2":
         amount = (
             sum(1 for item in player.member_area.values() if item is not None)
             + 2
@@ -2405,6 +2407,9 @@ def _resolve_effect_choice(
             state.cards[instance_id].face_up = False
     elif unselected_ids:
         raise IllegalActionError("unsupported unselected destination for inspection effect")
+
+    if getattr(effect.choice, "selection_policy", None) == "private_ten_minus_hand_keep_two":
+        _refresh_main_deck(state, invocation.player_id, events)
 
     post_choice_operations = [
         operation
