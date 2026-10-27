@@ -38,6 +38,15 @@
       "acceptance": ["只为已有至少四张牌库的原型增加受限snapshot策略，不改官方registry或generator，不提高执行率；不足四张在修改状态前明确拒绝，正式PL!-pb2-013仍manual", "公开不改变牌库对象及顺序；全四张lily_white才必须选其中Live一张并丢弃其余，否则无选择且原牌库不变；无Live时明确零张；验证公开/私看隔离、原对象、非法选择原子性和离开返回", "真实状态、SQL Replay、四AI及隐藏信息、原生UI有断言；旧私看快照维持原状。全部profiles/pre-push和新源码绑定的冻结30局通过，中文报告区分原型验证与正式卡裁定", "保留公开短牌库与刷新语义unresolved，不套用私看10.2.2.2，也不把逐张公开FAQ直接当成同时公开四张裁定；未获新PR目标批准前不改policy、不推送、不合并部署"]
     },
     {
+      "id": "onplay-success-muse-granted-blade-audit",
+      "priority": 0,
+      "title": "审计成功区得分图标条件与临时赋予μs常时Blade能力",
+      "status": "queued",
+      "depends_on": ["multi-player-hidden-source-reference-privacy"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["依据新冻结seed18029真实mandatory manual核对PL!-pb2-005:1全文/revision978/hash e972ec2ccacf722aa4a5f2ff2f55ece68dabbc676d988590c3d27079da601682，不按牌组频率晋级", "先查官方得分图标及获得常时能力的持续/来源范围，区分成功区μs Member/Live、普通score与Blade Heart得分图标，不能将临时常时能力简化为当前场面一次性加成", "明确后才有限建模并验证新入场Member/来源离场返回/Live结束、真实状态与SQL Replay、四AI、隐私、必要UI图文及全部profiles；语义未确认就记录unresolved并保留manual，不提升reviewed", "应用源码变化重新绑定同牌组冻结30局，中日README/Changelog和中文报告；只做本地验证提交，新PR目标未获明确批准前不改policy、不推送、新建PR、合并部署"]
+    },
+    {
       "id": "multi-player-hidden-source-reference-privacy",
       "priority": 0,
       "title": "优先修复旧多玩家legal引用复活隐藏来源卡的泄露",

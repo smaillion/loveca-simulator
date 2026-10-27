@@ -48,7 +48,7 @@ from loveca.simulation.models import (
     MatchState,
 )
 from loveca.simulation.online import card_database_fingerprint, effect_registry_hash
-from loveca.simulation.visibility import redact_hidden_references, redact_player_state
+from loveca.simulation.visibility import owner_manual_source_handles, redact_hidden_references, redact_player_state
 from loveca.simulation.rooms import (
     RoomError,
     RoomNotFoundError,
@@ -1979,7 +1979,10 @@ def _match_state_payload(
     return {
         "state": state_payload,
         "events": _visible_match_events(events, player_id, hidden_ids),
-        "legal_actions": [action.model_dump() for action in visible_actions],
+        "legal_actions": redact_hidden_references(
+            [action.model_dump() for action in visible_actions], hidden_ids,
+            source_handles=owner_manual_source_handles(state, player_id) if player_id is not None else None,
+        ),
         "ruleset_compatibility": compatibility,
     }
 

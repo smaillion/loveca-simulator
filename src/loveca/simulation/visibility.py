@@ -47,19 +47,9 @@ def redact_player_state(
     legal_actions: list[LegalAction],
 ) -> set[str]:
     """Project a player response; never serialize hidden pile identities or order."""
-    private_inspected = private_inspection_card_ids(state, viewer_id)
-    visible_ids: set[str] = public_inspection_card_ids(state)
+    visible_ids = player_visible_card_ids(state, viewer_id)
     for player_id, player in state.players.items():
         own = player_id == viewer_id
-        visible_ids.update(item for item in player.member_area.values() if item)
-        for attached in player.member_area_attachments.values():
-            visible_ids.update(attached)
-        for zone in (player.energy_area, player.waiting_room, player.success_live_area):
-            visible_ids.update(zone)
-        visible_ids.update(item for item in player.live_area if own or state.cards[item].face_up)
-        visible_ids.update(item for item in player.resolution_area if item not in private_inspected)
-        if own:
-            visible_ids.update(player.hand)
         projected = payload["players"][player_id]
         for zone in ("main_deck", "energy_deck"):
             projected[zone] = _hidden_slots(player_id, zone, len(projected[zone]))
@@ -71,9 +61,6 @@ def redact_player_state(
                 item if item in visible_ids else f"__hidden__/{player_id}/{zone}/{index}"
                 for index, item in enumerate(projected[zone])
             ]
-    for action in legal_actions:
-        if action.player_id in {None, viewer_id}:
-            visible_ids.update(_referenced_ids(action.options, state.cards))
     payload["cards"] = {key: value for key, value in payload["cards"].items() if key in visible_ids}
     effect_ids = {
         effect_id
@@ -90,7 +77,7 @@ def redact_player_state(
     if state.pending_choice is not None and state.pending_choice.player_id != viewer_id:
         payload["pending_choice"]["options"] = {}
     hidden_ids = set(state.cards) - visible_ids
-    for field in ("pending_effects", "effect_usage"):
+    for field in ("pending_choice", "pending_effects", "effect_usage"):
         payload[field] = redact_hidden_references(payload[field], hidden_ids)
     for projected in payload["players"].values():
         for field in ("manual_modifiers", "effect_ready_flags_this_turn", "live_result"):
@@ -102,23 +89,54 @@ def _hidden_slots(player_id: str, zone: str, count: int) -> list[str]:
     return [f"__hidden__/{player_id}/{zone}/{index}" for index in range(count)]
 
 
-def _referenced_ids(value: Any, cards: dict[str, Any]) -> set[str]:
-    if isinstance(value, str):
-        return {value} if value in cards else set()
-    values = value.values() if isinstance(value, dict) else value if isinstance(value, list) else ()
-    return {item for nested in values for item in _referenced_ids(nested, cards)}
+def player_visible_card_ids(state: MatchState, viewer_id: str) -> set[str]:
+    """Visibility follows zones and actual inspection policy, never action metadata."""
+    private_inspected = private_inspection_card_ids(state, viewer_id)
+    visible_ids = public_inspection_card_ids(state)
+    for player_id, player in state.players.items():
+        own = player_id == viewer_id
+        visible_ids.update(item for item in player.member_area.values() if item)
+        for attached in player.member_area_attachments.values():
+            visible_ids.update(attached)
+        for zone in (player.energy_area, player.waiting_room, player.success_live_area):
+            visible_ids.update(zone)
+        visible_ids.update(item for item in player.live_area if own or state.cards[item].face_up)
+        visible_ids.update(item for item in player.resolution_area if item not in private_inspected)
+        if own:
+            visible_ids.update(player.hand)
+    return visible_ids
 
 
-def redact_hidden_references(value: Any, hidden_ids: set[str]) -> Any:
+def owner_manual_source_handles(state: MatchState, viewer_id: str) -> dict[str, tuple[str, str]]:
+    """Keep required own-manual submission handles, without granting card visibility."""
+    return {
+        item.invocation_id: (item.effect_id, item.source_card_instance_id)
+        for item in state.pending_effects
+        if item.player_id == viewer_id
+        and item.source_card_instance_id in state.cards
+        and state.cards[item.source_card_instance_id].owner_id == viewer_id
+        and item.effect_id in state.effect_definitions
+        and state.effect_definitions[item.effect_id].simulation_support == "manual_resolution"
+    }
+
+
+def redact_hidden_references(
+    value: Any, hidden_ids: set[str], *, source_handles: dict[str, tuple[str, str]] | None = None,
+) -> Any:
     if isinstance(value, str):
         return "__hidden__" if value in hidden_ids else value
     if isinstance(value, list):
-        return [redact_hidden_references(item, hidden_ids) for item in value]
+        return [redact_hidden_references(item, hidden_ids, source_handles=source_handles) for item in value]
     if isinstance(value, dict):
-        return {
+        result = {
             f"__hidden__/metadata/{index}" if key in hidden_ids else key: item
             if key == "revealed_cards"
-            else redact_hidden_references(item, hidden_ids)
+            else redact_hidden_references(item, hidden_ids, source_handles=source_handles)
             for index, (key, item) in enumerate(value.items())
         }
+        invocation_id = value.get("invocation_id")
+        handle = (source_handles or {}).get(invocation_id) if isinstance(invocation_id, str) else None
+        if handle is not None and (value.get("effect_id"), value.get("source_card_instance_id")) == handle:
+            result["source_card_instance_id"] = handle[1]
+        return result
     return value

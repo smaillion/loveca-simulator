@@ -1,5 +1,14 @@
 # AI and Simulation Notes
 
+Legacy multiplayer source-reference privacy now uses shared zone/inspection
+visibility for player payloads and AIObservation. Metadata in normal/skip
+actions cannot resurrect hidden cards; semantic contexts redact it too.
+Required own-manual submission handles remain separate from card visibility.
+64 targeted tests cover native SQL, both roles, four policies and identity
+invariance. Raw snapshots/Replay and default AI stay unchanged. Frozen30 remains
+12 completed/18 manual stops,180/182 executable completions,all Replay verified.
+[Scope and evidence](development/multi-player-source-privacy-verification.md).
+
 PL!N-bp4-007:1 uses active-player-first public Waiting Room selections and moves
 both Lives only after both choices. Four-policy new-type dispatch preserves
 old strategies. Frozen30 improves11→12 completed,180/182 executable completions;

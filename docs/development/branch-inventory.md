@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-27 多玩家隐私修复：旧来源引用泄露已补原生动作/SQL红测试并统一修复网页、AI和语义代理投影，正常/skip及待机副本保护隐藏引用，本人manual提交句柄独立保留且不授予卡面权限。64专项与240前端通过，冻结30局仍12/18，原始规则快照及registry未改；当前报告见`multi-player-source-privacy-verification.md`。固定分支/工作树，无push或新PR，旧44/6 dirty与ignored报告保留；下文旧风险为历史检查点。
+
 2026-10-27 当前双方控室回收切片：仍使用固定分支/工作树，仅PL!N-bp4-007:1登记变化，同卡后两段未动。新类型隐私已保护；旧多玩家来源ID泄露已只读复现并排最高优先级，旧dirty与ignored报告保留。见`both-waiting-live-recovery-verification.md`；新PR目标未变。
 
 2026-10-27 当前エマ切片：继续固定分支/工作树，按官方Q270适配顶三Member Blade Heart颜色条件；实际触发3次，冻结30局仍11完赛/19人工停止，不宣称完赛改善。旧dirty及ignored报告保留，后续PR目标待批，最终门禁另存。见`mill-three-blade-colors-verification.md`。

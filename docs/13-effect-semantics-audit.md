@@ -1,5 +1,15 @@
 # Effect Semantics Audit
 
+Legacy multi-player source-reference leakage is repaired in the shared
+projection, not by changing effect rules or downgrading registry entries.
+Native play/manual-control/resolve/first-choice SQL reproduces the old leak.
+64 tests preserve both roles, old snapshots, authorized inspections and public
+history while hiding non-candidate references in normal/skip/pending copies.
+Own-manual submission handles match actual server invocations and grant no
+card-map access, preserving source-in-deck manual resolution and raw Replay.
+Registry remains921/1212 and291manual; no promotion to reviewed.
+[Verification and limits](development/multi-player-source-privacy-verification.md).
+
 PL!N-bp4-007:1 follows1.3.4/1.3.4.1 and7.2: the active player selects first,
 the second knows that public choice, then both selected Lives move together.
 Public-zone mandatory selection uses9.6.3.1/1.3; empty candidates skip only

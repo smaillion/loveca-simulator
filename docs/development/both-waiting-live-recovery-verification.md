@@ -32,6 +32,9 @@
 
 ## 隐私修复与剩余风险
 
+后续2026-10-27：下述旧类型风险已由独立切片补原生SQL红测试并修复共享投影，
+见[multi-player-source-privacy-verification.md](multi-player-source-privacy-verification.md)。以下保留为本卡当时的审计记录，不再表示当前尚未修复。
+
 真实复现了新类型中“来源回手牌→轮到对手”时，legal action内的来源ID被通用可见性引用扫描重新加入card map。
 新类型的正常选择和skip动作均去掉不需要的来源实例引用；保留效果ID和公开候补，不把对手的来源手牌变成合法候补。
 双方控室选择是公开信息，`revealed_cards`只保存已公开选择的卡面历史；当前对手手牌仍脱敏，未知尾牌及无关手牌不暴露。

@@ -23,7 +23,12 @@ from loveca.decks.analyzer import DeckList
 from loveca.simulation.engine import IllegalActionError, generate_legal_actions
 from loveca.simulation.models import ActionRequest, CardInstance, LegalAction, MatchState
 from loveca.simulation.service import MatchService
-from loveca.simulation.visibility import private_inspection_card_ids
+from loveca.simulation.visibility import (
+    owner_manual_source_handles,
+    player_visible_card_ids,
+    private_inspection_card_ids,
+    redact_hidden_references,
+)
 from tools.ai_sandbox.blackbox_playtest import (
     SandboxDeckSummary,
     build_decks,
@@ -1109,7 +1114,7 @@ def build_api_play_context(
     baseline_decision: tuple[str, str | None, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     acting_player_id = _acting_player_id(state, legal_actions)
-    return {
+    context = {
         "schema_version": SEMANTIC_SCHEMA_VERSION,
         "mode": "api_play",
         "rule_context": asdict(rule_context) if rule_context is not None else None,
@@ -1161,6 +1166,10 @@ def build_api_play_context(
         },
         "legal_actions": [action.model_dump() for action in legal_actions],
     }
+    return redact_hidden_references(
+        context, set(state.cards) - player_visible_card_ids(state, acting_player_id),
+        source_handles=owner_manual_source_handles(state, acting_player_id),
+    )
 
 
 def decision_context(
@@ -1487,10 +1496,11 @@ def build_agent_context(
             "simulation_support": "manual_resolution",
         }
     source_card = None
-    if manual_invocation and manual_invocation.get("source_card_instance_id") in state.cards:
+    visible_ids = player_visible_card_ids(state, acting_player_id)
+    if manual_invocation and manual_invocation.get("source_card_instance_id") in visible_ids:
         instance = state.cards[str(manual_invocation["source_card_instance_id"])]
         source_card = card_context(instance, include_private=instance.owner_id == acting_player_id)
-    return {
+    context = {
         "schema_version": SEMANTIC_SCHEMA_VERSION,
         "mode": "manual_resolution",
         "rule_context": asdict(rule_context) if rule_context is not None else None,
@@ -1535,6 +1545,10 @@ def build_agent_context(
         },
         "legal_actions": [action.model_dump() for action in legal_actions],
     }
+    return redact_hidden_references(
+        context, set(state.cards) - visible_ids,
+        source_handles=owner_manual_source_handles(state, acting_player_id),
+    )
 
 
 def manual_adjustment_schema_reference() -> dict[str, Any]:

@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+旧多人数処理の発生源ID漏洩を修正。可視性は実際の領域と確認policyで決定し、通常選択・skip・待機コピー・AI・代理contextの参照から非公開カードを復活させません。本人のmanual提出用識別子はカード可視性と分離。64専用テスト、原生SQL/REST/再接続、240フロントテストを検証。固定30試合は12完了/18手動停止のまま、登録率は変更しません。未push・後続PR承認待ち。[検証と範囲](./docs/development/multi-player-source-privacy-verification.md)
+
 優木せつ菜`PL!N-bp4-007:1`の両者控室Live回収を限定対応。アクティブ側から公開選択し、両選択後に同時に手札へ。74専用テスト、206図解、四AI/SQL/双視点を検証。固定30試合は11→12完了。ただし旧多人数処理で発見した別の発生源ID漏洩は次の優先修正であり、全体の安全性完了ではありません。[証拠と残件](./docs/development/both-waiting-live-recovery-verification.md)
 
 エマ・ヴェルデ`PL!N-bp7-020:1`を正確な本文と公式Q270に基づき対応。上三枚のMemberだけから有色Blade Heartを数え、二色以上なら元の発生源に緑Heart+1。ALL/Live/通常Heartは混同しません。61専用テスト、202図解検証、実際に三回誘発。固定30試合は11完了/19手動停止のままです。[検証と限界](./docs/development/mill-three-blade-colors-verification.md)

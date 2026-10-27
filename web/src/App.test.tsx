@@ -3543,6 +3543,26 @@ describe("App", () => {
     expect(screen.queryByRole("group", { name: "登场区域" })).not.toBeInTheDocument();
   });
 
+  it.each([undefined, "__hidden__"])("keeps public deployment candidates usable with a redacted source %s", (source) => {
+    const onAction = vi.fn();
+    const cards = Object.fromEntries(Object.entries(INSPECTION_MATCH_PAYLOAD.state.cards)
+      .filter(([id]) => id !== "player_1-M001"));
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards };
+    const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], options: {
+      source_card_instance_id: source,
+      multi_player_choice_type: "multi_player_deploy_waiting_member",
+      candidate_card_instance_ids: ["player_1-M002"], available_slots: ["right"], minimum: 1, maximum: 1,
+    } };
+    render(<InspectionChoiceAction action={action as never} state={state as never}
+      loading={false} onAction={onAction} title="双方登场" submitLabel="确认登场" />);
+    fireEvent.click(screen.getByRole("button", { name: /候補カード/ }));
+    fireEvent.click(screen.getByRole("group", { name: "登场区域" }).querySelector("button")!);
+    fireEvent.click(screen.getByRole("button", { name: "确认登场" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_1", {
+      selected_card_instance_id: "player_1-M002", slot: "right",
+    });
+  });
+
   it("confirms an empty multi-player deployment without inventing a target", () => {
     const onAction = vi.fn();
     const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], options: {
