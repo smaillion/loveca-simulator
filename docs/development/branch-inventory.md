@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-28 JST Printemps生产者覆盖审计：同一固定分支/工作树，5条真实来源清单，单修PL!-pb1-012:1目标unit遗漏，42专项/24 SQL、四AI/隐私与2 UI。旧ready操作不升级，正式v1生产者0/5，消费者仍blocked；最终门禁/同30牌组见`printemps-producer-coverage-audit.md`。不push/改PR55、合并部署，其他blocked/44/6 dirty/stash/ignored保留。
+
 2026-10-28 JST 复原历史底座：固定分支/工作树，仅新快照unregistered操作记录来源/LKI/回合和原Member对象；62专项/34 SQL、四AI/完整隐私，旧快照Replay保持，不绑定正式卡。新源码同30牌组最终结果与门禁见`member-ready-provenance-foundation.md`，不恢复穂乃果或其他blocked，不push/改PR55、合并部署，44/6 dirty/stash/ignored保持。
 
 2026-10-28 JST Printemps复原历史边界：同一固定分支/工作树，PL!-pb2-010:1仍manual。40专项/24 SQL、四AI/双视角和2原生UI证明旧作品级复原标志不足以计数原目标；明确执行模型依赖，不伪称规则未知。应用指纹不变、登记937/1212和275manual保持，不重冻、不push/改PR55或合并部署，相邻LL及其他blocked/44/6 dirty/stash/ignored保留；见`printemps-ready-history-unresolved.md`。

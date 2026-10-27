@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "printemps-ready-producer-snapshot-coverage-audit",
+      "priority": 1,
+      "title": "盘点Printemps实际复原生产者的新快照覆盖边界",
+      "status": "queued",
+      "depends_on": ["effect-ready-member-object-provenance-foundation"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["按真实来源card.unit_keys=printemps盘点ready_member生产者，不用正文关键词替代来源单位；不requeue PL!-pb2-010或改manual登记", "逐张保存全文/revision/hash/旧快照，区分登场、Live开始、起动费用和已离场源；v1仅原Stage/Live和无费用，不把原型当完整覆盖", "核对启用时点、旧ready使coverage未知、原目标/LKI、费用后目标和离场源信息；明确才精确新快照，不全局追改旧producer/Replay，不能证明完整覆盖则记录有限依赖，不半支持消费者", "真实SQL/四AI/完整隐私/必要UI及全部profiles，应用变化同原30牌组冻结；仅本地提交，不push/publish、新PR、合并部署或主机操作"]
+    },
+    {
       "id": "effect-ready-member-object-provenance-foundation",
       "priority": 1,
       "title": "建立显式新快照的成员复原来源与对象历史底座",

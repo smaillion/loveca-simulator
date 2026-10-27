@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+按真实来源单位盘点5条Printemps复原生产者，仅修南ことり`PL!-pb1-012:1`遗漏的目标单位筛选。费用、初始离场来源和历史coverage仍独立待审；正式v1生产者0/5，穂乃果manual保持。[审计记录](./docs/development/printemps-producer-coverage-audit.md)。仅本地提交。
+
 新增显式新快照的成员实际复原历史底座，绑定原对象、来源LKI与回合，未知不当零；62专项/34 SQL、四AI/隐私，旧ready/Replay保持，不绑定正式卡或恢复穂乃果。[底座验证](./docs/development/member-ready-provenance-foundation.md)。仅本地提交。
 
 高坂穂乃果`PL!-pb2-010:1`完成Printemps实际Wait→Active历史边界审计。作品级标志无法证明人数和原成员对象，保留manual；40专项/24 SQL、四AI隐私及2 UI，不晋级。[执行模型依赖](./docs/development/printemps-ready-history-unresolved.md)。仅本地提交。

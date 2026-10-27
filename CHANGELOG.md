@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 実際のPrintemps発生源5件を監査。南ことりのPrintemps対象漏れを全文/revision/hash限定で修正し、旧snapshot Replayを維持。新歴史操作への正式接続なし。
+- 中文: 42专项/24 SQL、四AI/完整双视角和2原生UI；费用、离场来源及覆盖证明仍待独立审计，不恢复穂乃果，不算manual晋级。最终门禁与同30牌组证据见[记录](./docs/development/printemps-producer-coverage-audit.md)，只本地提交。
+
 - 新snapshot専用Member ready provenance v1底座。元対象・発生源LKI・turnを記録し、旧ready/Replayを維持、正式カード未接続。
 - 中文: 62专项/34 SQL、四AI/双视角/provider构造隐私，未知不作零；新源码同30牌组绑定以最终验收为准，不宣称随机原型覆盖，见[验证](./docs/development/member-ready-provenance-foundation.md)。不自动恢复blocked。
 

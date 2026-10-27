@@ -1,5 +1,10 @@
 # Effect Semantics Audit
 
+Five registered direct Member-ready producers have an actual Printemps source unit.
+Kotori's target must also be Printemps; Hanayo's other-Member target need not be.
+Cost and initial departed-source provenance remain separate uncertified paths.
+See [finite producer audit](development/printemps-producer-coverage-audit.md).
+
 Ready provenance v1 records actual transitions with original Member object tokens
 and source last information. It is a separate snapshot operation, not a rewrite
 of legacy ready or work flags. Missing or incomplete coverage stays unknown.

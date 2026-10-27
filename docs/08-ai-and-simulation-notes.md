@@ -1,5 +1,10 @@
 # AI and Simulation Notes
 
+The Printemps producer audit fixes only Kotori's missing target-unit filter.
+Four controllers submit legal optional selections without hidden-identity dependence.
+No formal ready-history producer is enabled; unknown coverage is not zero.
+See [producer audit](development/printemps-producer-coverage-audit.md).
+
 The opt-in ready provenance prototype has actual four-controller target choices
 and hidden-identity invariance. Internal history is absent from player/provider
 views; unknown producer coverage is not zero. No official card is enabled.

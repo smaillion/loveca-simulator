@@ -6219,14 +6219,16 @@ def _onplay_return_waiting_member_cost2_up_to2(row: sqlite3.Row) -> EffectCandid
 
 
 def _onplay_ready_printemps_member_up_to1(row: sqlite3.Row) -> EffectCandidate | None:
-    text = str(row["raw_effect_text_ja"]).strip()
+    text = str(row["raw_effect_text_ja"])
     expected = "【登場】自分のステージにいる『Printemps』のメンバーを1人までアクティブにする。"
-    if text != expected:
+    if (text != expected or row["card_code"] != "PL!-pb1-012"
+            or row["text_revision_id"] != 427
+            or row["raw_text_hash"] != "b9330edc34a6956d65e6eb4f353a012df515635f142ff3312f42c9bd9d8b182c"):
         return None
     return EffectCandidate(
         **_base(
             row,
-            pattern_id="onplay_ready_printemps_member_up_to1",
+            pattern_id="onplay_ready_printemps_member_up_to1_v2",
             effect_index=1,
         ),
         label_ja=expected,
@@ -6242,6 +6244,7 @@ def _onplay_ready_printemps_member_up_to1(row: sqlite3.Row) -> EffectCandidate |
             "zone": "stage",
             "card_type": "member",
             "orientation": "wait",
+            "unit_key": "printemps",
             "minimum": 0,
             "maximum": 1,
         },

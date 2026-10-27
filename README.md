@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+実際のPrintemps発生源5件を監査し、南ことり`PL!-pb1-012:1`の対象unit漏れだけを修正。費用・離場源・履歴coverageは未認証、正式v1生産者0/5、穂乃果manual維持。[監査記録](./docs/development/printemps-producer-coverage-audit.md)。ローカルのみ。
+
 新snapshot専用のMember実復原provenance底座を追加。元対象tokenと発生源/LKI/turnを記録、未知履歴は0としない。62専用/34 SQL・四AI/秘匿、正式カード未接続、旧ready/Replay維持。[検証](./docs/development/member-ready-provenance-foundation.md)。ローカルのみ。
 
 高坂穂乃果`PL!-pb2-010:1`のPrintemps効果による実際のWait→Active履歴を境界監査。既存の作品別フラグだけでは人数・元Memberオブジェクトを証明できず、manualを維持。40専用/24 SQL・四AI秘匿・2 UI、昇格なし。[未解決依存](./docs/development/printemps-ready-history-unresolved.md)。ローカルのみ。
