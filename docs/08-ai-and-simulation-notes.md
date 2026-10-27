@@ -1,5 +1,10 @@
 # AI and Simulation Notes
 
+PL!-pb2-010:1 remains manual: the work-level ready flag cannot establish the
+Printemps effect source, target count or original Member object. Four controllers
+retain their actual blocker under hidden-identity changes, without input mutation.
+See [provenance boundary](development/printemps-ready-history-unresolved.md).
+
 The exact PL!S-PR-048:1 policy uses the existing ordered card-choice protocol.
 Four controllers submit legal selections without hidden-identity dependence or
 input mutation. All six private top orders have identical full opponent views.

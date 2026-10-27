@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- `PL!-pb2-010:1`のPrintemps実復原履歴を監査。作品別ブール記録では人数・unit・元対象を証明できず、manualのまま。40専用/24 SQL、四AI秘匿と2 UI。
+- 中文: 记录`printemps_member_ready_target_object_provenance_unmodeled`依赖，不新增半支持登记，不重跑无变化冻结或虚报执行率，见[边界报告](./docs/development/printemps-ready-history-unresolved.md)。
+
 - 黒澤ルビィ`PL!S-PR-048:1`の控室9枚以下/Live0～3枚をデッキ上へ、を限定実装。公開集合と秘密の順を分け、条件は解決時、空庫は通常リフレッシュ。旧snapshotを維持。
 - 中文: 89专项/51 SQL、四AI/完整双视角、301图文及6原生UI。登记937/1212、275manual，不提升reviewed；冻结本卡仍随相邻manual待机，不虚报完成或随机排序覆盖。仅本地验收提交，见[验证记录](./docs/development/waiting-nine-live-top-order-verification.md)。
 

@@ -5244,6 +5244,30 @@ describe("App", () => {
     expect((await screen.findAllByText(`異なる名前のDiverDiva二人：${condition ? "はい" : "いいえ"} · エネルギー${ready}枚をアクティブ · エネルギーデッキから下に${attached}枚`)).length).toBeGreaterThan(0);
   });
 
+  it.each([false, true])("keeps Printemps ready-history manual with hidden source=%s", (hidden) => {
+    const onAction = vi.fn();
+    const onManual = vi.fn();
+    const source = { invocation_id: "printemps-history", effect_id: "PL!-pb2-010:1",
+      source_card_instance_id: "printemps-source", player_id: "player_1" };
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: {
+      ...INSPECTION_MATCH_PAYLOAD.state.cards,
+      ...(!hidden ? { "printemps-source": { ...INSPECTION_CARDS["player_1-M002"],
+        instance_id: "printemps-source", card: { ...INSPECTION_CARDS["player_1-M002"].card,
+          name_ja: "高坂穂乃果", card_code: "PL!-pb2-010", card_type: "member", cost: 7, blade: 1 } } } : {}),
+    }, pending_effects: [source] };
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      ...source, label_ja: "【ライブ開始時】ライブ終了時まで、自分のステージにいる、このターン中に自分の『Printemps』のカードの効果によってウェイト状態からアクティブにしていたメンバー1人につき、【ブレード】を得る。",
+      trigger: "live_started", timing: "live_start", execution_mode: "manual_resolution",
+      simulation_support: "manual_resolution", is_optional: false, candidate_card_instance_ids: [],
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never}
+      loading={false} onAction={onAction} onManual={onManual} />);
+    expect(screen.queryByRole("button", { name: "结算技能" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "结构化人工处理" }));
+    expect(onManual).toHaveBeenCalledWith(source);
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
   it.each([false, true])("keeps the unresolved all-active Live manual with hidden source=%s", (hidden) => {
     const onAction = vi.fn();
     const onManual = vi.fn();

@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+高坂穂乃果`PL!-pb2-010:1`完成Printemps实际Wait→Active历史边界审计。作品级标志无法证明人数和原成员对象，保留manual；40专项/24 SQL、四AI隐私及2 UI，不晋级。[执行模型依赖](./docs/development/printemps-ready-history-unresolved.md)。仅本地提交。
+
 黒澤ルビィ`PL!S-PR-048:1`按全文/revision/hash限定实现：结算时控室总数九张以下，0至3张Live按私有顺序回库顶。公开集合不泄露实际顺序，旧快照保持；89专项/51 SQL、四AI/隐私、301图文/6 UI。[验证记录](./docs/development/waiting-nine-live-top-order-verification.md)。仅本地提交，不推送或上线。
 
 津島善子`PL!S-PR-045:1`按全文/revision/hash限定实现：保存本次费用7 Baton事实，先本人抽二，再从当前手牌严格弃一。94专项/43 SQL、四AI/隐私、296图文/6 UI；旧快照保持。[验证记录](./docs/development/baton-cost7-draw-discard-verification.md)。仅本地提交，不推送或上线。

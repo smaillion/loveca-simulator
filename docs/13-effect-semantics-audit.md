@@ -1,5 +1,10 @@
 # Effect Semantics Audit
 
+The Printemps ready-history audit preserves PL!-pb2-010:1 as manual. Native
+zero/one/three ready operations demonstrate that the old work-level Boolean
+does not encode source units or original target objects. This is an execution
+model dependency, not an invented unknown rule. See [audit](development/printemps-ready-history-unresolved.md).
+
 PL!S-PR-048:1 checks current total Waiting Room size after any mandatory ordinary
 refresh. Its bounded atomic move publishes the selected set, not the private top
 order under 4.1.5.1. Old amount sources, movement executors and replay remain

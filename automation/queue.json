@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "live-start-printemps-ready-history-source-blade-audit",
+      "priority": 1,
+      "title": "审计Printemps效果实际复原历史与原来源Blade",
+      "status": "queued",
+      "depends_on": ["live-start-waiting-nine-live-three-top-order"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["PL!-pb2-010:1全文/revision983/hash327d07177662f55cdc206df19152fa63fada6d2cb037ee3e61aa7537f658a9b1精确绑定，当前seed18029两个来源共同manual，不处理相邻LL复杂技能或已blocked项", "先核对实际Wait到Active、本游戏回合/真实能力来源所有者及Printemps单位、当前顶层原Member对象和移区新对象，不从当前姿态、裸ID或无来源ready日志猜历史，不明manual/unresolved", "明确才受限快照：0-3当前成员/重复ready和之后Wait/附属/离场返回、原来源Blade与Live期限、真实provenance、新旧SQL/四AI/完整隐私/UI图文及全部profiles和新源码同原30牌组冻结；不能证明完整历史则边界审计，不半支持登记", "仅本地实现验证提交，不push/publish、新PR、合并部署、主机或Kyotei操作，不全局改旧ready/manual快照或恢复旧blocked，不虚标reviewed或随机完成"]
+    },
+    {
       "id": "live-start-waiting-nine-live-three-top-order",
       "priority": 1,
       "title": "审计控室九张以下时最多三张Live回库顶排序",

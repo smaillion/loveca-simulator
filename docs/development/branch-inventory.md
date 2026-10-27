@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-28 JST Printemps复原历史边界：同一固定分支/工作树，PL!-pb2-010:1仍manual。40专项/24 SQL、四AI/双视角和2原生UI证明旧作品级复原标志不足以计数原目标；明确执行模型依赖，不伪称规则未知。应用指纹不变、登记937/1212和275manual保持，不重冻、不push/改PR55或合并部署，相邻LL及其他blocked/44/6 dirty/stash/ignored保留；见`printemps-ready-history-unresolved.md`。
+
 2026-10-28 JST 控室九张与Live库顶：同一固定分支/工作树，仅PL!S-PR-048:1精确新快照，89专项/51 SQL、四AI/隐私、301图文/6 UI。当前控室总数与原子私有顺序分开，旧快照/默认AI/schema不改；冻结本卡1项随其他manual待机，不算新完成。最终门禁和提交见`waiting-nine-live-top-order-verification.md`；不push/改PR55或合并部署，相邻LL复杂技能不处理，其他blocked、44/6 dirty、stash及ignored保留。
 
 2026-10-28 JST 费用7 Baton抽弃：同一固定分支/工作树，仅PL!S-PR-045:1精确新快照，94专项/43 SQL、四AI/隐私、296图文/6 UI。本次原Member费用事实和支付减免分开；旧快照及默认AI/schema不变。最终门禁、同牌组冻结与本地提交见`baton-cost7-draw-discard-verification.md`；不push/改PR55或合并部署，其他blocked、44/6 dirty、stash及ignored保留。

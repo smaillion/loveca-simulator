@@ -1,5 +1,10 @@
 # AI Rule Conformance and Strategy Audit
 
+The Printemps history boundary adds no executable promotion or random outcome.
+Four-policy blockers, source handles and full hidden-zone projections are tested;
+the unchanged application fingerprint reuses the prior 30-match diagnostic only
+after verifying its binding. See [boundary evidence](development/printemps-ready-history-unresolved.md).
+
 The Waiting-Room-nine/top-order slice has SQL, four-controller, full-projection
 privacy and UI evidence, separate from random coverage. The frozen pool is still
 19/30 completed; the new executable invocation remains pending with manual

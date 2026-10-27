@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+高坂穂乃果`PL!-pb2-010:1`のPrintemps効果による実際のWait→Active履歴を境界監査。既存の作品別フラグだけでは人数・元Memberオブジェクトを証明できず、manualを維持。40専用/24 SQL・四AI秘匿・2 UI、昇格なし。[未解決依存](./docs/development/printemps-ready-history-unresolved.md)。ローカルのみ。
+
 黒澤ルビィ`PL!S-PR-048:1`を全文/revision/hash限定で実装。解決時の控室総数9以下ならLiveを0～3枚、任意の順でデッキ上へ。公開選択集合と非公開の順を分離し、旧snapshotを維持。89専用/51 SQL、四AI・秘匿、301図解/6 UI。[検証記録](./docs/development/waiting-nine-live-top-order-verification.md)。本切片はローカルのみ、push/deployしない。
 
 津島善子`PL!S-PR-045:1`を全文/revision/hash限定で実装。今回のコスト7 Batonを記録し、先に2枚ドローしてから自分の手札1枚を控室へ。94専用/43 SQL、四AI・秘匿、296図解/6 UI、旧snapshotは維持。[検証記録](./docs/development/baton-cost7-draw-discard-verification.md)。ローカルのみ、push/deployしない。
