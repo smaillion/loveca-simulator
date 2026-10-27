@@ -4996,6 +4996,41 @@ describe("App", () => {
     expect(onAction).toHaveBeenCalledWith("resolve_effect","player_1",{invocation_id:"water",accepted:true,selected_card_instance_ids:["player_1-M002"],energy_instance_ids:[]});
   });
 
+  it.each([[false, 0, 0], [true, 0, 0], [true, 1, 1], [true, 2, 1]] as const)("shows bilingual Baton cost-seven outcome %s/%s/%s", async (condition, drawn, discarded) => {
+    seedSavedDecks([{path: "test.json", deck: SAMPLE_DECK}]);
+    const data = {invocation_id: "baton-seven", effect_id: "PL!S-PR-045:1", condition_met: condition, drawn_count: drawn, discarded_count: discarded};
+    vi.stubGlobal("fetch", createFetchMock({matchCreate: {...MATCH_PAYLOAD, events: [
+      {event_type: "effect_baton_cost7_draw_discard_resolved", player_id: "player_1", source: "system", data},
+      {event_type: "effect_resolved", player_id: "player_1", source: "system", data},
+    ]}}));
+    render(<App />);
+    const create = await screen.findByRole("button", {name: "创建对局"});
+    await waitFor(() => expect(create).not.toBeDisabled()); fireEvent.click(create);
+    expect((await screen.findAllByText(`费用7 Baton：${condition ? "满足" : "未满足"} · 抽 ${drawn} 张 · 弃 ${discarded} 张`)).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", {name: "日本語"}));
+    expect((await screen.findAllByText(`コスト7バトン：${condition ? "成立" : "不成立"} · ${drawn}枚ドロー · 手札${discarded}枚を控室へ`)).length).toBeGreaterThan(0);
+  });
+
+  it.each(["initial", "after_cost"])("submits a hidden-source Baton cost-seven %s step", (stage) => {
+    const onAction = vi.fn();
+    const action = {action_type: "resolve_effect", player_id: "player_1", options: {invocations: [{
+      invocation_id: "baton-seven", effect_id: "PL!S-PR-045:1", source_card_instance_id: "hidden-source", label_ja: "登場",
+      trigger: "member_played", timing: "on_play", execution_mode: "prompt_then_resolve", simulation_support: "test_validated_executable",
+      is_optional: false, resolution_stage: stage, choice_type: "post_action_card_from_zone", choice_zone: "hand",
+      selection_policy: "private_baton_cost7_draw2_discard1", choice_deferred_until_after_first_step: true,
+      card_selection_minimum: stage === "initial" ? 0 : 1, card_selection_maximum: 1,
+      candidate_card_instance_ids: stage === "initial" ? [] : ["player_1-M002"],
+    }]}};
+    render(<EffectResolutionAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never} loading={false} onAction={onAction} onManual={vi.fn()} />);
+    if (stage === "after_cost") {
+      expect(screen.getByRole("button", {name: "结算技能"})).toBeDisabled();
+      fireEvent.click(screen.getByRole("button", {name: /候補カード/}));
+    }
+    fireEvent.click(screen.getByRole("button", {name: "结算技能"}));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {invocation_id: "baton-seven", accepted: true,
+      selected_card_instance_ids: stage === "initial" ? [] : ["player_1-M002"], energy_instance_ids: []});
+  });
+
   it.each([0, 1, 2, -1])("shows bilingual current-Yell source-only score %s", async (count) => {
     seedSavedDecks([{path: "test.json", deck: SAMPLE_DECK}]);
     const available = count >= 0;

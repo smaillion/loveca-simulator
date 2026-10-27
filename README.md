@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+津島善子`PL!S-PR-045:1`を全文/revision/hash限定で実装。今回のコスト7 Batonを記録し、先に2枚ドローしてから自分の手札1枚を控室へ。94専用/43 SQL、四AI・秘匿、296図解/6 UI、旧snapshotは維持。[検証記録](./docs/development/baton-cost7-draw-discard-verification.md)。ローカルのみ、push/deployしない。
+
 Q253の直接裁定に従い`PL!S-bp6-023:1`の現在エール条件と元Liveだけの得点を修正。110専用/67 SQL、四AI・秘匿、291図解/6 UI。無記載期限はgame、移区後の新オブジェクトに継承せず、旧Replayを維持。[検証記録](./docs/development/q253-current-yell-source-score-verification.md)。manual昇格ではなく、ローカルのみ、push/deployしない。
 
 渡辺曜`PL!S-PR-046:1`の相手の現在エールLive条件/一枚ドローを全文・revision・hash限定で実装。77専用/33 SQL、四AI・秘匿、286図解/5 UI。移区後の履歴は条件に使わず、旧snapshotを維持。[検証・既存Q253リスク](./docs/development/opponent-yell-live-draw-verification.md)を分離し、本切片はローカルのみ、push/deployしない。

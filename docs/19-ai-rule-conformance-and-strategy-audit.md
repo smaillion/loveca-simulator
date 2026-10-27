@@ -1,5 +1,10 @@
 # AI Rule Conformance and Strategy Audit
 
+The cost-seven Baton slice has exact-card, SQL, four-controller, privacy and UI
+coverage. Its two frozen false conditions do not establish positive draw/discard
+coverage, and the unchanged 19/30 completions do not promote strategy or beta.
+See [bounded evidence](development/baton-cost7-draw-discard-verification.md).
+
 The previously exposed Q253 defect is addressed by a restricted new snapshot,
 not a global rewrite of old Yell conditions. Dedicated SQL, four-controller,
 privacy and UI checks are separate from random-match coverage and human review.

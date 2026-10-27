@@ -198,6 +198,9 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *((f"baton_cost7_draw_discard_{case}", f"コスト7バトン {case}", f"费用7 Baton {case}",
+           "PL!S-PR-045:1", lambda effect, case=case: _run_baton_cost7(effect, case))
+          for case in ("six", "seven", "eight", "normal", "short")),
         *((f"q253_current_yell_score_{case}", f"現在エールと元Live {case}", f"当前Yell与原Live {case}",
            "PL!S-bp6-023:1", lambda effect, case=case: _run_q253_source_score(effect, case))
           for case in ("none", "one", "two", "removed", "source_return")),
@@ -670,6 +673,35 @@ def _run_opponent_success_draw(effect: EffectDefinition, case: str) -> dict[str,
         "条件成立時だけ必須一枚 / 条件成立才必选一张": len(final.state.players["player_1"].hand) == expected_draw - int(both and bool(hand_before)),
         "待機完了 / 待机完成": not final.state.pending_effects,
     }
+
+
+def _run_baton_cost7(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    source = _v1_1_member("source", effect.card_code, cost=11, effect_ids=[effect.effect_id])
+    previous = _v1_1_member("previous", "AUDIT previous", cost=6 if case == "six" else 8 if case == "eight" else 7)
+    deck = [_v1_1_member(f"draw-{i}", f"AUDIT draw {i}") for i in range(3)]
+    energy = [_v1_1_energy(f"energy-{i}") for i in range(11)]
+    state = _v1_1_state({effect.effect_id: effect}, [source, previous, *deck, *energy], hand=["source"])
+    state.effect_order_policy = "ap_nap_player_choice"
+    p = state.players["player_1"]
+    p.member_area["center"] = "previous"
+    p.main_deck = [c.instance_id for c in deck[:1 if case == "short" else 3]]
+    p.energy_area = [c.instance_id for c in energy]
+    baton = case != "normal"
+    amount = max(0, 11 - previous.card.cost) if baton else 11
+    result = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1", expected_revision=state.revision,
+        payload={"card_instance_id": "source", "slot": "center", "use_baton_touch": baton, "energy_instance_ids": p.energy_area[:amount]}))
+    expected = case in {"seven", "short"}
+    if expected:
+        inv = next(i for i in result.state.pending_effects if i.effect_id == effect.effect_id)
+        result = apply_action(result.state, ActionRequest(action_type="resolve_effect", player_id="player_1", expected_revision=result.state.revision,
+            payload={"invocation_id": inv.invocation_id}))
+        result = apply_action(result.state, ActionRequest(action_type="resolve_effect", player_id="player_1", expected_revision=result.state.revision,
+            payload={"invocation_id": inv.invocation_id, "selected_card_instance_ids": result.state.players["player_1"].hand[:1]}))
+    data = next(e.data for e in result.events if e.event_type == "effect_baton_cost7_draw_discard_resolved")
+    return {"実際のコスト7バトンだけ / 仅实际费用7 Baton": data["condition_met"] is expected,
+        "先に2枚ドロー / 先抽两张": data["drawn_count"] == (2 if expected else 0),
+        "後から自分の手札1枚 / 随后本人弃一张": data["discarded_count"] == int(expected),
+        "待機完了 / 待机完成": not result.state.pending_effects}
 
 
 def _run_q253_source_score(effect: EffectDefinition, case: str) -> dict[str, bool]:

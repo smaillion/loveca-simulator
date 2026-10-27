@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+津島善子`PL!S-PR-045:1`按全文/revision/hash限定实现：保存本次费用7 Baton事实，先本人抽二，再从当前手牌严格弃一。94专项/43 SQL、四AI/隐私、296图文/6 UI；旧快照保持。[验证记录](./docs/development/baton-cost7-draw-discard-verification.md)。仅本地提交，不推送或上线。
+
 按直接官方Q253修正`PL!S-bp6-023:1`的当前原Yell条件及仅原Live得分。110专项/67 SQL、四AI/隐私、291图文/6 UI；未写期限按game，移区新对象不继承，旧Replay保留。[验证记录](./docs/development/q253-current-yell-source-score-verification.md)。这是既有可执行技能修复，不算manual晋级，只本地提交，不推送上线。
 
 渡辺曜`PL!S-PR-046:1`按全文/revision/hash限定实现对方当前Yell含Live抽一张，77专项/33 SQL、四AI/隐私、286图文/5 UI；已移区的公开历史不满足条件，旧快照不改。[验证及既有Q253风险](./docs/development/opponent-yell-live-draw-verification.md)分别保留，本切片只本地提交，不推送或上线。

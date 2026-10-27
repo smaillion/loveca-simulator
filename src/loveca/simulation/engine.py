@@ -727,6 +727,8 @@ def _play_member(
             "source_zone": "hand",
             "replacement_card_instance_id": replaced_instance_id,
             "used_baton_touch": use_baton_touch,
+            **({"baton_replaced_member_cost_v1": replaced_cost if use_baton_touch else None}
+               if any(_baton_cost7_snapshot(state.effect_definitions.get(key)) for key in card.card.effect_ids) else {}),
         },
     )
     own_stage_sources = [
@@ -1601,6 +1603,70 @@ def _activate_effect(
     _continue_after_effect_queue(state, events)
 
 
+def _baton_cost7_snapshot(effect: Any) -> bool:
+    return getattr(getattr(effect, "choice", None), "selection_policy", None) == "private_baton_cost7_draw2_discard1"
+
+
+def _baton_cost7_condition(state: MatchState, invocation: EffectInvocation) -> bool:
+    data = invocation.trigger_data
+    used = data.get("used_baton_touch", False)
+    cost = data.get("baton_replaced_member_cost_v1")
+    if (invocation.trigger_event != "member_played" or data.get("card_instance_id") != invocation.source_card_instance_id
+            or type(data.get("baton_play_turn_v1")) is not int or data["baton_play_turn_v1"] != state.turn_number
+            or "baton_replaced_member_cost_v1" not in data or type(used) is not bool
+            or (used and (type(cost) is not int or not isinstance(data.get("replacement_card_instance_id"), str)))
+            or (not used and cost is not None)):
+        raise IllegalActionError("Baton cost-seven original play context is missing or invalid")
+    return used and cost == 7
+
+
+def _finish_baton_cost7(state: MatchState, invocation: EffectInvocation, events: list[GameEvent], *, condition: bool, discarded: int = 0) -> None:
+    state.pending_effects.remove(invocation)
+    _record_effect_usage(state, invocation)
+    data = {"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+        "condition_met": condition, "drawn_count": invocation.trigger_data.get("baton_drawn_count_v1", 0), "discarded_count": discarded}
+    events.append(GameEvent(event_type="effect_baton_cost7_draw_discard_resolved", player_id=invocation.player_id, data=data, source="system"))
+    events.append(GameEvent(event_type="effect_resolved", player_id=invocation.player_id,
+        data={**data, "source_card_instance_id": invocation.source_card_instance_id}, source="player"))
+
+
+def _resolve_baton_cost7(state: MatchState, invocation: EffectInvocation, action: ActionRequest, events: list[GameEvent]) -> None:
+    if (set(action.payload) - {"invocation_id", "accepted", "selected_card_instance_ids", "energy_instance_ids", "ai_decision"}
+            or (action.payload.get("accepted") is not None and (type(action.payload["accepted"]) is not bool or not action.payload["accepted"]))
+            or action.payload.get("energy_instance_ids") not in (None, [])):
+        raise IllegalActionError("Baton cost-seven does not accept costs or extra parameters")
+    ids = action.payload.get("selected_card_instance_ids", [])
+    if not isinstance(ids, list) or any(type(i) is not str for i in ids):
+        raise IllegalActionError("Baton discard requires card IDs")
+    player = state.players[invocation.player_id]
+    condition = _baton_cost7_condition(state, invocation)
+    if invocation.resolution_stage == "initial":
+        if ids:
+            raise IllegalActionError("Baton discard must be selected after drawing")
+        if not condition:
+            _finish_baton_cost7(state, invocation, events, condition=False)
+        else:
+            before = len(player.hand)
+            _draw(state, invocation.player_id, 2, events, reason=f"effect:{invocation.effect_id}")
+            _refresh_main_deck(state, invocation.player_id, events)
+            invocation.trigger_data["baton_drawn_count_v1"] = len(player.hand) - before
+            invocation.resolution_stage = "after_cost"
+            if player.hand:
+                _append_effect_choice_started_event(state, invocation, events, reason="post_action_card_choice")
+                return
+            _finish_baton_cost7(state, invocation, events, condition=True)
+    elif invocation.resolution_stage == "after_cost":
+        if not condition or len(ids) != 1 or ids[0] not in player.hand or type(invocation.trigger_data.get("baton_drawn_count_v1")) is not int:
+            raise IllegalActionError("Baton discard selection is not legal")
+        _execute_operations(state, invocation, state.effect_definitions[invocation.effect_id].actions[1:], events, selected_ids=ids)
+        _refresh_main_deck(state, invocation.player_id, events)
+        _finish_baton_cost7(state, invocation, events, condition=True, discarded=1)
+    else:
+        raise IllegalActionError("Baton resolution stage is invalid")
+    _resolve_automatic_effects(state, events)
+    _continue_after_effect_queue(state, events)
+
+
 def _resolve_effect(
     state: MatchState,
     action: ActionRequest,
@@ -1614,6 +1680,9 @@ def _resolve_effect(
         raise IllegalActionError("only the effect owner may resolve this effect")
     _assert_effect_resolution_turn(state, invocation)
     effect = state.effect_definitions[invocation.effect_id]
+    if _baton_cost7_snapshot(effect):
+        _resolve_baton_cost7(state, invocation, action, events)
+        return
     if any(op.action_type in {"draw_if_opponent_current_yell_live", "gain_source_score_if_current_yell_live"} for op in effect.actions) and (
         set(action.payload) - {"invocation_id", "accepted", "selected_card_instance_ids", "energy_instance_ids", "ai_decision"}
         or action.payload.get("selected_card_instance_ids") not in (None, [])
@@ -3181,6 +3250,9 @@ def _queue_triggered_effects(
                 trigger_data={
                     **trigger_data,
                     **entry_snapshot,
+                    **({"baton_play_turn_v1": state.turn_number} if _baton_cost7_snapshot(effect) else {}),
+                    **({"baton_replaced_member_cost_v1": None} if _baton_cost7_snapshot(effect)
+                       and not trigger_data.get("used_baton_touch", False) else {}),
                     "_condition_checked_at_trigger": True,
                 },
             )
@@ -11104,6 +11176,9 @@ def _resolve_automatic_effects(
         else:
             invocation = state.pending_effects[0]
         effect = state.effect_definitions[invocation.effect_id]
+        if _baton_cost7_snapshot(effect) and invocation.resolution_stage == "initial" and not _baton_cost7_condition(state, invocation):
+            _finish_baton_cost7(state, invocation, events, condition=False)
+            continue
         if _diverdiva_energy_modes(effect) and invocation.resolution_stage == "initial" and not _diverdiva_two_names(state, invocation):
             _finish_diverdiva_noop(state, invocation, events)
             continue

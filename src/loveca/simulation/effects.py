@@ -448,6 +448,7 @@ class EffectChoice(BaseModel):
         "public_four_lily_white_live",
         "private_ten_minus_hand_keep_two",
         "private_three_top_bottom_order",
+        "private_baton_cost7_draw2_discard1",
         "public_both_waiting_live_one",
         "public_both_center_position_sequential",
         "public_two_distinct_live_opponent_one",
@@ -777,6 +778,15 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        if getattr(self.choice, "selection_policy", None) == "private_baton_cost7_draw2_discard1":
+            expected_choice = EffectChoice(choice_type="post_action_card_from_zone", zone="hand", minimum=1, maximum=1,
+                selection_policy="private_baton_cost7_draw2_discard1")
+            expected_actions = [EffectOperation(action_type="draw_card", amount=2), EffectOperation(action_type="discard_from_hand")]
+            if (self.choice != expected_choice or self.actions != expected_actions or self.cost or self.cost_choice or self.follow_up_choice
+                    or self.condition or self.is_optional or self.effect_type != "triggered" or self.timing != "on_play"
+                    or self.trigger != "member_played" or self.frequency_limit != "none" or self.duration is not None
+                    or self.execution_mode != "prompt_then_resolve" or self.simulation_support == "manual_resolution"):
+                raise ValueError("Baton cost-seven snapshot only supports its fixed mandatory draw-two/discard-one sequence")
         current_yell_score = "gain_source_score_if_current_yell_live"
         if any(op.action_type == current_yell_score for op in [*self.cost, *self.actions]) and (
             self.cost or self.cost_choice or self.choice or self.follow_up_choice or self.condition or self.is_optional

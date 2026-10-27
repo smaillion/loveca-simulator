@@ -19,6 +19,8 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
         "mirrored_cost_heart_left_10", "mirrored_cost_heart_right_10", "mirrored_cost_heart_center_10",
         "q253_current_yell_score_none", "q253_current_yell_score_one", "q253_current_yell_score_two",
         "q253_current_yell_score_removed", "q253_current_yell_score_source_return",
+        "baton_cost7_draw_discard_six", "baton_cost7_draw_discard_seven", "baton_cost7_draw_discard_eight",
+        "baton_cost7_draw_discard_normal", "baton_cost7_draw_discard_short",
         "mirrored_cost_heart_left_4", "mirrored_cost_heart_right_9",
         "private_three_split_0", "private_three_split_1", "private_three_split_2", "private_three_split_3",
         "wait_energy_next_active_placed", "wait_energy_next_active_empty", "wait_energy_next_active_next_active",

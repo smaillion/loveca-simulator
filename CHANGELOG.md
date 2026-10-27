@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 津島善子`PL!S-PR-045:1`のコスト7 Baton/2枚ドロー後1枚を控室へ、を限定実装。元Memberの情報を今回の登場に結び、現在のStageや支払ったEnergyで代用しない。旧snapshotを維持。
+- 中文: 94专项/43 SQL、四AI/双视角、296图文及6原生UI。登记936/1212、276manual，不提升reviewed；随机两次条件失败不称正条件覆盖或完赛改善，仅本地验证提交，见[验收记录](./docs/development/baton-cost7-draw-discard-verification.md)。
+
 - Q253対象`PL!S-bp6-023:1`を正確な新snapshotへ更新。現在の元エールLiveだけを数え、元Liveに+1、全体scoreを変更しない。無記載期限gameと移区解除を分離し、旧condition/Replayを維持。
 - 中文: 110专项/67 SQL、四AI/双视角、291图文与6原生UI，登记935/1212及277manual不变，不提升reviewed。完整同源码门禁和同30牌组证据见[Q253修复记录](./docs/development/q253-current-yell-source-score-verification.md)，仅本地验证提交，不推送发布。下述旧风险是修复前历史。
 

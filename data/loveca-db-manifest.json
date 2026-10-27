@@ -1,9 +1,9 @@
 {
   "card_database_fingerprint": "e9b1b32700f0601995b3b77c4816ac2b9e0ea4244b5bfed0b2fa46d7e19c416f",
   "database_path": "data/loveca.sqlite3",
-  "effect_registry_hash": "cb06943f734fb64b34d22454d60ea10c5c681dd1a479f59e5e0a36f0a07e84d6",
+  "effect_registry_hash": "310f767aefed69b8a8070d5884bfe160b81f8d31412e8e21c8d85fc310490753",
   "effect_registry_path": "data_sources/effect-registry.v0.json",
-  "generated_at": "2026-10-27T19:16:59+00:00",
+  "generated_at": "2026-10-27T19:52:21+00:00",
   "manifest_version": "loveca-card-db-manifest.v0",
   "schema_version": 2,
   "source_scope": "official-card-list.locked"

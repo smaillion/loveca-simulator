@@ -1,5 +1,10 @@
 # Effect Semantics Audit
 
+PL!S-PR-045:1 has a bounded original-Baton cost-seven snapshot, distinct from
+payment reduction and from later reads of the departed Member. Draw and discard
+refresh handling is scoped to this new policy; old operations and replay stay
+unchanged. See [evidence](development/baton-cost7-draw-discard-verification.md).
+
 Q253 directly requires current original Yell objects for PL!S-bp6-023:1.
 The new exact snapshot grants only the original Live score, with game duration
 under 9.2.1.2 and independent zone-object cleanup under 4.1.4. The old global

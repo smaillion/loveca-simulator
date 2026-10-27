@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "onplay-cost7-baton-draw-two-discard-one",
+      "priority": 1,
+      "title": "审计费用7成员Baton登场后抽二弃一",
+      "status": "queued",
+      "depends_on": ["live-success-current-yell-live-source-score-q253"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["PL!S-PR-045:1全文/revision1218/hash03473dd2859e177bd884e25579a92a4ae293ae9790c34af4fe4fd4d1705fc49f精确绑定，seed18027第6回合118动作真实mandatory manual。先核对真实Baton前对象费用、原印刷或有效费用参照与事件历史，不用当前Stage或普通登场替代，不明保留manual/unresolved", "明确才新受限快照：非Baton、费用6/7/8及补正、来源离场返回/换位与旧Baton历史、抽二短空库刷新后本人严格弃一和零手牌可能范围；原生SQL/四AI/完整隐私/UI图文及所有profiles验收，不追改旧draw/discard/manual快照", "应用源码变化重绑同原30牌组冻结，全部门禁及pre-push后仅本地提交；不push/publish、新PR、合并部署或主机操作，不恢复旧blocked，不虚标reviewed"]
+    },
+    {
       "id": "live-success-current-yell-live-source-score-q253",
       "priority": 0,
       "title": "修复Q253当前Yell Live条件与原来源Live得分",

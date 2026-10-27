@@ -1,5 +1,11 @@
 # AI and Simulation Notes
 
+The exact PL!S-PR-045:1 policy records this Baton entry's original Member cost,
+then uses the existing private post-action choice for draw two/discard one.
+Four controllers complete both stages without hidden-identity dependence or
+input mutation. Frozen false conditions are not positive draw/discard coverage.
+See [verification](development/baton-cost7-draw-discard-verification.md).
+
 Q253 now has a card-exact current-original-Yell/source-Live score snapshot.
 Four controllers resolve two sources in either role without hidden-identity
 dependence or input mutation. This fixes an executable card, not a manual or

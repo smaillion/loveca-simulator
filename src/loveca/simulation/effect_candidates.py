@@ -655,6 +655,22 @@ def _live_start_discard_two_same_group_gain_heart_blade(
     return None
 
 
+def _onplay_baton_cost7_draw_discard(row: sqlite3.Row) -> EffectCandidate | None:
+    text = "【登場】コスト7のメンバーからバトンタッチして登場した場合、カードを2枚引き、手札を1枚控え室に置く。"
+    if (row["card_code"] != "PL!S-PR-045" or row["text_revision_id"] != 1218
+            or row["raw_text_hash"] != "03473dd2859e177bd884e25579a92a4ae293ae9790c34af4fe4fd4d1705fc49f"
+            or row["raw_effect_text_ja"] != text):
+        return None
+    return EffectCandidate(
+        **_base(row, pattern_id="onplay_baton_cost7_draw2_discard1_v1", effect_index=1),
+        label_ja=text, effect_type="triggered", timing="on_play", trigger="member_played", frequency_limit="none",
+        is_optional=False, condition={}, cost=[], duration=None,
+        choice={"choice_type": "post_action_card_from_zone", "selection_policy": "private_baton_cost7_draw2_discard1",
+                "zone": "hand", "minimum": 1, "maximum": 1},
+        actions=[{"action_type": "draw_card", "amount": 2}, {"action_type": "discard_from_hand"}],
+    )
+
+
 def _live_success_current_yell_source_score(row: sqlite3.Row) -> EffectCandidate | None:
     text = "【ライブ成功時】エールにより公開された自分のカードの中にライブカードがある場合、このカードのスコアを＋１する。"
     if (row["card_code"] != "PL!S-bp6-023" or row["text_revision_id"] != 72
@@ -15850,6 +15866,7 @@ _PATTERNS = (
     _onplay_diverdiva_energy_modes,
     _live_success_opponent_cost4_wait_or_draw,
     _live_start_water_blue_bottom_heart,
+    _onplay_baton_cost7_draw_discard,
     _live_success_current_yell_source_score,
     _live_success_opponent_yell_live_draw,
     _live_success_aqours_shared_heart_yell,
