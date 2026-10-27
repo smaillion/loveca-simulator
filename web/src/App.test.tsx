@@ -2088,6 +2088,23 @@ describe("App", () => {
     expect((await screen.findAllByText(`メンバーのブレードハート ${colors} 色 · 誘発元の緑ハート +${delta}`)).length).toBeGreaterThan(0);
   });
 
+  it.each([[true, 1, true], [false, 0, false], [true, 0, false]] as const)("shows conditional extra draw %s count %s", async (condition, count, discard) => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const data = { effect_id: "PL!N-sd2-007:1", invocation_id: "extra-draw", condition_met: condition,
+      extra_drawn_count: count, discard_required: discard };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate: { ...MATCH_PAYLOAD, events: [
+      { event_type: "effect_opponent_success_draw_resolved", player_id: "player_1", source: "system", data },
+      { event_type: "effect_resolved", player_id: "player_1", source: "system", data },
+    ] } }));
+    render(<App />);
+    const create = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(create).not.toBeDisabled());
+    fireEvent.click(create);
+    expect((await screen.findAllByText(`对方本回合成功：${condition ? "是" : "否"} · 追加抽 ${count} 张 · ${discard ? "需弃 1 张" : "无需弃牌"}`)).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect((await screen.findAllByText(`相手の今ターン成功：${condition ? "あり" : "なし"} · 追加${count}枚ドロー · ${discard ? "手札を1枚控室へ" : "手札を控室に置かない"}`)).length).toBeGreaterThan(0);
+  });
+
   it.each([[1, 1, true], [1, 0, false], [0, 0, true]] as const)("shows bottom Live Heart result count %s delta %s", async (count, delta, available) => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const data = { effect_id: "PL!S-bp7-015:1", invocation_id: "bottom-heart", source_card_instance_id: "player_1-M001",
@@ -4065,6 +4082,31 @@ describe("App", () => {
     expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
       invocation_id: "mia-draw-two", accepted: true,
       selected_card_instance_ids: ["player_1-M002", "drawn-second"], energy_instance_ids: [],
+    });
+    expect(onManual).not.toHaveBeenCalled();
+  });
+
+  it.each([1, 2])("submits conditional discard with %s hidden-source invocations", (count) => {
+    const onAction = vi.fn();
+    const onManual = vi.fn();
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "setsuna-extra", effect_id: "PL!N-sd2-007:1", source_card_instance_id: "hidden-source",
+      label_ja: "【ライブ成功時】カードを1枚引く。このターン、相手もライブを成功している場合、さらにカードを1枚引き、手札を1枚控え室に置く。",
+      trigger: "live_succeeded", timing: "live_success", execution_mode: "prompt_then_resolve",
+      simulation_support: "test_validated_executable", is_optional: false, resolution_stage: "after_cost",
+      choice_type: "post_action_card_from_zone", choice_zone: "hand", card_selection_minimum: 1,
+      card_selection_maximum: 1, candidate_card_instance_ids: ["player_1-M002"],
+    }] } };
+    if (count === 2) action.options.invocations.push({ ...action.options.invocations[0], invocation_id: "setsuna-second", source_card_instance_id: "other-hidden-source" });
+    render(<EffectResolutionAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never}
+      loading={false} onAction={onAction} onManual={onManual} />);
+    const confirm = screen.getByRole("button", { name: "结算技能" });
+    expect(confirm).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /候補カード/ }));
+    expect(confirm).toBeEnabled();
+    fireEvent.click(confirm);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "setsuna-extra", accepted: true, selected_card_instance_ids: ["player_1-M002"], energy_instance_ids: [],
     });
     expect(onManual).not.toHaveBeenCalled();
   });

@@ -38,6 +38,15 @@
       "acceptance": ["只为已有至少四张牌库的原型增加受限snapshot策略，不改官方registry或generator，不提高执行率；不足四张在修改状态前明确拒绝，正式PL!-pb2-013仍manual", "公开不改变牌库对象及顺序；全四张lily_white才必须选其中Live一张并丢弃其余，否则无选择且原牌库不变；无Live时明确零张；验证公开/私看隔离、原对象、非法选择原子性和离开返回", "真实状态、SQL Replay、四AI及隐藏信息、原生UI有断言；旧私看快照维持原状。全部profiles/pre-push和新源码绑定的冻结30局通过，中文报告区分原型验证与正式卡裁定", "保留公开短牌库与刷新语义unresolved，不套用私看10.2.2.2，也不把逐张公开FAQ直接当成同时公开四张裁定；未获新PR目标批准前不改policy、不推送、不合并部署"]
     },
     {
+      "id": "onplay-wait-energy-skip-next-active",
+      "priority": 0,
+      "title": "审计登场放置Wait Energy且该张下回合不复原",
+      "status": "queued",
+      "depends_on": ["live-success-opponent-succeeded-draw-discard"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对冻结seed18020实际mandatory manual的PL!SP-bp7-017:1全文/revision904/hash30ff25ec59e8e1abece877f098ad0bc1d09d29b79c089c838a1029d192e326d0，先记录官方Active Phase与次回合期限依据，不按持卡频次晋级", "只把本次实际从Energy Deck放入的那张Energy置Wait，并仅让该对象下回合Active Phase不复原；不能套用全体或任意已Wait Energy标记，空Energy Deck不误标其他牌，移区/返回不继承", "确认先后攻、次回合与下一次自己操作的区别、主动技能提前复原、离场返回/附属卡/清理、旧新SQL Replay、四AI/隐藏信息及必要UI图文，未确认保留unresolved，不改变旧加能量或复原snapshot", "全部profiles/pre-push和同牌组新源码冻结诊断通过后只本地提交；不提升reviewed、不改默认AI/schema，后续PR目标待明确批准，不改policy、不推送、新建PR、合并部署"]
+    },
+    {
       "id": "live-success-opponent-succeeded-draw-discard",
       "priority": 0,
       "title": "审计Live成功后按对方本回合成功状态追加抽弃",

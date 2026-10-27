@@ -1,5 +1,13 @@
 # AI and Simulation Notes
 
+PL!N-sd2-007:1 draws one first, checks the current judgment's successful-player
+history, then conditionally draws and asks the owner to discard one. Four AI
+versions support both branches without hidden-identity influence or input
+mutation. Frozen30 improves12 to13 completed,192/195 executable completions;
+seed18023 has one actual positive condition and finishes turn9 at3:2 Live.
+This is not an all-pool long-game/beta claim.86 targeted and222 illustrated.
+[Evidence](development/opponent-success-draw-discard-verification.md).
+
 PL!S-bp7-015:1 now resolves bottom-one milling with a source-bound red Heart
 condition. Four AI versions support native Live start and pending resolution;
 hidden identities do not change their decisions. Frozen30 remains12/18,

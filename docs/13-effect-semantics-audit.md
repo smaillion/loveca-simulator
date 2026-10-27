@@ -1,5 +1,13 @@
 # Effect Semantics Audit
 
+PL!N-sd2-007:1 binds exact text/revision938/hash. The bounded extra-draw
+operation uses current-turn Live success, not accumulated success-area cards,
+performance pointer or winning score. The result is retained for the following
+mandatory private discard, preserving old post-action snapshots. Native SQL
+covers source departure/reentry/unknown deck and moved opponent Live history.
+86 targeted tests;924/1212 executable,288manual, no reviewed upgrade.
+[Rules, proof and UI boundary](development/opponent-success-draw-discard-verification.md).
+
 PL!S-bp7-015:1 binds exact text/revision860/hash. Bottom-one movement uses
 ordinary empty-deck refresh, not the private-look prefill rule. The actual
 moved card remains the condition reference after refresh. A bounded source

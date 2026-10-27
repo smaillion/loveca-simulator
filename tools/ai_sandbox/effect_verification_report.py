@@ -196,6 +196,9 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *((f"opponent_success_draw_{case}", f"相手成功と追加ドロー {case}", f"对方本回合成功与追加抽弃 {case}",
+           "PL!N-sd2-007:1", lambda effect, case=case: _run_opponent_success_draw(effect, case))
+          for case in ("both", "only_self", "past_success", "short", "empty")),
         *((f"bottom_live_heart_{case}", f"デッキ下一枚と発生源Heart {case}", f"牌库底一张与来源Heart {case}",
            "PL!S-bp7-015:1", lambda effect, case=case: _run_bottom_live_heart(effect, case))
           for case in ("live", "member", "empty", "one_live", "one_member")),
@@ -523,6 +526,8 @@ def _v1_1_dynamic_scenarios(
                 notes_ja=[f"公式日本語テキスト: {effect.label_ja}"],
                 notes_zh=[f"官方日文效果文本：{effect.label_ja}"],
                 rule_reference_ids=(
+                    ["8.3.16", "8.4.4", "8.4.5", "8.4.6", "9.6.3.1", "9.7.7", "10.2.2.1"]
+                    if effect_id == "PL!N-sd2-007:1" else
                     ["4.1.4", "4.8.2", "4.8.3", "9.7.7", "10.2.2.1", "10.2.3", "8.4.11"]
                     if effect_id == "PL!S-bp7-015:1" else
                     ["1.3.4", "1.3.4.1", "7.2.1.1", "7.2.1.2", "9.6.3.1", "9.6.3.1.3", "9.7.7"]
@@ -547,6 +552,40 @@ def _v1_1_dynamic_scenarios(
             )
         )
     return results
+
+
+def _run_opponent_success_draw(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    source = _v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id])
+    live = _v1_1_live("own-live", "Own Live")
+    other = _v1_1_live("other-live", "Opponent Live")
+    other.owner_id = "player_2"
+    deck = ["draw-a", "draw-b", "tail"]
+    state = _v1_1_state({effect.effect_id: effect}, [source, live, other,
+        *[_v1_1_member(k, "Hidden-" + k) for k in deck]], hand=[])
+    player = state.players["player_1"]
+    player.member_area["center"], player.live_area = "source", ["own-live"]
+    both = case not in {"only_self", "past_success"}
+    state.players["player_2"].live_area = ["other-live"] if both else []
+    if case == "past_success":
+        state.players["player_2"].success_live_area = ["other-live"]
+    player.main_deck = [] if case == "empty" else deck[:1] if case == "short" else deck
+    state.phase, state.active_player_id = "live_judgment", None
+    started = apply_action(state, ActionRequest(action_type="advance_phase", player_id=None, expected_revision=state.revision))
+    invocation = started.state.pending_effects[0]
+    result = apply_action(started.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=started.state.revision, payload={"invocation_id": invocation.invocation_id}))
+    event = next(e for e in result.events if e.event_type == "effect_opponent_success_draw_resolved")
+    expected_draw = 0 if case == "empty" else 1 if case in {"short", "only_self", "past_success"} else 2
+    hand_before = list(result.state.players["player_1"].hand)
+    final = apply_action(result.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=result.state.revision, payload={"invocation_id": invocation.invocation_id,
+        "selected_card_instance_ids": hand_before[:1]})) if both and hand_before else result
+    return {
+        "現在ターンだけ / 仅当前回合成功": event.data["condition_met"] == both,
+        "先に引いてから選ぶ / 先抽后选": len(hand_before) == expected_draw,
+        "条件成立時だけ必須一枚 / 条件成立才必选一张": len(final.state.players["player_1"].hand) == expected_draw - int(both and bool(hand_before)),
+        "待機完了 / 待机完成": not final.state.pending_effects,
+    }
 
 
 def _run_bottom_live_heart(effect: EffectDefinition, case: str) -> dict[str, bool]:

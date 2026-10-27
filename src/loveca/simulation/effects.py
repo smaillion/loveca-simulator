@@ -14,6 +14,7 @@ DEFAULT_EFFECT_REGISTRY = (
 )
 
 SUPPORTED_EFFECT_ACTIONS = {
+    "draw_extra_if_opponent_live_succeeded",
     "apply_wait",
     "apply_wait_energy",
     "apply_wait_member",
@@ -185,6 +186,12 @@ class EffectOperation(BaseModel):
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        if self.action_type == "draw_extra_if_opponent_live_succeeded" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "action_type": "draw_extra_if_opponent_live_succeeded", "amount": 1,
+            }
+        ):
+            raise ValueError("opponent Live success only supports one extra draw")
         if self.action_type == "gain_source_heart_if_bottom_card_live" and (
             self.model_dump(exclude_defaults=True, exclude_none=True) != {
                 "action_type": "gain_source_heart_if_bottom_card_live",
@@ -666,6 +673,25 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        if any(op.action_type == "draw_extra_if_opponent_live_succeeded" for op in self.cost):
+            raise ValueError("conditional opponent-success draw cannot be a cost")
+        if any(op.action_type == "draw_extra_if_opponent_live_succeeded" for op in self.actions) and (
+            self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
+            or self.effect_type != "triggered" or self.timing != "live_success" or self.trigger != "live_succeeded"
+            or self.frequency_limit != "once_per_live" or self.duration is not None
+            or self.execution_mode != "prompt_then_resolve" or self.simulation_support == "manual_resolution"
+            or self.choice is None
+            or self.choice.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "post_action_card_from_zone", "zone": "hand", "minimum": 1,
+                "post_action_condition_key": "opponent_live_success_extra_draw", "post_action_condition_minimum": 1,
+            }
+            or [op.model_dump(exclude_defaults=True, exclude_none=True) for op in self.actions] != [
+                {"action_type": "draw_card", "amount": 1},
+                {"action_type": "draw_extra_if_opponent_live_succeeded", "amount": 1},
+                {"action_type": "discard_from_hand"},
+            ]
+        ):
+            raise ValueError("opponent Live success requires its fixed draw-one/conditional-draw-and-discard sequence")
         if any(op.action_type == "gain_source_heart_if_bottom_card_live" for op in self.actions) and (
             self.cost or self.cost_choice or self.choice or self.follow_up_choice or self.condition
             or self.is_optional or self.effect_type != "triggered" or self.timing != "live_start"

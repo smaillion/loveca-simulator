@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-27 優木せつ菜条件抽弃：仅PL!N-sd2-007:1登记变化，固定工作树/分支。86专项、222图文、251前端通过；通用技能面板来源隐藏引用崩溃已补保护，不公开卡面。冻结30局完赛12→13，实际正条件完成1次。旧44/6 dirty与ignored成果保留，未push，后续PR目标待批。见`opponent-success-draw-discard-verification.md`。
+
 2026-10-27 津島善子牌库底切片：仅PL!S-bp7-015:1登记变化，固定工作树/分支。60专项、217图文及246前端通过；旧空离场policy下新补正自身清理，不改旧modifier。冻结30局仍12/18，本卡随其他manual待机保留，另有真实seed受控SQL分支。旧44/6 dirty和ignored报告保留，未push，后续PR目标待批。见`bottom-one-live-heart-verification.md`。
 
 2026-10-27 星空凛切片：固定工作树/分支，只有PL!-pb2-005:1登记变化。临时常时Blade动态覆盖后入场μ's，来源离场及Live期限明确；重叠/继承保留门禁。75专项、212图文及243前端通过，冻结30局仍12/18，本卡两次实际处理均条件未满足。旧dirty/ignored保留，未push，后续PR目标待批。见`muse-granted-blade-verification.md`。

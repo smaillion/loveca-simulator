@@ -1922,6 +1922,7 @@ const autoResultTerminalEvents = new Set([
 const autoResultOperationEvents = new Set([
   "effect_muse_blade_aura_resolved",
   "effect_bottom_live_heart_resolved",
+  "effect_opponent_success_draw_resolved",
   "effect_source_member_readied",
   "effect_blade_comparison_resolved",
   "effect_milled_blade_colors_resolved",
@@ -2041,7 +2042,7 @@ function autoResultLines(
     } else if (related.event_type === "effect_waiting_lives_recovered") {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
-    } else if (related.event_type === "effect_milled_blade_colors_resolved" || related.event_type === "effect_muse_blade_aura_resolved" || related.event_type === "effect_bottom_live_heart_resolved") {
+    } else if (related.event_type === "effect_milled_blade_colors_resolved" || related.event_type === "effect_muse_blade_aura_resolved" || related.event_type === "effect_bottom_live_heart_resolved" || related.event_type === "effect_opponent_success_draw_resolved") {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
       if (related.data.source_available === false) {
@@ -4229,6 +4230,7 @@ function eventTitle(event: GameEvent, locale: UiLocale): string {
     effect_milled_blade_colors_resolved: ["Blade Heart 颜色判定", "ブレードハート色の判定"],
     effect_muse_blade_aura_resolved: ["μ's常时Blade能力", "μ's常時ブレード能力"],
     effect_bottom_live_heart_resolved: ["牌库底Live判定", "デッキ下のライブ判定"],
+    effect_opponent_success_draw_resolved: ["对方本回合成功判定", "相手の今ターン成功判定"],
     effect_waiting_lives_recovered: ["双方控室 Live 回收", "両者の控室ライブ回収"],
     effect_public_waiting_live_selected: ["控室 Live 选择", "控室ライブの選択"],
     effect_resolved: ["技能结算", "能力解決"],
@@ -4344,6 +4346,12 @@ function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): st
     const moves = event.data.card_instance_ids_by_player as Record<string, unknown> | undefined;
     return Object.entries(moves ?? {}).map(([id, cards]) =>
       `${state.players[id]?.name ?? id}: ${stringArray(cards).length} Live`).join(" / ");
+  }
+  if (event.event_type === "effect_opponent_success_draw_resolved") {
+    const count = Number(event.data.extra_drawn_count ?? 0);
+    return locale === "zh"
+      ? `对方本回合成功：${event.data.condition_met ? "是" : "否"} · 追加抽 ${count} 张 · ${event.data.discard_required ? "需弃 1 张" : "无需弃牌"}`
+      : `相手の今ターン成功：${event.data.condition_met ? "あり" : "なし"} · 追加${count}枚ドロー · ${event.data.discard_required ? "手札を1枚控室へ" : "手札を控室に置かない"}`;
   }
   if (event.event_type === "effect_bottom_live_heart_resolved") {
     const count = Number(event.data.milled_count ?? 0);
@@ -5304,7 +5312,7 @@ export function EffectResolutionAction({
             {invocations.map((item, index) => (
               <option key={item.invocation_id} value={item.invocation_id}>
                 {action.options.effect_order_choice ? `${index + 1}. ` : ""}
-                {state.cards[item.source_card_instance_id].card.name_ja}
+                {state.cards[item.source_card_instance_id]?.card.name_ja ?? item.effect_id}
               </option>
             ))}
           </select>
@@ -5315,7 +5323,7 @@ export function EffectResolutionAction({
           {tr("另一方技能需等待当前玩家处理完毕。", "相手側の能力は現在の解決完了まで待機します。")}
         </small>
       )}
-      <strong>{state.cards[current.source_card_instance_id].card.name_ja}</strong>
+      <strong>{state.cards[current.source_card_instance_id]?.card.name_ja ?? current.effect_id}</strong>
       <small>
         {effectTriggerLabel(current.trigger, locale)} ·{" "}
         {effectExecutionModeLabel(current.execution_mode, locale)} ·{" "}

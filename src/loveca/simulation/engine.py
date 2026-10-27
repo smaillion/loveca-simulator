@@ -8006,6 +8006,25 @@ def _execute_operations(
                 events,
                 reason=f"effect:{invocation.effect_id}",
             )
+        elif operation_type == "draw_extra_if_opponent_live_succeeded":
+            if (state.phase != "live_judgment" or not state.live_success_effects_queued
+                    or invocation.trigger_event != "live_succeeded"
+                    or type(invocation.trigger_data.get("turn_number")) is not int
+                    or invocation.trigger_data["turn_number"] != state.turn_number
+                    or invocation.player_id not in state.live_success_player_ids):
+                raise IllegalActionError("current-turn Live success context is missing")
+            opponent_id = "player_2" if invocation.player_id == "player_1" else "player_1"
+            matched = opponent_id in state.live_success_player_ids
+            invocation.trigger_data["opponent_live_success_extra_draw"] = int(matched)
+            before = len(player.hand)
+            if matched:
+                _draw(state, invocation.player_id, 1, events, reason=f"effect:{invocation.effect_id}")
+            events.append(GameEvent(
+                event_type="effect_opponent_success_draw_resolved", player_id=invocation.player_id,
+                data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                      "condition_met": matched, "extra_drawn_count": len(player.hand) - before,
+                      "discard_required": matched and bool(player.hand)}, source="system",
+            ))
         elif operation_type == "draw_card_per_stage_member":
             work_key = None
             unit_key = None

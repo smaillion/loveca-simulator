@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+優木せつ菜`PL!N-sd2-007:1`已按全文/revision/hash限定适配：先抽一张，只在当前回合对方也成功时追加抽一张并本人必选弃一张，不用累计成功区或胜负结果代替条件。86专项、222图文、四AI/SQL与251前端验证；来源隐藏时面板仍可提交。冻结30局完赛12→13，本卡实际正条件完成一次。[验证与边界](./docs/development/opponent-success-draw-discard-verification.md)
+
 津島善子`PL!S-bp7-015:1`已按全文/revision/hash限定自动化：仅判断实际从牌库底移到控室的那张牌，若为Live则原来源红Heart+1。空库刷新、离场/同ID回场及旧快照均有保护。60专项、217图文、四AI/SQL与246前端验证通过。冻结30局仍12完赛，本卡入队后随其他manual待机保留；另存受控分支，不冒充完赛改善。[证据与边界](./docs/development/bottom-one-live-heart-verification.md)
 
 星空凛`PL!-pb2-005:1`已按全文/revision/hash限定适配：成功区μ's特殊得分Blade Heart图标条件成立时，原来源获得临时常时能力，后续入场的己方μ's也得Blade+1；来源离场返回不继承，重叠/继承保持明确限制。75专项、212图文、四AI/SQL与243前端验证通过。冻结30局仍12完赛，本卡两次真实触发均条件不成立，不冒充正条件实战覆盖。[证据与边界](./docs/development/muse-granted-blade-verification.md)

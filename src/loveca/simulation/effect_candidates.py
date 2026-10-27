@@ -19,6 +19,11 @@ SOURCE_REFERENCE = (
     "Official card text; comprehensive rules ver. 1.06 restricted executor pattern"
 )
 
+OPPONENT_SUCCESS_DRAW_DISCARD_TEXT = (
+    "【ライブ成功時】カードを1枚引く。このターン、相手もライブを成功している場合、"
+    "さらにカードを1枚引き、手札を1枚控え室に置く。"
+)
+
 BOTTOM_ONE_LIVE_HEART_TEXT = (
     "【ライブ開始時】自分のデッキの下からカードを1枚控え室に置く。"
     "それがライブカードの場合、ライブ終了時まで、【heart02】を得る。"
@@ -2794,6 +2799,23 @@ def _onplay_both_waiting_live(row: sqlite3.Row) -> EffectCandidate | None:
         choice={"choice_type": "multi_player_waiting_live_recovery", "selection_policy": "public_both_waiting_live_one",
                 "zone": "waiting_room", "card_type": "live", "minimum": 1, "maximum": 1, "selected_destination": "hand"},
         actions=[{"action_type": "return_from_waiting_room", "target": "both"}],
+    )
+
+
+def _live_success_opponent_draw_discard(row: sqlite3.Row) -> EffectCandidate | None:
+    if (row["card_code"] != "PL!N-sd2-007" or row["text_revision_id"] != 938
+            or row["raw_text_hash"] != "a0652e4321925ae2826d299c309118fb251aa81c1b11b7fc62ca84091f8111fb"
+            or row["raw_effect_text_ja"] != OPPONENT_SUCCESS_DRAW_DISCARD_TEXT):
+        return None
+    return EffectCandidate(
+        **_base(row, pattern_id="live_success_opponent_draw_discard", effect_index=1),
+        label_ja=OPPONENT_SUCCESS_DRAW_DISCARD_TEXT, effect_type="triggered", timing="live_success",
+        trigger="live_succeeded", frequency_limit="once_per_live", is_optional=False, condition={}, cost=[],
+        choice={"choice_type": "post_action_card_from_zone", "zone": "hand", "minimum": 1, "maximum": 1,
+                "post_action_condition_key": "opponent_live_success_extra_draw", "post_action_condition_minimum": 1},
+        actions=[{"action_type": "draw_card", "amount": 1},
+                 {"action_type": "draw_extra_if_opponent_live_succeeded", "amount": 1},
+                 {"action_type": "discard_from_hand"}], duration=None,
     )
 
 
@@ -15575,6 +15597,7 @@ _PATTERNS = (
     _onplay_named_baton_draw_then_discard,
     _onplay_multi_keep_icon_scope_manual,
     _onplay_ten_minus_hand_private_two,
+    _live_success_opponent_draw_discard,
     _live_start_bottom_one_heart,
     _onplay_mill_three_blade_colors,
     _onplay_muse_granted_blade,

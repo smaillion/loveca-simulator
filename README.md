@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+優木せつ菜`PL!N-sd2-007:1`を全文/revision/hash限定で対応。必ず一枚引き、現在ターンの相手成功を確認した時だけ追加ドローと手札一枚選択。過去の成功置き場や勝敗とは区別し、非公開発生源でもUIを操作可能に修正。86専用、222図解、四AI/SQL/251フロントを検証。固定30試合は12→13完了、実際の正条件一回を記録。[証拠と範囲](./docs/development/opponent-success-draw-discard-verification.md)
+
 津島善子`PL!S-bp7-015:1`を全文/revision/hash限定で自動化。実際にデッキの下から控室へ移した一枚だけを判定し、Liveなら元の発生源に赤Heart+1。空デッキrefresh、離場/同ID復帰、旧snapshotを区別。60専用、217図解、四AI/SQLと246フロントを検証。固定30試合は12完了のまま、本カードは他のmanual待機で未解決のため、別の制御分岐を明記。[証拠と限界](./docs/development/bottom-one-live-heart-verification.md)
 
 星空凛`PL!-pb2-005:1`を全文/revision/hash限定で対応。成功置き場のμ'sのスコアBlade Heart図柄を確認し、元の発生源が持つ常時能力として後から登場するμ'sにもBlade+1。離場/再登場とLive終了を区別し、重ねる/継承は明示的に保留。75専用、212図解、四AI/SQL/243フロントを検証。固定30試合は12完了のまま、本カード実誘発2回はいずれも条件不成立。[検証と制限](./docs/development/muse-granted-blade-verification.md)
