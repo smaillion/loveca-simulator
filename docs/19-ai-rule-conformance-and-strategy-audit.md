@@ -1,5 +1,10 @@
 # AI Rule Conformance and Strategy Audit
 
+The previously exposed Q253 defect is addressed by a restricted new snapshot,
+not a global rewrite of old Yell conditions. Dedicated SQL, four-controller,
+privacy and UI checks are separate from random-match coverage and human review.
+See [Q253 verification](development/q253-current-yell-source-score-verification.md).
+
 2026-10-28 JST: the opponent-current-Yell draw slice has four-controller,
 privacy, SQL and exact-card coverage, not a strategy or beta promotion. The
 unchanged 19/30 completed games and two random false conditions do not establish

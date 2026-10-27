@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+按直接官方Q253修正`PL!S-bp6-023:1`的当前原Yell条件及仅原Live得分。110专项/67 SQL、四AI/隐私、291图文/6 UI；未写期限按game，移区新对象不继承，旧Replay保留。[验证记录](./docs/development/q253-current-yell-source-score-verification.md)。这是既有可执行技能修复，不算manual晋级，只本地提交，不推送上线。
+
 渡辺曜`PL!S-PR-046:1`按全文/revision/hash限定实现对方当前Yell含Live抽一张，77专项/33 SQL、四AI/隐私、286图文/5 UI；已移区的公开历史不满足条件，旧快照不改。[验证及既有Q253风险](./docs/development/opponent-yell-live-draw-verification.md)分别保留，本切片只本地提交，不推送或上线。
 
 想いよひとつになれ `PL!S-cl1-011:1`按全文/revision/hash限定实现：结算时三名Aqours成员当前Heart取共同色，仅回收本次原Yell中匹配基本Heart的Aqours Member一张。96专项/38 SQL、四AI/隐私、281图文/5 UI；完整门禁及随机实际分支见[验证记录](./docs/development/aqours-shared-heart-yell-verification.md)。旧快照和未解决边界不改，本切片仅本地提交。

@@ -1,5 +1,11 @@
 # Effect Semantics Audit
 
+Q253 directly requires current original Yell objects for PL!S-bp6-023:1.
+The new exact snapshot grants only the original Live score, with game duration
+under 9.2.1.2 and independent zone-object cleanup under 4.1.4. The old global
+condition/executor is retained only for historical replay, not certified correct.
+See [scope and evidence](development/q253-current-yell-source-score-verification.md).
+
 2026-10-28 JST: PL!S-PR-046:1 has an exact new opponent-current-Yell draw snapshot.
 Q253 (another card with the same conditional wording) and Q107 require currently
 public original Yell objects, not permanent reveal history; Q153 covers no Live.

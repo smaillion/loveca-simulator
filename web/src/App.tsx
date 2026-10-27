@@ -1921,6 +1921,7 @@ const autoResultTerminalEvents = new Set([
 ]);
 
 const autoResultOperationEvents = new Set([
+  "effect_current_yell_source_score_resolved",
   "effect_opponent_yell_live_draw_resolved",
   "effect_aqours_shared_yell_recovered",
   "effect_water_blue_cards_returned",
@@ -2059,7 +2060,7 @@ function autoResultLines(
       if (summary) lines.push(summary);
       if (related.data.source_available === false) lines.push(locale === "zh"
         ? "原来源 Live 已离场，未减需" : "元のライブが離れたため必要ハートを減らさない");
-    } else if (related.event_type === "effect_waiting_lives_recovered" || related.event_type === "effect_opponent_live_recovered" || related.event_type === "effect_aqours_shared_yell_recovered") {
+    } else if (related.event_type === "effect_waiting_lives_recovered" || related.event_type === "effect_opponent_live_recovered" || related.event_type === "effect_aqours_shared_yell_recovered" || related.event_type === "effect_current_yell_source_score_resolved") {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
     } else if (related.event_type === "effect_milled_blade_colors_resolved" || related.event_type === "effect_muse_blade_aura_resolved" || related.event_type === "effect_bottom_live_heart_resolved" || related.event_type === "effect_bottom_aqours_heart_resolved" || related.event_type === "effect_bottom_five_members_resolved" || related.event_type === "effect_opponent_success_draw_resolved" || related.event_type === "effect_opponent_yell_live_draw_resolved" || related.event_type === "effect_wait_energy_next_active_resolved") {
@@ -4266,6 +4267,7 @@ function eventTitle(event: GameEvent, locale: UiLocale): string {
     effect_opponent_member_next_active_resolved: ["对手成员下回合限制", "相手メンバーの次ターン制限"],
     effect_opponent_success_draw_resolved: ["对方本回合成功判定", "相手の今ターン成功判定"],
     effect_opponent_yell_live_draw_resolved: ["对方当前Yell Live判定", "相手の現在エールLive判定"],
+    effect_current_yell_source_score_resolved: ["当前Yell与原Live得分", "現在エールと元Liveのスコア"],
     effect_wait_energy_next_active_resolved: ["新Energy下回合限制", "新エネルギーの次ターン制限"],
     effect_waiting_lives_recovered: ["双方控室 Live 回收", "両者の控室ライブ回収"],
     effect_public_live_offer_selected: ["公开 Live 选择", "公開ライブの選択"],
@@ -4401,6 +4403,12 @@ function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): st
     return locale === "zh"
       ? `对方当前 Yell Live ${Number(event.data.opponent_yell_live_count)} 张 · 抽 ${Number(event.data.drawn_count)} 张`
       : `相手の現在エールLive ${Number(event.data.opponent_yell_live_count)}枚 · ${Number(event.data.drawn_count)}枚ドロー`;
+  }
+  if (event.event_type === "effect_current_yell_source_score_resolved") {
+    const suffix = event.data.source_available ? "" : locale === "zh" ? " · 原Live已离场" : " · 元Liveは移動済み";
+    return (locale === "zh"
+      ? `本人当前 Yell Live ${Number(event.data.current_yell_live_count)} 张 · 原Live得分 +${Number(event.data.score_delta)}`
+      : `自分の現在エールLive ${Number(event.data.current_yell_live_count)}枚 · 元Liveのスコア +${Number(event.data.score_delta)}`) + suffix;
   }
   if (event.event_type === "effect_opponent_success_draw_resolved") {
     const count = Number(event.data.extra_drawn_count ?? 0);

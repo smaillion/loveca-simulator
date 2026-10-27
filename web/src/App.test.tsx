@@ -4996,6 +4996,41 @@ describe("App", () => {
     expect(onAction).toHaveBeenCalledWith("resolve_effect","player_1",{invocation_id:"water",accepted:true,selected_card_instance_ids:["player_1-M002"],energy_instance_ids:[]});
   });
 
+  it.each([0, 1, 2, -1])("shows bilingual current-Yell source-only score %s", async (count) => {
+    seedSavedDecks([{path: "test.json", deck: SAMPLE_DECK}]);
+    const available = count >= 0;
+    const actual = Math.max(1, count);
+    const amount = Number(available && count > 0);
+    const visibleCount = count === 0 ? 0 : actual;
+    const data = {invocation_id: "q253", effect_id: "PL!S-bp6-023:1", condition_met: visibleCount > 0,
+      current_yell_live_count: visibleCount, source_available: available, score_delta: amount};
+    vi.stubGlobal("fetch", createFetchMock({matchCreate: {...MATCH_PAYLOAD, events: [
+      {event_type: "effect_current_yell_source_score_resolved", player_id: "player_1", source: "system", data},
+      {event_type: "effect_auto_resolved", player_id: "player_1", source: "system", data},
+    ]}}));
+    render(<App />);
+    const create = await screen.findByRole("button", {name: "创建对局"});
+    await waitFor(() => expect(create).not.toBeDisabled());
+    fireEvent.click(create);
+    expect((await screen.findAllByText(`本人当前 Yell Live ${visibleCount} 张 · 原Live得分 +${amount}${available ? "" : " · 原Live已离场"}`)).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", {name: "日本語"}));
+    expect((await screen.findAllByText(`自分の現在エールLive ${visibleCount}枚 · 元Liveのスコア +${amount}${available ? "" : " · 元Liveは移動済み"}`)).length).toBeGreaterThan(0);
+  });
+
+  it.each([1, 2])("submits source-only Yell score with %s hidden-source invocations", (count) => {
+    const onAction = vi.fn();
+    const invocations = Array.from({length: count}, (_, i) => ({invocation_id: `q253-${i}`,
+      effect_id: "PL!S-bp6-023:1", source_card_instance_id: `hidden-q253-${i}`, label_ja: "ライブ成功時",
+      trigger: "live_succeeded", timing: "live_success", execution_mode: "auto_resolve",
+      simulation_support: "test_validated_executable", is_optional: false, resolution_stage: "initial"}));
+    render(<EffectResolutionAction action={{action_type: "resolve_effect", player_id: "player_1", options: {invocations}} as never}
+      state={INSPECTION_MATCH_PAYLOAD.state as never} loading={false} onAction={onAction} onManual={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", {name: "结算技能"}));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "q253-0", accepted: true, selected_card_instance_ids: [], energy_instance_ids: [],
+    });
+  });
+
   it.each([0, 1, 2])("shows bilingual opponent current-Yell Live draw %s", async (count) => {
     seedSavedDecks([{path: "test.json", deck: SAMPLE_DECK}]);
     const data = {invocation_id: "you-yell", effect_id: "PL!S-PR-046:1", condition_met: count > 0,

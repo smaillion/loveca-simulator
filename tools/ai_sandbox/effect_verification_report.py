@@ -198,6 +198,9 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *((f"q253_current_yell_score_{case}", f"現在エールと元Live {case}", f"当前Yell与原Live {case}",
+           "PL!S-bp6-023:1", lambda effect, case=case: _run_q253_source_score(effect, case))
+          for case in ("none", "one", "two", "removed", "source_return")),
         *((f"opponent_yell_live_draw_{case}", f"相手の現在エール {case}", f"对方当前Yell {case}",
            "PL!S-PR-046:1", lambda effect, case=case: _run_opponent_yell_draw(effect, case))
           for case in ("none", "one", "two", "removed", "empty")),
@@ -667,6 +670,40 @@ def _run_opponent_success_draw(effect: EffectDefinition, case: str) -> dict[str,
         "条件成立時だけ必須一枚 / 条件成立才必选一张": len(final.state.players["player_1"].hand) == expected_draw - int(both and bool(hand_before)),
         "待機完了 / 待机完成": not final.state.pending_effects,
     }
+
+
+def _run_q253_source_score(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    source = _v1_1_live("source", effect.card_code, effect_ids=[effect.effect_id, "AUDIT", "TAIL"])
+    other = _v1_1_live("other", "Other Live")
+    yelled = [_v1_1_live(f"yell-{i}", f"Yell {i}") for i in range(2)]
+    audit = EffectDefinition.model_validate({**effect.model_dump(), "effect_id": "AUDIT", "actions": [{"action_type": "manual_resolution"}],
+        "execution_mode": "manual_resolution", "simulation_support": "manual_resolution"})
+    state = _v1_1_state({effect.effect_id: effect, "AUDIT": audit, "TAIL": audit.model_copy(update={"effect_id": "TAIL"})}, [source, other, *yelled], hand=[])
+    state.effect_order_policy = "ap_nap_player_choice"
+    p = state.players["player_1"]
+    p.live_area = ["source", "other"]
+    ids = [card.instance_id for card in yelled[:0 if case == "none" else 2 if case == "two" else 1]]
+    p.resolution_area = [] if case == "removed" else list(ids)
+    p.waiting_room = list(ids) if case == "removed" else []
+    p.live_result = LivePerformanceResult(revealed_instance_ids=ids,
+        remaining_yell_instance_ids=[] if case == "removed" else list(ids), yell_tracking_turn=state.turn_number)
+    state.phase, state.active_player_id = "live_judgment", None
+    current = apply_action(state, ActionRequest(action_type="advance_phase", expected_revision=state.revision)).state
+    if case == "source_return":
+        inv = next(i for i in current.pending_effects if i.effect_id == "AUDIT")
+        changes = [{"adjustment_type": "move_card", "target_player_id": "player_1", "target_card_instance_id": "source", "to_zone": zone} for zone in ("hand", "live_area")]
+        current = apply_action(current, ActionRequest(action_type="manual_adjustment", player_id="player_1", expected_revision=current.revision,
+            payload={"reason": "AUDIT constructed departure", "source_invocation_id": inv.invocation_id,
+                "source_effect_id": inv.effect_id, "source_card_instance_id": inv.source_card_instance_id, "adjustments": changes})).state
+    invocation = next(i for i in current.pending_effects if i.effect_id == effect.effect_id)
+    result = apply_action(current, ActionRequest(action_type="resolve_effect", player_id="player_1", expected_revision=current.revision,
+        payload={"invocation_id": invocation.invocation_id}))
+    data = next(e.data for e in result.events if e.event_type == "effect_current_yell_source_score_resolved")
+    expected = case in {"one", "two"}
+    return {"現在の元エールだけ / 仅当前原Yell": data["current_yell_live_count"] == (0 if case in {"none", "removed"} else len(ids)),
+        "元Liveだけ加算 / 仅原Live加分": data["score_delta"] == int(expected),
+        "全体スコアを変更しない / 不加全局得分": not any(m.modifier_type == "score" for m in result.state.players["player_1"].manual_modifiers),
+        "新しい同IDへ継承しない / 同ID返回不继承": data["source_available"] is (case != "source_return")}
 
 
 def _run_opponent_yell_draw(effect: EffectDefinition, case: str) -> dict[str, bool]:

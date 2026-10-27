@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "live-success-current-yell-live-source-score-q253",
+      "priority": 0,
+      "title": "修复Q253当前Yell Live条件与原来源Live得分",
+      "status": "queued",
+      "depends_on": ["live-success-opponent-yell-live-draw"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["先将q253-valid-final.json/sqlite3有效原生红例纳入正式专项，精确PL!S-bp6-023:1全文/revision72/hashecfac853f6d6c490d282df3610013bb0d0714c9941a9e23f1fc99f9cc898e1f7，原test_validated_executable标签不代表符合Q253，不算manual晋级", "Q253直接明确结算前唯一Yell Live被回收后不加分；按当前原Yell对象判断，只增加原来源Live分数，不是全局score。精确新snapshot/condition/来源policy，不全局追改旧通用condition或旧Replay", "验证0/1/2、已移走/同ID返回/新对象/多次Yell、结算前变化、来源离场返回/Live区内移动、多Live只原来源、Live清理、新旧SQL/四AI/完整隐私/UI图文与所有profiles，来源或规则语义不明保留unresolved", "新源码同原30牌组冻结和pre-push后仅本地提交；不push/publish、新PR、合并部署或主机操作，不恢复其他blocked"]
+    },
+    {
       "id": "live-success-opponent-yell-live-draw",
       "priority": 0,
       "title": "审计Live成功时对方本次Yell含Live后的抽一张",

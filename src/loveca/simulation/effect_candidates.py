@@ -655,6 +655,21 @@ def _live_start_discard_two_same_group_gain_heart_blade(
     return None
 
 
+def _live_success_current_yell_source_score(row: sqlite3.Row) -> EffectCandidate | None:
+    text = "【ライブ成功時】エールにより公開された自分のカードの中にライブカードがある場合、このカードのスコアを＋１する。"
+    if (row["card_code"] != "PL!S-bp6-023" or row["text_revision_id"] != 72
+            or row["raw_text_hash"] != "ecfac853f6d6c490d282df3610013bb0d0714c9941a9e23f1fc99f9cc898e1f7"
+            or row["raw_effect_text_ja"] != text):
+        return None
+    return EffectCandidate(
+        **_base_with_execution_mode(row, pattern_id="live_success_current_yell_source_score_q253_v1", effect_index=1, execution_mode="auto_resolve"),
+        label_ja=text, effect_type="triggered", timing="live_success", trigger="live_succeeded", frequency_limit="once_per_live",
+        is_optional=False, condition={}, cost=[], choice=None, duration="game",
+        actions=[{"action_type": "gain_source_score_if_current_yell_live", "amount": 1, "target": "source",
+                  "source_object_policy": "original_live_success_yell_source"}],
+    )
+
+
 def _live_success_opponent_yell_live_draw(row: sqlite3.Row) -> EffectCandidate | None:
     text = "【ライブ成功時】エールにより公開された相手のカードの中にライブカードがある場合、カードを1枚引く。"
     if (row["card_code"] != "PL!S-PR-046" or row["text_revision_id"] != 1219
@@ -7870,6 +7885,8 @@ def _live_start_simple_modifiers(row: sqlite3.Row) -> EffectCandidate | None:
 
 
 def _live_success_simple_effects(row: sqlite3.Row) -> EffectCandidate | None:
+    if row["card_code"] == "PL!S-bp6-023":
+        return None
     patterns: dict[str, dict[str, Any]] = {
         NIJIGASAKI_SELECTED_BLADE_SCORE_TEXT: {
             "suffix": "selected_nijigasaki_strictly_highest_blade_source_score1",
@@ -15833,6 +15850,7 @@ _PATTERNS = (
     _onplay_diverdiva_energy_modes,
     _live_success_opponent_cost4_wait_or_draw,
     _live_start_water_blue_bottom_heart,
+    _live_success_current_yell_source_score,
     _live_success_opponent_yell_live_draw,
     _live_success_aqours_shared_heart_yell,
     _onplay_audited_discard_inspection,

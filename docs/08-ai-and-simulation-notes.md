@@ -1,5 +1,11 @@
 # AI and Simulation Notes
 
+Q253 now has a card-exact current-original-Yell/source-Live score snapshot.
+Four controllers resolve two sources in either role without hidden-identity
+dependence or input mutation. This fixes an executable card, not a manual or
+strategy promotion; historical generic snapshots remain replay-compatible.
+See [bounded verification](development/q253-current-yell-source-score-verification.md).
+
 The bounded PL!S-PR-046:1 snapshot checks only current original opponent Yell
 objects with matching game-turn metadata, then draws at most one card. Four AI
 versions resolve both sources in either role without hidden-identity dependence

@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+Q253の直接裁定に従い`PL!S-bp6-023:1`の現在エール条件と元Liveだけの得点を修正。110専用/67 SQL、四AI・秘匿、291図解/6 UI。無記載期限はgame、移区後の新オブジェクトに継承せず、旧Replayを維持。[検証記録](./docs/development/q253-current-yell-source-score-verification.md)。manual昇格ではなく、ローカルのみ、push/deployしない。
+
 渡辺曜`PL!S-PR-046:1`の相手の現在エールLive条件/一枚ドローを全文・revision・hash限定で実装。77専用/33 SQL、四AI・秘匿、286図解/5 UI。移区後の履歴は条件に使わず、旧snapshotを維持。[検証・既存Q253リスク](./docs/development/opponent-yell-live-draw-verification.md)を分離し、本切片はローカルのみ、push/deployしない。
 
 想いよひとつになれ `PL!S-cl1-011:1`を全文/revision/hash限定で実装。解決時のAqours三人の共通Heart色を求め、今回の元エールから同色の基本Heartを持つAqoursメンバー一枚を回収。96専用/38 SQL、四AI・秘匿、281図解/5 UI、最終門禁と実際の分岐は[検証記録](./docs/development/aqours-shared-heart-yell-verification.md)。旧snapshotと未解決事項を変更せず、ローカル検証のみ。

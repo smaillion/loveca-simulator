@@ -1614,12 +1614,12 @@ def _resolve_effect(
         raise IllegalActionError("only the effect owner may resolve this effect")
     _assert_effect_resolution_turn(state, invocation)
     effect = state.effect_definitions[invocation.effect_id]
-    if any(op.action_type == "draw_if_opponent_current_yell_live" for op in effect.actions) and (
+    if any(op.action_type in {"draw_if_opponent_current_yell_live", "gain_source_score_if_current_yell_live"} for op in effect.actions) and (
         set(action.payload) - {"invocation_id", "accepted", "selected_card_instance_ids", "energy_instance_ids", "ai_decision"}
         or action.payload.get("selected_card_instance_ids") not in (None, [])
         or action.payload.get("energy_instance_ids") not in (None, [])
     ):
-        raise IllegalActionError("opponent Yell draw does not accept selections or costs")
+        raise IllegalActionError("current Yell operation does not accept selections or costs")
     if (effect.choice is not None and effect.choice.selection_policy == "public_two_distinct_live_opponent_one"
             and set(action.payload) - {"invocation_id", "accepted", "ai_decision"}):
         raise IllegalActionError("public Live offers must be selected in their own pending choice")
@@ -3226,7 +3226,7 @@ def _queue_triggered_effects(
 
 def _captures_original_live_source(effect: Any) -> bool:
     return bool(effect and any(op.source_object_policy in {
-        "original_live_start_bottom_five_source", "original_live_start_bottom_aqours_requirement"}
+        "original_live_start_bottom_five_source", "original_live_start_bottom_aqours_requirement", "original_live_success_yell_source"}
                                for op in effect.actions)) or getattr(getattr(effect, "choice", None), "selection_policy", None) == (
         "public_aqours_blade_six_source_score"
     )
@@ -9650,6 +9650,37 @@ def _execute_operations(
                 {"from_slot": from_slot, "to_slot": to_slot},
                 events,
             )
+        elif operation_type == "gain_source_score_if_current_yell_live":
+            tracked = player.live_result.remaining_yell_instance_ids
+            if (state.phase != "live_judgment" or not state.live_success_effects_queued
+                    or invocation.trigger_event != "live_succeeded"
+                    or type(invocation.trigger_data.get("turn_number")) is not int
+                    or invocation.trigger_data["turn_number"] != state.turn_number
+                    or invocation.player_id not in state.live_success_player_ids
+                    or type(player.live_result.yell_tracking_turn) is not int
+                    or player.live_result.yell_tracking_turn != state.turn_number or tracked is None
+                    or type(invocation.trigger_data.get("original_source_live_object")) is not bool):
+                raise IllegalActionError("current-turn original Live/Yell context is missing")
+            if (type(tracked) is not list or any(type(i) is not str for i in tracked)
+                    or len(tracked) != len(set(tracked))):
+                raise IllegalActionError("current Yell tracking is invalid")
+            current = [i for i in tracked if i in player.resolution_area and i in player.live_result.revealed_instance_ids]
+            if any(i not in state.cards or state.cards[i].owner_id != invocation.player_id for i in current):
+                raise IllegalActionError("current Yell objects are invalid")
+            count = sum(state.cards[i].card.card_type == "live" for i in current)
+            source_id = invocation.source_card_instance_id
+            available = (invocation.trigger_data["original_source_live_object"] is True
+                and not invocation.trigger_data.get("original_source_live_object_departed", False)
+                and source_id in player.live_area and state.cards[source_id].card.card_type == "live")
+            delta = int(bool(count) and available)
+            if delta:
+                player.manual_modifiers.append(ManualModifier(modifier_id=f"effect:{invocation.invocation_id}:current-yell-source-score",
+                    modifier_type="live_card_score", duration="game", created_turn=state.turn_number,
+                    amount=1, target_card_instance_id=source_id, value={"policy": "original_live_success_yell_source"}))
+            events.append(GameEvent(event_type="effect_current_yell_source_score_resolved", player_id=invocation.player_id,
+                data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                      "condition_met": bool(count), "current_yell_live_count": count,
+                      "source_available": available, "score_delta": delta}, source="system"))
         elif operation_type == "modify_score":
             player.manual_modifiers.append(
                 ManualModifier(
@@ -11254,8 +11285,8 @@ def _reveal_current_live_cards(
         player.live_result = LivePerformanceResult(requirements_satisfied=False)
 
 
-def _opponent_yell_draw_tracking(state: MatchState) -> bool:
-    return any(op.action_type == "draw_if_opponent_current_yell_live"
+def _current_yell_turn_tracking(state: MatchState) -> bool:
+    return any(op.action_type in {"draw_if_opponent_current_yell_live", "gain_source_score_if_current_yell_live"}
         for effect in state.effect_definitions.values() for op in effect.actions)
 
 
@@ -11265,7 +11296,7 @@ def _run_current_yell(
 ) -> None:
     player_id = state.active_player_id or ""
     player = state.players[player_id]
-    track_opponent_yell = _opponent_yell_draw_tracking(state)
+    track_opponent_yell = _current_yell_turn_tracking(state)
     if not player.live_area:
         if track_opponent_yell:
             player.live_result.remaining_yell_instance_ids = []

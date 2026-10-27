@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-28 JST Q253：同一固定分支/工作树，只修PL!S-bp6-023:1当前原Yell与原Live得分，110专项/67 SQL、四AI/隐私、291图文/6 UI。game期限与移区对象分开，旧快照保持，935/1212和manual数不变，不算晋级。最终门禁和新同牌组冻结见`q253-current-yell-source-score-verification.md`，只本地提交，不push/改PR55或合并部署；其他blocked、44/6 dirty、stash及ignored保留。
+
 2026-10-28 JST 曜对方当前Yell：同一固定分支/工作树，只有PL!S-PR-046:1晋级，77专项/33 SQL、四AI/隐私、286图文/5 UI。当前原Yell对象和回合元数据与旧Replay分开，默认AI/Card/SQL表结构不改；最终门禁/冻结与既有Q253风险见`opponent-yell-live-draw-verification.md`。只本地提交，不push/改PR55、合并部署；旧blocked、44/6 dirty、stash及ignored保留。
 
 2026-10-28 JST WATER BLUE颜色勘误：沿用既有固定分支/工作树，限定修正结果标题、说明及相关中日文档的蓝色/青名称，复用heartColorLabel；引擎heart05、数量、提交和旧Replay不改。六项中日红例后复验，原78专项保持；全部门禁与原30局指纹绑定见`water-blue-color-label-verification.md`验收入口。不push/改PR55或合并部署，旧blocked、44/6 dirty、stash及ignored保留。

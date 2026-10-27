@@ -1,5 +1,7 @@
 # 渡辺曜：对方当前Yell含Live时抽一张
 
+后续：文末独立发现的既有Q253风险已由[有限新快照修复与验证](q253-current-yell-source-score-verification.md)接续，旧复现及本轮原始结论保留为历史；最终完成状态以新报告验收入口为准。
+
 2026-10-28 JST。有限任务`live-success-opponent-yell-live-draw`，沿用固定分支及工作树，仅本地开发提交，不push/publish、合并部署或主机操作。完整门禁、提交和最终状态见[最终验收入口](../../logs/opponent-yell-live-draw-20261027/final-acceptance.md)，定向绿色不替代全部profiles。
 
 ## 精确绑定与依据

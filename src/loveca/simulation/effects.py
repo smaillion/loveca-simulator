@@ -14,6 +14,7 @@ DEFAULT_EFFECT_REGISTRY = (
 )
 
 SUPPORTED_EFFECT_ACTIONS = {
+    "gain_source_score_if_current_yell_live",
     "draw_if_opponent_current_yell_live",
     "shuffle_waiting_aqours_for_selected_heart",
     "wait_opponent_cost4_skip_next_turn_active",
@@ -171,6 +172,7 @@ class EffectOperation(BaseModel):
         "original_live_start_bottom_three_source",
         "original_live_start_bottom_five_source",
         "original_live_start_bottom_aqours_requirement",
+        "original_live_success_yell_source",
     ] | None = None
     overlap_observer_policy: Literal[
         "ignore_disjoint_source_triggers", "require_complete_source_bindings"
@@ -197,6 +199,14 @@ class EffectOperation(BaseModel):
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        bounded = "gain_source_score_if_current_yell_live"
+        policy = "original_live_success_yell_source"
+        if self.action_type == bounded and self.model_dump(exclude_defaults=True, exclude_none=True) != {
+            "action_type": bounded, "amount": 1, "target": "source", "source_object_policy": policy,
+        }:
+            raise ValueError("current Yell source score only supports its fixed source-only bonus")
+        if self.source_object_policy == policy and self.action_type != bounded:
+            raise ValueError("current Yell source policy requires its bounded operation")
         if self.action_type == "shuffle_waiting_aqours_for_selected_heart" and self.model_dump(exclude_defaults=True, exclude_none=True) != {
             "action_type": "shuffle_waiting_aqours_for_selected_heart", "amount": 6, "target": "selected",
         }:
@@ -767,6 +777,14 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        current_yell_score = "gain_source_score_if_current_yell_live"
+        if any(op.action_type == current_yell_score for op in [*self.cost, *self.actions]) and (
+            self.cost or self.cost_choice or self.choice or self.follow_up_choice or self.condition or self.is_optional
+            or self.effect_type != "triggered" or self.timing != "live_success" or self.trigger != "live_succeeded"
+            or self.execution_mode != "auto_resolve" or self.frequency_limit != "once_per_live" or self.duration != "game"
+            or self.simulation_support == "manual_resolution" or len(self.actions) != 1
+        ):
+            raise ValueError("current Yell source score requires its fixed mandatory Live-success snapshot")
         bounded = "draw_if_opponent_current_yell_live"
         if any(op.action_type == bounded for op in [*self.cost, *self.actions]) and (
             self.cost or self.cost_choice or self.choice or self.follow_up_choice or self.condition or self.is_optional
