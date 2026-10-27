@@ -16,6 +16,8 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
 
     scenario_ids = {result.scenario_id for result in results}
     assert {
+        "mill_blade_colors_none", "mill_blade_colors_same", "mill_blade_colors_two",
+        "mill_blade_colors_three", "mill_blade_colors_all_green", "mill_blade_colors_live_excluded",
         "ten_minus_hand_0", "ten_minus_hand_1", "ten_minus_hand_9", "ten_minus_hand_10", "ten_minus_hand_11",
         "aqours_blade_six_low", "aqours_blade_six_exact", "aqours_blade_six_static", "aqours_blade_six_departed",
         "niji_blade_four_below", "niji_blade_four_exact", "niji_blade_four_temporary", "niji_blade_four_static",

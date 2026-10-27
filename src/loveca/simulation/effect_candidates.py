@@ -42,6 +42,12 @@ TEN_MINUS_HAND_PRIVATE_TWO_TEXT = (
     "その中から2枚まで手札に加える。残りを控え室に置く。"
 )
 
+MILL_THREE_BLADE_COLORS_TEXT = (
+    "【登場】自分のデッキの上からカードを3枚控え室に置く。"
+    "それらのメンバーカードの中に2種類以上のブレードハートの色がある場合、"
+    "ライブ終了時まで、【heart04】を得る。"
+)
+
 
 @dataclass(frozen=True)
 class EffectCandidate:
@@ -2756,6 +2762,24 @@ def _onplay_optional_discard_inspect_keep1_any(
             {"action_type": "move_remaining_cards"},
         ],
         duration=None,
+    )
+
+
+def _onplay_mill_three_blade_colors(row: sqlite3.Row) -> EffectCandidate | None:
+    if (row["card_code"] != "PL!N-bp7-020" or row["text_revision_id"] != 883
+            or row["raw_text_hash"] != "1fd519f551bd331e61e6a8fa1d9cfada8390c609ae73319768e4e7d30701ea04"
+            or row["raw_effect_text_ja"] != MILL_THREE_BLADE_COLORS_TEXT):
+        return None
+    return EffectCandidate(
+        **_base_with_execution_mode(row, pattern_id="onplay_mill_three_blade_colors", effect_index=1,
+                                    execution_mode="auto_resolve"),
+        label_ja=MILL_THREE_BLADE_COLORS_TEXT, effect_type="triggered", timing="on_play",
+        trigger="member_played", frequency_limit="none", is_optional=False, condition={},
+        cost=[], choice=None, actions=[{"action_type": "mill_top_cards", "amount": 3}, {
+            "action_type": "gain_source_heart_if_milled_member_blade_colors",
+            "source_object_policy": "original_onplay_mill_source", "target": "source",
+            "amount": 1, "color_slot": "heart04",
+        }], duration="live",
     )
 
 
@@ -15486,6 +15510,7 @@ _PATTERNS = (
     _onplay_named_baton_draw_then_discard,
     _onplay_multi_keep_icon_scope_manual,
     _onplay_ten_minus_hand_private_two,
+    _onplay_mill_three_blade_colors,
     _onplay_audited_discard_inspection,
     _onplay_optional_discard_inspect_keep1_any,
     _nijigasaki_onplay_inspection,

@@ -1,5 +1,13 @@
 # AI and Simulation Notes
 
+PL!N-bp7-020:1 now automatically mills three and tests distinct printed colored
+Member Blade Hearts, following officialQ270 (ALL+green is insufficient).
+Four policies cover actual play and pending resolution without hidden-identity
+dependence. Frozen30 stays11 completed/19 manual stops, now167/169 executable
+completions. This card actually triggers3 times and advances two prior blockers
+to other manual cards, not a completion-rate gain. Defaultv1.1 stays unchanged.
+[Chinese evidence](development/mill-three-blade-colors-verification.md).
+
 PL!SP-PR-028:1 privately inspects max(0,10-current hand) at resolution, keeping0–2.
 Four-policy native follow-up/invariance tests and old/new SQL Replay pass.
 The same source-bound frozen30 now completes11 games (previously9), with19 manual

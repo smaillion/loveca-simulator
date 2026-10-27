@@ -1922,6 +1922,7 @@ const autoResultTerminalEvents = new Set([
 const autoResultOperationEvents = new Set([
   "effect_source_member_readied",
   "effect_blade_comparison_resolved",
+  "effect_milled_blade_colors_resolved",
   "effect_cards_milled",
   "effect_cards_revealed",
   "effect_cards_revealed_to_hand",
@@ -2034,6 +2035,12 @@ function autoResultLines(
           || related.data.reason === "no_legal_stage_member_at_resolution")) {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
+    } else if (related.event_type === "effect_milled_blade_colors_resolved") {
+      const summary = eventSummary(related, state, locale);
+      if (summary) lines.push(summary);
+      if (related.data.source_available === false) {
+        lines.push(locale === "zh" ? "原来源角色已离场，未加成" : "元のメンバーが離れたため加算なし");
+      }
     } else if (related.event_type === "effect_blade_comparison_resolved") {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
@@ -4213,6 +4220,7 @@ function eventTitle(event: GameEvent, locale: UiLocale): string {
     ai_blocked: ["电脑操作受阻", "CPU操作ブロック"],
     effect_auto_resolved: ["技能自动发动", "能力の自動解決"],
     effect_blade_comparison_resolved: ["Blade 比较结果", "ブレード比較結果"],
+    effect_milled_blade_colors_resolved: ["Blade Heart 颜色判定", "ブレードハート色の判定"],
     effect_resolved: ["技能结算", "能力解決"],
     effect_not_activatable: ["技能未自动处理", "能力の自動処理不可"],
     effect_operation_not_applied: ["技能部分未执行", "能力の一部未実行"],
@@ -4321,6 +4329,13 @@ function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): st
     return locale === "zh"
       ? "该登场观察者的重叠时点尚待审核，请手动确认。"
       : "重複時の登場誘発は未審査です。手動で確認してください。";
+  }
+  if (event.event_type === "effect_milled_blade_colors_resolved") {
+    const count = stringArray(event.data.blade_heart_color_slots).length;
+    const delta = Number(event.data.heart_delta ?? 0);
+    return locale === "zh"
+      ? `Member Blade Heart ${count} 种颜色 · 来源绿 Heart +${delta}`
+      : `メンバーのブレードハート ${count} 色 · 誘発元の緑ハート +${delta}`;
   }
   if (event.event_type === "effect_blade_comparison_resolved") {
     const selected = Number(event.data.selected_blade ?? 0);

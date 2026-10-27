@@ -1,5 +1,13 @@
 # Effect Semantics Audit
 
+PL!N-bp7-020:1 follows officialQ270: ALL plus green does not satisfy two colors.
+Only six colored Blade Hearts on the milled Members count; ordinary Hearts,
+Live cards and special draw/score/ALL icons are not extra colors. A bounded
+on-play source snapshot prevents departure/reentry inheritance; milling still
+resolves after source departure.61 targeted and6 illustrated state scenarios
+are implementation evidence, not complete human certification.
+[Evidence](development/mill-three-blade-colors-verification.md).
+
 PL!SP-PR-028:1 uses an exact revision/hash-bound private ten-minus-current-hand
 snapshot. Quantity is evaluated after source play and other pending changes;
 old amount_source/fixed inspection/manual Replay behavior is unchanged.

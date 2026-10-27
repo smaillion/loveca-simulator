@@ -38,6 +38,15 @@
       "acceptance": ["只为已有至少四张牌库的原型增加受限snapshot策略，不改官方registry或generator，不提高执行率；不足四张在修改状态前明确拒绝，正式PL!-pb2-013仍manual", "公开不改变牌库对象及顺序；全四张lily_white才必须选其中Live一张并丢弃其余，否则无选择且原牌库不变；无Live时明确零张；验证公开/私看隔离、原对象、非法选择原子性和离开返回", "真实状态、SQL Replay、四AI及隐藏信息、原生UI有断言；旧私看快照维持原状。全部profiles/pre-push和新源码绑定的冻结30局通过，中文报告区分原型验证与正式卡裁定", "保留公开短牌库与刷新语义unresolved，不套用私看10.2.2.2，也不把逐张公开FAQ直接当成同时公开四张裁定；未获新PR目标批准前不改policy、不推送、不合并部署"]
     },
     {
+      "id": "onplay-both-players-waiting-live-recovery",
+      "priority": 0,
+      "title": "按新实际待机审计双方各取自身控室Live一张",
+      "status": "queued",
+      "depends_on": ["onplay-mill-three-blade-color-heart"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!N-bp4-007:1全文/revision363/hash 7076ae1f8dd1872704b75e15e069471bcc1d8ee6dcf21abb1b2cd4521ed3fe94；新冻结seed18008实际mandatory manual，不按持有频次估计", "先确认官方双方选择顺序/是否同时及9.6.3公开区域必选语义，再按每人自身控室Live各一张处理；无候补按可能范围结算，不代替对手选择，不允许选Member或别人的牌，未确认保留unresolved", "双方0/1/多候补、非法/重复/非所有者提交原子性、来源离场、新旧SQL Replay、四AI及双方选择隐私、原生UI和图文须真实断言，不扩大旧多玩家snapshot", "完整四组profiles/pre-push及同牌组新源码冻结诊断通过才晋级；不提升reviewed、不改schema/默认AI。只做本地实现验证提交，未获新PR目标明确批准前不改policy、不推送、新建PR、合并部署"]
+    },
+    {
       "id": "onplay-mill-three-blade-color-heart",
       "priority": 0,
       "title": "按两次实际待机审计顶三控室的Blade Heart颜色条件",

@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-27 当前エマ切片：继续固定分支/工作树，按官方Q270适配顶三Member Blade Heart颜色条件；实际触发3次，冻结30局仍11完赛/19人工停止，不宣称完赛改善。旧dirty及ignored报告保留，后续PR目标待批，最终门禁另存。见`mill-three-blade-colors-verification.md`。
+
 2026-10-27 四张公开底座：正式PL!-pb2-013因短牌库公开/刷新语义保持blocked及manual；另建未绑定官方卡的至少四张prototype，条件失败原库不变、旧私看不公开。新冻结30局仍9/21，源码绑定，旧dirty和ignored报告未动，PR目标待批。见`public-four-reveal-foundation.md`。
 
 2026-10-27 lily white审计：PL!-pb2-041:2依赖第一段成功区按两枚计数，暂保留两段manual，12项边界证明不冒充自动执行。应用源码/卡库/registry未变，下一独立任务为PL!-pb2-013:1顶四公开检索。固定工作树/分支继续复用，旧dirty及ignored报告未动，发布目标审批仍待确认。见`lily-white-source-score-unresolved.md`。

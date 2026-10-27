@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+エマ・ヴェルデ`PL!N-bp7-020:1`を正確な本文と公式Q270に基づき対応。上三枚のMemberだけから有色Blade Heartを数え、二色以上なら元の発生源に緑Heart+1。ALL/Live/通常Heartは混同しません。61専用テスト、202図解検証、実際に三回誘発。固定30試合は11完了/19手動停止のままです。[検証と限界](./docs/development/mill-three-blade-colors-verification.md)
+
 米女メイ`PL!SP-PR-028:1`を本文/revision/hash限定で対応。解決時の手札枚数から確認数を計算し、非公開で0–2枚取得、残りは控室へ。59専用テストと196図解検証。同じ30デッキで9→11試合完了、本能力は実際に2回誘発。登録919/1212、293manual。公開四枚・成功置き場の未解決能力は昇格しません。[検証と制限](./docs/development/ten-minus-hand-private-two-verification.md)
 
 四枚の公開選択prototypeを追加。条件不成立なら元のデッキに残し、従来の非公開確認は維持します。四枚未満は未解決として拒否し、公式`PL!-pb2-013:1`には登録しません。実行率の追加なし。[限定底座](./docs/development/public-four-reveal-foundation.md)

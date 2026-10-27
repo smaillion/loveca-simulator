@@ -2067,6 +2067,27 @@ describe("App", () => {
     expect((await screen.findAllByText(`ブレード 4 / ほかの最大 ${other} · 誘発元のスコア +${delta}`)).length).toBeGreaterThan(0);
   });
 
+  it.each([[0, true], [1, true], [0, false]] as const)("shows milled Member Blade colors and source Heart +%s (source=%s)", async (delta, available) => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const data = { invocation_id: "milled-colors", effect_id: "PL!N-bp7-020:1",
+      source_card_instance_id: "player_1-M001", blade_heart_color_slots: delta || !available ? ["heart01", "heart04"] : ["heart04"],
+      source_available: available, condition_met: delta > 0 || !available, heart_delta: delta, color_slot: "heart04" };
+    const matchCreate = { ...MATCH_PAYLOAD, events: [
+      { event_type: "effect_milled_blade_colors_resolved", player_id: "player_1", source: "system", data },
+      { event_type: "effect_auto_resolved", player_id: "player_1", source: "system", data },
+    ] };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    const create = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(create).not.toBeDisabled());
+    fireEvent.click(create);
+    const colors = data.blade_heart_color_slots.length;
+    expect((await screen.findAllByText(`Member Blade Heart ${colors} 种颜色 · 来源绿 Heart +${delta}`)).length).toBeGreaterThan(0);
+    if (!available) expect(await screen.findByText("原来源角色已离场，未加成")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect((await screen.findAllByText(`メンバーのブレードハート ${colors} 色 · 誘発元の緑ハート +${delta}`)).length).toBeGreaterThan(0);
+  });
+
   it("shows an automatic result notice for milled cards even when the conditional follow-up does not happen", async () => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const sourceId = "player_1-M001";

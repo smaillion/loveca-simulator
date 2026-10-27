@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- エマ・ヴェルデ`PL!N-bp7-020:1`を公式Q270と全文/revision/hashに限定して自動化。上三枚のMemberの有色Blade Heartが二種類以上なら元の発生源に緑Heart+1。新しい発生源snapshotで離場/復帰の継承を防ぐ。
+- 中文: 61专项、3项双语UI与202图文覆盖六色/ALL/普通Heart/Live、短库刷新、原来源、Live清理、四AI/隐私及新旧SQL Replay。冻结30局仍11完赛/19人工停止、167/169可执行完成、Replay/错误skip0，本卡实际三次触发并推进至其他manual。登记920/1212、292manual，不提升reviewed或改schema/默认AI；仅本地提交。
+
 - 米女メイ`PL!SP-PR-028:1`に限定snapshotを追加。解決時の手札数で上から確認する枚数を計算し、非公開で最大二枚取得。旧amount_sourceとmanual Replayを維持し、確認前/後のrefreshを区別する。
 - 中文: 59专项、5项原生UI与196图文覆盖手牌0/1/9/10/11、四AI、SQL Replay、隐私及原子性。冻结30局完赛9→11、19人工停止、162/164可执行完成，Replay与错误skip0；本卡两次实际触发，新增一局败方无Live，不冒充双方Live门禁。登记919/1212、293manual，不提升reviewed、不改schema/默认AI，仅本地提交。
 

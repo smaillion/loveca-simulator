@@ -196,6 +196,9 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *((f"mill_blade_colors_{case}", f"控室三枚・Blade Heart色条件 {case}", f"顶三控室与Blade Heart颜色 {case}",
+           "PL!N-bp7-020:1", lambda effect, case=case: _run_mill_blade_colors(effect, case=case))
+          for case in ("none", "same", "two", "three", "all_green", "live_excluded")),
         *((f"ten_minus_hand_{hand}", f"手札{hand}枚・上から確認して最大二枚", f"手牌{hand}张：私看并最多取二",
            "PL!SP-PR-028:1", lambda effect, hand=hand: _run_ten_minus_hand_inspection(effect, hand=hand))
           for hand in (0, 1, 9, 10, 11)),
@@ -511,6 +514,8 @@ def _v1_1_dynamic_scenarios(
                 notes_ja=[f"公式日本語テキスト: {effect.label_ja}"],
                 notes_zh=[f"官方日文效果文本：{effect.label_ja}"],
                 rule_reference_ids=(
+                    ["2.1.1", "2.1.3", "2.2.2.2", "2.7", "4.1.4", "9.7.7", "10.2.2.1", "8.4.11"]
+                    if effect_id == "PL!N-bp7-020:1" else
                     ["1.3.2.2", "5.7.1", "9.6.3.1.1", "10.2.2.2", "10.2.3"]
                     if effect_id == "PL!SP-PR-028:1" else
                     ["2.8.1", "2.10.1", "4.1.4", "8.3.8", "8.4.2", "9.6.3.1",
@@ -529,6 +534,40 @@ def _v1_1_dynamic_scenarios(
             )
         )
     return results
+
+
+def _run_mill_blade_colors(effect: EffectDefinition, *, case: str) -> dict[str, bool]:
+    source = _v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id], cost=0)
+    deck = ["mill-a", "mill-b", "mill-c", "mill-tail"]
+    cards = [source, *[_v1_1_member(key, "AUDIT-" + key) for key in deck]]
+    colors = {
+        "none": (None, None, None), "same": ("heart04", "heart04", "heart04"),
+        "two": ("heart01", "heart04", None), "three": ("heart01", "heart03", "heart04"),
+        "all_green": (None, "heart04", None), "live_excluded": ("heart01", "heart04", None),
+    }[case]
+    for card, color in zip(cards[1:], colors):
+        card.card.blade_heart_color_slot = color
+        card.card.basic_hearts = {"heart02": 3, "heart05": 2}
+    if case == "all_green":
+        cards[1].card.special_blade_hearts = [SpecialBladeHeart(effect_type="all_color", source_alt="ALL", value=1)]
+    if case == "live_excluded":
+        cards[1].card.card_type = "live"
+    state = _v1_1_state({effect.effect_id: effect}, cards, hand=["source"])
+    state.players["player_1"].main_deck = deck
+    result = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1",
+        expected_revision=state.revision, payload={"card_instance_id": "source", "slot": "center",
+        "energy_instance_ids": [], "use_baton_touch": False}))
+    event = next(e for e in result.events if e.event_type == "effect_milled_blade_colors_resolved")
+    delta = int(case in {"two", "three"})
+    mods = result.state.players["player_1"].manual_modifiers
+    return {
+        "三枚を控室・後尾維持 / 三张控室且尾牌保留":
+        result.state.players["player_1"].waiting_room == deck[:3] and result.state.players["player_1"].main_deck == deck[3:],
+        "色条件とQ270 / 颜色条件与Q270": event.data["heart_delta"] == delta,
+        "発生源だけHeart / 只有来源获得Heart": len(mods) == delta and all(
+            m.target_card_instance_id == "source" and m.color_slot == "heart04" and m.amount == 1 and m.duration == "live" for m in mods),
+        "自動処理完了 / 自动处理完成": not result.state.pending_effects and result.state.pending_choice is None,
+    }
 
 
 def _run_ten_minus_hand_inspection(effect: EffectDefinition, *, hand: int) -> dict[str, bool]:

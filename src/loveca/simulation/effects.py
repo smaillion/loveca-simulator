@@ -91,6 +91,7 @@ SUPPORTED_EFFECT_ACTIONS = {
     "draw_if_milled_all_card_type",
     "draw_if_milled_any_card_type",
     "gain_heart_if_milled_all_have_heart",
+    "gain_source_heart_if_milled_member_blade_colors",
     "gain_heart_from_selected_card_colors",
     "gain_blade_if_milled_any_card_type",
 }
@@ -153,6 +154,7 @@ class EffectOperation(BaseModel):
     source_object_policy: Literal[
         "original_moved_stage_member", "original_live_start_heart_source",
         "original_live_start_wait_cost_source",
+        "original_onplay_mill_source",
     ] | None = None
     overlap_observer_policy: Literal[
         "ignore_disjoint_source_triggers", "require_complete_source_bindings"
@@ -179,6 +181,18 @@ class EffectOperation(BaseModel):
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        if self.action_type == "gain_source_heart_if_milled_member_blade_colors" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "action_type": "gain_source_heart_if_milled_member_blade_colors",
+                "source_object_policy": "original_onplay_mill_source",
+                "target": "source", "amount": 1, "color_slot": "heart04",
+            }
+        ):
+            raise ValueError("milled Member Blade colors require a fixed green source Heart")
+        if self.source_object_policy == "original_onplay_mill_source" and (
+            self.action_type != "gain_source_heart_if_milled_member_blade_colors"
+        ):
+            raise ValueError("on-play mill source policy only supports its bounded Heart operation")
         if self.source_object_policy == "original_moved_stage_member" and (
             self.action_type != "ready_member" or self.target != "source"
             or self.amount is not None or self.amount_source is not None
@@ -258,6 +272,7 @@ class EffectOperation(BaseModel):
             "gain_heart",
             "gain_heart_to_stage_members",
             "gain_heart_if_milled_all_have_heart",
+            "gain_source_heart_if_milled_member_blade_colors",
             "modify_required_heart",
             "replace_member_base_hearts",
             "replace_yell_blade_hearts",
@@ -612,6 +627,18 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        if any(op.action_type == "gain_source_heart_if_milled_member_blade_colors" for op in self.actions) and (
+            self.cost or self.cost_choice or self.choice or self.follow_up_choice or self.condition
+            or self.is_optional or self.effect_type != "triggered" or self.timing != "on_play"
+            or self.trigger != "member_played" or self.frequency_limit != "none"
+            or self.duration != "live" or self.execution_mode != "auto_resolve"
+            or len(self.actions) != 2
+            or self.actions[0].model_dump(exclude_defaults=True, exclude_none=True) != {
+                "action_type": "mill_top_cards", "amount": 3,
+            }
+            or self.actions[1].action_type != "gain_source_heart_if_milled_member_blade_colors"
+        ):
+            raise ValueError("milled Member Blade colors require the fixed on-play mill-three sequence")
         if self.choice and self.choice.selection_policy == "private_ten_minus_hand_keep_two" and (
             self.cost or self.cost_choice or self.follow_up_choice or self.condition
             or self.is_optional or self.effect_type != "triggered" or self.timing != "on_play"

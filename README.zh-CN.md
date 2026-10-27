@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+エマ・ヴェルデ`PL!N-bp7-020:1`依据精确卡文及官方Q270适配：顶三控室仅统计Member的有色Blade Heart，两色以上给原来源绿Heart+1，不混用ALL、Live或普通Heart。61专项、202图文及实际三次触发验证；固定30局仍11完赛/19人工停止，不宣称完赛改善。[证据与边界](./docs/development/mill-three-blade-colors-verification.md)
+
 米女メイ`PL!SP-PR-028:1`已按全文/revision/hash精确适配：结算时按10减当前手牌私看，最多取两张且不公开，余牌控室。59项专项、196图文通过；同冻结30牌组完赛9→11，本卡实际触发两次。登记919/1212、293manual；公开四张及成功区特殊计数仍未解决，不冒充完整规则或发布验收。[证据与边界](./docs/development/ten-minus-hand-private-two-verification.md)
 
 新增四张公开选择原型：条件失败保留原牌库，旧私看保持隔离；不足四张明确拒绝，正式`PL!-pb2-013:1`仍manual，不增加覆盖率。[受限底座报告](./docs/development/public-four-reveal-foundation.md)
