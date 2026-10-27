@@ -29,6 +29,24 @@
       "acceptance": ["精确核对PL!-pb2-013:1完整日文/revision986/hash 0a06fcfee9cde86a6c33f9b5369470994fac45e9a4fe236a94aae1e9e7531f86，先复现原冻结池3次实际人工待机；不按牌组频率晋级", "本次从顶四公开的原对象全为lily_white时才取其中一张Live，区分unit/work、Member/Live、混合单位、无Live及其他区域；核对短牌库/刷新及不足四张时全部公开对象的语义，不猜测FAQ", "必要时使用新受限snapshot策略，真实状态、费用为零、选择原子性、公开信息、旧manual SQL Replay、四AI、UI及双语图文有断言；不依赖成功区计数，不扩大PL!-pb2-041第一段manual边界", "全部required_profiles、manifest/pre-push及绑定源码的冻结诊断完成；未确认语义保留unresolved，不提升reviewed、不改schema/默认AI；新PR目标未明确批准前只做本地验证提交，不改policy、不推送、不合并部署"]
     },
     {
+      "id": "public-four-lily-reveal-foundation",
+      "priority": 0,
+      "title": "建立不绑定正式卡的四张公开选择底座",
+      "status": "queued",
+      "depends_on": ["live-start-aqours-blade-six-source-score-integrity"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["只为已有至少四张牌库的原型增加受限snapshot策略，不改官方registry或generator，不提高执行率；不足四张在修改状态前明确拒绝，正式PL!-pb2-013仍manual", "公开不改变牌库对象及顺序；全四张lily_white才必须选其中Live一张并丢弃其余，否则无选择且原牌库不变；无Live时明确零张；验证公开/私看隔离、原对象、非法选择原子性和离开返回", "真实状态、SQL Replay、四AI及隐藏信息、原生UI有断言；旧私看快照维持原状。全部profiles/pre-push和新源码绑定的冻结30局通过，中文报告区分原型验证与正式卡裁定", "保留公开短牌库与刷新语义unresolved，不套用私看10.2.2.2，也不把逐张公开FAQ直接当成同时公开四张裁定；未获新PR目标批准前不改policy、不推送、不合并部署"]
+    },
+    {
+      "id": "onplay-ten-minus-hand-private-two",
+      "priority": 0,
+      "title": "按实际待机审计10减当前手牌的私看最多取二",
+      "status": "queued",
+      "depends_on": ["live-start-aqours-blade-six-source-score-integrity"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!SP-PR-028:1完整日文/revision1232/hash 4e93a5a5a79f7b2afe0fba115053b86de413fd60bd6f84d34fdadb84676fe116与原池两次实际人工待机；不是公开操作，不依赖成功区计数", "私看数量在结算时按max(0,10-当前手牌)计算，区别登场前/后与其他待机变化，验证手牌0/1/9/10/11、短牌库私看刷新、0至2选择及余牌控室；不改旧amount_source或快照行为", "精确受限绑定需真实状态、SQL Replay、四AI、双视角隐私、UI及图文断言，全部profiles/pre-push及源码绑定冻结诊断；不猜测FAQ、不虚标reviewed、不改schema/默认AI", "只做本地实现验证提交；发布目标未明确批准前不改policy、不推送或新建PR，不合并部署；本任务独立于公开四张短牌库语义"]
+    },
+    {
       "id": "live-start-success-lily-white-source-score",
       "priority": 0,
       "title": "按实际待机审计lily white成功区两张与来源Live得分",

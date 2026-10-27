@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-27 四张公开底座：正式PL!-pb2-013因短牌库公开/刷新语义保持blocked及manual；另建未绑定官方卡的至少四张prototype，条件失败原库不变、旧私看不公开。新冻结30局仍9/21，源码绑定，旧dirty和ignored报告未动，PR目标待批。见`public-four-reveal-foundation.md`。
+
 2026-10-27 lily white审计：PL!-pb2-041:2依赖第一段成功区按两枚计数，暂保留两段manual，12项边界证明不冒充自动执行。应用源码/卡库/registry未变，下一独立任务为PL!-pb2-013:1顶四公开检索。固定工作树/分支继续复用，旧dirty及ignored报告未动，发布目标审批仍待确认。见`lily-white-source-score-unresolved.md`。
 
 2026-10-26T16:17Z：Aqours Blade6切片因限定恢复审批连续三轮缺失登记为blocked，仅保存状态，不再重试被拒绝的修改。现有PR54/90a10c6五项CI仍绿；本地225前端单测通过但完整build的数据导出因registry破损失败。依赖任务及全局门禁均不能绕过；等待已发出的限定审批，不新增分支、不提交推送。

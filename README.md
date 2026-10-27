@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+四枚の公開選択prototypeを追加。条件不成立なら元のデッキに残し、従来の非公開確認は維持します。四枚未満は未解決として拒否し、公式`PL!-pb2-013:1`には登録しません。実行率の追加なし。[限定底座](./docs/development/public-four-reveal-foundation.md)
+
 「春情ロマンティック」`PL!-pb2-041:2`は成功置き場の枚数を二枚扱いにする第1能力に依存するため、両段ともmanualを維持。12境界テストで実際の待機・四AI・SQL Replayを確認し、単純な実枚数での自動化は行いません。[未解決監査](./docs/development/lily-white-source-score-unresolved.md)
 
 `PL!S-bp3-025:1`はAqoursを先に選択し、解決時に有効Blade6以上なら元のLiveだけscore+1。低Bladeも選択可能で、離場後の同IDは再接続しません。旧Replay維持、266関連テスト・191図解を検証。同じ30デッキは9完了/21手動停止、本カードの実入隊は0で完走率の改善とはしません。[検証](./docs/development/aqours-blade-six-score-verification.md)

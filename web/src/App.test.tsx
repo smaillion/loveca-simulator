@@ -3259,6 +3259,39 @@ describe("App", () => {
     ).toBe(true);
   });
 
+  it.each([true, false])("handles the public four-card prototype condition: %s", (matched) => {
+    const onAction = vi.fn();
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    const ids = ["player_1-M002", "player_1-M003", "prototype-4", "prototype-5"];
+    for (const [index, id] of ids.entries()) {
+      const base = state.cards[index === 0 ? "player_1-M002" : "player_1-M003"];
+      state.cards[id] = { ...base, instance_id: id, card: { ...base.card,
+        name_ja: index < 2 ? base.card.name_ja : `公開Member ${index + 1}`,
+        card_type: index === 0 ? "live" : "member" } };
+    }
+    const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], options: {
+      ...INSPECTION_MATCH_PAYLOAD.legal_actions[0].options,
+      public_reveal_policy: "public_four_lily_white_live", condition_met: matched,
+      inspected_card_instance_ids: ids,
+      candidate_card_instance_ids: matched ? ["player_1-M002"] : [],
+      minimum: matched ? 1 : 0, maximum: matched ? 1 : 0,
+    } };
+    render(<InspectionChoiceAction action={action as never} state={state as never}
+      loading={false} onAction={onAction} title="公开四张" submitLabel="确认公开处理" />);
+    const submit = screen.getByRole("button", { name: "确认公开处理" });
+    if (matched) {
+      expect(submit).toBeDisabled();
+      fireEvent.click(screen.getByRole("button", { name: /候補カード/ }));
+    } else {
+      expect(screen.getByText("条件不成立，公开牌留在牌库原位置")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /候補カード/ })).toBeDisabled();
+    }
+    fireEvent.click(submit);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_1", {
+      selected_card_instance_ids: matched ? ["player_1-M002"] : [], ordered_card_instance_ids: undefined,
+    });
+  });
+
   it("renders structured effect inspection choices and submits the selected kept card", async () => {
     const onAction = vi.fn();
     render(

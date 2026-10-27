@@ -5,6 +5,22 @@ from typing import Any
 from loveca.simulation.models import LegalAction, MatchState
 
 
+def public_inspection_card_ids(state: MatchState) -> set[str]:
+    choice = state.pending_choice
+    if choice is None or choice.choice_type != "effect_inspection_selection":
+        return set()
+    effect = state.effect_definitions.get(choice.options.get("effect_id"))
+    if (effect is None or effect.choice is None
+            or effect.choice.selection_policy != "public_four_lily_white_live"
+            or choice.options.get("public_reveal_policy") != "public_four_lily_white_live"
+            or len(choice.options.get("inspected_card_instance_ids", [])) != 4):
+        return set()
+    return {
+        item for item in choice.options.get("inspected_card_instance_ids", [])
+        if isinstance(item, str) and item in state.players[choice.player_id].main_deck
+    }
+
+
 def private_inspection_card_ids(state: MatchState, viewer_id: str | None) -> set[str]:
     choice = state.pending_choice
     if (
@@ -32,7 +48,7 @@ def redact_player_state(
 ) -> set[str]:
     """Project a player response; never serialize hidden pile identities or order."""
     private_inspected = private_inspection_card_ids(state, viewer_id)
-    visible_ids: set[str] = set()
+    visible_ids: set[str] = public_inspection_card_ids(state)
     for player_id, player in state.players.items():
         own = player_id == viewer_id
         visible_ids.update(item for item in player.member_area.values() if item)

@@ -2043,6 +2043,9 @@ def _begin_effect_inspection_choice(
         raise IllegalActionError("effect does not define an inspection follow-up")
     if state.pending_choice is not None:
         raise IllegalActionError("another choice is already pending")
+    if getattr(choice, "selection_policy", None) == "public_four_lily_white_live":
+        _begin_public_four_reveal(state, invocation, events)
+        return
     player = state.players[invocation.player_id]
     amount = choice.amount or 0
     if choice.amount_source == "own_stage_member_count_plus_2":
@@ -2110,6 +2113,85 @@ def _begin_effect_inspection_choice(
             source="player",
         )
     )
+
+
+def _begin_public_four_reveal(
+    state: MatchState, invocation: EffectInvocation, events: list[GameEvent],
+) -> None:
+    player = state.players[invocation.player_id]
+    if len(player.main_deck) < 4:
+        raise IllegalActionError("public-four prototype: short-deck reveal semantics are unresolved")
+    inspected = list(player.main_deck[:4])
+    for item in inspected:
+        state.cards[item].face_up = True
+    matched = all("lily_white" in state.cards[item].card.unit_keys for item in inspected)
+    candidates = [item for item in inspected if matched and state.cards[item].card.card_type == "live"]
+    options = {
+        "invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+        "source_card_instance_id": invocation.source_card_instance_id,
+        "public_reveal_policy": "public_four_lily_white_live", "condition_met": matched,
+        "inspected_card_instance_ids": inspected, "candidate_card_instance_ids": candidates,
+        "minimum": 1 if candidates else 0, "maximum": 1 if candidates else 0,
+        "requires_order": False, "selected_destination": "hand",
+        "unselected_destination": "waiting_room" if matched else "main_deck_unchanged",
+        "reveal_selected_to_opponent": True,
+    }
+    state.pending_choice = PendingChoice(
+        choice_type="effect_inspection_selection", player_id=invocation.player_id,
+        message_ja="公開したカードの処理を選んでください。", message_zh="请选择公开卡牌的处理结果。",
+        options=options,
+    )
+    events.append(GameEvent(
+        event_type="effect_public_reveal_started", player_id=invocation.player_id,
+        data={**options, "revealed_cards": [_public_card_snapshot(state, item) for item in inspected]},
+        source="player",
+    ))
+
+
+def _resolve_public_four_reveal(
+    state: MatchState, action: ActionRequest, invocation: EffectInvocation, events: list[GameEvent],
+) -> None:
+    options = state.pending_choice.options
+    player = state.players[invocation.player_id]
+    inspected = options.get("inspected_card_instance_ids", [])
+    if len(inspected) != 4 or inspected != player.main_deck[:4]:
+        raise IllegalActionError("original public-reveal deck objects are no longer available")
+    matched = all("lily_white" in state.cards[item].card.unit_keys for item in inspected)
+    candidates = [item for item in inspected if matched and state.cards[item].card.card_type == "live"]
+    selected = action.payload.get("selected_card_instance_ids", [])
+    if (not isinstance(selected, list) or len(selected) != (1 if candidates else 0)
+            or any(item not in candidates for item in selected)
+            or action.payload.get("ordered_card_instance_ids") not in (None, [])):
+        raise IllegalActionError("public-reveal selection must choose one offered Live when possible")
+    revealed = [_public_card_snapshot(state, item) for item in inspected]
+    unselected = [item for item in inspected if item not in selected]
+    if matched:
+        del player.main_deck[:4]
+        player.hand.extend(selected)
+        player.waiting_room.extend(unselected)
+        for item in inspected:
+            state.cards[item].face_up = True
+    else:
+        for item in inspected:
+            state.cards[item].face_up = False
+    state.pending_choice = None
+    state.pending_effects.remove(invocation)
+    _record_effect_usage(state, invocation)
+    events.append(GameEvent(
+        event_type="effect_resolved", player_id=invocation.player_id,
+        data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+              "source_card_instance_id": invocation.source_card_instance_id,
+              "public_reveal_policy": "public_four_lily_white_live", "condition_met": matched,
+              "inspected_card_instance_ids": inspected, "selected_card_instance_ids": selected,
+              "unselected_card_instance_ids": unselected, "revealed_cards": revealed,
+              "selected_destination": "hand", "reveal_selected_to_opponent": True,
+              "unselected_destination": "waiting_room" if matched else "main_deck_unchanged"},
+        source="player",
+    ))
+    if matched:
+        _refresh_main_deck(state, invocation.player_id, events)
+    _resolve_automatic_effects(state, events)
+    _continue_after_effect_queue(state, events)
 
 
 def _append_effect_choice_started_event(
@@ -2232,6 +2314,9 @@ def _resolve_effect_choice(
     _assert_effect_resolution_turn(state, invocation)
     effect = state.effect_definitions[invocation.effect_id]
     selected_ids = action.payload.get("selected_card_instance_ids", [])
+    if getattr(effect.choice, "selection_policy", None) == "public_four_lily_white_live":
+        _resolve_public_four_reveal(state, action, invocation, events)
+        return
     if not isinstance(selected_ids, list) or any(
         not isinstance(item, str) for item in selected_ids
     ):

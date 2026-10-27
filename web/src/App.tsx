@@ -5148,7 +5148,7 @@ export function EffectResolutionAction({
     deployment_unsupported_slots?: Record<string, string>;
     deployment_unsupported_slots_by_candidate?: Record<string, Record<string, string>>;
     deployment_requires_manual_resolution?: boolean;
-    selection_policy?: "private_filtered_may_choose_none" | "public_single_as_much_as_possible" | "public_named_groups_as_much_as_possible" | "public_other_nijigasaki_cost_heart" | "public_yell_aqours_bottom_three" | "public_nijigasaki_blade_four_heart" | "public_aqours_blade_six_source_score";
+    selection_policy?: "private_filtered_may_choose_none" | "public_single_as_much_as_possible" | "public_named_groups_as_much_as_possible" | "public_other_nijigasaki_cost_heart" | "public_yell_aqours_bottom_three" | "public_nijigasaki_blade_four_heart" | "public_aqours_blade_six_source_score" | "public_four_lily_white_live";
     choice_groups?: Array<{
       group_id: string;
       label_ja?: string | null;
@@ -5635,6 +5635,11 @@ export function InspectionChoiceAction({
   return (
     <div className="effect-resolution">
       <strong>{title}</strong>
+      {action.options.public_reveal_policy === "public_four_lily_white_live" && (
+        <small>{action.options.condition_met
+          ? tr("公开牌全部为 lily white", "公開カードはすべてlily white")
+          : tr("条件不成立，公开牌留在牌库原位置", "条件を満たさず、公開カードはデッキの元の位置に残ります")}</small>
+      )}
       {isMultiChoice && (
         <small>{tr("选择玩家", "選択するプレイヤー")}: {state.players[action.player_id ?? ""]?.name ?? tr("对战玩家", "プレイヤー")}</small>
       )}

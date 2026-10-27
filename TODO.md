@@ -9,6 +9,8 @@
 
 ### 新卡起动与未支持段落
 
+- `PL!-pb2-013:1`已复现manual待机，公开短牌库与刷新语义记录`simultaneous_public_reveal_short_deck_refresh_semantics`，保持manual。已拆出仅至少四张可运行、未绑定正式卡的公开原型底座；条件失败留原库，不能套用旧私看直接丢弃。见`docs/development/public-four-reveal-foundation.md`。下一独立切片为`PL!SP-PR-028:1`的10减当前手牌私看最多取二。
+
 - `PL!-pb2-041:2`审计发现第一段计数常时依赖，现有实体unit计数不能覆盖一张当两张的场景；12项manual/四AI/SQL边界已通过，保持两段manual，原因`success_live_counting_override_not_modeled`。见`docs/development/lily-white-source-score-unresolved.md`。下一独立任务是`PL!-pb2-013:1`顶四全lily white时取得其中Live，先核对短牌库/刷新与精确日文，不直接晋级。
 
 - `PL!S-bp3-025:1`已在本地修正先选人后判Blade六及仅原来源Live加分，有266相关/191图文、新旧SQL Replay、四AI及隐私断言。冻结30局仍9完赛/21人工停止，本卡实际触发0，不宣称完赛改善。最终门禁独立保存；下一项为`PL!-pb2-041:2`的lily white成功区两张与来源score，复杂第一段manual。见`docs/development/aqours-blade-six-score-verification.md`。新PR发布目标另待明确确认，不复用关闭的54。

@@ -1,5 +1,11 @@
 # Effect Semantics Audit
 
+PL!-pb2-013:1 remains manual: simultaneous public-reveal short-deck refresh semantics
+are unresolved. The separate public-four snapshot prototype requires at least4 cards,
+keeps original deck objects, retains the deck on a false condition, and never promotes
+the official registry. Q166/Q73 concern sequential reveal, not a blanket four-card ruling.
+[Evidence](development/public-four-reveal-foundation.md).
+
 PL!-pb2-041:2 remains manual: its count depends on the first segment treating a
 success-area copy as two for own lily-white effects. The legacy physical-unit
 predicate does not model that dependency.12 boundary tests cover actual manual

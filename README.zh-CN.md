@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+新增四张公开选择原型：条件失败保留原牌库，旧私看保持隔离；不足四张明确拒绝，正式`PL!-pb2-013:1`仍manual，不增加覆盖率。[受限底座报告](./docs/development/public-four-reveal-foundation.md)
+
 「春情ロマンティック」`PL!-pb2-041:2`依赖同卡第一段的成功区按两张计数，暂保留两段manual。12项边界测试确认真实待机、四AI与SQL Replay，不用实体牌数冒充完整计数规则。[未解决审计](./docs/development/lily-white-source-score-unresolved.md)
 
 `PL!S-bp3-025:1`改为先选择Aqours成员，结算时有效Blade至少6才给原来源Live加1分；低Blade仍可选，同ID离场返回不重绑。保留旧Replay，266项相关回归、191图文通过。同冻结30局仍9完赛/21人工停止，本卡实际触发0次，不冒充完赛率提升。[验证报告](./docs/development/aqours-blade-six-score-verification.md)

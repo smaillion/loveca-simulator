@@ -321,6 +321,7 @@ class EffectChoice(BaseModel):
         "public_yell_aqours_bottom_three",
         "public_nijigasaki_blade_four_heart",
         "public_aqours_blade_six_source_score",
+        "public_four_lily_white_live",
     ] | None = None
     zone: str | None = None
     card_type: str | None = None
@@ -409,6 +410,16 @@ class EffectChoice(BaseModel):
 
     @model_validator(mode="after")
     def validate_deployment_policy(self) -> EffectChoice:
+        if self.selection_policy == "public_four_lily_white_live" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "inspect_top_select", "amount": 4,
+                "selection_policy": "public_four_lily_white_live",
+                "card_type": "live", "unit_key": "lily_white", "minimum": 1,
+                "selected_destination": "hand", "unselected_destination": "waiting_room",
+                "reveal_selected_to_opponent": True,
+            }
+        ):
+            raise ValueError("public four-card prototype requires the bounded lily-white Live choice")
         if self.cost_payment_policy == "triggered_inspection" and (
             self.choice_type != "inspect_top_select" or self.target_player != "self"
             or self.amount is None or self.amount <= 0 or self.amount_source is not None
@@ -592,6 +603,18 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        if self.choice and self.choice.selection_policy == "public_four_lily_white_live" and (
+            self.cost or self.cost_choice or self.follow_up_choice or self.condition
+            or self.is_optional or self.effect_type != "triggered" or self.timing != "on_play"
+            or self.trigger != "member_played" or self.frequency_limit != "none"
+            or self.duration is not None or self.execution_mode != "prompt_then_resolve"
+            or [op.model_dump(exclude_defaults=True, exclude_none=True) for op in self.actions] != [
+                {"action_type": "reveal_cards", "amount": 4},
+                {"action_type": "select_to_hand_from_inspected"},
+                {"action_type": "move_remaining_cards"},
+            ]
+        ):
+            raise ValueError("public four-card prototype only supports its fixed on-play sequence")
         if any(op.source_object_policy is not None for op in self.cost):
             raise ValueError("source object policy cannot be a cost")
         if any(op.source_object_policy == "original_moved_stage_member" for op in self.actions) and (

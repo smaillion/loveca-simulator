@@ -1,5 +1,11 @@
 # AI and Simulation Notes
 
+The unregistered public-four prototype uses only offered public cards. Four-policy
+choice/invariance and SQL Replay tests cover it; old private snapshots stay private.
+New source-bound frozen30 remains9 complete/21 manual,158/160 executable completions,
+with0 prototype triggers. This is not PL!-pb2-013 automation or a completion gain.
+[Chinese evidence](development/public-four-reveal-foundation.md).
+
 PL!-pb2-041:2 is still an explicit mandatory manual wait. Four policy/block-mode
 tests preserve that boundary and hidden-hand invariance; SQL Replay retains the
 first segment's unresolved counting dependency. The prior source-bound seed18019
