@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+宮下愛`PL!N-bp7-005:1`按全文/revision/hash限定实现：结算时确认两名异名DiverDiva，选择按可能范围复原两Energy，或从Energy Deck直接附属一张到虹ヶ咲成员下。84专项/22种SQL、四AI/隐私、266图文及双语UI保护，旧快照和既有blocked不变。最终完整门禁与新源码冻结结果见[验证记录](./docs/development/diverdiva-energy-choice-verification.md)，仅本地开发。
+
 `PL!S-bp7-020:1`全员Active边界审计：本次未取得空Stage真值的直接官方依据，继续manual，不凭空集合直觉晋级。28项边界/11种SQL、四AI/隐私与人工UI保护；第2段和930/1212登记不变，应用指纹未变，不重复30局。[未解决原因与证据](./docs/development/all-active-live-requirement-unresolved.md)
 
 `PL!S-bp7-020:2`按完整双段/revision/hash限定实现：实际底牌为Aqours Member时，仅原Live无色必要Heart减一。无明示期限按game，移区新对象不继承；第1段仍manual，旧Replay不变。52专项/17种SQL、262图文与中日原生UI有证据；最终同源码门禁及冻结30局见[验证记录](./docs/development/bottom-one-aqours-requirement-verification.md)。仅本地开发，不推送上线。

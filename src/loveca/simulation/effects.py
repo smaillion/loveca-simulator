@@ -14,6 +14,7 @@ DEFAULT_EFFECT_REGISTRY = (
 )
 
 SUPPORTED_EFFECT_ACTIONS = {
+    "attach_energy_deck_to_selected_nijigasaki",
     "mill_bottom_one_aqours_source_requirement",
     "mill_bottom_five_members_draw_source_score",
     "mill_bottom_three_aqours_source_heart",
@@ -193,6 +194,11 @@ class EffectOperation(BaseModel):
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        if self.action_type == "attach_energy_deck_to_selected_nijigasaki" and self.model_dump(exclude_defaults=True, exclude_none=True) != {
+            "action_type": "attach_energy_deck_to_selected_nijigasaki", "amount": 1,
+            "target": "selected", "branch": "attach_energy_deck",
+        }:
+            raise ValueError("Energy Deck attachment only supports the fixed Nijigasaki branch")
         bounded = "mill_bottom_one_aqours_source_requirement"
         policy = "original_live_start_bottom_aqours_requirement"
         if self.action_type == bounded and self.model_dump(exclude_defaults=True, exclude_none=True) != {
@@ -424,6 +430,7 @@ class EffectChoice(BaseModel):
         "public_both_waiting_live_one",
         "public_both_center_position_sequential",
         "public_two_distinct_live_opponent_one",
+        "public_diverdiva_energy_modes",
     ] | None = None
     zone: str | None = None
     card_type: str | None = None
@@ -746,6 +753,30 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        diverdiva = self.choice is not None and self.choice.selection_policy == "public_diverdiva_energy_modes"
+        if any(op.action_type == "attach_energy_deck_to_selected_nijigasaki" for op in [*self.cost, *self.actions]) and not diverdiva:
+            raise ValueError("Energy Deck attachment requires the bounded DiverDiva snapshot")
+        if diverdiva and (
+            self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
+            or self.effect_type != "triggered" or self.timing != "on_play" or self.trigger != "member_played"
+            or self.execution_mode != "prompt_then_resolve" or self.frequency_limit != "none" or self.duration is not None
+            or self.simulation_support == "manual_resolution"
+            or self.choice.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "choose_effect_branch", "selection_policy": "public_diverdiva_energy_modes",
+                "branch_ids": ["ready_energy", "attach_energy_deck"],
+                "branch_selection_minimum": {"ready_energy": 2, "attach_energy_deck": 1},
+                "branch_selection_maximum": {"ready_energy": 2, "attach_energy_deck": 1},
+                "branch_choice_filters": {
+                    "ready_energy": {"choice_type": "energy_from_area", "zone": "energy_area", "card_type": "energy", "orientation": "wait", "minimum": 2, "maximum": 2},
+                    "attach_energy_deck": {"choice_type": "member_from_stage", "zone": "stage", "card_type": "member", "work_key": "nijigasaki", "minimum": 1, "maximum": 1},
+                },
+            }
+            or [op.model_dump(exclude_defaults=True, exclude_none=True) for op in self.actions] != [
+                {"action_type": "ready_energy", "amount": 2, "target": "selected", "branch": "ready_energy"},
+                {"action_type": "attach_energy_deck_to_selected_nijigasaki", "amount": 1, "target": "selected", "branch": "attach_energy_deck"},
+            ]
+        ):
+            raise ValueError("DiverDiva requires its fixed mandatory two-mode on-play sequence")
         bounded = "mill_bottom_one_aqours_source_requirement"
         if any(op.action_type == bounded for op in self.cost):
             raise ValueError("bottom Aqours requirement cannot be a cost")

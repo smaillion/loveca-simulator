@@ -1,5 +1,13 @@
 # Effect Semantics Audit
 
+PL!N-bp7-005:1 has an exact revision868/full-text/hash-bound DiverDiva snapshot.
+Two physical top Members must admit distinct names; the body condition is checked
+at resolution. Ready Energy resolves as much as possible; the other branch moves
+one Energy directly from its deck under a current own Nijigasaki Member. No
+intermediate Energy Area entry.84 targeted/22 SQL and266 illustrated scenarios
+are not full human adjudication. Old branch/manual snapshots and reviewed remain
+unchanged; see development/diverdiva-energy-choice-verification.md.
+
 PL!S-bp7-020:1 remains manual: all_active_empty_stage_truth_value_unconfirmed.
 OfficialQ96/Q103 cover another card's Energy condition at resolution, not the
 truth of an empty Stage.28 boundary tests/11 SQL protect the manual obligation,

@@ -1,5 +1,12 @@
 # AI and Simulation Notes
 
+The exact DiverDiva Energy snapshot reuses the generic branch interface. Four AI
+versions finish both branch follow-ups and the initial choice in both roles;
+hidden identities do not change decisions or input. A failed body condition
+exports no branch choice and is a no-op, not a cost failure or manual skip.
+Default AI and provider wire format are unchanged; this is not a paid-provider
+live evaluation. Fresh same-deck frozen evidence is bound in the DiverDiva report.
+
 The all-active Live first segment PL!S-bp7-020:1 remains unresolved/manual.
 Four AI versions in both roles return no_safe_ai_action without consulting hidden
 identities or mutating input; this differs from the sandbox blocker category

@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "onplay-diverdiva-two-name-energy-choice-audit",
+      "priority": 0,
+      "title": "审计DiverDiva异名两人条件与复原Energy或从Energy Deck附属的分支",
+      "status": "queued",
+      "depends_on": [],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["精确核对PL!N-bp7-005:1，revision868/hashad5311610df13efbe44297694127ea7740391a12f280bc947c634172cb6145fb；冻结seed18014第7回合122动作实际mandatory manual。全文【登場】自分のステージに名前の異なる『DiverDiva』のメンバーが2人いる場合、以下から1つを選ぶ。 ・エネルギーを2枚アクティブにする。 ・自分のエネルギーデッキから、エネルギーカード1枚を自分のステージにいる『虹ヶ咲』のメンバーの下に置く。", "先核对官方正文条件结算时点、两名不同名字的unit条件与多重名/同名异印刷、固定两分支和不足可执行范围；不能把DiverDiva unit当作品、把虹ヶ咲目标限为DiverDiva或把附属当Energy Area放置。未确认则保留unresolved/manual，不猜FAQ或用第三方攻略", "明确后仅新增精确受限snapshot，区分条件失败无选择、复原两Energy及从本人Energy Deck到本人当前虹ヶ咲顶层Member下；验证0/1/2 Wait Energy、空Energy Deck、目标合法性/空候补、分支重复或非所有者/过期提交原子性、来源离场/返回及条件待机变化，不扩大旧branch/attachment快照", "真实原生状态/SQL Replay、四AI/隐藏身份不变/不改输入、完整双视角和必要原生UI图文、全部profiles/pre-push及新源码原30牌组冻结诊断后仅本地提交；不依赖空Stage全称真值任务，不自动requeue现有blocked任务，不提升reviewed/改默认AI或Card/SQL schema，不改policy、不push或新PR、合并部署"]
+    },
+    {
       "id": "live-start-all-active-source-live-requirement",
       "priority": 0,
       "title": "审计全员Active条件与仅原来源Live无色必要Heart减少",

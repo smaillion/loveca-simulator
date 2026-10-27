@@ -1920,6 +1920,7 @@ const autoResultTerminalEvents = new Set([
 ]);
 
 const autoResultOperationEvents = new Set([
+  "effect_diverdiva_energy_resolved",
   "effect_bottom_aqours_requirement_resolved",
   "effect_muse_blade_aura_resolved",
   "effect_bottom_live_heart_resolved",
@@ -2042,6 +2043,9 @@ function autoResultLines(
           || related.data.reason === "overlap_source_member_departed"
           || related.data.reason === "original_source_stage_member_departed"
           || related.data.reason === "no_legal_stage_member_at_resolution")) {
+      const summary = eventSummary(related, state, locale);
+      if (summary) lines.push(summary);
+    } else if (related.event_type === "effect_diverdiva_energy_resolved") {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
     } else if (related.event_type === "effect_bottom_aqours_requirement_resolved") {
@@ -4246,6 +4250,7 @@ function eventTitle(event: GameEvent, locale: UiLocale): string {
     effect_bottom_aqours_heart_resolved: ["底三张Aqours判定", "下三枚のAqours判定"],
     effect_bottom_five_members_resolved: ["底五次Member与Live得分", "下五回のメンバーとライブ得点"],
     effect_bottom_aqours_requirement_resolved: ["底牌与原Live必要Heart", "下のカードと元ライブの必要ハート"],
+    effect_diverdiva_energy_resolved: ["DiverDiva Energy分支", "DiverDivaエネルギー分岐"],
     effect_opponent_success_draw_resolved: ["对方本回合成功判定", "相手の今ターン成功判定"],
     effect_wait_energy_next_active_resolved: ["新Energy下回合限制", "新エネルギーの次ターン制限"],
     effect_waiting_lives_recovered: ["双方控室 Live 回收", "両者の控室ライブ回収"],
@@ -4383,6 +4388,11 @@ function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): st
     return locale === "zh"
       ? `对方本回合成功：${event.data.condition_met ? "是" : "否"} · 追加抽 ${count} 张 · ${event.data.discard_required ? "需弃 1 张" : "无需弃牌"}`
       : `相手の今ターン成功：${event.data.condition_met ? "あり" : "なし"} · 追加${count}枚ドロー · ${event.data.discard_required ? "手札を1枚控室へ" : "手札を控室に置かない"}`;
+  }
+  if (event.event_type === "effect_diverdiva_energy_resolved") {
+    return locale === "zh"
+      ? `异名 DiverDiva 两人：${event.data.condition_met ? "是" : "否"} · 复原 Energy ${Number(event.data.readied_count)} 张 · Energy Deck 附属 ${Number(event.data.attached_count)} 张`
+      : `異なる名前のDiverDiva二人：${event.data.condition_met ? "はい" : "いいえ"} · エネルギー${Number(event.data.readied_count)}枚をアクティブ · エネルギーデッキから下に${Number(event.data.attached_count)}枚`;
   }
   if (event.event_type === "effect_bottom_aqours_requirement_resolved") {
     return locale === "zh"
@@ -5049,6 +5059,7 @@ function effectBranchLabel(branchId: string, locale: UiLocale): string {
     ],
     ready_member: ["选择 Member 变为 Active", "メンバーを選んでアクティブ"],
     ready_energy: ["选择 Energy 变为 Active", "エネルギーを選んでアクティブ"],
+    attach_energy_deck: ["从 Energy Deck 附属至虹ヶ咲成员", "エネルギーデッキから虹ヶ咲メンバーの下へ"],
   };
   const label = labels[branchId];
   if (!label) return branchId;
@@ -5226,6 +5237,7 @@ export function EffectResolutionAction({
     simulation_support: string;
     resolution_stage?: string;
     cost_payment_unavailable_reason?: string;
+    body_condition_met?: boolean;
     candidate_card_instance_ids: string[];
     choice_type?: string;
     card_selection_minimum?: number;
@@ -5385,6 +5397,9 @@ export function EffectResolutionAction({
         <p role="status" className="effect-stage-hint">
           {tr("无法支付费用。结束本次待机，不查看牌库。", "費用を払えません。デッキを見ずに今回の待機を取り消します。")}
         </p>
+      )}
+      {current.body_condition_met === false && (
+        <p role="status" className="effect-stage-hint">{tr("异名DiverDiva两人条件未满足。", "異なる名前のDiverDiva二人の条件を満たしていません。")}</p>
       )}
       {incompleteOverlapSources && (
         <p role="status" className="effect-stage-hint">

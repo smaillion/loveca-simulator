@@ -197,6 +197,9 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *((f"diverdiva_energy_{case}", f"DiverDivaとEnergy {case}", f"DiverDiva与Energy {case}",
+           "PL!N-bp7-005:1", lambda effect, case=case: _run_diverdiva_energy(effect, case))
+          for case in ("ready_one", "attach", "empty_deck", "false")),
         *((f"bottom_aqours_requirement_{case}", f"下のAqoursと必要ハート {case}", f"底牌Aqours与必要Heart {case}",
            "PL!S-bp7-020:2", lambda effect, case=case: _run_bottom_aqours_requirement(effect, case))
           for case in ("member", "live", "wrong_work", "one", "empty")),
@@ -651,6 +654,34 @@ def _run_opponent_success_draw(effect: EffectDefinition, case: str) -> dict[str,
         "条件成立時だけ必須一枚 / 条件成立才必选一张": len(final.state.players["player_1"].hand) == expected_draw - int(both and bool(hand_before)),
         "待機完了 / 待机完成": not final.state.pending_effects,
     }
+
+
+def _run_diverdiva_energy(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    source = _v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id])
+    source.card.name_ja, source.card.unit_keys, source.card.work_keys = "宮下 愛", ["diverdiva"], ["nijigasaki"]
+    karin = _v1_1_member("karin", "朝香果林")
+    karin.card.name_ja, karin.card.work_keys = "朝香果林", ["nijigasaki"]
+    karin.card.unit_keys = [] if case == "false" else ["diverdiva"]
+    energy = CardInstance(instance_id="energy", owner_id="player_1", orientation="wait",
+        card=CardDefinition(card_code="ENERGY", card_id="ENERGY", name_ja="Energy", card_type="energy"))
+    state = _v1_1_state({effect.effect_id: effect}, [source, karin, energy], hand=[])
+    p = state.players["player_1"]
+    p.member_area = {"left": "karin", "center": "source", "right": None}
+    p.energy_area = ["energy"] if case == "ready_one" else []
+    p.energy_deck = ["energy"] if case == "attach" else []
+    state.pending_effects = [EffectInvocation(invocation_id="diverdiva", effect_id=effect.effect_id,
+        player_id="player_1", source_card_instance_id="source", trigger_event="member_played")]
+    branch = "ready_energy" if case == "ready_one" else "attach_energy_deck"
+    result = apply_action(state, ActionRequest(action_type="resolve_effect", player_id="player_1", expected_revision=state.revision,
+        payload={"invocation_id": "diverdiva", **({"selected_branch": branch} if case != "false" else {})}))
+    if case != "false":
+        result = apply_action(result.state, ActionRequest(action_type="resolve_effect", player_id="player_1", expected_revision=result.state.revision,
+            payload={"invocation_id": "diverdiva", "selected_card_instance_ids": ["energy"] if case == "ready_one" else ["karin"] if case == "attach" else []}))
+    data = next(e.data for e in result.events if e.event_type == "effect_diverdiva_energy_resolved")
+    return {"条件は解決時 / 条件在结算时": data["condition_met"] == (case != "false"),
+        "可能な範囲でActive / 按可能范围复原": data["readied_count"] == int(case == "ready_one"),
+        "Energy Deckから直接下へ / 从Energy Deck直接附属": data["attached_count"] == int(case == "attach"),
+        "待機完了 / 待机完成": not result.state.pending_effects}
 
 
 def _run_bottom_aqours_requirement(effect: EffectDefinition, case: str) -> dict[str, bool]:

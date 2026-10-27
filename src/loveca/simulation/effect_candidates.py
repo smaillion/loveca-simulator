@@ -2803,6 +2803,29 @@ def _onplay_optional_discard_inspect_keep1_any(
     )
 
 
+def _onplay_diverdiva_energy_modes(row: sqlite3.Row) -> EffectCandidate | None:
+    text = "【登場】自分のステージに名前の異なる『DiverDiva』のメンバーが2人いる場合、以下から1つを選ぶ。 ・エネルギーを2枚アクティブにする。 ・自分のエネルギーデッキから、エネルギーカード1枚を自分のステージにいる『虹ヶ咲』のメンバーの下に置く。"
+    if (row["card_code"] != "PL!N-bp7-005" or row["text_revision_id"] != 868
+            or row["raw_text_hash"] != "ad5311610df13efbe44297694127ea7740391a12f280bc947c634172cb6145fb"
+            or row["raw_effect_text_ja"] != text):
+        return None
+    return EffectCandidate(
+        **_base(row, pattern_id="onplay_diverdiva_energy_modes", effect_index=1),
+        label_ja=text, effect_type="triggered", timing="on_play", trigger="member_played",
+        frequency_limit="none", is_optional=False, condition={}, cost=[], duration=None,
+        choice={"choice_type": "choose_effect_branch", "selection_policy": "public_diverdiva_energy_modes",
+            "branch_ids": ["ready_energy", "attach_energy_deck"],
+            "branch_selection_minimum": {"ready_energy": 2, "attach_energy_deck": 1},
+            "branch_selection_maximum": {"ready_energy": 2, "attach_energy_deck": 1},
+            "branch_choice_filters": {
+                "ready_energy": {"choice_type": "energy_from_area", "zone": "energy_area", "card_type": "energy", "orientation": "wait", "minimum": 2, "maximum": 2},
+                "attach_energy_deck": {"choice_type": "member_from_stage", "zone": "stage", "card_type": "member", "work_key": "nijigasaki", "minimum": 1, "maximum": 1},
+            }},
+        actions=[{"action_type": "ready_energy", "amount": 2, "target": "selected", "branch": "ready_energy"},
+                 {"action_type": "attach_energy_deck_to_selected_nijigasaki", "amount": 1, "target": "selected", "branch": "attach_energy_deck"}],
+    )
+
+
 def _onplay_opponent_live_offer(row: sqlite3.Row) -> EffectCandidate | None:
     text = "【登場】自分の控え室にある、カード名の異なるライブカードを2枚選ぶ。そうした場合、相手はそれらのカードのうち1枚を選ぶ。これにより相手に選ばれたカードを自分の手札に加える。"
     if (row["card_code"] != "PL!SP-bp2-011" or row["text_revision_id"] != 565
@@ -15739,6 +15762,7 @@ _PATTERNS = (
     _onplay_mill_three_blade_colors,
     _onplay_muse_granted_blade,
     _onplay_both_waiting_live,
+    _onplay_diverdiva_energy_modes,
     _onplay_audited_discard_inspection,
     _onplay_optional_discard_inspect_keep1_any,
     _nijigasaki_onplay_inspection,

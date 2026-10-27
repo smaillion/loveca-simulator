@@ -4932,6 +4932,53 @@ describe("App", () => {
     });
   });
 
+  it.each(["ready_energy", "attach_energy_deck"])("submits the fixed DiverDiva branch %s", (branch) => {
+    const onAction = vi.fn();
+    const action = { action_type:"resolve_effect", player_id:"player_1", options:{ invocations:[{
+      invocation_id:"diverdiva", effect_id:"PL!N-bp7-005:1", source_card_instance_id:"hidden-source",
+      label_ja:"DiverDiva", trigger:"member_played", timing:"on_play", execution_mode:"prompt_then_resolve",
+      is_optional:false, simulation_support:"test_validated_executable", candidate_card_instance_ids:[],
+      choice_type:"choose_effect_branch", resolution_stage:"initial", card_selection_minimum:0, card_selection_maximum:0,
+      branch_ids:["ready_energy","attach_energy_deck"], available_branch_ids:["ready_energy","attach_energy_deck"],
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never}
+      loading={false} onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.getByRole("button",{name:"结算技能"})).toBeDisabled();
+    fireEvent.click(screen.getByRole("button",{name:branch === "ready_energy" ? "选择 Energy 变为 Active" : "从 Energy Deck 附属至虹ヶ咲成员"}));
+    fireEvent.click(screen.getByRole("button",{name:"结算技能"}));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect","player_1",{
+      invocation_id:"diverdiva",accepted:true,selected_card_instance_ids:[],energy_instance_ids:[],selected_branch:branch,
+    });
+  });
+
+  it("confirms the failed DiverDiva body without choosing a branch", () => {
+    const onAction = vi.fn();
+    const action = {action_type:"resolve_effect",player_id:"player_1",options:{invocations:[{
+      invocation_id:"diverdiva",effect_id:"PL!N-bp7-005:1",source_card_instance_id:"hidden-source",label_ja:"DiverDiva",
+      trigger:"member_played",timing:"on_play",execution_mode:"prompt_then_resolve",simulation_support:"test_validated_executable",
+      is_optional:false,candidate_card_instance_ids:[],choice:null,body_condition_met:false,card_selection_minimum:0,card_selection_maximum:0,
+    }]}};
+    render(<EffectResolutionAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never}
+      loading={false} onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.getByRole("status")).toHaveTextContent("异名DiverDiva两人条件未满足。");
+    fireEvent.click(screen.getByRole("button",{name:"结算技能"}));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect","player_1",{invocation_id:"diverdiva",accepted:true,selected_card_instance_ids:[],energy_instance_ids:[]});
+  });
+
+  it.each([[true,2,0],[true,0,1],[false,0,0]] as const)("shows DiverDiva Energy outcome %s/%s/%s", async (condition, ready, attached) => {
+    seedSavedDecks([{path:"test.json",deck:SAMPLE_DECK}]);
+    const data={invocation_id:"diverdiva",effect_id:"PL!N-bp7-005:1",condition_met:condition,readied_count:ready,attached_count:attached};
+    vi.stubGlobal("fetch",createFetchMock({matchCreate:{...MATCH_PAYLOAD,events:[
+      {event_type:"effect_diverdiva_energy_resolved",player_id:"player_1",source:"system",data},
+      {event_type:"effect_auto_resolved",player_id:"player_1",source:"system",data},
+    ]}}));
+    render(<App />);
+    const create=await screen.findByRole("button",{name:"创建对局"});await waitFor(()=>expect(create).not.toBeDisabled());fireEvent.click(create);
+    expect((await screen.findAllByText(`异名 DiverDiva 两人：${condition ? "是" : "否"} · 复原 Energy ${ready} 张 · Energy Deck 附属 ${attached} 张`)).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button",{name:"日本語"}));
+    expect((await screen.findAllByText(`異なる名前のDiverDiva二人：${condition ? "はい" : "いいえ"} · エネルギー${ready}枚をアクティブ · エネルギーデッキから下に${attached}枚`)).length).toBeGreaterThan(0);
+  });
+
   it.each([false, true])("keeps the unresolved all-active Live manual with hidden source=%s", (hidden) => {
     const onAction = vi.fn();
     const onManual = vi.fn();

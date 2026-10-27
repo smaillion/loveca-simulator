@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+宮下愛`PL!N-bp7-005:1`を全文/revision/hash限定で対応。異なる名前のDiverDiva二人を解決時に確認し、Energy二枚を可能な範囲でActiveにするか、Energy Deckから虹ヶ咲メンバーの下へ一枚置く。84専用/22 SQL、四AI・秘匿、266図解と双語UIを保護。旧snapshotと既存blockedは維持し、最終同一ソース門禁・固定30試合は[検証記録](./docs/development/diverdiva-energy-choice-verification.md)を参照。ローカル作業のみ。
+
 `PL!S-bp7-020:1`の全員Active条件を境界監査。空ステージ時の真偽を直接支える公式根拠を今回取得できず、manualを維持する。28境界/11 SQL、四AI・秘匿・人工UIを保護し、第2段や930/1212登録は変更しない。アプリ指紋不変のため固定30試合は再実行しない。[未解決事項と証拠](./docs/development/all-active-live-requirement-unresolved.md)
 
 `PL!S-bp7-020:2`を全文/revision/hash限定で対応。下の実際のAqoursメンバーにより元Liveの無色必要ハートだけを一つ減らす。期限未記載はgame、移区で新オブジェクトとなるため復帰に継承しない。第1段manualと旧Replayは保持。52専用/17 SQL、262図解と中日UIを検証し、最終同一ソースの門禁・固定30試合は[検証記録](./docs/development/bottom-one-aqours-requirement-verification.md)を参照。ローカル作業のみ。

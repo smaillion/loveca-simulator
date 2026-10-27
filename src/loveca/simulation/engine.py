@@ -871,6 +871,8 @@ def _manual_adjustment(
     action: ActionRequest,
     events: list[GameEvent],
 ) -> None:
+    if any(_diverdiva_energy_modes(state.effect_definitions[i.effect_id]) and i.resolution_stage != "initial" for i in state.pending_effects):
+        raise IllegalActionError("DiverDiva branch must finish before manual adjustment")
     if (state.pending_choice is not None
             and state.pending_choice.options.get("multi_player_choice_type") in {"multi_player_waiting_live_recovery", "multi_player_center_position_change", "multi_player_opponent_live_offer"}):
         raise IllegalActionError("structured public recovery must be resolved before manual adjustment")
@@ -1640,6 +1642,17 @@ def _resolve_effect(
         raise IllegalActionError(
             "manual_resolution effects require a ManualAdjustmentAction"
         )
+    if _diverdiva_energy_modes(effect):
+        if (set(action.payload) - {"invocation_id", "accepted", "selected_branch", "selected_card_instance_ids", "energy_instance_ids", "ai_decision"}
+                or action.payload.get("energy_instance_ids") not in (None, [])):
+            raise IllegalActionError("DiverDiva does not accept extra effect parameters")
+        if invocation.resolution_stage == "initial" and not _diverdiva_two_names(state, invocation):
+            if action.payload.get("selected_branch") is not None or action.payload.get("selected_card_instance_ids"):
+                raise IllegalActionError("DiverDiva condition failed; no branch may be selected")
+            _finish_diverdiva_noop(state, invocation, events)
+            _resolve_automatic_effects(state, events)
+            _continue_after_effect_queue(state, events)
+            return
     cost_unavailable = _inspection_cost_unavailable_reason(state, invocation)
     if cost_unavailable is not None:
         if any(not isinstance(action.payload.get(key, []), list) or action.payload.get(key, [])
@@ -5085,6 +5098,9 @@ def _effect_resolution_options(
     invocation: EffectInvocation,
 ) -> dict[str, Any]:
     effect = state.effect_definitions[invocation.effect_id]
+    if _diverdiva_energy_modes(effect) and invocation.resolution_stage == "initial" and not _diverdiva_two_names(state, invocation):
+        return {"choice": None, "choice_type": None, "candidate_card_instance_ids": [], "card_selection_minimum": 0,
+                "card_selection_maximum": 0, "body_condition_met": False, "resolution_stage": "initial"}
     cost_unavailable = _inspection_cost_unavailable_reason(state, invocation)
     if cost_unavailable is not None:
         return {"candidate_card_instance_ids": [], "resolution_stage": invocation.resolution_stage,
@@ -5177,6 +5193,7 @@ def _effect_resolution_options(
                 )
                 if (
                     _effect_uses_auto_cost_branch_choice(effect)
+                    or _diverdiva_energy_modes(effect)
                     or _effect_uses_deploy_to_empty_stage_choice(effect, invocation)
                 ):
                     options["card_selection_minimum"] = min(
@@ -5419,6 +5436,8 @@ def _effect_choice_candidates(
         return []
     if _effect_uses_branch_choice(effect):
         branch = invocation.trigger_data.get("selected_branch")
+        if _diverdiva_energy_modes(effect) and branch == "attach_energy_deck" and not state.players[invocation.player_id].energy_deck:
+            return []
         if isinstance(branch, str):
             branch_choice = _branch_choice_filter(effect, branch)
             if branch_choice is not None:
@@ -5843,6 +5862,8 @@ def _branch_unavailable_reason(
     effect = state.effect_definitions[invocation.effect_id]
     if effect.choice is None:
         return "branch_choice_missing"
+    if _diverdiva_energy_modes(effect):
+        return None
     player = state.players[invocation.player_id]
     required_energy = effect.choice.branch_energy_required.get(branch, 0)
     if required_energy:
@@ -6580,6 +6601,7 @@ def _operation_requires_selected_choice(operation: Any) -> bool:
     }:
         return True
     return operation.action_type in {
+        "attach_energy_deck_to_selected_nijigasaki",
         "apply_wait_energy",
         "conceal_selected_cards",
         "deploy_selected_to_empty_stage",
@@ -7011,6 +7033,30 @@ def _effect_uses_branch_choice(effect: Any) -> bool:
     return bool(effect.choice and effect.choice.choice_type == "choose_effect_branch")
 
 
+def _diverdiva_energy_modes(effect: Any) -> bool:
+    return getattr(getattr(effect, "choice", None), "selection_policy", None) == "public_diverdiva_energy_modes"
+
+
+def _diverdiva_two_names(state: MatchState, invocation: EffectInvocation) -> bool:
+    names = [set(_normalized_card_name(n) for n in state.cards[item].card.name_ja.replace("＆", "&").split("&") if _normalized_card_name(n))
+             for item in state.players[invocation.player_id].member_area.values()
+             if item and state.cards[item].card.card_type == "member" and "diverdiva" in state.cards[item].card.unit_keys]
+    # Each physical Member can provide only one name, even on a multi-name card.
+    return any(a != b for i, first in enumerate(names) for second in names[i + 1:] for a in first for b in second)
+
+
+def _finish_diverdiva_noop(state: MatchState, invocation: EffectInvocation, events: list[GameEvent]) -> None:
+    state.pending_effects.remove(invocation)
+    _record_effect_usage(state, invocation)
+    events.append(GameEvent(event_type="effect_diverdiva_energy_resolved", player_id=invocation.player_id,
+        data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id, "condition_met": False,
+              "selected_branch": None, "readied_count": 0, "attached_count": 0}, source="system"))
+    effect = state.effect_definitions[invocation.effect_id]
+    events.append(GameEvent(event_type="effect_auto_resolved", player_id=invocation.player_id,
+        data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+              "trigger": effect.trigger, "timing": effect.timing}, source="system"))
+
+
 def _effect_uses_auto_cost_branch_choice(effect: Any) -> bool:
     return bool(
         _effect_uses_branch_choice(effect)
@@ -7099,6 +7145,7 @@ def _validate_branch_choice(
     maximum = effect.choice.branch_selection_maximum.get(branch, 0)
     if (
         _effect_uses_auto_cost_branch_choice(effect)
+        or _diverdiva_energy_modes(effect)
         or _effect_uses_deploy_to_empty_stage_choice(effect, invocation)
     ):
         minimum = min(minimum, len(candidates))
@@ -9587,8 +9634,12 @@ def _execute_operations(
                 )
             )
         elif operation_type == "ready_energy":
+            was_waiting = ([item for item in player.energy_area if state.cards[item].orientation == "wait"]
+                           if _diverdiva_energy_modes(effect) else [])
             if operation_selected_ids:
                 required = _operation_amount(operation, selected_count)
+                if _diverdiva_energy_modes(effect):
+                    required = min(required, len(was_waiting))
                 if required and len(operation_selected_ids) != required:
                     raise IllegalActionError(
                         f"effect requires exactly {required} selected Energy"
@@ -9635,6 +9686,30 @@ def _execute_operations(
                         ready_type="energy",
                         previous_orientation=previous,
                     )
+            if _diverdiva_energy_modes(effect):
+                events.append(GameEvent(event_type="effect_diverdiva_energy_resolved", player_id=invocation.player_id,
+                    data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id, "condition_met": True,
+                          "selected_branch": "ready_energy", "readied_count": sum(state.cards[i].orientation == "active" for i in was_waiting),
+                          "attached_count": 0}, source="system"))
+        elif operation_type == "attach_energy_deck_to_selected_nijigasaki":
+            moved = []
+            if player.energy_deck and operation_selected_ids:
+                target = operation_selected_ids[0]
+                slot = _top_member_slot(player, target)
+                if slot is None or "nijigasaki" not in state.cards[target].card.work_keys:
+                    raise IllegalActionError("attachment target must be an own Stage Nijigasaki Member")
+                item = player.energy_deck[0]
+                if state.cards[item].card.card_type != "energy" or state.cards[item].owner_id != invocation.player_id:
+                    raise IllegalActionError("Energy Deck attachment requires an own Energy")
+                player.energy_deck.pop(0)
+                _clear_placed_energy_block(player, item)
+                player.member_area_attachments[slot].append(item)
+                state.cards[item].face_up = True
+                moved.append(item)
+            events.append(GameEvent(event_type="effect_diverdiva_energy_resolved", player_id=invocation.player_id,
+                data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id, "condition_met": True,
+                      "selected_branch": "attach_energy_deck", "readied_count": 0, "attached_count": len(moved),
+                      "attached_card_instance_ids": moved}, source="system"))
         elif operation_type == "set_flag":
             if not operation.flag:
                 raise IllegalActionError("effect set_flag requires a flag name")
@@ -10804,6 +10879,9 @@ def _resolve_automatic_effects(
         else:
             invocation = state.pending_effects[0]
         effect = state.effect_definitions[invocation.effect_id]
+        if _diverdiva_energy_modes(effect) and invocation.resolution_stage == "initial" and not _diverdiva_two_names(state, invocation):
+            _finish_diverdiva_noop(state, invocation, events)
+            continue
         if (
             effect.is_optional
             or effect.choice is not None
