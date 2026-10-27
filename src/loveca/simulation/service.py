@@ -14,6 +14,7 @@ from loveca.simulation.catalog import MatchPlayerInput, build_match_cards
 from loveca.simulation.effects import DEFAULT_EFFECT_REGISTRY
 from loveca.simulation.engine import IllegalActionError
 from loveca.simulation.models import (
+    RULE_VERSION,
     ActionRequest,
     ActionResult,
     ControllerPolicyVersion,
@@ -26,6 +27,13 @@ from loveca.simulation.runtime import (
     MAX_RETAINED_MATCHES,
     MAX_SNAPSHOTS_PER_MATCH,
     MatchRepository,
+    MatchRulesetMismatchError,
+)
+from loveca.simulation.rulesets import (
+    RulesetIdentity,
+    get_ruleset_profile,
+    load_ruleset_registry,
+    ruleset_fingerprint,
 )
 
 
@@ -65,7 +73,22 @@ class MatchService:
         first_player_id: str | None = None,
         controllers: dict[str, ControllerType] | None = None,
         controller_policy_versions: dict[str, ControllerPolicyVersion] | None = None,
+        max_ai_actions: int = 256,
+        ruleset_id: str | None = None,
+        expected_ruleset: RulesetIdentity | None = None,
     ) -> ActionResult:
+        if type(max_ai_actions) is not int or max_ai_actions < 0:
+            raise ValueError("max_ai_actions must be a non-negative integer")
+        try:
+            identity = self.resolve_ruleset_identity(ruleset_id)
+        except MatchSetupError as exc:
+            if expected_ruleset is not None:
+                raise MatchRulesetMismatchError(
+                    "ruleset_mismatch: room rules changed; create a new room"
+                ) from exc
+            raise
+        if expected_ruleset is not None and identity != expected_ruleset:
+            raise MatchRulesetMismatchError("ruleset_mismatch: room rules changed; create a new room")
         for label, deck in (("player_1", first_deck), ("player_2", second_deck)):
             analysis = analyze_deck(self.card_database_path, deck)
             if not analysis.is_legal:
@@ -84,7 +107,11 @@ class MatchService:
         )
         state = MatchState(
             match_id=resolved_id,
+            **identity.model_dump(),
             seed=resolved_seed,
+            member_overlap_policy="capture_fixed_draw_and_energy_entry_observers",
+            effect_order_policy="ap_nap_player_choice",
+            stage_departure_policy="clear_departed_card_modifiers",
             players=player_states,
             cards=cards,
             controllers=_normalize_controllers(controllers),
@@ -116,7 +143,25 @@ class MatchService:
                 },
             ),
         )
-        return self.advance_ai(created.state.match_id, created_result)
+        return self.advance_ai(created.state.match_id, created_result, max_ai_actions=max_ai_actions)
+
+    def resolve_ruleset_identity(self, ruleset_id: str | None = None) -> RulesetIdentity:
+        registry = load_ruleset_registry()
+        try:
+            ruleset = get_ruleset_profile(ruleset_id, registry=registry)
+            if (
+                ruleset.ruleset_id != registry.current_ruleset_id
+                or ruleset.rule_version != RULE_VERSION
+            ):
+                raise ValueError("ruleset_id is not supported by the current engine")
+        except ValueError as exc:
+            raise MatchSetupError(str(exc)) from exc
+        return RulesetIdentity(
+            rule_version=ruleset.rule_version,
+            ruleset_id=ruleset.ruleset_id,
+            ruleset_fingerprint=ruleset_fingerprint(ruleset, registry=registry),
+            ruling_pack_version=ruleset.ruling_pack_version,
+        )
 
     def create_match_from_paths(
         self,

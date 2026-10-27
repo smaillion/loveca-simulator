@@ -15,9 +15,9 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
-from loveca.simulation.ai import SimpleAIController, choose_simple_ai_action
+from loveca.simulation.ai import choose_simple_ai_action
 from loveca.simulation.engine import generate_legal_actions
-from loveca.simulation.models import ActionRequest, ActionResult, GameEvent
+from loveca.simulation.models import ActionRequest, ActionResult, ControllerPolicyVersion, GameEvent
 from loveca.simulation.service import MatchService
 from tools.ai_sandbox.blackbox_playtest import (
     build_decks,
@@ -48,6 +48,9 @@ class SimpleAIMatchReport:
     skipped_effects: list[dict[str, Any]] = field(default_factory=list)
     replay_serialization_ok: bool = False
     replay_error: str | None = None
+    seed: int | None = None
+    policy_version: str = "simple_ai_v1_1"
+    decision_reason_counts: dict[str, int] = field(default_factory=dict)
 
 
 def main() -> int:
@@ -62,7 +65,17 @@ def main() -> int:
         default=1,
         help="One-based first match index for deterministic split or resumed runs.",
     )
-    parser.add_argument("--max-actions", type=int, default=450)
+    parser.add_argument(
+        "--max-actions",
+        type=int,
+        default=450,
+        help="Whole-game AI action cap in ai-vs-ai; human driver action cap in human-vs-ai.",
+    )
+    parser.add_argument(
+        "--policy",
+        choices=("simple_ai_v0", "simple_ai_v1", "simple_ai_v1_1", "simple_ai_v1_2"),
+        default="simple_ai_v1_1",
+    )
     parser.add_argument(
         "--mode",
         choices=("human-vs-ai", "ai-vs-ai", "both"),
@@ -86,6 +99,7 @@ def main() -> int:
                 mode=mode,
                 match_count=args.matches,
                 max_actions=args.max_actions,
+                policy_version=args.policy,
                 match_start=args.match_start,
                 progress_path=progress_path,
             )
@@ -102,11 +116,14 @@ def run_acceptance_matches(
     mode: Mode,
     match_count: int,
     max_actions: int,
+    policy_version: ControllerPolicyVersion = "simple_ai_v1_1",
     match_start: int = 1,
     progress_path: Path | None = None,
 ) -> list[SimpleAIMatchReport]:
     if match_start < 1:
         raise ValueError("match_start must be at least 1")
+    if max_actions < 0:
+        raise ValueError("max_actions must be non-negative")
     results: list[SimpleAIMatchReport] = []
     with tempfile.TemporaryDirectory(prefix="loveca-simple-ai-") as tmp:
         service = MatchService(database, Path(tmp) / "matches.sqlite3")
@@ -127,6 +144,12 @@ def run_acceptance_matches(
                 seed=12000 + index,
                 match_id=f"simple-ai-{mode}-{index + 1:02d}",
                 controllers=controllers,  # type: ignore[arg-type]
+                controller_policy_versions={
+                    key: policy_version
+                    for key, value in controllers.items()
+                    if value == "simple_ai"
+                },
+                max_ai_actions=min(256, max_actions),
             )
             if mode == "human-vs-ai":
                 result = drive_human_side(service, result, max_actions=max_actions)
@@ -175,9 +198,7 @@ def _choose_acceptance_driver_action(result: ActionResult) -> ActionRequest | No
 
     state = result.state
     available = [
-        action
-        for action in result.legal_actions
-        if action.player_id in {"player_1", None}
+        action for action in result.legal_actions if action.player_id in {"player_1", None}
     ]
     decision = choose_simple_ai_action(state, available, manual_policy="skip")
     if decision is None:
@@ -207,19 +228,20 @@ def continue_ai_vs_ai(
 ) -> ActionResult:
     current = result
     previous_revision = -1
-    loops = 0
-    while (
-        current.state.phase != "complete"
-        and current.state.revision != previous_revision
-        and loops < 8
-    ):
+    while current.state.phase != "complete" and current.state.revision != previous_revision:
+        used = sum(
+            event.event_type == "ai_action_selected"
+            for event in service.repository.list_events(current.state.match_id)
+        )
+        remaining = max_actions - used
+        if remaining <= 0:
+            break
         previous_revision = current.state.revision
         current = service.advance_ai(
             current.state.match_id,
             current,
-            max_ai_actions=max_actions,
+            max_ai_actions=min(256, remaining),
         )
-        loops += 1
     return current
 
 
@@ -255,9 +277,12 @@ def summarize_match(
     if replay_error:
         blocker = "replay_serialization_error"
         blocker_detail = {"error": replay_error}
-    if state.phase != "complete":
+    if state.phase != "complete" and replay_error is None:
         ai_block = _latest_event(result.events, "ai_blocked")
-        if ai_block is not None:
+        if mode == "ai-vs-ai" and ai_actions >= max_actions:
+            blocker = "max_actions:ai_action_cap_reached"
+            blocker_detail = {"ai_actions": ai_actions, "max_actions": max_actions}
+        elif ai_block is not None:
             blocker = str(ai_block.data.get("reason", "ai_blocked"))
             blocker_detail = dict(ai_block.data)
         elif driven_human_actions >= max_actions:
@@ -284,8 +309,7 @@ def summarize_match(
         driven_human_actions=driven_human_actions,
         ai_actions=ai_actions,
         success_live_counts={
-            player_id: len(player.success_live_area)
-            for player_id, player in state.players.items()
+            player_id: len(player.success_live_area) for player_id, player in state.players.items()
         },
         blocker=blocker,
         blocker_detail=blocker_detail,
@@ -293,28 +317,33 @@ def summarize_match(
         skipped_effects=skipped,
         replay_serialization_ok=replay_serialization_ok,
         replay_error=replay_error,
+        seed=state.seed,
+        policy_version=next(iter(state.controller_policy_versions.values()), "simple_ai_v0"),
+        decision_reason_counts=dict(
+            Counter(
+                str(event.data.get("reason", "unknown"))
+                for event in persisted_events
+                if event.event_type == "ai_action_selected"
+            )
+        ),
     )
 
 
 def acceptance_passed(reports: list[SimpleAIMatchReport]) -> bool:
     if not reports:
         return False
-    illegal = sum(1 for item in reports if item.blocker == "illegal_action")
-    runtime_like = sum(
+    illegal = sum(
         1
         for item in reports
-        if item.blocker and "exception" in item.blocker.lower()
+        if item.blocker
+        and any(token in item.blocker.lower() for token in ("illegal", "exception", "revision"))
     )
     replay_errors = sum(1 for item in reports if not item.replay_serialization_ok)
-    explained = sum(
-        1
-        for item in reports
-        if item.status == "completed" or item.blocker_detail
-    )
+    explained = sum(1 for item in reports if item.status == "completed" or item.blocker_detail)
     return (
         illegal == 0
-        and runtime_like == 0
         and replay_errors == 0
+        and not any(item.skipped_effects for item in reports)
         and explained >= int(len(reports) * 0.8)
     )
 
@@ -332,21 +361,28 @@ def write_report(output: Path, reports: list[SimpleAIMatchReport]) -> None:
         for item in reports
         for skipped in item.skipped_effects
     )
+    cycle_actions = sum(
+        item.decision_reason_counts.get("cycle_spare_members_to_find_live", 0) for item in reports
+    )
+    replay_errors = sum(not item.replay_serialization_ok for item in reports)
     lines = [
         "# Simple AI Acceptance Report",
         "",
         "## Summary",
         "",
         f"* Matches: {len(reports)}",
+        f"* Policies: {dict(Counter(item.policy_version for item in reports))}",
+        f"* Resource-cycle actions: {cycle_actions}",
         f"* Status: {dict(sorted(status_counts.items()))}",
         f"* Blockers: {dict(blocker_counts.most_common(20))}",
         f"* Skipped effects: {dict(skipped_counts.most_common(20))}",
-        f"* Replay serialization errors: {sum(1 for item in reports if not item.replay_serialization_ok)}",
+        f"* Replay serialization errors: {replay_errors}",
         f"* Acceptance gate: {'PASS' if acceptance_passed(reports) else 'REVIEW'}",
         "",
         "## Match Results",
         "",
-        "| # | Mode | Status | Decks | Phase | Turn | Human actions | AI actions | Success Lives | Blocker |",
+        "| # | Mode | Status | Decks | Phase | Turn | Human actions | AI actions "
+        "| Success Lives | Blocker |",
         "|---:|---|---|---|---|---:|---:|---:|---|---|",
     ]
     for item in reports:

@@ -6,6 +6,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from loveca.cards.catalog import get_catalog_card, list_catalog_card_details
 from loveca.cards.importer import import_normalized_cards
 from loveca.webapp import ApiSettings, create_app
 
@@ -119,6 +120,19 @@ def test_catalog_api_lists_distinct_card_ids_as_distinct_rows(tmp_path):
     assert sorted(item["card_id"] for item in payload["items"]) == sorted(
         [original_card_id, duplicate_card_id]
     )
+
+
+def test_bulk_catalog_details_are_unique_and_match_individual_detail(tmp_path):
+    fixture, _, duplicate_card_code, _ = _build_duplicate_printing_fixture(tmp_path)
+    database_path = tmp_path / "cards.sqlite3"
+    import_normalized_cards(database_path, fixture, NORMALIZATION)
+
+    details = list_catalog_card_details(database_path)
+
+    assert len(details) == 1
+    assert details[0]["card"]["card_code"] == duplicate_card_code
+    assert len(details[0]["printings"]) == 2
+    assert details[0] == get_catalog_card(database_path, duplicate_card_code)
 
 
 def test_catalog_api_supports_member_and_live_attribute_filters(tmp_path):

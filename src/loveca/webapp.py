@@ -14,7 +14,7 @@ from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, Response, StreamingResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -48,6 +48,7 @@ from loveca.simulation.models import (
     MatchState,
 )
 from loveca.simulation.online import card_database_fingerprint, effect_registry_hash
+from loveca.simulation.visibility import redact_hidden_references, redact_player_state
 from loveca.simulation.rooms import (
     RoomError,
     RoomNotFoundError,
@@ -61,8 +62,11 @@ from loveca.simulation.runtime import (
     DEFAULT_MATCH_HISTORY_LIMIT,
     DEFAULT_MATCH_HISTORY_PAGE_SIZE,
     MAX_SNAPSHOTS_PER_MATCH,
+    InvalidMatchSnapshotError,
     MatchNotFoundError,
     MatchRuntimeError,
+    MatchRulesetMismatchError,
+    match_ruleset_report,
 )
 from loveca.simulation.service import MatchService, MatchSetupError
 
@@ -84,6 +88,7 @@ class CreateMatchRequest(BaseModel):
     player_2: PlayerSetup
     seed: int | None = None
     controllers: dict[str, ControllerType] | None = None
+    ruleset_id: str | None = None
 
 
 class AnalyzeDeckRequest(BaseModel):
@@ -98,6 +103,7 @@ class CreateRoomRequest(BaseModel):
     player_name: str
     deck: dict[str, Any]
     seed: int | None = None
+    ruleset_id: str | None = None
 
 
 class JoinRoomRequest(BaseModel):
@@ -207,6 +213,25 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
         title="LoveCA Visual Rules Debugger",
         version=__version__,
     )
+
+    @app.exception_handler(InvalidMatchSnapshotError)
+    async def invalid_match_snapshot(
+        _request: Request, exc: InvalidMatchSnapshotError,
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=409,
+            content={"detail": str(exc), "code": "invalid_match_snapshot"},
+        )
+
+    @app.exception_handler(MatchRulesetMismatchError)
+    async def match_ruleset_mismatch(
+        _request: Request, exc: MatchRulesetMismatchError,
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=409,
+            content={"detail": str(exc), "code": "ruleset_mismatch"},
+        )
+
     if resolved.allowed_origins:
         app.add_middleware(
             CORSMiddleware,
@@ -280,6 +305,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
                 second_deck=second_deck,
                 seed=request.seed,
                 controllers=request.controllers,
+                ruleset_id=request.ruleset_id,
             )
             payload = result.model_dump()
             payload["match_token"] = service.repository.issue_match_token(
@@ -296,6 +322,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
                 host_name=request.player_name,
                 host_deck=request.deck,
                 seed=request.seed,
+                ruleset_id=request.ruleset_id,
             )
             return _room_payload(
                 service,
@@ -303,7 +330,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
                 player_id="player_1",
                 player_token=room.host_token,
             )
-        except (DeckFileError, RoomError) as exc:
+        except (DeckFileError, MatchSetupError, RoomError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     @app.get("/api/rooms/{room_code}")
@@ -363,6 +390,11 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
                             break
                     if room.status == "expired":
                         break
+                except InvalidMatchSnapshotError as exc:
+                    yield _sse_event(
+                        "room_error", {"detail": str(exc), "code": "invalid_match_snapshot"},
+                    )
+                    break
                 except RoomError as exc:
                     yield _sse_event("room_error", {"detail": str(exc)})
                     break
@@ -443,6 +475,9 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
             )
             if room.match_id is None:
                 raise RoomStateError("room does not have an active match")
+            state = service.repository.get_state(room.match_id)
+            if state.phase != "complete" and room.status != "expired":
+                raise RoomStateError("full online replay is available only after the match ends")
             return service.repository.replay(room.match_id)
         except RoomNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -450,6 +485,8 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
             raise HTTPException(status_code=403, detail=str(exc)) from exc
         except RoomStateError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except InvalidMatchSnapshotError:
+            raise
         except MatchRuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -486,17 +523,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
                 match_token=match_token,
                 header_token=x_loveca_match_token,
             )
-            state = service.repository.get_state(match_id)
-            return {
-                "state": state.model_dump(),
-                "events": [
-                    event.model_dump()
-                    for event in service.repository.list_events(match_id)
-                ],
-                "legal_actions": [
-                    action.model_dump() for action in generate_legal_actions(state)
-                ],
-            }
+            return _match_payload(service, match_id)
         except MatchNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
@@ -514,6 +541,8 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
                 header_token=x_loveca_match_token,
             )
             state = service.repository.get_state(match_id)
+            if not match_ruleset_report(state)["can_execute"]:
+                return []
             return [action.model_dump() for action in generate_legal_actions(state)]
         except MatchNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -554,6 +583,8 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
             return service.repository.replay(match_id)
         except MatchNotFoundError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
+        except InvalidMatchSnapshotError:
+            raise
         except MatchRuntimeError as exc:
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
@@ -1935,44 +1966,53 @@ def _match_state_payload(
     player_id: str | None,
 ) -> dict[str, Any]:
     state_payload = state.model_dump()
-    visible_actions = legal_actions
+    compatibility = match_ruleset_report(state)
+    visible_actions = legal_actions if compatibility["can_execute"] else []
+    hidden_ids: set[str] = set()
     if player_id is not None:
-        _redact_opponent_private_cards(state_payload, player_id)
         visible_actions = [
             action
-            for action in legal_actions
+            for action in visible_actions
             if action.player_id is None or action.player_id == player_id
         ]
+        hidden_ids = redact_player_state(state, state_payload, player_id, visible_actions)
     return {
         "state": state_payload,
-        "events": [event.model_dump() for event in events],
+        "events": _visible_match_events(events, player_id, hidden_ids),
         "legal_actions": [action.model_dump() for action in visible_actions],
+        "ruleset_compatibility": compatibility,
     }
 
 
-def _redact_opponent_private_cards(state_payload: dict[str, Any], player_id: str) -> None:
-    players = state_payload.get("players")
-    cards = state_payload.get("cards")
-    if not isinstance(players, dict) or not isinstance(cards, dict):
-        return
-    for opponent_id, player in players.items():
-        if opponent_id == player_id or not isinstance(player, dict):
+def _visible_match_events(
+    events: list[GameEvent], player_id: str | None, hidden_ids: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    payload = [event.model_dump() for event in events]
+    if player_id is None:
+        return payload
+    for event in payload:
+        data = event["data"]
+        if event["event_type"] == "cards_drawn" and event["player_id"] != player_id:
+            data["instance_ids"] = ["__hidden__"] * len(data.get("instance_ids", []))
+        if event["event_type"] == "ai_blocked" and event["player_id"] != player_id:
+            for key in ("action_payload", "pending_choice", "decision_reason", "error"):
+                data.pop(key, None)
+        if event["player_id"] == player_id or not (
+            event["event_type"] in {"effect_inspection_started", "manual_card_inspection_started"}
+            or event["event_type"] in {"effect_resolved", "manual_card_inspection_resolved"}
+            and "inspected_card_instance_ids" in data
+        ):
             continue
-        private_ids: list[str] = []
-        hand = player.get("hand")
-        if isinstance(hand, list):
-            private_ids.extend(instance_id for instance_id in hand if isinstance(instance_id, str))
-        live_area = player.get("live_area")
-        if isinstance(live_area, list):
-            for instance_id in live_area:
-                if not isinstance(instance_id, str):
-                    continue
-                card = cards.get(instance_id)
-                if isinstance(card, dict) and card.get("face_up") is False:
-                    private_ids.append(instance_id)
-        for instance_id in private_ids:
-            if isinstance(instance_id, str):
-                cards.pop(instance_id, None)
+        for key in ("inspected_card_instance_ids", "candidate_card_instance_ids", "ordered_card_instance_ids"):
+            data.pop(key, None)
+        for key in ("minimum", "maximum"):
+            data.pop(key, None)
+        if not data.get("reveal_selected_to_opponent") and data.get("selected_destination") not in {
+            "waiting_room", "success_live_area", "member_area", "energy_area",
+        }:
+            data.pop("selected_card_instance_ids", None)
+        data.pop("unselected_card_instance_ids", None)
+    return redact_hidden_references(payload, hidden_ids or set())
 
 
 def _reject_public_room_match(app: FastAPI, match_id: str) -> None:
@@ -2016,6 +2056,7 @@ def _room_payload(
         "guest_last_seen_at": room.guest_last_seen_at,
         "closed_at": room.closed_at,
         "close_reason": room.close_reason,
+        "ruleset_identity": room.ruleset_identity.model_dump() if room.ruleset_identity else None,
         "match": None,
     }
     if player_token is not None:

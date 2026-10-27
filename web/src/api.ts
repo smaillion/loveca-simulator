@@ -117,6 +117,14 @@ export function loadRuntimeConfig(): Promise<RuntimeConfig> {
   return runtimeConfigPromise;
 }
 
+export class ApiRequestError extends Error {
+  readonly code?: string;
+  constructor(message: string, code?: string) {
+    super(message);
+    this.code = code;
+  }
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const resolvedUrl = apiResourceUrl(url);
   const headers = { "Content-Type": "application/json", ...init?.headers };
@@ -126,7 +134,8 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   });
   if (!response.ok) {
     const body = await response.json().catch(() => ({ detail: response.statusText }));
-    throw new Error(body.detail ?? response.statusText);
+    throw new ApiRequestError(body.detail ?? response.statusText,
+      typeof body.code === "string" ? body.code : undefined);
   }
   return response.json().catch(() => {
     throw new Error(`Expected JSON from ${resolvedUrl}, but received a non-JSON response.`);

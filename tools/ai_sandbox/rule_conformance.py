@@ -12,6 +12,7 @@ from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
+from loveca.simulation.effect_candidates import NIJIGASAKI_SELECTED_BLADE_SCORE_TEXT
 from loveca.simulation.models import (
     ActionRequest,
     GameEvent,
@@ -282,18 +283,34 @@ def _action_semantics_check(
         slot = action.payload.get("slot")
         payment_ids = list(action.payload.get("energy_instance_ids", []))
         played = _event(events, "member_played", action.player_id)
+        recorded_payment_ids = (
+            list(played.data.get("energy_instance_ids", [])) if played else []
+        )
+        valid_payment_ids = (
+            len(payment_ids) == len(set(payment_ids))
+            and payment_ids == recorded_payment_ids
+            and all(
+                item in before.players[action.player_id].energy_area
+                and before.cards[item].orientation == "active"
+                for item in payment_ids
+            )
+        )
         ok = (
             isinstance(instance_id, str)
             and slot in {"left", "center", "right"}
             and after.players[action.player_id].member_area.get(slot) == instance_id
             and instance_id not in after.players[action.player_id].hand
             and played is not None
-            and all(after.cards[item].orientation == "wait" for item in payment_ids)
+            and valid_payment_ids
         )
         evidence.update(
             card_instance_id=instance_id,
             slot=slot,
             payment_count=len(payment_ids),
+            recorded_payment_ids=recorded_payment_ids,
+            payment_orientations_after={
+                item: after.cards[item].orientation for item in payment_ids
+            },
             baton_touch=bool(action.payload.get("use_baton_touch")),
         )
     elif action_type == "set_live_cards" and action.player_id:
@@ -445,6 +462,9 @@ def _semantic_operation_alignment(
     label_ja: str,
     operation_types: set[str],
 ) -> bool | None:
+    comparison = "modify_source_score_if_selected_blade_highest"
+    if comparison in operation_types:
+        return operation_types == {comparison} and label_ja == NIJIGASAKI_SELECTED_BLADE_SCORE_TEXT
     expectations: list[set[str]] = []
     if "カードを引" in label_ja or "枚引" in label_ja:
         expectations.append(
@@ -477,15 +497,33 @@ def _semantic_operation_alignment(
         expectations.append({"inspect_top_cards"})
     if "デッキの上からカードを" in label_ja and "枚控え室に置く" in label_ja:
         expectations.append({"mill_top_cards"})
-    if "控え室から" in label_ja and "手札に加え" in label_ja:
-        expectations.append({"return_from_waiting_room", "move_selected_to_hand"})
+    if "手札に加え" in label_ja:
+        expectations.append(
+            {
+                "return_from_waiting_room",
+                "move_selected_to_hand",
+                "select_to_hand_from_inspected",
+                "reveal_top_matching_to_hand_else_deck_top",
+                "reveal_top_matching_to_hand_else_waiting",
+                "reveal_until_matching_to_hand_else_waiting",
+                "reveal_top_to_hand",
+            }
+        )
+    if "ライブカード置き場から手札に戻す" in label_ja:
+        expectations.append({"return_source_live_to_hand"})
+    if "手札を" in label_ja and "控え室に置く" in label_ja:
+        expectations.append({"discard_from_hand", "source_to_waiting_room"})
     if "控え室から" in label_ja and "デッキの一番上から" in label_ja:
         expectations.append({"move_selected_to_deck_position"})
     if "控え室" in label_ja and "好きな順番でデッキの上に置く" in label_ja:
         expectations.append({"move_selected_to_deck_top"})
     if "ステージから控え室に置く" in label_ja:
         expectations.append({"source_to_waiting_room"})
-    if "公開" in label_ja:
+    active_reveal_text = any(
+        marker in label_ja
+        for marker in ("公開する", "公開して", "公開し")
+    )
+    if active_reveal_text:
         expectations.append(
             {
                 "reveal_cards",
@@ -509,6 +547,8 @@ def _semantic_operation_alignment(
         expectations.append({"position_change_source", "position_change_selected"})
     if "元々持つハートは選んだハートになる" in label_ja:
         expectations.append({"replace_member_base_hearts"})
+    if "元々持つ【ブレード】の数は" in label_ja:
+        expectations.append({"replace_member_base_blade"})
     if (
         "ハート】を得" in label_ja
         or "ハートを得" in label_ja
@@ -613,10 +653,22 @@ def _event_conformance_checks(
         elif event.event_type == "live_judgment_started":
             snapshot = event.data.get("players", {})
             successful = list(event.data.get("successful_player_ids", []))
+            player_snapshot = snapshot if isinstance(snapshot, dict) else {}
+            comparison_player_ids = [
+                player_id
+                for player_id in (before.first_player_id, before.second_player_id)
+                if player_id is not None
+                and bool(
+                    player_snapshot.get(player_id, {}).get(
+                        "successful_live_instance_ids",
+                        [],
+                    )
+                )
+            ]
             expected_basis, expected_winners = _expected_live_judgment(
                 before.first_player_id or "",
                 before.second_player_id or "",
-                successful,
+                comparison_player_ids,
                 event.data.get("scores", {}),
             )
             actual_basis = event.data.get("basis")

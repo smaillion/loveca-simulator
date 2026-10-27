@@ -87,51 +87,82 @@ def get_catalog_card(database_path: Path, card_code: str) -> dict[str, Any]:
     _require_schema(database_path)
     with closing(connect_database(database_path)) as connection:
         row = connection.execute(
-            """
-            SELECT
-                card.id AS gameplay_card_id,
-                card.card_code,
-                card.canonical_name_ja,
-                card.card_type,
-                card.validation_status AS card_validation_status,
-                member.cost,
-                member.blade,
-                member.blade_heart_color_slot AS member_blade_heart_color_slot,
-                live.score,
-                live.blade_heart_color_slot AS live_blade_heart_color_slot
-            FROM gameplay_cards AS card
-            LEFT JOIN member_card_attributes AS member
-                ON member.gameplay_card_id = card.id
-            LEFT JOIN live_card_attributes AS live
-                ON live.gameplay_card_id = card.id
-            WHERE card.card_code = ?
-            """,
-            (card_code,),
+            _catalog_card_query("WHERE card.card_code = ?"), (card_code,)
         ).fetchone()
         if row is None:
             raise CardCatalogError(f"card not found: {card_code}")
 
-        gameplay_card_id = int(row["gameplay_card_id"])
         registry = load_effect_registry(DEFAULT_EFFECT_REGISTRY)
         valid_effects, effect_errors = validate_registry_for_cards(
             connection, registry, {card_code}
         )
-        printings = _load_printings(connection, gameplay_card_id)
-        source_observations = _load_source_observations(connection, gameplay_card_id)
-        text_revisions = _load_text_revisions(connection, gameplay_card_id)
-        heart_values = _load_heart_values(connection, gameplay_card_id)
-        special_blade_hearts = _load_special_blade_hearts(
-            connection, gameplay_card_id
+        return _serialize_catalog_card_detail(
+            connection,
+            row,
+            valid_effects=valid_effects,
+            effect_errors=effect_errors,
         )
-        works = _load_entities(connection, gameplay_card_id, "work")
-        units = _load_entities(connection, gameplay_card_id, "unit")
-        review_candidates = _load_review_candidates(connection, gameplay_card_id)
-        printing_references = _load_printing_references(connection, gameplay_card_id)
 
+
+def list_catalog_card_details(database_path: Path) -> list[dict[str, Any]]:
+    """Load every gameplay-card detail once using a shared database connection."""
+
+    _require_schema(database_path)
+    with closing(connect_database(database_path)) as connection:
+        rows = connection.execute(
+            _catalog_card_query("ORDER BY card.canonical_name_ja, card.card_code")
+        ).fetchall()
+        card_codes = {str(row["card_code"]) for row in rows}
+        registry = load_effect_registry(DEFAULT_EFFECT_REGISTRY)
+        valid_effects, effect_errors = validate_registry_for_cards(
+            connection, registry, card_codes
+        )
+        return [
+            _serialize_catalog_card_detail(
+                connection,
+                row,
+                valid_effects=valid_effects,
+                effect_errors=effect_errors,
+            )
+            for row in rows
+        ]
+
+
+def _catalog_card_query(suffix: str) -> str:
+    return f"""
+        SELECT
+            card.id AS gameplay_card_id,
+            card.card_code,
+            card.canonical_name_ja,
+            card.card_type,
+            card.validation_status AS card_validation_status,
+            member.cost,
+            member.blade,
+            member.blade_heart_color_slot AS member_blade_heart_color_slot,
+            live.score,
+            live.blade_heart_color_slot AS live_blade_heart_color_slot
+        FROM gameplay_cards AS card
+        LEFT JOIN member_card_attributes AS member
+            ON member.gameplay_card_id = card.id
+        LEFT JOIN live_card_attributes AS live
+            ON live.gameplay_card_id = card.id
+        {suffix}
+    """
+
+
+def _serialize_catalog_card_detail(
+    connection: sqlite3.Connection,
+    row: sqlite3.Row,
+    *,
+    valid_effects: dict[str, Any],
+    effect_errors: dict[str, list[str]],
+) -> dict[str, Any]:
+    gameplay_card_id = int(row["gameplay_card_id"])
+    card_code = str(row["card_code"])
     return {
         "card": {
             "gameplay_card_id": gameplay_card_id,
-            "card_code": str(row["card_code"]),
+            "card_code": card_code,
             "name_ja": str(row["canonical_name_ja"]),
             "card_type": str(row["card_type"]),
             "validation_status": str(row["card_validation_status"]),
@@ -140,21 +171,27 @@ def get_catalog_card(database_path: Path, card_code: str) -> dict[str, Any]:
             "member_blade_heart_color_slot": row["member_blade_heart_color_slot"],
             "score": row["score"],
             "live_blade_heart_color_slot": row["live_blade_heart_color_slot"],
-            "heart_values": heart_values,
-            "special_blade_hearts": special_blade_hearts,
-            "works": works,
-            "units": units,
-            "review_candidates": review_candidates,
-            "printing_references": printing_references,
+            "heart_values": _load_heart_values(connection, gameplay_card_id),
+            "special_blade_hearts": _load_special_blade_hearts(
+                connection, gameplay_card_id
+            ),
+            "works": _load_entities(connection, gameplay_card_id, "work"),
+            "units": _load_entities(connection, gameplay_card_id, "unit"),
+            "review_candidates": _load_review_candidates(connection, gameplay_card_id),
+            "printing_references": _load_printing_references(
+                connection, gameplay_card_id
+            ),
             "effect_registry_status": _effect_registry_status(
                 card_code, valid_effects, effect_errors
             ),
             "effect_registry_errors": effect_errors.get(card_code, []),
             "effects": _effect_summaries(card_code, valid_effects, effect_errors),
         },
-        "printings": printings,
-        "source_observations": source_observations,
-        "text_revisions": text_revisions,
+        "printings": _load_printings(connection, gameplay_card_id),
+        "source_observations": _load_source_observations(
+            connection, gameplay_card_id
+        ),
+        "text_revisions": _load_text_revisions(connection, gameplay_card_id),
     }
 
 

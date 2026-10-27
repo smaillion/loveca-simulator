@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_serializer
 
 from loveca.simulation.effects import EffectDefinition
 
@@ -40,8 +40,10 @@ ControllerPolicyVersion = Literal[
     "simple_ai_v0",
     "simple_ai_v1",
     "simple_ai_v1_1",
+    "simple_ai_v1_2",
 ]
 ModifierType = Literal[
+    "live_card_score",
     "score",
     "blade",
     "heart",
@@ -98,6 +100,8 @@ class CardInstance(BaseModel):
 class LivePerformanceResult(BaseModel):
     blade_count: int = 0
     revealed_instance_ids: list[str] = Field(default_factory=list)
+    # Only new Yell-object policies opt in; omit this from historical snapshots.
+    remaining_yell_instance_ids: list[str] | None = None
     member_hearts: dict[str, int] = Field(default_factory=dict)
     manual_hearts: dict[str, int] = Field(default_factory=dict)
     yell_hearts: dict[str, int] = Field(default_factory=dict)
@@ -110,6 +114,13 @@ class LivePerformanceResult(BaseModel):
     base_score: int = 0
     requirements_satisfied: bool | None = None
     total_score: int = 0
+
+    @model_serializer(mode="wrap")
+    def serialize_yell_objects(self, handler: Any) -> dict[str, Any]:
+        payload = handler(self)
+        if self.remaining_yell_instance_ids is None:
+            payload.pop("remaining_yell_instance_ids", None)
+        return payload
 
 
 class ManualModifier(BaseModel):
@@ -154,6 +165,8 @@ class PlayerState(BaseModel):
         default_factory=lambda: {"left": [], "center": [], "right": []}
     )
     member_areas_entered_this_turn: list[str] = Field(default_factory=list)
+    # None keeps historical snapshots on their original area-based behavior.
+    member_card_instance_ids_entered_stage_this_turn: list[str] | None = None
     member_areas_moved_this_turn: list[str] = Field(default_factory=list)
     member_entered_count_this_turn: int = 0
     member_areas_baton_entered_this_turn: list[str] = Field(default_factory=list)
@@ -168,6 +181,13 @@ class PlayerState(BaseModel):
     refresh_count: int = 0
     refreshed_this_turn: bool = False
     live_result: LivePerformanceResult = Field(default_factory=LivePerformanceResult)
+
+    @model_serializer(mode="wrap")
+    def serialize_entry_history(self, handler: Any) -> dict[str, Any]:
+        payload = handler(self)
+        if self.member_card_instance_ids_entered_stage_this_turn is None:
+            payload.pop("member_card_instance_ids_entered_stage_this_turn", None)
+        return payload
 
 
 class PendingChoice(BaseModel):
@@ -195,7 +215,18 @@ class GameResult(BaseModel):
 class MatchState(BaseModel):
     match_id: str
     rule_version: str = RULE_VERSION
+    ruleset_id: str | None = None
+    ruleset_fingerprint: str | None = None
+    ruling_pack_version: str | None = None
     seed: int
+    member_overlap_policy: (
+        Literal[
+            "capture_fixed_draw_entry_observers", "capture_fixed_draw_and_energy_entry_observers"
+        ]
+        | None
+    ) = None
+    effect_order_policy: Literal["ap_nap_player_choice"] | None = None
+    stage_departure_policy: Literal["clear_departed_card_modifiers"] | None = None
     revision: int = 0
     phase: Phase = "setup_choose_first"
     first_player_id: str | None = None
@@ -225,6 +256,20 @@ class MatchState(BaseModel):
     live_judgment_summary: dict[str, Any] | None = None
     game_result: GameResult | None = None
     completed_reason: str | None = None
+
+    @model_serializer(mode="wrap")
+    def serialize_overlap_policy(self, handler: Any) -> dict[str, Any]:
+        payload = handler(self)
+        for field in ("ruleset_id", "ruleset_fingerprint", "ruling_pack_version"):
+            if getattr(self, field) is None:
+                payload.pop(field, None)
+        if self.member_overlap_policy is None:
+            payload.pop("member_overlap_policy", None)
+        if self.effect_order_policy is None:
+            payload.pop("effect_order_policy", None)
+        if self.stage_departure_policy is None:
+            payload.pop("stage_departure_policy", None)
+        return payload
 
 
 class ActionRequest(BaseModel):

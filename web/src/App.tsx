@@ -30,6 +30,7 @@ import {
   useState,
 } from "react";
 import {
+  ApiRequestError,
   createMatch,
   createRoom,
   cleanupAdminRuntime,
@@ -378,10 +379,22 @@ export default function App() {
     let disposed = false;
     let fallbackPollId: number | null = null;
     let eventSource: EventSource | null = null;
+    let terminalSnapshotError = false;
+    const stopForInvalidSnapshot = () => {
+      terminalSnapshotError = true;
+      setOnlineStatus(locale === "zh"
+        ? "保存的对局数据已损坏，已停止重试。请新建对局。"
+        : "保存済み対局データが不正なため、再試行を停止しました。新しい対局を作成してください。");
+      eventSource?.close();
+      eventSource = null;
+      if (fallbackPollId !== null) window.clearInterval(fallbackPollId);
+      fallbackPollId = null;
+    };
     const refreshRoom = async () => {
+      if (disposed || terminalSnapshotError) return;
       try {
         const room = await getRoom(onlineSession.roomCode, onlineSession.playerToken);
-        if (disposed) return;
+        if (disposed || terminalSnapshotError) return;
         setOnlineRoom(room);
         setOnlineStatus(null);
         if (room.match) {
@@ -394,13 +407,17 @@ export default function App() {
           setScreen("match");
         }
       } catch (reason) {
-        if (!disposed) {
-          setOnlineStatus(reason instanceof Error ? reason.message : String(reason));
+        if (!disposed && !terminalSnapshotError) {
+          if (reason instanceof ApiRequestError && reason.code === "invalid_match_snapshot") {
+            stopForInvalidSnapshot();
+          } else {
+            setOnlineStatus(reason instanceof Error ? reason.message : String(reason));
+          }
         }
       }
     };
     const startFallbackPolling = () => {
-      if (disposed || fallbackPollId !== null) return;
+      if (disposed || terminalSnapshotError || fallbackPollId !== null) return;
       fallbackPollId = window.setInterval(() => void refreshRoom(), 8000);
     };
     void refreshRoom();
@@ -415,18 +432,25 @@ export default function App() {
           void refreshRoom();
         });
         eventSource.addEventListener("room_error", (event) => {
-          if (disposed) return;
-          setOnlineStatus(
-            event instanceof MessageEvent && event.data
-              ? event.data
-              : "room stream error",
-          );
+          if (disposed || terminalSnapshotError) return;
+          let detail = event instanceof MessageEvent && typeof event.data === "string"
+            ? event.data : "room stream error";
+          try {
+            const payload = JSON.parse(detail) as { code?: unknown; detail?: unknown } | null;
+            terminalSnapshotError = payload?.code === "invalid_match_snapshot";
+            if (typeof payload?.detail === "string") detail = payload.detail;
+          } catch { /* Older streams may send a plain-text error. */ }
+          if (terminalSnapshotError) {
+            stopForInvalidSnapshot();
+            return;
+          }
+          setOnlineStatus(detail);
           eventSource?.close();
           eventSource = null;
           startFallbackPolling();
         });
         eventSource.onerror = () => {
-          if (disposed) return;
+          if (disposed || terminalSnapshotError) return;
           setOnlineStatus(
             locale === "zh"
               ? "实时同步中断，已切换为低频更新"
@@ -1056,7 +1080,15 @@ export default function App() {
           >
             <ClipboardList size={18} />
           </button>
-          {onlineSession ? (
+          {onlineSession && match.state.phase !== "complete" ? (
+            <button
+              className="icon-button"
+              disabled
+              title={locale === "zh" ? "对局结束后可导出完整回放，避免泄露隐藏牌" : "非公開カード保護のため、リプレイ出力は対戦終了後です"}
+            >
+              <Download size={18} />
+            </button>
+          ) : onlineSession ? (
             <a
               className="icon-button"
               href={roomReplayUrl(onlineSession.roomCode, onlineSession.playerToken)}
@@ -1098,6 +1130,14 @@ export default function App() {
       </header>
 
       {error && <div className="error-banner">{error}</div>}
+      {onlineSession && onlineStatus && <div className="error-banner" role="status">{onlineStatus}</div>}
+      {match.ruleset_compatibility?.can_execute === false && (
+        <div className="error-banner" role="alert">
+          {locale === "zh"
+            ? "规则版本不兼容，此对局仅供查看。可导出回放或创建新对局。"
+            : "ルールの版が一致しないため、この対戦は閲覧専用です。リプレイを保存するか、新しい対戦を作成してください。"}
+        </div>
+      )}
       {simpleAiPlayerNames.length > 0 && (
         <div className={`info-banner ai-status-banner ${latestAiBlocker ? "warning" : ""}`}>
           <Activity size={16} />
@@ -1880,14 +1920,28 @@ const autoResultTerminalEvents = new Set([
 ]);
 
 const autoResultOperationEvents = new Set([
+  "effect_source_member_readied",
+  "effect_blade_comparison_resolved",
   "effect_cards_milled",
   "effect_cards_revealed",
   "effect_cards_revealed_to_hand",
   "effect_top_cards_revealed",
   "effect_cards_moved_to_deck_bottom",
   "effect_member_deployed_from_waiting_room",
+  "effect_member_promoted_from_attachment",
   "granted_live_success_draw_resolved",
 ]);
+
+function isAutoResultOperation(event: GameEvent): boolean {
+  return autoResultOperationEvents.has(event.event_type)
+    || (event.event_type === "energy_added" && typeof event.data.reason === "string"
+      && event.data.reason.startsWith("effect:"))
+    || (event.event_type === "effect_operation_not_applied"
+      && (event.data.reason === "energy_deck_insufficient_at_resolution"
+        || event.data.reason === "overlap_source_member_departed"
+        || event.data.reason === "original_source_stage_member_departed"
+        || event.data.reason === "no_legal_stage_member_at_resolution"));
+}
 
 function latestAutoResultNotice(
   events: GameEvent[],
@@ -1896,7 +1950,7 @@ function latestAutoResultNotice(
 ): AutoResultNotice | null {
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const event = events[index];
-    if (!autoResultTerminalEvents.has(event.event_type) && !autoResultOperationEvents.has(event.event_type)) {
+    if (!autoResultTerminalEvents.has(event.event_type) && !isAutoResultOperation(event)) {
       continue;
     }
     const effectId = typeof event.data.effect_id === "string" ? event.data.effect_id : "";
@@ -1904,7 +1958,7 @@ function latestAutoResultNotice(
     const relatedEvents = collectRelatedAutoResultEvents(events, index, effectId, invocationId);
     if (
       event.event_type === "effect_resolved"
-      && !relatedEvents.some((item) => autoResultOperationEvents.has(item.event_type))
+      && !relatedEvents.some(isAutoResultOperation)
     ) {
       continue;
     }
@@ -1966,11 +2020,38 @@ function autoResultLines(
   }
 
   for (const related of relatedEvents) {
-    if (related.event_type === "effect_cards_milled") {
+    if (related.event_type === "effect_source_member_readied") {
+      const summary = eventSummary(related, state, locale);
+      if (summary) lines.push(summary);
+    } else if (related.event_type === "energy_added") {
+      const count = stringArray(related.data.instance_ids).length;
+      const orientation = related.data.orientation === "wait" ? "WAIT" : "ACTIVE";
+      lines.push(`${locale === "zh" ? "能量补充" : "エネルギー追加"} ${orientation}: ${count}`);
+    } else if (related.event_type === "effect_operation_not_applied"
+        && (related.data.reason === "energy_deck_insufficient_at_resolution"
+          || related.data.reason === "overlap_source_member_departed"
+          || related.data.reason === "original_source_stage_member_departed"
+          || related.data.reason === "no_legal_stage_member_at_resolution")) {
+      const summary = eventSummary(related, state, locale);
+      if (summary) lines.push(summary);
+    } else if (related.event_type === "effect_blade_comparison_resolved") {
+      const summary = eventSummary(related, state, locale);
+      if (summary) lines.push(summary);
+      lines.push(related.data.source_available === false
+        ? (locale === "zh" ? "来源 Live 已离开 Live 区，未加分" : "誘発元がライブカード置き場を離れたため加算なし")
+        : related.data.condition_met
+          ? (locale === "zh" ? "条件满足" : "条件成立")
+          : (locale === "zh" ? "条件未满足" : "条件不成立"));
+    } else if (related.event_type === "effect_cards_milled") {
       const ids = stringArray(related.data.milled_card_instance_ids);
       const names = ids.map((id) => state.cards[id]?.card.name_ja).filter(Boolean);
       const label = locale === "zh" ? "送入控室" : "控室に置いたカード";
       lines.push(`${label}: ${names.length > 0 ? names.join(" / ") : ids.length}`);
+    } else if (related.event_type === "effect_member_promoted_from_attachment") {
+      const id = typeof related.data.card_instance_id === "string" ? related.data.card_instance_id : "";
+      const name = state.cards[id]?.card.name_ja ?? "";
+      lines.push(locale === "zh" ? `下方 Member 移到空区域: ${name}` : `下のメンバーを空きエリアへ: ${name}`);
+      lines.push(locale === "zh" ? "场内移动，不触发登場能力" : "エリア間移動のため登場能力は誘発しません");
     } else if (related.event_type === "cards_drawn") {
       const ids = stringArray(related.data.instance_ids);
       const label = locale === "zh" ? "抽牌" : "ドロー";
@@ -4131,7 +4212,12 @@ function eventTitle(event: GameEvent, locale: UiLocale): string {
     ai_action_selected: ["电脑操作", "CPU操作"],
     ai_blocked: ["电脑操作受阻", "CPU操作ブロック"],
     effect_auto_resolved: ["技能自动发动", "能力の自動解決"],
+    effect_blade_comparison_resolved: ["Blade 比较结果", "ブレード比較結果"],
     effect_resolved: ["技能结算", "能力解決"],
+    effect_not_activatable: ["技能未自动处理", "能力の自動処理不可"],
+    effect_operation_not_applied: ["技能部分未执行", "能力の一部未実行"],
+    effect_source_member_readied: ["来源角色复原", "誘発元メンバーをアクティブに"],
+    stage_card_modifiers_cleared: ["离场加成清理", "離れたカードの補正解除"],
     effect_triggered: ["技能触发", "能力誘発"],
     yell_completed: ["应援结算完成", "エール解決完了"],
   };
@@ -4145,6 +4231,8 @@ function describeAiBlocker(
   const reason = typeof event.data.reason === "string" ? event.data.reason : "";
   const reasonLabels: Record<string, [string, string]> = {
     no_safe_ai_action: ["电脑找不到可安全执行的合法操作。", "CPU が安全に実行できる操作を選べません。"],
+    overlap_source_requires_manual_review: ["重叠登场涉及未确认能力，电脑已暂停，请手动确认。",
+      "重複登場に未確認の能力が関係するため、CPUを停止しました。手動で確認してください。"],
     ai_illegal_action: ["电脑生成的操作未通过规则验证。", "CPU の操作がルール検証を通過しませんでした。"],
     ai_action_error: ["电脑处理操作时发生错误。", "CPU の操作処理中にエラーが発生しました。"],
     ai_action_cap_reached: ["电脑连续操作达到安全上限。", "CPU の連続操作が安全上限に達しました。"],
@@ -4176,6 +4264,72 @@ function describeAiBlocker(
 }
 
 function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): string | null {
+  if (event.event_type === "effect_operation_not_applied"
+      && event.data.reason === "no_legal_stage_member_at_resolution") {
+    return locale === "zh"
+      ? "结算时没有合法的场上 Member，此项效果不适用，能力已结束。"
+      : "解決時に対象にできるメンバーがいないため、この効果を適用せず解決しました。";
+  }
+  if (event.event_type === "stage_card_modifiers_cleared") {
+    const count = typeof event.data.removed_count === "number" ? event.data.removed_count : 0;
+    return locale === "zh"
+      ? `卡牌离开 Stage，解除 ${count} 项卡牌专属补正。`
+      : `ステージを離れたカードの補正を${count}件解除しました。`;
+  }
+  if (event.event_type === "effect_source_member_readied") {
+    return event.data.changed === true
+      ? (locale === "zh" ? "移动触发：原来源 Member 已变为 Active。" : "エリア移動で誘発し、元のメンバーをアクティブにしました。")
+      : (locale === "zh" ? "原来源 Member 已是 Active，能力正常结束。" : "元のメンバーは既にアクティブです。能力を解決しました。");
+  }
+  if (event.event_type === "effect_operation_not_applied"
+      && event.data.reason === "original_source_stage_member_departed") {
+    if (event.data.operation === "gain_blade") {
+      return locale === "zh"
+        ? "来源 Member 曾离开 Stage，不向控室或重新登场的卡牌添加 Blade；能力已结束。"
+        : "誘発元が一度ステージを離れたため、控え室や再登場したカードにブレードを加えず解決しました。";
+    }
+    if (event.data.operation === "gain_heart") {
+      return locale === "zh"
+        ? "来源 Member 曾离开 Stage，不向控室或重新登场的卡牌添加 Heart；能力已结束。"
+        : "誘発元が一度ステージを離れたため、控え室や再登場したカードにハートを加えず解決しました。";
+    }
+    return locale === "zh"
+      ? "来源 Member 曾离开 Stage，不复原控室或重新登场的卡牌；能力已结束。"
+      : "誘発元が一度ステージを離れたため、控え室や再登場したカードをアクティブにせず解決しました。";
+  }
+  if (event.event_type === "effect_operation_not_applied"
+      && event.data.reason === "overlap_source_member_departed") {
+    return locale === "zh"
+      ? "来源 Member 已离场，此加成不作用于控室或重新登场的卡牌。"
+      : "誘発元のメンバーは一度ステージを離れたため、控え室や再登場したカードには加算しません。";
+  }
+  if (event.event_type === "effect_operation_not_applied"
+      && event.data.reason === "energy_deck_insufficient_at_resolution") {
+    return locale === "zh"
+      ? "结算时能量牌库不足，未放置能量。"
+      : "解決時にエネルギーデッキが足りないため、エネルギーを置きませんでした。";
+  }
+  if (event.event_type === "effect_not_activatable"
+      && ["inspection_cost_candidates_unavailable", "inspection_source_not_active",
+          "inspection_source_not_on_stage", "inspection_source_object_unavailable"].includes(String(event.data.reason))) {
+    return locale === "zh"
+      ? "无法支付检索费用，未查看牌库；本次待机已结束。"
+      : "確認能力の費用を払えないため、デッキを見ずに今回の待機を取り消しました。";
+  }
+  if (event.event_type === "effect_not_activatable"
+      && event.data.reason === "overlap_entry_observer_requires_timing_review") {
+    return locale === "zh"
+      ? "该登场观察者的重叠时点尚待审核，请手动确认。"
+      : "重複時の登場誘発は未審査です。手動で確認してください。";
+  }
+  if (event.event_type === "effect_blade_comparison_resolved") {
+    const selected = Number(event.data.selected_blade ?? 0);
+    const other = event.data.other_max_blade ?? "-";
+    const delta = Number(event.data.score_delta ?? 0);
+    return locale === "zh"
+      ? `Blade ${selected} / 其他最高 ${other} · 来源 Live 分数 +${delta}`
+      : `ブレード ${selected} / ほかの最大 ${other} · 誘発元のスコア +${delta}`;
+  }
   if (event.event_type === "ai_action_selected") {
     const actionType = typeof event.data.action_type === "string" ? event.data.action_type : "";
     const reason = typeof event.data.reason === "string" ? event.data.reason : "";
@@ -4221,6 +4375,7 @@ function aiDecisionReasonLabel(reason: string, locale: UiLocale): string {
     preserve_resources_end_main: ["保留资源并结束主阶段", "リソースを温存してメイン終了"],
     set_best_reachable_live_combo: ["设置成功可能性最高的 Live 组合", "成功可能性の高い Live 組合せをセット"],
     no_live_in_hand: ["手牌中没有 Live", "手札に Live なし"],
+    cycle_spare_members_to_find_live: ["用富余 Member 换牌寻找 Live", "余剰メンバーをセットして Live を探す"],
     resolve_best_structured_effect: ["选择估值最高的技能处理", "評価の高い能力処理を選択"],
     activate_positive_structured_effect: ["发动正收益起动能力", "有利な起動能力を使用"],
     decline_nonpositive_optional_effect: ["不发动收益不足的可选技能", "利益の少ない任意能力を見送り"],
@@ -4788,6 +4943,8 @@ function zoneLabel(zone: string, locale: UiLocale): string {
 function effectBranchLabel(branchId: string, locale: UiLocale): string {
   const labels: Record<string, [string, string]> = {
     draw_discard: ["抽 1 张后弃 1 张手牌", "1枚引いて手札を1枚控え室へ"],
+    discarded_muse: ["弃置 μ's：查看 4 张，加入 2 张", "μ'sを控え室へ：4枚見て2枚を手札へ"],
+    discarded_other: ["弃置其他作品：回收 1 张 Live", "他作品を控え室へ：ライブを1枚回収"],
     wait_opponent_cost2: [
       "将对手全部费用 2 以下角色横置",
       "相手のコスト2以下メンバーすべてをウェイト",
@@ -4970,18 +5127,28 @@ export function EffectResolutionAction({
     is_optional: boolean;
     simulation_support: string;
     resolution_stage?: string;
+    cost_payment_unavailable_reason?: string;
     candidate_card_instance_ids: string[];
     choice_type?: string;
     card_selection_minimum?: number;
     card_selection_maximum?: number;
+    card_selection_requires_order?: boolean;
     choice_zone?: string;
     choice_orientation?: string;
     color_slots?: string[];
+    requires_color_choice?: boolean;
     energy_instance_ids?: string[];
     energy_required?: number;
     branch_ids?: string[];
     selected_branch?: string;
+    branch_from_cost?: boolean;
     position_change_slots_by_candidate?: Record<string, string[]>;
+    deployment_choice?: boolean;
+    deployment_members_by_slot?: Record<string, string | null>;
+    deployment_unsupported_slots?: Record<string, string>;
+    deployment_unsupported_slots_by_candidate?: Record<string, Record<string, string>>;
+    deployment_requires_manual_resolution?: boolean;
+    selection_policy?: "private_filtered_may_choose_none" | "public_single_as_much_as_possible" | "public_named_groups_as_much_as_possible" | "public_other_nijigasaki_cost_heart" | "public_yell_aqours_bottom_three" | "public_nijigasaki_blade_four_heart";
     choice_groups?: Array<{
       group_id: string;
       label_ja?: string | null;
@@ -5012,24 +5179,25 @@ export function EffectResolutionAction({
     setSelectedBranch("");
     setSelectedPositionSlot("");
     setSelectedGroups({});
-  }, [current?.invocation_id]);
+  }, [current?.invocation_id, current?.resolution_stage, current?.choice_type]);
 
   if (!current) return null;
   const source = state.pending_effects.find(
     (item) => item.invocation_id === current.invocation_id,
   );
-  const manual = current.simulation_support === "manual_resolution";
+  const manual = current.simulation_support === "manual_resolution" || current.deployment_requires_manual_resolution;
   const choiceType = current.choice_type ?? "";
   const usesCardChoice = ["card_from_zone", "energy_from_area", "member_from_stage"].includes(choiceType)
     || Boolean(current.choice_zone && current.candidate_card_instance_ids.length > 0);
   const minimumCards = usesCardChoice
     ? current.card_selection_minimum ?? (current.candidate_card_instance_ids.length > 0 ? 1 : 0)
     : 0;
+  const allowsPrivateNoTarget = current.selection_policy === "private_filtered_may_choose_none";
   const maximumCards = usesCardChoice
     ? current.card_selection_maximum ?? Math.max(minimumCards, current.candidate_card_instance_ids.length)
     : 0;
   const colorSlots = current.color_slots ?? [];
-  const requiresColor = choiceType === "choose_color";
+  const requiresColor = choiceType === "choose_color" || current.requires_color_choice === true;
   const requiresCount = choiceType === "choose_count";
   const branchIds = current.branch_ids ?? [];
   const isBranchChoice = choiceType === "choose_effect_branch";
@@ -5039,6 +5207,11 @@ export function EffectResolutionAction({
   const resolvedBranch = current.selected_branch || selectedBranch;
   const requiresBranch = isBranchChoice && !current.selected_branch;
   const positionSlotsByCandidate = current.position_change_slots_by_candidate ?? {};
+  const incompleteOverlapSources = current.deployment_choice && [
+    ...Object.values(current.deployment_unsupported_slots ?? {}),
+    ...Object.values(current.deployment_unsupported_slots_by_candidate ?? {}).flatMap(Object.values),
+  ].some((reason) => ["overlap_source_binding_incomplete", "overlap_attached_ability_requires_review",
+    "overlap_public_ability_requires_timing_review"].includes(reason));
   const selectedPositionCandidates = selectedCards.filter((instanceId) =>
     Object.prototype.hasOwnProperty.call(positionSlotsByCandidate, instanceId),
   );
@@ -5046,7 +5219,7 @@ export function EffectResolutionAction({
     selectedPositionCandidates.length === 1
       ? (positionSlotsByCandidate[selectedPositionCandidates[0]] ?? [])
       : [];
-  const requiresPositionSlot = positionSlotOptions.length > 0;
+  const requiresPositionSlot = selectedPositionCandidates.length === 1;
   const resolvedPositionSlot = selectedPositionSlot || positionSlotOptions[0] || "";
   const positionSlotValid =
     !requiresPositionSlot || positionSlotOptions.includes(resolvedPositionSlot);
@@ -5075,12 +5248,18 @@ export function EffectResolutionAction({
     <div className="effect-resolution">
       <div className="effect-resolution-header">
         <span>
-          {tr("待结算技能", "解決待ち能力")} {invocations.length > 1 ? `(${invocations.length})` : ""}
+          {action.options.effect_order_choice
+            ? tr("选择先结算的技能", "先に解決する能力") : tr("待结算技能", "解決待ち能力")}
+          {invocations.length > 1 ? ` (${invocations.length})` : ""}
         </span>
         {invocations.length > 1 && (
-          <select value={current.invocation_id} onChange={(event) => setInvocationId(event.target.value)}>
-            {invocations.map((item) => (
+          <select
+            aria-label={action.options.effect_order_choice
+              ? tr("先结算的技能", "先に解決する能力") : tr("选择技能", "能力を選択")}
+            value={current.invocation_id} onChange={(event) => setInvocationId(event.target.value)}>
+            {invocations.map((item, index) => (
               <option key={item.invocation_id} value={item.invocation_id}>
+                {action.options.effect_order_choice ? `${index + 1}. ` : ""}
                 {state.cards[item.source_card_instance_id].card.name_ja}
               </option>
             ))}
@@ -5104,9 +5283,20 @@ export function EffectResolutionAction({
         </div>
       )}
       <p>{formatEffectText(current.label_ja, locale)}</p>
+      {current.cost_payment_unavailable_reason && (
+        <p role="status" className="effect-stage-hint">
+          {tr("无法支付费用。结束本次待机，不查看牌库。", "費用を払えません。デッキを見ずに今回の待機を取り消します。")}
+        </p>
+      )}
+      {incompleteOverlapSources && (
+        <p role="status" className="effect-stage-hint">
+          {tr("部分登场区域涉及未确认能力，未自动处理；请使用手动调整。",
+            "未確認の能力が関係する登場エリアは自動処理できません。手動調整で確認してください。")}
+        </p>
+      )}
       {isBranchChoice && (
         <div className="effect-candidates effect-branch-choices">
-          {branchIds.map((branchId) => (
+          {!current.branch_from_cost && branchIds.map((branchId) => (
             <button
               className={resolvedBranch === branchId ? "selected" : ""}
               key={branchId}
@@ -5119,15 +5309,21 @@ export function EffectResolutionAction({
           ))}
           {current.selected_branch && (
             <span>
-              {tr("已选择", "選択済み")}:
+              {current.branch_from_cost ? tr("费用判定", "費用による分岐") : tr("已选择", "選択済み")}:
               {" "}
               {effectBranchLabel(current.selected_branch, locale)}
             </span>
           )}
         </div>
       )}
-      {usesCardChoice && current.candidate_card_instance_ids.length > 0 && (
+      {usesCardChoice && (current.candidate_card_instance_ids.length > 0 || allowsPrivateNoTarget) && (
         <div className="effect-candidates">
+          {allowsPrivateNoTarget && (
+            <button type="button" className={selectedCards.length === 0 ? "selected" : ""}
+              onClick={() => { setSelectedCards([]); setSelectedPositionSlot(""); }}>
+              {tr("不选目标", "選ばない")}
+            </button>
+          )}
           {current.candidate_card_instance_ids.map((instanceId) => (
             <button
               className={selectedCards.includes(instanceId) ? "selected" : ""}
@@ -5156,9 +5352,30 @@ export function EffectResolutionAction({
           </span>
         </div>
       )}
+      {current.card_selection_requires_order && selectedCards.length > 0 && (
+        <div className="order-action">
+          {selectedCards.map((id, index) => (
+            <span key={id}>
+              {index + 1}. {state.cards[id].card.name_ja}
+              <button type="button" className="mini-icon" disabled={index === 0}
+                aria-label={tr("上移已选卡", "選択カードを上へ")}
+                title={tr("上移已选卡", "選択カードを上へ")}
+                onClick={() => setSelectedCards(moveItem(selectedCards, index, index - 1))}>
+                <ChevronUp size={14} />
+              </button>
+              <button type="button" className="mini-icon" disabled={index === selectedCards.length - 1}
+                aria-label={tr("下移已选卡", "選択カードを下へ")}
+                title={tr("下移已选卡", "選択カードを下へ")}
+                onClick={() => setSelectedCards(moveItem(selectedCards, index, index + 1))}>
+                <ChevronDown size={14} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
       {requiresPositionSlot && (
         <div className="effect-candidates effect-position-choices">
-          <span>{tr("移动到", "移動先")}</span>
+          <span>{current.deployment_choice ? tr("登场区域", "登場エリア") : tr("移动到", "移動先")}</span>
           {positionSlotOptions.map((slot) => (
             <button
               className={resolvedPositionSlot === slot ? "selected" : ""}
@@ -5167,6 +5384,9 @@ export function EffectResolutionAction({
               onClick={() => setSelectedPositionSlot(slot)}
             >
               {memberSlotLabel(slot, locale)}
+              {current.deployment_members_by_slot?.[slot] && (
+                <small>{state.cards[current.deployment_members_by_slot[slot]!]?.card.name_ja}</small>
+              )}
             </button>
           ))}
         </div>
@@ -5330,7 +5550,11 @@ export function EffectResolutionAction({
               onAction(action.action_type, action.player_id, payload);
             }}
           >
-            {tr("结算技能", "能力を解決")}
+            {current.cost_payment_unavailable_reason
+              ? tr("结束此能力", "待機を取り消す")
+              : allowsPrivateNoTarget && selectedCards.length === 0
+              ? tr("不选目标并结算", "対象なしで解決")
+              : tr("结算技能", "能力を解決")}
           </button>
         )}
         {current.is_optional && (
@@ -5372,7 +5596,12 @@ export function InspectionChoiceAction({
   submitLabel: string;
 }) {
   const { locale, tr } = useUiLanguage();
-  const inspected = ((action.options.inspected_card_instance_ids ?? []) as string[]).filter(
+  const multiChoiceType = String(action.options.multi_player_choice_type ?? "");
+  const isMultiChoice = multiChoiceType.startsWith("multi_player_");
+  const isMemberDeployment = multiChoiceType === "multi_player_deploy_waiting_member";
+  const slotOptions = stringArray(action.options.available_slots);
+  const inspected = ((action.options.inspected_card_instance_ids
+    ?? (isMultiChoice ? action.options.candidate_card_instance_ids : []) ?? []) as string[]).filter(
     (item): item is string => typeof item === "string",
   );
   const candidateIds = ((action.options.candidate_card_instance_ids ?? inspected) as string[]).filter(
@@ -5390,19 +5619,28 @@ export function InspectionChoiceAction({
   const effectDefinition = effectId ? state.effect_definitions[effectId] : undefined;
   const sourceCard = sourceCardId ? state.cards[sourceCardId] : undefined;
   const [selected, setSelected] = useState<string[]>([]);
+  const [selectedSlot, setSelectedSlot] = useState("");
 
   useEffect(() => {
     setSelected([]);
-  }, [state.revision, action.action_type]);
+    setSelectedSlot("");
+  }, [state.revision, action.action_type, action.player_id]);
 
   const isValidSelection =
     selected.length >= minimum &&
     selected.length <= maximum &&
-    selected.every((item) => candidates.has(item));
+    selected.every((item) => candidates.has(item)) &&
+    (!isMemberDeployment || selected.length === 0 || slotOptions.includes(selectedSlot));
 
   return (
     <div className="effect-resolution">
       <strong>{title}</strong>
+      {isMultiChoice && (
+        <small>{tr("选择玩家", "選択するプレイヤー")}: {state.players[action.player_id ?? ""]?.name ?? tr("对战玩家", "プレイヤー")}</small>
+      )}
+      {action.options.deployment_policy === "simultaneous_member_area_entry" && (
+        <small>{tr("双方选择后同时登场；随后处理登場能力。", "双方の選択後に同時に登場し、登場能力を処理します。")}</small>
+      )}
       {effectDefinition && (
         <div className="effect-source-text">
           <small>
@@ -5473,13 +5711,25 @@ export function InspectionChoiceAction({
           ))}
         </div>
       )}
+      {isMemberDeployment && selected.length === 1 && (
+        <div className="effect-candidates effect-position-choices" role="group" aria-label={tr("登场区域", "登場エリア")}>
+          {slotOptions.map((slot) => (
+            <button key={slot} type="button" aria-pressed={selectedSlot === slot}
+              className={selectedSlot === slot ? "selected" : ""} onClick={() => setSelectedSlot(slot)}>
+              {memberSlotLabel(slot, locale)}
+            </button>
+          ))}
+        </div>
+      )}
       <button
         className="primary-button"
         disabled={loading || !isValidSelection}
         onClick={() =>
           onAction(action.action_type, action.player_id, {
-            selected_card_instance_ids: selected,
-            ordered_card_instance_ids: requiresOrder ? selected : undefined,
+            ...(isMemberDeployment
+              ? selected.length === 1 ? { selected_card_instance_id: selected[0], slot: selectedSlot } : {}
+              : { selected_card_instance_ids: selected,
+                  ordered_card_instance_ids: requiresOrder ? selected : undefined }),
           })
         }
       >

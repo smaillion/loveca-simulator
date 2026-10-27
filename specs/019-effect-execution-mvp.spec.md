@@ -1,12 +1,162 @@
 # 019 Effect Execution MVP Specification
 
+## Public Named Single Target At Resolution
+
+`EffectChoice.selection_policy=public_single_as_much_as_possible` is restricted
+to a mandatory, costless Live-start ability selecting one own top Stage Member
+by one exact normalized name, then giving only that selected Member Blade+1 for
+the Live. It is invalid in cost/follow-up choices or other operations. No SQL or
+Card Schema change is involved; None remains omitted for old snapshots.
+
+The trigger queues even with no currently eligible target. Native resolution
+recomputes candidates: exactly one must be chosen if possible; if none exists,
+the bounds become zero and the ability ends with
+`effect_operation_not_applied/no_legal_stage_member_at_resolution`. This is not
+optional decline or the private-hand permission to choose none despite eligible
+cards. Other ordered effects can introduce or remove a target before selection.
+Old structured snapshots without this policy retain their historical queue
+eligibility checks, and old manual snapshots stay manual.
+
+## Bounded Occupied Deployment Observer Policy
+
+The additional explicit value `require_complete_source_bindings` includes the
+disjoint classification below and audits the full text plus card code, revision,
+raw hash, consecutive segment indexes and binding status for both public Stages,
+their attachments, face-up Live Areas and the incoming candidate. Hidden hands,
+decks and face-down Live identities are not observer inputs. Missing text is only
+a blank ability when no effect IDs/errors exist and `ability_bucket=none`.
+
+Attached abilities, static/combined/unknown and unsupported cross-player or
+Live-Area entry observers stay unresolved even when their text is fully bound.
+This is a conservative safety gate, not a general trigger scheduler. Empty areas
+do not require a temporary-overlap proof. The prior policy keeps its old scope.
+
+If all candidates for a public selection lose all areas to one of these new gaps,
+LegalAction reports `deployment_requires_manual_resolution`. Native resolution
+rejects before costs; native manual resolution becomes available for that exact
+pending source, while every AI policy reports an explicit blocker. Optional
+decline and private-filtered no-target selection keep their existing rules. No
+registry effect currently opts into the new value; the six pending entries stay
+manual until individual operation and timing verification is complete.
+
+`deploy_selected_to_stage` may explicitly snapshot
+`overlap_observer_policy=ignore_disjoint_source_triggers`. Missing policy retains
+the historical conservative area exclusions and serialization shape. The field
+is invalid on other operations or in costs.
+
+For an outgoing top Member only, a complete bound source text may distinguish
+triggered `member_played`, `live_started`, `live_succeeded` and activated
+`player_activation` from the different Member's entry/departure. These source
+abilities are not triggered or paid during replacement. Whole source text must
+equal the ordered bound labels after whitespace normalization, with no binding
+errors; this is not fuzzy matching or a new registry binding.
+
+Unknown/combined triggers, static abilities, attached effects, incoming entry
+conditions and actual entry/departure observers keep existing unresolved
+boundaries. This policy is not a generic overlap scheduler or inheritance engine.
+The current AUDIT fixture uses it without promoting the six pending card entries.
+
+## Selected Member Blade / Source Live Score
+
+The bounded `modify_source_score_if_selected_blade_highest(amount=1)` operation
+requires one own Stage Member choice at `live_succeeded`, no cost or follow-up,
+and a single operation with Live duration. Registry binding remains exact-text.
+It compares the chosen Member with all other top Stage Members of both players,
+including Wait Members, using base replacement, targeted temporary and active
+static Blade values. Equality does not qualify; hidden and attached cards do not
+participate. The result event records the compared public values and score delta.
+
+Only the source card still in its own Live Area receives `live_card_score`.
+Existing global `score` modifiers are unchanged. Card score replacement precedes
+addition (9.9.1.4–5), Live winner comparison follows success effects (8.4.4–6),
+and zone movement clears this new modifier (4.1.4). Source departure cannot
+redirect the bonus to another Live. Old manual snapshots retain their contract.
+LegalAction exposes public `candidate_blade_counts` so AI does not duplicate the
+calculation. The UI uses the same result event in both languages.
+
+## Exact Member Entry Counter Snapshot (2026-10)
+
+The bounded mandatory `own_member_played` draw-to-hand family may declare exactly:
+`trigger_member_entry_count_exact: N` (positive integer) and `trigger_source_zone: stage`.
+It requires a single self `draw_until_hand_size`, no cost/choice, no duration, and no
+artificial once-per-turn limit. Trigger detection saves `member_entry_count_at_trigger`
+and `source_stage_at_trigger`; resolution validates this snapshot, not the current counter
+or the departed source's current zone. Draw amount still uses the current hand deficit.
+
+Latest bounded overlap capture accepts this exact family, including a separate unrelated
+Live-start ability on the source. Other stage-count conditions and inherited abilities
+remain excluded. Missing/invalid snapshots fail closed. Existing `at_least` conditions and
+old effect snapshots preserve their behavior. No MatchState field, API or SQL migration.
+Evidence: `docs/development/third-entry-observer-verification.md` (PDF9.7.2/9.7.7/10.4.1).
+
+## Existing Stage Modifier Departure Boundary (2026-10)
+
+New matches explicitly set `stage_departure_policy: clear_departed_card_modifiers`.
+Ordinary replacement, Baton, bounded occupied-area deployment, source-to-Waiting-Room
+and manual external Stage movement remove existing card-targeted modifiers, including
+those stored under the opposing player. Their attachment cleanup also clears modifiers
+targeting departing cards. Player-wide modifiers and Stage-internal movement are unchanged.
+A compact `stage_card_modifiers_cleared` event contains only a reason and count.
+
+Absent policy is omitted from serialization and keeps historical Replay semantics,
+including the pre-existing bounded deployment cleanup. This is not a general zone-epoch
+implementation or an inheritance / last-known-information ruling. Other movement families
+require independent audit. No SQLite or Card Schema migration is introduced.
+Evidence: `docs/development/stage-departure-modifier-verification.md` (PDF4.1.4/9.9.2).
+
+## Attachment Promotion Snapshot Boundary (2026-10)
+
+`deploy_selected_to_empty_stage` may declare
+`entry_trigger_policy: member_area_external_only`. With this policy, a source
+attachment already occupies a Member Area: promoting it emits
+`effect_member_promoted_from_attachment`, not an external entry trigger or count.
+Waiting Room / hand entry still uses the existing entry events. Active placement,
+external-entry card identity and existing Stage modifiers are independent.
+
+The default `None` is omitted from serialization and preserves historical effect
+snapshot behavior, even if the match already contains the newer card-identity
+history. Do not infer this version from PlayerState history or mutate old Replay.
+The field is rejected on other operation families. See the Chinese verification
+report in `docs/development/attachment-promotion-verification.md`; this bounded
+implementation is not an individual official ruling or reviewed promotion.
+
 ## 1. Purpose
+
+### Simultaneous Member Deployment Snapshot Boundary (2026-10)
+
+`multi_player_deploy_waiting_member` may declare choice-level
+`deployment_policy: simultaneous_member_area_entry` with explicit `active` / `wait`.
+Only a single Waiting Room Member per player is supported, without follow-up operations.
+The AP chooses first (first player when no turn player), followed by NAP. Selection does
+not move a card. The final action revalidates all selections, places both Members, detects
+entry triggers from the final board, completes the parent and resolves AP effects first.
+UI submits the existing singular card ID and slot payload; no new HTTP endpoint is needed.
+Absent policy is omitted from serialization and preserves historical snapshot behavior.
+This bounded path is not a general simultaneous-trigger scheduler or reviewed ruling.
+Evidence: `docs/development/multi-player-entry-verification.md`.
 
 This specification defines the first limited executable-effect slice for the local Battle Simulator.
 
 It does not define the final Effect DSL, a database schema, AI behavior, full card coverage, or automatic parsing from Japanese text.
 
 ## 2. Registry Boundary
+
+### Bounded Occupied-Area Foundation (2026-10)
+
+`deploy_selected_to_stage` is a new operation identity, not a reinterpretation of old
+`deploy_selected_to_empty_stage` snapshots. It requires explicit Active/Wait, one self
+Member from hand/Waiting Room, a `card_from_zone` 1..1 choice, fixed self Energy costs
+only, and no other actions/follow-up choices. Legal card/slot options use current entry
+identity; simple overlap clears the old Member, attachments and departed-card modifiers.
+Energy goes to Energy Deck, never Waiting Room; no Baton event/history is created.
+Native UI/AI keep using `selected_card_instance_ids` and `to_slot`.
+
+Conditional or inherited overlap observers, unknown outgoing effects, incoming static
+effects and orphan attachments are excluded with per-area/per-candidate reasons before
+payment. Private-hand zero-target choice and general transient-overlap timing are not
+implemented. No official registry entry uses this foundation yet; do not promote the
+two PR/four Nijigasaki entries on the strength of synthetic transition tests alone.
+Evidence: `docs/development/occupied-deployment-foundation.md`.
 
 Executable effect definitions are stored in a version-controlled JSON registry for this MVP.
 
@@ -166,3 +316,76 @@ Depends on:
 * [012 Controller and Legal Actions](012-controller-and-legal-actions.spec.md)
 * [015 Effect Taxonomy](015-effect-taxonomy.spec.md)
 * [018 Card Data Storage](018-card-data-storage.spec.md)
+
+## 11. Cost-Result Branch Selection
+
+`choose_effect_branch` may declare `auto_branch_from_cost_choice=true` for the
+restricted single-hand-discard pattern. Exactly two complementary work-key
+conditions are required. The engine validates the cost card, derives one branch
+before mutation, pays the complete cost atomically, and persists the branch on
+the invocation. Client-provided conflicting branch IDs are rejected.
+
+The initial legal action exposes the hand cost as `card_from_zone`, not a branch
+picker. After payment, inspection branches use `resolve_effect_choice`; recovery
+branches expose only post-payment candidates and a read-only `branch_from_cost`
+label. Mandatory recovery requires one card when available, otherwise resolves
+as much as possible. The selected branch cannot change and other branches must
+not run after inspection. Multi-stage UI selection state resets at stage changes.
+
+Existing definitions default to non-automatic branching; old effect snapshots,
+ActionRequest and runtime SQLite remain compatible. Private inspection cards are
+visible only to the choosing player until their subsequent public movement.
+
+## Energy deck return snapshot integrity
+
+`move_selected_energy_to_energy_deck` keeps returned cards face-down with a valid `active` serialization default. Outside Energy Area this value does not make the card usable Energy. Cost and branch paths must survive JSON, runtime reread and Replay. Invalid historical snapshots return `invalid_match_snapshot` without repair or private validation details; clients stop retrying that permanent error. No Card/runtime schema migration or executable-status promotion is implied. Evidence: `docs/development/energy-return-replay-verification.md`.
+
+## Private filtered hand selection
+
+`EffectChoice.selection_policy = private_filtered_may_choose_none` explicitly enables an effective 0–1 target count under rule 9.6.3.1.4. Initial scope is one own-hand Member selected by card information for the single bounded `deploy_selected_to_stage` operation. Cost/follow-up choices, public zones, other players, variable counts and other operations reject this policy. Original minimum/maximum remain 1/1 in the effect snapshot; LegalAction supplies effective bounds. Zero targets must not carry a slot, do not waive/refund costs, and finish with a non-error operation-not-applied event. The UI supports zero and one without ManualAdjustment. None is omitted from serialization to preserve old snapshots and mandatory selections. No card is promoted on foundation tests alone. Evidence: `docs/development/private-hand-choice-verification.md`.
+
+## Bounded Overlap Entry Observers
+
+New matches explicitly set `MatchState.member_overlap_policy=capture_fixed_draw_entry_observers`; None is omitted and preserves old snapshots/replay. Before normal replacement or bounded effect cleanup, capture the outgoing Member's single-trigger `own_member_played` effects only when they perform automatic fixed self draw with no cost/choice and filters reference immutable entering-card cost/work/unit/identity only. Baton has already removed its payment source and must not capture these observers. Resolve captured effects after the action/parent; do not pretend this is a general transient overlap model or AP/NAP scheduler. Complex effect-deployment slots remain excluded; normal replacement reports unsupported observers with an audit reason rather than claiming resolution. Actual `PL!N-pb1-005:1` is the current validated registry representative, without status promotion or SQLite changes. Evidence: `docs/development/overlap-entry-observer-verification.md`.
+
+## Pending Effect Priority
+
+New matches separately set `MatchState.effect_order_policy=ap_nap_player_choice`; absent/None is omitted and retains legacy eager resolution, independently of the overlap policy. Under rules 7.2.1/9.5.3/9.7.3, expose AP's pending group first, otherwise NAP's, and let the owner choose among multiple effects using existing `resolve_effect`. Re-evaluate priority after each completed effect. Shared Live Set/judgment use the first player as AP. A pending effect-native choice or non-initial resolution stage locks its invocation until completion; resolve, skip and source-bound manual routes enforce the same lock. Multiple automatic effects must not be consumed before the owner can choose; a lone ordinary automatic effect may still resolve directly. LegalAction emits `effect_order_choice` for UI without front-end timing inference. This is not a generic rule-action scheduler, transient-overlap implementation or registry promotion. Evidence: `docs/development/pending-effect-order-verification.md`.
+
+## Fixed Wait Energy Overlap Observer
+
+The latest new-match `member_overlap_policy=capture_fixed_draw_and_energy_entry_observers` includes the previous draw family and one fixed self Wait Energy operation with immutable entry filters. Capture before cleanup, resolve after the action/parent. For this captured family only, the modeled Energy availability check is deferred so returned attachments can supply the Energy; if none remains at resolution, emit `effect_operation_not_applied / energy_deck_insufficient_at_resolution` and finish without refresh or error skip. A separate triggered `live_succeeded` ability on the outgoing card cannot observe this entry/exit and need not exclude the area. Source/stage-dependent observers, inherited abilities, variable amounts and other Energy orientations remain guarded. None and `capture_fixed_draw_entry_observers` retain their historical serialization and Replay behavior. UI renders actual effect Energy counts or the explicit non-applied reason, not normal Energy Phase notifications. Actual representative: `PL!N-pb1-012:1`, without registry promotion or SQLite changes. Evidence: `docs/development/overlap-energy-observer-verification.md`.
+
+## Original Overlap Source Member
+
+`EffectOperation.overlap_source_policy=original_stage_member` is an explicit opt-in for a fixed self Blade, Live-duration, positional `own_member_played` observer without choices/costs. Under the existing bounded new-match overlap policy, capture `overlap_source_slot_at_trigger` for this opted-in snapshot only. Qualify the positional trigger using the captured slot, then emit `effect_operation_not_applied / overlap_source_member_departed` instead of modifying the old Stage object after cleanup, even if its persistent instance ID is reused for re-entry. Resolve and record usage normally. Non-overlap object epochs and arbitrary conditional Stage views are not implemented by this policy. None is omitted so old effect snapshots retain shape/hash/Replay; reject use in costs, other targets, variable amounts or other trigger/duration families. A separate triggered Live-start/success ability cannot observe entry/exit and need not exclude the area. Exact representative: `PL!HS-pb1-009:1`; no registry-count or reviewed-status promotion. Evidence: `docs/development/overlap-source-modifier-verification.md`.
+
+## Activated Private Full Reorder
+
+`EffectChoice.inspection_activation_policy=start_after_cost` explicitly starts the
+native inspection flow after one fixed self Energy cost, without executing the
+inspection operations through the immediate-operation executor. Scope is one
+own activated Main ability, no cost/follow-up choice or branch, with fixed full
+inspection, ordering and deck-top return. Partial keep, reveal and discard are
+excluded. The engine clamps required selection to available cards after refresh;
+all inspected cards must return, and subsequent choices cannot pay again.
+Absent/None omits the field and preserves legacy snapshots/hash/behavior, not a
+retroactive repair of old manual abilities. No runtime SQLite migration.
+Representative: `PL!N-bp7-006:1`; its second segment remains manual. Evidence:
+`docs/development/activated-inspection-verification.md`.
+
+## Original Moved Source Member
+
+`EffectOperation.source_object_policy=original_moved_stage_member` opts in only
+to a single mandatory, unlimited `member_moved` -> source `ready_member` operation
+with exact Stage/Wait trigger conditions and no costs, choices or duration.
+After successful trigger validation, capture `original_source_stage_object` on
+the invocation. Existing Stage-departure hooks mark pending opted-in invocations
+as departed, independently of modifier-cleanup policy. Internal Stage movement
+does not mark departure. Resolution retains trigger eligibility and records an
+explicit non-applied reason if the source left, even when the same physical ID
+returns; usage and queue completion still occur under9.7.7. Missing trigger
+capture is invalid, not silently guessed. None is omitted from old operation
+snapshots; legacy Replay/manual trigger behavior is preserved. No SQL/Card
+schema changes or general object-epoch/inheritance implementation. Representative:
+`PL!SP-bp7-008:2`. Evidence: `docs/development/moved-source-ready-verification.md`.

@@ -1,0 +1,49 @@
+name: AI-DLC Integrity
+
+on:
+  pull_request:
+    paths:
+      - ".agents/**"
+      - ".codex/**"
+      - "aidlc/**"
+      - "AGENTS.md"
+      - "scripts/aidlc_vendor.py"
+      - "tests/test_aidlc_vendor.py"
+      - "third_party/aidlc-workflows/**"
+      - ".github/workflows/aidlc-integrity.yml"
+  push:
+    branches:
+      - develop
+    paths:
+      - ".agents/**"
+      - ".codex/**"
+      - "aidlc/**"
+      - "AGENTS.md"
+      - "scripts/aidlc_vendor.py"
+      - "tests/test_aidlc_vendor.py"
+      - "third_party/aidlc-workflows/**"
+      - ".github/workflows/aidlc-integrity.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependency
+        run: python -m pip install pytest
+
+      - name: Verify pinned AI-DLC distribution
+        run: python scripts/aidlc_vendor.py verify
+
+      - name: Run AI-DLC repository contract tests
+        run: python -m pytest tests/test_aidlc_vendor.py -q

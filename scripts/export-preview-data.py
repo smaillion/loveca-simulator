@@ -16,7 +16,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from loveca.cards.catalog import get_catalog_card, list_catalog_cards, list_catalog_facets
+from loveca.cards.catalog import list_catalog_card_details, list_catalog_facets
 from loveca.simulation.effects import load_effect_registry
 
 PREVIEW_DATA_VERSION = "browser-preview-data.v0"
@@ -79,14 +79,10 @@ def main() -> int:
 
 
 def _load_all_cards(database: Path, *, include_official_text: bool) -> list[dict[str, Any]]:
-    summaries = list_catalog_cards(database, limit=100_000, offset=0)
-    cards: list[dict[str, Any]] = []
-    for item in summaries["items"]:
-        detail = get_catalog_card(database, str(item["card_code"]))
-        if not include_official_text:
-            detail = _strip_public_sensitive_text(detail)
-        cards.append(detail)
-    return cards
+    cards = list_catalog_card_details(database)
+    if include_official_text:
+        return cards
+    return [_strip_public_sensitive_text(detail) for detail in cards]
 
 
 def _strip_public_sensitive_text(detail: dict[str, Any]) -> dict[str, Any]:

@@ -1,5 +1,84 @@
 # AI and Simulation Notes
 
+PL!N-sd2-026:1 uses the engine's effective Member Blade (including supported
+static modifiers), not printed Blade or a player-level Yell bonus. Its opt-in
+policy preserves old Replay filtering. Four policies pass current-target and
+hidden-hand invariance tests. Frozen30 improves8→9 completed,21 manual stops,
+158/160 executable completions; defaultv1.1 unchanged.
+[Chinese evidence](development/nijigasaki-blade-four-heart-verification.md).
+
+PL!S-cl1-002:1 delegates original-Yell filtering and ordered bottom return to the
+engine. Four policies retain hidden-hand invariance. Frozen30 completes8/30 with
+22 explicit manual stops,150/154 executable completions and4 pending behind manual.
+No illegal/runtime/Replay/error-skip failures; defaultv1.1 unchanged.
+See [the Chinese audit](development/aqours-yell-bottom-verification.md).
+
+PL!N-PR-036:1 now uses a bounded other-Nijigasaki target policy and the engine's
+resolution-time card information cost, not Member payment reduction. Four AI
+policies, hidden-hand substitutions and returned-source targeting are tested.
+Frozen30 diagnostics still finish7, with23 explicit manual stops and no illegal,
+runtime or Replay errors. Its9 queued invocations include2 still pending behind
+another manual effect, not9 confirmed completions. Product policy stays v1.1.
+See [the Chinese audit](development/other-nijigasaki-heart-verification.md).
+
+The next evidence-led fix supports only PL!-pb2-039:1. Its body condition is
+evaluated at resolution; two successful μ's Live cards grant +10 Yell reveals,
+not Stage Blade. The same frozen 30-deck diagnostic improves from 6 to 7 finished
+matches, with 23 explicit manual stops and no illegal/runtime/Replay errors.
+Seed18026 finishes on turn5, but the losing side has no successful Live, so this
+does not meet the two-sided Live acceptance target. Seed18029 reaches a different
+manual blocker on turn2. Product AI remains v1.1; segment2 remains manual.
+See [the Chinese verification](development/live-yell-ten-verification.md).
+
+Manual-focused diagnostics are opt-in (`--manual-focus`), leaving the default pool
+and product policy unchanged.30 legal decks/30 matches produce6 completions and24
+explicit mandatory-manual stops. Current manual skills have80 queue events over42
+effect IDs,51 declines and28 blocked invocations; no error skips, illegal actions,
+runtime exceptions or Replay errors. Queue events are not proof that official
+conditions held. See the [Chinese report](development/manual-trigger-observation-audit.md).
+Gapv0.3 separates outcomes and legacy skip evidence instead of relabeling skips
+as triggers. Provenance binds src/sandbox Python, card DB, registry and manifest;
+it does not include credentials or hidden hands. Defaultv1.1 is unchanged.
+
+Multi-keep audit: PL!S-bp2-005:1 is manual, not an automatically executable skill.
+Four policy versions explicitly decline its optional cost and persist the reason;
+there is no silent error-skip or private inspection.21 targeted card tests retain
+old SQL behavior as compatibility evidence only. Fixed10 does not trigger this
+card. Coverage is corrected to914/1212,298manual; defaultv1.1 stays unchanged.
+[Reason and audit limits](development/multi-keep-inspection-audit.md).
+
+Mixed-Heart follow-up:165 targeted assertions for three exact identities include
+four-policy paid/unpayable completion, privacy invariance and SQL Replay. Fixed10
+qualifies in3-9 turns but does not trigger these three.172 illustrated scenarios
+pass, not proof of universal rules correctness or stronger AI. Defaultv1.1 stays.
+[Chinese evidence](development/mixed-heart-inspection-audit.md).
+
+Member/Liella follow-up:165 targeted assertions cover five exact identities and
+their real fees2/5/7/9. All four policies finish safely without hidden-hand
+dependence. Fixed10 qualifies in3-9 turns and PL!SP-bp1-005:1 has five actual
+cost/inspection/resolution events each; the other four do not trigger. No strategy
+strength claim or defaultv1.1 change. [Chinese evidence](development/member-liella-inspection-audit.md).
+
+Work/unit inspection follow-up: six exact cost snapshots have192 per-card native
+action assertions including four-policy privacy invariance, real fee4 and SQL
+Replay. Fixed10 again qualifies in3–9 turns with both players succeeding at Live,
+but these six do not trigger. This is workflow regression, not evidence of
+improved AI strength or full card coverage. Defaultv1.1 remains unchanged.
+[Chinese scope and evidence](development/work-unit-inspection-audit.md).
+
+Frozen-pool follow-up: the blackbox tool can opt into the shared controller while
+keeping its historical heuristic default. With the same archived 30 decks,
+seeds9000–9049 and 260 actions, completions are 34 legacy / 42 v1.1 / 48 v1.2.
+Three explicit manual skips remain in v1.2; two new capped matches finish under
+an explicitly separate 600-action diagnostic. [Evidence and reproducible commands](development/ai-frozen-pool-verification.md).
+
+Experimental `simple_ai_v1_2` adds legal non-Live resource cycling without changing
+the v1.1 default or historical policies. A paired 50-match sample completes 50/50
+under both policies, reducing mean turns from 7.64 to 5.94 and maximum from 19 to
+11. The first ten v1.2 matches all meet the ten-turn / both-player success target.
+This is not a strength benchmark or a universal optimal strategy. The archived
+30-deck heuristic pool still completes only 34/50. [Chinese evidence and remaining work](development/ai-live-cycle-verification.md).
+
 ## 1. Purpose
 
 This document describes AI and simulation strategy for the platform.
@@ -236,7 +315,14 @@ Simple AI policy changes should pass a separate rule-conformance acceptance run 
 * requires at least 10 matches to finish within 10 turns while both players complete at least one Live
 * treats any illegal Action, effect-error skip, failed semantic check, or Replay mismatch as disqualifying
 
-Live judgment has an additional fixed boundary matrix derived from comprehensive rules 8.4.2-8.4.13 and 1.2.1.1-1.2.1.2. It keeps Live success, `ライブ成功時` check timing, performance winner, Success Live placement eligibility, and whole-match result as separate facts. In particular, an equal-score comparison still has two performance winners, but rule 8.4.7.1 prevents a player already holding two Success Live cards from adding another. When both players are at Match Point, neither adds a card and the match continues.
+Live judgment has 20 post-Heart score/movement regressions, with native Action
+and SQLite Replay checks. They distinguish Live success, success-effect timing,
+performance winner, placement eligibility and whole-match result. Four fixtures
+use synthetic effects; four Match Point cases remain rule-text review items
+because PDF 8.4.7.1's area wording differs from the existing Success Live count
+interpretation. The engine remains unchanged. These cases are not a claim that
+Heart allocation, Yell, end-phase loops or all official rulings are certified.
+See [the maintained evidence boundary](development/live-boundary-matrix-verification.md).
 
 The maintained run completed 20/20 matches and qualified 12/20. It produced 14,160 passing checks and exercised 64 distinct effects over 260 effect decisions or resolutions. This is path evidence, not proof for effects that did not trigger.
 

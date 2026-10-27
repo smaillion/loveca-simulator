@@ -1,0 +1,545 @@
+{
+  "schema_version": 1,
+  "tasks": [
+    {
+      "id": "live-start-aqours-blade-six-source-score-integrity",
+      "priority": 0,
+      "title": "优先复现旧Aqours先选人后判Blade六与来源Live得分登记",
+      "status": "queued",
+      "depends_on": ["live-start-nijigasaki-blade-four-heart"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!S-bp3-025:1精确日文/revision/hash与PDF选择目标/有效Blade/来源Live score规则；本轮发现旧登记minimum_blade6及通用modify_score字段，必须先真实复现而非只用脚本判错", "正文先选一名Aqours后判断Blade至少6，验证低Blade目标仍可选但不加分、有效5/6/7与常时/临时修正、无目标、多个Live与来源离开/同ID返回；只修正来源Live，不加全局score", "若可确认则使用独立新快照策略精确修正generator和registry，旧Replay保留原snapshot；若无法可靠确认则回退manual并记录unresolved；真实状态/SQL Replay/四AI/隐藏信息/UI/双语图文通过，不提升reviewed或改schema/默认AI", "同冻结30池有界复跑，源码绑定、实际触发与未触发分列；全部profiles及manifest/pre-push通过，同Draft PR54不合并部署，旧dirty保留"]
+    },
+    {
+      "id": "live-start-success-lily-white-source-score",
+      "priority": 0,
+      "title": "按实际待机审计lily white成功区两张与来源Live得分",
+      "status": "queued",
+      "depends_on": ["live-start-aqours-blade-six-source-score-integrity"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!-pb2-041:2完整日文/revision1020/hash d4db99fac1de6ee00db00cb77d66c86b4adb1920ebed6198e0d68490f915c0a8及本地PDF Live开始/score信息规则；先复现实际强制待机，第一段复杂能力保持manual", "仅在明确时精确绑定成功Live区lily white的unit计数至少2，区分unit与work、0/1/2、异unit、对方/当前Live/手牌，不在trigger时冻结正文条件；核对结算前变化与仅来源Live score+1，不能改全局score或其他Live", "来源离开及同ID回场、Live期限清理、真实状态、新旧SQL Replay、四AI及隐藏身份不变、UI与双语图文有明确断言；未确认来源对象/FAQ则记录unresolved而不猜测，不提升reviewed或改schema/默认AI", "同冻结30技能密集池有界复跑并绑定源码，分列实际触发/完成/待机/skip/胜负；全部profiles及manifest/pre-push通过，同Draft PR54，不合并部署，旧dirty和未确认语义保留"]
+    },
+    {
+      "id": "live-start-nijigasaki-blade-four-heart",
+      "priority": 0,
+      "title": "按实际阻塞审计有效Blade至少四的虹咲目标双Heart",
+      "status": "queued",
+      "depends_on": ["live-success-aqours-yell-bottom-three"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!N-sd2-026:1完整日文/revision/hash与本地PDF Blade信息及选择目标条款，先复现冻结池两次mandatory待机；区分基础Blade与当前有效Blade，不能猜测FAQ", "明确时仅精确绑定一名己方虹咲Stage Member，验证Blade3/4/5、临时/静态修正、非虹咲/对手/附属/手牌、无候补及待机后变化，双Heart02只给所选对象并按Live期限清理", "真实状态、新旧SQL Replay、四AI隐藏身份不变、原子拒绝、UI及双语图文通过；不扩大旧策略、不改Card/SQLite schema或默认AI、不晋级reviewed", "同冻结30技能密集牌组有界复跑，记录实际触发/完成/待机/skip/正式完赛和源码指纹；全部profiles及pre-push通过，同Draft PR54不合并部署，旧dirty及未确认语义保留"]
+    },
+    {
+      "id": "live-success-aqours-yell-bottom-three",
+      "priority": 0,
+      "title": "精确审计Yell公开Aqours最多三张排序入底",
+      "status": "queued",
+      "depends_on": ["live-start-other-nijigasaki-cost-heart"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!S-cl1-002:1全文/revision/hash及PDF8.4.4-8.4.8/11.6，先复现三次实际强制待机；不可把整个resolution_area无条件当Yell历史，或把Aqours卡限成Member", "只在语义明确时用受限公开选择/顺序操作，验证零到三张、非法四张/重复/异作品、Live与Member、不是Yell的公开牌、已被其他效果移走、短牌库及多阶段公开/清理时点", "真实状态、旧manual/新SQL Replay、双方隐私、四AI、排序UI及图文通过；旧策略不全局放宽，不晋级reviewed，不改Card/SQLite schema或默认AI", "同冻结30技能密集池复跑，保留准确入队/辞退/错误skip/人工待机与完赛诊断，执行全部profiles/manifest/prepush；同Draft PR54不合并部署，旧dirty和PL!S-bp2-005待审保留"]
+    },
+    {
+      "id": "live-start-other-nijigasaki-cost-heart",
+      "priority": 0,
+      "title": "按实际人工待机审计另一虹咲成员按cost加Heart",
+      "status": "queued",
+      "depends_on": ["live-start-success-muse-yell-ten"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!N-PR-036:1完整日文/revision/hash及PDF选目标与Live期限条款；先复现当前强制人工待机，不据入队频次冒充官方条件或整卡已审核", "只在语义明确时精确支持另一名己方虹咲Stage顶层Member，验证自身/他人/附属/手牌/异作品、无目标与cost14/15/16、有效费用变化和目标离场边界；Heart03仅给目标，追加条件在结算时取值", "真实状态、四AI、隐藏手牌替换、双视角UI、新旧SQL Replay、原子拒绝、Live清理及图文场景通过；不改默认策略/schema，不晋级reviewed，不扩展未确认FAQ", "同冻结30技能密集牌组复跑，分列入队/辞退/错误skip/人工待机及完赛/上限，按实际阻塞选择下一有限切片；全部profiles/manifest/pre-push通过，同Draft PR54，不合并部署，旧dirty和PL!S-bp2-005待审保留"]
+    },
+    {
+      "id": "live-start-success-muse-yell-ten",
+      "priority": 0,
+      "title": "按实际阻塞审计成功Live两张μs的Yell加十",
+      "status": "queued",
+      "depends_on": ["manual-gap-actual-trigger-observation"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["按PL!-pb2-039:1完整日文/revision/hash及PDF Live开始、Yell条款复核，先记录三次入队/强制人工待机的种子证据；入队不代表条件已满足，不直接据频次晋级", "真实状态验证成功Live区μs卡0/1/2及异作品，不把当前Live/手牌/Member当成功Live；false条件正常结束不产生人工阻塞，true条件Yell公开数量+10而非给Stage Blade+10", "只在规则明确且已有modify_yell_count结构化操作适用时精确登记，Live期限清理、短牌库刷新、新旧SQL Replay、四AI、隐藏信息、原子性和UI有实际断言；不猜测FAQ或提升reviewed", "重新跑此前阻塞种子及技能密集池，明确实际触发/辞退/错误skip/blocker/Replay和正式完赛，不冒充30x300发布验收；全部profile/manifest/pre-push通过，同Draft PR54不合并部署，旧dirty与PL!S-bp2-005待审保留"]
+    },
+    {
+      "id": "manual-gap-actual-trigger-observation",
+      "priority": 0,
+      "title": "按当前人工技能实际触发重建下一批优先级",
+      "status": "queued",
+      "depends_on": ["inspection-multi-keep-heart-wording-audit"],
+      "required_profiles": ["control", "registry", "backend"],
+      "acceptance": ["读取当前registry真实manual集合（此批基线298），将effect_triggered、optional decline、explicit error skip、manual blocker分列，不能把牌组频次或AI决策次数当实际触发", "复核现有gap统计是否只统计skip而漏掉可选辞退；新增结构化日志契约测试与隐藏信息/不改输入断言，不增加runtime候选全集或改SQLite", "在当前源码上用30套技能密集合法牌组各跑一局有界AI诊断，记录deck/seed/policy/source fingerprint、正式完赛/可解释blocker/上限与实际触发，不当作300局发布门禁", "输出中文可读top40 manual理由与下一有限语义家族建议，PL!S-bp2-005维持待审而不循环自动晋级；不调用外部付费API，不提升reviewed、不改生产或旧dirty；全profiles/manifest/pre-push通过，同Draft PR54不合并部署"]
+    },
+    {
+      "id": "inspection-multi-keep-heart-wording-audit",
+      "priority": 0,
+      "title": "独立审计顶7最多取3张的费用及Heart持有文义",
+      "status": "queued",
+      "depends_on": ["inspection-mixed-member-live-heart-filters"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!S-bp2-005:1完整官方段/revision/hash与实际cost，按本地PDF2.1.3/2.7/2.9核对没有『ハートに』限定的『heart02/04/05を持つ』是否含Blade Heart，不能猜测FAQ；不足以确认则记录unresolved并保留明确人工边界", "先复现不可支付及顶7/取0至3/非法4张/重复/跨类型和颜色，区别单张Member持有条件与任意色或Live需求；不能把既有最多1张snapshot policy直接放宽而改变旧Replay", "规则明确才增加受限新snapshot策略或适用的精确版本；有真实状态、短牌库刷新、待机补费用、四AI、UI、隐私、新旧SQL Replay断言；不虚标reviewed或可执行率，不改schema", "全部profiles/manifest/pre-push和图文/固定AI记录真实触发，若仍有语义不明明确降级或隔离而不静默通过；旧dirty和同Draft PR54保留，不合并部署"]
+    },
+    {
+      "id": "inspection-mixed-member-live-heart-filters",
+      "priority": 0,
+      "title": "逐卡审计三条Member与Live混合Heart筛选和费用边界",
+      "status": "queued",
+      "depends_on": ["inspection-member-liella-cost-siblings"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["精确核对PL!S-pb1-013/014/015:1完整日文段/revision/hash与实际费用，区分Member持有Heart和Live必要Heart，颜色heart04/02/05且至少2，不按名称或模糊前缀绑定", "先复现费用不足及0/1/2/3 Heart、不同颜色、Blade Heart/ALL/临时modifier和跨类型候补边界，以PDF及官方卡文判断基础还是有效Heart，不能猜测FAQ", "仅适用的明确单弃牌费用采用bounded policy，公开零张、待机补费用、刷新、非法原子性、新旧SQL Replay、四AI、双方隐私和UI均有状态断言，不提升reviewed或改schema", "全部profiles/manifest/pre-push、图文与固定AI有实际证据，明确实际触发次数；PL!S-bp2-005:1最多取3张独立待审，不顺手扩大policy，原dirty和同Draft PR54保留，不合并部署"]
+    },
+    {
+      "id": "inspection-member-liella-cost-siblings",
+      "priority": 0,
+      "title": "逐卡核对五条Member与Liella检索费用兄弟文本",
+      "status": "queued",
+      "depends_on": ["inspection-work-unit-filtered-siblings"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["精确核对PL!S-bp3-004:1、PL!S-bp3-009:1、PL!SP-bp1-005:1、PL!SP-bp2-007:1、PL!SP-pb2-017:1完整段/revision/hash及真实费用，区别顶4/5/6、Member/任意卡和Aqours/Liella作品", "先复现无费用及待机补费用，再采用适用的显式费用策略，验证公开零张、筛选、费用/刷新顺序、原子拒绝、新旧SQL Replay和双方私有信息", "四种AI、原生UI、图文与固定AI分别记录定向及实际触发证据；全部profile和manifest/pre-push通过，不改schema或reviewed", "余4扫描包含3条Member/Live混合Heart筛选与1条最多取3张，另行审查而不扩大policy；保留旧dirty和同Draft PR54，不合并部署"]
+    },
+    {
+      "id": "inspection-work-unit-filtered-siblings",
+      "priority": 0,
+      "title": "逐卡审计六条作品和组合检索的费用与候补筛选",
+      "status": "queued",
+      "depends_on": ["inspection-member-live5-private2-siblings"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!HS-bp1-009:1、PL!HS-pb1-018:1、PL!N-bp3-012:1、PL!SP-pb1-015/016/017:1的完整日文段/revision/hash及实际费用，不按名称模糊匹配", "先复现无费用与待机补费用，逐卡验证作品/组合对Member和Live的筛选、可选零张、公开取得与私有查看，不能把作品当组合或漏筛选", "只为规则明确且适用的exact-text采用显式费用策略，新旧SQL Replay、原子拒绝、双方隐私、四AI和UI有真实断言，不提升reviewed、不改schema", "固定AI与图文报告明确实际触发与定向覆盖，余15扫描/混合费用/多张取得不批量晋级，旧dirty与同Draft PR54保留，不合并部署"]
+    },
+    {
+      "id": "inspection-member-live5-private2-siblings",
+      "priority": 0,
+      "title": "复核六条Member或Live顶5与私下顶2检索兄弟文本",
+      "status": "queued",
+      "depends_on": ["inspection-private3-identical-text-family"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["逐卡核对PL!-sd1-015:1、PL!HS-bp2-010:1、PL!HS-bp1-011:1、PL!HS-bp6-022:1、PL!N-pb1-028:1、PL!N-pb1-035:1的完整段/revision/hash与真实费用，不因同文复用整卡审核", "先复现无费用及待机补费用；区分公开Member/Live筛选与可选零张，私下顶2必须取一张，余牌/刷新顺序有真实断言", "仅采用适用的显式snapshot费用策略，新旧SQL Replay、双方隐私、四AI和UI通过，不改engine/Card/SQL schema或提升reviewed", "固定AI与图文报告分别记录实际触发与定向证据，余21扫描/复杂费用不批量晋级，旧dirty与同一Draft PR54保留，不合并部署"]
+    },
+    {
+      "id": "inspection-private3-identical-text-family",
+      "priority": 0,
+      "title": "逐卡复核同文顶3私下取1的十五条费用快照",
+      "status": "queued",
+      "depends_on": ["inspection-adjacent-discard-cost-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["精确核对PL!-sd1-016:1、PL!HS-PR-001/002/005:1、PL!HS-cl1-007:1、PL!HS-pb1-011:1、PL!N-PR-004/006/013:1、PL!N-bp1-007/010:1、PL!N-sd1-002/003:1、PL!S-PR-013/019:1的独立revision/hash与技能段，不因同文假设整卡其他能力受支持", "先复现无费用、等待中资源变化、可选付款但付款后必取一张、私有取得及刷新边界，再逐卡采用已验证费用策略或明确unresolved", "新旧SQL Replay、原子拒绝、双方响应、四AI及UI有真实断言，同文可共享语义证据但不自动提升人工reviewed", "固定AI与图文报告分别记录实际触发和定向场景，其他36条扫描/混合费用不得批量晋级；旧dirty与同一Draft PR54保留，不合并部署"]
+    },
+    {
+      "id": "inspection-adjacent-discard-cost-audit",
+      "priority": 0,
+      "title": "逐卡审计相邻六条单弃牌检索费用与公开边界",
+      "status": "queued",
+      "depends_on": ["inspection-existing-cost-safety-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["先复核PL!-bp3-010:1、PL!-bp5-014:1、PL!-bp6-004:1、PL!-pb1-016:1、PL!-sd1-011:1、PL!-sd1-012:1的全文/revision/hash和真实费用，42条扫描候选不视为42条已确认违规", "逐卡复现无费用、待机资源变化、仅自己资源付费，区分公开取得与未写公开、可选零张与必须取得一张", "仅安全exact-text采用显式新snapshot费用策略，混合/Energy/额外动作与未确认条件记录unresolved，不虚增登记率", "真实状态、SQL Replay、隐藏信息、四AI/UI和中文图文报告通过，旧dirty与同一Draft PR54保持，不合并部署"]
+    },
+    {
+      "id": "inspection-existing-cost-safety-audit",
+      "priority": 0,
+      "title": "逐卡复核既有检索费用与不可支付待机边界",
+      "status": "queued",
+      "depends_on": ["typed-onplay-inspection-costs"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["先复核七条单独自身Wait检索PL!-bp3-014/017/018:1、PL!N-bp3-022:1、PL!N-bp4-016:1、PL!S-bp6-018:1、PL!SP-bp4-002:1的实际卡文和费用边界，不把扫描命中当作已确认违规", "核对三条虹咲手牌费用PL!N-sd2-012/014:1、PL!N-bp7-018:1及相邻同类，先复现无费用与待机中资源变化，再按适用范围逐条采用明确snapshot策略或记录unresolved", "不可支付在选择该待机时判断，不在触发时提前删除；费用不重复、来源身份、SQL Replay、四AI及UI均有真实断言", "保留旧snapshot与dirty成果，不为登记率跳过混合费用/条件等超出策略的语义，中文图文报告明确剩余风险"]
+    },
+    {
+      "id": "typed-onplay-inspection-costs",
+      "priority": 0,
+      "title": "区分强制手牌、Live手牌与自身Wait的登场检索费用",
+      "status": "queued",
+      "depends_on": ["nijigasaki-onplay-inspection-family"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["精确绑定PL!-pb2-032:1、PL!SP-bp7-018:1、PL!-pb2-008:1的当前全文段/revision/hash，不自动提升reviewed", "真实登场验证强制弃牌不可拒绝、Live费用不能弃Member、自身Wait不误等于选择Stage目标；非法操作原子拒绝", "区分任选0张与必须取1张，按作品/Member/无Blade Heart/必要Heart总数筛选；短牌库刷新、无费用、双视角与旧manual SQL Replay可核对", "四AI提交原生合法操作，图文逐卡状态和固定十局回归均报告实际触发；旧dirty工作树和复杂重叠限制保留"]
+    },
+    {
+      "id": "nijigasaki-onplay-inspection-family",
+      "priority": 0,
+      "title": "精确适配虹咲登场检索及可选费用与公开边界",
+      "status": "queued",
+      "depends_on": ["live-start-wait-nijigasaki-source-bonus"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["按当前revision/hash精确绑定PL!N-sd2-009:1、012:1、014:1及PL!N-bp7-018:1，不模糊匹配，不升级reviewed", "真实登场、可选弃牌费用、可选零张、作品及无Blade Heart筛选有状态断言，非法选择原子拒绝", "私有查看仅自己可见，最终公开卡能被对手确认；四AI只提交LegalAction，SQL Replay及旧manual快照不变", "图文报告逐卡展示真实状态转换，固定AI十局回归不冒充新卡随机触发；保留复杂重叠unresolved与旧dirty工作树"]
+    },
+    {
+      "id": "codex-cloud-handoff-preparation",
+      "priority": -3,
+      "title": "准备 Codex Cloud 单写者交接与可移植进度",
+      "status": "queued",
+      "depends_on": ["continuous-workflow"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["保留同一分支与 Draft PR #54，准备 Linux 环境和云端接续入口，不自动合并或部署", "仅迁移白名单任务状态，不复制租约、登录信息、生产配置、原始日志或旧测试发布授权", "本机默认继续为唯一写入端；云端在明确切换前只能预检，跨主机 SQLite 不是分布式锁", "云端普通 checkout 可验证，错误分支、关闭 PR、未知任务和不兼容交接必须拒绝", "交接文档列出真实进度、未迁移 dirty 工作树和回退步骤，不宣称云端定时能力已验收"]
+    },
+    {
+      "id": "ci-card-preview-printing-race",
+      "priority": -2,
+      "title": "修复卡面预览选择被异步默认值重置的 CI 失败",
+      "status": "queued",
+      "depends_on": ["continuous-workflow"],
+      "required_profiles": ["control", "web"],
+      "acceptance": ["复现 GHA 40174561978 frontend job 121112341452 的 App.test.tsx:2670 失败，不能只重跑掩盖问题", "异步摘要或详情更新不得覆盖用户已选择的 SR 卡面，切换到另一张卡仍正确初始化", "用可控异步时序增加回归测试，Vitest 和 production build 通过", "同一 Draft PR #54 修复并确认真实 CI 结果，不新开分支、不合并或部署"]
+    },
+    {
+      "id": "ci-clean-runner-temp-parent",
+      "priority": -1,
+      "title": "修复干净 CI runner 的 pytest 临时目录初始化",
+      "status": "queued",
+      "depends_on": ["continuous-workflow"],
+      "required_profiles": ["control", "registry"],
+      "acceptance": ["pytest 前显式创建临时目录父目录", "保持全量测试范围，不添加 skip 或忽略失败", "同一 PR 推送修复并监控真实 GHA 结果"]
+    },
+    {
+      "id": "continuous-workflow",
+      "priority": 0,
+      "title": "建立单分支持续开发、验证与审查流程",
+      "status": "queued",
+      "depends_on": [],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["任务和租约在重启后保留", "重叠运行不能同时写入", "测试失败或过期证据不能发布", "复用固定工作树和唯一 Draft PR", "远程合并和部署仍需明确批准"]
+    },
+    {
+      "id": "legacy-ruleset-source-profile",
+      "priority": 0,
+      "title": "迁移旧 Ruleset 来源档案并固定可移植指纹",
+      "status": "queued",
+      "depends_on": ["continuous-workflow"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["只读核对旧 Phase 6 和 API Play 改动，登记迁移边界", "迁移只读来源档案、规则引用和测试，不改变 MatchState 或 SQLite schema", "PDF hash、来源链接、重复标识和指纹稳定性有真实断言", "未审核 FAQ 不进入当前生效来源，文档不宣称规则门禁已经完成"]
+    },
+    {
+      "id": "legacy-ruleset-match-replay",
+      "priority": 1,
+      "title": "将 Ruleset 身份接入 Match / Replay / Online 兼容性",
+      "status": "queued",
+      "depends_on": ["legacy-ruleset-source-profile", "ruleset-match-replay-binding"],
+      "required_profiles": ["registry", "backend", "web"],
+      "acceptance": ["拒绝未知 Profile，旧请求和旧 Replay 保持兼容", "规则指纹不一致不能宣称重放一致", "不照搬旧 hosted_rooms ALTER TABLE，先采用兼容的序列化状态方案", "验证旧快照、房间、隐藏信息与 Replay 行为", "剩余子项：等待加入的房间在创建时固定 Ruleset，创建到加入期间版本改变必须明确拒绝；独立设计持久化，不把版本信息混进 decklist"]
+    },
+    {
+      "id": "ruleset-match-replay-binding",
+      "priority": 0,
+      "title": "固定 Match 规则身份并拒绝不兼容的操作和回放重执行",
+      "status": "queued",
+      "depends_on": ["legacy-ruleset-source-profile"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["新 Match 保存 profile/fingerprint/ruling pack，未知或非当前 Profile 在写入前拒绝，旧请求不变", "旧 snapshot 不补写字段或改变 hash，旧规则身份未固定的状态明确标 legacy_unpinned", "指纹不一致的状态只读导出，不能调用引擎或宣称 Replay 重新验证成功，非法操作不改变 runtime", "兼容性 helper 比较三个新身份字段，现有 active room 双方保留隐藏信息边界", "中日只读提示、专项状态与 SQL Replay、固定 AI 回归；不修改 SQLite schema，不宣称等待房间已固定版本"]
+    },
+    {
+      "id": "legacy-core-matrix-and-end-phase",
+      "priority": 1,
+      "title": "选择性迁移核心规则矩阵与 End Phase 重复检查",
+      "status": "queued",
+      "depends_on": ["legacy-ruleset-match-replay", "live-judgment-boundary-matrix-expansion"],
+      "required_profiles": ["registry", "backend", "web"],
+      "acceptance": ["依据固定 PDF 复核 8.4.10-12 行为并增加真实状态转换与 Replay 断言", "迁移至少 75 个核心场景及 20 个 Live 边界，区分契约检查和行为测试", "用当前 1212 条 registry 重算 unresolved reason，不覆盖旧卡库统计", "保留原工作树及报告，不搬运旧版本的通过声明"]
+    },
+    {
+      "id": "live-judgment-boundary-matrix-expansion",
+      "priority": 1,
+      "title": "扩展20项Live得分边界并区分规则解释待审与实现回归",
+      "status": "queued",
+      "depends_on": ["legacy-ruleset-match-replay"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["选择性迁移旧Live矩阵至20项，显式完整预期、真实成功区/控室清理与原生Action/SQLite Replay逐项通过", "固定PDF hash和逐项规则引用，8.4.7.1区域措辞与既有Match Point解释差异明确待审，不修改引擎或宣称裁定完成", "合成技能fixture不计入官方技能覆盖；工程契约和规则行为分开，旧58+20不能冒充75项已完成核心规则", "更新中日README/Changelog及中文报告，registry仍900/1212、312manual，不改Card/SQL schema或旧工作树"]
+    },
+    {
+      "id": "legacy-api-play-comparison",
+      "priority": 1,
+      "title": "核对并选择性迁移 API Play 普通行动与成本分支测试",
+      "status": "queued",
+      "depends_on": ["continuous-workflow"],
+      "required_profiles": ["registry", "backend", "web"],
+      "acceptance": ["对比旧分支 16 个提交及 6 个未提交文件，不全量合并", "只迁移当前缺少的普通 LegalAction comparison 或成本分支语义", "默认 mock，不调用付费模型；不得泄露对手隐藏手牌", "registry 改动必须精确文本绑定并有状态转换和 Replay 测试"]
+    },
+    {
+      "id": "legacy-cost-result-branch",
+      "priority": 1,
+      "title": "复核并迁移 PL!-bp5-003:2 的弃牌成本结果分支",
+      "status": "queued",
+      "depends_on": ["legacy-api-play-comparison"],
+      "required_profiles": ["registry", "backend", "web"],
+      "acceptance": ["以当前文本 revision/hash 复核旧工作树原型，不覆盖已修正的 effect index 1 常时技能", "由实际支付的弃牌决定 μ's inspect4/选2 或其他作品控室 Live 回收，玩家不能伪选分支", "费用/选择验证原子性、分支 inspection、Replay 和隐藏信息均有状态断言", "仅在前后端和 Simple AI 均能处理后提升准确绑定的 entry，否则保留 manual 并记录原因"]
+    },
+    {
+      "id": "legacy-baton-hand-deploy-audit",
+      "priority": 1,
+      "title": "重新核对旧 PR Member 手牌登场原型的规则边界",
+      "status": "queued",
+      "depends_on": ["legacy-cost-result-branch"],
+      "required_profiles": ["registry", "backend", "web"],
+      "acceptance": ["重新核对 PL!-PR-015:1 与 PL!SP-PR-020:1 的当前 exact-text/hash，不继承旧提交的 executable 标签", "核对 Baton 原 Member cost、手牌 Member cost 上限、目标区域限制和重复登场触发", "只有具备状态转换、Replay 和 AI 合法选择验收才提升，否则保留 manual 并记录 unresolved reason", "不复制旧 registry/manifest，不修改原工作树"]
+    },
+    {
+      "id": "effect-empty-deployment-active-ui-ai",
+      "priority": 0,
+      "title": "修正明确空区域登场的 Active 朝向及 UI/AI 位置选择",
+      "status": "queued",
+      "depends_on": ["legacy-baton-hand-deploy-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["六条明确空区域登场技能显式指定 Active，不改变旧快照缺省 Wait", "位置选择由 legal payload 暴露并被 UI、三种 AI policy 与 deterministic sandbox 使用", "逐条验证来源/费用/触发、非法位置原子性和 Replay，补前端位置提交测试", "四条未限定空区域的虹咲技能退回 manual，明确尚待 occupied-area 支持，不虚标覆盖率"]
+    },
+    {
+      "id": "member-entry-current-area-history",
+      "priority": 0,
+      "title": "按 Member 卡牌身份追踪本回合 Stage 入场及当前区域限制",
+      "status": "queued",
+      "depends_on": ["effect-empty-deployment-active-ui-ai"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["依据 9.6.2.1.2.1 与 4.5.5.3，限制随本回合从 Stage 外进入的 Member 卡移动，包含附属 Member；空出的旧区域不继续被错误锁定", "普通登场、效果登场、多人选择、手动入场和外部附属 Member 路径登记身份，Stage 内移动不伪记新入场", "新对局启用身份记录，旧快照缺省保留原区域历史语义，不增加 SQLite migration", "真实 Position / Formation / Baton / 附属卡与费用回滚、Replay、隐藏信息及 AI 选择测试通过，不提升尚未完成的技能覆盖", "将附属卡登场触发等需要额外规则复核的语义独立登记，不凭推测推广"]
+    },
+    {
+      "id": "attachment-promotion-trigger-audit",
+      "priority": 1,
+      "title": "独立复核附属 Member 转为顶部 Member 的登場触发与计数",
+      "status": "queued",
+      "depends_on": ["member-entry-current-area-history"],
+      "required_profiles": ["registry", "backend", "web"],
+      "acceptance": ["以 4.5.5 / 11.4.2 和 PL!-bp6-003:2 的精确文本复核附属卡登场，不能把 Stage 内转移当作 Stage 外入场", "复核此前 attachment_promotion_onplay_trigger_and_entry_count_requires_rules_audit，修正有依据的行为但不升级人工 reviewed 标签", "真实状态对比登場触发、own_member_played、进入次数与后续区域限制，必要时修正或降级，不虚标支持", "新旧技能 snapshot 独立于区域历史版本；Replay、UI/AI 与隐藏信息均验证后才能并入通用效果登场底座"]
+    },
+    {
+      "id": "multi-player-member-entry-trigger-audit",
+      "priority": 0,
+      "title": "修复多人控室登場漏发 Member 登場事件并审计结算顺序",
+      "status": "queued",
+      "depends_on": ["attachment-promotion-trigger-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["复现真实登记 PL!-pb1-018:1 的 multi_player_deploy_waiting_member：目标已进入但 onplay / own_member_played 未触发，受控两项抽牌实际0期望2", "依据固定 PDF 9.5.3 / 9.6 / 11.4.2 确认双方选择、当前效果结束与后续自动能力顺序，不在费用或选择中间错误结算", "外部控室来源仍按确切卡文指定朝向并登记身份；新旧 snapshot 使用明确兼容边界，不改变历史 Replay", "双方真实选择、optional / 无目标、原子回滚、Replay、三种AI和双方隐藏信息均有状态断言；不把此修复扩大为未审复杂多目标裁定"]
+    },
+    {
+      "id": "effect-occupied-deployment-foundation",
+      "priority": 0,
+      "title": "建立受控的已有 Member 区域效果登場底座",
+      "status": "queued",
+      "depends_on": ["multi-player-member-entry-trigger-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["新增独立 deploy_selected_to_stage，仅支持单个手牌/控室 Member、显式朝向且没有后续操作，不改变旧 empty-stage snapshot", "合法区域遵守当前 Member 入场身份限制；简单区域覆盖清理旧 Member 和附属卡，Energy 回能量牌库，不伪造 Baton", "覆盖目标中的复杂观察者、常时/替换、继承和条件离场效果明确拒绝并报告 unresolved reason，不猜测临时重叠场面", "真实状态断言覆盖费用回滚、登場和简单离场触发、当前区域历史、Replay、三种AI和双方隐藏信息，前端继续提交现有 card/slot", "本切片不提升六条尚待逐卡验证的手动登记；父任务继续追踪完整重叠时点与技能适配"]
+    },
+    {
+      "id": "energy-deck-return-replay-orientation",
+      "priority": 0,
+      "title": "修复 Energy 回能量牌库时空朝向导致的 Replay 读取失败",
+      "status": "queued",
+      "depends_on": ["effect-occupied-deployment-foundation"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["复现 PL!SP-bp5-111:2 与 PL!SP-pb2-010:1 的 move_selected_energy_to_energy_deck 写入 orientation=None，CardInstance 重新读取拒绝 None", "以真实费用/分支、runtime SQLite 重放和 JSON round-trip 修正，不修改 Card Schema 或 SQLite schema", "新旧快照边界和历史已损坏记录显式说明，不伪称旧 Replay 能正常重放", "旧技能登记逐项复核，必要时降级或显式新策略，不能用改测试预期掩盖错误"]
+    },
+    {
+      "id": "effect-overlap-trigger-and-private-choice",
+      "priority": 1,
+      "title": "复核完整重叠检查时点及手牌目标可选零张",
+      "status": "queued",
+      "depends_on": ["effect-occupied-deployment-foundation", "effect-private-filtered-hand-choice", "overlap-fixed-draw-entry-observer", "pending-effect-apnap-choice", "overlap-fixed-energy-entry-observer", "overlap-source-blade-observer", "stage-departure-modifier-cleanup", "third-entry-counter-observer", "overlap-disjoint-source-timings"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["依据 10.1.2/10.4.1/9.7 与 9.6.3.1.4 处理临时重叠、离场观察者、继承及手牌可视性边界", "不得仅把两个 Member 覆盖为一个就宣称所有触发正确；仍不能确认的语义保持能力边界和 unresolved reason", "支持非公开手牌选择零张时的原生UI/AI/费用结果，不把私有筛选等同公开必选目标", "只有逐卡真实状态/Replay/三policy/UI验收后才提升两张PR卡与四条虹咲登记，父任务未完成前不恢复旧标签"]
+    },
+    {
+      "id": "overlap-disjoint-source-timings",
+      "priority": 0,
+      "title": "区分效果覆盖中旧 Member 的无关自身时点与真正观察者",
+      "status": "queued",
+      "depends_on": ["effect-occupied-deployment-foundation", "effect-private-filtered-hand-choice"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["依据9.7.2/10.1.2/10.4.1/11.4.2，以显式operation snapshot策略识别旧Member的自身登場、起動、Live开始/成功与另一Member入场互不相关，不触发/支付旧技能", "未知、复合、常时、真正入场/离场观察者、附属技能及入场条件继续保留原拒绝原因", "旧operation省略新策略，保留序列化/hash和保守行为，不改MatchState或SQLite schema", "真实卡库定义的旧Member、费用/区域/附属清理、SQLite Replay、四AI策略和双方隐私有真实断言；固定Human-vs-AI/AI-vs-AI回归", "六条待审登场技能仍manual，不将受控AUDIT底座测试称为新增卡牌支持或完整重叠调度器"]
+    },
+    {
+      "id": "effect-private-filtered-hand-choice",
+      "priority": 0,
+      "title": "补齐受控效果登場的非公开手牌零目标选择",
+      "status": "queued",
+      "depends_on": ["effect-occupied-deployment-foundation"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["依据 PDF 9.6.3.1.4 新增显式 snapshot 选择策略，仅限己方非公开手牌按 Member 信息筛选的单卡效果登場，不改变旧 snapshot 或公开必选目标", "有符合卡仍能明确选零张；已支付费用不退回、不重复支付，不接受无目标时伪造区域、非法卡或费用", "真实状态、无目标/无合法区域、旧 Replay、三policy、手牌隐私及前端零张/单张提交均通过", "不恢复六张尚未完整审计的卡牌登记；复杂重叠、离场及继承时点由父任务继续跟踪，不改 Card/SQLite schema"]
+    },
+    {
+      "id": "overlap-fixed-draw-entry-observer",
+      "priority": 0,
+      "title": "修复重叠清理前已触发的固定抽牌登場观察者",
+      "status": "queued",
+      "depends_on": ["effect-private-filtered-hand-choice"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["真实 PL!N-pb1-005:1 在被 cost10 Member 普通替换时仍抽1，Baton 费用离场对照不触发", "新增 None 省略的 MatchState 策略，新建对局启用、旧 snapshot/Replay 保持历史行为，不升级 SQLite", "受控效果登場只扩展固定 draw 且仅用入场卡不可变信息的观察者；复杂条件/继承/常时仍明确拒绝，不冒充完整重叠调度", "非法原子性、次数限制、真实状态/Replay、三policy、隐藏信息与新旧 API 创建均有回归，六张待审卡仍 manual，中文报告和规则引用齐全"]
+    },
+    {
+      "id": "pending-effect-apnap-choice",
+      "priority": 0,
+      "title": "按 AP/NAP 暴露待机能力顺序并锁定多阶段结算",
+      "status": "queued",
+      "depends_on": ["overlap-fixed-draw-entry-observer"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["依据 PDF7.2/9.5.3/9.7.3，新对局在同一玩家有多个待机效果时显式选顺序，不抢先自动执行；AP优先且每次重检，公共Live阶段以先攻为AP", "已开始的费用/分支/检查/多人选择必须先完成，不允许 resolve/skip/manual 绕过；LegalAction只暴露当前可处理组", "新旧快照/Replay 独立策略，无runtime SQL升级；三种AI与前端继续从原生resolve_effect提交，不使用ManualAdjustment冒充排序", "顺序影响真实抽牌结果、非法原子性、双方视角和固定AI回归均验证，六张待审卡不晋级，中文报告明确不代表完整重叠与规则处理调度"]
+    },
+    {
+      "id": "overlap-fixed-energy-entry-observer",
+      "priority": 0,
+      "title": "保留鐘嵐珠重叠清理前已触发的固定 Wait Energy 补充",
+      "status": "queued",
+      "depends_on": ["pending-effect-apnap-choice"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["实际 PL!N-pb1-012:1 普通 cost11 替换后从Energy Deck顶部放置1张Wait Energy，Baton先离场和自身登場对照不触发", "显式新 overlap policy 保留None及旧fixed-draw快照的Replay；不新增SQL迁移，不提升registry状态", "费用不足/非法选择原子拒绝，次数限制、空Energy Deck及附属Energy先返回后供技能使用有真实状态断言，已待机但耗尽时必须显式记录未执行原因", "受控效果登場、AP/NAP续步、真实SQL Replay、三种AI和双方隐藏信息通过；仍不支持复杂条件/继承，六卡manual与父任务保留，中文报告齐全"]
+    },
+    {
+      "id": "overlap-source-blade-observer",
+      "priority": 0,
+      "title": "区分中心观察者的已触发能力与离场前自身对象",
+      "status": "queued",
+      "depends_on": ["overlap-fixed-energy-entry-observer"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["依据PDF11.7.3/9.7.7/4.1.4，实际PL!HS-pb1-009:1在中心普通替换时保留已触发能力，但不向控室或重新入场的同ID卡泄漏Blade加成", "显式受控operation snapshot policy仅覆盖固定自身Live Blade观察者；旧effect snapshot省略None并保留旧Replay，不提升registry计数或reviewed", "中心留场/自身登場/侧区/非蓮ノ空/Baton/两次限制与费用非法原子性有真实状态对照，捕获的来源区域不读取已清理的Stage", "原生UI说明未执行原因；实际SQL Replay、三种AI、隐藏信息、固定10局回归及全部profile通过，复杂继承与一般条件时点仍由父任务保留"]
+    },
+    {
+      "id": "stage-departure-modifier-cleanup",
+      "priority": 0,
+      "title": "清除离开 Stage 的卡牌既有临时加成",
+      "status": "queued",
+      "depends_on": ["overlap-source-blade-observer"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["依据 PDF4.1.4/9.9.2，普通替换、Baton、受控效果登場和手动离场清除旧卡及一同离场附属卡的定向modifier，Stage内移动与非定向加成不清除", "新建对局显式启用策略，旧None快照省略字段并保持历史Replay，不升级Card或SQLite schema", "真实花帆先获Blade再离场回场、跨玩家modifier、非法原子性、SQL Replay、三policy及隐藏信息有断言，固定10局回归通过", "事件以简短中日说明记录清理数量，不输出完整modifier或私有牌面；不提升registry状态、不宣称全部离场路径或继承已完成"]
+    },
+    {
+      "id": "third-entry-counter-observer",
+      "priority": 0,
+      "title": "按实际第3次登場触发补手牌并保存触发时计数",
+      "status": "queued",
+      "depends_on": ["stage-departure-modifier-cleanup"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["实际PL!N-bp3-005:1只在本回合第3次外部登場触发，第1/2/4/5次与第3次之后才入场不误触发", "以显式新condition快照冻结触发计数和来源Stage资格，普通替换已触发可继续、Baton费用先离场不触发，旧effect snapshot保持历史Replay", "正常/自身/受控效果登場、多能力顺序与延后离场、实际SQL Replay、非法原子性、三policy与隐藏信息均有断言", "精确候选/registry/manifest同步，不新增或晋级entry；完整profile及固定10局回归通过，中文报告明确不代表继承或完整瞬时场面支持"]
+    },
+    {
+      "id": "effect-deployment-rule-conformance",
+      "priority": 1,
+      "title": "补齐效果登场的合法区域、朝向、UI 和 AI 选择",
+      "status": "queued",
+      "depends_on": ["member-entry-current-area-history", "attachment-promotion-trigger-audit", "multi-player-member-entry-trigger-audit", "effect-occupied-deployment-foundation", "effect-overlap-trigger-and-private-choice"],
+      "required_profiles": ["registry", "backend", "web"],
+      "acceptance": ["依据 PDF 4.3.2.3、9.6.2.1.2、9.6.2.4.2.1 和 10.4 新增或修正效果登场语义，不能把所有登场限制为空区域并默认 Wait", "区域限制按本回合入场 Member 当前所在位置计算，覆盖 Position / Formation 后的合法性，旧快照字段兼容且不新增 SQLite migration", "空区域和可替换已有 Member 的区域均能选择，正确处理重复 Member、附属卡清理及登場/离场触发，不冒充 Baton", "前端和三种 AI policy 都从 legal payload 选择 Member 与位置，包含非法目标回滚、Replay 和双方隐藏信息测试", "只在真实状态断言通过后提升 PL!-PR-015:1 与 PL!SP-PR-020:1；同时复核当前 10 条 empty-stage executable 并逐条记录保留/修正/降级原因，不虚标覆盖率"]
+    },
+    {
+      "id": "legacy-worktree-reconciliation",
+      "priority": 1,
+      "title": "迁移旧工作树中尚未收口的 Phase 6 / API Play 成果",
+      "status": "queued",
+      "depends_on": ["legacy-ruleset-source-profile", "legacy-ruleset-match-replay", "legacy-core-matrix-and-end-phase", "legacy-api-play-comparison", "legacy-cost-result-branch", "legacy-baton-hand-deploy-audit", "effect-deployment-rule-conformance"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["逐项对比工作树清单，不直接合并旧实验", "保留未提交改动及 ignored 报告", "只迁移当前主线缺少且已测试的实现", "更新唯一分支清单，不新增长期分叉"]
+    },
+    {
+      "id": "ai-long-game-reliability",
+      "priority": 0,
+      "title": "降低新卡池 AI 长局与 Live 获取停滞",
+      "status": "queued",
+      "depends_on": ["continuous-workflow", "ai-live-set-resource-cycle"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["先固定seed12004的19回合与12005/12009单边零成功Live归因，再复核2026-10的旧50局中16个action-cap案例；不得把旧policy结果冒充当前基线", "固定牌组和 seed 比较，保持隐藏手牌独立性", "50 局至少 45 局正式完赛，illegal action / replay error / silent skip 均为零", "保留旧 policy 和中文策略报告，未达目标时如实记录"]
+    },
+    {
+      "id": "ai-live-set-resource-cycle",
+      "priority": 0,
+      "title": "加入独立AI v1.2富余Member换牌策略与整局行动上限",
+      "status": "queued",
+      "depends_on": ["continuous-workflow"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["固定PDF8.2.2/8.2.4/10.5.1：无Live时只从合法己方手牌设置最多3张富余Member，保留至少2张Member，不读取牌库顺序或对手手牌", "simple_ai_v1_2独立可选并继承v1.1保护逻辑，默认与旧policy不变，原生Action/补抽/公开清理/Replay有真实断言", "验收工具显式policy，AI-vs-AI按整局已执行AI动作限制初始与后续推进，不能将八批次各自上限冒充整局cap；human-vs-ai保留human driver上限，非法异常/陈旧revision/错误skip不得判通过", "固定相同20Deck池对照10局与50局，记录合法循环数量/长局/零Live与真实Replay，不强行伪造双方成功；中日文案与中文策略报告齐全"]
+    },
+    {
+      "id": "live-success-selected-member-blade-comparison",
+      "priority": 0,
+      "title": "按真实触发复核虹咲Live成功时的跨Stage Blade比较",
+      "status": "queued",
+      "depends_on": ["ai-long-game-reliability"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["从冻结30Deck的seed9008/9029三次实际manual触发复现PL!N-bp7-027:1，按当前日文原文/revision/hash精确绑定", "选择己方虹咲Member后比较双方Stage其他全部Member的有效Blade，必须严格大于而不是大于等于；加分仅属于来源Live并在成功时/比较胜者前结算", "无符合Member、相等、更低、对手更高、临时Blade、多个Live与非法目标均有真实状态/回滚/Replay/隐私和v1.2选择断言；不凭猜测处理FAQ敏感边界", "用同一冻结牌组和seed做block模式回归，去掉对应manual blocker后才提升test_validated；记录原文和中文报告，不自动提升reviewed"]
+    },
+    {
+      "id": "activated-wait-draw-exact-text",
+      "priority": 1,
+      "title": "精确适配新卡的自身Wait抽牌与抽后弃牌起动能力",
+      "status": "queued",
+      "depends_on": ["continuous-workflow"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["按固定PDF9.4/9.5与真实日文revision/hash，适配PL!SP-bp7-008:1和PL!N-bp7-023:1；只用已有Wait费用/抽牌/后续手牌选择，不新增模糊匹配", "无回合次数标记的能力不能擅加turn1限制；已有Wait不能支付，Main之外/对手回合不能发动；抽后弃牌能选刚抽到的牌，非法提交不重复抽或支付", "两卡逐项真实状态、SQL Replay、旧manual snapshot、四AI policy、双方隐藏信息与原生UI后续选择契约验证；已测试才提升test_validated，不提升reviewed", "固定AI及针对性技能回归、中日README/Changelog、中文卡图报告、manifest和全部profile通过；重叠/继承六卡仍manual，旧dirty工作树不改"]
+    },
+    {
+      "id": "activated-energy-inspect4-reorder",
+      "priority": 1,
+      "title": "精确适配支付Energy检查并完整重排牌堆顶4张",
+      "status": "queued",
+      "depends_on": ["continuous-workflow", "activated-wait-draw-exact-text"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["按实际卡文/revision/hash精确适配PL!N-bp7-006:1，仅用已有Energy费用和inspect/reorder，不冒充draw或允许任意弃置", "自己Main、Active Energy、turn1限制正确；费用只支付一次，查看不公开、不加入手牌，全量重排且非法/重复/缺失ID原子拒绝", "不足4张、牌库刷新与空库有真实断言，SQLite Replay、新旧manual snapshot、四AI、双方隐藏信息与原生排序UI契约通过", "中文卡图报告、固定AI及全部profile通过，manifest同步；四季移动复原保留source_object_departure_reentry_requires_review，不宣称重叠/继承完成"]
+    },
+    {
+      "id": "player-payload-deck-privacy-audit",
+      "priority": 0,
+      "title": "审计玩家响应牌库身份与历史ID关联并修复泄露路径",
+      "status": "queued",
+      "depends_on": ["activated-energy-inspect4-reorder"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["先复现完整MatchPayload的main_deck/card map与历史ID关联，不只检查私有pending选项；按PDF公开/隐藏区域记录依据", "REST/SSE/重连历史玩家视角不泄露未知牌身份与私有重排顺序，保留明确公开reveal与原始Replay", "本地轮流操作和四AI不受破坏，对手/牌库隐藏身份替换不影响可见响应或决策，真实状态/Replay/UI回归通过", "不改Card/SQLite schema，不合并部署；无法在有限范围确认的边界明确报告"]
+    },
+    {
+      "id": "moved-source-original-stage-ready",
+      "priority": 1,
+      "title": "固定移动触发来源对象并精确适配四季Wait移动复原",
+      "status": "queued",
+      "depends_on": ["activated-wait-draw-exact-text", "pending-effect-apnap-choice", "stage-departure-modifier-cleanup"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["依据PDF4.1.4/9.7.7/11.10/11.11及实际PL!SP-bp7-008:2精确文本，只处理Wait顶层来源移动后自身ready，不扩展继承或任意目标DSL", "显式operation snapshot policy保留原Stage对象，触发后离场/同ID再入场不ready新对象但正常结束并记录原因，Stage内再移动不误判离场", "支付/次数/非法Action原子性、Position/Formation/manual move、正常替换/Baton/效果离场、旧manual和旧无policy Replay、SQLite/四AI/隐私及中日结果提示有定向断言", "中文卡图报告、固定10局AI、全部profile与manifest通过后才将该段提升test_validated；不提升reviewed，六条重叠卡与父任务继续保留"]
+    },
+    {
+      "id": "overlap-complete-public-source-binding",
+      "priority": 0,
+      "title": "补重叠登场公开来源完整绑定与未知能力安全门禁",
+      "status": "queued",
+      "depends_on": ["overlap-disjoint-source-timings", "moved-source-original-stage-ready"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["先复现入场/附属/其他公开来源的未绑定技能被当作无技能，记录PDF9.3.4/9.7.2/10.1.2/10.4.1依据", "显式operation策略在已有Member区域登场前核对双方Stage及表向Live有效来源全文和identity，未知/常时/继承/未支持跨玩家时点拒绝且不支付费用", "保留旧operation和Replay行为，真实状态/SQL Replay/四AI/隐藏信息及中日UI限制说明有断言", "不晋级六张重叠卡，不改Card/SQL schema或旧dirty工作树，固定AI及全部profiles通过，只更新Draft PR54"]
+    },
+    {
+      "id": "live-start-named-chisato-selected-blade",
+      "priority": 0,
+      "title": "精确适配Live开始时指定姓名一人获得临时Blade",
+      "status": "queued",
+      "depends_on": ["moved-source-original-stage-ready", "overlap-complete-public-source-binding"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["按实际PL!SP-bp7-025:1全文/revision/hash绑定，不模糊姓名匹配、不把一人解释为所有或自动取第一张", "真实Live开始入队、合法目标显式选择、多份同名/Wait/对手/附属/手牌排除、零目标明确结果、非法目标原子性和Live清理有状态断言", "旧manual snapshot及SQLite Replay、四AI/双方隐藏信息与既有UI选择契约验证；新增图文状态场景与固定10局AI回归", "六条复杂登场继续逐项登记临时场面/继承未解决原因，不晋级；只将此段在专项通过后标test_validated，更新manifest和中日文档，同一Draft PR54不合并部署"]
+    },
+    {
+      "id": "named-multi-member-selection-audit",
+      "priority": 0,
+      "title": "审计两个姓名分别获得加成时的自动首目标选择",
+      "status": "queued",
+      "depends_on": ["live-start-named-chisato-selected-blade"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["先用实际PL!SP-bp1-024:1和PDF9.6.3.1复现同名多份自动选第一张的风险，不只检查候选字段", "有界实现两姓名独立选择与部分姓名无目标的结算，或证据不足时降级manual并明确原因；不得套用单目标policy伪造支持", "Heart/Blade选中目标一致，目标出现/离场/Live清理、非法选择原子性、旧snapshot/SQL Replay/四AI/隐藏信息和原生UI均有断言", "更新中文卡图报告、当前真实覆盖率和manifest，固定AI与全部profile通过，同一Draft PR54不合并部署"]
+    },
+    {
+      "id": "live-start-discard2-choose-heart",
+      "priority": 0,
+      "title": "精确适配Live开始弃两张手牌选择颜色获得两颗Heart",
+      "status": "queued",
+      "depends_on": ["continuous-workflow"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["用实际PL!N-sd2-005:1全文/revision/hash复现manual，精确登记既有弃手牌费用/颜色选择/自身Heart操作，不扩展重叠或继承", "Live开始、可选拒绝、费用恰好2张且只支付一次、六种颜色、非法颜色/重复费用原子拒绝、手牌不足和期限/来源离场均有状态断言", "新旧快照及SQLite Replay、四AI/隐藏信息、原生费用与颜色同次确认UI通过，图文报告和固定10局AI不冒充本卡随机实战覆盖", "全部profile及manifest/pre-push通过后才晋级test_validated；六条重叠卡保留temporary_overlap_stage_view_and_inheritance_unresolved，父任务未完成，不合并部署"]
+    },
+    {
+      "id": "live-start-wait-nijigasaki-source-bonus",
+      "priority": 0,
+      "title": "适配Live开始选择虹咲Member作Wait费用获得自身加成",
+      "status": "queued",
+      "depends_on": ["live-start-discard2-choose-heart"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["按实际PL!N-sd2-006:1与PL!N-bp7-012:1全文/revision/hash绑定，精确选择己方Active虹咲Member一人Wait作费用，拒绝可选能力不支付", "Blade+2或六色Heart+1只给原来源Member而非费用目标；费用目标为来源自身时合法，Wait Member不贡献Yell，来源离场/同ID回场不继承加成", "实际Live触发、非法目标/费用/颜色原子性、Live清理、新旧snapshot/SQL Replay、四AI/隐私与原生UI有断言；固定10局和图文报告不冒充随机触发覆盖", "全部profile/manifest/pre-push通过才晋级test_validated，不提升reviewed；六条重叠/继承卡保持manual，原dirty工作树不改，同一Draft PR54不合并部署"]
+    },
+    {
+      "id": "effect-accuracy-loop",
+      "priority": 3,
+      "title": "按实际触发与规则风险扩展技能支持",
+      "status": "queued",
+      "depends_on": ["continuous-workflow"],
+      "required_profiles": ["registry", "backend", "web"],
+      "acceptance": ["从执行时实际 manual 集合中按真实触发次数选择安全语义家族（当前队列基线 313 条）", "每次最多一个语义家族，有真实状态转换和 replay 测试", "strict integrity 保持零错误零警告", "跑固定 AI 审计及针对性 sandbox，输出中文报告", "FAQ-sensitive / unknown 无法确认时记录原因并转向下一项，不虚标 executable"]
+    },
+    {
+      "id": "phase6-conformance-matrix",
+      "priority": 4,
+      "title": "继续 v0.9 Ruleset 与核心规则矩阵门禁",
+      "status": "queued",
+      "depends_on": ["legacy-worktree-reconciliation"],
+      "required_profiles": ["registry", "backend", "web"],
+      "acceptance": ["先复核旧工作树中的 Ruleset / matrix 实际进度", "最终核心规则矩阵至少 75 场景、Live 边界至少 20 场景", "每项保留 PDF hash 与规则引用，报告实现限制", "旧 replay 不伪装为新规则一致，保持现有 API 和 runtime schema 兼容"]
+    }
+  ]
+}

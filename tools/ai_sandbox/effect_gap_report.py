@@ -17,13 +17,23 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from loveca.simulation.effect_candidates import (
+    BATON_LOWER_COST_HAND_DEPLOY_TEXT,
+    MULTI_KEEP_ICON_SCOPE_REASON,
+    MULTI_KEEP_ICON_SCOPE_TEXT,
+)
 from loveca.simulation.effects import (
     DEFAULT_EFFECT_REGISTRY,
     EffectDefinition,
     load_effect_registry,
 )
+from tools.ai_sandbox.effect_observations import METRICS, load_observations, merge_observations
 
-GAP_REPORT_SCHEMA_VERSION = "effect_gap_report_v0.2"
+GAP_REPORT_SCHEMA_VERSION = "effect_gap_report_v0.3"
+UNRESTRICTED_NAMED_HAND_DEPLOY_TEXTS = frozenset(
+    f"【登場】【E】【E】支払ってもよい：手札からコスト4以下の「{name}」のメンバーカードを1枚ステージに登場させる。"
+    for name in ("上原歩夢", "桜坂しずく", "宮下 愛", "ミア・テイラー")
+)
 
 
 @dataclass
@@ -41,6 +51,10 @@ class EffectGapGroup:
     actual_trigger_count: int
     unresolved_reason: str
     suggested_next_step: str
+    optional_decline_count: int = 0
+    explicit_error_skip_count: int = 0
+    manual_blocker_count: int = 0
+    legacy_skip_count: int = 0
 
 
 def main() -> int:
@@ -52,13 +66,17 @@ def main() -> int:
     parser.add_argument("--output", type=Path, default=Path("logs/effect_gap_report"))
     parser.add_argument("--top", type=int, default=50)
     parser.add_argument(
+        "--event-trace", type=Path, action="append", default=[],
+        help="Current event observations or action traces; never infer triggers from skip totals.",
+    )
+    parser.add_argument(
         "--sandbox-summary",
         type=Path,
         action="append",
         default=[],
         help=(
             "Optional blackbox sandbox-summary.json. May be supplied more than once; "
-            "skipped effect counts are combined and used as observed trigger frequency."
+            "legacy skipped counts are retained separately, never treated as triggers."
         ),
     )
     args = parser.parse_args()
@@ -66,7 +84,8 @@ def main() -> int:
     report = build_effect_gap_report(
         registry_path=args.registry,
         database_path=args.database,
-        actual_trigger_counts=load_actual_trigger_counts(args.sandbox_summary),
+        effect_observations=load_observations(args.event_trace),
+        legacy_skip_counts=load_legacy_skip_counts(args.sandbox_summary),
         top=max(1, args.top),
     )
     write_gap_outputs(args.output, report)
@@ -79,6 +98,8 @@ def build_effect_gap_report(
     registry_path: Path = DEFAULT_EFFECT_REGISTRY,
     database_path: Path | None = None,
     actual_trigger_counts: dict[str, int] | None = None,
+    effect_observations: dict[str, dict[str, int]] | None = None,
+    legacy_skip_counts: dict[str, int] | None = None,
     top: int = 50,
 ) -> dict[str, Any]:
     registry = load_effect_registry(registry_path)
@@ -91,8 +112,15 @@ def build_effect_gap_report(
         for effect in registry.effects
         if effect.simulation_support == "test_validated_executable"
     ]
-    observed_counts = actual_trigger_counts or {}
-    groups = group_manual_effects(manual_effects, card_types, observed_counts)
+    observations = merge_observations([effect_observations or {}])
+    observed_counts = (
+        {key: value.get("triggered", 0) for key, value in observations.items()}
+        if effect_observations is not None else actual_trigger_counts or {}
+    )
+    groups = group_manual_effects(
+        manual_effects, card_types, observed_counts, observations, legacy_skip_counts,
+    )
+    manual_ids = {effect.effect_id for effect in manual_effects}
     trigger_counts = Counter(effect.trigger for effect in manual_effects)
     timing_counts = Counter(effect.timing for effect in manual_effects)
     card_type_counts = Counter(card_types.get(effect.card_code, "unknown") for effect in manual_effects)
@@ -109,14 +137,52 @@ def build_effect_gap_report(
         "manual_by_trigger": dict(trigger_counts.most_common()),
         "manual_by_timing": dict(timing_counts.most_common()),
         "manual_by_card_type": dict(card_type_counts.most_common()),
-        "actual_trigger_samples": sum(observed_counts.values()),
+        "actual_trigger_samples": sum(
+            value for key, value in observed_counts.items() if key in manual_ids
+        ),
+        "observation_totals": {
+            metric: sum(
+                row.get(metric, 0) for key, row in observations.items() if key in manual_ids
+            ) for metric in METRICS
+        },
+        "legacy_skip_samples": sum(
+            value for key, value in (legacy_skip_counts or {}).items() if key in manual_ids
+        ),
+        "observation_semantics": (
+            "triggered=engine effect_triggered queue events only, "
+            "not proof of official conditions or resolution; "
+            "decline/skip/blocker are separate; legacy skips provide no trigger evidence"
+        ),
         "top_manual_patterns": [asdict(group) for group in groups[:top]],
+        "executable_audit_warnings": [
+            {
+                "effect_id": effect.effect_id,
+                "card_code": effect.card_code,
+                "reason": "deploy_orientation_unspecified_uses_legacy_wait_default",
+                "rule_clauses": ["4.3.2.3"],
+            }
+            for effect in executable_effects
+            if any(
+                operation.action_type == "deploy_selected_to_empty_stage"
+                and operation.orientation is None
+                for operation in effect.actions
+            )
+        ],
     }
 
 
 def load_actual_trigger_counts(summary_paths: list[Path]) -> dict[str, int]:
-    """Combine observed skipped-effect counts from deterministic sandbox reports."""
+    """Legacy compatibility API: returns skipped counts, NOT actual trigger evidence.
 
+    New CLI/report code labels these as legacy_skip_samples. Use load_observations
+    for actual trigger counts; keep this function for existing offline consumers.
+    """
+
+    return load_legacy_skip_counts(summary_paths)
+
+
+def load_legacy_skip_counts(summary_paths: list[Path]) -> dict[str, int]:
+    """Read historical skip evidence without relabeling it as triggers."""
     counts: Counter[str] = Counter()
 
     def add_skipped_items(items: object, *, source: Path) -> None:
@@ -169,6 +235,8 @@ def group_manual_effects(
     effects: list[EffectDefinition],
     card_types: dict[str, str],
     actual_trigger_counts: dict[str, int] | None = None,
+    observations: dict[str, dict[str, int]] | None = None,
+    legacy_skip_counts: dict[str, int] | None = None,
 ) -> list[EffectGapGroup]:
     observed_counts = actual_trigger_counts or {}
     grouped: dict[tuple[str, str, str, str, str], list[EffectDefinition]] = defaultdict(list)
@@ -210,6 +278,21 @@ def group_manual_effects(
                     label_ja,
                 ),
                 suggested_next_step=suggest_next_step(trigger, timing, label_ja),
+                optional_decline_count=sum(
+                    (observations or {}).get(e.effect_id, {}).get("optional_declined", 0)
+                    for e in sorted_items
+                ),
+                explicit_error_skip_count=sum(
+                    (observations or {}).get(e.effect_id, {}).get("error_skipped", 0)
+                    for e in sorted_items
+                ),
+                manual_blocker_count=sum(
+                    (observations or {}).get(e.effect_id, {}).get("manual_blocked", 0)
+                    for e in sorted_items
+                ),
+                legacy_skip_count=sum(
+                    (legacy_skip_counts or {}).get(e.effect_id, 0) for e in sorted_items
+                ),
             )
         )
     return sorted(
@@ -227,6 +310,12 @@ def group_manual_effects(
 def classify_unresolved_reason(trigger: str, timing: str, label_ja: str) -> str:
     """Return a controlled reason instead of implying every manual effect is forgotten work."""
 
+    if label_ja == MULTI_KEEP_ICON_SCOPE_TEXT:
+        return MULTI_KEEP_ICON_SCOPE_REASON
+    if label_ja == BATON_LOWER_COST_HAND_DEPLOY_TEXT:
+        return "member_deployment_area_orientation_ui_ai_not_rules_conformant"
+    if label_ja in UNRESTRICTED_NAMED_HAND_DEPLOY_TEXTS:
+        return "occupied_stage_deployment_and_current_member_entry_history_not_modeled"
     if trigger == "static_always" or timing == "static" or "【常時】" in label_ja:
         if "能力" in label_ja and ("発動" in label_ja or "得る" in label_ja):
             return "nested_or_inherited_effect_invocation_not_modeled"
@@ -268,6 +357,10 @@ def priority_for_trigger(trigger: str, timing: str) -> int:
 
 
 def suggest_next_step(trigger: str, timing: str, label_ja: str) -> str:
+    if label_ja == MULTI_KEEP_ICON_SCOPE_TEXT:
+        return "review_printed_icon_scope_then_add_bounded_multi_keep_snapshot_policy"
+    if label_ja == BATON_LOWER_COST_HAND_DEPLOY_TEXT:
+        return "implement_rule_9_6_2_1_2_deployment_then_revalidate_exact_text"
     if "相手" in label_ja and ("選ぶ" in label_ja or "見る" in label_ja):
         return "opponent_or_private_choice_review"
     if trigger == "member_played" or timing == "on_play":
@@ -306,7 +399,10 @@ def write_gap_outputs(output: Path, report: dict[str, Any]) -> None:
         f"* Rough executable coverage: `{report['rough_executable_coverage']:.2%}`",
         f"* Manual by trigger: `{report['manual_by_trigger']}`",
         f"* Manual by card type: `{report['manual_by_card_type']}`",
-        f"* Observed skipped triggers: `{report.get('actual_trigger_samples', 0)}`",
+        "* Actual manual triggers (effect_triggered only): "
+        f"`{report.get('actual_trigger_samples', 0)}`",
+        f"* Separate outcomes: `{report.get('observation_totals', {})}`; "
+        f"legacy skips: `{report.get('legacy_skip_samples', 0)}`",
         "",
         "## Top Manual Patterns",
         "",
@@ -332,10 +428,39 @@ def write_gap_outputs(output: Path, report: dict[str, Any]) -> None:
             )
             + " |"
         )
+    warnings = report.get("executable_audit_warnings", [])
+    if warnings:
+        lines.extend([
+            "", "## 已登记技能的待修正风险", "",
+            "静态 executable 标签不代表规则正确性；下列旧效果未显式登记朝向，仍落入旧 executor 的 Wait 默认值。",
+            "应按原文与 4.3.2.3 修正或降级，不能把既有绿测当作人工裁定。", "",
+            "| Effect | 原因 | 官方条款 |", "|---|---|---|",
+        ])
+        for warning in warnings:
+            lines.append(
+                f"| `{warning['effect_id']}` | `{warning['reason']}` | "
+                f"{', '.join(warning['rule_clauses'])} |"
+            )
     (output / "effect-gap-report.md").write_text(
         "\n".join(lines) + "\n",
         encoding="utf-8",
     )
+    chinese = ["# 人工技能实际触发报告", "",
+        "只将effect_triggered计为触发；辞退、错误跳过、人工blocker分列，旧skip摘要不是触发证据。",
+        "触发列仅表示引擎候补入队；manual条件可能尚未结构化，不能据此认定官方条件已满足或技能已发动结算。",
+        "登记状态不因频次晋级；静态/未观察到的技能不能据此宣称没有风险。", "",
+        f"人工登记：{report['manual_resolution']}；"
+        f"观察到触发：{report.get('actual_trigger_samples', 0)}；"
+        f"旧skip样本：{report.get('legacy_skip_samples', 0)}。", "",
+        "| 触发 | 可选辞退 | 错误跳过 | 人工blocker | 旧skip | 技能ID | 未解决原因 | 日文原文 |",
+        "|---:|---:|---:|---:|---:|---|---|---|"]
+    for group in report["top_manual_patterns"]:
+        chinese.append("| " + " | ".join(_markdown_cell(value) for value in (
+            group.get("actual_trigger_count", 0), group.get("optional_decline_count", 0),
+            group.get("explicit_error_skip_count", 0), group.get("manual_blocker_count", 0),
+            group.get("legacy_skip_count", 0), ", ".join(group["sample_effect_ids"]),
+            group["unresolved_reason"], group["label_ja"])) + " |")
+    (output / "effect-gap-report.zh-CN.md").write_text("\n".join(chinese) + "\n", encoding="utf-8")
 
 
 def _markdown_cell(value: object) -> str:

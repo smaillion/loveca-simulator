@@ -20,6 +20,7 @@ from loveca.simulation.rule_evaluation import (
 )
 
 ManualEffectPolicy = Literal["skip", "block", "noop"]
+LIVE_PROTECTING_POLICIES = frozenset({"simple_ai_v1_1", "simple_ai_v1_2"})
 
 
 @dataclass(frozen=True)
@@ -75,6 +76,14 @@ class SimpleAIController:
         ]
         if not available:
             return None
+        invocations = [item for action in available if action.action_type == "resolve_effect"
+                       for item in action.options.get("invocations", [])]
+        if invocations and all(item.get("deployment_requires_manual_resolution") for item in invocations):
+            return SimpleAIBlocker(
+                reason="overlap_source_requires_manual_review",
+                legal_action_types=[action.action_type for action in available],
+                player_ids=[action.player_id for action in available],
+            )
         if self.policy.policy_version == "simple_ai_v0":
             decision = choose_simple_ai_action(
                 state,
@@ -182,7 +191,7 @@ def choose_simple_ai_action_v1(
         action = by_type["submit_mulligan"]
         selected = _choose_mulligan_v1(
             observation,
-            protect_live=policy_version == "simple_ai_v1_1",
+            protect_live=policy_version in LIVE_PROTECTING_POLICIES,
         )
         return AICandidate(
             action.action_type,
@@ -217,7 +226,7 @@ def choose_simple_ai_action_v1(
                 _activation_candidates_v1(
                     observation,
                     by_type["activate_effect"],
-                    match_point_strategy=policy_version == "simple_ai_v1_1",
+                    match_point_strategy=policy_version in LIVE_PROTECTING_POLICIES,
                 )
             )
         if "play_member" in by_type:
@@ -225,7 +234,7 @@ def choose_simple_ai_action_v1(
                 _member_play_candidates_v1(
                     observation,
                     by_type["play_member"],
-                    conservative_replacement=policy_version == "simple_ai_v1_1",
+                    conservative_replacement=policy_version in LIVE_PROTECTING_POLICIES,
                 )
             )
         if "end_main_phase" in by_type:
@@ -245,7 +254,8 @@ def choose_simple_ai_action_v1(
         return _choose_live_set_v1(
             observation,
             by_type["set_live_cards"],
-            match_point_efficient=policy_version == "simple_ai_v1_1",
+            match_point_efficient=policy_version in LIVE_PROTECTING_POLICIES,
+            cycle_surplus_members=policy_version == "simple_ai_v1_2",
         )
     if "start_next_turn" in by_type:
         action = by_type["start_next_turn"]
@@ -562,6 +572,7 @@ def _choose_live_set_v1(
     action: LegalAction,
     *,
     match_point_efficient: bool = False,
+    cycle_surplus_members: bool = False,
 ) -> AICandidate:
     player = observation.players[observation.player_id]
     live_ids = [item for item in player.hand if _card_type(observation, item) == "live"]
@@ -571,6 +582,26 @@ def _choose_live_set_v1(
         for combo in itertools.combinations(live_ids, size)
     ]
     if not combinations:
+        if cycle_surplus_members:
+            members = [item for item in player.hand if _card_type(observation, item) == "member"]
+            reserve = set(_rank_card_ids(observation, members, descending=True)[:2])
+            offered = set(action.options.get("hand_instance_ids", player.hand))
+            maximum = action.options.get("maximum", 3)
+            maximum = min(3, max(0, maximum)) if type(maximum) is int else 0
+            surplus = [item for item in members if item in offered and item not in reserve]
+            selected = _rank_card_ids(observation, surplus, descending=False)[:maximum]
+            if selected:
+                return AICandidate(
+                    action.action_type,
+                    action.player_id,
+                    {"card_instance_ids": selected},
+                    float(len(selected) * 10),
+                    "cycle_spare_members_to_find_live",
+                    (
+                        ("cycle_members", float(len(selected))),
+                        ("member_reserve", float(len(reserve))),
+                    ),
+                )
         return AICandidate(
             action.action_type,
             action.player_id,
@@ -701,7 +732,7 @@ def _choose_effect_resolution_v1(
     value, components = _effect_value(observation, effect)
     payload = _structured_effect_payload_v1(observation, invocation, effect)
     if (
-        policy_version == "simple_ai_v1_1"
+        policy_version in LIVE_PROTECTING_POLICIES
         and invocation.get("is_optional")
         and _payload_discards_last_live(observation, payload, effect)
         and value < 24
@@ -801,6 +832,14 @@ def _structured_effect_payload_v1(
     cost_choice = invocation.get("cost_choice") or {}
     choice_type = invocation.get("choice_type") or choice.get("choice_type")
     candidates = list(invocation.get("candidate_card_instance_ids", []))
+    if candidates and any(
+        op.action_type == "modify_source_score_if_selected_blade_highest"
+        for op in effect.actions
+    ):
+        blade_counts = invocation.get("candidate_blade_counts", {})
+        selected = max(candidates, key=lambda item: (blade_counts.get(item, 0), item))
+        payload["selected_card_instance_ids"] = [selected]
+        return payload
     if choice_type in {
         "multi_player_discard_to_hand_size_then_draw",
         "multi_player_draw_then_discard",
@@ -837,7 +876,7 @@ def _structured_effect_payload_v1(
         if slots:
             payload["to_slot"] = _preferred_slot(slots)
         return payload
-    if choice.get("choice_type") == "choose_effect_branch":
+    if choice_type == "choose_effect_branch":
         branch = _choose_effect_branch_v1(observation, invocation, effect)
         if branch:
             payload["selected_branch"] = branch
@@ -1100,10 +1139,12 @@ def _operation_value_without_observation(
         base = 6 * amount
     elif action_type in {"gain_heart", "gain_heart_to_stage_members"}:
         base = 7 * amount
-    elif action_type in {"modify_score", "replace_score"}:
+    elif action_type in {"modify_score", "replace_score", "modify_source_score_if_selected_blade_highest"}:
         base = 11 * amount
     elif action_type in {"return_from_waiting_room", "move_selected_to_hand"}:
         base = 7 * amount
+    elif action_type in {"deploy_selected_to_empty_stage", "deploy_selected_to_stage"}:
+        base = 20 * amount
     elif action_type in {"inspect_top_cards", "reveal_top_cards", "reveal_cards"}:
         base = 2 * amount
     elif action_type in {"apply_wait", "apply_wait_member", "apply_wait_energy"}:
@@ -1517,7 +1558,7 @@ def _choose_effect_resolution(
         if slots:
             payload["to_slot"] = slots[0]
         return action.action_type, action.player_id, payload, "resolve_position_change"
-    if choice.get("choice_type") == "choose_effect_branch":
+    if choice_type == "choose_effect_branch":
         _fill_branch_choice_payload(payload, invocation, choice, candidates, available_energy)
     elif candidates:
         minimum = int(invocation.get("card_selection_minimum", choice.get("minimum", 1)))
@@ -1542,6 +1583,11 @@ def _choose_effect_resolution(
                 "decline_optional_without_targets",
             )
         payload["selected_card_instance_ids"] = selected_cards
+    selected = payload.get("selected_card_instance_ids", [])
+    if selected and invocation.get("deployment_choice"):
+        slots = invocation.get("position_change_slots_by_candidate", {}).get(selected[0], [])
+        if slots:
+            payload["to_slot"] = _preferred_slot(slots)
     destinations = list(
         invocation.get("destination_options", [])
         or choice.get("destination_options", [])

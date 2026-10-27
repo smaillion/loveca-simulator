@@ -23,6 +23,7 @@ from loveca.decks.analyzer import DeckList
 from loveca.simulation.engine import IllegalActionError, generate_legal_actions
 from loveca.simulation.models import ActionRequest, CardInstance, LegalAction, MatchState
 from loveca.simulation.service import MatchService
+from loveca.simulation.visibility import private_inspection_card_ids
 from tools.ai_sandbox.blackbox_playtest import (
     SandboxDeckSummary,
     build_decks,
@@ -269,11 +270,23 @@ def main() -> int:
         help="Maximum extracted rule-context characters to include in agent prompts.",
     )
     parser.add_argument("--agent-provider", choices=("mock", "openai_compatible"), default=None)
+    parser.add_argument(
+        "--require-real-provider", action="store_true",
+        help="Reject mock runs before database access; never treat mock output as model review.",
+    )
+    parser.add_argument(
+        "--api-context-samples", type=int, default=0,
+        help="Opt in to a bounded number of local model-input samples (may contain own hand).",
+    )
     args = parser.parse_args()
+    if args.api_context_samples < 0:
+        parser.error("--api-context-samples must not be negative")
 
     if args.two_agent:
         args.play_policy = "api"
     provider = provider_from_environment(args.agent_provider)
+    if args.require_real_provider:
+        require_real_semantic_provider(provider)
     rule_context = load_rule_context(args.rules_pdf, max_chars=args.rule_context_chars)
     args.output.mkdir(parents=True, exist_ok=True)
     decks = build_decks(args.database, args.decks)
@@ -288,6 +301,7 @@ def main() -> int:
         play_policy=args.play_policy,
         play_fallback=args.play_fallback,
         rule_context=rule_context,
+        api_context_sample_limit=args.api_context_samples,
     )
     write_semantic_outputs(
         args.output,
@@ -1126,7 +1140,7 @@ def build_api_play_context(
             "active_player_id": state.active_player_id,
             "acting_player_id": acting_player_id,
             "revision": state.revision,
-            "pending_choice": state.pending_choice.model_dump() if state.pending_choice else None,
+            "pending_choice": pending_choice_context(state, acting_player_id),
             "pending_effects": [effect.model_dump() for effect in state.pending_effects],
         },
         "strategy": api_play_strategy_summary(
@@ -1448,11 +1462,21 @@ def build_agent_context(
         (action for action in legal_actions if action.action_type == "manual_adjustment"),
         None,
     )
+    acting_player_id = (
+        manual_action.player_id
+        if manual_action is not None
+        else state.pending_choice.player_id
+        if state.pending_choice is not None
+        else state.active_player_id
+    )
     manual_invocation = None
     if manual_action is not None:
         source_invocations = list(manual_action.options.get("source_invocations", []))
         manual_invocation = source_invocations[0] if source_invocations else None
-    if manual_invocation is None and state.pending_choice is not None:
+    if (
+        manual_invocation is None and state.pending_choice is not None
+        and state.pending_choice.player_id == acting_player_id
+    ):
         manual_invocation = {
             "invocation_id": state.pending_choice.options.get("source_invocation_id"),
             "effect_id": state.pending_choice.options.get("source_effect_id"),
@@ -1464,14 +1488,8 @@ def build_agent_context(
         }
     source_card = None
     if manual_invocation and manual_invocation.get("source_card_instance_id") in state.cards:
-        source_card = card_context(state.cards[str(manual_invocation["source_card_instance_id"])])
-    acting_player_id = (
-        manual_action.player_id
-        if manual_action is not None
-        else state.pending_choice.player_id
-        if state.pending_choice is not None
-        else state.active_player_id
-    )
+        instance = state.cards[str(manual_invocation["source_card_instance_id"])]
+        source_card = card_context(instance, include_private=instance.owner_id == acting_player_id)
     return {
         "schema_version": SEMANTIC_SCHEMA_VERSION,
         "mode": "manual_resolution",
@@ -1503,7 +1521,7 @@ def build_agent_context(
             "turn_number": state.turn_number,
             "active_player_id": state.active_player_id,
             "revision": state.revision,
-            "pending_choice": state.pending_choice.model_dump() if state.pending_choice else None,
+            "pending_choice": pending_choice_context(state, acting_player_id),
         },
         "manual_invocation": manual_invocation,
         "source_card": source_card,
@@ -1587,7 +1605,19 @@ def manual_adjustment_schema_reference() -> dict[str, Any]:
     }
 
 
+def pending_choice_context(state: MatchState, player_id: str) -> dict[str, Any] | None:
+    choice = state.pending_choice
+    if choice is None:
+        return None
+    if choice.player_id == player_id:
+        return choice.model_dump()
+    return choice.model_dump(include={"choice_type", "player_id"})
+
+
 def player_context(state: MatchState, player_id: str, *, include_private: bool) -> dict[str, Any]:
+    private_inspected = set()
+    if not include_private:
+        private_inspected = private_inspection_card_ids(state, None)
     player = state.players[player_id]
     return {
         "player_id": player.player_id,
@@ -1596,31 +1626,45 @@ def player_context(state: MatchState, player_id: str, *, include_private: bool) 
         "energy_deck_count": len(player.energy_deck),
         "hand": zone_cards(state, player.hand) if include_private else {"count": len(player.hand)},
         "member_area": {
-            slot: card_context(state.cards[instance_id]) if instance_id else None
+            slot: card_context(state.cards[instance_id], include_private=include_private)
+            if instance_id else None
             for slot, instance_id in player.member_area.items()
         },
         "member_area_attachments": {
-            slot: zone_cards(state, instance_ids)
+            slot: zone_cards(state, instance_ids, include_private=include_private)
             for slot, instance_ids in player.member_area_attachments.items()
         },
-        "energy_area": zone_cards(state, player.energy_area),
-        "live_area": zone_cards(state, player.live_area),
-        "waiting_room": zone_cards(state, player.waiting_room),
-        "resolution_area": zone_cards(state, player.resolution_area),
-        "success_live_area": zone_cards(state, player.success_live_area),
+        "energy_area": zone_cards(state, player.energy_area, include_private=include_private),
+        "live_area": zone_cards(state, player.live_area, include_private=include_private),
+        "waiting_room": zone_cards(state, player.waiting_room, include_private=include_private),
+        "resolution_area": zone_cards(
+            state, [item for item in player.resolution_area if item not in private_inspected],
+            include_private=include_private,
+        ),
+        "success_live_area": zone_cards(state, player.success_live_area, include_private=include_private),
         "manual_modifiers": [modifier.model_dump() for modifier in player.manual_modifiers],
     }
 
 
-def zone_cards(state: MatchState, instance_ids: list[str]) -> list[dict[str, Any]]:
+def zone_cards(
+    state: MatchState, instance_ids: list[str], *, include_private: bool = True,
+) -> list[dict[str, Any]]:
     return [
-        card_context(state.cards[instance_id])
+        card_context(state.cards[instance_id], include_private=include_private)
         for instance_id in instance_ids
         if instance_id in state.cards
     ]
 
 
-def card_context(instance: CardInstance) -> dict[str, Any]:
+def card_context(instance: CardInstance, *, include_private: bool = True) -> dict[str, Any]:
+    if not include_private and not instance.face_up:
+        return {
+            "instance_id": instance.instance_id,
+            "owner_id": instance.owner_id,
+            "orientation": instance.orientation,
+            "face_up": False,
+            "hidden": True,
+        }
     card = instance.card
     return {
         "instance_id": instance.instance_id,
@@ -1806,6 +1850,9 @@ def write_semantic_outputs(
         "match_summaries": [asdict(item) for item in match_summaries],
         "semantic_attempts": [asdict(item) for item in attempts],
         "api_play_attempts": [asdict(item) for item in api_play_attempts],
+        "api_play_context_sample_count": sum(
+            item.context_sample is not None for item in api_play_attempts
+        ),
     }
     (output / "semantic-summary.json").write_text(
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
@@ -1813,6 +1860,12 @@ def write_semantic_outputs(
     )
     lines = [
         "# Semantic User-Agent Sandbox Report",
+        "",
+        (
+            "> mock 模式：未调用真实模型，只验证流程与输入边界，不构成人工规则裁定。"
+            if provider.provider_name == "mock"
+            else "> 模型输出仅用于辅助审查，不等同于官方裁定或 Registry 晋级证据。"
+        ),
         "",
         "## Scope",
         "",
@@ -1833,6 +1886,7 @@ def write_semantic_outputs(
         "",
         f"* Provider: `{provider.provider_name}`",
         f"* Play policy: `{play_policy}`",
+        f"* Captured context samples: {payload['api_play_context_sample_count']}",
         (
             f"* Rule context: `{rule_context.source_path}` "
             f"loaded={rule_context.loaded} extractor={rule_context.extractor} "

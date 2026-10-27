@@ -18,12 +18,24 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from loveca.decks.analyzer import DECKLIST_VERSION, DeckEntry, DeckList, analyze_deck
-from loveca.simulation.ai import choose_simple_ai_action
+from loveca.decks.analyzer import DECKLIST_VERSION, DeckEntry, DeckList, analyze_deck, load_deck
+from loveca.simulation.ai import (
+    SimpleAIController,
+    SimpleAIDecision,
+    SimpleAIPolicy,
+    choose_simple_ai_action,
+)
 from loveca.simulation.effects import load_effect_registry
 from loveca.simulation.engine import IllegalActionError, generate_legal_actions
-from loveca.simulation.models import ActionRequest, GameEvent, LegalAction, MatchState
+from loveca.simulation.models import (
+    ActionRequest,
+    ControllerPolicyVersion,
+    GameEvent,
+    LegalAction,
+    MatchState,
+)
 from loveca.simulation.service import MatchService
+from tools.ai_sandbox.effect_observations import diagnostic_source_fingerprint, observe_effects
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_REGISTRY = PROJECT_ROOT / "data_sources" / "effect-registry.v0.json"
@@ -58,8 +70,16 @@ class SandboxMatchSummary:
     executable_effects_triggered: int = 0
     executable_effects_completed: int = 0
     executable_effect_completion_rate: float = 1.0
+    executable_effects_not_activatable: int = 0
+    executable_effects_skipped: int = 0
+    executable_effects_unfinished: int = 0
     replay_ok: bool = True
     replay_error: str | None = None
+    seed: int | None = None
+    policy_version: str = "heuristic_legacy"
+    decision_reason_counts: dict[str, int] = field(default_factory=dict)
+    effect_observations: dict[str, dict[str, int]] = field(default_factory=dict)
+    source_fingerprint: str | None = None
 
 
 def main() -> int:
@@ -67,8 +87,26 @@ def main() -> int:
     parser.add_argument("--database", type=Path, default=Path("data/loveca.sqlite3"))
     parser.add_argument("--output", type=Path, default=Path("logs/ai_sandbox"))
     parser.add_argument("--decks", type=int, default=20)
+    parser.add_argument(
+        "--manual-focus", action="store_true",
+        help="Bias the offline deck pool toward manual skills without changing the default pool.",
+    )
     parser.add_argument("--matches", type=int, default=20)
     parser.add_argument("--max-actions", type=int, default=450)
+    parser.add_argument(
+        "--deck-directory", type=Path,
+        help="Read frozen deck JSONs instead of regenerating decks.",
+    )
+    parser.add_argument("--seed-base", type=int, default=9000)
+    parser.add_argument("--match-start", type=int, default=1)
+    parser.add_argument(
+        "--policy",
+        choices=(
+            "heuristic_legacy", "simple_ai_v0", "simple_ai_v1", "simple_ai_v1_1", "simple_ai_v1_2",
+        ),
+        default="heuristic_legacy",
+        help="Keep the historical heuristic by default; opt into the shared product controller.",
+    )
     parser.add_argument(
         "--manual-policy",
         choices=("block", "noop", "skip"),
@@ -80,15 +118,36 @@ def main() -> int:
         ),
     )
     args = parser.parse_args()
+    if args.deck_directory is not None and (
+        args.output.resolve() == args.deck_directory.resolve()
+        or (args.output / "decks").resolve() == args.deck_directory.resolve()
+    ):
+        parser.error("output must not overwrite the frozen input deck directory")
 
     args.output.mkdir(parents=True, exist_ok=True)
     progress_path = args.output / "sandbox-progress.jsonl"
     progress_path.write_text("", encoding="utf-8")
-    decks = build_decks(args.database, args.decks)
+    decks = (
+        load_frozen_decks(args.deck_directory, args.decks)
+        if args.deck_directory is not None
+        else build_decks(args.database, args.decks, manual_focus=args.manual_focus)
+    )
     deck_summaries = [
         summarize_deck(args.database, deck)
         for deck in decks
     ]
+    source_fingerprint = diagnostic_source_fingerprint(PROJECT_ROOT)
+    (args.output / "provenance.json").write_text(
+        json.dumps({
+            "schema_version": "sandbox_provenance.v1",
+            "fingerprint_scope": "src-python+sandbox-python+card-db+registry+manifest",
+            "source_fingerprint": source_fingerprint,
+            "policy": args.policy, "manual_policy": args.manual_policy,
+            "manual_focus": args.manual_focus, "seed_base": args.seed_base,
+            "max_actions": args.max_actions, "decks": [asdict(deck) for deck in decks],
+        }, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
     match_summaries = run_matches(
         args.database,
         decks,
@@ -96,14 +155,31 @@ def main() -> int:
         max_actions=args.max_actions,
         manual_policy=args.manual_policy,
         progress_path=progress_path,
+        policy_version=None if args.policy == "heuristic_legacy" else args.policy,
+        seed_base=args.seed_base,
+        match_start=args.match_start,
+        source_fingerprint=source_fingerprint,
     )
     write_outputs(args.output, decks, deck_summaries, match_summaries)
     print(f"Wrote sandbox report to {args.output / 'sandbox-report.md'}")
     return 0
 
 
-def build_decks(database: Path, count: int) -> list[DeckList]:
+def load_frozen_decks(directory: Path, count: int) -> list[DeckList]:
+    if count < 1:
+        raise ValueError("deck count must be positive")
+    paths = sorted(directory.glob("*.json"))
+    if len(paths) < count:
+        raise ValueError(f"expected at least {count} frozen decks, found {len(paths)}")
+    return [load_deck(path) for path in paths[:count]]
+
+
+def build_decks(database: Path, count: int, *, manual_focus: bool = False) -> list[DeckList]:
     effect_priority = _load_effect_priority(DEFAULT_REGISTRY)
+    if manual_focus:
+        for effect in load_effect_registry(DEFAULT_REGISTRY).effects:
+            if effect.simulation_support == "manual_resolution":
+                effect_priority[effect.card_code] = 8
     members = _load_card_pool(database, "member", effect_priority)
     lives = _load_card_pool(database, "live", effect_priority)
     energies = _load_card_pool(database, "energy", effect_priority)
@@ -132,6 +208,18 @@ def build_decks(database: Path, count: int) -> list[DeckList]:
                 ),
             )
             live_codes = _window(live_source, work_cycle * 3, 3)
+            if manual_focus:
+                manual_lives = sorted(
+                    live_source,
+                    key=lambda item: (
+                        -effect_priority.get(item["card_code"], 0),
+                        _live_progress_cost(item), item["card_code"],
+                    ),
+                )
+                selected = [
+                    live_codes[0], *_window(manual_lives, work_cycle * 2, len(manual_lives)),
+                ]
+                live_codes = list({item["card_code"]: item for item in selected}.values())[:3]
             required_colors = _required_color_profile(live_codes)
             member_codes = _select_member_cards_for_progress(
                 member_by_work[work_key],
@@ -161,7 +249,7 @@ def build_decks(database: Path, count: int) -> list[DeckList]:
         decks.append(
             DeckList(
                 version=DECKLIST_VERSION,
-                name=f"Sandbox Deck {index + 1:02d}",
+                name=f"{'Manual' if manual_focus else 'Sandbox'} Deck {index + 1:02d}",
                 main_deck=tuple(
                     [
                         *(
@@ -266,12 +354,26 @@ def run_matches(
     max_actions: int,
     manual_policy: str,
     progress_path: Path | None = None,
+    policy_version: ControllerPolicyVersion | None = None,
+    seed_base: int = 9000,
+    match_start: int = 1,
+    source_fingerprint: str | None = None,
 ) -> list[SandboxMatchSummary]:
+    if match_start < 1 or max_actions < 0 or not decks:
+        raise ValueError("match_start and deck count must be positive; max_actions non-negative")
+    if policy_version not in {
+        None, "simple_ai_v0", "simple_ai_v1", "simple_ai_v1_1", "simple_ai_v1_2",
+    }:
+        raise ValueError("unknown sandbox controller policy")
+    if manual_policy not in {"block", "noop", "skip"}:
+        raise ValueError("unknown manual policy")
+    if manual_policy == "noop" and policy_version not in {None, "simple_ai_v0"}:
+        raise ValueError("noop is only supported by the historical heuristic and v0")
     results: list[SandboxMatchSummary] = []
     with tempfile.TemporaryDirectory(prefix="loveca-ai-sandbox-") as tmp:
         runtime = Path(tmp) / "matches.sqlite3"
         service = MatchService(database, runtime)
-        for index in range(match_count):
+        for index in range(match_start - 1, match_start - 1 + match_count):
             first = decks[index % len(decks)]
             second = decks[(index * 7 + 3) % len(decks)]
             result = service.create_match(
@@ -279,19 +381,21 @@ def run_matches(
                 first_deck=first,
                 second_name="Sandbox B",
                 second_deck=second,
-                seed=9000 + index,
+                seed=seed_base + index,
                 match_id=f"sandbox-{index + 1:02d}",
             )
             state = result.state
             blocker = None
             blocker_detail: dict[str, Any] = {}
             actions = 0
+            decision_reasons: Counter[str] = Counter()
             while actions < max_actions and state.phase != "complete":
                 legal_actions = generate_legal_actions(state)
                 decision = choose_action(
                     state,
                     legal_actions,
                     manual_policy=manual_policy,
+                    policy_version=policy_version,
                 )
                 if decision is None:
                     blocker = classify_blocker(state, legal_actions)
@@ -308,8 +412,11 @@ def run_matches(
                             payload=payload,
                         ),
                     )
-                except IllegalActionError as exc:
-                    blocker = "illegal_action"
+                except Exception as exc:
+                    blocker = (
+                        "illegal_action" if isinstance(exc, IllegalActionError)
+                        else "runtime_exception"
+                    )
                     blocker_detail = {
                         **describe_state(state, legal_actions),
                         "attempted_action": action_type,
@@ -318,6 +425,9 @@ def run_matches(
                     break
                 state = applied.state
                 actions += 1
+                metadata = payload.get("ai_decision")
+                if isinstance(metadata, dict):
+                    decision_reasons[str(metadata.get("reason", "unknown"))] += 1
             status = "completed" if state.phase == "complete" else "blocked"
             if actions >= max_actions and state.phase != "complete":
                 legal_actions = generate_legal_actions(state)
@@ -336,9 +446,9 @@ def run_matches(
                 for event in all_events
                 if event.event_type == "effect_skipped_due_to_error"
             ]
-            executable_triggered, executable_completed = (
-                _executable_effect_completion(state, all_events)
-            )
+            outcomes = _executable_effect_outcomes(state, all_events)
+            executable_triggered = outcomes["triggered"]
+            executable_completed = outcomes["resolved"]
             replay_ok = True
             replay_error = None
             try:
@@ -369,8 +479,23 @@ def run_matches(
                     if executable_triggered
                     else 1.0
                 ),
+                executable_effects_not_activatable=outcomes["not_activatable"],
+                executable_effects_skipped=outcomes["skipped"],
+                executable_effects_unfinished=outcomes["unfinished"],
                 replay_ok=replay_ok,
                 replay_error=replay_error,
+                seed=seed_base + index,
+                policy_version=policy_version or "heuristic_legacy",
+                decision_reason_counts=dict(decision_reasons),
+                effect_observations=observe_effects(
+                    [event.model_dump(mode="json") for event in all_events],
+                    [item for action in legal_actions if action.action_type == "resolve_effect"
+                     for item in action.options.get("invocations", [])
+                     if item.get("simulation_support") == "manual_resolution"
+                     and not item.get("is_optional")]
+                    if blocker == "mandatory_manual_resolution" else [],
+                ),
+                source_fingerprint=source_fingerprint,
             )
             results.append(match_summary)
             if progress_path is not None:
@@ -385,10 +510,22 @@ def _executable_effect_completion(
     state: MatchState,
     events: list[GameEvent],
 ) -> tuple[int, int]:
-    """Count executable invocations that reached a terminal resolution event."""
+    """Preserve the historical triggered/resolved count interface."""
+
+    outcomes = _executable_effect_outcomes(state, events)
+    return outcomes["triggered"], outcomes["resolved"]
+
+
+def _executable_effect_outcomes(
+    state: MatchState,
+    events: list[GameEvent],
+) -> dict[str, int]:
+    """Distinguish actual resolution from explicit rejection, skip and pending work."""
 
     started: set[str] = set()
     completed: set[str] = set()
+    not_activatable: set[str] = set()
+    skipped: set[str] = set()
     for event in events:
         invocation_id = event.data.get("invocation_id")
         effect_id = event.data.get("effect_id")
@@ -405,7 +542,20 @@ def _executable_effect_completion(
             "effect_declined",
         }:
             completed.add(invocation_id)
-    return len(started), len(started.intersection(completed))
+        if event.event_type == "effect_not_activatable":
+            not_activatable.add(invocation_id)
+        if event.event_type == "effect_skipped_due_to_error":
+            skipped.add(invocation_id)
+    resolved = started & completed
+    rejected = (started & not_activatable) - resolved
+    errors = (started & skipped) - resolved - rejected
+    return {
+        "triggered": len(started),
+        "resolved": len(resolved),
+        "not_activatable": len(rejected),
+        "skipped": len(errors),
+        "unfinished": len(started - resolved - rejected - errors),
+    }
 
 
 def choose_action(
@@ -413,7 +563,22 @@ def choose_action(
     legal_actions: list[LegalAction],
     *,
     manual_policy: str,
+    policy_version: ControllerPolicyVersion | None = None,
 ) -> tuple[str, str | None, dict[str, Any]] | None:
+    if policy_version is not None:
+        players = {
+            action.player_id for action in legal_actions if action.player_id in state.players
+        }
+        controlled = {sorted(players)[0]} if players else set(state.players)
+        decision = SimpleAIController(
+            SimpleAIPolicy(
+                manual_effect_policy=manual_policy,  # type: ignore[arg-type]
+                policy_version=policy_version,
+            )
+        ).choose_action(state, legal_actions, controlled_player_ids=controlled)
+        if not isinstance(decision, SimpleAIDecision):
+            return None
+        return decision.action.action_type, decision.action.player_id, decision.action.payload
     decision = choose_simple_ai_action(
         state,
         legal_actions,
@@ -588,7 +753,7 @@ def choose_action(
             if slots:
                 payload["to_slot"] = slots[0]
             return action.action_type, action.player_id, payload
-        if choice.get("choice_type") == "choose_effect_branch":
+        if choice_type == "choose_effect_branch":
             selected_branch = invocation.get("selected_branch")
             if selected_branch:
                 payload["selected_branch"] = selected_branch
@@ -666,6 +831,11 @@ def choose_action(
                     {"invocation_id": invocation["invocation_id"], "accepted": False},
                 )
             payload["selected_card_instance_ids"] = selected_cards
+        selected = payload.get("selected_card_instance_ids", [])
+        if selected and invocation.get("deployment_choice"):
+            slots = invocation.get("position_change_slots_by_candidate", {}).get(selected[0], [])
+            if slots:
+                payload["to_slot"] = slots[0]
         destinations = list(
             invocation.get("destination_options", [])
             or choice.get("destination_options", [])
@@ -1031,14 +1201,14 @@ def write_outputs(
 ) -> None:
     effect_metadata = _load_effect_metadata(DEFAULT_REGISTRY)
     (output / "decks").mkdir(parents=True, exist_ok=True)
-    for deck in decks:
+    for deck_index, deck in enumerate(decks, 1):
         payload = {
             "version": deck.version,
             "name": deck.name,
             "main_deck": [asdict(entry) for entry in deck.main_deck],
             "energy_deck": [asdict(entry) for entry in deck.energy_deck],
         }
-        (output / "decks" / f"{deck.name}.json").write_text(
+        (output / "decks" / f"Sandbox Deck {deck_index:02d}.json").write_text(
             json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
             encoding="utf-8",
         )
@@ -1071,7 +1241,19 @@ def write_outputs(
         "executable_effects_triggered": executable_triggered,
         "executable_effects_completed": executable_completed,
         "executable_effect_completion_rate": round(executable_completion_rate, 4),
+        "executable_effects_not_activatable": sum(
+            item.executable_effects_not_activatable for item in match_summaries
+        ),
+        "executable_effects_skipped": sum(item.executable_effects_skipped for item in match_summaries),
+        "executable_effects_unfinished": sum(
+            item.executable_effects_unfinished for item in match_summaries
+        ),
         "replay_errors": replay_errors,
+        "controller_policies": dict(Counter(item.policy_version for item in match_summaries)),
+        "resource_cycle_actions": sum(
+            item.decision_reason_counts.get("cycle_spare_members_to_find_live", 0)
+            for item in match_summaries
+        ),
     }
     (output / "sandbox-summary.json").write_text(
         json.dumps(
@@ -1091,7 +1273,7 @@ def write_outputs(
         "",
         "## Scope",
         "",
-        f"* {len(deck_summaries)} generated legal decklists from the local card DB.",
+        f"* {len(deck_summaries)} legal decklists, generated or loaded from frozen JSONs.",
         f"* {len(match_summaries)} match attempts driven only through LegalAction output.",
         "* In `block` mode, unsupported mandatory manual effects are recorded as blockers.",
         "* In `noop` mode, unsupported mandatory manual effects are advanced with a marked no-op flag for plumbing-only testing.",
@@ -1099,13 +1281,18 @@ def write_outputs(
         "",
         "## Summary",
         "",
-        f"* Decks generated: {len(deck_summaries)}",
+        f"* Decks in pool: {len(deck_summaries)}",
         f"* Matches attempted: {len(match_summaries)}",
         f"* Matches completed: {completed}",
+        f"* Controller policies: {summary['controller_policies']}",
+        f"* Resource-cycle actions: {summary['resource_cycle_actions']}",
         f"* Blockers: {dict(sorted(blockers.items()))}",
         f"* Skipped effects: {dict(skipped_effect_counts.most_common(20))}",
         f"* Executable effects completed: {executable_completed}/{executable_triggered} "
         f"({executable_completion_rate:.2%})",
+        f"* Executable effects explicitly not activatable: {summary['executable_effects_not_activatable']}",
+        f"* Executable effects error-skipped: {summary['executable_effects_skipped']}",
+        f"* Executable effects unfinished: {summary['executable_effects_unfinished']}",
         f"* Replay errors: {replay_errors}",
         f"* Total success Live counts per match: {dict(sorted(total_success_lives.items()))}",
         "",

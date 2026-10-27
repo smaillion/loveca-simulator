@@ -1,5 +1,282 @@
 # Effect Semantics Audit
 
+PL!N-sd2-026:1 revision958 now supports one own Nijigasaki Stage Member with
+effective Blade>=4 and two Heart02. Static Blade is included only by the new
+bounded policy; historical generic filters stay unchanged.55 focused tests,
+4 new illustrated state cases and3 UI cases pass.918/1212 test-validated,294 manual;
+no human-reviewed promotion. [Evidence](development/nijigasaki-blade-four-heart-verification.md).
+
+Follow-up risk: existing PL!S-bp3-025:1 still encodes Blade6 as a target filter
+and uses generic score modification. Its text selects first, then checks Blade,
+and modifies only the source Live. This is queued for priority state reproduction
+and snapshot-safe correction; the current Fire Bird tests do not validate it.
+
+PL!S-cl1-002:1 revision961 uses a bounded original-Yell Aqours0–3 ordered policy.
+Only opted-in snapshots serialize remaining Yell objects; departure invalidates
+eligibility even on same-ID return.42 focused tests,3 new illustrated state cases,
+old/new SQL Replay and4 AI policies pass.917/1212 test-validated,295 manual.
+No human-reviewed promotion. [Evidence](development/aqours-yell-bottom-verification.md).
+
+PL!N-PR-036:1: revision1225/hash efcae675449686825bdddf0b5f7a013d74837a06441dfa296f1677bed2d04ab4.
+Other own top-level Nijigasaki Member selection is mandatory when possible, with
+explicit zero-target resolution otherwise. A dedicated snapshot policy preserves
+the old named-Blade behavior and captures the original source Stage object.
+45 targeted tests and the legacy named-group suites cover current cost14/15/16,
+payment reduction versus card information, departure/reentry, SQL Replay and AI.
+The report has180 cases,142 actual state/boundary cases and38 contracts.
+916/1212 test-validated,296 manual; no human-reviewed promotion or schema change.
+[Chinese scope and evidence](development/other-nijigasaki-heart-verification.md).
+
+PL!-pb2-039:1 now uses an exact-segment automatic candidate, revision1018 and hash
+c64c225ab648e5389537066b41874ad2905e24eb668f1a651fde9bd7b45780f9.
+The success-Live work count is an operation condition, not a trigger filter:
+ordered effects can change the public zone before resolution.28 state/contract
+tests cover both condition directions, 0/1/2 and wrong work, Yell versus Blade,
+refresh, duration, SQL Replay, four policies and player payloads. Segment2 stays
+manual.915/1212 executable is test evidence, not human-reviewed adjudication.
+The illustrated report has177 cases,139 state transitions; see
+[scope and limitations](development/live-yell-ten-verification.md).
+
+Actual-observation checkpoint: gapv0.3 ranks current manual entries by engine
+effect_triggered events, separating declines/error skips/manual blockers and
+legacy skip evidence.30 focused legal decks yield6 finished matches/24 explicit
+manual stops,80 manual queue events over42 IDs,51 declines and28 blocked
+invocations.125/127 executable invocations resolve;2 remain pending at blockers,
+not silent skips. This is not rules or release acceptance.12 observation tests
+plus existing gap/sandbox regressions cover privacy, non-mutation, log contracts,
+source fingerprints and deck legality. Registry914/1212 unchanged; next bounded
+audit is PL!-pb2-039:1 condition and Yell+10.
+[Chinese results and limits](development/manual-trigger-observation-audit.md).
+
+Multi-keep checkpoint: PL!S-bp2-005:1 is conservatively quarantined as manual,
+not asserted rules-correct. PDF2.1.3/2.7/2.9 alone does not settle its unqualified
+icon wording for this audit; no bounded up-to3 cost policy was added. Exact-text
+manual discovery and gap reason prevent automatic re-promotion.21 card tests and
+5 related regressions cover new manual guard/decline/control, four-policy decision
+logs and old SQL Replay; historical0-3 behavior is compatibility evidence only.
+214 frontend tests/build,173 illustrated cases (135 state/38 contract); fixed10
+does not trigger this card. Coverage914/1212 (75.41%),298manual; no engine/schema
+change or reviewed promotion. [Chinese evidence](development/multi-keep-inspection-audit.md).
+
+Mixed-Heart inspection checkpoint: three exact identities opt into the bounded
+hand-cost policy. Existing filtering correctly uses a Member's Heart field or a
+Live's required-Heart field, not Blade Heart/ALL or the other field.165 targeted
+tests include72 type/color/count boundaries;213 frontend tests/build and172
+illustrated scenarios (133 state/39 contract) pass. Fixed10 qualifies without
+triggering these three. Registry915/1212 unchanged; no reviewed promotion or
+engine/schema change. One scan hit remains: PL!S-bp2-005:1 needs an independent
+up-to3 and wording/Blade-Heart audit, not an automatic policy extension.
+[Chinese evidence](development/mixed-heart-inspection-audit.md).
+
+Member/Liella checkpoint: five exact official identities opt into the bounded
+hand-cost policy, retaining peek4/5/6, type and work filters, public keep0-1.
+165 targeted tests,207 frontend tests/build,166 illustrated scenarios
+(127 state/39 contract). Fixed10 qualifies; PL!SP-bp1-005:1 actually pays,
+inspects and resolves five times each, while the other four remain targeted-only.
+Registry915/1212 unchanged, no reviewed promotion or schema change. Three mixed
+Member/Live Heart filters are queued next; one keep-up-to3 text remains separate.
+[Chinese evidence](development/member-liella-inspection-audit.md).
+
+Work/unit checkpoint: six exact official segments opt into the bounded hand-cost
+policy.192 targeted native-action tests distinguish work from unit, Member from
+Live, multi-unit membership, optional zero keep, private inspection and public
+keep. Old/new SQL Replay and four AI policies pass.156 illustrated scenarios
+(117 state/39 contract),197 frontend tests/build; fixed10 qualifies but does not
+trigger these six. Registry915/1212 unchanged, no reviewed promotion or schema
+change. Nine scan hits remain; five simple Member/Liella texts are queued, not
+bulk approved. [Chinese evidence](development/work-unit-inspection-audit.md).
+
+Peek5/peek2 sibling checkpoint: six exact identities opt into the existing hand
+cost policy. Two Member and two Live peek5 texts retain optional public keep0-1;
+two unfiltered peek2 texts retain mandatory private keep1.174 targeted tests,
+185 frontend tests/build,144 illustrated scenarios (105 state/39 contract).
+Fixed10 AI matches qualify without triggering these six; native state tests are
+separate evidence. Registry915/1212 (75.50%),297manual unchanged; no reviewed
+promotion, engine/SQLite/Card schema change or old snapshot rewrite.15 remaining
+scan candidates require individual review; six work/unit texts are queued next.
+[Chinese evidence](development/inspection-siblings-audit.md).
+
+Private peek3 family checkpoint:15 exact identities independently opt into the
+existing inspection cost policy. Per-card revisions/hashes and real source costs
+are tested, including three whole-text hash variants with additional Live-start
+segments left untouched. Optional payment, mandatory keep1 and no public reveal
+are independent.435 targeted tests,173 frontend tests/build,132 illustrated cases
+(93 state/39 contract). Fixed10 AI matches qualify without triggering these15;
+they are regression only. Registry915/1212 (75.50%),297manual unchanged, no human
+review promotion or runtime schema change.21 scan candidates remain unaudited;
+the next bounded slice covers six Member/Live peek5 and private peek2 siblings.
+[Chinese evidence](development/private3-inspection-family-audit.md).
+
+Adjacent discard checkpoint: six exact identities (`PL!-bp3-010:1`,
+`PL!-bp5-014:1`, `PL!-bp6-004:1`, `PL!-pb1-016:1`, `PL!-sd1-011:1`,
+`PL!-sd1-012:1`) opt into the existing bounded inspection cost policy.
+Four public optional keeps differ from two mandatory private keeps after payment.
+177 targeted tests cover real source costs, card filters, refresh, original SQL
+snapshots and all four AI versions.143 frontend tests and production build pass;
+102 illustrated scenarios include63 state transitions and39 contracts. Fixed10 AI
+matches qualify but do not trigger these six effects. Registry915/1212 (75.50%),
+297manual unchanged.36 remaining scan candidates are not confirmed violations;
+the next finite audit covers15 identical private peek3 texts.
+[Chinese evidence](development/adjacent-inspection-cost-audit.md).
+
+Existing inspection cost checkpoint: seven source-Wait and three Nijigasaki
+discard entries now opt into resolution-time cost checks. Six exact peek2 texts
+use `triggered_inspection_reorder` (private0-2 top-order, source Wait only).
+The Liella Heart8 source-Active condition is replaced by the actual payable-cost
+check; source departure/reentry cannot pay, Stage-internal movement can. Costs may
+become available after another pending invocation.166 targeted tests,90 illustrated
+scenarios (51 state/39 contract),131 frontend tests. Fixed10 AI matches all qualify;
+Liella inspection actually completed four times, other nine are targeted only.
+Registry915/1212 (75.50%),297manual unchanged.42 adjacent one-discard entries are
+unreviewed scan candidates, not42 proven violations; six are queued first.
+[Chinese evidence](development/existing-inspection-cost-audit.md).
+
+Typed inspection costs: `PL!-pb2-032:1`, `PL!SP-bp7-018:1`, `PL!-pb2-008:1`
+now use an explicit bounded `cost_payment_policy=triggered_inspection` snapshot.
+The selected invocation rechecks hand resources/type or the original Active Stage
+source before payment. Unpayable invocations are cancelled with a reason, not an
+error skip; they are not deleted at trigger because another pending effect can
+provide the cost. Public vs private keep and minimum0 vs1 remain independent.
+Old snapshots omit this field and keep historical behavior.105 targeted tests,
+80 report scenarios (41 state /39 contract),128 frontend tests. Registry915/1212
+(75.50%),297manual. This previous batch's seven single-Wait follow-ups are now
+covered by the checkpoint above; other hand/mixed costs remain separate audits.
+The registration ratio is not proof that all legacy costs conform.
+[Chinese evidence](development/typed-inspection-cost-verification.md).
+
+Nijigasaki on-play inspection checkpoint: exact segments `PL!N-sd2-009:1`,
+`PL!N-sd2-012:1`, `PL!N-sd2-014:1` and `PL!N-bp7-018:1` now execute native
+private look / optional public keep / discard remaining. The inspected-card
+candidate path now honors the existing `exclude_blade_heart` field; no previous
+official inspection snapshot used true. Colored and special Blade Hearts are
+excluded. Optional cost and optional keep are separate; rejected costs are atomic.
+102 targeted tests, 76 illustrated scenarios (37 state / 39 contract), 124 frontend
+tests. Registry912/1212 (75.25%),300manual; no reviewed promotion. The fixed10
+AI matches do not exercise these four effects and are regression evidence only.
+[Chinese evidence](development/nijigasaki-inspection-verification.md).
+
+Nijigasaki Wait-cost checkpoint: exact `PL!N-sd2-006:1` and
+`PL!N-bp7-012:1` use one own Active Stage Member as cost and source-only
+Blade2/chosen Heart1. The bounded `original_live_start_wait_cost_source`
+snapshot opts into Stage cost validation and original-object capture; old
+cost choices retain their behavior. Selected cost IDs are cleared before the
+source modifier. Self-cost is legal, but a Wait source's Blade is excluded
+from native Yell under8.3.10. Registry908/1212 (74.92%),304manual, no reviewed
+promotion;72 illustrated scenarios include33 state transitions and39 contracts.
+[Chinese evidence](development/live-wait-cost-verification.md).
+
+Optional discard/color checkpoint: exact `PL!N-sd2-005:1` uses two hand-card
+costs and one of six colors for two source Hearts through Live end. The bounded
+`original_live_start_heart_source` operation snapshot captures original Stage
+identity; a departed/re-entered source is not modified. Old snapshots retain
+their shape and behavior. Native cost options now expose required color input
+also used by four existing effects; this is not a new timing step. Registry
+906/1212 (74.75%),306manual,70 report scenarios (31 state/39 contract).
+The overlap parent remains unresolved under10.1.2/10.4.1/9.9.3; no six-card promotion.
+[Chinese card/state evidence](development/live-discard-color-verification.md).
+
+Independent named-group checkpoint: `PL!SP-bp1-024:1` now requires explicit
+selection for each named own Stage Member instead of taking the first copy.
+The opt-in `public_named_groups_as_much_as_possible` snapshot is restricted to
+two independent names, one Heart and one Blade per target, mandatory costless
+Live-start resolution. A missing group has zero bounds and explicit non-applied
+events; the other group still resolves. Old auto snapshots and their Replay
+hashes are unchanged. This corrects an existing registration, not a promotion:
+905/1212 executable,307 manual;68 illustrated scenarios include29 actual state
+transitions and39 registry contracts. [Chinese evidence](development/named-live-group-verification.md).
+
+Named Live target checkpoint: exact `PL!SP-bp7-025:1` snapshots
+`public_single_as_much_as_possible` for one own named Stage Member's Live-duration
+Blade+1. Preserve the trigger even if no target exists yet, choose at resolution,
+and require one target when possible; zero legal targets finish with an explicit
+non-applied result. Earlier ordered abilities may change the candidates. Absent
+policy and old manual snapshots retain historical behavior. Registry905/1212
+(74.67%),307manual; only test_validated, not reviewed. Full overlap/inheritance
+remains unresolved. [Chinese card/state evidence](development/named-live-blade-verification.md).
+
+Complete-source checkpoint: explicit `require_complete_source_bindings` bounds
+occupied effect deployment to complete text/identity bindings across both public
+Stages, attachments, face-up Live Areas and the selected incoming candidate.
+Unknown/static/inherited or unsupported cross-player observers remain excluded;
+when no safe area remains, a public-target effect pauses before costs and exposes
+native manual resolution rather than resolving an invented empty target. Hidden
+cards are not scanned; private filtered no-target choices and old snapshots retain
+their semantics. This is controlled foundation evidence, not six newly executable
+entries:904/1212 (74.59%),308manual, no reviewed promotion.
+[Chinese state/Replay/AI evidence](development/overlap-source-binding-verification.md).
+
+Moved-source checkpoint: exact `PL!SP-bp7-008:2` uses a bounded original-Stage
+object policy for mandatory Wait movement -> source ready. Capture eligibility
+only after the trigger check; mark pending opted-in invocations on departure,
+not on Stage-to-Stage moves. Re-entry cannot ready the new object; finish and
+record usage with an explicit non-applied reason. The previous unresolved reason
+is closed only for this family. Registry904/1212 executable (74.59%),308manual,
+no reviewed promotion. Six occupied-deployment entries and inheritance remain
+manual. [Chinese evidence](development/moved-source-ready-verification.md).
+
+Player-view privacy checkpoint: hidden pile identities/order and unseen effect
+definitions are excluded from room responses, private inspection history and
+other-player pending choices are redacted, and full online Replay is end-only.
+Public reveals, local debug views, runtime snapshots and registry status are
+unchanged:903/1212 executable,309manual. This is response isolation, not complete
+anti-cheat or a rules-certification claim. [Evidence](development/player-payload-privacy-verification.md).
+
+Activated inspection checkpoint: exact `PL!N-bp7-006:1` now pays one Active
+Energy, privately inspects four cards and returns all in the selected order.
+`inspection_activation_policy=start_after_cost` is restricted to this structured
+cost/reorder family; absent policies retain old serialization/hash and behavior.
+Registry is903/1212 executable (74.50%),309manual, without reviewed promotion.
+At that checkpoint the second segment remained manual. Shiki's movement ability was manual with
+`source_object_departure_reentry_requires_review`: pending resolution must not
+ready a new Stage object sharing the old instance ID. The current 10-match AI
+regression did not trigger this new inspection effect; targeted tests provide
+the operation evidence. [Chinese card/state evidence](development/activated-inspection-verification.md).
+
+Activated draw checkpoint: exact `PL!SP-bp7-008:1` and `PL!N-bp7-023:1`
+now use existing self-Wait cost / draw / post-draw hand selection operations.
+At that checkpoint, registry was902/1212 executable (74.42%),310manual, with no reviewed promotion.
+Shiki's second movement ability and the six occupied-deployment cards remain
+manual. Manual activation placeholders now enter the bound pending flow instead
+of attempting an unsupported automatic operation; legacy structured prefixes
+retain their previous behavior. [Chinese card/state evidence](development/activated-wait-draw-verification.md).
+
+Live boundary checkpoint: 20 post-Heart score/movement regressions now use native
+Actions and individual SQLite Replay assertions. Four synthetic effect fixtures
+do not represent new card support; four Match Point cases retain an explicit
+8.4.7.1 area-wording review note. No registry or reviewed status changes:
+900/1212 executable (74.26%),312manual. Old core-matrix and end-phase claims are
+not imported as completed evidence. See [scope and unresolved items](development/live-boundary-matrix-verification.md).
+
+Occupied-deployment checkpoint: explicit operation snapshot policy distinguishes
+an outgoing Member's own on-play, activation and Live timings from a different
+Member entering. Full source text, unknown/combined timings, static and inherited
+abilities remain guarded. 50 targeted scenarios include six real outgoing card
+definitions, SQL Replay and four policies; this is AUDIT infrastructure, not six
+new card adaptations. Coverage stays900/1212,312manual. See the
+[Chinese evidence and limits](development/disjoint-overlap-source-verification.md).
+
+Current selected-Blade checkpoint: exact `PL!N-bp7-027:1` is now test validated,
+bringing the registry to900/1212 (74.26%), 312 manual. The bounded source-Live
+operation compares effective Blade on both Stages strictly, including waiting
+Members, and preserves card-specific score scope and zone-change cleanup.
+The three actual manual blockers disappear in a frozen50-match block regression;
+positive scoring, ties, ordering layers, privacy and SQL Replay have state tests.
+This is not human-reviewed status or full rules certification.
+[Chinese card illustration and evidence](development/selected-blade-source-score-verification.md).
+
+Historical frozen 30-deck follow-up exposed `PL!N-bp7-027:1` manual skips at seeds9008
+and9029, now queued for exact-text adaptation. The existing executable
+`PL!HS-bp6-005:2` ends explicitly not activatable without a DOLLCHESTRA Yell target;
+the report separates this from resolved, skipped and unfinished invocations.
+No registry promotion: still899/1212. [Full comparison and limits](development/ai-frozen-pool-verification.md).
+
+AI resource-cycle checkpoint: opt-in `simple_ai_v1_2` uses the existing legal
+Live Set operation on surplus Members, with native draw/privacy/cleanup/Replay
+assertions. Paired 50-match tests complete 50/50 with no skip or Replay error;
+the ten-match step audit retains one human-review item. Registry remains
+899 executable / 1212 total (74.17%), 313 manual; no review promotion.
+[Evidence and the unchanged archived 34/50 heuristic baseline](development/ai-live-cycle-verification.md).
+
 ## Purpose
 
 This document records the first full-card-pool semantic review baseline for effect modeling.
@@ -18,19 +295,83 @@ This audit does not incorporate FAQ, Q&A, or individual ruling clarifications.
 
 ## Current Repository Snapshot
 
-Local card data observed during this review:
+实际 `PL!N-bp3-005:1` 的事件条件已从错误的“本回合至少3次”改为触发时恰好第3次，
+保存来源当时在Stage的资格；待机后来源离场或又有第4次登場不取消，手牌缺额仍在解決时计算。
+第2段Live开始时“至少2次”未改，补1分的真实状态对照已验证。新条件仅接受有界强制补手牌观察者，
+旧effect snapshot保持旧Replay；registry/candidate/manifest同步但登记数不变。
+[中文卡图、状态与兼容性报告](./development/third-entry-observer-verification.md)。
 
-* about 1,679 Gameplay Cards
-* about 845 Card Text Revisions
-* about 832 Gameplay Cards with at least one text revision
+新建对局增加独立 `stage_departure_policy=clear_departed_card_modifiers`：普通替换、Baton、
+受控效果登场、手动离场及该路径附属卡清理会解除旧对象的定向 modifier，包含存于对方玩家下的补正。
+Stage 内移动和非定向补正保留；None省略并保持旧Replay。实际花帆先获得2Blade再离场/回场与SQL重放已验证，
+登记仍899/1212，不代表通用区域身份、继承或完整重叠处理完成。见
+[中文状态与兼容性报告](./development/stage-departure-modifier-verification.md)。
+
+Actual `PL!HS-pb1-009:1` now opts into a bounded `overlap_source_policy=original_stage_member` operation snapshot. Capture positional entry qualification before ordinary overlap cleanup, then record resolution/usage without giving this modifier to a departed or re-entered source object. None is omitted for old snapshots; candidate identity and manifest are synchronized without coverage/review promotion. Non-overlap identity, full conditional Stage views and inheritance remain unresolved. [Chinese state and compatibility evidence](./development/overlap-source-modifier-verification.md).
+
+The latest new-match overlap policy also preserves actual `PL!N-pb1-012:1` fixed self Wait Energy entry observers after normal replacement. Resource availability is deferred until overlap attachment cleanup; insufficient Energy at resolution produces an explicit result instead of a silent skip. None and the earlier fixed-draw policy keep historical Replay behavior. State, native AI, privacy and bilingual result evidence: [Chinese verification](./development/overlap-energy-observer-verification.md). Registry counts and human-review status are unchanged.
+
+New matches now expose own pending-effect ordering after AP/NAP filtering, rechecking priority after each resolution and pinning already-started multi-stage parents. Shared Live phases use the first player as AP, rather than the current UI chooser. Independent optional snapshot policy preserves old Replay behavior; this is not a complete rule-action/check-timing scheduler or a coverage promotion. Actual draw-order, runtime Replay, AI and UI evidence: [Chinese verification](./development/pending-effect-order-verification.md).
+
+New matches explicitly capture bounded fixed-draw entry observers before overlap cleanup, correcting actual `PL!N-pb1-005:1` when replaced by a cost10 Member (not Baton). Old snapshots omit the new MatchState policy and retain historical Replay behavior. Complex source/stage/inherited conditions remain excluded or diagnosed, without registry promotion. See [state and compatibility evidence](./development/overlap-entry-observer-verification.md).
+
+The bounded Stage-deployment foundation now supports an explicit own-hand filtered selection policy with an effective 0–1 choice. It does not waive costs, relax public mandatory targets, alter old snapshots, or register the six pending deployment effects. Native activation, runtime Replay, three AI policies, private views and mobile component evidence are recorded in [the Chinese verification](./development/private-hand-choice-verification.md). Complex check-timing overlap remains unresolved.
+
+Energy return follow-up: actual `PL!SP-bp5-111:2` costs and `PL!SP-pb2-010:1` branches now retain a valid face-down deck representation, preserving JSON/read/replay. Invalid historical snapshots are rejected without mutation or private error details; HTTP/SSE report a stable error and clients stop retrying. Exact candidate recovery does not change registry counts or review status. See [Chinese verification](./development/energy-return-replay-verification.md).
+
+Local card data observed after the October 25, 2026 full official-source refresh:
+
+* 1,977 Gameplay Cards
+* 2,700 Card Printings across 24 Card Sets
+* 1,246 Card Text Revisions
+  * An unregistered, bounded `deploy_selected_to_stage` foundation now validates simple occupied-area cleanup, entry/exit, costs, Replay, AI and privacy. Complex overlap/entry conditions and private-hand fail-to-find remain excluded; the two PR and four Nijigasaki effects stay manual. See [the precise scope and newly reproduced Energy Replay gap](./development/occupied-deployment-foundation.md). This does not increase executable coverage or claim a general check-timing implementation.
   * current registry coverage has split into two separate layers:
-  * 979 effect definitions
-  * 864 `test_validated_executable` definitions
-  * 115 timing-only `manual_resolution` definitions
-  * registry-entry executable coverage is currently 88.25%
+  * 1,212 effect definitions
+  * 900 `test_validated_executable` definitions
+  * 312 timing-only `manual_resolution` definitions
+  * registry-entry executable coverage is currently 74.26%
+  * `PL!-bp6-003:2` attachment promotion now has explicit snapshot-scoped entry-trigger semantics: Member Area internal transfers do not trigger on-play or own-member-entry effects, while old snapshots retain historical behavior. State, runtime Replay, UI, AI and privacy assertions are documented in [the follow-up audit](./development/attachment-promotion-verification.md).
+  * `PL!-pb1-018:1` now records AP/NAP selections before simultaneous Wait placement, then queues entry triggers from the final board and resolves them after the parent. Its explicit choice policy preserves old snapshots; candidate/area UI, atomic rejection, actual draw transitions, AI and privacy tests are documented in [the bounded verification](./development/multi-player-entry-verification.md). Counts remain 899/1212; this is not a general simultaneous-trigger scheduler or human-reviewed ruling.
+  * October 25 deployment audit: six literal-empty-area effects now explicitly enter Active and expose legal position choices. Four unrestricted named-Member deployment effects were downgraded to manual instead of retaining an incorrect empty-only restriction. See [verification](./development/empty-effect-deployment-verification.md). Historical counts below describe earlier runs, not the current denominator.
   * the latest Phase 5 sandbox block run still records mandatory manual-resolution blockers in generated matches, but the current 10-match smoke no longer blocks on the newly structured base-Blade, source position-change, Baton replacement return, distinct-name Yell, no-excess-Heart, minimum-Blade choice, branch-specific Stage Member choice, branch-conditioned Waiting Room Live choice, activated Waiting Room Member deploy, activated cost-choice Live recovery, on-play pay-Energy, simple on-play, live-start pay / discard modifier, activated wait-or-discard ready Energy branch, on-play branch, moved-source modifier, success-count-equal Live-start Heart, opponent wait count static, multi-segment static Heart / Blade, Live-success Energy placement / pay draw, moved-source draw / Energy / opponent wait, Yell-revealed special Blade Heart / Stage name Live-success, static count modifier, static position / Heart / Live-area condition, static opposing-cost / movement / attachment condition, Yell / Live-success condition, Yell-revealed recovery, Live-success conditional score / Energy, hand deploy / source-wait Blade, or source-wait opponent original-Blade wait patterns
   * `skip` mode currently avoids illegal actions in the latest 50-match run, but long sandbox games still frequently reach the action cap before a formal result
   * the latest testing loop added Live-specific temporary score / required-Heart modifiers, reveal-top scoring, Live Area condition checks, grouped Stage Member choice, base Blade replacement, source Member position change, Baton replacement return, distinct-name Yell conditions, no-excess-Heart conditions, minimum-Blade target filtering, branch-specific Stage Member choice filters, branch-specific conditions, both-player Waiting Room Member bulk deck-bottom movement, single-player Waiting Room Member deployment to empty Stage slots, activated cost-choice handling, on-play pay-Energy handling, simple on-play effects, activated source-orientation branch handling, on-play branch filters, moved-source auto modifiers, success-count-equal Live-start Heart modifiers, opponent wait-count amount sources, opponent Energy placement, additional exact-text Live timing patterns, Yell-revealed Member recovery, source Live-success disabling, original-Blade bulk wait, source score replacement, deck-refresh turn history, Yell-revealed special Blade Heart conditions, all-required Stage name conditions, static Stage / success / opponent-excess count modifiers, static position / Heart / Live-area condition modifiers, static opposing-cost / movement / attachment condition modifiers, Yell-revealed Heart-color / non-Blade-Heart conditions, member-entered count conditions, Yell-revealed deck placement / recovery, source-moved operation conditions, Live-success conditional score / Energy amount conditions, hand-zone Member deployment, source-wait center Member Blade modifiers, source-wait opponent original-Blade choice filters, unit-exclusion opponent wait filters, top-level moved-source gating, operation-conditioned static bonus calculation, selected/cost-card operation conditions, capped Yell-revealed Live counts, shared-unit Yell conditions, and additional exact-text Waiting Room recovery / Energy ready / inspect-top patterns
+
+The latest full refresh includes the official card-list products through
+`CLLS01` (released October 24, 2026) and `PBLL02`, while retaining `BP07` and
+`NSD02`. The importer now discovers products through the official products API,
+so future products without card-list data and unit/work filters are not treated
+as importable sets. All current timing segments are registered, while ambiguous
+or unsupported text remains manual. The lower percentage reflects the larger,
+honestly registered denominator and is not corrected by promoting untested text.
+
+The safely structured new-pack subset includes Waiting Room Live/Member return,
+top-three inspect/reorder, Energy payment plus Member ready, targeted Member
+Blade, conditional draw, mill-three, temporary Heart, and opponent cost-2 Wait.
+`PL!N-bp7-030:2` now returns its source Live to hand and then performs a required
+post-action hand discard. The October pass also structures `PL!S-bp7-006:1`,
+`PL!S-bp7-019:1`, `PL!S-bp7-024:1`, `PL!SP-bp7-024:1`,
+`PL!N-bp7-025:2`, and `PL!-pb2-037:1`, including deck-bottom milling,
+Yell Heart-color variety, and revealed-Member shared-unit conditions.
+`PL!S-bp7-007:1` remains manual because its mandatory
+return plus optional deployment cannot yet preserve the selected-card relation.
+The `無2` special Blade Heart remains explicitly unknown under rules ver.1.06.
+
+The cost-result branch pass adds `PL!-bp5-003:2` without altering its static
+first segment or text revision 151. A paid μ's card deterministically selects
+inspect-four / keep-two; another work selects mandatory Waiting Room Live
+recovery, resolving zero only when no legal Live remains after payment. It
+includes state-transition, forged-branch rollback, three AI-policy, Replay,
+private-inspection view and multi-stage UI tests. This is test-validated, not
+human rules review. See `development/cost-result-branch-verification.md`.
+
+The legacy Baton hand-deploy audit keeps `PL!-PR-015:1` and `PL!SP-PR-020:1`
+manual. Their prompts now require actual Baton Touch from a strictly lower-cost
+Member; normal replacement and equal/higher-cost Baton do not queue them. The
+old prototype's empty-area / default-Wait executor and missing UI/AI area choice
+do not implement rules 4.3.2.3 and 9.6.2.4.2.1. The exact-text gap reason is
+`member_deployment_area_orientation_ui_ai_not_rules_conformant`; support counts
+remain unchanged. See `development/baton-hand-deploy-audit.md`.
 
 Therefore, the current repository has broad timing-prompt coverage but is still in a pattern-expansion phase rather than a broad full-card executable-effects phase. The new manual fallback entries are not proof of automated semantic support.
 
@@ -38,7 +379,22 @@ The Simple AI v1 accuracy pass added 39 exact-text executable definitions withou
 
 The v1.1 registry-integrity pass corrected effect segmentation, trigger timing, frequency, and Japanese-text bindings without fuzzy matching. The strict audit maps all 979 registry identities to exact local text revisions with zero errors and zero warnings. Twenty-two existing exact-text entries were promoted after executor and state-transition tests, one newly split timing entry is executable, and one previously executable misbinding was conservatively returned to manual. The later rule-audit pass structured `LL-bp5-002:1`, whose exact text checks three distinct Stage units and grants the Center Member one all-color Heart for the current Live. The remaining 115 entries stay manual.
 
-The official-rule AI acceptance run uses comprehensive rules ver. 1.06 as a clause-indexed audit baseline. In a fixed 20-match pool, all 20 matches completed, 12 met the strict requirement of finishing within 10 turns with both players completing at least one Live, and all 14,160 observable transition checks passed. The run exercised 64 distinct effects across 260 effect decisions or resolutions, with 260 semantic effect checks passing and no Replay error. This dynamic result is evidence for exercised paths only; it does not promote unexercised manual entries or replace human review.
+The post-refresh official-rule AI acceptance run uses comprehensive rules ver.
+1.06 as a clause-indexed audit baseline. In the fixed 20-match verification,
+all 20 matches completed, 13 met the strict requirement of finishing within 10
+turns with both players completing at least one Live, and 13,539 observable
+transition checks passed. The run exercised 61 distinct effects across 212
+effect decisions or resolutions, with no failed semantic check, Replay error,
+or effect-error skip. Two steps remain review annotations rather than failures.
+This dynamic result is evidence for
+exercised paths only; it does not promote unexercised manual entries or replace
+human review.
+
+The follow-up 30-deck / 50-match black-box run completed 314/314 executable
+effect resolutions with zero skipped effects and zero Replay errors. Thirty-four
+matches reached a formal result; the other sixteen hit the 260-action cap due to
+Live access or long-game policy stalls. Those are tracked as Simple AI/controller
+strategy issues rather than effect-execution failures.
 
 The human-readable effect verification artifact now contains 60 Japanese / Chinese scenarios. Twenty-one scenarios execute focused state transitions, while the remaining contract scenarios verify exact trigger, choice, operation, support status, official Japanese text, and card visual linkage. These checks are implementation evidence only; `reviewed_executable` still requires human rule review.
 

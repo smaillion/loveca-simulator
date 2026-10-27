@@ -1958,6 +1958,13 @@ button {
   background: #e6f5f3;
 }
 
+.effect-position-choices button small {
+  display: block;
+  max-width: 12em;
+  overflow-wrap: anywhere;
+  font-weight: 400;
+}
+
 .effect-color-choices button {
   display: inline-flex;
   align-items: center;

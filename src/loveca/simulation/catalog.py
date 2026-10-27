@@ -88,6 +88,7 @@ def build_match_cards(
             name=player.name,
             main_deck=main_ids,
             energy_deck=energy_ids,
+            member_card_instance_ids_entered_stage_this_turn=[],
         )
     return instances, states, registry.registry_version, effects
 

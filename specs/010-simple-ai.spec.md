@@ -2,6 +2,149 @@
 
 ## 1. Purpose
 
+### Experimental resource-cycle policy
+
+PL!N-sd2-026:1 consumes engine-generated effective-Blade>=4 Nijigasaki targets,
+including supported static modifiers. AI does not duplicate this rule or infer
+eligibility from a player's total Yell bonus. Four policies preserve hidden-hand
+invariance and explicit no-target completion. Frozen30 reaches9 completed/21
+manual stops, not beta acceptance; defaultv1.1 remains unchanged.
+
+PL!S-cl1-002:1 uses current engine-generated original-Yell candidates and ordered
+zero-to-three bottom selection. AI must not inspect opponent hidden identities or
+infer Yell from the entire Resolution Area. Frozen30 reaches8 completed/22 manual
+stops, not release acceptance; defaultv1.1 and historical policies remain unchanged.
+
+PL!N-PR-036:1 delegates target and cost15 Heart calculation to the shared engine.
+Four policies must choose from current public candidates, including zero only
+when no legal target remains. Source departure/reentry is tracked as object
+identity, not inferred from card ID equality. Frozen30 remains7 completed/23
+explicit manual stops, not release acceptance; defaultv1.1 is unchanged.
+
+PL!-pb2-039:1 uses the shared engine's resolution-time success-zone condition
+and Yell-count modifier; AI does not reproduce these rules. Four policies and
+both viewer payloads remain compatible. The frozen30 diagnostic finishes7/30,
+with23 explainable manual stops. This is targeted progress, not beta acceptance
+or an AI-strength claim; the product default remains simple_ai_v1_1.
+
+Offline manual-focus diagnostics enrich the test pool without changing product
+policy or the default blackbox pool. Decision counts and deck frequency must not
+be called triggers: effect_triggered queue events, optional declines, explicit
+error skips and available mandatory-manual blockers are separate metrics.
+Observation code exports only effect IDs/counts, not private cards or action
+payloads. Provenance binds diagnostic inputs/code with deck/seed/policy details.
+30 focused matches:6 complete,24 manual stops,0 illegal/runtime/Replay errors;
+this does not satisfy a complete-game release gate. Defaultv1.1 stays unchanged.
+
+PL!S-bp2-005:1 is explicitly manual pending icon-scope review and a bounded
+multi-keep executor. All four policies legally decline this optional effect with
+reason decline_optional_manual_effect in persisted ai_action_selected events;
+they do not pay, inspect or label it automatically resolved. SQL Replay preserves
+old executable snapshots without reinterpreting their historical filters.
+Product defaultv1.1 is unchanged; this quarantine lowers coverage to914/1212.
+
+Three mixed-Heart inspection identities use explicit hand-cost availability.
+Four policy versions have paid/unpayable, privacy and non-mutation assertions.
+Member Heart and Live required Heart are separate card information; the legal
+choice does not aggregate Yell icons or global performance bonuses.165 targeted
+tests cover all three; fixed10 does not trigger them. Product defaultv1.1 and
+legacy snapshots remain unchanged.
+
+Five Member/Liella inspection identities use the bounded hand-cost policy. All
+four AI versions have native paid/unpayable and hidden-hand invariance tests.
+Fixed10 qualifies in3-9 turns; PL!SP-bp1-005:1 pays/inspects/resolves five times
+each, not evidence for the remaining four.165 targeted assertions cover all five.
+The product defaultv1.1 and historical policy/snapshot behavior are unchanged.
+
+Six work/unit inspection identities now use explicit cost availability. All four
+policies finish paid or unpayable choices without error-skip and without opponent
+hidden-hand identity dependence. Work and unit filters must not be conflated;
+both Member and Live may match.192 targeted state tests are separate from fixed10
+matches, which do not trigger these six. Product defaultv1.1 is unchanged.
+
+Six peek5/peek2 siblings use native hand-cost options. Public Member/Live peek5
+may keep zero but must use the generated card-type filter; private unfiltered
+peek2 must keep one after paying. A cost may be supplied by another pending
+invocation, and an unpayable cost ends without peeking or error-skip. All four
+policies have per-card paid/unpayable and hidden-hand invariance assertions;
+fixed10 does not trigger these six. Defaultv1.1 and old snapshots are unchanged.
+
+Fifteen separately verified private peek3 identities now opt into the existing
+cost policy. AI may decline the optional hand cost but, once paid, must keep one
+inspected card regardless of work or Member/Live type; neither look nor keep is
+public. Explicit keep minimum and public reveal are independent pattern fields.
+All four policies have per-card paid/unpayable, privacy and SQL tests. Fixed10
+does not trigger these15 and is not coverage evidence. Defaultv1.1 is unchanged.
+
+Six audited single-discard on-play snapshots additionally use
+`triggered_inspection`: own hand Member or Live can pay; lack of cards is checked
+at selected resolution, not at trigger. Four public filtered keeps allow zero;
+two unfiltered private peek3 effects require one after payment. Policies must not
+mistake optional payment for an optional post-payment keep, or read opponent
+private inspection data. Defaultv1.1 and historical snapshots remain unchanged.
+Fixed10 is regression only here: none of these six effects was triggered.
+
+`triggered_inspection_reorder` is limited to source-Wait/on-play/private peek2:
+zero, one or two cards may be returned in explicit order, and the rest go to the
+Waiting Room. All four policies use the generated candidates/order and can end an
+unpayable invocation without looking or error-skipping. Seven existing Wait and
+three Nijigasaki discard snapshots opt in; old executable SQL snapshots do not.
+Source departure/reentry invalidates payment, but Stage-internal movement does not.
+The fixed10 pool actually completes four Liella Heart8 inspections; the other nine
+effects have targeted state tests, not random-match coverage. Product defaultv1.1
+and controller API remain unchanged.
+
+For `cost_payment_policy=triggered_inspection`, an invocation can expose
+`cost_payment_unavailable_reason` instead of impossible choice requirements.
+All policies can submit an empty native resolution (or decline optional cost)
+to cancel it without payment/look/debug skip. Availability is rechecked after
+any other pending invocation, not cached at trigger; original source reentry is
+not a payable original Wait source. This does not upgrade older snapshots or
+change the default v1.1 policy.
+
+All policies use the native inspected candidate set, including work / Member /
+Blade Heart filters, and may keep zero when the ability says optional. Paying a
+hand cost and choosing an inspected card remain separate decisions; the cost is
+never paid twice. An opponent's hidden cards and private inspection options must
+not affect decisions. Four Nijigasaki on-play effects have per-policy state tests;
+the fixed10 benchmark does not contain their triggers and is not strength evidence.
+
+Native `original_live_start_wait_cost_source` effects may offer one own Active
+Nijigasaki Stage Member as a cost, including the source. Costs are not modifier
+targets. AI must consume the native candidate list and optional color flag;
+Waiting Members are ineligible costs and their Blade does not fund Yell. This
+source-object strategy is explicit; historical Stage-cost snapshots are not
+silently upgraded. Default policy remains v1.1.
+
+Cost-card choices may additionally require `requires_color_choice` and expose
+`color_slots` in the same LegalAction. All policies must submit a legal cost and
+color atomically or decline an optional ability; no engine payment occurs during
+selection. Original-source departure is an explicit non-applied operation, not
+an AI error-skip. Default policy remains unchanged.
+
+All four policies consume native grouped bounds for
+`public_named_groups_as_much_as_possible`: one candidate for each present name,
+zero for an absent name. They must not bypass a required group, infer hidden
+identities or reuse the old automatic first-match rule. This is a Rule Engine
+accuracy fix; default policy and strategy version remain unchanged.
+
+The offline blackbox runner may select a shared product policy explicitly and
+load a frozen deck directory, seed base and one-based match start. Defaults keep
+the historical heuristic. Each decision uses one controlling player's view;
+unsupported mandatory effects stop in block mode or produce explicit error-skip
+events in skip mode. Reports must not equate a not-activatable event or a skip
+with resolved effects, and must count unfinished invocations separately.
+
+`simple_ai_v1_2` is opt-in; new default matches remain `simple_ai_v1_1`.
+It retains v1.1 protections and, only without a Live in hand, may set up to three
+surplus Members offered by LegalActionGenerator, keeping the two highest-valued
+Members. PDF 8.2.2/8.2.4 permits setting hand cards, not only Lives; normal draws,
+face-down visibility and non-Live cleanup (10.5.1) remain Rule Engine operations.
+No opponent private identity or future deck order may inform this choice.
+AI-vs-AI acceptance counts initial and subsequent AI decisions against one cap;
+Human-vs-AI retains its human-driver cap. Explained blockers alone do not prove
+the separate completion-performance target. See the [verification report](../docs/development/ai-live-cycle-verification.md).
+
 This spec defines how Simple AI should treat unsupported and manual card effects.
 
 It does not define AI implementation code, algorithms, APIs, or UI.

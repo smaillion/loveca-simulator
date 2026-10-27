@@ -8,22 +8,154 @@
 
 ## 現在の状態
 
-`v0.77` の収録内容:
+「Fire Bird」`PL!N-sd2-026:1`に対応。現在の有効Bladeが4以上の自分の虹ヶ咲Stage Memberを1人選び、Heart02を2つ与えます。新policyだけ常時修正も反映し、旧Replayは維持。918/1212、294manual。同じ30デッキは9完了/21手動停止で、beta合格ではありません。[検証](./docs/development/nijigasaki-blade-four-heart-verification.md)
 
-- 公式 `card_list` からの正式カード importer
+桜内梨子`PL!S-cl1-002:1`のエール由来Aqoursカード0–3枚を任意順でデッキ下へ戻せます。Member/Live両方、移動後の新オブジェクト、旧Replayと非公開順序を区別。917/1212、295manual。同じ30デッキ診断は8完了/22明示停止で、beta合格ではありません。[検証](./docs/development/aqours-yell-bottom-verification.md)
+
+桜坂しずく`PL!N-PR-036:1`を精確な本文で対応。他の自分の虹ヶ咲Memberを1人選び、解決時のカード情報costが15以上ならHeart03を2つ、それ以外は1つ与えます。対象なしは明示終了し、領域移動後の同IDは新しい対象として扱います。登録916/1212（75.58%）、296manual。[対象・Replay・AI検証](./docs/development/other-nijigasaki-heart-verification.md)
+
+「僕たちはひとつの光」`PL!-pb2-039:1`を正確な本文に限定して対応。解決時に成功置き場のμ'sを数え、2枚以上ならエールを10枚追加します。MemberのBladeは変更しません。第2段は手動のまま。登録915/1212（75.50%）、297manual。同じ30デッキの診断は6→7試合完了、残り23試合は明示的な手動停止です。リリース合格ではありません。[カード別検証](./docs/development/live-yell-ten-verification.md)
+
+渡辺曜`PL!S-bp2-005:1`は「Heartを持つ」の範囲と上7枚から最大3枚取得の専用処理が未確認のため、保守的に手動へ戻しました。費用・確認は自動実行せず、任意辞退または手動処理を選べます。旧Replayは維持。その監査時点では914/1212、298manualです。[理由と互換性検証](./docs/development/multi-keep-inspection-audit.md)
+
+`PL!S-pb1-013/014/015:1`の登場時検索3件を再検証。MemberのHeartとLiveの必要Heartを区別し、指定色2以上・任意公開取得・費用不足時の終了を確認しました。165項の専用回帰と172項の図解検証、登録915/1212は据え置きです。[カードと検証範囲](./docs/development/mixed-heart-inspection-audit.md)
+
+Member/Liella!の登場時確認5件を再検証し、上4/5/6枚・カード種・作品指定と費用不足時の終了を確認しました。165項の専用回帰、166項の図解検証。固定10試合では葉月恋`PL!SP-bp1-005:1`の支払い・確認・解決を各5回記録。登録915/1212は据え置きです。[カードと証拠](./docs/development/member-liella-inspection-audit.md)
+
+作品/ユニット指定の登場時確認6件を再検証。費用不足時は確認せず終了し、Member/Live両方の候補・任意公開取得・旧Replayを維持します。192項の専用回帰と156項の図解検証、登録915/1212は据え置きです。[対象カードと検証範囲](./docs/development/work-unit-inspection-audit.md)
+
+Member/Liveを上5枚から任意公開取得する4件と、上2枚から必ず1枚を非公開取得する2件の手札費用を再検証しました。費用不足はデッキを見ずに待機取消、古いReplayは維持します。174項の専用回帰と144項の図解検証、登録915/1212は据え置きです。[対象カードと検証](./docs/development/inspection-siblings-audit.md)
+
+同文の「手札1枚→上3枚から非公開で1枚」15件を逐カード検証し、費用不足時の待機取消に対応しました。任意の支払いと必須取得を分離し、別段のLive能力や旧snapshotは変更しません。435項の専用回帰、132項の図解検証。登録915/1212（75.50%）は据え置きです。[対象カードと検証範囲](./docs/development/private3-inspection-family-audit.md)
+
+手札1枚費用の登場時確認6件（`PL!-bp3-010 / bp5-014 / bp6-004 / pb1-016 / sd1-011 / sd1-012:1`）を再検証しました。費用不足は確認せず待機取消、公開指定4件は0枚可、非公開取得2件は費用後に必ず1枚を選びます。登録915/1212は変更しません。[画像と状態検証](./docs/development/adjacent-inspection-cost-audit.md)
+
+既存の登場時確認10件の費用を修正しました。自身Wait7件は既にWait・離場後の別オブジェクトから費用を払えず、虹咲手札費用3件は手札不足時に確認せず待機取消できます。上2枚の0–2枚並べ直し、非公開順序、旧Replayも検証。登録は915/1212（75.50%）のままです。[カード画像と監査結果](./docs/development/existing-inspection-cost-audit.md)
+
+登場時検索の`PL!-pb2-032:1` 星空凛、`PL!SP-bp7-018:1` 米女メイ、`PL!-pb2-008:1` 小泉花陽に対応しました。強制手札/Live手札/自身Waitの費用と、公開/非公開の取得を区別します。新snapshotでは解決時に費用を再確認し、不可能ならデッキを見ずに待機を取り消せます。登録915/1212（75.50%）、297件manual。[検証と既存能力の残リスク](./docs/development/typed-inspection-cost-verification.md)
+
+虹ヶ咲の登場時検索4件（`PL!N-sd2-009/012/014:1`、`PL!N-bp7-018:1`）に対応しました。任意の手札費用、公開せず0枚を選ぶ処理、Blade Heartなしの条件を区別します。確認中は本人だけが見え、選んだ1枚は相手にも公開されます。登録912/1212（75.25%）、300件manual。[カード画像・状態検証](./docs/development/nijigasaki-inspection-verification.md)
+
+`PL!N-sd2-006:1` 近江彼方と`PL!N-bp7-012:1` 鐘 嵐珠に対応しました。自分のアクティブな虹ヶ咲メンバー1人を費用でウェイトにし、誘発元だけにBlade+2／指定色Heart+1を加算します。自身を費用にすることもでき、ウェイトのBladeはエールに数えません。登録908/1212（74.92%）、304件manual。[カード画像・検証](./docs/development/live-wait-cost-verification.md)
+
+`PL!N-sd2-005:1` 宮下 愛の「手札2枚→指定色のハート2つ」に対応しました。費用カードと色を同時に確認できるようにし、同じUI不足があった既存4能力も修正しました。元のメンバーが離場して再登場した場合は加算しません。登録906/1212（74.75%）、306件manual。[カード画像・検証](./docs/development/live-discard-color-verification.md)
+
+`PL!SP-bp1-024:1`「Tiny Stars」の自動先頭選択を修正しました。「澁谷かのん」と「唐 可可」を名前ごとに1人選び、同じ対象にHeartとBladeを付与します。一方が不在でも他方を解決し、旧Replayは維持します。登録数は905/1212のままです。[カード画像・検証結果](./docs/development/named-live-group-verification.md)
+
+`PL!SP-bp7-025:1`「Memories」に対応しました。ライブ開始時、同名の「嵐 千砂都」が複数いても1人を明示的に選び、そのメンバーだけがLive終了までBlade+1を得ます。対象は解決時に選び、不在なら理由を表示して終了します。登録905/1212（74.67%）、307件manual。[カード画像・状態・Replay検証](./docs/development/named-live-blade-verification.md)
+
+効果による重複登場の監査基盤に、双方の公開Stage・表向きLive・登場候補の全文/版/ハッシュを確認する明示的な方針を追加しました。未確認能力で全エリアが利用できない場合は費用を払わず停止し、手動処理へ案内します。旧snapshotは維持し、6件の複雑な登場能力はmanualのままです。[検証と適用範囲](./docs/development/overlap-source-binding-verification.md)
+
+`PL!SP-bp7-008:2` 若菜四季の「ウェイトでエリア移動後に自身をアクティブ」に対応しました。誘発後に離場し同じIDで再登場しても別のカードには復原せず、理由を表示して解決を完了します。完全な重複・継承の対応ではありません。[カード画像・状態・Replay検証](./docs/development/moved-source-ready-verification.md)
+
+オンラインのプレイヤー応答から、デッキのカード情報・実ID・順序と未公開の能力定義を除き、枚数だけを表示します。自分の手札、公開カードと明示的な公開結果は維持します。完全なReplayは対戦完了/ルーム終了後に出力し、対戦中は無効です。ローカル双人検証と保存データ形式は変更しません。[検証と制限](./docs/development/player-payload-privacy-verification.md)
+
+`PL!N-bp7-006:1` 近江彼方のEnergy支払い後の上4枚確認・並べ直しに対応しました。確認は本人だけに表示し、費用を再度払いません。第二段はmanualのままです。[カード画像・状態・Replay検証](./docs/development/activated-inspection-verification.md)
+
+`PL!SP-bp7-008:1` 若菜四季の自己Wait→1枚ドローと、`PL!N-bp7-023:1` ミアの自己Wait→2枚ドロー後2枚捨てに対応しました。回数制限と選択の前後を区別し、manual起動のエラーも修正しました。[カード画像・状態・Replay検証](./docs/development/activated-wait-draw-verification.md)
+
+Liveの得点・成功置き場への移動・勝敗を20場面で回帰検証し、各場面のSQLite Replayも確認します。4場面はPDF 8.4.7.1のエリア表記と既存Match Point解釈の照合が必要です。実装回帰と公式裁定の確認を区別し、エンジンや登録数は変更しません。[検証範囲と未解決点](./docs/development/live-boundary-matrix-verification.md)
+
+効果による登場の監査用基盤で、交代する旧メンバーの自身登場・起動・Live時点能力を別メンバーの登場監視と混同しない方針を追加しました。常時・継承・未登録の原文は引き続き保留し、カードの対応数は増やしません。[検証と制限](./docs/development/disjoint-overlap-source-verification.md)
+
+新しい対戦と待機ルームはRulesetのID・指紋・裁定パックを保存します。ルーム作成後に版が変わった場合は参加を拒否し、作り直しを案内します。旧snapshotは書き換えず、不一致の対戦は閲覧・Replay保存のみです。[ルーム互換性と清掃](./docs/development/room-ruleset-lifecycle-verification.md)
+
+`PL!N-bp7-027`「オードリー」のライブ成功時能力に対応しました。選んだ虹ヶ咲メンバーの実効ブレードを双方の他メンバーと厳密比較し、誘発元のLiveだけに+1します。同数は加算せず、画面に比較結果を表示します。[状態・Replay・50局検証](./docs/development/selected-blade-source-score-verification.md)
+
+`PL!N-bp3-005:1` 宮下愛の補充を正確に「3回目の登場」に限定しました。4回目以降は誘発せず、
+誘発後の交代や追加登場で待機能力を失いません。別段の「2回以上」は維持します。[実カードと旧Replay検証](./docs/development/third-entry-observer-verification.md)
+
+新規対戦では、通常交代・バトンタッチ・限定的な効果登場・手動退場でステージを離れたカードの
+一時補正を解除します。再登場しても旧 Blade / Heart を引き継がず、ステージ内移動と全体補正は維持します。
+旧 Replay と登録率は変更しません。[実カード・Replay・AI の検証](./docs/development/stage-departure-modifier-verification.md)
+
+`PL!HS-pb1-009:1` のセンター誘発に限定的な重複処理を追加しました。誘発後に通常交代で離れた場合、
+解決と回数は記録しますが、控え室や再登場したカードへ今回の Blade を与えません。旧 Replay は維持します。
+[状態・制限・AI の検証](./docs/development/overlap-source-modifier-verification.md)
+
+新規対戦で `PL!N-pb1-012` 鐘嵐珠が通常交代で離れた後も、誘発済みの Wait Energy 追加を解決します。
+重複処理で戻った下の Energy も利用でき、不足時は結果を明示します。旧 Replay と登録率は変更しません。
+[実際の状態・AI・画面の検証](./docs/development/overlap-energy-observer-verification.md)
+
+新規対戦では複数の待機能力の解決順を選べるようにし、AP / NAP の優先と処理途中の割込み禁止を統一しました。
+旧 Replay は維持します。一般のルール処理全体の完成や登録率の上昇を意味しません。
+[順序・状態・AI の検証](./docs/development/pending-effect-order-verification.md)
+
+新規対戦では `PL!N-pb1-005` 宮下愛がコスト10の Member に通常交代された際、
+登場を見た後に控え室へ移っても1枚引きます。バトンタッチでは引きません。
+旧 Replay の挙動は維持し、複雑な重複処理は未対応です。[検証と制限](./docs/development/overlap-entry-observer-verification.md)
+
+効果登場の限定基盤に、非公開手札の条件付き選択を0枚にする明示的な方針を追加しました。
+費用は取り消さず、旧 snapshot と公開領域の必須選択は変えません。正式カードの追加対応ではなく、
+複雑な重複処理は引き続き未対応です。[画面と状態検証](./docs/development/private-hand-choice-verification.md)
+
+`PL!SP-bp5-111:2` / `PL!SP-pb2-010:1` の Energy をデッキへ戻した後に保存データを読めなくなる問題を修正しました。
+既に壊れた保存データは書き換えず、明確なエラーと新規対局の案内を表示し、再試行を停止します。
+[状態・API・Replay の検証](./docs/development/energy-return-replay-verification.md)。登録率は変更していません。
+
+継続開発は単一の `codex/continuous-development` と固定 worktree で進めます。
+タスク、検証結果、PR を引き継ぐ運用は [継続開発ガイド](./docs/21-continuous-development.md)
+と [実行手順](./automation/WORKFLOW.md) を参照してください。
+
+[Codex Cloud への引き継ぎ](./docs/development/codex-cloud-handoff.md)を準備しました。
+Linux のセットアップとタスク状態を共有できますが、実行元はまだローカルです。
+クラウドへの切替・定期実行・同一 PR 更新は別途確認し、認証情報や本番環境は移しません。
+
+旧 worktree から公式ルール ver.1.06 の読み取り専用 Profile と 49 件の条項参照を移行しました。
+FAQ は未審査のため非適用です。対局 / Replay への接続とルール行列は次の工程であり、
+今回の資料検証だけで v0.9 準拠を宣言しません。[移行範囲](./docs/22-ruleset-source-profile-migration.md)
+
+Deck Builder の詳細画面では、明示的に選んだカード画像をデータ再取得後も保持します。
+別カードを開いた場合は、そのカードの印刷版から選び直します。
+
+API Play 検証ツールは、対戦相手の裏向きカードと他プレイヤーの非公開選択を入力から隠します。
+mock と実モデルの検証を区別し、context 保存は既定で無効です。このツール移行だけでは技能対応率を変更しません。
+
+`PL!-bp5-003:2` の起動能力を構造化しました。実際に支払った手札に応じて、
+4枚確認から2枚を手札へ、または控え室のライブ1枚回収へ分岐します。
+確認中のカードは相手の画面 / AI に渡さず、費用選択から次の選択へ移る際に UI を初期化します。
+[検証記録](./docs/development/cost-result-branch-verification.md)
+
+`PL!-PR-015` / `PL!SP-PR-020` の手動能力案内は、低コストのメンバーから実際に
+バトンタッチした場合だけ表示します。効果による登場は区域 / 向きの基盤が未整備のため、
+この2枚は引き続き手動処理です。[監査記録](./docs/development/baton-hand-deploy-audit.md)
+旧効果登場10件を再確認し、空きエリア指定の6件を Active 登場と位置選択に修正しました。
+空きエリア限定ではない虹ヶ咲4件は手動処理へ戻しました。旧 Replay の向きは維持します。
+[検証と未対応範囲](./docs/development/empty-effect-deployment-verification.md)。登録率はルール正確性の保証ではありません。
+
+新規対戦では、同一ターンの登場先制限がメンバーカードの現在位置に追従します。
+ポジション / フォーメーションチェンジ後に元のエリアだけが制限される問題を修正し、
+下に重なる新規 Member も判定対象としました。旧 Replay の動作は維持します。
+[検証記録](./docs/development/member-entry-area-history-verification.md)
+
+`PL!-bp6-003:2` で下のメンバーを空きエリアへ移した際、登場能力が余分に誘発する問題を修正しました。
+新しい技能 snapshot はエリア間移動として扱い、旧 Replay の結果は維持します。
+結果画面でも処理の違いを表示します。[検証と残課題](./docs/development/attachment-promotion-verification.md)
+
+`PL!-pb1-018:1` の双方控え室登場で登場能力が誘発しない問題を修正しました。
+双方がカード・空きエリアを選んでから同時にウェイトで登場し、その後に能力を処理します。
+選択画面と旧 Replay の互換性も検証しました。[検証記録](./docs/development/multi-player-entry-verification.md)
+
+既存メンバーのいるエリアへの効果登場は、限定的な実行基盤を検証中です。
+複雑な重複処理・手札の非公開選択は未完了のため、PR2枚と虹ヶ咲4枚はまだ手動処理です。
+[検証範囲と新たな Replay 課題](./docs/development/occupied-deployment-foundation.md)を公開し、対応率は増やしていません。
+
+`develop`（次期 `v0.9`）の収録内容:
+
+- 公式 `card_list` JSON API からの正式カード importer
 - `＋` / `+` 混在を避けるカード番号正規化
 - SQLite Schema v2 のローカルカード DB
 - デッキ保存機能付き Deck Builder
 - `decklist.v0` ベースの Deck Analyzer
 - FastAPI + React SPA の可視化ルール検証 UI
 - Replay 可能な Action-only GameState
-- 公式 `PBSP02` 補充パックを含む locked card database
-  - `PBSP02` は 122 printings / 96 gameplay card identities を収録
-  - importer 報告上の新規 Gameplay Card は 70 件
-- 979 件の effect registry entry
-  - 864 件は `test_validated_executable`
-  - 115 件は timing prompt / 未対応処理用の `manual_resolution`
-  - `PBSP02` 関連 effect は 74 件中 63 件が `test_validated_executable`、新パック coverage は 85.14%
+- 2026-10-24 発売の `CLLS01` と、`PBLL02` / `BP07` / `NSD02` まで含む locked card database
+  - 1,977 Gameplay Cards / 2,700 printings / 1,246 text revisions / 24 Card Sets
+  - importer は公式 products API を優先し、カードリスト未公開の将来商品や unit filter を set として誤取得しません
+- 1,212 件の effect registry entry
+  - 900 件（74.26%）は `test_validated_executable`
+  - 312 件は timing prompt / 未対応処理用の `manual_resolution`
+  - 新パックで見つかった未対応効果も manual として明示登録し、silent skip を防止
 - 将来の低コスト online 同期に向けた state hash / compatibility metadata の基礎
 - Hosted Online MVP の room API
   - room code による host / guest 参加
@@ -42,11 +174,13 @@
 
 現在の開発主線:
 
-- Roadmap 上は Phase 5 Effect DSL / 構造化効果実行に集中しています。
+- Roadmap 上は Phase 5 を維持フェーズへ移しつつ、Phase 6 の公式ルール準拠と構造化効果の正確性を進めています。
 - Phase 1 / 2 / 3 は基本実装済みで、維持と改善の段階です。
 - Phase 4 の Human-vs-Human 検証器と Phase 7 の UI は先行実装済みです。
 - Phase 9 / 10 の低コスト online 検証は、Phase 5 と並行して早めに進めます。
 - Simple AI v1.1 は local / Hosted FastAPI で利用でき、Rule Engine の評価値を使って Member、Live、構造化能力を deterministic に採点します。旧 Replay 用の v0 / v1 policy も保持しています。MCTS、Monte Carlo、学習型 AI、勝率エンジンは対象外です。
+- 実験用 `simple_ai_v1_2` は Live がない時に余剰 Member を最大3枚セットして引き直します。同一20デッキ・50局で平均7.64→5.94ターン、先頭10局は全て10ターン以内かつ双方成功Liveあり。既定はv1.1のままです。[検証と制限](docs/development/ai-live-cycle-verification.md)
+- 旧30デッキを固定した別の50局も比較可能になりました。同じ260操作上限で旧heuristic 34完走、v1.1 42、v1.2 48です。v1.2には未対応能力の明示skipが3件あり、完全なルール適合とは別の評価です。[固定デッキ検証](docs/development/ai-frozen-pool-verification.md)
 
 現在のルール検証 UI で確認できる範囲:
 
@@ -59,16 +193,17 @@
 - 双方が選択する一部の効果は multi-player pending choice で順番に処理可能
 - 複数 group に分けて Stage Member を選び、それぞれに同じ一時 modifier を適用する効果に対応
 - 分岐ごとに異なる Stage Member 候補を持つ効果選択に対応
-- registry entry ベースの `test_validated_executable` coverage は 88.25%（864 / 979）まで拡張済み
+- registry entry ベースの `test_validated_executable` coverage は 74.26%（900 / 1,212）。未対応の新効果と、監査で不正確と分かった旧登場効果は明示的に manual とします
 - `PBSP02` 関連 effect は 74 件中 63 件を構造化し、新パック内 coverage 85.14% を確認済み
 - μ's / Aqours / Saint Snow / Nijigasaki / Hasunosora / Edel Note の一部控室回収、Energy ready、山札上確認、Yell 公開条件、手札コスト付き Live 開始時効果を追加で構造化
 - static Heart / Blade などの常時効果は、operation 側の条件を満たす場合だけ加算するようにしています
 - `PBSP02` 集中 block sandbox は `30 decks x 20 matches` で 19 完走、`mandatory_manual_resolution = 0`、残り 1 件は `max_actions:match_point_players_have_no_live_in_hand`
 - Phase 5 broad black-box sandbox は `30 decks x 100 matches` の block mode で `100/100` 完走、blocker 0 を確認済み
 - 最新の skill-dense Simple AI regression は `30 decks x 100 matches` で 100/100 完走、blocker / silent skip / Replay error 0
-- 以前の問題カード targeted sandbox で blocker だった `PL!S-bp6-001:1` / `PL!S-pb1-001:1` は現在構造化済み。未対応 115 件は gap report で理由を管理します
+- 以前の問題カード targeted sandbox で blocker だった `PL!S-bp6-001:1` / `PL!S-pb1-001:1` は現在構造化済み。未対応 312 件は gap report で理由を管理します
 - `LL-bp5-002:1` の「Stage に異なるグループ名の Member が 3 人以上なら、Center Member が Live 終了まで任意色 Heart を得る」処理を構造化しました
-- 公式総合ルール ver.1.06 を参照する AI 逐 Action 監査では 20/20 完走、12/20 が「10 turn 以内かつ双方 1 回以上 Live 成功」を満たし、14,160 check と実際に処理した 64 種 / 260 step の skill check はすべて PASS、Replay error 0 でした
+- 2026-10 全量同期後の公式総合ルール ver.1.06 AI 逐 Action 監査は 20/20 完走、13/20 が「10 turn 以内かつ双方 1 回以上 Live 成功」を満たし、13,539 件の check、Replay error / effect-error skip 0 でした
+- 最新の 30 deck / 50 match black-box run は executable effect 314/314、skipped effect 0、Replay error 0。34 局が完走し、残る 16 局は Live access / 長局戦略により action cap に達したため、Rule Engine の不正 Action ではなく AI 方策課題として追跡します
 - Live 判定は 9 つの固定境界でも監査し、Live 成功、今回の勝者、Match Point 時の成功 Live 追加可否、最終勝敗を別々に確認します
 - trigger 時に条件を満たした pending effect が、同一タイミング中の別効果で条件失効した場合は、明示的な `effect_not_activatable` event を残して進行可能
 - 公開して手札に加える効果は、相手側の履歴にも公開カード名が残るようにしています
@@ -111,7 +246,8 @@ Deck Builder の現在の到達点:
 
 - これは開発中の alpha 版です。公式アプリではなく、ルール検証とプレイテスト feedback を集めるためのツールです。
 - 全カード効果の自動実行 coverage はまだありません。未対応効果は `ManualAdjustmentAction`、構造化 pending choice、またはデバッグ用 skip で進行する場合があります。
-- 最新の skill-dense 回帰は `30 decks x 100 matches` を blocker 0 で完走しています。ただし、これは全 115 件の `manual_resolution` を自動処理できることを意味しません。未登場または複雑な技能は引き続き manual となり、最新の分類は `docs/13-effect-semantics-audit.md` と `TODO.md` に記録します。
+- 現在 312 件を `manual_resolution` として明示保持しています。未登場または複雑な技能は引き続き manual となり、最新の分類は `docs/13-effect-semantics-audit.md` と `TODO.md` に記録します。
+- `BP07` の `無2` 特殊 Blade Heart は総合ルール ver.1.06 だけでは意味を確定できないため、推測実装せず未対応として保持しています。
 - FAQ / 個別裁定に依存する効果はまだ仕様化していません。
 - `data/loveca.sqlite3` は repository 内の locked authoritative card DB です。公式カード追加や parser / schema / effect registry の互換性変更後は、maintainer が DB と `data/loveca-db-manifest.json` を再生成して commit します。ユーザーや CI が online 用に別 DB を import してはいけません。保存済みデッキは `decklist.v0` のユーザーデータなので、カード DB とは分けて保持できます。
 - Web/API テストには `httpx2` が必要です。環境に未導入の場合、`tests/test_catalog_api.py` と `tests/test_webapp.py` は収集段階で停止します。
@@ -211,6 +347,8 @@ private tester 向けに事前構築 DB を渡す場合も、release version、s
 - `docs/16-low-cost-online-battle-plan.md`: 低コストなネットワーク対戦検証モードの計画
 - `docs/17-browser-only-preview-and-pages-release.md`: GitHub Pages browser preview と静的 data package の計画
 - `docs/18-hosted-online-smoke-checklist.md`: Hosted Online MVP の merge / deploy 前 smoke checklist
+- `docs/19-ai-rule-conformance-and-strategy-audit.md`: AI 対戦と公式ルール適合性の監査基準
+- `docs/20-ai-dlc-development-workflow.md`: AI-DLC を使う開発、承認、vendor 更新手順
 
 ## ローカル環境構築と開発コマンド
 
@@ -218,6 +356,7 @@ private tester 向けに事前構築 DB を渡す場合も、release version、s
 
 - Python `3.11+`
 - Node.js `20` / `22` / `24+`
+- Bun（AI-DLC workflow を使う開発者のみ）
 - SQLite は追加セットアップ不要
 
 インストール:
@@ -228,6 +367,18 @@ cd web
 npm install
 cd ..
 ```
+
+AI-DLC を使う場合:
+
+```powershell
+npm install -g bun
+python scripts/aidlc_vendor.py verify
+bun .codex/tools/aidlc-utility.ts doctor
+```
+
+新しい Codex session で `.codex/hooks.json` を確認して hook trust を承認し、
+`$aidlc compose "変更内容"` から開始します。詳細は
+`docs/20-ai-dlc-development-workflow.md` を参照してください。
 
 ### ローカル起動
 
@@ -357,9 +508,10 @@ loveca decks analyze `
 
 ```powershell
 loveca cards import-official `
-  --output-root data/imports/official-bp06 `
+  --output-root data/imports/official-bp07-nsd02 `
   --mode incremental-set `
-  --card-set BP06 `
+  --card-set BP07 `
+  --card-set NSD02 `
   --delay 1
 ```
 
@@ -368,8 +520,9 @@ loveca cards import `
   --database data/loveca.sqlite3 `
   --input data/imports/official/normalized/cards-official.json `
   --normalization data_sources/card-entity-normalization.json `
-  --card-set BP06 `
-  --report logs/import-bp06.md
+  --card-set BP07 `
+  --card-set NSD02 `
+  --report logs/import-bp07-nsd02.md
 ```
 
 ### テスト

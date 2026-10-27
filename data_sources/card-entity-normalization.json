@@ -1,8 +1,70 @@
 {
   "version": 1,
-  "review_status": "reviewed_for_cross_product_v0.3",
+  "review_status": "reviewed_for_official_api_v0.4",
   "source_artifact": "data_samples/normalized/cards-cross-product-sample.json",
   "works": {
+    "Aqours": [
+      {
+        "key": "love_live_sunshine",
+        "canonical_name_ja": "ラブライブ！サンシャイン!!"
+      }
+    ],
+    "虹ヶ咲": [
+      {
+        "key": "nijigasaki",
+        "canonical_name_ja": "ラブライブ！虹ヶ咲学園スクールアイドル同好会"
+      }
+    ],
+    "Liella!": [
+      {
+        "key": "love_live_superstar",
+        "canonical_name_ja": "ラブライブ！スーパースター!!"
+      }
+    ],
+    "Aqours/Liella!": [
+      {
+        "key": "love_live_sunshine",
+        "canonical_name_ja": "ラブライブ！サンシャイン!!"
+      },
+      {
+        "key": "love_live_superstar",
+        "canonical_name_ja": "ラブライブ！スーパースター!!"
+      }
+    ],
+    "Aqours/虹ヶ咲": [
+      {
+        "key": "love_live_sunshine",
+        "canonical_name_ja": "ラブライブ！サンシャイン!!"
+      },
+      {
+        "key": "nijigasaki",
+        "canonical_name_ja": "ラブライブ！虹ヶ咲学園スクールアイドル同好会"
+      }
+    ],
+    "虹ヶ咲Liella!": [
+      {
+        "key": "nijigasaki",
+        "canonical_name_ja": "ラブライブ！虹ヶ咲学園スクールアイドル同好会"
+      },
+      {
+        "key": "love_live_superstar",
+        "canonical_name_ja": "ラブライブ！スーパースター!!"
+      }
+    ],
+    "Aqours/虹ヶ咲/Liella!": [
+      {
+        "key": "love_live_sunshine",
+        "canonical_name_ja": "ラブライブ！サンシャイン!!"
+      },
+      {
+        "key": "nijigasaki",
+        "canonical_name_ja": "ラブライブ！虹ヶ咲学園スクールアイドル同好会"
+      },
+      {
+        "key": "love_live_superstar",
+        "canonical_name_ja": "ラブライブ！スーパースター!!"
+      }
+    ],
     "ラブライブ！": [
       {
         "key": "love_live",
@@ -31,6 +93,30 @@
       {
         "key": "hasunosora",
         "canonical_name_ja": "蓮ノ空女学院スクールアイドルクラブ"
+      }
+    ],
+    "ラブライブ！蓮ノ空女学院スクールアイドルクラブ": [
+      {
+        "key": "hasunosora",
+        "canonical_name_ja": "蓮ノ空女学院スクールアイドルクラブ"
+      }
+    ],
+    "AiScReam": [
+      {
+        "key": "aiscream",
+        "canonical_name_ja": "AiScReam"
+      }
+    ],
+    "イキヅライブ！ LOVELIVE! BLUEBIRD": [
+      {
+        "key": "ikizulive",
+        "canonical_name_ja": "イキヅライブ！ LOVELIVE! BLUEBIRD"
+      }
+    ],
+    "その他": [
+      {
+        "key": "other",
+        "canonical_name_ja": "その他"
       }
     ],
     "ラブライブ！ ラブライブ！サンシャイン!! ラブライブ！虹ヶ咲学園スクールアイドル同好会": [
@@ -154,6 +240,12 @@
       }
     ],
     "AZALEA": [
+      {
+        "key": "azalea",
+        "canonical_name_ja": "AZALEA"
+      }
+    ],
+    "AZAREA": [
       {
         "key": "azalea",
         "canonical_name_ja": "AZALEA"

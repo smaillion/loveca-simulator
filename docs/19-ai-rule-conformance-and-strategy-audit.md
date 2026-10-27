@@ -1,5 +1,12 @@
 # AI Rule Conformance and Strategy Audit
 
+Current boundary checkpoint: the post-Heart score/movement matrix now contains
+20 implementation regressions, each with native Action and SQLite Replay tests.
+Four use synthetic effect fixtures, not registered-card evidence. Four retain a
+rule-text review note: the pinned PDF's 8.4.7.1 area wording differs from the
+existing Success Live count interpretation. Passing this regression is not
+official-ruling certification. See [scope and unresolved evidence](development/live-boundary-matrix-verification.md).
+
 ## Purpose
 
 This document defines the maintained local acceptance process for Simple AI matches. It separates three questions that must not be conflated:
@@ -43,7 +50,12 @@ The audit keeps four results separate because the comprehensive rules assign the
 3. **Performance winner and placement eligibility**: 8.4.6 determines the winner or winners, while 8.4.7 and 8.4.7.1 independently determine who may move one card to the Success Live Area.
 4. **Match result**: only actual Success Live counts after movement are evaluated against 1.2.1.1 and 1.2.1.2.
 
-This distinction is material at Match Point. On equal total score, both players remain performance winners. A player already holding two Success Live cards cannot add another under 8.4.7.1. If both players are at Match Point, neither moves a card and the match continues; this is not a simultaneous match win or draw.
+This distinction is material at Match Point. The existing implementation keeps
+both equal-score players as performance winners, prevents a player holding two
+Success Live cards from adding another, and continues when neither moves. This
+is the maintained regression interpretation, not a newly certified reading of
+8.4.7.1: the pinned PDF image says Live Area, so the area wording remains under
+review. This iteration does not change engine behavior.
 
 The maintained matrix covers:
 
@@ -61,7 +73,21 @@ The production engine now emits separate `live_success_determined`, `live_judgme
 
 ## Current Result
 
-The fixed 20-match run produced:
+After importing `BP07` and `NSD02`, the full post-refresh gate produced:
+
+* 20/20 formally completed matches
+* 13/20 strict qualified matches
+* 13,539 passing transition checks
+* zero failed checks
+* two review annotations
+* zero illegal Actions, effect-error skips, or Replay mismatches
+* 61 distinct effects exercised in 212 effect decisions or resolutions
+* 210 passing dynamic effect semantic checks plus two review annotations
+
+This run is the current data-compatibility gate for the new official-card
+snapshot and supersedes the earlier fixed baseline below.
+
+The earlier fixed 20-match run produced:
 
 * 20/20 formally completed matches
 * 12/20 strict qualified matches
@@ -77,13 +103,31 @@ A strict match must formally complete within 10 turns, give both players at leas
 
 ## Effect Registry Status
 
-The strict registry integrity audit reports zero errors and zero warnings across 979 effect identities.
+The strict registry integrity audit reports zero errors and zero warnings across 1,212 effect identities.
 
-* 864 `test_validated_executable`
-* 115 `manual_resolution`
-* 88.25% registry-entry executable coverage
+* 902 `test_validated_executable`
+* 310 `manual_resolution`
+* 74.42% registry-entry executable coverage
 
-`LL-bp5-002:1` was added in this audit cycle. It uses the existing distinct-Stage-unit condition and a Live-duration all-color Heart modifier targeted at the Center Member.
+The two latest promotions are `PL!SP-bp7-008:1` and `PL!N-bp7-023:1` self-Wait
+activated draws. Their targeted policy tests explicitly distinguish v0 (no
+proactive activation) from v1-series positive-value activation and native
+post-draw resolution. The ten-match regression did not exercise these two
+effects; it is flow evidence only. See
+[the targeted evidence and manual boundaries](development/activated-wait-draw-verification.md).
+
+The lower percentage is caused by the October 2026 full official refresh through
+`CLLS01` / `PBLL02`: all newly discovered timing segments are registered rather
+than silently omitted. The absolute executable count increased. The latest safe
+patterns include deck-bottom mill, Aqours Heart replacement and Waiting Room
+deck-bottom ordering, Energy-advantage score, Yell Heart-color variety, and
+revealed Member shared-unit recovery.
+
+The follow-up 30-deck / 50-match black-box run completed 314/314 executable
+effect resolutions with zero skipped effects and zero Replay errors. It completed
+34 matches; 16 reached the action cap because of Live-access or long-game policy
+stalls. These results are a Simple AI/controller follow-up and do not indicate an
+illegal engine transition.
 
 Static registry coverage and dynamic exercised-effect coverage are independent. A passing match does not justify promoting an untriggered effect, and automated tests do not grant `reviewed_executable` status without human rule review.
 

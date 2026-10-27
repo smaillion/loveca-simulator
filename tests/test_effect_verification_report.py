@@ -16,6 +16,13 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
 
     scenario_ids = {result.scenario_id for result in results}
     assert {
+        "niji_blade_four_below", "niji_blade_four_exact", "niji_blade_four_temporary", "niji_blade_four_static",
+        "aqours_yell_bottom_mixed", "aqours_yell_bottom_zero", "aqours_yell_bottom_no_target",
+        "other_nijigasaki_cost14", "other_nijigasaki_cost15", "other_nijigasaki_no_target",
+        "muse_yell_zero_success",
+        "muse_yell_one_success",
+        "muse_yell_two_success",
+        "muse_yell_wrong_work",
         "baton_repeat_prevention",
         "pl_hs_bp2_026_live_start_score_modifier",
         "pl_hs_bp6_006_cost_reduction",
@@ -23,6 +30,62 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
         "pl_hs_bp6_014_with_target",
         "pl_hs_bp6_014_without_target",
         "pl_hs_sd1_005_same_name_baton_blocked",
+        "activated_wait_draw_shiki",
+        "activated_wait_draw_discard_mia",
+        "activated_energy_inspect4_reorder",
+        "moved_wait_source_ready",
+        "moved_source_departure_reentry",
+        "live_start_named_chisato_selected_blade",
+        "live_start_named_kanon_keke_groups",
+        "live_start_named_missing_group",
+        "live_start_discard2_choose_heart",
+        "live_start_discard2_decline",
+        "live_start_wait_nijigasaki_blade",
+        "live_start_wait_nijigasaki_heart",
+        "onplay_nijigasaki_inspect_009",
+        "onplay_nijigasaki_inspect_012",
+        "onplay_nijigasaki_inspect_014",
+        "onplay_nijigasaki_no_blade_heart",
+        "onplay_mandatory_hand_inspection",
+        "onplay_live_cost_private_keep",
+        "onplay_wait_cost_heart8_live",
+        "onplay_inspection_unpayable_cost",
+        "existing_wait_liella_heart8",
+        "existing_wait_reorder_PL!-bp3-014",
+        "existing_wait_reorder_PL!S-bp6-018",
+        "existing_hand_cost_unavailable_PL!N-bp7-018",
+        "adjacent_discard_inspection_PL!-bp5-014",
+        "adjacent_discard_inspection_PL!-sd1-011",
+        "adjacent_discard_unpayable_PL!-pb1-016",
+        "private3_native_PL!HS-cl1-007",
+        "private3_native_PL!N-PR-013",
+        "private3_unpayable_PL!S-PR-019",
+        "inspection_sibling_PL!-sd1-015",
+        "work_unit_inspection_PL!HS-bp1-009",
+        "member_liella_inspection_PL!S-bp3-004",
+        "mixed_heart_inspection_PL!S-pb1-013",
+        "multi_keep_manual_with_hand",
+        "multi_keep_manual_empty_hand",
+        "mixed_heart_inspection_PL!S-pb1-014",
+        "mixed_heart_inspection_PL!S-pb1-015",
+        "mixed_heart_unpayable_PL!S-pb1-013",
+        "mixed_heart_unpayable_PL!S-pb1-014",
+        "mixed_heart_unpayable_PL!S-pb1-015",
+        "member_liella_inspection_PL!S-bp3-009",
+        "member_liella_inspection_PL!SP-bp1-005",
+        "member_liella_inspection_PL!SP-bp2-007",
+        "member_liella_inspection_PL!SP-pb2-017",
+        "member_liella_unpayable_PL!S-bp3-009",
+        "member_liella_unpayable_PL!SP-pb2-017",
+        "work_unit_inspection_PL!HS-pb1-018",
+        "work_unit_inspection_PL!N-bp3-012",
+        "work_unit_inspection_PL!SP-pb1-015",
+        "work_unit_inspection_PL!SP-pb1-016",
+        "work_unit_inspection_PL!SP-pb1-017",
+        "work_unit_unpayable_PL!HS-bp1-009",
+        "work_unit_unpayable_PL!SP-pb1-017",
+        "inspection_sibling_PL!N-pb1-028",
+        "inspection_sibling_unpayable_PL!HS-bp6-022",
     }.issubset(scenario_ids)
     assert "registry_contract_PL!S-sd1-006_1" in scenario_ids
     assert "registry_contract_PL!N-bp5-005_1" in scenario_ids
@@ -60,6 +123,10 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
     assert summary["schema_version"] == "effect_verification_report_v0.4"
     assert summary["dynamic_state_transition_scenarios"] >= 20
     assert summary["passed"] == len(results)
+    assert "若菜四季：自身Wait后抽1张" in zh_markdown
+    assert "ミア：自身Wait后抽2张再弃2张" in zh_markdown
+    assert "后续选择不重复抽牌: OK" in zh_markdown
+    assert "准确查看顶4张: OK" in zh_markdown
 
 
 def _write_report_image_fixture(path):

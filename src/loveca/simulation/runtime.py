@@ -11,9 +11,12 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from pydantic import ValidationError
+
 from loveca.simulation.engine import apply_action, generate_legal_actions
 from loveca.simulation.models import (
     MATCH_RUNTIME_SCHEMA_VERSION,
+    RULE_VERSION,
     ActionRequest,
     ActionResult,
     GameEvent,
@@ -24,6 +27,7 @@ from loveca.simulation.online import (
     card_database_fingerprint,
     match_state_hash,
 )
+from loveca.simulation.rulesets import ruleset_execution_report
 
 DEFAULT_MATCH_HISTORY_LIMIT = 25
 DEFAULT_MATCH_HISTORY_PAGE_SIZE = 10
@@ -115,6 +119,34 @@ class MatchNotFoundError(MatchRuntimeError):
 
 class RuntimeSchemaError(MatchRuntimeError):
     """Raised when a runtime database has an unsupported layout."""
+
+
+class InvalidMatchSnapshotError(MatchRuntimeError):
+    """Persisted match data cannot be read without changing historical data."""
+
+
+class MatchRulesetMismatchError(MatchRuntimeError):
+    """A saved match is readable but cannot run under the active ruleset."""
+
+
+def match_ruleset_report(state: MatchState) -> dict[str, object]:
+    return ruleset_execution_report(
+        rule_version=state.rule_version,
+        ruleset_id=state.ruleset_id,
+        fingerprint=state.ruleset_fingerprint,
+        ruling_pack_version=state.ruling_pack_version,
+        supported_rule_version=RULE_VERSION,
+    )
+
+
+def _read_match_state(state_json: str) -> MatchState:
+    try:
+        return MatchState.model_validate_json(state_json)
+    except ValidationError as exc:
+        raise InvalidMatchSnapshotError(
+            "invalid_match_snapshot: saved match data cannot be read. "
+            "It was not changed; create a new match."
+        ) from exc
 
 
 def initialize_runtime_database(path: Path) -> None:
@@ -394,7 +426,7 @@ class MatchRepository:
             ).fetchone()
         if row is None:
             raise MatchNotFoundError(f"match not found: {match_id}")
-        return MatchState.model_validate_json(row["current_state_json"])
+        return _read_match_state(row["current_state_json"])
 
     def list_events(self, match_id: str) -> list[GameEvent]:
         with closing(_connect(self.path)) as connection:
@@ -503,7 +535,12 @@ class MatchRepository:
                 ).fetchone()
                 if row is None:
                     raise MatchNotFoundError(f"match not found: {match_id}")
-                state = MatchState.model_validate_json(row["current_state_json"])
+                state = _read_match_state(row["current_state_json"])
+                if not match_ruleset_report(state)["can_execute"]:
+                    raise MatchRulesetMismatchError(
+                        "ruleset_mismatch: saved match is read-only; export its replay "
+                        "or create a new match under the current ruleset"
+                    )
                 result = apply_action(state, persisted_action)
                 sequence = int(
                     connection.execute(
@@ -633,7 +670,23 @@ class MatchRepository:
                 (match_id,),
             ).fetchall()
 
-        initial = MatchState.model_validate_json(match["initial_state_json"])
+        initial = _read_match_state(match["initial_state_json"])
+        expected = _read_match_state(match["current_state_json"])
+        compatibility = match_ruleset_report(initial)
+        final_compatibility = match_ruleset_report(expected)
+        identity_fields = (
+            "rule_version", "ruleset_id", "ruleset_fingerprint", "ruling_pack_version"
+        )
+        if any(getattr(initial, field) != getattr(expected, field) for field in identity_fields):
+            compatibility = {
+                "can_execute": False,
+                "status": "snapshot_ruleset_identity_mismatch",
+                "mismatches": [
+                    field for field in identity_fields
+                    if getattr(initial, field) != getattr(expected, field)
+                ],
+            }
+        can_reexecute = bool(compatibility["can_execute"] and final_compatibility["can_execute"])
         replay_state = initial
         actions: list[dict[str, Any]] = []
         for row in action_rows:
@@ -644,16 +697,18 @@ class MatchRepository:
                 payload=json.loads(row["payload_json"]),
                 expected_revision=int(row["expected_revision"]),
             )
-            replay_state = apply_action(replay_state, action).state
+            if can_reexecute:
+                replay_state = apply_action(replay_state, action).state
             actions.append(
                 {
                     **action.model_dump(),
                     "result_revision": int(row["result_revision"]),
                 }
             )
-        expected = MatchState.model_validate_json(match["current_state_json"])
-        if replay_state != expected:
+        if can_reexecute and replay_state != expected:
             raise MatchRuntimeError("replayed state does not match persisted state")
+        if not can_reexecute:
+            replay_state = expected
         card_database_path = Path(str(match["card_database_path"]))
         try:
             card_fingerprint = card_database_fingerprint(card_database_path)
@@ -663,6 +718,12 @@ class MatchRepository:
             "metadata": {
                 "protocol_version": ONLINE_PROTOCOL_VERSION,
                 "rule_version": replay_state.rule_version,
+                "ruleset_id": replay_state.ruleset_id,
+                "ruleset_fingerprint": replay_state.ruleset_fingerprint,
+                "ruling_pack_version": replay_state.ruling_pack_version,
+                "ruleset_compatibility": compatibility,
+                "deterministic_replay_verified": can_reexecute,
+                "ruleset_identity_verified": can_reexecute and compatibility["status"] == "compatible",
                 "card_database_fingerprint": card_fingerprint,
                 "effect_registry_version": replay_state.effect_registry_version,
                 "initial_state_hash": match_state_hash(initial),

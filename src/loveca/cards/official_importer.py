@@ -9,6 +9,8 @@ result into the versioned SQLite catalog.
 
 from __future__ import annotations
 
+import html
+import json
 import re
 import sys
 import unicodedata
@@ -45,7 +47,8 @@ except ImportError as exc:  # pragma: no cover - source checkout dependency
         ) from exc
 
 
-OFFICIAL_IMPORTER_VERSION = "official_import_v1"
+OFFICIAL_IMPORTER_VERSION = "official_import_v2"
+OFFICIAL_API_PARSER_VERSION = "cardlist_api_v0.1"
 DEFAULT_OUTPUT_ROOT = Path("data/imports/official")
 DEFAULT_NORMALIZED_FILENAME = "cards-official.json"
 DEFAULT_RAW_DIRNAME = "raw"
@@ -53,6 +56,32 @@ DEFAULT_REPORT_DIRNAME = "reports"
 DEFAULT_FIELD_REPORT_FILENAME = "field-coverage-report.md"
 DEFAULT_IMPORT_REPORT_FILENAME = "importer-report.md"
 DEFAULT_PRODUCT_KIND_QUOTA = (("M", "member"), ("L", "live"), ("E", "energy"))
+API_PAGE_SIZE = 100
+API_CARD_TYPE_MAP = {
+    "M": "メンバー",
+    "L": "ライブ",
+    "E": "エネルギー",
+}
+API_BLADE_HEART_COLOR_MAP = {
+    "桃": "heart01",
+    "赤": "heart02",
+    "黄": "heart03",
+    "緑": "heart04",
+    "青": "heart05",
+    "紫": "heart06",
+}
+
+
+class OfficialCardSourceError(RuntimeError):
+    """Raised when the official source returns unusable catalog data."""
+
+
+@dataclass(frozen=True)
+class OfficialApiConfig:
+    list_endpoint: str
+    detail_endpoint: str
+    products_endpoint: str
+    image_base_url: str
 
 
 @dataclass(frozen=True)
@@ -146,16 +175,45 @@ def crawl_official_card_catalog(
     raw_files.append(str(card_list_sample))
 
     discovery = spike.inspect_html(card_list_url, card_list_html, base_domain)
-    product_codes = (
-        list(requested_product_codes)
-        if requested_product_codes
-        else _discover_product_codes(card_list_url, card_list_html, discovery)
-    )
+    api_config = _discover_api_config(card_list_url, card_list_html)
+    if requested_product_codes:
+        product_codes = list(requested_product_codes)
+    elif api_config is not None:
+        product_codes = _discover_api_product_codes(
+            session=session,
+            card_list_url=card_list_url,
+            api_config=api_config,
+            inspected_pages=inspected_pages,
+            output_raw_dir=output_dirs["raw"],
+            raw_files=raw_files,
+        )
+        if not product_codes:
+            product_codes = _discover_product_codes(card_list_url, card_list_html, discovery)
+    else:
+        product_codes = _discover_product_codes(card_list_url, card_list_html, discovery)
 
     seen_printing_ids: set[str] = set()
     seen_gameplay_codes: dict[str, tuple[str, str]] = {}
     for product_code in product_codes:
         for card_kind, kind_name in DEFAULT_PRODUCT_KIND_QUOTA:
+            if api_config is not None:
+                cards.extend(
+                    _crawl_api_bucket(
+                        session=session,
+                        card_list_url=card_list_url,
+                        api_config=api_config,
+                        card_kind=card_kind,
+                        kind_name=kind_name,
+                        product_code=product_code,
+                        inspected_pages=inspected_pages,
+                        output_raw_dir=output_dirs["raw"],
+                        raw_files=raw_files,
+                        seen_printing_ids=seen_printing_ids,
+                        seen_gameplay_codes=seen_gameplay_codes,
+                    )
+                )
+                continue
+
             search_url = spike.make_product_card_kind_search_url(
                 card_list_url,
                 product_code,
@@ -190,6 +248,26 @@ def crawl_official_card_catalog(
             )
             cards.extend(bucket_cards)
 
+    if product_codes and not cards:
+        failure_reason = (
+            "The official source exposed product codes but returned zero card records. "
+            "The website contract may have changed; the existing catalog was not imported."
+        )
+        _write_reports(
+            output_dirs=output_dirs,
+            card_list_url=card_list_url,
+            cards=cards,
+            inspected_pages=inspected_pages,
+            raw_files=raw_files,
+            discovered_product_codes=product_codes,
+            access_limited=False,
+            db_import_summary=None,
+            import_mode=import_mode,
+            requested_product_codes=requested_product_codes,
+            failure_reason=failure_reason,
+        )
+        raise OfficialCardSourceError(failure_reason)
+
     cards = _backfill_missing_names(cards)
     normalized_path = output_dirs["normalized"] / DEFAULT_NORMALIZED_FILENAME
     spike.write_json(normalized_path, cards)
@@ -219,6 +297,7 @@ def crawl_official_card_catalog(
         db_import_summary=db_import_summary,
         import_mode=import_mode,
         requested_product_codes=requested_product_codes,
+        failure_reason=None,
     )
 
     return OfficialImportResult(
@@ -232,6 +311,564 @@ def crawl_official_card_catalog(
         field_coverage_path=field_coverage_path,
         db_import_summary=db_import_summary,
     )
+
+
+def _discover_api_config(
+    card_list_url: str,
+    card_list_html: str,
+) -> OfficialApiConfig | None:
+    api_base = _html_data_attribute(card_list_html, "data-api-base")
+    image_base = _html_data_attribute(card_list_html, "data-image-base")
+    if api_base and image_base:
+        normalized_api_base = urllib.parse.urljoin(card_list_url, api_base).rstrip("/")
+        return OfficialApiConfig(
+            list_endpoint=f"{normalized_api_base}/list",
+            detail_endpoint=f"{normalized_api_base}/detail",
+            products_endpoint=f"{normalized_api_base}/products",
+            image_base_url=urllib.parse.urljoin(card_list_url, image_base),
+        )
+
+    config_match = re.search(
+        r"\bPWOCG_CFG\s*=\s*(?P<payload>\{.*?\})\s*;",
+        card_list_html,
+        flags=re.DOTALL,
+    )
+    if config_match is None:
+        return None
+    try:
+        config = json.loads(config_match.group("payload"))
+    except json.JSONDecodeError:
+        return None
+    api_base = config.get("apiBase")
+    image_base = config.get("cardImageBase")
+    endpoints = config.get("endpoints")
+    if not isinstance(api_base, str) or not isinstance(image_base, str):
+        return None
+    if not isinstance(endpoints, dict):
+        return None
+    list_path = endpoints.get("list")
+    detail_path = endpoints.get("detail")
+    products_path = endpoints.get("products")
+    if not isinstance(list_path, str) or not isinstance(detail_path, str):
+        return None
+    if not isinstance(products_path, str):
+        products_path = "/card-list-user/products"
+    normalized_api_base = urllib.parse.urljoin(card_list_url, api_base).rstrip("/")
+    return OfficialApiConfig(
+        list_endpoint=f"{normalized_api_base}/{list_path.lstrip('/')}",
+        detail_endpoint=f"{normalized_api_base}/{detail_path.lstrip('/')}",
+        products_endpoint=f"{normalized_api_base}/{products_path.lstrip('/')}",
+        image_base_url=urllib.parse.urljoin(card_list_url, image_base),
+    )
+
+
+def _discover_api_product_codes(
+    *,
+    session: Any,
+    card_list_url: str,
+    api_config: OfficialApiConfig,
+    inspected_pages: list[dict[str, Any]],
+    output_raw_dir: Path,
+    raw_files: list[str],
+) -> list[str]:
+    """Read product codes from the card-list product API.
+
+    The HTML page also links to work and unit filters. Those query values can
+    look like product codes (for example ``A-RISE``), so the API product list is
+    the authoritative discovery source whenever the JSON contract is present.
+    """
+
+    result = session.fetch(api_config.products_endpoint, referer=card_list_url)
+    inspected_pages.append(spike.page_record(result, "api_products"))
+    if result.error is not None:
+        return []
+
+    payload = _parse_api_payload(result.body, context="card-list products")
+    raw_path = output_raw_dir / "products-api.json"
+    spike.write_json(raw_path, payload)
+    raw_files.append(str(raw_path))
+
+    groups = payload.get("products")
+    if not isinstance(groups, list):
+        raise OfficialCardSourceError(
+            "official API products response has no products array"
+        )
+
+    product_codes: list[str] = []
+    seen: set[str] = set()
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        items = group.get("items")
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            code = item.get("code")
+            if not isinstance(code, str):
+                continue
+            normalized = code.strip()
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            product_codes.append(normalized)
+    return product_codes
+
+
+def _html_data_attribute(content: str, attribute: str) -> str | None:
+    match = re.search(
+        rf"\b{re.escape(attribute)}\s*=\s*(?P<quote>[\"'])(?P<value>.*?)(?P=quote)",
+        content,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    return html.unescape(match.group("value")).strip() if match is not None else None
+
+
+def _crawl_api_bucket(
+    *,
+    session: Any,
+    card_list_url: str,
+    api_config: OfficialApiConfig,
+    card_kind: str,
+    kind_name: str,
+    product_code: str,
+    inspected_pages: list[dict[str, Any]],
+    output_raw_dir: Path,
+    raw_files: list[str],
+    seen_printing_ids: set[str],
+    seen_gameplay_codes: dict[str, tuple[str, str]],
+) -> list[dict[str, Any]]:
+    cards: list[dict[str, Any]] = []
+    page_number = 1
+    records_seen = 0
+    expected_total: int | None = None
+    search_result_url = spike.make_product_card_kind_search_url(
+        card_list_url,
+        product_code,
+        card_kind,
+    )
+
+    while expected_total is None or records_seen < expected_total:
+        list_url = _url_with_query(
+            api_config.list_endpoint,
+            title=product_code,
+            card_kind=card_kind,
+            page=page_number,
+            per_page=API_PAGE_SIZE,
+            sort="new",
+        )
+        list_result = session.fetch(list_url, referer=search_result_url)
+        inspected_pages.append(
+            spike.page_record(
+                list_result,
+                f"api_{product_code.lower()}_{kind_name}_page_{page_number}",
+            )
+        )
+        if list_result.error is not None:
+            break
+        payload = _parse_api_payload(
+            list_result.body,
+            context=f"{product_code}/{card_kind} list page {page_number}",
+        )
+        items = payload.get("items")
+        if not isinstance(items, list):
+            raise OfficialCardSourceError(
+                f"official API list response has no items array: {product_code}/{card_kind}"
+            )
+        expected_total = _non_negative_int(payload.get("total"), "official API total")
+
+        raw_path = (
+            output_raw_dir
+            / f"{product_code.lower()}-{kind_name}-api-page-{page_number}.json"
+        )
+        spike.write_json(raw_path, payload)
+        raw_files.append(str(raw_path))
+
+        if not items:
+            break
+        records_seen += len(items)
+        for item in items:
+            if not isinstance(item, dict):
+                raise OfficialCardSourceError(
+                    f"official API returned a non-object card: {product_code}/{card_kind}"
+                )
+            card_id = item.get("card_number")
+            api_card_id = item.get("id")
+            if not isinstance(card_id, str) or not card_id.strip():
+                raise OfficialCardSourceError(
+                    f"official API card is missing card_number: {product_code}/{card_kind}"
+                )
+            normalized_card_id = normalize_card_identifier(card_id)
+            if normalized_card_id in seen_printing_ids:
+                continue
+            if not isinstance(api_card_id, int):
+                raise OfficialCardSourceError(
+                    f"official API card is missing numeric id: {normalized_card_id}"
+                )
+
+            detail_url = _url_with_query(api_config.detail_endpoint, id=api_card_id)
+            detail_cache_path = (
+                output_raw_dir / f"{_sanitize_filename(normalized_card_id)}.api.json"
+            )
+            cached_detail = _read_matching_api_detail_cache(detail_cache_path, item)
+            if cached_detail is not None:
+                detail_payload = cached_detail
+                detail_fetched_at = list_result.fetched_at
+                inspected_pages.append(
+                    {
+                        "page_type": f"api_card_detail_{normalized_card_id}",
+                        "url": detail_url,
+                        "status": "cache",
+                        "content_type": "application/json",
+                        "fetched_at": detail_fetched_at,
+                        "error": None,
+                    }
+                )
+            else:
+                detail_result = session.fetch(detail_url, referer=search_result_url)
+                inspected_pages.append(
+                    spike.page_record(
+                        detail_result,
+                        f"api_card_detail_{normalized_card_id}",
+                    )
+                )
+                if detail_result.error is not None:
+                    continue
+                detail_payload = _parse_api_payload(
+                    detail_result.body,
+                    context=f"card detail {normalized_card_id}",
+                )
+                detail_fetched_at = detail_result.fetched_at
+                spike.write_json(detail_cache_path, detail_payload)
+            detail_card = detail_payload.get("card")
+            if not isinstance(detail_card, dict):
+                raise OfficialCardSourceError(
+                    f"official API detail response has no card object: {normalized_card_id}"
+                )
+            merged = {**item, **detail_card}
+            record = _normalize_api_card(
+                merged,
+                detail_payload=detail_payload,
+                card_kind=card_kind,
+                product_code=product_code,
+                search_result_url=search_result_url,
+                image_base_url=api_config.image_base_url,
+                fetched_at=detail_fetched_at,
+                seen_gameplay_codes=seen_gameplay_codes,
+            )
+            seen_printing_ids.add(normalized_card_id)
+            cards.append(record)
+
+        page_number += 1
+
+    return cards
+
+
+def _read_matching_api_detail_cache(
+    path: Path,
+    list_item: dict[str, Any],
+) -> dict[str, Any] | None:
+    if not path.is_file():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict) or not isinstance(payload.get("card"), dict):
+        return None
+    cached_card = payload["card"]
+    identity_fields = (
+        "id",
+        "picture",
+        "card_number",
+        "card_name",
+        "card_kind",
+        "rare",
+        "expansion",
+        "cost",
+        "heart0",
+        "heart01",
+        "heart02",
+        "heart03",
+        "heart04",
+        "heart05",
+        "heart06",
+        "attack",
+        "text",
+        "text_html",
+    )
+    if any(cached_card.get(field) != list_item.get(field) for field in identity_fields):
+        return None
+    return payload
+
+
+def _parse_api_payload(body: bytes | str, *, context: str) -> dict[str, Any]:
+    try:
+        payload = json.loads(_ensure_text(body))
+    except json.JSONDecodeError as exc:
+        raise OfficialCardSourceError(
+            f"official API returned invalid JSON for {context}"
+        ) from exc
+    if not isinstance(payload, dict):
+        raise OfficialCardSourceError(
+            f"official API returned a non-object payload for {context}"
+        )
+    return payload
+
+
+def _normalize_api_card(
+    card: dict[str, Any],
+    *,
+    detail_payload: dict[str, Any],
+    card_kind: str,
+    product_code: str,
+    search_result_url: str,
+    image_base_url: str,
+    fetched_at: str,
+    seen_gameplay_codes: dict[str, tuple[str, str]],
+) -> dict[str, Any]:
+    card_id = normalize_card_identifier(_required_api_string(card, "card_number"))
+    card_type = _required_api_string(card, "card_kind")
+    expected_card_type = API_CARD_TYPE_MAP[card_kind]
+    if card_type != expected_card_type:
+        raise OfficialCardSourceError(
+            f"official API card kind mismatch for {card_id}: "
+            f"expected {expected_card_type}, got {card_type}"
+        )
+    name = _required_api_string(card, "card_name")
+    derived_card_code = derive_card_code(card_id)
+    gameplay_card_code = _choose_gameplay_card_code(
+        card_id=card_id,
+        derived_card_code=derived_card_code,
+        name=name,
+        card_type=card_type,
+        seen_gameplay_codes=seen_gameplay_codes,
+    )
+    raw_effect_text = _api_effect_text(card)
+    picture = _optional_api_string(card.get("picture"))
+    relation_cards = detail_payload.get("relationCards")
+    related_printing_ids = (
+        [
+            normalize_card_identifier(related["card_number"])
+            for related in relation_cards or []
+            if isinstance(related, dict)
+            and isinstance(related.get("card_number"), str)
+            and related["card_number"].strip()
+        ]
+        if card_type != "エネルギー"
+        else []
+    )
+    source_url = spike.make_card_source_url(search_result_url, card_id)
+    unmapped_fields = []
+    for label, field_name in (("作品名", "work_title"), ("参加ユニット", "unit_name")):
+        value = _optional_api_string(card.get(field_name))
+        if value and value != "-":
+            unmapped_fields.append({"label": label, "raw_text": value})
+
+    member_attributes = None
+    live_attributes = None
+    unmapped_icons: list[dict[str, str]] = []
+    normalized_icon_aliases: list[dict[str, str]] = []
+    if card_type == "メンバー":
+        member_blade_heart = _api_regular_blade_heart_color(card.get("blade_heart"))
+        raw_blade_heart = _optional_api_string(card.get("blade_heart"))
+        if raw_blade_heart not in (None, "-") and member_blade_heart is None:
+            unmapped_icons.append(
+                {"source_field": "ブレードハート", "source_alt": raw_blade_heart}
+            )
+        member_attributes = {
+            "cost": _optional_api_integer(card.get("cost")),
+            "heart_by_color": _api_heart_map(card, include_neutral=False),
+            "blade": _optional_api_integer(card.get("attack")),
+            "blade_heart_color": member_blade_heart,
+        }
+    elif card_type == "ライブ":
+        raw_live_blade_heart = _optional_api_string(card.get("attack"))
+        blade_heart_color, special_blade_hearts = _api_live_blade_hearts(
+            raw_live_blade_heart
+        )
+        if raw_live_blade_heart in {"[全ブレード]", "[ALLブレード]"}:
+            normalized_icon_aliases.append(
+                {
+                    "source_field": "ブレードハート",
+                    "source_alt": raw_live_blade_heart,
+                    "canonical_alt": "ALL1",
+                }
+            )
+        if any(item["effect_type"] == "unknown" for item in special_blade_hearts):
+            unmapped_icons.extend(
+                {
+                    "source_field": item["source_field"],
+                    "source_alt": item["source_alt"],
+                }
+                for item in special_blade_hearts
+                if item["effect_type"] == "unknown"
+            )
+        live_attributes = {
+            "required_heart_by_color": _api_heart_map(card, include_neutral=True),
+            "score": _optional_api_integer(card.get("blade_heart")),
+            "blade_heart_color": blade_heart_color,
+            "special_blade_hearts": special_blade_hearts or None,
+        }
+
+    return {
+        "card_id": card_id,
+        "card_code": gameplay_card_code,
+        "name": name,
+        "card_type": card_type,
+        "product": _api_product_name(card, detail_payload, product_code),
+        "product_code": product_code,
+        "rarity": _optional_api_string(card.get("rare")),
+        "member_attributes": member_attributes,
+        "live_attributes": live_attributes,
+        "raw_effect_text": raw_effect_text,
+        "image_url": urllib.parse.urljoin(image_base_url, picture) if picture else None,
+        "source_url": source_url,
+        "fetched_at": fetched_at,
+        "parser_version": OFFICIAL_API_PARSER_VERSION,
+        "related_printing_ids": related_printing_ids,
+        "parse_notes": {
+            "source": "card_list_json_api",
+            "import_source": "official_full_import",
+            "list_method": "GET",
+            "detail_method": "GET",
+            "candidate_effect_blocks": spike.split_candidate_effect_blocks(
+                raw_effect_text
+            ),
+            "unmapped_fields": unmapped_fields,
+            "unmapped_icons": unmapped_icons,
+            "normalized_icon_aliases": normalized_icon_aliases,
+            "card_kind": card_kind,
+            "product_code": product_code,
+            "api_card_id": card.get("id"),
+            "gameplay_card_code_strategy": (
+                "full_card_id_conflict_fallback"
+                if gameplay_card_code != derived_card_code
+                else "derived_from_printing_id"
+            ),
+            "derived_card_code": derived_card_code,
+        },
+    }
+
+
+def _api_effect_text(card: dict[str, Any]) -> str | None:
+    text_html = _optional_api_string(card.get("text_html"))
+    if text_html:
+        return spike.text_with_image_alts(text_html) or None
+    return _optional_api_string(card.get("text"))
+
+
+def _api_heart_map(
+    card: dict[str, Any],
+    *,
+    include_neutral: bool,
+) -> dict[str, int | None]:
+    slots = (("heart0",) if include_neutral else ()) + tuple(
+        f"heart0{index}" for index in range(1, 7)
+    )
+    return {
+        slot: (value if (value := _optional_api_integer(card.get(slot))) else None)
+        for slot in slots
+    }
+
+
+def _api_live_blade_hearts(
+    raw_value: Any,
+) -> tuple[str | None, list[dict[str, Any]]]:
+    source_alt = _optional_api_string(raw_value)
+    if source_alt in (None, "-"):
+        return None, []
+    if source_alt in {"[全ブレード]", "[ALLブレード]"}:
+        return "heart0", [
+            {
+                "effect_type": "all_color",
+                "value": 1,
+                "resolution_timing": "live_success_judgment",
+                "source_alt": "ALL1",
+                "source_field": "ブレードハート",
+            }
+        ]
+    all_match = re.fullmatch(r"ALL(?P<value>\d+)", source_alt, re.IGNORECASE)
+    if all_match is not None:
+        value = int(all_match.group("value"))
+        return "heart0", [
+            {
+                "effect_type": "all_color",
+                "value": value,
+                "resolution_timing": "live_success_judgment",
+                "source_alt": source_alt,
+                "source_field": "ブレードハート",
+            }
+        ]
+    color_match = re.fullmatch(r"(?P<color>[桃赤黄緑青紫])(?P<value>\d+)", source_alt)
+    if color_match is not None and int(color_match.group("value")) == 1:
+        return API_BLADE_HEART_COLOR_MAP[color_match.group("color")], []
+    numeric_suffix = re.search(r"(?P<value>\d+)$", source_alt)
+    return None, [
+        {
+            "effect_type": "unknown",
+            "value": int(numeric_suffix.group("value")) if numeric_suffix else None,
+            "resolution_timing": None,
+            "source_alt": source_alt,
+            "source_field": "ブレードハート",
+        }
+    ]
+
+
+def _api_regular_blade_heart_color(raw_value: Any) -> str | None:
+    source_alt = _optional_api_string(raw_value)
+    if source_alt is None:
+        return None
+    match = re.fullmatch(r"(?P<color>[桃赤黄緑青紫])(?:1)?", source_alt)
+    return API_BLADE_HEART_COLOR_MAP.get(match.group("color")) if match else None
+
+
+def _api_product_name(
+    card: dict[str, Any],
+    detail_payload: dict[str, Any],
+    product_code: str,
+) -> str:
+    direct = _optional_api_string(card.get("expansion_name"))
+    if direct:
+        return direct
+    expansion = detail_payload.get("expansion")
+    if isinstance(expansion, dict):
+        name = _optional_api_string(expansion.get("name"))
+        if name:
+            return name
+    return product_code
+
+
+def _required_api_string(card: dict[str, Any], field: str) -> str:
+    value = _optional_api_string(card.get(field))
+    if value is None:
+        raise OfficialCardSourceError(f"official API card field is missing: {field}")
+    return value
+
+
+def _optional_api_string(value: Any) -> str | None:
+    return value.strip() if isinstance(value, str) and value.strip() else None
+
+
+def _optional_api_integer(value: Any) -> int | None:
+    if isinstance(value, int):
+        return value
+    if not isinstance(value, str):
+        return None
+    match = re.fullmatch(r"\s*(\d+)\s*", value)
+    return int(match.group(1)) if match is not None else None
+
+
+def _non_negative_int(value: Any, field: str) -> int:
+    parsed = value if isinstance(value, int) else _optional_api_integer(value)
+    if parsed is None or parsed < 0:
+        raise OfficialCardSourceError(f"{field} must be a non-negative integer")
+    return parsed
+
+
+def _url_with_query(url: str, **params: Any) -> str:
+    return f"{url}?{urllib.parse.urlencode(params)}"
 
 
 def _crawl_bucket(
@@ -582,6 +1219,7 @@ def _write_reports(
     db_import_summary: ImportSummary | None,
     import_mode: str,
     requested_product_codes: tuple[str, ...],
+    failure_reason: str | None = None,
 ) -> None:
     importer_report = output_dirs["reports"] / DEFAULT_IMPORT_REPORT_FILENAME
     coverage_path = output_dirs["reports"] / DEFAULT_FIELD_REPORT_FILENAME
@@ -608,7 +1246,7 @@ def _write_reports(
         f"* Importer version: `{OFFICIAL_IMPORTER_VERSION}`",
         f"* Source: `{card_list_url}`",
         f"* Mode: `{import_mode}`",
-        f"* Status: `{'access_limited' if access_limited else 'completed'}`",
+        f"* Status: `{'failed' if failure_reason else ('access_limited' if access_limited else 'completed')}`",
         f"* Requested card sets: `{', '.join(requested_product_codes) or 'all discovered sets'}`",
         f"* Products discovered: `{len(discovered_product_codes)}`",
         f"* Records written: `{total_cards}`",
@@ -617,6 +1255,8 @@ def _write_reports(
         f"* Energy cards: `{type_counts.get('エネルギー', 0)}`",
         f"* Records still missing name: `{missing_name_count}`",
     ]
+    if failure_reason:
+        lines.extend([f"* Failure reason: `{failure_reason}`"])
     if db_import_summary is not None:
         lines.extend(
             [

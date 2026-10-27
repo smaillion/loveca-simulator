@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App, {
   EffectResolutionAction,
@@ -15,7 +15,8 @@ import App, {
   resolveMemberPlaySelection,
 } from "./App";
 import { resetRuntimeConfigForTests } from "./api";
-import type { DeckList } from "./types";
+import { CatalogPreviewDialog } from "./deck-builder";
+import type { CatalogCardDetail, CatalogCardSummary, DeckList, MatchState } from "./types";
 
 const placements = [
   {
@@ -944,7 +945,10 @@ describe("App", () => {
     });
   });
 
-  it("shows persisted simple AI blocker context and a recovery action", async () => {
+  it.each([
+    ["no_safe_ai_action", "电脑找不到可安全执行的合法操作。"],
+    ["overlap_source_requires_manual_review", "重叠登场涉及未确认能力，电脑已暂停，请手动确认。"],
+  ])("shows persisted simple AI blocker context and a recovery action: %s", async (reason, summary) => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const blockedMatch = {
       ...MATCH_PAYLOAD,
@@ -961,7 +965,7 @@ describe("App", () => {
           player_id: "player_2",
           source: "system",
           data: {
-            reason: "no_safe_ai_action",
+            reason,
             state_revision: 9,
             phase: "first_main",
             turn_number: 1,
@@ -997,10 +1001,27 @@ describe("App", () => {
     fireEvent.click(createButton);
 
     expect(
-      await screen.findByText("电脑找不到可安全执行的合法操作。"),
+      await screen.findByText(summary),
     ).toBeInTheDocument();
     expect(screen.getByText("安養寺 姫芽 · activated · 【起動】テスト能力")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "查看可处理操作" })).toBeInTheDocument();
+  });
+
+  it("explains that an incompatible ruleset is read-only in both languages", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate: {
+      ...MATCH_PAYLOAD,
+      ruleset_compatibility: {
+        can_execute: false, status: "ruleset_mismatch", mismatches: ["ruleset_fingerprint"],
+      },
+    } }));
+    render(<App />);
+    const createButton = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+    expect(await screen.findByRole("alert")).toHaveTextContent("规则版本不兼容，此对局仅供查看");
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect(screen.getByRole("alert")).toHaveTextContent("この対戦は閲覧専用です");
   });
 
   it("shows a localized concise Simple AI decision reason", async () => {
@@ -1039,6 +1060,24 @@ describe("App", () => {
     expect(
       await screen.findByText("选择 · play_member · 按当前 Live 计划登场"),
     ).toBeInTheDocument();
+  });
+
+  it("localizes the experimental AI resource-cycle reason", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const matchCreate = { ...MATCH_PAYLOAD, events: [{
+      event_type: "ai_action_selected", player_id: "player_1", source: "system",
+      data: { action_type: "set_live_cards", reason: "cycle_spare_members_to_find_live",
+        policy_version: "simple_ai_v1_2" },
+    }] };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    const createButton = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+    await screen.findByText("选择 · set_live_cards · 用富余 Member 换牌寻找 Live");
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect(screen.getByText("選択 · set_live_cards · 余剰メンバーをセットして Live を探す"))
+      .toBeInTheDocument();
   });
 
   it("hides the opponent hand on the match board by default", async () => {
@@ -1128,6 +1167,109 @@ describe("App", () => {
     expect(screen.getByText("公開テストカード")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /公開テストカード/ }));
     expect(screen.getByRole("heading", { name: "公開テストカード" })).toBeInTheDocument();
+  });
+
+  it("shows a readable reason for unsupported overlap observers", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const matchCreate = { ...MATCH_PAYLOAD, events: [{
+      event_type: "effect_not_activatable", player_id: "player_1", source: "system",
+      data: { effect_id: "AUDIT", reason: "overlap_entry_observer_requires_timing_review" },
+    }] };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    await waitFor(() => expect(screen.getByLabelText("玩家 1 牌组")).toBeInTheDocument());
+    const createButton = screen.getByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+    await waitFor(() => expect(screen.getByText("技能未自动处理")).toBeInTheDocument());
+    expect(screen.getByText("该登场观察者的重叠时点尚待审核，请手动确认。")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["energy_deck_insufficient_at_resolution", "结算时能量牌库不足，未放置能量。",
+      "解決時にエネルギーデッキが足りないため、エネルギーを置きませんでした。"],
+    ["overlap_source_member_departed", "来源 Member 已离场，此加成不作用于控室或重新登场的卡牌。",
+      "誘発元のメンバーは一度ステージを離れたため、控え室や再登場したカードには加算しません。"],
+    ["original_source_stage_member_departed", "来源 Member 曾离开 Stage，不复原控室或重新登场的卡牌；能力已结束。",
+      "誘発元が一度ステージを離れたため、控え室や再登場したカードをアクティブにせず解決しました。"],
+    ["original_source_stage_member_departed", "来源 Member 曾离开 Stage，不向控室或重新登场的卡牌添加 Heart；能力已结束。",
+      "誘発元が一度ステージを離れたため、控え室や再登場したカードにハートを加えず解決しました。", "gain_heart"],
+    ["original_source_stage_member_departed", "来源 Member 曾离开 Stage，不向控室或重新登场的卡牌添加 Blade；能力已结束。",
+      "誘発元が一度ステージを離れたため、控え室や再登場したカードにブレードを加えず解決しました。", "gain_blade"],
+    ["no_legal_stage_member_at_resolution", "结算时没有合法的场上 Member，此项效果不适用，能力已结束。",
+      "解決時に対象にできるメンバーがいないため、この効果を適用せず解決しました。"],
+  ])("shows why a triggered operation did not apply (%s)", async (reason, zh, ja, operation = "") => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const matchCreate = { ...MATCH_PAYLOAD, events: [{
+      event_type: "effect_operation_not_applied", player_id: "player_1", source: "system",
+      data: { effect_id: "AUDIT-result", reason, operation },
+    }] };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    const createButton = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+    await waitFor(() => expect(screen.getByText("技能部分未执行")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("自动效果结果")).toBeInTheDocument());
+    expect(screen.getAllByText(zh).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect(screen.getAllByText(ja).length)
+      .toBeGreaterThan(0);
+  });
+
+  it.each([true, false])("shows the moved-source ready result (%s)", async (changed) => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const matchCreate = { ...MATCH_PAYLOAD, events: [{
+      event_type: "effect_source_member_readied", player_id: "player_1", source: "system",
+      data: { effect_id: "PL!SP-bp7-008:2", changed },
+    }] };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    const create = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(create).not.toBeDisabled());
+    fireEvent.click(create);
+    await waitFor(() => expect(screen.getByText("自动效果结果")).toBeInTheDocument());
+    expect(screen.getAllByText(changed ? "移动触发：原来源 Member 已变为 Active。" : "原来源 Member 已是 Active，能力正常结束。").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect(screen.getAllByText(changed ? "エリア移動で誘発し、元のメンバーをアクティブにしました。" : "元のメンバーは既にアクティブです。能力を解決しました。").length).toBeGreaterThan(0);
+  });
+
+  it("explains departure modifier cleanup without exposing modifier payloads", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const matchCreate = { ...MATCH_PAYLOAD, events: [{
+      event_type: "stage_card_modifiers_cleared", player_id: "player_1", source: "system",
+      data: { reason: "member_replaced", removed_count: 2 },
+    }] };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    const createButton = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+    await screen.findByText("卡牌离开 Stage，解除 2 项卡牌专属补正。");
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect(screen.getByText("ステージを離れたカードの補正を2件解除しました。"))
+      .toBeInTheDocument();
+  });
+
+  it.each(["effect:PL!N-pb1-012:1", "energy_phase"])("only shows an Energy result notice for an effect (%s)", async (reason) => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const matchCreate = { ...MATCH_PAYLOAD, events: [{
+      event_type: "energy_added", player_id: "player_1", source: "system",
+      data: { reason, instance_ids: ["energy-public"], orientation: "wait" },
+    }] };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    const createButton = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+    await screen.findAllByText("第 1 回合");
+    if (reason.startsWith("effect:")) {
+      await waitFor(() => expect(screen.getByText("能量补充 WAIT: 1")).toBeInTheDocument());
+      fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+      expect(screen.getByText("エネルギー追加 WAIT: 1")).toBeInTheDocument();
+    } else {
+      expect(screen.queryByText("自动效果结果")).not.toBeInTheDocument();
+    }
   });
 
   it("lets the local player expand their waiting room", async () => {
@@ -1878,6 +2020,53 @@ describe("App", () => {
     expect(screen.getByText("特殊应援: ドロー1 draw+1")).toBeInTheDocument();
   });
 
+  it("shows the actual third-entry observer source after it has left Stage", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const sourceId = "third-entry-source";
+    const matchCreate = {
+      ...MATCH_PAYLOAD,
+      state: { ...MATCH_PAYLOAD.state,
+        players: { ...MATCH_PAYLOAD.state.players, player_1: {
+          ...MATCH_PAYLOAD.state.players.player_1, waiting_room: [sourceId],
+        } }, cards: {
+        [sourceId]: { instance_id: sourceId, owner_id: "player_1", orientation: "active",
+          face_up: true, card: { ...CATALOG_DETAIL.card, card_code: "PL!N-bp3-005", name_ja: "宮下 愛" } },
+      } },
+      events: [{ event_type: "effect_auto_resolved", player_id: "player_1", source: "system",
+        data: { effect_id: "PL!N-bp3-005:1", source_card_instance_id: sourceId } }],
+    };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    const createButton = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(createButton).not.toBeDisabled());
+    fireEvent.click(createButton);
+    await screen.findByText("自动处理 · 宮下 愛 · PL!N-bp3-005:1");
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect(screen.getByText("自動処理 · 宮下 愛 · PL!N-bp3-005:1")).toBeInTheDocument();
+  });
+
+  it.each([0, 1])("shows source Live score comparison results in both languages (+%s)", async (delta) => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const other = delta ? 3 : 4;
+    const data = { invocation_id: "blade-score", effect_id: "PL!N-bp7-027:1",
+      source_card_instance_id: "player_1-M001", selected_blade: 4, other_max_blade: other,
+      condition_met: delta > 0, source_available: true, score_delta: delta };
+    const matchCreate = { ...MATCH_PAYLOAD, events: [
+      { event_type: "effect_blade_comparison_resolved", player_id: "player_1", source: "system", data },
+      { event_type: "effect_resolved", player_id: "player_1", source: "system", data },
+    ] };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    const create = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(create).not.toBeDisabled());
+    fireEvent.click(create);
+    expect((await screen.findAllByText(`Blade 4 / 其他最高 ${other} · 来源 Live 分数 +${delta}`)).length).toBeGreaterThan(0);
+    expect(await screen.findByText("自动效果结果")).toBeInTheDocument();
+    expect(await screen.findByText(delta ? "条件满足" : "条件未满足")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect((await screen.findAllByText(`ブレード 4 / ほかの最大 ${other} · 誘発元のスコア +${delta}`)).length).toBeGreaterThan(0);
+  });
+
   it("shows an automatic result notice for milled cards even when the conditional follow-up does not happen", async () => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const sourceId = "player_1-M001";
@@ -1956,6 +2145,42 @@ describe("App", () => {
     expect(screen.getAllByText("ミルLive").length).toBeGreaterThan(0);
   });
 
+  it.each(["zh", "ja"])("explains attachment promotion without implying an on-play trigger (%s)", async (locale) => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const id = "promoted-member";
+    const matchCreate = {
+      ...MATCH_PAYLOAD,
+      state: {
+        ...MATCH_PAYLOAD.state,
+        cards: {
+          ...MATCH_PAYLOAD.state.cards,
+          [id]: {
+            instance_id: id, owner_id: "player_1", orientation: "active", face_up: true,
+            card: { ...CATALOG_DETAIL.card, name_ja: "移動したメンバー" },
+          },
+        },
+      },
+      events: [{
+        event_type: "effect_member_promoted_from_attachment", player_id: "player_1", source: "system",
+        data: { invocation_id: "promotion", effect_id: "PL!-bp6-003:2", card_instance_id: id,
+                source_zone: "source_attachments", slot: "right", member_area_entry_event: false },
+      }],
+    };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    const create = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(create).not.toBeDisabled());
+    fireEvent.click(create);
+    await screen.findByText("下方 Member 移到空区域: 移動したメンバー");
+    if (locale === "ja") {
+      fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+      expect(await screen.findByText("下のメンバーを空きエリアへ: 移動したメンバー")).toBeInTheDocument();
+      expect(screen.getByText("エリア間移動のため登場能力は誘発しません")).toBeInTheDocument();
+    } else {
+      expect(screen.getByText("场内移动，不触发登場能力")).toBeInTheDocument();
+    }
+  });
+
   it("leaves the hosted room before returning from an online match", async () => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const runtimeConfig = {
@@ -1979,6 +2204,8 @@ describe("App", () => {
     fireEvent.click(createRoomButton);
 
     await waitFor(() => expect(screen.getByTitle("退出在线房间")).toBeInTheDocument());
+    expect(screen.getByTitle("对局结束后可导出完整回放，避免泄露隐藏牌")).toBeDisabled();
+    expect(screen.queryByTitle("导出在线回放 JSON")).not.toBeInTheDocument();
     fireEvent.click(screen.getByTitle("退出在线房间"));
 
     await waitFor(() =>
@@ -1990,6 +2217,101 @@ describe("App", () => {
         }),
       ),
     );
+  });
+
+  it("enables full online replay download only after completion", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const runtimeConfig = { mode: "release" as const, browserPreview: false,
+      apiBaseUrl: "https://api.test", publicMatchHistory: false, cardDatabaseFingerprint: "test" };
+    const completedRoom = { ...roomPayload("active"), match: {
+      ...MATCH_PAYLOAD, state: { ...MATCH_PAYLOAD.state, phase: "complete" }, legal_actions: [],
+    } };
+    vi.stubGlobal("fetch", createFetchMock({ runtimeConfig, roomCreate: completedRoom, roomPoll: completedRoom }));
+    resetRuntimeConfigForTests(runtimeConfig);
+    render(<App />);
+    await waitFor(() => expect(screen.getByText("在线测试房间")).toBeInTheDocument());
+    const create = screen.getByRole("button", { name: "房间创建" });
+    await waitFor(() => expect(create).not.toBeDisabled());
+    fireEvent.click(create);
+    await waitFor(() => expect(screen.getByTitle("导出在线回放 JSON")).toHaveAttribute(
+      "href", "https://api.test/api/rooms/ABC123/replay?player_token=host-token",
+    ));
+  });
+
+  it.each([true, false])("stops corrupt-snapshot retries but keeps transient fallback (%s)", async (terminal) => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const runtimeConfig = { mode: "release" as const, browserPreview: false,
+      apiBaseUrl: "https://api.test", publicMatchHistory: false, cardDatabaseFingerprint: "test" };
+    const instances: MockSource[] = [];
+    class MockSource extends EventTarget {
+      close = vi.fn();
+      onerror: ((event: Event) => void) | null = null;
+      constructor() { super(); instances.push(this); }
+    }
+    vi.stubGlobal("EventSource", MockSource);
+    vi.stubGlobal("fetch", createFetchMock({ runtimeConfig, roomCreate: roomPayload("active") }));
+    resetRuntimeConfigForTests(runtimeConfig);
+    const intervalSpy = vi.spyOn(window, "setInterval");
+    const view = render(<App />);
+    try {
+      const create = await screen.findByRole("button", { name: "房间创建" });
+      await waitFor(() => expect(create).not.toBeDisabled());
+      fireEvent.click(create);
+      await waitFor(() => expect(instances.length).toBe(1));
+      const source = instances[0];
+      await act(async () => {
+        source.dispatchEvent(new MessageEvent("room_error", { data: JSON.stringify({
+          code: terminal ? "invalid_match_snapshot" : "temporary",
+          detail: "temporary room failure",
+        }) }));
+      });
+      expect(source.close).toHaveBeenCalled();
+      if (terminal) {
+        expect(screen.getByText("保存的对局数据已损坏，已停止重试。请新建对局。")).toBeInTheDocument();
+        await act(async () => {
+          source.onerror?.(new Event("error"));
+          source.dispatchEvent(new MessageEvent("room_error", { data: "temporary late failure" }));
+        });
+      } else {
+        expect(screen.queryByText("保存的对局数据已损坏，已停止重试。请新建对局。")).not.toBeInTheDocument();
+      }
+      const fallbackCalls = intervalSpy.mock.calls.filter((call) => call[1] === 8000);
+      expect(fallbackCalls.length).toBe(terminal ? 0 : 1);
+    } finally {
+      view.unmount();
+      intervalSpy.mockRestore();
+    }
+  });
+
+  it("stops HTTP fallback polling when the snapshot cannot be read", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const runtimeConfig = { mode: "release" as const, browserPreview: false,
+      apiBaseUrl: "https://api.test", publicMatchHistory: false, cardDatabaseFingerprint: "test" };
+    const base = createFetchMock({ runtimeConfig, roomCreate: roomPayload("active") });
+    vi.stubGlobal("EventSource", undefined);
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes("/api/rooms/ABC123") && (init?.method ?? "GET") === "GET") {
+        return new Response(JSON.stringify({ code: "invalid_match_snapshot", detail: "invalid saved data" }), { status: 409 });
+      }
+      return base(input, init);
+    }));
+    resetRuntimeConfigForTests(runtimeConfig);
+    const intervalSpy = vi.spyOn(window, "setInterval");
+    const clearSpy = vi.spyOn(window, "clearInterval");
+    const view = render(<App />);
+    try {
+      const create = await screen.findByRole("button", { name: "房间创建" });
+      await waitFor(() => expect(create).not.toBeDisabled());
+      fireEvent.click(create);
+      await screen.findByText("保存的对局数据已损坏，已停止重试。请新建对局。");
+      const index = intervalSpy.mock.calls.findIndex((call) => call[1] === 8000);
+      expect(index).toBeGreaterThanOrEqual(0);
+      expect(clearSpy).toHaveBeenCalledWith(intervalSpy.mock.results[index].value);
+    } finally {
+      view.unmount();
+      intervalSpy.mockRestore();
+      clearSpy.mockRestore();
+    }
   });
 
   it("shows hosted room controls for same-origin release API builds", async () => {
@@ -2677,6 +2999,92 @@ describe("App", () => {
     );
   });
 
+  it("keeps an explicitly selected face when refreshed catalog data changes the default", () => {
+    const detail = {
+      ...CATALOG_DETAIL,
+      printings: [
+        ...CATALOG_DETAIL.printings,
+        { ...CATALOG_DETAIL.printings[0], card_id: "LL-TEST-001-SR", rarity_ja: "SR" },
+        { ...CATALOG_DETAIL.printings[0], card_id: "LL-TEST-001-R", rarity_ja: "R" },
+      ],
+    } as CatalogCardDetail;
+    const summary = CATALOG_SUMMARY as CatalogCardSummary;
+    const { rerender } = render(
+      <CatalogPreviewDialog locale="zh" detail={detail} summary={summary} onClose={() => {}} />,
+    );
+    fireEvent.change(screen.getByLabelText("选择卡面"), {
+      target: { value: "LL-TEST-001-SR" },
+    });
+    expect(screen.getByLabelText("选择卡面")).toHaveValue("LL-TEST-001-SR");
+
+    rerender(
+      <CatalogPreviewDialog
+        locale="zh"
+        detail={{ ...detail, printings: [...detail.printings].reverse() }}
+        summary={{ ...summary, card_id: "LL-TEST-001-R" }}
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByLabelText("选择卡面")).toHaveValue("LL-TEST-001-SR");
+    expect(screen.getByAltText("テストカード")).toHaveAttribute(
+      "src", "/api/card-images/LL-TEST-001-SR",
+    );
+  });
+
+  it("uses late catalog defaults until the user explicitly picks a face", () => {
+    const detail = {
+      ...CATALOG_DETAIL,
+      printings: [
+        ...CATALOG_DETAIL.printings,
+        { ...CATALOG_DETAIL.printings[0], card_id: "LL-TEST-001-SR", rarity_ja: "SR" },
+      ],
+    } as CatalogCardDetail;
+    const { rerender } = render(
+      <CatalogPreviewDialog locale="zh" detail={detail} summary={null} onClose={() => {}} />,
+    );
+    expect(screen.getByLabelText("选择卡面")).toHaveValue("LL-TEST-001-PR");
+    rerender(
+      <CatalogPreviewDialog
+        locale="zh" detail={detail}
+        summary={{ ...CATALOG_SUMMARY, card_id: "LL-TEST-001-SR" } as CatalogCardSummary}
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByLabelText("选择卡面")).toHaveValue("LL-TEST-001-SR");
+  });
+
+  it("initializes a fresh face selection when previewing another card", () => {
+    const detail = {
+      ...CATALOG_DETAIL,
+      printings: [
+        ...CATALOG_DETAIL.printings,
+        { ...CATALOG_DETAIL.printings[0], card_id: "LL-TEST-001-SR", rarity_ja: "SR" },
+      ],
+    } as CatalogCardDetail;
+    const { rerender } = render(
+      <CatalogPreviewDialog key={detail.card.card_code} locale="zh" detail={detail}
+        summary={CATALOG_SUMMARY as CatalogCardSummary} onClose={() => {}} />,
+    );
+    fireEvent.change(screen.getByLabelText("选择卡面"), {
+      target: { value: "LL-TEST-001-SR" },
+    });
+    const other = {
+      ...detail,
+      card: { ...detail.card, card_code: "LL-TEST-002", name_ja: "別のカード" },
+      printings: detail.printings.map((printing) => ({
+        ...printing, card_id: printing.card_id.replace("001", "002"),
+      })),
+    };
+    rerender(
+      <CatalogPreviewDialog key={other.card.card_code} locale="zh" detail={other}
+        summary={null} onClose={() => {}} />,
+    );
+    expect(screen.getByLabelText("选择卡面")).toHaveValue("LL-TEST-002-PR");
+    expect(screen.getByAltText("別のカード")).toHaveAttribute(
+      "src", "/api/card-images/LL-TEST-002-PR",
+    );
+  });
+
   it("blocks adding the 49th Member card to the main deck", async () => {
     const fullMemberDeck = {
       version: "decklist.v0" as const,
@@ -2878,6 +3286,134 @@ describe("App", () => {
       selected_card_instance_ids: ["player_1-M002"],
       ordered_card_instance_ids: undefined,
     });
+  });
+
+  it.each(["PL!N-sd2-009:1", "PL!N-sd2-012:1", "PL!N-sd2-014:1", "PL!N-bp7-018:1", "PL!-bp3-010:1", "PL!-bp5-014:1", "PL!-bp6-004:1", "PL!-pb1-016:1", "PL!-sd1-015:1", "PL!HS-bp2-010:1", "PL!HS-bp1-011:1", "PL!HS-bp6-022:1", "PL!HS-bp1-009:1", "PL!HS-pb1-018:1", "PL!N-bp3-012:1", "PL!SP-pb1-015:1", "PL!SP-pb1-016:1", "PL!SP-pb1-017:1", "PL!S-bp3-004:1", "PL!S-bp3-009:1", "PL!SP-bp1-005:1", "PL!SP-bp2-007:1", "PL!SP-pb2-017:1", "PL!S-pb1-013:1", "PL!S-pb1-014:1", "PL!S-pb1-015:1"])("allows keeping zero inspected cards for %s without selecting an ineligible card", (effectId) => {
+    const onAction = vi.fn();
+    const label = "【登場】『虹ヶ咲』のカードを1枚公開して手札に加えてもよい。";
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, effect_definitions: {
+      [effectId]: { ...INSPECTION_MATCH_PAYLOAD.state.effect_definitions["PL!-bp6-002:1"], effect_id: effectId, label_ja: label },
+    } };
+    const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], options: {
+      ...INSPECTION_MATCH_PAYLOAD.legal_actions[0].options, effect_id: effectId,
+    } };
+    render(<InspectionChoiceAction action={action as never} state={state as never} loading={false}
+      onAction={onAction} title="检查结果" submitLabel="确认检索" />);
+    expect(screen.getByText(label)).toBeInTheDocument();
+    expect(screen.getByText("不符合条件")).toBeInTheDocument();
+    const confirm = screen.getByRole("button", { name: "确认检索" });
+    expect(confirm).toBeEnabled();
+    fireEvent.click(confirm);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_1", {
+      selected_card_instance_ids: [], ordered_card_instance_ids: undefined,
+    });
+  });
+
+  it.each([0, 1, 2])("allows a paid Wait inspection to return %s cards in chosen order", (keep) => {
+    const onAction = vi.fn();
+    const ids = ["player_1-M002", "player_1-M003"] as const;
+    const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], options: {
+      ...INSPECTION_MATCH_PAYLOAD.legal_actions[0].options,
+      effect_id: "PL!-bp3-014:1", inspected_card_instance_ids: ids, candidate_card_instance_ids: ids,
+      minimum: 0, maximum: 2, requires_order: true,
+      selected_destination: "main_deck_top_ordered", unselected_destination: "waiting_room",
+      reveal_selected_to_opponent: false,
+    } };
+    render(<InspectionChoiceAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never}
+      loading={false} onAction={onAction} title="检查结果" submitLabel="确认排序" />);
+    const confirm = screen.getByRole("button", { name: "确认排序" });
+    expect(confirm).toBeEnabled();
+    for (const id of ids.slice(0, keep)) {
+      fireEvent.click(screen.getByRole("button", { name: new RegExp(INSPECTION_CARDS[id].card.name_ja) }));
+    }
+    if (keep === 2) fireEvent.click(screen.getAllByRole("button", { name: "上移已选卡" })[1]);
+    fireEvent.click(confirm);
+    const selected = keep === 2 ? [...ids].reverse() : ids.slice(0, keep);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_1", {
+      selected_card_instance_ids: selected, ordered_card_instance_ids: selected,
+    });
+  });
+
+  it("requires all four inspected cards and submits their edited deck-top order", () => {
+    const onAction = vi.fn();
+    const ids = ["peek-0", "peek-1", "peek-2", "peek-3"];
+    const label = "【起動】【ターン1回】【E】：自分のデッキの上からカードを4枚見る。その後、それらを好きな順番でデッキの上に置く。";
+    const cards = Object.fromEntries(ids.map((id, index) => [id, {
+      ...INSPECTION_CARDS["player_1-M002"], instance_id: id,
+      card: { ...INSPECTION_CARDS["player_1-M002"].card, name_ja: `確認${index + 1}` },
+    }]));
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state,
+      cards: { ...INSPECTION_CARDS, ...cards },
+      effect_definitions: { "PL!N-bp7-006:1": {
+        ...INSPECTION_MATCH_PAYLOAD.state.effect_definitions["PL!-bp6-002:1"],
+        effect_id: "PL!N-bp7-006:1", label_ja: label,
+      } },
+    };
+    const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], options: {
+      effect_id: "PL!N-bp7-006:1", source_card_instance_id: "player_1-M001",
+      inspected_card_instance_ids: ids, candidate_card_instance_ids: ids,
+      minimum: 4, maximum: 4, requires_order: true,
+      selected_destination: "main_deck_top_ordered", reveal_selected_to_opponent: false,
+    } };
+    render(<InspectionChoiceAction action={action as never} state={state as never}
+      loading={false} onAction={onAction} title="检查结果" submitLabel="确认排序" />);
+    expect(screen.getByText(label)).toBeInTheDocument();
+    const confirm = screen.getByRole("button", { name: "确认排序" });
+    for (let i = 0; i < 3; i += 1) fireEvent.click(screen.getByRole("button", { name: new RegExp(`確認${i + 1}`) }));
+    expect(confirm).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /確認4/ }));
+    expect(confirm).toBeEnabled();
+    fireEvent.click(screen.getAllByRole("button", { name: "上移已选卡" })[3]);
+    fireEvent.click(confirm);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_1", {
+      selected_card_instance_ids: ["peek-0", "peek-1", "peek-3", "peek-2"],
+      ordered_card_instance_ids: ["peek-0", "peek-1", "peek-3", "peek-2"],
+    });
+  });
+
+  it("requires a waiting-room member and area for simultaneous two-player deployment", () => {
+    const onAction = vi.fn();
+    const action = {
+      ...INSPECTION_MATCH_PAYLOAD.legal_actions[0],
+      options: {
+        multi_player_choice_type: "multi_player_deploy_waiting_member",
+        deployment_policy: "simultaneous_member_area_entry",
+        orientation: "wait",
+        candidate_card_instance_ids: ["player_1-M002"],
+        available_slots: ["left", "right"],
+        minimum: 1,
+        maximum: 1,
+      },
+    };
+    const props = { state: INSPECTION_MATCH_PAYLOAD.state as never,
+      loading: false, onAction, title: "双方登场", submitLabel: "确认登场" };
+    const view = render(<InspectionChoiceAction {...props} action={action as never} />);
+    expect(screen.getByRole("button", { name: "确认登场" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /候補カード/ }));
+    expect(screen.getByRole("button", { name: "确认登场" })).toBeDisabled();
+    const slots = screen.getByRole("group", { name: "登场区域" });
+    fireEvent.click(slots.querySelectorAll("button")[1]);
+    fireEvent.click(screen.getByRole("button", { name: "确认登场" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_1", {
+      selected_card_instance_id: "player_1-M002", slot: "right",
+    });
+    view.rerender(<InspectionChoiceAction {...props}
+      action={{ ...action, player_id: "player_2" } as never} />);
+    expect(screen.getByRole("button", { name: "确认登场" })).toBeDisabled();
+    expect(screen.queryByRole("group", { name: "登场区域" })).not.toBeInTheDocument();
+  });
+
+  it("confirms an empty multi-player deployment without inventing a target", () => {
+    const onAction = vi.fn();
+    const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], options: {
+      multi_player_choice_type: "multi_player_deploy_waiting_member",
+      candidate_card_instance_ids: [], available_slots: [], minimum: 0, maximum: 0,
+    } };
+    render(<InspectionChoiceAction action={action as never}
+      state={INSPECTION_MATCH_PAYLOAD.state as never} loading={false}
+      onAction={onAction} title="双方登场" submitLabel="无目标确认" />);
+    fireEvent.click(screen.getByRole("button", { name: "无目标确认" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_1", {});
   });
 
   it("offers a manual adjustment for returning a waiting-room card to hand", () => {
@@ -3134,6 +3670,97 @@ describe("App", () => {
     expect(onManual).not.toHaveBeenCalled();
   });
 
+  it.each(["inspection_cost_candidates_unavailable", "inspection_source_not_active", "inspection_source_object_unavailable"])("can cancel an unpayable inspection without choosing a nonexistent cost: %s", (reason) => {
+    const onAction = vi.fn();
+    const label = "【登場】手札を1枚控え室に置く：自分のデッキの上からカードを5枚見る。";
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "effect-001", effect_id: "PL!-pb2-032:1", source_card_instance_id: "player_1-M001",
+      label_ja: label, trigger: "member_played", timing: "on_play", execution_mode: "prompt_then_resolve",
+      is_optional: false, simulation_support: "test_validated_executable", candidate_card_instance_ids: [],
+      cost_payment_unavailable_reason: reason, resolution_stage: "initial",
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never}
+      loading={false} onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.getByText(label)).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("无法支付费用");
+    expect(screen.queryByRole("button", { name: "不使用" })).not.toBeInTheDocument();
+    const confirm = screen.getByRole("button", { name: "结束此能力" });
+    expect(confirm).toBeEnabled();
+    fireEvent.click(confirm);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "effect-001", accepted: true, selected_card_instance_ids: [], energy_instance_ids: [],
+    });
+  });
+
+  const private3FamilyEffectIds = [
+    "PL!-sd1-016:1", "PL!HS-PR-001:1", "PL!HS-PR-002:1", "PL!HS-PR-005:1", "PL!HS-cl1-007:1", "PL!HS-pb1-011:1",
+    "PL!N-PR-004:1", "PL!N-PR-006:1", "PL!N-PR-013:1", "PL!N-bp1-007:1", "PL!N-bp1-010:1",
+    "PL!N-sd1-002:1", "PL!N-sd1-003:1", "PL!S-PR-013:1", "PL!S-PR-019:1",
+  ];
+
+  const inspectionSiblingEffectIds = ["PL!-sd1-015:1", "PL!HS-bp2-010:1", "PL!HS-bp1-011:1", "PL!HS-bp6-022:1", "PL!N-pb1-028:1", "PL!N-pb1-035:1"];
+  const workUnitInspectionEffectIds = ["PL!HS-bp1-009:1", "PL!HS-pb1-018:1", "PL!N-bp3-012:1", "PL!SP-pb1-015:1", "PL!SP-pb1-016:1", "PL!SP-pb1-017:1"];
+  const memberLiellaInspectionEffectIds = ["PL!S-bp3-004:1", "PL!S-bp3-009:1", "PL!SP-bp1-005:1", "PL!SP-bp2-007:1", "PL!SP-pb2-017:1"];
+  const mixedHeartInspectionEffectIds = ["PL!S-pb1-013:1", "PL!S-pb1-014:1", "PL!S-pb1-015:1"];
+
+  it("shows the exact multi-keep card text with manual control instead of automatic execution", () => {
+    const onAction = vi.fn();
+    const onManual = vi.fn();
+    const source = { invocation_id: "multi-keep-review", effect_id: "PL!S-bp2-005:1", source_card_instance_id: "player_1-M001", player_id: "player_1" };
+    const label = "【登場】手札を1枚控え室に置いてもよい：自分のデッキの上からカードを7枚見る。その中から【heart02】か【heart04】か【heart05】を持つメンバーカードを3枚まで公開して手札に加えてもよい。残りを控え室に置く。";
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, pending_effects: [source] };
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      ...source, label_ja: label, trigger: "member_played", timing: "on_play", execution_mode: "manual_resolution",
+      simulation_support: "manual_resolution", is_optional: true, candidate_card_instance_ids: [],
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false} onAction={onAction} onManual={onManual} />);
+    expect(document.body.textContent).toContain("カードを7枚見る");
+    expect(document.body.textContent).toContain("メンバーカードを3枚まで");
+    expect(screen.queryByRole("button", { name: "结算技能" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "结构化人工处理" }));
+    expect(onManual).toHaveBeenCalledWith(source);
+    expect(onAction).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "不使用" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", { invocation_id: "multi-keep-review", accepted: false });
+  });
+
+  it.each(["PL!-bp3-010:1", "PL!-bp5-014:1", "PL!-bp6-004:1", "PL!-pb1-016:1", "PL!-sd1-011:1", "PL!-sd1-012:1", ...private3FamilyEffectIds, ...inspectionSiblingEffectIds, ...workUnitInspectionEffectIds, ...memberLiellaInspectionEffectIds, ...mixedHeartInspectionEffectIds])("can explicitly end the optional unpayable hand cost for %s", (effectId) => {
+    const onAction = vi.fn();
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "no-hand-cost", effect_id: effectId, source_card_instance_id: "player_1-M001",
+      label_ja: "【登場】手札を1枚控え室に置いてもよい：自分のデッキの上からカードを見る。",
+      trigger: "member_played", timing: "on_play", execution_mode: "prompt_then_resolve",
+      is_optional: true, simulation_support: "test_validated_executable", candidate_card_instance_ids: [],
+      cost_payment_unavailable_reason: "inspection_cost_candidates_unavailable", resolution_stage: "initial",
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never}
+      loading={false} onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.getByRole("status")).toHaveTextContent("无法支付费用");
+    const confirm = screen.getByRole("button", { name: "结束此能力" });
+    expect(confirm).toBeEnabled();
+    fireEvent.click(confirm);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "no-hand-cost", accepted: true, selected_card_instance_ids: [], energy_instance_ids: [],
+    });
+  });
+
+  it.each(["PL!SP-bp7-018:1", "PL!-sd1-011:1", "PL!-sd1-012:1", ...private3FamilyEffectIds, "PL!N-pb1-028:1", "PL!N-pb1-035:1"])("requires exactly one private kept card after paying the cost for %s", (effectId) => {
+    const onAction = vi.fn();
+    const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], options: {
+      ...INSPECTION_MATCH_PAYLOAD.legal_actions[0].options, effect_id: effectId, minimum: 1, maximum: 1, reveal_selected_to_opponent: false,
+    } };
+    render(<InspectionChoiceAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never}
+      loading={false} onAction={onAction} title="检查结果" submitLabel="加入手牌" />);
+    const confirm = screen.getByRole("button", { name: "加入手牌" });
+    expect(confirm).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /候補カード/ }));
+    expect(confirm).toBeEnabled();
+    fireEvent.click(confirm);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_1", {
+      selected_card_instance_ids: ["player_1-M002"], ordered_card_instance_ids: undefined,
+    });
+  });
+
   it("shows a continuation hint for multi-step effects after cost handling", () => {
     const onAction = vi.fn();
     const onManual = vi.fn();
@@ -3193,6 +3820,54 @@ describe("App", () => {
     expect(
       screen.getByText("已完成发动/成本处理，继续选择后续效果。"),
     ).toBeInTheDocument();
+  });
+
+  it("requires both post-draw discards for Mia without paying the Wait cost again", () => {
+    const onAction = vi.fn();
+    const onManual = vi.fn();
+    const label = "【起動】【ターン1回】このメンバーをウェイトにする：カードを2枚引き、手札を2枚控え室に置く。";
+    const state = {
+      ...INSPECTION_MATCH_PAYLOAD.state,
+      pending_choice: null,
+      cards: {
+        ...INSPECTION_MATCH_PAYLOAD.state.cards,
+        "drawn-second": {
+          ...INSPECTION_CARDS["player_1-M002"], instance_id: "drawn-second",
+          card: { ...INSPECTION_CARDS["player_1-M002"].card, name_ja: "新しく引いたカード" },
+        },
+      },
+      pending_effects: [{
+        invocation_id: "mia-draw-two", effect_id: "PL!N-bp7-023:1",
+        source_card_instance_id: "player_1-M001", player_id: "player_1",
+        trigger_event: "player_activation", trigger_data: {}, resolution_stage: "after_cost",
+      }],
+    };
+    const action = {
+      action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+        invocation_id: "mia-draw-two", effect_id: "PL!N-bp7-023:1",
+        source_card_instance_id: "player_1-M001", label_ja: label,
+        trigger: "player_activation", timing: "activated_main", execution_mode: "prompt_then_resolve",
+        simulation_support: "test_validated_executable", is_optional: false, resolution_stage: "after_cost",
+        choice_type: "post_action_card_from_zone", choice_zone: "hand",
+        card_selection_minimum: 2, card_selection_maximum: 2,
+        candidate_card_instance_ids: ["player_1-M002", "drawn-second"],
+      }] },
+    };
+    render(<EffectResolutionAction action={action as never} state={state as never}
+      loading={false} onAction={onAction} onManual={onManual} />);
+    expect(screen.getByText(label)).toBeInTheDocument();
+    const confirm = screen.getByRole("button", { name: "结算技能" });
+    expect(confirm).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /候補カード/ }));
+    expect(confirm).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /新しく引いたカード/ }));
+    expect(confirm).toBeEnabled();
+    fireEvent.click(confirm);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "mia-draw-two", accepted: true,
+      selected_card_instance_ids: ["player_1-M002", "drawn-second"], energy_instance_ids: [],
+    });
+    expect(onManual).not.toHaveBeenCalled();
   });
 
   it("shows card details for duplicate waiting-room effect choices", () => {
@@ -3464,6 +4139,396 @@ describe("App", () => {
       selected_card_instance_ids: [],
       energy_instance_ids: [],
       selected_branch: "draw_discard",
+    });
+  });
+
+  it("chooses a discard cost without allowing a branch override, then resets the follow-up selection", () => {
+    const onAction = vi.fn();
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, pending_choice: null };
+    const invocation = {
+      invocation_id: "cost-result-001", effect_id: "PL!-bp5-003:2",
+      source_card_instance_id: "player_1-M001", label_ja: "【起動】手札を1枚控え室に置く：費用により処理。",
+      trigger: "player_activation", timing: "activated_main", execution_mode: "prompt_then_resolve",
+      is_optional: false, simulation_support: "test_validated_executable",
+      resolution_stage: "initial", choice_type: "card_from_zone", choice_zone: "hand",
+      candidate_card_instance_ids: ["player_1-M002"], card_selection_minimum: 1, card_selection_maximum: 1,
+      branch_from_cost: true, branch_ids: ["discarded_muse", "discarded_other"],
+    };
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [invocation] } };
+    const { rerender } = render(<EffectResolutionAction action={action as never} state={state as never}
+      loading={false} onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: /弃置 μ's/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /候補カード/ }));
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "cost-result-001", accepted: true, selected_card_instance_ids: ["player_1-M002"], energy_instance_ids: [],
+    });
+    const followUp = { ...action, options: { invocations: [{ ...invocation,
+      resolution_stage: "after_cost", choice_type: "choose_effect_branch", choice_zone: "waiting_room",
+      candidate_card_instance_ids: ["player_1-M003"], selected_branch: "discarded_other",
+    }] } };
+    rerender(<EffectResolutionAction action={followUp as never} state={state as never}
+      loading={false} onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.getByText(/费用判定/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /弃置其他作品/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /条件外カード/ }));
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenLastCalledWith("resolve_effect", "player_1", {
+      invocation_id: "cost-result-001", accepted: true, selected_card_instance_ids: ["player_1-M003"],
+      energy_instance_ids: [], selected_branch: "discarded_other",
+    });
+  });
+
+  it.each([{ slots: ["left", "right"], occupied: false }, { slots: [] as string[], occupied: false },
+    { slots: ["center"], occupied: true }])("uses legal deployment areas without a manual adjustment: %j", ({ slots, occupied }) => {
+    const onAction = vi.fn();
+    const action = {
+      action_type: "resolve_effect", player_id: "player_1", label_zh: "技能", label_ja: "能力",
+      options: { invocations: [{
+        invocation_id: "deploy-001", effect_id: "PL!S-sd1-006:1", source_card_instance_id: "player_1-M001",
+        label_ja: "メンバーのいないエリアに登場させる。", trigger: "member_played", timing: "on_play",
+        execution_mode: "prompt_then_resolve", simulation_support: "test_validated_executable",
+        resolution_stage: "after_cost", is_optional: false,
+        choice_type: "deploy_member_from_waiting_room", choice_zone: "waiting_room",
+        card_selection_minimum: 1, card_selection_maximum: 1,
+        candidate_card_instance_ids: ["player_1-M002"], deployment_choice: true,
+        position_change_slots_by_candidate: { "player_1-M002": slots },
+        deployment_members_by_slot: occupied ? { center: "player_1-M003" } : {},
+      }] },
+    };
+    render(<EffectResolutionAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never}
+      loading={false} onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /候補カード/ }));
+    expect(screen.getByText("登场区域")).toBeInTheDocument();
+    if (!slots.length) {
+      expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+      expect(onAction).not.toHaveBeenCalled();
+      return;
+    }
+    fireEvent.click(screen.getByRole("button", { name: occupied ? /中.*条件外カード/ : "右" }));
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "deploy-001", accepted: true, selected_card_instance_ids: ["player_1-M002"],
+      energy_instance_ids: [], to_slot: occupied ? "center" : "right",
+    });
+  });
+
+  it.each([false, true, "none"])("submits independent named groups including absent names: %s", (partial) => {
+    const onAction = vi.fn();
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    state.cards["player_1-M002"] = { ...state.cards["player_1-M002"], card: { ...state.cards["player_1-M002"].card, name_ja: "澁谷かのん" } };
+    state.cards["player_1-M003"] = { ...state.cards["player_1-M003"], card: { ...state.cards["player_1-M003"].card, name_ja: "唐 可可" } };
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "named-groups", effect_id: "PL!SP-bp1-024:1", source_card_instance_id: "player_1-M001",
+      label_ja: "【ライブ開始時】かのんと可可を1人ずつ選ぶ。", trigger: "live_started", timing: "live_start",
+      execution_mode: "prompt_then_resolve", simulation_support: "test_validated_executable", is_optional: false,
+      choice_type: "member_group_from_stage", selection_policy: "public_named_groups_as_much_as_possible",
+      candidate_card_instance_ids: [], card_selection_minimum: 0, card_selection_maximum: 0,
+      choice_groups: [
+        { group_id: "kanon", label_ja: "かのん", candidate_card_instance_ids: partial ? [] : ["player_1-M002"], minimum: partial ? 0 : 1, maximum: partial ? 0 : 1 },
+        { group_id: "keke", label_ja: "可可", candidate_card_instance_ids: partial === "none" ? [] : ["player_1-M003"], minimum: partial === "none" ? 0 : 1, maximum: partial === "none" ? 0 : 1 },
+      ],
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false}
+      onAction={onAction} onManual={vi.fn()} />);
+    if (!partial) {
+      expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+      fireEvent.click(screen.getByRole("button", { name: /澁谷かのん/ }));
+    }
+    if (partial !== "none") {
+      expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+      fireEvent.click(screen.getByRole("button", { name: /唐 可可/ }));
+    }
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", expect.objectContaining({
+      invocation_id: "named-groups", selected_card_instance_ids_by_group: {
+        ...(!partial ? { kanon: ["player_1-M002"] } : {}), ...(partial !== "none" ? { keke: ["player_1-M003"] } : {}),
+      },
+    }));
+  });
+
+  it.each([false, true])("selects a Stage Member Wait cost and optional Heart color: %s", (heart) => {
+    const onAction = vi.fn();
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    state.cards["player_1-M002"] = { ...state.cards["player_1-M002"], card: { ...state.cards["player_1-M002"].card, name_ja: "費用メンバー" } };
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "wait-cost", effect_id: heart ? "PL!N-bp7-012:1" : "PL!N-sd2-006:1", source_card_instance_id: "player_1-M001",
+      label_ja: "【ライブ開始時】『虹ヶ咲』のメンバー1人をウェイトにしてもよい：自身に加算。",
+      execution_mode: "prompt_then_resolve", is_optional: true, simulation_support: "test_validated_executable",
+      choice_type: "member_from_stage", choice_zone: "stage", requires_color_choice: heart,
+      candidate_card_instance_ids: ["player_1-M002"], card_selection_minimum: 1, card_selection_maximum: 1,
+      color_slots: heart ? ["heart01", "heart02", "heart03", "heart04", "heart05", "heart06"] : [],
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false}
+      onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /費用メンバー/ }));
+    if (heart) {
+      expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+      fireEvent.click(screen.getByRole("button", { name: "黄色" }));
+    }
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "wait-cost", accepted: true, selected_card_instance_ids: ["player_1-M002"], energy_instance_ids: [],
+      ...(heart ? { selected_color_slot: "heart03" } : {}),
+    });
+  });
+
+  it("requires both discard cards and an explicit Heart color in the same cost confirmation", () => {
+    const onAction = vi.fn();
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    for (const [id, name] of [["player_1-M002", "費用A"], ["player_1-M003", "費用B"]]) {
+      state.cards[id] = { ...state.cards[id], card: { ...state.cards[id].card, name_ja: name } };
+    }
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "discard-color", effect_id: "PL!N-sd2-005:1", source_card_instance_id: "player_1-M001",
+      label_ja: "【ライブ開始時】手札を2枚控え室に置いてもよい：好きなハートの色を1つ指定する。",
+      execution_mode: "prompt_then_resolve", is_optional: true, simulation_support: "test_validated_executable",
+      choice_type: "card_from_zone", choice_zone: "hand", requires_color_choice: true,
+      candidate_card_instance_ids: ["player_1-M002", "player_1-M003"], card_selection_minimum: 2, card_selection_maximum: 2,
+      color_slots: ["heart01", "heart02", "heart03", "heart04", "heart05", "heart06"],
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false}
+      onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /費用A/ }));
+    fireEvent.click(screen.getByRole("button", { name: /費用B/ }));
+    expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "紫色" }));
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "discard-color", accepted: true, selected_card_instance_ids: ["player_1-M002", "player_1-M003"],
+      energy_instance_ids: [], selected_color_slot: "heart06",
+    });
+  });
+
+  it("requires one explicit named Member choice instead of auto-selecting the first copy", () => {
+    const onAction = vi.fn();
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    for (const id of ["player_1-M002", "player_1-M003"] as const) {
+      state.cards[id] = { ...state.cards[id], card: { ...state.cards[id].card, name_ja: "嵐 千砂都" } };
+    }
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "named-live", effect_id: "PL!SP-bp7-025:1", source_card_instance_id: "player_1-M001",
+      label_ja: "【ライブ開始時】ライブ終了時まで、自分のステージにいる「嵐 千砂都」1人は【ブレード】を得る。",
+      trigger: "live_started", timing: "live_start", execution_mode: "prompt_then_resolve",
+      simulation_support: "test_validated_executable", is_optional: false,
+      choice_type: "member_from_stage", choice_zone: "stage", card_selection_minimum: 1, card_selection_maximum: 1,
+      selection_policy: "public_single_as_much_as_possible", candidate_card_instance_ids: ["player_1-M002", "player_1-M003"],
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false}
+      onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+    expect(onAction).not.toHaveBeenCalled();
+    const candidates = screen.getAllByRole("button", { name: /嵐 千砂都/ });
+    expect(candidates).toHaveLength(2);
+    fireEvent.click(candidates[0]);
+    fireEvent.click(candidates[1]);
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "named-live", accepted: true, selected_card_instance_ids: ["player_1-M003"], energy_instance_ids: [],
+    });
+  });
+
+  it.each([
+    { empty: false, returned: false }, { empty: true, returned: false },
+    { empty: false, returned: true },
+  ])("handles other-Nijigasaki selection %j", ({ empty, returned }) => {
+    const onAction = vi.fn();
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    const id = returned ? "player_1-M001" : "player_1-M002";
+    state.cards[id] = { ...state.cards[id], card: { ...state.cards[id].card, name_ja: "桜坂しずく", cost: 15 } };
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "other-niji", effect_id: "PL!N-PR-036:1", source_card_instance_id: "player_1-M001",
+      label_ja: "【ライブ開始時】ほかの虹ヶ咲メンバー1人にHeart。cost15以上ならさらにHeart。",
+      trigger: "live_started", timing: "live_start", execution_mode: "prompt_then_resolve",
+      simulation_support: "test_validated_executable", is_optional: false,
+      choice_type: "member_from_stage", choice_zone: "stage", card_selection_minimum: empty ? 0 : 1,
+      card_selection_maximum: empty ? 0 : 1, selection_policy: "public_other_nijigasaki_cost_heart",
+      candidate_card_instance_ids: empty ? [] : [id],
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false}
+      onAction={onAction} onManual={vi.fn()} />);
+    const resolve = screen.getByRole("button", { name: "结算技能" });
+    if (empty) {
+      expect(resolve).toBeEnabled();
+    } else {
+      expect(resolve).toBeDisabled();
+      fireEvent.click(screen.getByRole("button", { name: /桜坂しずく/ }));
+    }
+    fireEvent.click(resolve);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "other-niji", accepted: true, selected_card_instance_ids: empty ? [] : [id], energy_instance_ids: [],
+    });
+  });
+
+  it.each([0, 1, 2])("requires a current Blade-four target or explicitly resolves no targets: %s", (count) => {
+    const onAction = vi.fn();
+    const ids = ["player_1-M002", "player_1-M003"].slice(0, count);
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    ids.forEach((id, i) => { state.cards[id] = { ...state.cards[id],
+      card: { ...state.cards[id].card, name_ja: `Blade4-${i}`, blade: 4 } }; });
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "blade-four", effect_id: "PL!N-sd2-026:1", source_card_instance_id: "player_1-M001",
+      label_ja: "【ライブ開始時】ブレード4以上の虹ヶ咲メンバー1人にheart02二つ。",
+      trigger: "live_started", timing: "live_start", execution_mode: "prompt_then_resolve",
+      simulation_support: "test_validated_executable", is_optional: false,
+      choice_type: "member_from_stage", choice_zone: "stage", card_selection_minimum: count ? 1 : 0,
+      card_selection_maximum: count ? 1 : 0, selection_policy: "public_nijigasaki_blade_four_heart",
+      candidate_card_instance_ids: ids,
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false}
+      onAction={onAction} onManual={vi.fn()} />);
+    const resolve = screen.getByRole("button", { name: "结算技能" });
+    if (count) {
+      expect(resolve).toBeDisabled();
+      fireEvent.click(screen.getByRole("button", { name: new RegExp(`Blade4-${count - 1}`) }));
+    } else { expect(resolve).toBeEnabled(); }
+    fireEvent.click(resolve);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "blade-four", accepted: true,
+      selected_card_instance_ids: count ? [ids[count - 1]] : [], energy_instance_ids: [],
+    });
+  });
+
+  it.each([false, true])("orders up to three public Yell cards, including choosing zero: %s", (chooseZero) => {
+    const onAction = vi.fn();
+    const ids = ["player_1-M001", "player_1-M002", "player_1-M003", "extra-yell"];
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    ids.forEach((id, index) => {
+      state.cards[id] = { ...state.cards["player_1-M001"], instance_id: id,
+        card: { ...state.cards["player_1-M001"].card, name_ja: `Yell ${index + 1}` } };
+    });
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "aqours-bottom", effect_id: "PL!S-cl1-002:1", source_card_instance_id: "player_1-M001",
+      label_ja: "【ライブ成功時】Aqoursのエール3枚までを好きな順でデッキの下に置く。",
+      trigger: "live_succeeded", timing: "live_success", execution_mode: "prompt_then_resolve",
+      simulation_support: "test_validated_executable", is_optional: false, choice_type: "card_from_zone",
+      choice_zone: "resolution_area", card_selection_minimum: 0, card_selection_maximum: 3,
+      card_selection_requires_order: true, selection_policy: "public_yell_aqours_bottom_three",
+      candidate_card_instance_ids: ids,
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false}
+      onAction={onAction} onManual={vi.fn()} />);
+    if (!chooseZero) {
+      ids.slice(0, 3).forEach((_, i) => fireEvent.click(screen.getByRole("button", { name: new RegExp(`Yell ${i + 1}`) })));
+      fireEvent.click(screen.getByRole("button", { name: /Yell 4/ }));
+      expect(screen.getAllByRole("button", { name: "上移已选卡" })).toHaveLength(3);
+      expect(screen.getAllByRole("button", { name: "上移已选卡" })[0]).toBeDisabled();
+      fireEvent.click(screen.getAllByRole("button", { name: "下移已选卡" })[0]);
+    }
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "aqours-bottom", accepted: true,
+      selected_card_instance_ids: chooseZero ? [] : [ids[1], ids[0], ids[2]], energy_instance_ids: [],
+    });
+  });
+
+  it.each(["overlap_source_binding_incomplete", "overlap_attached_ability_requires_review",
+    "overlap_public_ability_requires_timing_review"])("offers manual processing for an unresolved overlap source: %s", (reason) => {
+    const onAction = vi.fn();
+    const onManual = vi.fn();
+    const source = { invocation_id: "review-deploy", effect_id: "AUDIT", source_card_instance_id: "player_1-M001", player_id: "player_1" };
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, pending_effects: [source] };
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      ...source, label_ja: "監査用の効果登場", trigger: "member_played", timing: "on_play",
+      execution_mode: "prompt_then_resolve", simulation_support: "test_validated_executable",
+      is_optional: false, candidate_card_instance_ids: [], deployment_choice: true,
+      deployment_requires_manual_resolution: true,
+      deployment_unsupported_slots_by_candidate: { "player_1-M002": { right: reason } },
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never}
+      loading={false} onAction={onAction} onManual={onManual} />);
+    expect(screen.getByRole("status")).toHaveTextContent("部分登场区域涉及未确认能力");
+    expect(screen.queryByRole("button", { name: "结算技能" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "结构化人工处理" }));
+    expect(onManual).toHaveBeenCalledWith(source);
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
+  it("translates the overlap review notice and preserves its manual entry", async () => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const source = { invocation_id: "review-deploy", effect_id: "AUDIT", source_card_instance_id: "player_1-M001", player_id: "player_1" };
+    const matchCreate = { ...INSPECTION_MATCH_PAYLOAD,
+      state: { ...INSPECTION_MATCH_PAYLOAD.state, pending_choice: null, pending_effects: [source] },
+      legal_actions: [{ action_type: "resolve_effect", player_id: "player_1", label_zh: "处理技能", label_ja: "能力",
+        options: { invocations: [{ ...source, label_ja: "監査用の効果登場", trigger: "member_played", timing: "on_play",
+          execution_mode: "prompt_then_resolve", simulation_support: "test_validated_executable", is_optional: false,
+          candidate_card_instance_ids: [], deployment_choice: true, deployment_requires_manual_resolution: true,
+          deployment_unsupported_slots: { right: "overlap_source_binding_incomplete" },
+        }] } }],
+    };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    const create = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(create).not.toBeDisabled());
+    fireEvent.click(create);
+    await screen.findByText("部分登场区域涉及未确认能力，未自动处理；请使用手动调整。");
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect(screen.getByText("未確認の能力が関係する登場エリアは自動処理できません。手動調整で確認してください。"))
+      .toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "構造化手動処理" })).toBeEnabled();
+  });
+
+  it.each([{ hasTarget: true, chooseOne: false }, { hasTarget: false, chooseOne: false },
+    { hasTarget: true, chooseOne: true }])("resolves private hand deployment: %j", ({ hasTarget, chooseOne }) => {
+    const onAction = vi.fn();
+    const action = {
+      action_type: "resolve_effect", player_id: "player_1", label_zh: "技能", label_ja: "能力",
+      options: { invocations: [{
+        invocation_id: "private-deploy", effect_id: "AUDIT", source_card_instance_id: "player_1-M001",
+        label_ja: "手札からメンバーを選び登場させる。", trigger: "member_played", timing: "on_play",
+        execution_mode: "prompt_then_resolve", simulation_support: "test_validated_executable",
+        resolution_stage: "initial", is_optional: false,
+        choice_type: "card_from_zone", choice_zone: "hand",
+        card_selection_minimum: 0, card_selection_maximum: 1,
+        selection_policy: "private_filtered_may_choose_none", deployment_choice: true,
+        candidate_card_instance_ids: hasTarget ? ["player_1-M002"] : [],
+        position_change_slots_by_candidate: { "player_1-M002": ["right"] },
+        energy_instance_ids: ["player_1-E001"], energy_required: 1,
+      }] },
+    };
+    render(<EffectResolutionAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never}
+      loading={false} onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "不选目标并结算" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "能量 E001" }));
+    if (hasTarget) {
+      fireEvent.click(screen.getByRole("button", { name: /候補カード/ }));
+      fireEvent.click(screen.getByRole("button", { name: "右" }));
+      if (!chooseOne) fireEvent.click(screen.getByRole("button", { name: "不选目标" }));
+    }
+    if (!chooseOne) expect(screen.queryByText("登场区域")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: chooseOne ? "结算技能" : "不选目标并结算" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "private-deploy", accepted: true,
+      selected_card_instance_ids: chooseOne ? ["player_1-M002"] : [],
+      energy_instance_ids: ["player_1-E001"],
+      ...(chooseOne ? { to_slot: "right" } : {}),
+    });
+  });
+
+  it("lets the controller choose the next automatic effect using resolve_effect", () => {
+    const onAction = vi.fn();
+    const invocations = ["first", "second"].map((id) => ({
+      invocation_id: id, effect_id: `AUDIT-${id}`, source_card_instance_id: "player_1-M001",
+      label_ja: id === "first" ? "カードを1枚引く。" : "手札が4枚になるまでカードを引く。",
+      trigger: "member_played", timing: "on_play", execution_mode: "auto_resolve",
+      simulation_support: "test_validated_executable", resolution_stage: "initial", is_optional: false,
+      candidate_card_instance_ids: [], card_selection_minimum: 0, card_selection_maximum: 0,
+    }));
+    const action = { action_type: "resolve_effect", player_id: "player_1",
+      options: { effect_order_choice: true, invocations, waiting_player_ids: ["player_2"] } };
+    render(<EffectResolutionAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never}
+      loading={false} onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.getByText("选择先结算的技能 (2)")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("先结算的技能"), { target: { value: "second" } });
+    expect(screen.getByText("手札が4枚になるまでカードを引く。")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "second", accepted: true, selected_card_instance_ids: [], energy_instance_ids: [],
     });
   });
 

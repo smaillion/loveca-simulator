@@ -111,7 +111,18 @@ class EntityNormalization:
         raw_value: str,
     ) -> tuple[NormalizedEntity, ...] | None:
         mapping = self.works if entity_type == "work" else self.units
-        return mapping.get(raw_value)
+        resolved = mapping.get(raw_value)
+        if resolved is not None or entity_type != "work" or "/" not in raw_value:
+            return resolved
+
+        combined: dict[str, NormalizedEntity] = {}
+        for part in raw_value.split("/"):
+            part_entities = mapping.get(part.strip())
+            if part_entities is None:
+                return None
+            for entity in part_entities:
+                combined[entity.key] = entity
+        return tuple(combined.values())
 
 
 def import_normalized_cards(
@@ -820,11 +831,30 @@ def _import_card_record(
         card_set_code=card_set_code,
         source_url=_card_list_root(source_url),
     )
+    if card_type == "energy":
+        card_code = _existing_printing_gameplay_card_code(
+            connection,
+            card_id=card_id,
+        ) or card_code
+    _apply_official_gameplay_name_correction(
+        connection,
+        card_code=card_code,
+        name=name,
+        card_type=card_type,
+        parse_notes=parse_notes,
+    )
     gameplay_card_id, new_gameplay_card = _upsert_gameplay_card(
         connection,
         card_code=card_code,
         name=name,
         card_type=card_type,
+    )
+    _rebind_corrected_official_printing(
+        connection,
+        card_id=card_id,
+        gameplay_card_id=gameplay_card_id,
+        card_type=card_type,
+        parse_notes=parse_notes,
     )
     printing_id, new_card_printing = _upsert_card_printing(
         connection,
@@ -1052,6 +1082,109 @@ def _upsert_card_set(
         identity=f"Card Set {card_set_code}",
     )
     return int(row["id"]), False
+
+
+def _existing_printing_gameplay_card_code(
+    connection: sqlite3.Connection,
+    *,
+    card_id: str,
+) -> str | None:
+    row = connection.execute(
+        """
+        SELECT card.card_code
+        FROM card_printings AS printing
+        JOIN gameplay_cards AS card ON card.id = printing.gameplay_card_id
+        WHERE printing.card_id = ?
+          AND card.card_type = 'energy'
+        """,
+        (card_id,),
+    ).fetchone()
+    return str(row["card_code"]) if row is not None else None
+
+
+def _rebind_corrected_official_printing(
+    connection: sqlite3.Connection,
+    *,
+    card_id: str,
+    gameplay_card_id: int,
+    card_type: str,
+    parse_notes: dict[str, Any],
+) -> None:
+    row = connection.execute(
+        """
+        SELECT printing.gameplay_card_id, card.card_type
+        FROM card_printings AS printing
+        JOIN gameplay_cards AS card ON card.id = printing.gameplay_card_id
+        WHERE printing.card_id = ?
+        """,
+        (card_id,),
+    ).fetchone()
+    if row is None or int(row["gameplay_card_id"]) == gameplay_card_id:
+        return
+    if (
+        parse_notes.get("import_source") != "official_full_import"
+        or str(row["card_type"]) == card_type
+    ):
+        return
+
+    previous_gameplay_card_id = int(row["gameplay_card_id"])
+    connection.execute(
+        """
+        UPDATE card_printings
+        SET gameplay_card_id = ?
+        WHERE card_id = ?
+        """,
+        (gameplay_card_id, card_id),
+    )
+    connection.execute(
+        """
+        DELETE FROM gameplay_cards
+        WHERE id = ?
+          AND NOT EXISTS (
+              SELECT 1
+              FROM card_printings
+              WHERE gameplay_card_id = ?
+          )
+        """,
+        (previous_gameplay_card_id, previous_gameplay_card_id),
+    )
+
+
+def _apply_official_gameplay_name_correction(
+    connection: sqlite3.Connection,
+    *,
+    card_code: str,
+    name: str,
+    card_type: str,
+    parse_notes: dict[str, Any],
+) -> None:
+    if (
+        parse_notes.get("import_source") != "official_full_import"
+        or parse_notes.get("source") != "card_list_json_api"
+    ):
+        return
+    row = connection.execute(
+        """
+        SELECT id, canonical_name_ja, card_type
+        FROM gameplay_cards
+        WHERE card_code = ?
+        """,
+        (card_code,),
+    ).fetchone()
+    if (
+        row is None
+        or str(row["card_type"]) != card_type
+        or _names_match(str(row["canonical_name_ja"]), name)
+    ):
+        return
+    connection.execute(
+        """
+        UPDATE gameplay_cards
+        SET canonical_name_ja = ?
+        WHERE id = ?
+        """,
+        (name, int(row["id"])),
+    )
 
 
 def _upsert_gameplay_card(
@@ -1882,7 +2015,7 @@ def _names_match(existing: str, incoming: str) -> bool:
 
 
 def _normalize_name_identity(value: str) -> str:
-    normalized = unicodedata.normalize("NFKC", value)
+    normalized = unicodedata.normalize("NFKC", value).replace("〜", "~")
     return "".join(
         part
         for part in normalized

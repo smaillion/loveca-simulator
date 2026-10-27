@@ -293,6 +293,7 @@ export interface PlayerState {
   member_area: Record<"left" | "center" | "right", string | null>;
   member_area_attachments: Record<"left" | "center" | "right", string[]>;
   member_areas_entered_this_turn: string[];
+  member_card_instance_ids_entered_stage_this_turn?: string[];
   member_areas_moved_this_turn: string[];
   energy_area: string[];
   live_area: string[];
@@ -301,7 +302,7 @@ export interface PlayerState {
   success_live_area: string[];
   manual_modifiers: Array<{
     modifier_id: string;
-    modifier_type: "score" | "blade" | "heart" | "flag";
+    modifier_type: "score" | "live_card_score" | "blade" | "heart" | "flag";
     duration: "live" | "turn" | "game";
     created_turn: number;
     amount: number | null;
@@ -358,8 +359,14 @@ export interface PendingChoice {
 }
 
 export interface MatchState {
+  member_overlap_policy?: "capture_fixed_draw_entry_observers" | "capture_fixed_draw_and_energy_entry_observers" | null;
+  effect_order_policy?: "ap_nap_player_choice" | null;
+  stage_departure_policy?: "clear_departed_card_modifiers" | null;
   match_id: string;
   rule_version: string;
+  ruleset_id?: string | null;
+  ruleset_fingerprint?: string | null;
+  ruling_pack_version?: string | null;
   seed: number;
   revision: number;
   phase: string;
@@ -380,7 +387,7 @@ export interface MatchState {
   controllers?: Record<string, "human" | "simple_ai">;
   controller_policy_versions?: Record<
     string,
-    "simple_ai_v0" | "simple_ai_v1" | "simple_ai_v1_1"
+    "simple_ai_v0" | "simple_ai_v1" | "simple_ai_v1_1" | "simple_ai_v1_2"
   >;
   effect_registry_version: string | null;
   effect_definitions: Record<string, EffectDefinition>;
@@ -442,6 +449,11 @@ export interface MatchPayload {
   events: GameEvent[];
   legal_actions: LegalAction[];
   match_token?: string;
+  ruleset_compatibility?: {
+    can_execute: boolean;
+    status: string;
+    mismatches: string[];
+  };
 }
 
 export interface MatchSummary {
@@ -465,6 +477,12 @@ export interface MatchListResponse {
 }
 
 export interface RoomPayload {
+  ruleset_identity?: {
+    ruleset_id: string;
+    rule_version: string;
+    ruleset_fingerprint: string;
+    ruling_pack_version: string;
+  } | null;
   room_code: string;
   status: "waiting_for_guest" | "active" | "expired";
   player_id: "player_1" | "player_2" | null;

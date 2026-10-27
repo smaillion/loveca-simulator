@@ -171,6 +171,29 @@ def test_conflict_rolls_back_whole_batch_and_records_failure(tmp_path):
     assert "canonical_name_ja conflict" in latest[2]
 
 
+def test_compatible_wave_dash_name_change_does_not_conflict(tmp_path):
+    database_path = tmp_path / "catalog.sqlite3"
+    records = json.loads(SAMPLE_PATH.read_text(encoding="utf-8"))
+    records[0]["name"] = "私のSymphony 〜澤谷かのんVer.〜"
+    first_path = tmp_path / "wave-dash.json"
+    first_path.write_text(
+        json.dumps(records, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    import_normalized_cards(database_path, first_path, NORMALIZATION_PATH)
+
+    records[0]["name"] = "私のSymphony ～澤谷かのんVer.～"
+    second_path = tmp_path / "fullwidth-tilde.json"
+    second_path.write_text(
+        json.dumps(records, ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    summary = import_normalized_cards(database_path, second_path, NORMALIZATION_PATH)
+
+    assert summary.status == "completed"
+
+
 def test_unknown_entity_creates_review_candidate(tmp_path):
     database_path = tmp_path / "catalog.sqlite3"
     normalization = json.loads(NORMALIZATION_PATH.read_text(encoding="utf-8"))
@@ -273,6 +296,164 @@ def test_duplicate_energy_card_codes_are_promoted_to_full_card_ids(tmp_path):
         ]
         assert all("＋" not in row[0] for row in printing_ids)
         assert connection.execute("SELECT COUNT(*) FROM card_printings").fetchone()[0] == 2
+
+
+def test_energy_reimport_preserves_existing_legacy_gameplay_identity(tmp_path):
+    database_path = tmp_path / "catalog.sqlite3"
+    base_record = {
+        "card_id": "PL!-bp6-E01-SECE",
+        "card_code": "PL!-bp6-E01",
+        "name": "高坂穂乃果",
+        "card_type": "エネルギー",
+        "product": "ブースターパック Royal Holiday",
+        "product_code": "BP06",
+        "rarity": "SECE",
+        "member_attributes": None,
+        "live_attributes": None,
+        "raw_effect_text": None,
+        "image_url": "https://llofficial-cardgame.com/example.png",
+        "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP06",
+        "fetched_at": "2026-10-25T06:04:16+00:00",
+        "parser_version": "cardlist_api_v0.1",
+        "parse_notes": {"import_source": "official_full_import"},
+    }
+    legacy_path = tmp_path / "legacy-energy.json"
+    legacy_path.write_text(json.dumps([base_record], ensure_ascii=False), encoding="utf-8")
+    import_normalized_cards(database_path, legacy_path, NORMALIZATION_PATH)
+
+    refreshed_record = copy.deepcopy(base_record)
+    refreshed_record["card_code"] = "PL!-bp6-E01-SECE"
+    refreshed_record["fetched_at"] = "2026-10-25T06:05:16+00:00"
+    refreshed_record["parse_notes"] = {
+        "import_source": "official_full_import",
+        "gameplay_card_code_strategy": "full_card_id_conflict_fallback",
+    }
+    refreshed_path = tmp_path / "refreshed-energy.json"
+    refreshed_path.write_text(
+        json.dumps([refreshed_record], ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    summary = import_normalized_cards(database_path, refreshed_path, NORMALIZATION_PATH)
+
+    assert summary.status == "completed"
+    with closing(sqlite3.connect(database_path)) as connection:
+        row = connection.execute(
+            """
+            SELECT card.card_code
+            FROM card_printings AS printing
+            JOIN gameplay_cards AS card ON card.id = printing.gameplay_card_id
+            WHERE printing.card_id = 'PL!-bp6-E01-SECE'
+            """
+        ).fetchone()
+        assert row[0] == "PL!-bp6-E01"
+        assert connection.execute("SELECT COUNT(*) FROM gameplay_cards").fetchone()[0] == 1
+
+
+def test_official_refresh_rebinds_printing_when_card_type_was_wrong(tmp_path):
+    database_path = tmp_path / "catalog.sqlite3"
+    wrong_record = {
+        "card_id": "PL!SP-sd2-002-P",
+        "card_code": "PL!SP-sd2-002-P",
+        "name": "唐 可可",
+        "card_type": "エネルギー",
+        "product": "スタートデッキ",
+        "product_code": "SPSD02",
+        "rarity": "P",
+        "member_attributes": None,
+        "live_attributes": None,
+        "raw_effect_text": None,
+        "image_url": "https://llofficial-cardgame.com/example.png",
+        "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=SPSD02",
+        "fetched_at": "2026-09-01T00:00:00+00:00",
+        "parser_version": "cardlist_api_v0.1",
+        "parse_notes": {
+            "import_source": "official_full_import",
+            "gameplay_card_code_strategy": "full_card_id_conflict_fallback",
+        },
+    }
+    wrong_path = tmp_path / "wrong-card-type.json"
+    wrong_path.write_text(json.dumps([wrong_record], ensure_ascii=False), encoding="utf-8")
+    import_normalized_cards(database_path, wrong_path, NORMALIZATION_PATH)
+
+    corrected_record = copy.deepcopy(wrong_record)
+    corrected_record.update(
+        {
+            "card_code": "PL!SP-sd2-002",
+            "card_type": "メンバー",
+            "member_attributes": {
+                "cost": 13,
+                "blade": 3,
+                "blade_heart_color": "heart03",
+                "heart_by_color": {"heart03": 2},
+            },
+            "fetched_at": "2026-10-25T06:04:26+00:00",
+            "parse_notes": {"import_source": "official_full_import"},
+        }
+    )
+    corrected_path = tmp_path / "corrected-card-type.json"
+    corrected_path.write_text(
+        json.dumps([corrected_record], ensure_ascii=False),
+        encoding="utf-8",
+    )
+
+    summary = import_normalized_cards(database_path, corrected_path, NORMALIZATION_PATH)
+
+    assert summary.status == "completed"
+    with closing(sqlite3.connect(database_path)) as connection:
+        row = connection.execute(
+            """
+            SELECT card.card_code, card.card_type
+            FROM card_printings AS printing
+            JOIN gameplay_cards AS card ON card.id = printing.gameplay_card_id
+            WHERE printing.card_id = 'PL!SP-sd2-002-P'
+            """
+        ).fetchone()
+        assert row == ("PL!SP-sd2-002", "member")
+        assert connection.execute("SELECT COUNT(*) FROM gameplay_cards").fetchone()[0] == 1
+
+
+def test_official_api_full_refresh_can_correct_canonical_name(tmp_path):
+    database_path = tmp_path / "catalog.sqlite3"
+    record = {
+        "card_id": "PL!-bp4-029-PE",
+        "card_code": "PL!-bp4-029-PE",
+        "name": "HOSHIZORA RIN",
+        "card_type": "エネルギー",
+        "product": "ブースターパック SAPPHIRE MOON",
+        "product_code": "BP04",
+        "rarity": "PE",
+        "member_attributes": None,
+        "live_attributes": None,
+        "raw_effect_text": None,
+        "image_url": "https://llofficial-cardgame.com/example.png",
+        "source_url": "https://llofficial-cardgame.com/cardlist/searchresults/?title=BP04",
+        "fetched_at": "2026-09-01T00:00:00+00:00",
+        "parser_version": "cardlist_api_v0.1",
+        "parse_notes": {"import_source": "official_full_import"},
+    }
+    old_path = tmp_path / "old-name.json"
+    old_path.write_text(json.dumps([record], ensure_ascii=False), encoding="utf-8")
+    import_normalized_cards(database_path, old_path, NORMALIZATION_PATH)
+
+    record["name"] = "星空 凛"
+    record["fetched_at"] = "2026-10-25T06:04:58+00:00"
+    record["parse_notes"] = {
+        "source": "card_list_json_api",
+        "import_source": "official_full_import",
+    }
+    current_path = tmp_path / "current-name.json"
+    current_path.write_text(json.dumps([record], ensure_ascii=False), encoding="utf-8")
+
+    summary = import_normalized_cards(database_path, current_path, NORMALIZATION_PATH)
+
+    assert summary.status == "completed"
+    with closing(sqlite3.connect(database_path)) as connection:
+        name = connection.execute(
+            "SELECT canonical_name_ja FROM gameplay_cards WHERE card_code = ?",
+            ("PL!-bp4-029-PE",),
+        ).fetchone()[0]
+        assert name == "星空 凛"
 
 
 def test_unofficial_source_url_is_rejected_and_audited(tmp_path):

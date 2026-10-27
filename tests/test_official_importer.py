@@ -4,10 +4,16 @@ import json
 import sqlite3
 from pathlib import Path
 
+import pytest
+
 from loveca.cards.importer import import_normalized_cards
 from loveca.cards.official_importer import (
+    OfficialCardSourceError,
+    _api_live_blade_hearts,
     _backfill_missing_names,
     _choose_gameplay_card_code,
+    _discover_api_product_codes,
+    _discover_api_config,
     crawl_official_card_catalog,
 )
 
@@ -137,6 +143,308 @@ def test_energy_cards_with_suffix_use_full_card_id_as_gameplay_code():
 
     assert first == "PL!SP-bp1-032-PE"
     assert second == "PL!SP-bp1-032-PE+"
+
+
+def test_json_api_full_blade_alias_preserves_existing_all_color_semantics():
+    color, specials = _api_live_blade_hearts("[全ブレード]")
+
+    assert color == "heart0"
+    assert specials == [
+        {
+            "effect_type": "all_color",
+            "value": 1,
+            "resolution_timing": "live_success_judgment",
+            "source_alt": "ALL1",
+            "source_field": "ブレードハート",
+        }
+    ]
+
+
+def test_crawl_official_json_api_normalizes_all_card_types(tmp_path: Path):
+    result = crawl_official_card_catalog(
+        session=FakeApiSession(),
+        card_list_url="https://llofficial-cardgame.com/cardlist/",
+        output_root=tmp_path / "official-api",
+        card_set_codes=("BP07",),
+        import_mode="incremental-set",
+    )
+
+    assert result.discovered_product_codes == ("BP07",)
+    assert len(result.cards) == 3
+    cards = {card["card_type"]: card for card in result.cards}
+
+    member = cards["メンバー"]
+    assert member["card_id"] == "TEST-M-001-R+"
+    assert member["card_code"] == "TEST-M-001"
+    assert member["member_attributes"] == {
+        "cost": 9,
+        "heart_by_color": {
+            "heart01": None,
+            "heart02": 1,
+            "heart03": None,
+            "heart04": 1,
+            "heart05": 1,
+            "heart06": None,
+        },
+        "blade": 3,
+        "blade_heart_color": "heart02",
+    }
+    assert member["raw_effect_text"] == "【登場】カードを1枚引く。"
+    assert member["parse_notes"]["unmapped_fields"] == [
+        {"label": "作品名", "raw_text": "Aqours"},
+        {"label": "参加ユニット", "raw_text": "CYaRon！"},
+    ]
+
+    live = cards["ライブ"]
+    assert live["live_attributes"]["score"] == 8
+    assert live["live_attributes"]["required_heart_by_color"]["heart0"] == 10
+    assert live["live_attributes"]["blade_heart_color"] is None
+    assert live["live_attributes"]["special_blade_hearts"] == [
+        {
+            "effect_type": "unknown",
+            "value": 2,
+            "resolution_timing": None,
+            "source_alt": "無2",
+            "source_field": "ブレードハート",
+        }
+    ]
+    assert live["related_printing_ids"] == ["TEST-L-001-SECL+"]
+
+    energy = cards["エネルギー"]
+    assert energy["card_code"] == "TEST-E-001-PE+"
+    assert energy["member_attributes"] is None
+    assert energy["live_attributes"] is None
+    assert all(card["parser_version"] == "cardlist_api_v0.1" for card in result.cards)
+
+
+def test_json_api_zero_card_result_fails_closed(tmp_path: Path):
+    output_root = tmp_path / "official-empty"
+
+    with pytest.raises(OfficialCardSourceError, match="zero card records"):
+        crawl_official_card_catalog(
+            session=FakeEmptyApiSession(),
+            card_list_url="https://llofficial-cardgame.com/cardlist/",
+            output_root=output_root,
+            card_set_codes=("BP07",),
+            import_mode="incremental-set",
+        )
+
+    report = (output_root / "reports" / "importer-report.md").read_text(
+        encoding="utf-8"
+    )
+    assert "* Status: `failed`" in report
+    assert "website contract may have changed" in report
+
+
+def test_json_api_product_discovery_ignores_non_product_filters(tmp_path: Path):
+    session = FakeProductApiSession()
+    card_list_url = "https://llofficial-cardgame.com/cardlist/"
+    api_config = _discover_api_config(card_list_url, _api_card_list_html())
+    assert api_config is not None
+
+    inspected_pages: list[dict[str, object]] = []
+    raw_files: list[str] = []
+    product_codes = _discover_api_product_codes(
+        session=session,
+        card_list_url=card_list_url,
+        api_config=api_config,
+        inspected_pages=inspected_pages,
+        output_raw_dir=tmp_path,
+        raw_files=raw_files,
+    )
+
+    assert product_codes == ["CLLS01", "PBLL02"]
+    assert "A-RISE" not in product_codes
+    assert inspected_pages[0]["page_type"] == "api_products"
+    assert raw_files == [str(tmp_path / "products-api.json")]
+
+
+class FakeApiSession:
+    def fetch(
+        self,
+        url: str,
+        *,
+        form_data: dict[str, str] | None = None,
+        referer: str | None = None,
+        ajax: bool = False,
+    ) -> FakeResponse:
+        del form_data, referer, ajax
+        if url.endswith("/cardlist/"):
+            return FakeResponse(url, _api_card_list_html())
+        if "/list?" in url:
+            query = dict(
+                item.split("=", 1)
+                for item in url.split("?", 1)[1].split("&")
+            )
+            kind = query["card_kind"]
+            item = _api_list_item(kind)
+            return FakeResponse(
+                url,
+                json.dumps({"page": 1, "per_page": 100, "total": 1, "items": [item]}),
+                content_type="application/json",
+            )
+        if "/detail?" in url:
+            api_id = int(url.rsplit("=", 1)[1])
+            item = _api_list_item({101: "M", 102: "L", 103: "E"}[api_id])
+            if api_id == 101:
+                item |= {
+                    "work_title": "Aqours",
+                    "unit_name": "CYaRon！",
+                    "blade_heart": "赤",
+                    "expansion_name": "",
+                }
+            elif api_id == 102:
+                item |= {"blade_heart": "8", "expansion_name": ""}
+            else:
+                item |= {"blade_heart": "-", "expansion_name": ""}
+            related = (
+                [
+                    {
+                        "id": 202,
+                        "card_number": "TEST-L-001-SECL＋",
+                        "card_name": "テストライブ",
+                    }
+                ]
+                if api_id == 102
+                else []
+            )
+            return FakeResponse(
+                url,
+                json.dumps(
+                    {
+                        "card": item,
+                        "expansion": {
+                            "id": "BP07",
+                            "name": "ブースターパック MELLOW MOMENT",
+                        },
+                        "relationCards": related,
+                    }
+                ),
+                content_type="application/json",
+            )
+        raise AssertionError(f"unexpected URL: {url}")
+
+
+class FakeEmptyApiSession(FakeApiSession):
+    def fetch(
+        self,
+        url: str,
+        *,
+        form_data: dict[str, str] | None = None,
+        referer: str | None = None,
+        ajax: bool = False,
+    ) -> FakeResponse:
+        if url.endswith("/cardlist/"):
+            return FakeResponse(url, _api_card_list_html())
+        if "/list?" in url:
+            return FakeResponse(
+                url,
+                json.dumps({"page": 1, "per_page": 100, "total": 0, "items": []}),
+                content_type="application/json",
+            )
+        raise AssertionError(f"unexpected URL: {url}")
+
+
+class FakeProductApiSession(FakeApiSession):
+    def fetch(
+        self,
+        url: str,
+        *,
+        form_data: dict[str, str] | None = None,
+        referer: str | None = None,
+        ajax: bool = False,
+    ) -> FakeResponse:
+        del form_data, referer, ajax
+        if url.endswith("/products"):
+            return FakeResponse(
+                url,
+                json.dumps(
+                    {
+                        "products": [
+                            {
+                                "year": "2026",
+                                "items": [
+                                    {"code": "CLLS01"},
+                                    {"code": "PBLL02"},
+                                ],
+                            }
+                        ],
+                        "filters": [{"title": "A-RISE"}],
+                    }
+                ),
+                content_type="application/json",
+            )
+        raise AssertionError(f"unexpected URL: {url}")
+
+
+def _api_card_list_html() -> str:
+    return """
+    <main
+      data-api-base="https://llofficial-cardgame.com/manage/card-list-user"
+      data-image-base="https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/"
+    >
+      <select><option value="BP07">BP07</option></select>
+    </main>
+    """
+
+
+def _api_list_item(card_kind: str) -> dict[str, object]:
+    common: dict[str, object] = {
+        "expansion": "BP07",
+        "expansion_name": "ブースターパック MELLOW MOMENT",
+        "rare": "R",
+        "heart0": "0",
+        "heart01": "0",
+        "heart02": "0",
+        "heart03": "0",
+        "heart04": "0",
+        "heart05": "0",
+        "heart06": "0",
+        "text": "【登場】カードを1枚引く。",
+        "text_html": (
+            '<img src="/texticon/toujyou.png" alt="登場" />カードを1枚引く。'
+        ),
+    }
+    if card_kind == "M":
+        return common | {
+            "id": 101,
+            "picture": "BP07/TEST-M-001-R2.png",
+            "card_number": "TEST-M-001-R＋",
+            "card_name": "テストメンバー",
+            "card_kind": "メンバー",
+            "cost": "9",
+            "heart02": "1",
+            "heart04": "1",
+            "heart05": "1",
+            "attack": "3",
+        }
+    if card_kind == "L":
+        return common | {
+            "id": 102,
+            "picture": "BP07/TEST-L-001-L.png",
+            "card_number": "TEST-L-001-L",
+            "card_name": "テストライブ",
+            "card_kind": "ライブ",
+            "rare": "L",
+            "cost": "-",
+            "heart0": "10",
+            "heart02": "3",
+            "heart04": "3",
+            "heart05": "3",
+            "attack": "無2",
+        }
+    return common | {
+        "id": 103,
+        "picture": "BP07/TEST-E-001-PE2.png",
+        "card_number": "TEST-E-001-PE＋",
+        "card_name": "テストエネルギー",
+        "card_kind": "エネルギー",
+        "rare": "PE+",
+        "cost": "-",
+        "attack": "-",
+        "text": "",
+        "text_html": "",
+    }
 
 
 def _card_list_html() -> str:

@@ -22,6 +22,7 @@ from loveca.simulation.effects import (
 )
 from loveca.simulation.engine import (
     IllegalActionError,
+    _effective_member_blade,
     _effective_member_play_cost,
     _queue_live_success_effects,
     _resolve_automatic_effects,
@@ -36,8 +37,10 @@ from loveca.simulation.models import (
     CardInstance,
     EffectInvocation,
     GameEvent,
+    ManualModifier,
     MatchState,
     PlayerState,
+    SpecialBladeHeart,
 )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -72,6 +75,7 @@ class ScenarioResult:
     visuals: list[CardVisual] = field(default_factory=list)
     notes_ja: list[str] = field(default_factory=list)
     notes_zh: list[str] = field(default_factory=list)
+    rule_reference_ids: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -87,7 +91,6 @@ class RegistryContractScenario:
 _PHASE5_V1_CONTRACTS = (
     RegistryContractScenario("PL!-bp5-014:1", "上から見る・選択", "查看牌堆顶并选择", "member_played", "inspect_top_select", ("inspect_top_cards", "select_to_hand_from_inspected", "move_remaining_cards")),
     RegistryContractScenario("PL!HS-sd1-002:1", "Live 開始時の上から見る", "Live 开始时查看牌堆顶", "live_started", "inspect_top_select", ("inspect_top_cards", "select_to_hand_from_inspected", "move_remaining_cards", "gain_heart", "gain_blade")),
-    RegistryContractScenario("PL!S-bp2-005:1", "公開して手札へ", "公开后加入手牌", "member_played", "inspect_top_select", ("inspect_top_cards", "select_to_hand_from_inspected", "move_remaining_cards")),
     RegistryContractScenario("PL!S-bp6-005:1", "条件付き検索", "带条件检索", "member_played", "inspect_top_select", ("inspect_top_cards", "select_to_hand_from_inspected", "move_remaining_cards")),
     RegistryContractScenario("PL!SP-bp4-002:1", "必要 Heart 検索", "按所需 Heart 检索", "member_played", "inspect_top_select", ("inspect_top_cards", "select_to_hand_from_inspected", "move_remaining_cards")),
     RegistryContractScenario("PL!SP-sd1-009:1", "上から見る・残り控室", "查看牌堆顶并将其余送控室", "member_played", "inspect_top_select", ("inspect_top_cards", "select_to_hand_from_inspected", "move_remaining_cards")),
@@ -186,7 +189,140 @@ def _v1_1_dynamic_scenarios(
     effects: dict[str, EffectDefinition],
     database_path: Path,
 ) -> list[ScenarioResult]:
+    private3_codes = (
+        "PL!-sd1-016", "PL!HS-PR-001", "PL!HS-PR-002", "PL!HS-PR-005", "PL!HS-cl1-007", "PL!HS-pb1-011",
+        "PL!N-PR-004", "PL!N-PR-006", "PL!N-PR-013", "PL!N-bp1-007", "PL!N-bp1-010",
+        "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
+    )
     cases = (
+        ("niji_blade_four_below", "Blade3・対象なし", "Blade3：无目标明确结束",
+         "PL!N-sd2-026:1", lambda effect: _run_niji_blade_four_heart(effect, blade=3)),
+        ("niji_blade_four_exact", "Blade4・Heart二つ", "Blade4：仅目标获得两颗Heart",
+         "PL!N-sd2-026:1", _run_niji_blade_four_heart),
+        ("niji_blade_four_temporary", "Blade3+一時加算1", "基础Blade3加临时1满足条件",
+         "PL!N-sd2-026:1", lambda effect: _run_niji_blade_four_heart(effect, blade=3, temporary=1)),
+        ("niji_blade_four_static", "Blade3+常時加算1", "基础Blade3加常时1满足条件",
+         "PL!N-sd2-026:1", lambda effect: _run_niji_blade_four_heart(effect, blade=3, static=1)),
+        ("aqours_yell_bottom_mixed", "エールのMemberとLiveを順番にデッキ下へ",
+         "应援公开Member与Live按所选顺序入底", "PL!S-cl1-002:1", _run_aqours_yell_bottom),
+        ("aqours_yell_bottom_zero", "エールから零枚を選択", "应援回收明确选择零张",
+         "PL!S-cl1-002:1", lambda effect: _run_aqours_yell_bottom(effect, zero=True)),
+        ("aqours_yell_bottom_no_target", "別作品と非エールを除外", "排除异作品与非应援公开牌",
+         "PL!S-cl1-002:1", lambda effect: _run_aqours_yell_bottom(effect, empty=True)),
+        ("other_nijigasaki_cost14", "他の虹咲cost14・Heart一つ", "其他虹咲cost14：一颗Heart",
+         "PL!N-PR-036:1", lambda effect: _run_other_nijigasaki_heart(effect, cost=14)),
+        ("other_nijigasaki_cost15", "他の虹咲cost15・Heart二つ", "其他虹咲cost15：两颗Heart",
+         "PL!N-PR-036:1", _run_other_nijigasaki_heart),
+        ("other_nijigasaki_no_target", "他の虹咲なし・対象なしで完了",
+         "没有其他虹咲：明确结束不回退自身",
+         "PL!N-PR-036:1", lambda effect: _run_other_nijigasaki_heart(effect, empty=True)),
+        ("muse_yell_zero_success", "成功μ'sゼロ・追加なし", "成功区零张μs：不追加应援",
+         "PL!-pb2-039:1", lambda effect: _run_muse_yell_ten(effect, count=0)),
+        ("muse_yell_one_success", "成功μ's一枚・追加なし", "成功区一张μs：不追加应援",
+         "PL!-pb2-039:1", lambda effect: _run_muse_yell_ten(effect, count=1)),
+        ("muse_yell_two_success", "成功μ's二枚・エール十枚追加", "成功区两张μs：应援加十而非Blade",
+         "PL!-pb2-039:1", _run_muse_yell_ten),
+        ("muse_yell_wrong_work", "別作品二枚・追加なし", "成功区两张其他作品：不追加应援",
+         "PL!-pb2-039:1", lambda effect: _run_muse_yell_ten(effect, work="nijigasaki")),
+        ("multi_keep_manual_with_hand", "未確認の文義・手札ありでも手動", "文义待审：有费用也不自动执行", "PL!S-bp2-005:1", _run_multi_keep_manual_with_hand),
+        ("multi_keep_manual_empty_hand", "未確認の文義・手札なしは任意辞退", "文义待审：无手牌可明确拒绝", "PL!S-bp2-005:1", _run_multi_keep_manual_empty_hand),
+        *(("mixed_heart_inspection_" + code, "MemberのHeart・Liveの必要Heartを区別 " + code,
+           "区分Member持有Heart与Live必要Heart " + code, code + ":1", _run_adjacent_discard_inspection)
+          for code in ("PL!S-pb1-013", "PL!S-pb1-014", "PL!S-pb1-015")),
+        *(("mixed_heart_unpayable_" + code, "費用不足・確認せず待機取消 " + code,
+           "费用不足时不查看并结束待机 " + code, code + ":1", _run_inspection_unpayable)
+          for code in ("PL!S-pb1-013", "PL!S-pb1-014", "PL!S-pb1-015")),
+        *(("member_liella_inspection_" + code, "Member・作品検索と手札費用 " + code,
+           "Member/作品检索及手牌费用 " + code, code + ":1", _run_adjacent_discard_inspection)
+          for code in ("PL!S-bp3-004", "PL!S-bp3-009", "PL!SP-bp1-005", "PL!SP-bp2-007", "PL!SP-pb2-017")),
+        *(("member_liella_unpayable_" + code, "費用不足・確認せず待機取消 " + code,
+           "费用不足时不查看并结束待机 " + code, code + ":1", _run_inspection_unpayable)
+          for code in ("PL!S-bp3-004", "PL!S-bp3-009", "PL!SP-bp1-005", "PL!SP-bp2-007", "PL!SP-pb2-017")),
+        *(("work_unit_inspection_" + code, "作品・ユニット検索と手札費用 " + code,
+           "作品/组合检索及手牌费用 " + code, code + ":1", _run_adjacent_discard_inspection)
+          for code in ("PL!HS-bp1-009", "PL!HS-pb1-018", "PL!N-bp3-012", "PL!SP-pb1-015", "PL!SP-pb1-016", "PL!SP-pb1-017")),
+        *(("work_unit_unpayable_" + code, "費用不足・確認せず待機取消 " + code,
+           "费用不足时不查看并结束待机 " + code, code + ":1", _run_inspection_unpayable)
+          for code in ("PL!HS-bp1-009", "PL!HS-pb1-018", "PL!N-bp3-012", "PL!SP-pb1-015", "PL!SP-pb1-016", "PL!SP-pb1-017")),
+        *(("inspection_sibling_" + code, "手札費用・上5枚の公開/上2枚の非公開 " + code,
+           "顶5公开或顶2私下取得 " + code, code + ":1", _run_adjacent_discard_inspection)
+          for code in ("PL!-sd1-015", "PL!HS-bp2-010", "PL!HS-bp1-011", "PL!HS-bp6-022", "PL!N-pb1-028", "PL!N-pb1-035")),
+        *(("inspection_sibling_unpayable_" + code, "費用不足は確認せず待機取消 " + code,
+           "费用不足时不查看并结束待机 " + code, code + ":1", _run_inspection_unpayable)
+          for code in ("PL!-sd1-015", "PL!HS-bp2-010", "PL!HS-bp1-011", "PL!HS-bp6-022", "PL!N-pb1-028", "PL!N-pb1-035")),
+        *(("private3_native_" + code, "手札1枚・上3枚から非公開で1枚 " + code,
+           "弃手牌1张，顶3私下取1 " + code, code + ":1", _run_private3_inspection) for code in private3_codes),
+        *(("private3_unpayable_" + code, "手札不足・確認せず待機取消 " + code,
+           "手牌不足时不查看并结束待机 " + code, code + ":1", _run_inspection_unpayable) for code in private3_codes),
+        *(("adjacent_discard_inspection_" + code, "手札費用・公開/非公開取得 " + code,
+           "弃牌费用与公开/私下取得 " + code, code + ":1", _run_adjacent_discard_inspection)
+          for code in ("PL!-bp3-010", "PL!-bp5-014", "PL!-bp6-004", "PL!-pb1-016", "PL!-sd1-011", "PL!-sd1-012")),
+        *(("adjacent_discard_unpayable_" + code, "手札なし・確認せず待機取消 " + code,
+           "手牌不足时不查看并结束待机 " + code, code + ":1", _run_inspection_unpayable)
+          for code in ("PL!-bp3-010", "PL!-bp5-014", "PL!-bp6-004", "PL!-pb1-016", "PL!-sd1-011", "PL!-sd1-012")),
+        *(("existing_wait_reorder_" + code, "自身Wait・上2枚の任意並べ直し " + code,
+           "自身Wait后查看顶2张、任选排序 " + code, code + ":1", _run_wait_reorder)
+          for code in ("PL!-bp3-014", "PL!-bp3-017", "PL!-bp3-018", "PL!N-bp3-022", "PL!N-bp4-016", "PL!S-bp6-018")),
+        ("existing_wait_liella_heart8", "自身Wait・Liella!の必要Heart8以上", "自身Wait后检索Liella!必要Heart总数8以上", "PL!SP-bp4-002:1", _run_typed_inspection),
+        *(("existing_hand_cost_unavailable_" + code, "手札費用なし・確認せず待機取消 " + code,
+           "没有手牌费用时不查看并结束待机 " + code, code + ":1", _run_inspection_unpayable)
+          for code in ("PL!N-sd2-012", "PL!N-sd2-014", "PL!N-bp7-018")),
+        ("onplay_mandatory_hand_inspection", "強制手札費用・μ's Member確認", "强制弃手牌后检索无Blade Heart的μ's Member", "PL!-pb2-032:1", _run_typed_inspection),
+        ("onplay_live_cost_private_keep", "Live費用・非公開で1枚を手札へ", "Live卡费用后必须私下保留一张", "PL!SP-bp7-018:1", _run_typed_inspection),
+        ("onplay_wait_cost_heart8_live", "自身Wait・必要ハート8以上のLive", "自身Wait后检索必要Heart总数8以上的Live", "PL!-pb2-008:1", _run_typed_inspection),
+        ("onplay_inspection_unpayable_cost", "費用不足は確認せず待機取消", "费用不足时不查看，明确取消待机", "PL!-pb2-032:1", _run_inspection_unpayable),
+        ("onplay_nijigasaki_inspect_009", "虹咲3枚確認・任意公開", "虹咲：查看3张并可选公开回收", "PL!N-sd2-009:1", _run_nijigasaki_inspection),
+        ("onplay_nijigasaki_inspect_012", "手札費用・虹咲3枚確認", "虹咲：弃牌费用后查看3张", "PL!N-sd2-012:1", _run_nijigasaki_inspection),
+        ("onplay_nijigasaki_inspect_014", "同文別カードの虹咲確認", "虹咲：相同文本另一张卡的真实结算", "PL!N-sd2-014:1", _run_nijigasaki_inspection),
+        ("onplay_nijigasaki_no_blade_heart", "Blade Heartなしの虹咲Member検索", "虹咲：排除全部Blade Heart的Member检索", "PL!N-bp7-018:1", _run_nijigasaki_inspection),
+        (
+            "live_start_wait_nijigasaki_blade", "彼方: 自身を費用でウェイトにしBlade2",
+            "彼方：自身作Wait费用获得Blade2，但不贡献应援", "PL!N-sd2-006:1", _run_live_wait_bonus,
+        ),
+        (
+            "live_start_wait_nijigasaki_heart", "嵐珠: 別メンバーを費用に自身のHeart1",
+            "嵐珠：Wait另一成员作费用，自身获得选色Heart1", "PL!N-bp7-012:1", _run_live_wait_bonus,
+        ),
+        (
+            "live_start_discard2_choose_heart", "手札2枚を払い好きな色のハート2つ",
+            "弃两张手牌选择颜色获得两颗Heart", "PL!N-sd2-005:1", _run_live_discard_color,
+        ),
+        (
+            "live_start_discard2_decline", "手札2枚の任意費用を払わず終了",
+            "拒绝可选弃两张费用并正常结束", "PL!N-sd2-005:1", _run_live_discard_color_decline,
+        ),
+        (
+            "live_start_named_kanon_keke_groups", "かのん・可可: 名前ごとに1人を選ぶ",
+            "かのん与可可：分别选择一人获得Heart与Blade", "PL!SP-bp1-024:1", _run_named_live_groups,
+        ),
+        (
+            "live_start_named_missing_group", "かのん不在でも可可の加算を解決",
+            "缺少かのん时仍为可可结算加成", "PL!SP-bp1-024:1", _run_named_live_partial_group,
+        ),
+        (
+            "live_start_named_chisato_selected_blade", "Memories: 同名の千砂都から1人だけ選ぶ",
+            "Memories：同名千砂都中显式选择一人加Blade", "PL!SP-bp7-025:1", _run_named_chisato_blade,
+        ),
+        (
+            "moved_wait_source_ready", "四季: ウェイトで移動した元メンバーをアクティブに",
+            "四季：Wait移动后复原原来源Member", "PL!SP-bp7-008:2", _run_moved_source_ready,
+        ),
+        (
+            "moved_source_departure_reentry", "四季: 離場後に同じIDで戻っても復原しない",
+            "四季：离场同ID回场不错误复原", "PL!SP-bp7-008:2", _run_moved_source_departure,
+        ),
+        (
+            "activated_energy_inspect4_reorder", "Energyを払い上4枚を非公開で並べ直す",
+            "支付Energy后私下查看并重排顶4张", "PL!N-bp7-006:1", _run_activated_inspection,
+        ),
+        (
+            "activated_wait_draw_shiki", "若菜四季: 自身をウェイトにして1枚引く",
+            "若菜四季：自身Wait后抽1张", "PL!SP-bp7-008:1", _run_activated_wait_draw,
+        ),
+        (
+            "activated_wait_draw_discard_mia", "ミア: 自身をウェイトにして2枚引き2枚捨てる",
+            "ミア：自身Wait后抽2张再弃2张", "PL!N-bp7-023:1", _run_activated_wait_draw,
+        ),
         (
             "v1_1_static_live_state",
             "静的 Heart・score・登場 cost を実状態から評価",
@@ -360,9 +496,740 @@ def _v1_1_dynamic_scenarios(
                 visuals=[visual],
                 notes_ja=[f"公式日本語テキスト: {effect.label_ja}"],
                 notes_zh=[f"官方日文效果文本：{effect.label_ja}"],
+                rule_reference_ids=(
+                    ["2.8.1", "2.8.2", "9.9.1.1", "9.9.1.5", "9.6.3.1",
+                     "9.6.3.1.3", "11.5.2", "8.4.11"]
+                    if effect_id == "PL!N-sd2-026:1" else
+                    ["8.4.4", "8.4.5", "8.4.8", "11.6.2", "4.1.4", "4.1.5.1", "9.6.3.1.1"]
+                    if effect_id == "PL!S-cl1-002:1" else
+                    ["8.3.8", "8.3.9", "8.3.10", "8.3.11", "8.4.11", "9.6.2.4.2", "9.7.3"]
+                    if effect_id == "PL!-pb2-039:1" else
+                    ["2.6.1", "9.6.3.1", "9.6.3.1.3", "11.5.2", "8.4.11", "4.1.4"]
+                    if effect_id == "PL!N-PR-036:1" else []
+                ),
             )
         )
     return results
+
+
+def _run_niji_blade_four_heart(
+    effect: EffectDefinition, *, blade: int = 4, temporary: int = 0, static: int = 0,
+) -> dict[str, bool]:
+    source = _v1_1_live("source", "Source Live", effect_ids=[effect.effect_id])
+    target = _v1_1_member("target", "Nijigasaki", work_keys=["nijigasaki"])
+    target.card.blade = blade
+    wrong = _v1_1_member("wrong", "Other work", work_keys=["aqours"])
+    wrong.card.blade = 20
+    state = _v1_1_state(
+        {effect.effect_id: effect}, [source, target, wrong],
+        member_area={"left": "target", "center": None, "right": "wrong"},
+    )
+    state.players["player_1"].live_area = ["source"]
+    if temporary:
+        state.players["player_1"].manual_modifiers.append(ManualModifier(
+            modifier_id="AUDIT-temporary", modifier_type="blade", amount=temporary,
+            duration="live", created_turn=state.turn_number, target_card_instance_id="target",
+        ))
+    if static:
+        raw = effect.model_dump(mode="json")
+        raw.update(effect_id="AUDIT-static", choice=None, effect_type="continuous",
+                   timing="static_always", trigger="static_always", execution_mode="auto_resolve",
+                   frequency_limit="none", duration=None,
+                   actions=[{"action_type": "gain_blade", "amount": static}])
+        static_effect = EffectDefinition.model_validate(raw)
+        state.effect_definitions[static_effect.effect_id] = static_effect
+        target.card.effect_ids = [static_effect.effect_id]
+    state.phase = "performance_first"
+    started = apply_action(state, ActionRequest(
+        action_type="advance_phase", player_id="player_1", expected_revision=state.revision,
+    ))
+    options = next(
+        a for a in started.legal_actions if a.action_type == "resolve_effect"
+    ).options["invocations"][0]
+    selected = ["target"] if blade + temporary + static >= 4 else []
+    resolved = apply_action(started.state, ActionRequest(
+        action_type="resolve_effect", player_id="player_1",
+        expected_revision=started.state.revision,
+        payload={"invocation_id": started.state.pending_effects[0].invocation_id,
+                 "selected_card_instance_ids": selected},
+    ))
+    hearts = [m for m in resolved.state.players["player_1"].manual_modifiers
+              if m.modifier_type == "heart"]
+    return {
+        "有効Blade / 有效Blade": _effective_member_blade(state, "player_1", "target")
+        == blade + temporary + static,
+        "作品とStage限定 / 作品和Stage限定": options["candidate_card_instance_ids"] == selected,
+        "対象だけHeart二つ / 仅所选目标两颗Heart":
+        [(m.target_card_instance_id, m.color_slot, m.amount, m.duration) for m in hearts]
+        == ([("target", "heart02", 2, "live")] if selected else []),
+        "待機完了 / 待机完成": not resolved.state.pending_effects,
+    }
+
+
+def _run_aqours_yell_bottom(
+    effect: EffectDefinition, *, zero: bool = False, empty: bool = False,
+) -> dict[str, bool]:
+    source = _v1_1_member("source", "Source", effect_ids=[effect.effect_id])
+    source.card.blade = 3
+    member = _v1_1_member("member", "Aqours Member", work_keys=["aqours"])
+    live = _v1_1_live("live", "Aqours Live")
+    live.card.work_keys = ["aqours"]
+    other = _v1_1_member("other", "Other", work_keys=["nijigasaki"])
+    extra = _v1_1_member("extra", "Non-Yell", work_keys=["aqours"])
+    if empty:
+        member.card.work_keys = live.card.work_keys = ["nijigasaki"]
+    state = _v1_1_state(
+        {effect.effect_id: effect},
+        [source, member, live, other, extra, _v1_1_live("plan", "Live")],
+        member_area={"left": None, "center": "source", "right": None},
+    )
+    player = state.players["player_1"]
+    player.main_deck = ["member", "live", "other"]
+    player.live_area = ["plan"]
+    player.resolution_area = ["extra"]
+    state.phase, state.active_player_id = "performance_first", "player_1"
+    for _ in range(6):
+        state = apply_action(state, ActionRequest(
+            action_type="advance_phase", expected_revision=state.revision,
+        )).state
+        if state.pending_effects:
+            break
+    options = next(
+        a for a in generate_legal_actions(state) if a.action_type == "resolve_effect"
+    ).options["invocations"][0]
+    selected = [] if zero or empty else ["live", "member"]
+    resolved = apply_action(state, ActionRequest(
+        action_type="resolve_effect", player_id="player_1", expected_revision=state.revision,
+        payload={"invocation_id": state.pending_effects[0].invocation_id,
+                 "selected_card_instance_ids": selected},
+    ))
+    player = resolved.state.players["player_1"]
+    return {
+        "Yell限定候補 / 仅应援候补": set(options["candidate_card_instance_ids"])
+        == (set() if empty else {"member", "live"}),
+        "指定順のデッキ下 / 指定顺序入底": player.main_deck == selected,
+        "裏向き / 入底背面": all(not resolved.state.cards[key].face_up for key in selected),
+        "非選択の清理 / 未选择牌清理": not player.resolution_area
+        and not set(selected).intersection(player.waiting_room),
+        "Live判定を維持 / 保留Live判定": player.live_result.requirements_satisfied is True,
+        "待機完了 / 待机完成": not resolved.state.pending_effects,
+    }
+
+
+def _run_other_nijigasaki_heart(
+    effect: EffectDefinition, *, cost: int = 15, empty: bool = False,
+) -> dict[str, bool]:
+    source = _v1_1_member(
+        "source", "桜坂しずく", cost=2, work_keys=["nijigasaki"],
+        effect_ids=[effect.effect_id], card_code=effect.card_code,
+    )
+    target = _v1_1_member(
+        "target", "AUDIT-target", cost=cost,
+        work_keys=["hasunosora"] if empty else ["nijigasaki"],
+    )
+    live = _v1_1_live("live", "AUDIT-live")
+    state = _v1_1_state(
+        {effect.effect_id: effect}, [source, target, live],
+        member_area={"left": "target", "center": "source", "right": None},
+    )
+    state.phase = "performance_first"
+    state.players["player_1"].live_area = ["live"]
+    started = apply_action(state, ActionRequest(
+        action_type="advance_phase", player_id="player_1", expected_revision=state.revision,
+    ))
+    invocation = started.state.pending_effects[0]
+    options = next(
+        a for a in started.legal_actions if a.action_type == "resolve_effect"
+    ).options["invocations"][0]
+    result = apply_action(started.state, ActionRequest(
+        action_type="resolve_effect", player_id="player_1",
+        expected_revision=started.state.revision,
+        payload={"invocation_id": invocation.invocation_id,
+                 "selected_card_instance_ids": [] if empty else ["target"]},
+    ))
+    modifiers = result.state.players["player_1"].manual_modifiers
+    return {
+        "other_nijigasaki_candidates": options["candidate_card_instance_ids"]
+        == ([] if empty else ["target"]),
+        "other_nijigasaki_amount": [
+            (m.target_card_instance_id, m.amount, m.color_slot) for m in modifiers
+        ] == ([] if empty else [("target", 2 if cost >= 15 else 1, "heart03")]),
+        "other_nijigasaki_no_duplicate_modifier": len({m.modifier_id for m in modifiers})
+        == len(modifiers),
+        "other_nijigasaki_finished": not result.state.pending_effects
+        and result.state.phase == "yell_first",
+    }
+
+
+def _run_muse_yell_ten(
+    effect: EffectDefinition, *, count: int = 2, work: str = "love_live",
+) -> dict[str, bool]:
+    source = _v1_1_live("source", effect.card_code, effect_ids=[effect.effect_id])
+    source.card.card_code = effect.card_code
+    member = _v1_1_member("member", "AUDIT-Member")
+    member.card.blade = 1
+    successes = [_v1_1_live(f"success-{i}", "AUDIT-success") for i in range(count)]
+    for card in successes:
+        card.card.work_keys = [work]
+    deck = [_v1_1_member(f"deck-{i}", "AUDIT-deck") for i in range(20)]
+    state = _v1_1_state({effect.effect_id: effect}, [source, member, *successes, *deck],
+                         member_area={"left": None, "center": "member", "right": None})
+    player = state.players["player_1"]
+    player.success_live_area = [card.instance_id for card in successes]
+    player.main_deck = [card.instance_id for card in deck]
+    player.live_area = ["source"]
+    state.phase = "performance_first"
+    started = apply_action(state, ActionRequest(action_type="advance_phase", player_id="player_1",
+                                                expected_revision=state.revision))
+    result = apply_action(started.state, ActionRequest(action_type="advance_phase",
+        player_id="player_1", expected_revision=started.state.revision))
+    expected = 10 if count >= 2 and work == "love_live" else 0
+    event = next(e for e in result.events if e.event_type == "yell_completed")
+    return {
+        "muse_yell_no_manual_block": not started.state.pending_effects,
+        "muse_yell_body_condition": event.data["yell_count_modifier"] == expected,
+        "muse_yell_not_stage_blade": event.data["raw_blade_count"] == 1,
+        "muse_yell_actual_reveals": len(result.state.players["player_1"].resolution_area)
+        == 1 + expected,
+    }
+
+
+def _run_multi_keep_manual_boundary(effect: EffectDefinition, empty: bool) -> dict[str, bool]:
+    state = _v1_1_state({effect.effect_id: effect}, [
+        _v1_1_member("source", effect.card_code, cost=0, effect_ids=[effect.effect_id]),
+        _v1_1_member("hand-cost", "AUDIT-cost"), _v1_1_member("private-top", "AUDIT-private")],
+        hand=["source"] if empty else ["source", "hand-cost"])
+    state.players["player_1"].main_deck = ["private-top"]
+    played = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1", expected_revision=0,
+        payload={"card_instance_id": "source", "slot": "center", "energy_instance_ids": [], "use_baton_touch": False}))
+    action = ActionRequest(action_type="resolve_effect", player_id="player_1", expected_revision=played.state.revision,
+        payload={"invocation_id": played.state.pending_effects[0].invocation_id})
+    before = played.state.model_dump(mode="json")
+    rejected = False
+    try:
+        apply_action(played.state, action)
+    except IllegalActionError:
+        rejected = played.state.model_dump(mode="json") == before
+    action.payload["accepted"] = False
+    result = apply_action(played.state, action)
+    return {
+        "multi_keep_explicit_manual": effect.simulation_support == effect.execution_mode == "manual_resolution" and effect.review_status == "parsed_draft",
+        "multi_keep_auto_rejected": rejected,
+        "multi_keep_no_automatic_cost_or_peek": not any(e.event_type in {"effect_cost_paid", "effect_inspection_started", "effect_skipped"} for e in result.events),
+        "multi_keep_decline_no_zone_changes": result.state.players["player_1"].main_deck == ["private-top"] and result.state.players["player_1"].hand == ([] if empty else ["hand-cost"]),
+        "multi_keep_decline_finishes": not result.state.pending_effects and result.state.pending_choice is None,
+    }
+
+
+def _run_multi_keep_manual_with_hand(effect: EffectDefinition) -> dict[str, bool]:
+    return _run_multi_keep_manual_boundary(effect, False)
+
+
+def _run_multi_keep_manual_empty_hand(effect: EffectDefinition) -> dict[str, bool]:
+    return _run_multi_keep_manual_boundary(effect, True)
+
+
+def _run_private3_inspection(effect: EffectDefinition) -> dict[str, bool]:
+    from loveca.webapp import _match_state_payload
+    cards = [_v1_1_member("source", effect.card_code, card_code=effect.card_code, cost=0, effect_ids=[effect.effect_id]),
+             _v1_1_member("p3-cost", "AUDIT-cost"), _v1_1_member("p3-member", "AUDIT-member", work_keys=["love_live"]),
+             _v1_1_live("p3-live", "AUDIT-Live"), _v1_1_member("p3-other", "AUDIT-other", work_keys=["nijigasaki"]),
+             _v1_1_member("p3-tail", "AUDIT-tail")]
+    for item in cards[1:]:
+        item.face_up = False
+    state = _v1_1_state({effect.effect_id: effect}, cards, hand=["source", "p3-cost"])
+    state.players["player_1"].main_deck = ["p3-member", "p3-live", "p3-other", "p3-tail"]
+    played = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1", expected_revision=0,
+        payload={"card_instance_id": "source", "slot": "center", "energy_instance_ids": [], "use_baton_touch": False}))
+    inspected = apply_action(played.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=played.state.revision, payload={"invocation_id": played.state.pending_effects[0].invocation_id,
+            "selected_card_instance_ids": ["p3-cost"]}))
+    before_public = _match_state_payload(inspected.state, events=inspected.events, legal_actions=inspected.legal_actions, player_id="player_2")
+    result = apply_action(inspected.state, ActionRequest(action_type="resolve_effect_choice", player_id="player_1",
+        expected_revision=inspected.state.revision, payload={"selected_card_instance_ids": ["p3-live"]}))
+    after_public = _match_state_payload(result.state, events=result.events, legal_actions=result.legal_actions, player_id="player_2")
+    choice = inspected.state.pending_choice.options
+    return {
+        "adjacent_cost_once": "p3-cost" in inspected.state.players["player_1"].waiting_room and sum(e.event_type == "effect_cost_paid" for e in inspected.events) == 1 and not any(e.event_type == "effect_cost_paid" for e in result.events),
+        "private3_all_types": set(choice["candidate_card_instance_ids"]) == {"p3-member", "p3-live", "p3-other"},
+        "private3_exact_top": choice["inspected_card_instance_ids"] == ["p3-member", "p3-live", "p3-other"],
+        "private3_mandatory_keep": choice["minimum"] == choice["maximum"] == 1 and choice["reveal_selected_to_opponent"] is False,
+        "private3_hidden": all(key not in json.dumps(before_public) for key in ("p3-member", "p3-live", "p3-other")) and "p3-live" not in json.dumps(after_public),
+        "private3_final_zones": result.state.players["player_1"].hand == ["p3-live"] and result.state.players["player_1"].main_deck == ["p3-tail"] and set(result.state.players["player_1"].waiting_room) == {"p3-cost", "p3-member", "p3-other"},
+        "typed_finished": result.state.pending_choice is None and not result.state.pending_effects,
+    }
+
+
+def _run_adjacent_discard_inspection(effect: EffectDefinition) -> dict[str, bool]:
+    from loveca.webapp import _match_state_payload
+    source = _v1_1_member("source", effect.card_code, card_code=effect.card_code, cost=0, effect_ids=[effect.effect_id])
+    cards = [source, *[_v1_1_member("adj-" + key, "AUDIT-" + key, work_keys=["love_live"], unit_keys=["lily_white"])
+                       for key in ("cost", "member", "wrong", "blade", "tail", "spare")], _v1_1_live("adj-live", "AUDIT-Live")]
+    by_id = {c.instance_id: c for c in cards}
+    by_id["adj-wrong"].card.work_keys, by_id["adj-wrong"].card.unit_keys = ["nijigasaki"], ["other"]
+    by_id["adj-tail"].card.unit_keys = ["other"]
+    for key, hearts in (("member", {"heart05": 1}), ("wrong", {"heart06": 1}),
+                        ("blade", {"heart01": 1}), ("tail", {"heart06": 1})):
+        by_id["adj-" + key].card.basic_hearts = hearts
+    by_id["adj-blade"].card.blade_heart_color_slot = "heart05"
+    by_id["adj-live"].card.work_keys, by_id["adj-live"].card.unit_keys = ["love_live"], ["lily_white"]
+    by_id["adj-live"].card.required_hearts = {"heart05": 5}
+    work_unit = {
+        "PL!S-bp3-004": ("love_live_sunshine", None),
+        "PL!S-bp3-009": ("love_live_sunshine", None),
+        "PL!SP-bp1-005": ("love_live_superstar", None),
+        "PL!SP-bp2-007": ("love_live_superstar", None),
+        "PL!SP-pb2-017": ("love_live_superstar", None),
+        "PL!HS-bp1-009": ("hasunosora", "miracra_park"),
+        "PL!HS-pb1-018": ("hasunosora", "dollchestra"),
+        "PL!N-bp3-012": ("nijigasaki", None),
+        "PL!SP-pb1-015": ("love_live_superstar", "catchu"),
+        "PL!SP-pb1-016": ("love_live_superstar", "kaleidoscore"),
+        "PL!SP-pb1-017": ("love_live_superstar", "5yncri5e"),
+    }.get(effect.card_code)
+    if work_unit is not None:
+        work, unit = work_unit
+        for key in ("member", "live", "wrong", "blade", "tail", "spare"):
+            by_id["adj-" + key].card.work_keys = [work]
+            by_id["adj-" + key].card.unit_keys = [unit or "a_zu_na"]
+        by_id["adj-wrong"].card.work_keys, by_id["adj-wrong"].card.unit_keys = ["love_live"], ["other"]
+        by_id["adj-blade"].card.unit_keys = ["other"]
+        by_id["adj-tail"].card.unit_keys = ["other", unit or "qu4rtz"]
+    mixed_color = {"PL!S-pb1-013": "heart04", "PL!S-pb1-014": "heart02", "PL!S-pb1-015": "heart05"}.get(effect.card_code)
+    if mixed_color is not None:
+        by_id["adj-member"].card.basic_hearts = {mixed_color: 2}
+        by_id["adj-live"].card.required_hearts = {mixed_color: 2}
+        by_id["adj-wrong"].card.basic_hearts = {"heart01": 3}
+        by_id["adj-blade"].card.basic_hearts = {mixed_color: 1}
+        by_id["adj-blade"].card.blade_heart_color_slot = mixed_color
+        by_id["adj-blade"].card.special_blade_hearts = [SpecialBladeHeart(effect_type="all_color", source_alt="ALL", value=3)]
+        by_id["adj-tail"].card.basic_hearts = {mixed_color: 3}
+    for c in cards[1:]:
+        c.face_up = False
+    state = _v1_1_state({effect.effect_id: effect}, cards, hand=["source", "adj-cost"])
+    deck = ["adj-member", "adj-live", "adj-wrong", "adj-blade", "adj-tail", "adj-spare"]
+    state.players["player_1"].main_deck = deck
+    played = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1", expected_revision=0,
+        payload={"card_instance_id": "source", "slot": "center", "energy_instance_ids": [], "use_baton_touch": False}))
+    inspected = apply_action(played.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=played.state.revision, payload={"invocation_id": played.state.pending_effects[0].invocation_id,
+            "selected_card_instance_ids": ["adj-cost"]}))
+    before_public = _match_state_payload(inspected.state, events=inspected.events, legal_actions=inspected.legal_actions, player_id="player_2")
+    expected = {
+        "PL!S-pb1-013": {"adj-member", "adj-live"},
+        "PL!S-pb1-014": {"adj-member", "adj-live"},
+        "PL!S-pb1-015": {"adj-member", "adj-live"},
+        "PL!S-bp3-004": {"adj-member", "adj-wrong", "adj-blade"},
+        "PL!S-bp3-009": {"adj-member", "adj-blade", "adj-tail", "adj-spare"},
+        "PL!SP-bp1-005": {"adj-member", "adj-live", "adj-blade", "adj-tail"},
+        "PL!SP-bp2-007": {"adj-member", "adj-blade", "adj-tail"},
+        "PL!SP-pb2-017": {"adj-member", "adj-blade", "adj-tail"},
+        "PL!HS-bp1-009": {"adj-member", "adj-live", "adj-tail"},
+        "PL!HS-pb1-018": {"adj-member", "adj-live", "adj-tail"},
+        "PL!N-bp3-012": {"adj-member", "adj-live", "adj-blade"},
+        "PL!SP-pb1-015": {"adj-member", "adj-live", "adj-tail"},
+        "PL!SP-pb1-016": {"adj-member", "adj-live", "adj-tail"},
+        "PL!SP-pb1-017": {"adj-member", "adj-live", "adj-tail"},
+        "PL!-bp3-010": {"adj-live"}, "PL!-bp5-014": {"adj-member", "adj-wrong"},
+        "PL!-bp6-004": {"adj-member", "adj-blade", "adj-tail"},
+        "PL!-pb1-016": {"adj-member", "adj-live", "adj-blade"},
+        "PL!-sd1-011": {"adj-member", "adj-live", "adj-wrong"},
+        "PL!-sd1-012": {"adj-member", "adj-live", "adj-wrong"},
+        "PL!-sd1-015": {"adj-member", "adj-wrong", "adj-blade", "adj-tail"},
+        "PL!HS-bp2-010": {"adj-member", "adj-wrong", "adj-blade", "adj-tail"},
+        "PL!HS-bp1-011": {"adj-live"}, "PL!HS-bp6-022": {"adj-live"},
+        "PL!N-pb1-028": {"adj-member", "adj-live"}, "PL!N-pb1-035": {"adj-member", "adj-live"},
+    }[effect.card_code]
+    target = "adj-live" if effect.card_code in {"PL!-bp3-010", "PL!HS-bp1-011", "PL!HS-bp6-022", "PL!S-pb1-013", "PL!S-pb1-014", "PL!S-pb1-015"} else "adj-member"
+    result = apply_action(inspected.state, ActionRequest(action_type="resolve_effect_choice", player_id="player_1",
+        expected_revision=inspected.state.revision, payload={"selected_card_instance_ids": [target]}))
+    public = _match_state_payload(result.state, events=result.events, legal_actions=result.legal_actions, player_id="player_2")
+    revealed = [c["instance_id"] for e in public["events"] for c in e["data"].get("revealed_cards", [])]
+    private = effect.card_code in {"PL!-sd1-011", "PL!-sd1-012", "PL!N-pb1-028", "PL!N-pb1-035"}
+    return {
+        "adjacent_cost_once": "adj-cost" in inspected.state.players["player_1"].waiting_room and sum(e.event_type == "effect_cost_paid" for e in inspected.events) == 1 and not any(e.event_type == "effect_cost_paid" for e in result.events),
+        "adjacent_inspection_count": inspected.state.pending_choice.options["inspected_card_instance_ids"] == deck[:effect.choice.amount],
+        "adjacent_candidates_exact": set(inspected.state.pending_choice.options["candidate_card_instance_ids"]) == expected,
+        "adjacent_private_look": '"adj-member"' not in json.dumps(before_public) and '"adj-live"' not in json.dumps(before_public),
+        "adjacent_keep_bounds": inspected.state.pending_choice.options["minimum"] == (1 if private else 0),
+        "adjacent_reveal_distinct": (target in revealed) == (not private) and (not private or target not in json.dumps(public)),
+        "typed_finished": result.state.players["player_1"].hand == [target] and result.state.pending_choice is None and not result.state.pending_effects,
+    }
+
+
+def _run_wait_reorder(effect: EffectDefinition) -> dict[str, bool]:
+    from loveca.webapp import _match_state_payload
+    checks = {}
+    for keep in (0, 1, 2):
+        state = _v1_1_state({effect.effect_id: effect}, [
+            _v1_1_member("source", effect.card_code, card_code=effect.card_code, cost=0, effect_ids=[effect.effect_id]),
+            *[_v1_1_member(key, "AUDIT-" + key) for key in ("top-a", "top-b", "tail")]], hand=["source"])
+        for key in ("top-a", "top-b", "tail"):
+            state.cards[key].face_up = False
+        state.players["player_1"].main_deck = ["top-a", "top-b", "tail"]
+        played = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1", expected_revision=0,
+            payload={"card_instance_id": "source", "slot": "center", "energy_instance_ids": [], "use_baton_touch": False}))
+        inspected = apply_action(played.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+            expected_revision=played.state.revision, payload={"invocation_id": played.state.pending_effects[0].invocation_id}))
+        ids = list(reversed(["top-a", "top-b"][:keep]))
+        result = apply_action(inspected.state, ActionRequest(action_type="resolve_effect_choice", player_id="player_1",
+            expected_revision=inspected.state.revision, payload={"selected_card_instance_ids": ids, "ordered_card_instance_ids": ids}))
+        other = _match_state_payload(result.state, events=result.events, legal_actions=result.legal_actions, player_id="player_2")
+        checks["wait_reorder_keep_" + str(keep)] = (
+            inspected.state.cards["source"].orientation == "wait"
+            and sum(e.event_type == "effect_cost_paid" for e in inspected.events) == 1
+            and result.state.players["player_1"].main_deck == ids + ["tail"]
+            and set(result.state.players["player_1"].waiting_room) == {"top-a", "top-b"} - set(ids)
+            and result.state.pending_choice is None and not result.state.pending_effects
+            and all(key not in json.dumps(other) for key in ids))
+        waited = played.state.model_copy(deep=True)
+        waited.cards["source"].orientation = "wait"
+        canceled = apply_action(waited, ActionRequest(action_type="resolve_effect", player_id="player_1",
+            expected_revision=waited.revision, payload={"invocation_id": waited.pending_effects[0].invocation_id}))
+        checks["wait_reorder_cannot_pay_twice"] = (
+            canceled.state.pending_choice is None and not canceled.state.pending_effects
+            and canceled.state.players["player_1"].main_deck == ["top-a", "top-b", "tail"]
+            and not any(e.event_type in {"effect_cost_paid", "effect_inspection_started", "effect_skipped"} for e in canceled.events))
+    return checks
+
+
+def _run_typed_inspection(effect: EffectDefinition) -> dict[str, bool]:
+    from loveca.webapp import _match_state_payload
+    wait = effect.cost[0].action_type == "apply_wait"
+    private_keep = not effect.choice.reveal_selected_to_opponent
+    source = _v1_1_member("source", effect.card_code, card_code=effect.card_code, cost=0, effect_ids=[effect.effect_id])
+    cards = [source, *[_v1_1_member(k, "AUDIT-" + k, work_keys=["love_live"])
+                       for k in ("cost", "good", "wrong", "special", "other", "tail")], _v1_1_live("good-live", "AUDIT-Live")]
+    if private_keep:
+        cards[1].card.card_type = "live"
+    cards[3].card.work_keys = ["nijigasaki"]
+    cards[4].card.special_blade_hearts = [SpecialBladeHeart(effect_type="draw", source_alt="ドロー")]
+    cards[-1].card.work_keys, cards[-1].card.required_hearts = ["love_live"], {"heart01": 3, "heart0": 5}
+    if effect.card_code == "PL!SP-bp4-002":
+        cards[-1].card.work_keys = ["love_live_superstar"]
+    for item in cards[1:]:
+        item.face_up = False
+    state = _v1_1_state({effect.effect_id: effect}, cards, hand=["source", "cost"])
+    state.players["player_1"].main_deck = ["good", "good-live", "wrong", "special", "other", "tail"]
+    played = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1", expected_revision=0,
+        payload={"card_instance_id": "source", "slot": "center", "energy_instance_ids": [], "use_baton_touch": False}))
+    inspected = apply_action(played.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=played.state.revision, payload={"invocation_id": played.state.pending_effects[0].invocation_id,
+            "accepted": True, "selected_card_instance_ids": [] if wait else ["cost"]}))
+    choice = inspected.state.pending_choice
+    candidates = set(choice.options["candidate_card_instance_ids"])
+    expected_candidates = {"good-live"} if wait else ({"good", "good-live", "wrong", "special", "other"} if private_keep else {"good", "other"})
+    target = "good-live" if wait else "good"
+    result = apply_action(inspected.state, ActionRequest(action_type="resolve_effect_choice", player_id="player_1",
+        expected_revision=inspected.state.revision, payload={"selected_card_instance_ids": [target]}))
+    visible = _match_state_payload(result.state, events=result.events, legal_actions=result.legal_actions, player_id="player_2")
+    revealed = [c["instance_id"] for e in visible["events"] for c in e["data"].get("revealed_cards", [])]
+    return {
+        "typed_cost_applied": inspected.state.cards["source"].orientation == ("wait" if wait else "active") and ("cost" in inspected.state.players["player_1"].waiting_room) == (not wait),
+        "typed_inspection_exact": choice.options["inspected_card_instance_ids"] == state.players["player_1"].main_deck[:effect.choice.amount],
+        "typed_candidates_exact": candidates == expected_candidates,
+        "typed_optional_distinct": effect.is_optional == (effect.card_code != "PL!-pb2-032") and choice.options["minimum"] == (1 if private_keep else 0),
+        "typed_reveal_distinct": (target in revealed) == (not private_keep) and (not private_keep or target not in visible["state"]["cards"]),
+        "typed_finished": result.state.pending_choice is None and not result.state.pending_effects and result.state.players["player_1"].hand == (["cost", target] if wait else [target]),
+    }
+
+
+def _run_inspection_unpayable(effect: EffectDefinition) -> dict[str, bool]:
+    state = _v1_1_state({effect.effect_id: effect}, [
+        _v1_1_member("source", effect.card_code, card_code=effect.card_code, cost=0, effect_ids=[effect.effect_id]),
+        _v1_1_member("top", "AUDIT-top")], hand=["source"])
+    state.players["player_1"].main_deck = ["top"]
+    played = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1", expected_revision=0,
+        payload={"card_instance_id": "source", "slot": "center", "energy_instance_ids": [], "use_baton_touch": False}))
+    options = next(a for a in played.legal_actions if a.action_type == "resolve_effect").options["invocations"][0]
+    result = apply_action(played.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=played.state.revision, payload={"invocation_id": played.state.pending_effects[0].invocation_id}))
+    return {
+        "typed_unavailable_visible": options["cost_payment_unavailable_reason"] == "inspection_cost_candidates_unavailable",
+        "typed_no_payment_or_look": not any(e.event_type in {"effect_cost_paid", "effect_inspection_started", "effect_skipped"} for e in result.events) and result.state.players["player_1"].main_deck == ["top"],
+        "typed_unavailable_recorded": any(e.event_type == "effect_not_activatable" for e in result.events),
+        "typed_finished": result.state.pending_choice is None and not result.state.pending_effects,
+    }
+
+
+def _run_nijigasaki_inspection(effect: EffectDefinition) -> dict[str, bool]:
+    from loveca.webapp import _match_state_payload
+    source = _v1_1_member("source", effect.card_code, cost=0, card_code=effect.card_code, effect_ids=[effect.effect_id])
+    cards = [source, *[_v1_1_member(key, "AUDIT-" + key, work_keys=["nijigasaki"])
+                       for key in ("cost", "good", "special", "wrong", "other", "tail", "last")]]
+    for item in cards[1:]:
+        item.face_up = False
+    cards[3].card.special_blade_hearts = [SpecialBladeHeart(effect_type="draw", value=1, source_alt="ドロー")]
+    cards[4].card.work_keys = ["love_live_superstar"]
+    state = _v1_1_state({effect.effect_id: effect}, cards, hand=["source", "cost"])
+    state.players["player_1"].main_deck = ["good", "special", "wrong", "other", "tail", "last"]
+    played = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1", expected_revision=0,
+        payload={"card_instance_id": "source", "slot": "center", "energy_instance_ids": [], "use_baton_touch": False}))
+    cost_ids = ["cost"] if effect.cost else []
+    inspected = apply_action(played.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=played.state.revision, payload={"invocation_id": played.state.pending_effects[0].invocation_id,
+            "accepted": True, "selected_card_instance_ids": cost_ids}))
+    choice = inspected.state.pending_choice
+    other = _match_state_payload(inspected.state, events=inspected.events, legal_actions=inspected.legal_actions, player_id="player_2")
+    result = apply_action(inspected.state, ActionRequest(action_type="resolve_effect_choice", player_id="player_1",
+        expected_revision=inspected.state.revision, payload={"selected_card_instance_ids": ["good"]}))
+    visible = _match_state_payload(result.state, events=result.events, legal_actions=result.legal_actions, player_id="player_2")
+    count = effect.choice.amount
+    return {
+        "niji_native_onplay": played.state.pending_effects[0].effect_id == effect.effect_id,
+        "niji_cost_before_look": ("cost" in inspected.state.players["player_1"].waiting_room) == bool(effect.cost),
+        "niji_exact_inspected": choice.options["inspected_card_instance_ids"] == state.players["player_1"].main_deck[:count],
+        "niji_filter": "wrong" not in choice.options["candidate_card_instance_ids"] and ("special" in choice.options["candidate_card_instance_ids"]) == (not effect.choice.exclude_blade_heart),
+        "niji_private_look": "good" not in other["state"]["cards"],
+        "niji_selected_public": any(c.get("instance_id") == "good" for e in visible["events"] for c in e["data"].get("revealed_cards", [])),
+        "niji_final_zones": result.state.players["player_1"].hand == (["cost", "good"] if not effect.cost else ["good"]) and set(result.state.players["player_1"].waiting_room) == (set(state.players["player_1"].main_deck[:count]) - {"good"}) | set(cost_ids),
+        "niji_finished": not result.state.pending_effects and result.state.pending_choice is None,
+    }
+
+
+def _run_live_wait_bonus(effect: EffectDefinition) -> dict[str, bool]:
+    blade = effect.card_code == "PL!N-sd2-006"
+    source = _v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id], work_keys=["nijigasaki"])
+    source.card.card_code = effect.card_code
+    source.card.blade = 1
+    cost_member = _v1_1_member("cost", "費用メンバー", work_keys=["nijigasaki"])
+    cost_member.card.blade = 1
+    state = _v1_1_state({effect.effect_id: effect}, [source, cost_member, _v1_1_live("live", "監査Live"),
+        _v1_1_member("deck", "応援カード")], member_area={"left": "cost", "center": "source", "right": None})
+    state.phase = "performance_first"
+    state.players["player_1"].live_area = ["live"]
+    state.players["player_1"].main_deck = ["deck"]
+    state.cards["live"].face_up = False
+    started = apply_action(state, ActionRequest(action_type="advance_phase", player_id="player_1", expected_revision=0))
+    invocation = started.state.pending_effects[0]
+    target = "source" if blade else "cost"
+    result = apply_action(started.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=started.state.revision, payload={"invocation_id": invocation.invocation_id, "accepted": True,
+            "selected_card_instance_ids": [target], **({} if blade else {"selected_color_slot": "heart03"})}))
+    modifiers = result.state.players["player_1"].manual_modifiers
+    yelled = apply_action(result.state, ActionRequest(action_type="advance_phase", player_id="player_1", expected_revision=result.state.revision))
+    event = next(e for e in yelled.events if e.event_type == "yell_completed")
+    return {
+        "wait_cost_only_selected": result.state.cards[target].orientation == "wait" and result.state.cards["cost" if blade else "source"].orientation == "active",
+        "wait_bonus_source_only": len(modifiers) == 1 and modifiers[0].target_card_instance_id == "source"
+            and modifiers[0].amount == (2 if blade else 1) and modifiers[0].duration == "live"
+            and modifiers[0].modifier_type == ("blade" if blade else "heart")
+            and modifiers[0].color_slot == (None if blade else "heart03"),
+        "wait_blade_not_yelled": event.data["raw_blade_count"] == 1,
+        "wait_heart_still_available": blade or yelled.state.players["player_1"].live_result.manual_hearts == {"heart03": 1},
+    }
+
+
+def _run_live_discard_color(effect: EffectDefinition, *, decline: bool = False) -> dict[str, bool]:
+    source = _v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id])
+    source.card.card_code = effect.card_code
+    state = _v1_1_state({effect.effect_id: effect}, [source, _v1_1_live("live", "監査Live"),
+        *[_v1_1_member(f"hand-{i}", f"費用候補{i}") for i in range(3)]],
+        member_area={"left": None, "center": "source", "right": None}, hand=[f"hand-{i}" for i in range(3)])
+    state.phase = "performance_first"
+    state.players["player_1"].live_area = ["live"]
+    state.cards["live"].face_up = False
+    started = apply_action(state, ActionRequest(action_type="advance_phase", player_id="player_1", expected_revision=0))
+    invocation = started.state.pending_effects[0]
+    options = next(a for a in started.legal_actions if a.action_type == "resolve_effect").options["invocations"][0]
+    result = apply_action(started.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=started.state.revision, payload={"invocation_id": invocation.invocation_id,
+            "accepted": not decline, "selected_card_instance_ids": [] if decline else ["hand-0", "hand-1"],
+            **({} if decline else {"selected_color_slot": "heart06"})}))
+    player = result.state.players["player_1"]
+    return {
+        "color_cost_controls": options.get("requires_color_choice") is True and len(options["color_slots"]) == 6,
+        "color_cost_exact": len(player.hand) == (3 if decline else 1) and len(player.waiting_room) == (0 if decline else 2),
+        "color_cost_modifier": not player.manual_modifiers if decline else (
+            len(player.manual_modifiers) == 1 and player.manual_modifiers[0].color_slot == "heart06"
+            and player.manual_modifiers[0].amount == 2 and player.manual_modifiers[0].target_card_instance_id == "source"
+            and player.manual_modifiers[0].duration == "live"),
+        "named_live_finished": not result.state.pending_effects and result.state.phase == "yell_first",
+    }
+
+
+def _run_live_discard_color_decline(effect: EffectDefinition) -> dict[str, bool]:
+    return _run_live_discard_color(effect, decline=True)
+
+
+def _run_named_live_groups(effect: EffectDefinition, *, partial: bool = False) -> dict[str, bool]:
+    source = _v1_1_live("source", effect.card_code, effect_ids=[effect.effect_id])
+    source.card.card_code = effect.card_code
+    state = _v1_1_state({effect.effect_id: effect}, [source,
+        _v1_1_member("kanon-a", "別名" if partial else "澁谷かのん"),
+        _v1_1_member("kanon-b", "別名" if partial else "澁谷かのん"),
+        _v1_1_member("keke", "唐 可可")],
+        member_area={"left": "kanon-a", "center": "kanon-b", "right": "keke"})
+    state.phase = "performance_first"
+    state.players["player_1"].live_area = ["source"]
+    state.cards["source"].face_up = False
+    started = apply_action(state, ActionRequest(action_type="advance_phase", player_id="player_1", expected_revision=0))
+    invocation = started.state.pending_effects[0]
+    options = next(a for a in started.legal_actions if a.action_type == "resolve_effect").options["invocations"][0]
+    result = apply_action(started.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=started.state.revision, payload={"invocation_id": invocation.invocation_id,
+            "selected_card_instance_ids_by_group": {"kanon": [] if partial else ["kanon-b"], "keke": ["keke"]}}))
+    modifiers = result.state.players["player_1"].manual_modifiers
+    actual = {(m.modifier_type, m.target_card_instance_id, m.color_slot, m.amount, m.duration) for m in modifiers}
+    expected = {("heart", "keke", "heart01", 1, "live"), ("blade", "keke", None, 1, "live")}
+    if not partial:
+        expected |= {("heart", "kanon-b", "heart05", 1, "live"), ("blade", "kanon-b", None, 1, "live")}
+    return {
+        "named_live_no_auto_first": not started.state.players["player_1"].manual_modifiers,
+        "named_groups_bounds": options["choice_groups"][0]["minimum"] == (0 if partial else 1),
+        "named_groups_exact_modifiers": actual == expected and len(modifiers) == len(expected),
+        "named_groups_missing_reason": not partial or any(e.data.get("group_id") == "kanon"
+            and e.data.get("reason") == "no_legal_stage_member_at_resolution" for e in result.events),
+        "named_live_finished": not result.state.pending_effects and result.state.phase == "yell_first",
+    }
+
+
+def _run_named_live_partial_group(effect: EffectDefinition) -> dict[str, bool]:
+    return _run_named_live_groups(effect, partial=True)
+
+
+def _run_named_chisato_blade(effect: EffectDefinition) -> dict[str, bool]:
+    source = _v1_1_live("source", "Memories", effect_ids=[effect.effect_id])
+    source.card.card_code = effect.card_code
+    state = _v1_1_state({effect.effect_id: effect}, [source,
+        _v1_1_member("chisato-a", "嵐 千砂都"), _v1_1_member("chisato-b", "嵐 千砂都")],
+        member_area={"left": "chisato-a", "center": None, "right": "chisato-b"})
+    state.phase = "performance_first"
+    state.players["player_1"].live_area = ["source"]
+    state.cards["source"].face_up = False
+    started = apply_action(state, ActionRequest(action_type="advance_phase", player_id="player_1", expected_revision=0))
+    invocation = started.state.pending_effects[0]
+    options = next(a for a in started.legal_actions if a.action_type == "resolve_effect").options["invocations"][0]
+    result = apply_action(started.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=started.state.revision, payload={"invocation_id": invocation.invocation_id,
+                                                          "selected_card_instance_ids": ["chisato-b"]}))
+    modifiers = result.state.players["player_1"].manual_modifiers
+    return {
+        "named_live_triggered": invocation.effect_id == effect.effect_id,
+        "named_live_candidates": set(options["candidate_card_instance_ids"]) == {"chisato-a", "chisato-b"},
+        "named_live_no_auto_first": not started.state.players["player_1"].manual_modifiers,
+        "named_live_one_selected": len(modifiers) == 1 and modifiers[0].target_card_instance_id == "chisato-b",
+        "named_live_blade_duration": len(modifiers) == 1 and modifiers[0].amount == 1 and modifiers[0].duration == "live",
+        "named_live_finished": not result.state.pending_effects and result.state.phase == "yell_first",
+    }
+
+
+def _moved_source_state(effect: EffectDefinition, *, control: bool = False) -> MatchState:
+    effects = {effect.effect_id: effect}
+    members = [_v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id])]
+    if control:
+        raw = effect.model_dump()
+        raw.update(effect_id="AUDIT-control:1", card_code="AUDIT-control", condition={},
+                   actions=[{"action_type": "manual_resolution"}], execution_mode="manual_resolution",
+                   simulation_support="manual_resolution", review_status="parsed_draft")
+        effects[raw["effect_id"]] = EffectDefinition.model_validate(raw)
+        members.append(_v1_1_member("control", "AUDIT-control", effect_ids=[raw["effect_id"]]))
+    state = _v1_1_state(effects, members, member_area={
+        "left": "control" if control else None, "center": "source", "right": None,
+    })
+    state.effect_order_policy = "ap_nap_player_choice"
+    state.cards["source"].orientation = "wait"
+    return state
+
+
+def _run_moved_source_ready(effect: EffectDefinition) -> dict[str, bool]:
+    state = _moved_source_state(effect)
+    moved = apply_action(state, ActionRequest(action_type="manual_adjustment", player_id="player_1",
+        expected_revision=state.revision, payload={"adjustments": [{"adjustment_type": "position_change",
+            "target_player_id": "player_1", "from_slot": "center", "to_slot": "left"}]})).state
+    invocation = moved.pending_effects[0]
+    result = apply_action(moved, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=moved.revision, payload={"invocation_id": invocation.invocation_id}))
+    return {
+        "moved_source_wait_at_trigger": moved.cards["source"].orientation == "wait",
+        "moved_source_ready": result.state.cards["source"].orientation == "active",
+        "moved_source_finished": not result.state.pending_effects and len(result.state.effect_usage) == 1,
+        "moved_source_result_event": any(e.event_type == "effect_source_member_readied" and e.data["changed"] for e in result.events),
+    }
+
+
+def _run_moved_source_departure(effect: EffectDefinition) -> dict[str, bool]:
+    state = _moved_source_state(effect, control=True)
+    moved = apply_action(state, ActionRequest(action_type="manual_adjustment", player_id="player_1",
+        expected_revision=state.revision, payload={"adjustments": [{"adjustment_type": "position_change",
+            "target_player_id": "player_1", "from_slot": "center", "to_slot": "left"}]})).state
+    invocation = next(i for i in moved.pending_effects if i.effect_id == "AUDIT-control:1")
+    result = apply_action(moved, ActionRequest(action_type="manual_adjustment", player_id="player_1",
+        expected_revision=moved.revision, payload={"source_invocation_id": invocation.invocation_id,
+            "source_effect_id": invocation.effect_id, "source_card_instance_id": "control", "adjustments": [
+                {"adjustment_type": "move_card", "target_player_id": "player_1", "target_card_instance_id": "source", "to_zone": destination}
+                for destination in ("waiting_room", "member_right")]}))
+    return {
+        "moved_source_same_id_returned": result.state.players["player_1"].member_area["right"] == "source",
+        "moved_source_reentry_not_readied": result.state.cards["source"].orientation == "wait",
+        "moved_source_departure_reported": any(e.data.get("reason") == "original_source_stage_member_departed" for e in result.events),
+        "moved_source_finished": not result.state.pending_effects and any(u.effect_id == effect.effect_id for u in result.state.effect_usage),
+    }
+
+
+def _run_activated_inspection(effect: EffectDefinition) -> dict[str, bool]:
+    state = _v1_1_state(
+        {effect.effect_id: effect},
+        [_v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id]),
+         _v1_1_energy("energy"), *[_v1_1_member(f"top-{i}", f"top-{i}") for i in range(5)]],
+        member_area={"left": None, "center": "source", "right": None},
+    )
+    player = state.players["player_1"]
+    player.main_deck = [f"top-{i}" for i in range(5)]
+    player.energy_area = ["energy"]
+    activated = apply_action(state, ActionRequest(
+        action_type="activate_effect", player_id="player_1", expected_revision=state.revision,
+        payload={"effect_id": effect.effect_id, "source_card_instance_id": "source", "energy_instance_ids": ["energy"]},
+    ))
+    state = activated.state
+    inspected = state.pending_choice.options["inspected_card_instance_ids"]
+    order = ["top-3", "top-1", "top-0", "top-2"]
+    result = apply_action(state, ActionRequest(
+        action_type="resolve_effect_choice", player_id="player_1", expected_revision=state.revision,
+        payload={"selected_card_instance_ids": order, "ordered_card_instance_ids": order},
+    ))
+    player = result.state.players["player_1"]
+    return {
+        "inspection_exact_four": inspected == ["top-0", "top-1", "top-2", "top-3"],
+        "inspection_energy_paid": result.state.cards["energy"].orientation == "wait",
+        "inspection_order_preserved": player.main_deck == order + ["top-4"],
+        "inspection_no_hand_or_waiting_change": player.hand == [] and player.waiting_room == [],
+        "inspection_private_return": all(not result.state.cards[key].face_up for key in order),
+        "inspection_completed": not result.state.pending_effects and result.state.pending_choice is None,
+    }
+
+
+def _run_activated_wait_draw(effect: EffectDefinition) -> dict[str, bool]:
+    draw, discard = (1, 0) if effect.card_code == "PL!SP-bp7-008" else (2, 2)
+    state = _v1_1_state(
+        {effect.effect_id: effect},
+        [_v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id]),
+         *[_v1_1_member(key, key) for key in ("held", "drawn-1", "drawn-2", "remaining")]],
+        member_area={"left": None, "center": "source", "right": None}, hand=["held"],
+    )
+    state.players["player_1"].main_deck = ["drawn-1", "drawn-2", "remaining"]
+    activated = apply_action(state, ActionRequest(
+        action_type="activate_effect", player_id="player_1", expected_revision=state.revision,
+        payload={"effect_id": effect.effect_id, "source_card_instance_id": "source"},
+    ))
+    after = activated.state
+    checks = {
+        "activation_source_wait_paid": after.cards["source"].orientation == "wait",
+        "activation_draw_count": len(after.players["player_1"].hand) == 1 + draw,
+        "activation_frequency_exact": effect.frequency_limit == ("none" if not discard else "once_per_turn"),
+    }
+    if discard:
+        invocation = after.pending_effects[0]
+        resolved = apply_action(after, ActionRequest(
+            action_type="resolve_effect", player_id="player_1", expected_revision=after.revision,
+            payload={"invocation_id": invocation.invocation_id,
+                     "selected_card_instance_ids": ["drawn-1", "drawn-2"]},
+        ))
+        after = resolved.state
+        checks["activation_discard_drawn_cards"] = after.players["player_1"].waiting_room == ["drawn-1", "drawn-2"]
+        checks["activation_no_second_draw"] = after.players["player_1"].hand == ["held"] and after.players["player_1"].main_deck == ["remaining"]
+    checks["activation_queue_finished"] = not after.pending_effects and after.pending_choice is None
+    return checks
 
 
 def _run_v1_1_static_live_state(effect: EffectDefinition) -> dict[str, bool]:
@@ -983,6 +1850,86 @@ def _load_visuals_for_effect_ids(
 
 
 _V1_1_CHECK_LABELS: dict[str, tuple[str, str]] = {
+    "other_nijigasaki_candidates": ("自分以外の虹咲だけを選択", "只选择其他己方虹咲"),
+    "other_nijigasaki_amount": ("cost14は一つ・15以上は二つ", "cost14给一颗、15以上给两颗"),
+    "other_nijigasaki_no_duplicate_modifier": ("修正IDに重複なし", "修正值ID不重复"),
+    "other_nijigasaki_finished": ("エールへ正常進行", "正常进入应援"),
+    "muse_yell_no_manual_block": ("手動待機せずエールへ進行", "正常进入应援，没有人工阻塞"),
+    "muse_yell_body_condition": ("成功置き場・作品・枚数を確認", "按成功Live区、作品与张数判定"),
+    "muse_yell_not_stage_blade": ("MemberのBladeは一つのまま", "成员Blade仍为一，不误加十"),
+    "muse_yell_actual_reveals": ("実際の公開枚数を検証", "核对应援实际公开牌数"),
+    "multi_keep_explicit_manual": ("未確認範囲を手動登録", "未确认范围明确登记人工处理"),
+    "multi_keep_auto_rejected": ("自動解決を状態不変で拒否", "自动结算原子拒绝、状态不变"),
+    "multi_keep_no_automatic_cost_or_peek": ("費用・確認・エラーskipを自動実行しない", "不自动付费、查看或错误skip"),
+    "multi_keep_decline_no_zone_changes": ("辞退して手札と山札を保持", "拒绝后手牌与牌库保持"),
+    "multi_keep_decline_finishes": ("任意能力の辞退で待機を終了", "拒绝可选技能后结束待机"),
+    "private3_all_types": ("作品・Member/Liveを制限せず選ぶ", "不同作品的Member或Live均可选"),
+    "private3_exact_top": ("デッキ上3枚だけを確認", "只查看实际牌顶3张"),
+    "private3_mandatory_keep": ("費用後は非公開で必ず1枚", "付款后必须私下取得1张"),
+    "private3_hidden": ("確認中と取得後の私有情報を相手に出さない", "检查中与取得后均不泄露私有牌"),
+    "private3_final_zones": ("選択1枚は手札・残り2枚は控室", "选中1张入手，其余2张进控室，牌顶尾部不变"),
+    "adjacent_cost_once": ("手札1枚だけを費用にし再払いしない", "只支付一张手牌，后续选择不重复付款"),
+    "adjacent_inspection_count": ("指定枚数のみ確認", "准确查看卡文指定数量"),
+    "adjacent_candidates_exact": ("Live/メンバーのHeart/作品/ユニットを区別", "准确区分Live、Member心、作品与组合筛选"),
+    "adjacent_private_look": ("確認中のカードは相手に見せない", "对手完整响应不含私有检查牌"),
+    "adjacent_keep_bounds": ("0枚可と必ず1枚を区別", "区分可选零张与必须取得一张"),
+    "adjacent_reveal_distinct": ("公開指定のある取得だけ相手に公開", "仅卡文指定公开的入手牌向对手公开"),
+    "wait_reorder_keep_0": ("0枚を戻して2枚を控室へ・非公開", "保留0张，其余进控室，不泄露牌顶"),
+    "wait_reorder_keep_1": ("1枚を戻して残りを控室へ・非公開", "保留1张，其余进控室，不泄露牌顶"),
+    "wait_reorder_keep_2": ("2枚を逆順に戻す・非公開", "保留2张并反向排序，不泄露牌顶"),
+    "wait_reorder_cannot_pay_twice": ("既にWaitなら費用を払わず確認しない", "已Wait时不再支付、不查看、不记错误跳过"),
+    "typed_cost_applied": ("手札費用と自身Waitを区別", "区分弃手牌与自身Wait费用"),
+    "typed_inspection_exact": ("費用後に指定枚数だけ確認", "费用后准确查看指定张数"),
+    "typed_candidates_exact": ("作品・種類・Blade Heart・必要ハート条件", "准确筛选作品、卡种、Blade Heart与必要Heart"),
+    "typed_optional_distinct": ("任意費用と任意取得を区別", "区分可选费用和可选保留数量"),
+    "typed_reveal_distinct": ("公開指定のある取得だけ相手へ公開", "只在卡文指定公开时展示给对手"),
+    "typed_unavailable_visible": ("費用不足を選択前に表示", "选择前明确显示费用不足"),
+    "typed_no_payment_or_look": ("支払い・確認・デバッグskipなし", "不付费、不查看、不走错误跳过"),
+    "typed_unavailable_recorded": ("待機取消理由を記録", "记录取消待机的明确原因"),
+    "typed_finished": ("正しい手札・待機完了", "手牌正确且无残留待机"),
+    "niji_native_onplay": ("登場から正しい能力が待機", "实际登场后正确技能待机"),
+    "niji_cost_before_look": ("確認前に手札費用を支払い", "先支付弃牌费用再查看"),
+    "niji_exact_inspected": ("指定枚数だけ確認", "准确查看指定顶牌"),
+    "niji_filter": ("作品とBlade Heart条件を照合", "正确筛选作品与Blade Heart条件"),
+    "niji_private_look": ("確認中のカードは相手に非公開", "查看中的卡牌不泄露给对手"),
+    "niji_selected_public": ("選んだ1枚は相手にも公開", "对手能确认最终公开的一张"),
+    "niji_final_zones": ("選択は手札・残りは控室", "选定卡进手牌，其余进控室"),
+    "niji_finished": ("確認後に待機が残らない", "处理后无残留选择或待机"),
+    "wait_cost_only_selected": ("費用の1人だけウェイト", "只有选定费用成员变为Wait"),
+    "wait_bonus_source_only": ("費用対象でなく誘発元だけ加算", "加成只给来源，不误给费用目标"),
+    "wait_blade_not_yelled": ("ウェイトのBladeをエール枚数に加えない", "Wait成员的Blade不计应援张数"),
+    "wait_heart_still_available": ("獲得HeartをLive所有ハートへ加算", "获得的Heart实际计入Live所有Heart"),
+    "color_cost_controls": ("費用カードと6色を同時に選べる", "费用卡与六种颜色可同时选择"),
+    "color_cost_exact": ("承諾時だけ手札2枚を払う", "仅同意时恰好弃两张手牌"),
+    "color_cost_modifier": ("指定色2個・自身・Live期限を照合", "核对指定色两颗、自身目标与Live期限"),
+    "named_groups_bounds": ("不在の名前だけ選択数0", "只有缺席姓名的选择数为0"),
+    "named_groups_exact_modifiers": ("名前別の同一対象にHeartとBlade", "每组Heart与Blade准确作用于同一选中目标"),
+    "named_groups_missing_reason": ("不在の理由を明示し残りを解決", "记录无目标原因且继续结算另一组"),
+    "named_live_triggered": ("実際のLive開始で誘発", "真实Live开始时触发"),
+    "named_live_candidates": ("同名メンバー2人を候補として表示", "两名同名Member均作为候选"),
+    "named_live_no_auto_first": ("最初の候補を自動で選ばない", "不自动选择第一名候选"),
+    "named_live_one_selected": ("選んだ1人だけに加算", "只为选定一人添加加成"),
+    "named_live_blade_duration": ("Blade+1はLive終了まで", "Blade+1持续到Live结束"),
+    "named_live_finished": ("選択後にエールへ進行", "选择后正常进入应援"),
+    "moved_source_wait_at_trigger": ("移動時はウェイト", "移动触发时为Wait"),
+    "moved_source_ready": ("元のメンバーがアクティブ", "原来源Member变为Active"),
+    "moved_source_finished": ("待機能力は正常終了", "待机能力正常结束"),
+    "moved_source_result_event": ("実際の復原結果を記録", "明确记录实际复原结果"),
+    "moved_source_same_id_returned": ("同じIDで再登場", "同一ID重新登场"),
+    "moved_source_reentry_not_readied": ("新しいカードを誤って復原しない", "不错误复原重新入场卡"),
+    "moved_source_departure_reported": ("離場による非適用理由を記録", "记录离场不适用原因"),
+    "inspection_exact_four": ("上から正確に4枚を見る", "准确查看顶4张"),
+    "inspection_energy_paid": ("Energy費用を支払った", "已支付Energy费用"),
+    "inspection_order_preserved": ("指定順でデッキ上へ戻る", "按指定顺序放回牌堆顶"),
+    "inspection_no_hand_or_waiting_change": ("手札と控え室を変えない", "手牌和控室不变"),
+    "inspection_private_return": ("非公開のまま戻る", "以非公开状态放回"),
+    "inspection_completed": ("待機選択が残らない", "无残留待机选择"),
+    "activation_source_wait_paid": ("起動コストで自身がウェイト", "自身已作为发动费用变为Wait"),
+    "activation_draw_count": ("指定枚数だけ引いた", "准确抽取指定张数"),
+    "activation_frequency_exact": ("記載どおりの回数制限", "仅采用原文规定的次数限制"),
+    "activation_discard_drawn_cards": ("引いたカードも捨てられる", "可弃置本次刚抽到的牌"),
+    "activation_no_second_draw": ("選択後に二重ドローしない", "后续选择不重复抽牌"),
+    "activation_queue_finished": ("未処理の選択を残さない", "结算后无残留选择"),
     "effective_cost_reduced": ("実効登場 cost を状態から算出", "根据状态计算实际登场费用"),
     "static_heart_uses_live_state": ("静的 Heart が現在状態を反映", "常时 Heart 反映当前状态"),
     "static_score_uses_live_state": ("静的 score が現在状態を反映", "常时分数反映当前状态"),

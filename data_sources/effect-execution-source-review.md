@@ -1,5 +1,14 @@
 # Effect Execution MVP Source Review
 
+## Outgoing Source Timing Classification (2026-10-26)
+
+Rules1.06 clauses9.7.2,10.1.2,10.4.1,11.4.2,11.5.2,11.6.2 distinguish a source's
+own entry and Live timings from a different Member's entry. An opt-in bounded
+deployment operation classifies only complete, non-error source text snapshots;
+no current card is newly registered. Static, inherited, combined and unconfirmed
+observers retain manual/unresolved limits. This is automated state evidence, not
+human reviewed status. See `docs/development/disjoint-overlap-source-verification.md`.
+
 ## Purpose
 
 This artifact records the official-rule basis for the first executable-effect slice. It contains references and conclusions, not bulk official rule or card text.
@@ -95,5 +104,15 @@ entries may attach a Member from hand or move a Member from under another
 Member into a top Stage position.
 
 ## Review Status
+
+Selected-Blade source Live score scope (2026-10-26): exact `PL!N-bp7-027:1`
+uses a mandatory own Nijigasaki Stage Member choice and strict comparison against
+both Stages' other top Members. Effective Blade includes Wait cards and numeric
+replacement/addition layers, not only their contribution to Yell. Score is local
+to the source Live and resets on zone change. References: PDF4.1.4,8.4.4–6,
+9.6.3.1/9.6.3.1.3,9.9.1.4–5, plus current Japanese revision921/hash.
+State, SQL Replay, four AI policies, privacy and frozen50-match block evidence
+are in `docs/development/selected-blade-source-score-verification.md`.
+This entry is test validated, not human reviewed; no FAQ pack is implied.
 
 The rule timing above is source-confirmed. Automated effect entries remain `test_validated_executable` until a human card-by-card rules review promotes them.

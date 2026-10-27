@@ -14,10 +14,12 @@ from typing import Any
 from loveca.decks.analyzer import DeckList, parse_deck
 from loveca.simulation.engine import generate_legal_actions
 from loveca.simulation.models import ActionRequest, ActionResult
+from loveca.simulation.rulesets import RulesetIdentity
 from loveca.simulation.service import MatchService
 
 ROOM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 ROOM_CODE_LENGTH = 6
+ROOM_RULESET_KEY_PREFIX = "hosted_room_ruleset:"
 
 ROOM_SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS hosted_rooms (
@@ -88,6 +90,7 @@ class RoomRecord:
     guest_last_seen_at: str | None
     closed_at: str | None
     close_reason: str | None
+    ruleset_identity: RulesetIdentity | None = None
 
     @property
     def host_deck(self) -> DeckList:
@@ -116,6 +119,7 @@ class RoomRepository:
         host_deck: dict[str, Any],
         seed: int | None,
         ttl_hours: int,
+        ruleset_identity: RulesetIdentity | None = None,
     ) -> RoomRecord:
         now = _utc_now()
         expires_at = _utc_after_hours(ttl_hours)
@@ -126,6 +130,8 @@ class RoomRepository:
             token = secrets.token_urlsafe(24)
             try:
                 with closing(self._connect()) as connection:
+                    if ruleset_identity is not None and not _has_runtime_metadata(connection):
+                        raise RoomStateError("room ruleset binding requires the standard runtime database")
                     connection.execute(
                         """
                         INSERT INTO hosted_rooms (
@@ -146,6 +152,11 @@ class RoomRepository:
                             now,
                         ),
                     )
+                    if ruleset_identity is not None:
+                        connection.execute(
+                            "INSERT OR REPLACE INTO runtime_metadata (key, value) VALUES (?, ?)",
+                            (ROOM_RULESET_KEY_PREFIX + room_code, ruleset_identity.model_dump_json()),
+                        )
                     connection.commit()
                 return self.get_room(room_code)
             except sqlite3.IntegrityError:
@@ -153,14 +164,26 @@ class RoomRepository:
         raise RoomStateError("failed to allocate a unique room code")
 
     def get_room(self, room_code: str) -> RoomRecord:
+        identity = None
         with closing(self._connect()) as connection:
+            connection.execute("BEGIN")
             row = connection.execute(
                 "SELECT * FROM hosted_rooms WHERE room_code = ?",
                 (room_code.upper(),),
             ).fetchone()
+            if row is not None and _has_runtime_metadata(connection):
+                metadata = connection.execute(
+                    "SELECT value FROM runtime_metadata WHERE key = ?",
+                    (ROOM_RULESET_KEY_PREFIX + str(row["room_code"]),),
+                ).fetchone()
+                if metadata is not None:
+                    try:
+                        identity = RulesetIdentity.model_validate_json(metadata["value"])
+                    except ValueError as exc:
+                        raise RoomStateError("invalid_room_ruleset_metadata: create a new room") from exc
         if row is None:
             raise RoomNotFoundError(f"room not found: {room_code}")
-        record = _record_from_row(row)
+        record = _record_from_row(row, ruleset_identity=identity)
         if record.status != "expired" and _is_expired(record.expires_at):
             return self.expire_room(record.room_code)
         return record
@@ -289,6 +312,17 @@ class RoomRepository:
                 """,
                 (delete_before,),
             )
+            if _has_runtime_metadata(connection):
+                # Metadata follows room retention, never the unrelated runtime keys.
+                connection.execute(
+                    """
+                    DELETE FROM runtime_metadata
+                    WHERE substr(key, 1, ?) = ?
+                      AND substr(key, ?) NOT IN (SELECT room_code FROM hosted_rooms)
+                    """,
+                    (len(ROOM_RULESET_KEY_PREFIX), ROOM_RULESET_KEY_PREFIX,
+                     len(ROOM_RULESET_KEY_PREFIX) + 1),
+                )
             connection.commit()
             return CleanupResult(
                 expired_count=int(expired_cursor.rowcount),
@@ -364,13 +398,16 @@ class RoomService:
         host_name: str,
         host_deck: dict[str, Any],
         seed: int | None,
+        ruleset_id: str | None = None,
     ) -> RoomRecord:
+        identity = self.match_service.resolve_ruleset_identity(ruleset_id)
         self.cleanup_expired()
         return self.repository.create_room(
             host_name=host_name,
             host_deck=host_deck,
             seed=seed,
             ttl_hours=self.ttl_hours,
+            ruleset_identity=identity,
         )
 
     def join_room(
@@ -381,12 +418,16 @@ class RoomService:
         guest_deck: dict[str, Any],
     ) -> RoomRecord:
         record = self.repository.get_room(room_code)
+        if record.status != "waiting_for_guest":
+            raise RoomStateError("room is not waiting for a guest")
         result = self.match_service.create_match(
             first_name=record.host_name,
             first_deck=record.host_deck,
             second_name=guest_name,
             second_deck=parse_deck(guest_deck),
             seed=record.seed,
+            ruleset_id=record.ruleset_identity.ruleset_id if record.ruleset_identity else None,
+            expected_ruleset=record.ruleset_identity,
         )
         joined = self.repository.join_room(
             room_code=record.room_code,
@@ -456,7 +497,9 @@ class CleanupResult:
     deleted_count: int
 
 
-def _record_from_row(row: sqlite3.Row) -> RoomRecord:
+def _record_from_row(
+    row: sqlite3.Row, *, ruleset_identity: RulesetIdentity | None = None,
+) -> RoomRecord:
     return RoomRecord(
         room_code=str(row["room_code"]),
         status=str(row["status"]),
@@ -475,7 +518,14 @@ def _record_from_row(row: sqlite3.Row) -> RoomRecord:
         guest_last_seen_at=row["guest_last_seen_at"],
         closed_at=row["closed_at"],
         close_reason=row["close_reason"],
+        ruleset_identity=ruleset_identity,
     )
+
+
+def _has_runtime_metadata(connection: sqlite3.Connection) -> bool:
+    return connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'runtime_metadata'"
+    ).fetchone() is not None
 
 
 def _new_room_code() -> str:
