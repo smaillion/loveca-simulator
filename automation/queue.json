@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "live-start-all-active-source-live-requirement",
+      "priority": 0,
+      "title": "审计全员Active条件与仅原来源Live无色必要Heart减少",
+      "status": "queued",
+      "depends_on": ["live-start-bottom-one-aqours-source-live-requirement"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["只审计PL!S-bp7-020:1，完整双段revision912/hash2762be94925766143618a17b7a60b0cb252f776311eaf3f8198af0c49a60d046；最新冻结seed18012第1回合18动作由本段mandatory manual停止，第2段已执行一次，不重复实现或追改其快照。第1段全文为【ライブ開始時】自分のステージにいるすべてのメンバーがアクティブ状態の場合、このカードの必要ハートを【heart0】減らす。", "先核对正文条件结算时点、空Stage的全部条件、顶层Member/附属/Wait与无色必要Heart；无期限按9.2.1.2与移区新对象分别处理，不凭语言直觉裁定空集合。官方不足则保留unresolved/manual，不以测试代替裁定或用第三方攻略", "明确后仅新受限snapshot和原来源Live policy；验证0/1/3名、全Active/混合Wait、触发后Active变更、附属不计、双方角色、多个Live仅原来源、来源离场返回/Live Area内移动、game与离场清理、替换后加减及无色零下限，不全局改旧required_heart/manual快照", "真实原生状态/SQL Replay、四AI/隐藏身份不变/不改输入、完整双视角、原生UI与图文、所有profiles/pre-push和新源码原30牌组冻结诊断通过后仅本地提交；不提升reviewed、不改默认AI/Card或SQL schema，不改policy、不push或新PR、合并部署"]
+    },
+    {
       "id": "live-start-bottom-one-aqours-source-live-requirement",
       "priority": 0,
       "title": "审计底一张Aqours Member与仅原来源Live必要Heart减少",

@@ -1,5 +1,12 @@
 # AI and Simulation Notes
 
+The all-active Live first segment PL!S-bp7-020:1 remains unresolved/manual.
+Four AI versions in both roles return no_safe_ai_action without consulting hidden
+identities or mutating input; this differs from the sandbox blocker category
+mandatory_manual_resolution. Manual source handles remain usable after the
+source enters an unknown deck, without restoring its card face. No application
+fingerprint change and no repeated frozen30 run; see the boundary audit report.
+
 PL!S-bp7-020:2 uses a mandatory source-only auto operation without new AI policy.
 Four versions execute both native Live-start and isolated pending actions with
 hidden instance/name/code/Blade invariance and unchanged input. Official segment1

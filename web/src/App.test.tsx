@@ -4932,6 +4932,32 @@ describe("App", () => {
     });
   });
 
+  it.each([false, true])("keeps the unresolved all-active Live manual with hidden source=%s", (hidden) => {
+    const onAction = vi.fn();
+    const onManual = vi.fn();
+    const source = { invocation_id: "all-active-live", effect_id: "PL!S-bp7-020:1",
+      source_card_instance_id: "all-active-source", player_id: "player_1" };
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: {
+      ...INSPECTION_MATCH_PAYLOAD.state.cards,
+      ...(!hidden ? { "all-active-source": { ...INSPECTION_CARDS["player_1-M002"],
+        instance_id: "all-active-source", card: { ...INSPECTION_CARDS["player_1-M002"].card,
+          card_type: "live", card_code: "PL!S-bp7-020", score: 3,
+          required_hearts: { heart0: 3, heart02: 1, heart04: 2, heart05: 2 } } } } : {}),
+    }, pending_effects: [source] };
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      ...source, label_ja: "【ライブ開始時】自分のステージにいるすべてのメンバーがアクティブ状態の場合、このカードの必要ハートを【heart0】減らす。",
+      trigger: "live_started", timing: "live_start", execution_mode: "manual_resolution",
+      simulation_support: "manual_resolution", is_optional: false, candidate_card_instance_ids: [],
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never}
+      loading={false} onAction={onAction} onManual={onManual} />);
+    expect(screen.queryByRole("button", { name: "结算技能" })).not.toBeInTheDocument();
+    expect(screen.getByText(/人工处理 · 强制/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "结构化人工处理" }));
+    expect(onManual).toHaveBeenCalledWith(source);
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
   it.each([false, true])("keeps the unresolved Mirakura on-play manual with hidden source=%s", (hidden) => {
     const onAction = vi.fn();
     const onManual = vi.fn();

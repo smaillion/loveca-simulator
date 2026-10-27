@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-27 全员Active边界审计：固定分支/工作树，PL!S-bp7-020:1继续manual，reason=all_active_empty_stage_truth_value_unconfirmed。28边界含11种SQL、双方四AI/隐藏来源与人工UI保护；第2段/应用/登记未改，不重复无变化冻结。完整门禁及blocked记录见`all-active-live-requirement-unresolved.md`验收入口；旧44/6 dirty、stash与ignored保留，不push，后续PR目标仍待批。
+
 2026-10-27 底牌与原Live必要Heart：固定分支/工作树，仅PL!S-bp7-020:2精确新snapshot。无色减需/game期限/移区新对象分开验证，第1段manual及旧Replay不变。52专项含17种SQL、262图文/4项中日UI；最终四组门禁和冻结绑定见`bottom-one-aqours-requirement-verification.md`验收入口。旧44/6 dirty、stash与ignored保留；不push，后续PR目标待批。
 
 2026-10-27 鬼塚冬毬公开Live提案：固定分支/工作树，仅PL!SP-bp2-011:1精确限定新快照，按Q118区分两种名称与不足两张，操作者固定本人→对手；旧多人/manual保持。103专项/27种SQL、257图文与4原生UI已有证据，最终四组profiles/冻结另存`opponent-live-offer-verification.md`验收入口。旧44/6 dirty、stash与ignored均保留；不push，后续PR目标待批。

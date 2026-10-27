@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+`PL!S-bp7-020:1`全员Active边界审计：本次未取得空Stage真值的直接官方依据，继续manual，不凭空集合直觉晋级。28项边界/11种SQL、四AI/隐私与人工UI保护；第2段和930/1212登记不变，应用指纹未变，不重复30局。[未解决原因与证据](./docs/development/all-active-live-requirement-unresolved.md)
+
 `PL!S-bp7-020:2`按完整双段/revision/hash限定实现：实际底牌为Aqours Member时，仅原Live无色必要Heart减一。无明示期限按game，移区新对象不继承；第1段仍manual，旧Replay不变。52专项/17种SQL、262图文与中日原生UI有证据；最终同源码门禁及冻结30局见[验证记录](./docs/development/bottom-one-aqours-requirement-verification.md)。仅本地开发，不推送上线。
 
 这是一个面向 Love Live! Series Official Card Game（ラブカ）的本地卡牌数据库、牌组分析与规则验证工具。
