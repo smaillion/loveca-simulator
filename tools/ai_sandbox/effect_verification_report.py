@@ -217,6 +217,10 @@ def _v1_1_dynamic_scenarios(
         *((f"muse_granted_blade_{case}", f"μ's常時Blade付与 {case}", f"μ's临时常时Blade {case}",
            "PL!-pb2-005:1", lambda effect, case=case: _run_muse_granted_blade(effect, case))
           for case in ("score_icon", "numeric_only", "wrong_work", "late_member", "source_leave", "source_position")),
+        *((f"opponent_live_offer_{case}", f"控室ライブ提示 {case}", f"控室Live提案 {case}",
+           "PL!SP-bp2-011:1", lambda effect, names=names: _run_opponent_live_offer(effect, names))
+          for case, names in (("zero", ()), ("one", ("A",)), ("same", ("A", "A")),
+                              ("pair", ("A", "B")), ("mixed", ("A", "A", "B")), ("three", ("A", "B", "C")))),
         *((f"both_center_position_{first}_{second}", f"両者中央の移動 {first}/{second}", f"双方中央移动 {first}/{second}",
            "PL!SP-bp5-010:1", lambda effect, first=first, second=second: _run_both_center_position(effect, first, second))
           for first, second in ((False, False), (False, True), (True, False), (True, True))),
@@ -753,6 +757,39 @@ def _run_muse_granted_blade(effect: EffectDefinition, case: str) -> dict[str, bo
         "現在の発生源 / 当前原来源": _effective_member_blade(result.state, "player_1", "source") == int(matched and case != "source_leave"),
         "後から登場 / 后续入场": case != "late_member" or _effective_member_blade(result.state, "player_1", "late") == 1,
         "待機完了 / 待机完成": not result.state.pending_effects and result.state.pending_choice is None,
+    }
+
+
+def _run_opponent_live_offer(effect: EffectDefinition, names: tuple[str, ...]) -> dict[str, bool]:
+    from loveca.simulation.ai import opponent_live_offer_selection
+    source = _v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id], cost=0)
+    cards = [source, _v1_1_member("tail", "Hidden Tail")]
+    waiting = []
+    for i, name in enumerate(names):
+        item = _v1_1_live(f"offer-{i}", name)
+        cards.append(item)
+        waiting.append(item.instance_id)
+    state = _v1_1_state({effect.effect_id: effect}, cards, hand=["source"])
+    state.players["player_1"].main_deck = ["tail"]
+    state.players["player_1"].waiting_room = waiting
+    result = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1",
+        expected_revision=state.revision, payload={"card_instance_id": "source", "slot": "center",
+        "energy_instance_ids": [], "use_baton_touch": False}))
+    result = apply_action(result.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=result.state.revision, payload={"invocation_id": result.state.pending_effects[0].invocation_id}))
+    actors = []
+    while result.state.pending_choice:
+        pending = result.state.pending_choice
+        actors.append(pending.player_id)
+        selected = opponent_live_offer_selection(pending.options, pending.options["candidate_card_instance_ids"])
+        result = apply_action(result.state, ActionRequest(action_type="resolve_effect_choice", player_id=pending.player_id,
+            expected_revision=result.state.revision, payload={"selected_card_instance_ids": selected}))
+    pair = len(set(names)) >= 2
+    return {
+        "二種類を提示した時だけ回収 / 两种名称才能回收": len(result.state.players["player_1"].hand) == int(pair),
+        "相手の選択権 / 对手选择权": ("player_2" in actors) == pair,
+        "残りは控室 / 其余留控室": len(result.state.players["player_1"].waiting_room) == len(names) - int(pair),
+        "待機完了 / 待机完成": result.state.pending_choice is None and not result.state.pending_effects,
     }
 
 

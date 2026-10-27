@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+鬼塚冬毬`PL!SP-bp2-011:1`按全文/revision/hash限定实现：本人提出控室两张不同名Live，再由对手择一，Q118明确不足两种名称不能回收。103专项/27种SQL、四AI/隐私、257图文和中日UI已有证据；完整门禁、同牌组30局及提交结果见验收入口。未push，后续PR目标待批。[验证与边界](./docs/development/opponent-live-offer-verification.md)
+
 ウィーン・マルガレーテ`PL!SP-bp5-010:1`按全文/revision/hash限定实现。Q223与通则1.3.4.1区分各自选择权和主动方先处理，保护占位交换/附属、移动触发待机、旧manual Replay及隐藏信息。69专项、251图文已有证据；完整门禁、同牌组30局及提交结果以最终验收记录为准。未push，后续PR目标待批。[验证与边界](./docs/development/both-center-position-verification.md)
 
 安養寺姫芽`PL!HS-pb1-014:2`左右正面费用比较采用限定新快照修复。105专项、46种SQL与247图文已有证据，旧pattern标识契约已同步；完整验收按当前源码独立记录，不拼接旧绿色。第1段manual、登记927/1212和冻结15完赛均不变，最终结论见报告验收入口。下方未修复文字属于发现时历史。[修复与验收](./docs/development/mirrored-cost-heart-verification.md)

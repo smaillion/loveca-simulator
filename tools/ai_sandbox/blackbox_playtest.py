@@ -24,6 +24,7 @@ from loveca.simulation.ai import (
     SimpleAIDecision,
     SimpleAIPolicy,
     choose_simple_ai_action,
+    opponent_live_offer_selection,
 )
 from loveca.simulation.effects import load_effect_registry
 from loveca.simulation.engine import IllegalActionError, generate_legal_actions
@@ -602,6 +603,9 @@ def choose_action(
         action = by_type["resolve_effect_choice"]
         options = action.options
         candidates = list(options.get("candidate_card_instance_ids", []))
+        if options.get("multi_player_choice_type") == "multi_player_opponent_live_offer":
+            return action.action_type, action.player_id, {
+                "selected_card_instance_ids": opponent_live_offer_selection(options, candidates)}
         if options.get("multi_player_choice_type") == "multi_player_center_position_change":
             slots = list(options.get("available_slots", []))
             return action.action_type, action.player_id, ({"slot": slots[0]} if slots else {})
@@ -728,6 +732,7 @@ def choose_action(
             "multi_player_draw_then_discard",
             "multi_player_deploy_waiting_member",
             "multi_player_center_position_change",
+            "multi_player_opponent_live_offer",
         }:
             return action.action_type, action.player_id, payload
         if choice_type == "member_group_from_stage":

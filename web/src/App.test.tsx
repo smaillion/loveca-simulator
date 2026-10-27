@@ -3590,6 +3590,70 @@ describe("App", () => {
     });
   });
 
+  it("requires two distinct Live names for the owner's public offer", () => {
+    const onAction = vi.fn();
+    const ids = ["player_1-M002", "player_1-M003", "player_1-M004"];
+    const template = INSPECTION_CARDS["player_1-M002"];
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: Object.fromEntries(ids.map((id, i) => [id,
+      { ...template, instance_id: id, card: { ...template.card, card_type: "live", name_ja: i === 2 ? "別のLive" : "同名Live" } }])) };
+    const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], options: {
+      effect_id: "PL!SP-bp2-011:1", multi_player_choice_type: "multi_player_opponent_live_offer",
+      current_index: 0, candidate_card_instance_ids: ids, minimum: 2, maximum: 2,
+    } };
+    render(<InspectionChoiceAction action={action as never} state={state as never}
+      loading={false} onAction={onAction} title="公开提案" submitLabel="确认提案" />);
+    const confirm = screen.getByRole("button", { name: "确认提案" });
+    const duplicates = screen.getAllByRole("button", { name: /同名Live/ });
+    fireEvent.click(duplicates[0]); fireEvent.click(duplicates[1]);
+    expect(confirm).toBeDisabled();
+    fireEvent.click(duplicates[1]); fireEvent.click(screen.getByRole("button", { name: /別のLive/ }));
+    fireEvent.click(confirm);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_1", {
+      selected_card_instance_ids: [ids[0], ids[2]], ordered_card_instance_ids: undefined,
+    });
+  });
+
+  it("submits a fixed offered Live only for the opponent, without a source card face", () => {
+    const onAction = vi.fn();
+    const ids = ["player_1-M002", "player_1-M003"];
+    const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], player_id: "player_2", options: {
+      effect_id: "PL!SP-bp2-011:1", source_card_instance_id: "__hidden__",
+      multi_player_choice_type: "multi_player_opponent_live_offer", current_index: 1,
+      candidate_card_instance_ids: ids, minimum: 1, maximum: 1,
+      selections: { player_1: { selected_card_instance_ids: ids } },
+    } };
+    render(<InspectionChoiceAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never}
+      loading={false} onAction={onAction} title="对手选择" submitLabel="确认选择" />);
+    expect(screen.getByText("从提案选择一张Live")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(INSPECTION_CARDS["player_1-M003"].card.name_ja) }));
+    fireEvent.click(screen.getByRole("button", { name: "确认选择" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_2", {
+      selected_card_instance_ids: [ids[1]], ordered_card_instance_ids: undefined,
+    });
+  });
+
+  it.each([true, false])("shows the public offer recovery result in both languages (%s)", async (condition) => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const effectId = "PL!SP-bp2-011:1";
+    const matchCreate = { ...INSPECTION_MATCH_PAYLOAD, state: { ...INSPECTION_MATCH_PAYLOAD.state,
+      pending_choice: null, pending_effects: [], effect_definitions: { [effectId]: {
+        ...INSPECTION_MATCH_PAYLOAD.state.effect_definitions["PL!-bp6-002:1"], effect_id: effectId,
+      } } }, legal_actions: [], events: [
+      { event_type: "effect_opponent_live_recovered", player_id: "player_1", source: "system",
+        data: { effect_id: effectId, invocation_id: "offer", condition_met: condition, recovered_count: condition ? 1 : 0 } },
+      { event_type: "effect_resolved", player_id: "player_1", source: "player",
+        data: { effect_id: effectId, invocation_id: "offer", source_card_instance_id: "player_1-M001" } },
+    ] };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    const create = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(create).not.toBeDisabled()); fireEvent.click(create);
+    const zh = condition ? "对手择一回收: 1 Live" : "未选出两张不同名Live，未回收";
+    expect((await screen.findAllByText(zh)).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect((await screen.findAllByText(condition ? "相手の選択で回収: 1 Live" : "異なる名前のライブ2枚を選べず、回収なし")).length).toBeGreaterThan(0);
+  });
+
   it.each(["left", "right"])("submits only the current player's center destination %s", (slot) => {
     const onAction = vi.fn();
     const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], player_id: "player_2", options: {

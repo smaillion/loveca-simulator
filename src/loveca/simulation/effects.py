@@ -411,6 +411,7 @@ class EffectChoice(BaseModel):
         "private_three_top_bottom_order",
         "public_both_waiting_live_one",
         "public_both_center_position_sequential",
+        "public_two_distinct_live_opponent_one",
     ] | None = None
     zone: str | None = None
     card_type: str | None = None
@@ -499,6 +500,14 @@ class EffectChoice(BaseModel):
 
     @model_validator(mode="after")
     def validate_deployment_policy(self) -> EffectChoice:
+        if self.selection_policy == "public_two_distinct_live_opponent_one" and self.model_dump(exclude_defaults=True, exclude_none=True) != {
+            "choice_type": "multi_player_opponent_live_offer", "selection_policy": "public_two_distinct_live_opponent_one",
+            "zone": "waiting_room", "card_type": "live", "minimum": 2, "maximum": 2,
+            "selected_destination": "hand",
+        }:
+            raise ValueError("opponent Live offer requires exactly two distinct public Lives then one opponent choice")
+        if self.choice_type == "multi_player_opponent_live_offer" and self.selection_policy != "public_two_distinct_live_opponent_one":
+            raise ValueError("opponent Live offer requires its explicit snapshot policy")
         if self.selection_policy == "public_both_center_position_sequential" and self.model_dump(exclude_defaults=True, exclude_none=True) != {
             "choice_type": "multi_player_center_position_change", "selection_policy": "public_both_center_position_sequential",
             "zone": "stage", "card_type": "member", "minimum": 1,
@@ -725,6 +734,13 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        if self.choice and self.choice.selection_policy == "public_two_distinct_live_opponent_one" and (
+            self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
+            or self.effect_type != "triggered" or self.timing != "on_play" or self.trigger != "member_played"
+            or self.execution_mode != "prompt_then_resolve" or self.frequency_limit != "none"
+            or self.duration is not None or self.actions or self.simulation_support == "manual_resolution"
+        ):
+            raise ValueError("opponent Live offer requires its fixed mandatory on-play sequence")
         if self.choice and self.choice.selection_policy == "public_both_center_position_sequential" and (
             self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
             or self.effect_type != "triggered" or self.timing != "on_play" or self.trigger != "member_played"

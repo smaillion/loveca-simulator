@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-27 鬼塚冬毬公开Live提案：固定分支/工作树，仅PL!SP-bp2-011:1精确限定新快照，按Q118区分两种名称与不足两张，操作者固定本人→对手；旧多人/manual保持。103专项/27种SQL、257图文与4原生UI已有证据，最终四组profiles/冻结另存`opponent-live-offer-verification.md`验收入口。旧44/6 dirty、stash与ignored均保留；不push，后续PR目标待批。
+
 2026-10-27 双方中央位置选择：固定分支/工作树，仅PL!SP-bp5-010:1精确限定新快照，旧多玩家/manual不变。69专项、22种SQL、251图文；完整profiles与最终冻结另存`both-center-position-verification.md`验收入口，不拼接旧证据。旧44/6 dirty、stash与ignored保留；不push，后续PR目标待批。下方“不得先领取双方中央”是镜像任务未完成时的历史。
 
 2026-10-27 镜像常时恢复验收：仅PL!HS-pb1-014:2条件切换为精确限定新snapshot，旧Replay和第1段manual保持。105专项、46种SQL及247图文已有证据；旧pattern名契约同步后144项定向复验通过。本轮独立执行全部profiles，最终验收/提交结果见`mirrored-cost-heart-verification.md`的验收入口，下方未完成状态为历史。冻结仍15完赛，927/1212不增加。固定分支/工作树，旧44/6 dirty、stash及ignored均保留，不push，后续PR目标待批；当前任务验收前不领双方中央移动。

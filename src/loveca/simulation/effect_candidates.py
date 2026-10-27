@@ -2803,6 +2803,22 @@ def _onplay_optional_discard_inspect_keep1_any(
     )
 
 
+def _onplay_opponent_live_offer(row: sqlite3.Row) -> EffectCandidate | None:
+    text = "【登場】自分の控え室にある、カード名の異なるライブカードを2枚選ぶ。そうした場合、相手はそれらのカードのうち1枚を選ぶ。これにより相手に選ばれたカードを自分の手札に加える。"
+    if (row["card_code"] != "PL!SP-bp2-011" or row["text_revision_id"] != 565
+            or row["raw_text_hash"] != "9e4fd4e9e0b3b110651c0f1139e851bab7f588d77460a36f422db788ae4ef09c"
+            or row["raw_effect_text_ja"] != text):
+        return None
+    return EffectCandidate(
+        **_base(row, pattern_id="onplay_two_distinct_live_opponent_one", effect_index=1),
+        label_ja=text, effect_type="triggered", timing="on_play", trigger="member_played",
+        frequency_limit="none", is_optional=False, condition={}, cost=[], duration=None,
+        choice={"choice_type": "multi_player_opponent_live_offer", "selection_policy": "public_two_distinct_live_opponent_one",
+                "zone": "waiting_room", "card_type": "live", "minimum": 2, "maximum": 2,
+                "selected_destination": "hand"}, actions=[],
+    )
+
+
 def _onplay_both_center_position(row: sqlite3.Row) -> EffectCandidate | None:
     text = "【登場】自分と相手は、自身のステージのセンターにいるメンバーをポジションチェンジする。(センターにいるメンバーを今いるエリア以外のエリアに移動させる。そのエリアにメンバーがいる場合、そのメンバーはセンターエリアに移動させる。)"
     if (row["card_code"] != "PL!SP-bp5-010" or row["text_revision_id"] != 215
@@ -15630,6 +15646,7 @@ def _activated_return_energy_recover_live(row: sqlite3.Row) -> EffectCandidate |
 
 
 _PATTERNS = (
+    _onplay_opponent_live_offer,
     _onplay_both_center_position,
     _static_mirrored_front_cost_heart,
     _wait_moved_source_ready,

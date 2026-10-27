@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "onplay-two-different-live-opponent-choice",
+      "priority": 0,
+      "title": "审计两张不同名控室Live由对手选择一张回手牌",
+      "status": "queued",
+      "depends_on": ["onplay-both-center-position-choice-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["精确核对PL!SP-bp2-011:1，revision565，hash9e4fd4e9e0b3b110651c0f1139e851bab7f588d77460a36f422db788ae4ef09c；当前冻结seed18015第7回合122动作实际mandatory manual，不按牌组频率猜测", "先核对官方公开区域必选与そうした場合语义、两张不同名和不足两张条件；仅所有者选本人控室两张不同名Live，再由对手从固定二者选一张，不能代对手选、把不足两张当满足或使用手牌/Member；语义不明确保留manual与unresolved", "明确后仅新增受限snapshot，不扩大旧多玩家登记；真实0/1/2/多候补及同名不同印刷、双方角色/来源离场返回、重复遗漏非候补/错误玩家原子性、新旧SQL Replay、四AI/隐藏身份不变/不改输入、完整双视角及原生UI图文验证", "完整四组profiles和pre-push、同原30牌组seed18000–18029冻结诊断与最终源码绑定后才本地提交，不提升reviewed、不改默认AI/Card/SQL schema，不改policy、不push、新建PR、合并部署"]
+    },
+    {
       "id": "onplay-both-center-position-choice-audit",
       "priority": 0,
       "title": "按实际待机审计双方中央成员各自Position Change",

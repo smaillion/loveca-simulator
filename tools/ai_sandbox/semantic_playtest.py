@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from loveca.decks.analyzer import DeckList
+from loveca.simulation.ai import opponent_live_offer_selection
 from loveca.simulation.engine import IllegalActionError, generate_legal_actions
 from loveca.simulation.models import ActionRequest, CardInstance, LegalAction, MatchState
 from loveca.simulation.service import MatchService
@@ -1426,6 +1427,9 @@ def payload_example_for_action(action: LegalAction) -> dict[str, Any]:
             else {}
         )
     if action.action_type == "resolve_effect_choice":
+        if options.get("multi_player_choice_type") == "multi_player_opponent_live_offer":
+            return {"selected_card_instance_ids": opponent_live_offer_selection(options,
+                first_n_strings(options.get("candidate_card_instance_ids"), len(options.get("candidate_card_instance_ids", []))))}
         if options.get("multi_player_choice_type") == "multi_player_center_position_change":
             slots = first_n_strings(options.get("available_slots"), 1)
             return {"slot": slots[0]} if slots else {}

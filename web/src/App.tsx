@@ -1930,6 +1930,7 @@ const autoResultOperationEvents = new Set([
   "effect_blade_comparison_resolved",
   "effect_milled_blade_colors_resolved",
   "effect_waiting_lives_recovered",
+  "effect_opponent_live_recovered",
   "effect_cards_milled",
   "effect_cards_revealed",
   "effect_cards_revealed_to_hand",
@@ -2042,7 +2043,7 @@ function autoResultLines(
           || related.data.reason === "no_legal_stage_member_at_resolution")) {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
-    } else if (related.event_type === "effect_waiting_lives_recovered") {
+    } else if (related.event_type === "effect_waiting_lives_recovered" || related.event_type === "effect_opponent_live_recovered") {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
     } else if (related.event_type === "effect_milled_blade_colors_resolved" || related.event_type === "effect_muse_blade_aura_resolved" || related.event_type === "effect_bottom_live_heart_resolved" || related.event_type === "effect_bottom_aqours_heart_resolved" || related.event_type === "effect_bottom_five_members_resolved" || related.event_type === "effect_opponent_success_draw_resolved" || related.event_type === "effect_wait_energy_next_active_resolved") {
@@ -4241,6 +4242,8 @@ function eventTitle(event: GameEvent, locale: UiLocale): string {
     effect_opponent_success_draw_resolved: ["对方本回合成功判定", "相手の今ターン成功判定"],
     effect_wait_energy_next_active_resolved: ["新Energy下回合限制", "新エネルギーの次ターン制限"],
     effect_waiting_lives_recovered: ["双方控室 Live 回收", "両者の控室ライブ回収"],
+    effect_public_live_offer_selected: ["公开 Live 选择", "公開ライブの選択"],
+    effect_opponent_live_recovered: ["对手择一回收", "相手が選んだライブ回収"],
     effect_public_waiting_live_selected: ["控室 Live 选择", "控室ライブの選択"],
     effect_resolved: ["技能结算", "能力解決"],
     effect_not_activatable: ["技能未自动处理", "能力の自動処理不可"],
@@ -4355,6 +4358,11 @@ function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): st
     const moves = event.data.card_instance_ids_by_player as Record<string, unknown> | undefined;
     return Object.entries(moves ?? {}).map(([id, cards]) =>
       `${state.players[id]?.name ?? id}: ${stringArray(cards).length} Live`).join(" / ");
+  }
+  if (event.event_type === "effect_opponent_live_recovered") {
+    return event.data.condition_met
+      ? locale === "zh" ? `对手择一回收: ${Number(event.data.recovered_count)} Live` : `相手の選択で回収: ${Number(event.data.recovered_count)} Live`
+      : locale === "zh" ? "未选出两张不同名Live，未回收" : "異なる名前のライブ2枚を選べず、回収なし";
   }
   if (event.event_type === "effect_wait_energy_next_active_resolved") {
     const count = stringArray(event.data.affected_energy_instance_ids).length;
@@ -5678,7 +5686,9 @@ export function InspectionChoiceAction({
   const isMultiChoice = multiChoiceType.startsWith("multi_player_");
   const isMemberDeployment = multiChoiceType === "multi_player_deploy_waiting_member";
   const centerPosition = multiChoiceType === "multi_player_center_position_change";
-  const publicRecoveries = multiChoiceType === "multi_player_waiting_live_recovery"
+  const opponentOffer = multiChoiceType === "multi_player_opponent_live_offer";
+  const offerStage = opponentOffer && Number(action.options.current_index) === 0;
+  const publicRecoveries = (multiChoiceType === "multi_player_waiting_live_recovery" || opponentOffer)
     ? Object.entries((action.options.selections ?? {}) as Record<string, Record<string, unknown>>) : [];
   const slotOptions = stringArray(action.options.available_slots);
   const inspected = ((action.options.inspected_card_instance_ids
@@ -5714,6 +5724,7 @@ export function InspectionChoiceAction({
     selected.length >= minimum &&
     selected.length <= maximum &&
     selected.every((item) => candidates.has(item)) &&
+    (!offerStage || new Set(selected.map((id) => state.cards[id]?.card.name_ja)).size === selected.length) &&
     (!isMemberDeployment || selected.length === 0 || slotOptions.includes(selectedSlot));
 
   return (
@@ -5727,6 +5738,7 @@ export function InspectionChoiceAction({
       {isMultiChoice && (
         <small>{tr("选择玩家", "選択するプレイヤー")}: {state.players[action.player_id ?? ""]?.name ?? tr("对战玩家", "プレイヤー")}</small>
       )}
+      {opponentOffer && <small>{offerStage ? tr("提出不同名Live", "異なる名前のライブを提示") : tr("从提案选择一张Live", "提示されたライブを1枚選択")}</small>}
       {centerPosition && Object.entries((action.options.selections ?? {}) as Record<string, Record<string, unknown>>).map(([playerId, choice]) => (
         <small key={playerId}>{state.players[playerId]?.name ?? playerId}: {choice.skipped
           ? tr("中央无成员", "センターにメンバーなし") : memberSlotLabel(String(choice.to_slot ?? ""), locale)}</small>

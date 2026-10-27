@@ -1,5 +1,12 @@
 # AI and Simulation Notes
 
+The bounded public Live-offer choice supports all four AI versions, including
+the initial pending effect. The owner proposes distinct public names and the
+opponent chooses only within that pair. Hidden card identities and input state
+are invariant. The same finite selector supplies sandbox/provider examples;
+default policy selection and old snapshots are unchanged. New frozen30 evidence
+is bound separately in development/opponent-live-offer-verification.md.
+
 The bounded both-center choice lets each of four AI versions submit only its
 own destination. Existing ai_decision metadata is retained but cannot change
 the movement target. Hidden identity substitution and input immutability are

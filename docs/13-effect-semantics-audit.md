@@ -1,5 +1,13 @@
 # Effect Semantics Audit
 
+PL!SP-bp2-011:1 is exact full-text/revision565/hash-bound. OfficialQ118
+requires two distinct names before the opponent can choose a Live to recover.
+The new snapshot has owner-first roles, current public Waiting Room candidates,
+then a fixed offered pair. Same-name alternate printings do not form a pair.
+Old multiplayer/manual snapshots remain unchanged.103 targeted tests/27 SQL
+cases and257 illustrated scenarios are not complete human adjudication; see
+development/opponent-live-offer-verification.md for final same-source gates.
+
 PL!SP-bp5-010:1 uses an exact full-text/revision/hash center-position snapshot.
 Q223 establishes each player's own destination choice. Sequential execution is
 derived from rule1.3.4.1 for choice-bearing processes, not a card-specific timing

@@ -872,7 +872,7 @@ def _manual_adjustment(
     events: list[GameEvent],
 ) -> None:
     if (state.pending_choice is not None
-            and state.pending_choice.options.get("multi_player_choice_type") in {"multi_player_waiting_live_recovery", "multi_player_center_position_change"}):
+            and state.pending_choice.options.get("multi_player_choice_type") in {"multi_player_waiting_live_recovery", "multi_player_center_position_change", "multi_player_opponent_live_offer"}):
         raise IllegalActionError("structured public recovery must be resolved before manual adjustment")
     if (
         state.pending_choice is not None
@@ -1222,7 +1222,7 @@ def _skip_effect_legal_action(state: MatchState, player_id: str | None) -> Legal
         )
     ]
     if (state.pending_choice is not None
-            and state.pending_choice.options.get("multi_player_choice_type") in {"multi_player_waiting_live_recovery", "multi_player_center_position_change"}):
+            and state.pending_choice.options.get("multi_player_choice_type") in {"multi_player_waiting_live_recovery", "multi_player_center_position_change", "multi_player_opponent_live_offer"}):
         for invocation in invocations:
             invocation.pop("source_card_instance_id", None)
     return LegalAction(
@@ -1608,6 +1608,9 @@ def _resolve_effect(
         raise IllegalActionError("only the effect owner may resolve this effect")
     _assert_effect_resolution_turn(state, invocation)
     effect = state.effect_definitions[invocation.effect_id]
+    if (effect.choice is not None and effect.choice.selection_policy == "public_two_distinct_live_opponent_one"
+            and set(action.payload) - {"invocation_id", "accepted", "ai_decision"}):
+        raise IllegalActionError("public Live offers must be selected in their own pending choice")
     accepted = action.payload.get("accepted", True)
     if not isinstance(accepted, bool):
         raise IllegalActionError("effect accepted must be a boolean")
@@ -2251,7 +2254,9 @@ def _begin_multi_player_effect_choice(
     if state.pending_choice is not None:
         raise IllegalActionError("another choice is already pending")
     first_chooser = invocation.player_id
-    if choice.choice_type in {"multi_player_waiting_live_recovery", "multi_player_center_position_change"}:
+    if choice.choice_type == "multi_player_opponent_live_offer":
+        first_chooser = invocation.player_id
+    elif choice.choice_type in {"multi_player_waiting_live_recovery", "multi_player_center_position_change"}:
         first_chooser = _effect_active_player_id(state) or invocation.player_id
     elif state.effect_order_policy is not None:
         first_chooser = _effect_active_player_id(state) or invocation.player_id
@@ -2282,6 +2287,10 @@ def _begin_multi_player_effect_choice(
         options.pop("source_card_instance_id", None)
     if choice.choice_type == "multi_player_center_position_change":
         options.update(selection_policy="public_both_center_position_sequential")
+        options.pop("source_card_instance_id", None)
+    if choice.choice_type == "multi_player_opponent_live_offer":
+        options.update(selection_policy="public_two_distinct_live_opponent_one", owner_player_id=invocation.player_id,
+                       selected_destination="hand")
         options.pop("source_card_instance_id", None)
     if choice.choice_type == "multi_player_draw_then_discard":
         amount = choice.amount or 0
@@ -2315,7 +2324,10 @@ def _begin_multi_player_effect_choice(
         )
     )
 
-    if choice.choice_type in {"multi_player_waiting_live_recovery", "multi_player_center_position_change"} and not options["minimum"]:
+    if choice.choice_type == "multi_player_opponent_live_offer" and not options["minimum"]:
+        _record_multi_player_selection(state.pending_choice, invocation.player_id, {"selected_card_instance_ids": []})
+        _complete_multi_player_effect_choice(state, state.pending_choice, events)
+    elif choice.choice_type in {"multi_player_waiting_live_recovery", "multi_player_center_position_change"} and not options["minimum"]:
         state.pending_choice.options["current_index"] = -1
         _advance_multi_player_effect_choice(state, events)
 
@@ -2503,8 +2515,8 @@ def _skip_effect(
     events: list[GameEvent],
 ) -> None:
     if (state.pending_choice is not None
-            and state.pending_choice.options.get("multi_player_choice_type") == "multi_player_center_position_change"):
-        raise IllegalActionError("a mandatory center position choice cannot be skipped")
+            and state.pending_choice.options.get("multi_player_choice_type") in {"multi_player_center_position_change", "multi_player_opponent_live_offer"}):
+        raise IllegalActionError("a mandatory public choice cannot be skipped")
     if not state.pending_effects:
         raise IllegalActionError("there is no pending effect to skip")
     invocation_id = action.payload.get("invocation_id")
@@ -2575,6 +2587,9 @@ def _resolve_multi_player_effect_choice(
     invocation = _find_pending_invocation(state, pending.options.get("invocation_id"))
     _assert_effect_resolution_turn(state, invocation)
     choice_type = pending.options.get("multi_player_choice_type")
+    if choice_type == "multi_player_opponent_live_offer":
+        _resolve_opponent_live_offer(state, action, pending, events)
+        return
     if choice_type == "multi_player_center_position_change":
         definition = state.effect_definitions[invocation.effect_id].choice
         if (definition is None or definition.choice_type != choice_type
@@ -2607,6 +2622,65 @@ def _resolve_multi_player_effect_choice(
     else:
         raise IllegalActionError("unsupported multi-player effect choice")
     _advance_multi_player_effect_choice(state, events)
+
+
+def _resolve_opponent_live_offer(
+    state: MatchState, action: ActionRequest, pending: PendingChoice, events: list[GameEvent],
+) -> None:
+    invocation = _find_pending_invocation(state, pending.options["invocation_id"])
+    choice = state.effect_definitions[invocation.effect_id].choice
+    if (choice is None or choice.choice_type != "multi_player_opponent_live_offer"
+            or choice.selection_policy != "public_two_distinct_live_opponent_one"):
+        raise IllegalActionError("opponent Live offer requires its actual snapshot definition")
+    owner = invocation.player_id
+    opponent = "player_2" if owner == "player_1" else "player_1"
+    if (pending.options.get("owner_player_id") != owner
+            or pending.options.get("player_order") != [owner, opponent]):
+        raise IllegalActionError("public Live offer roles must match the original effect owner")
+    first = pending.options["current_index"] == 0
+    if first != (pending.player_id == owner):
+        raise IllegalActionError("Live offer owner must choose before the opponent")
+    _refresh_multi_player_choice_options(state, pending.options)
+    candidates = pending.options["candidate_card_instance_ids"]
+    selected = action.payload.get("selected_card_instance_ids")
+    if (set(action.payload) - {"selected_card_instance_ids", "ai_decision"}
+            or not isinstance(selected, list) or len(selected) != pending.options["minimum"]
+            or any(not isinstance(item, str) or item not in candidates for item in selected)
+            or len(set(selected)) != len(selected)
+            or (first and len({state.cards[item].card.name_ja for item in selected}) != len(selected))):
+        raise IllegalActionError("select the required distinct own Lives or exactly one offered Live")
+    _record_multi_player_selection(pending, pending.player_id, {"selected_card_instance_ids": list(selected)})
+    events.append(GameEvent(event_type="effect_public_live_offer_selected", player_id=pending.player_id,
+        data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+              "owner_player_id": owner, "selected_card_instance_ids": list(selected),
+              "revealed_cards": [_public_card_snapshot(state, item) for item in selected]}, source="player"))
+    if first and len(selected) != 2:
+        _complete_multi_player_effect_choice(state, pending, events)
+    else:
+        _advance_multi_player_effect_choice(state, events)
+
+
+def _complete_opponent_live_offer(state: MatchState, pending: PendingChoice, events: list[GameEvent]) -> None:
+    invocation = _find_pending_invocation(state, pending.options["invocation_id"])
+    owner = invocation.player_id
+    offered = pending.options["selections"].get(owner, {}).get("selected_card_instance_ids", [])
+    selected = []
+    if len(offered) == 2:
+        opponent = "player_2" if owner == "player_1" else "player_1"
+        selected = pending.options["selections"].get(opponent, {}).get("selected_card_instance_ids", [])
+        if (len(set(offered)) != 2 or any(item not in _waiting_live_recovery_candidates(state, owner) for item in offered)
+                or len({state.cards[item].card.name_ja for item in offered}) != 2
+                or len(selected) != 1 or selected[0] not in offered):
+            raise IllegalActionError("the original public Live offer is no longer legal")
+    revealed = [_public_card_snapshot(state, item) for item in selected]
+    for item in selected:
+        state.players[owner].waiting_room.remove(item)
+        state.players[owner].hand.append(item)
+        state.cards[item].face_up = False
+    events.append(GameEvent(event_type="effect_opponent_live_recovered", player_id=owner,
+        data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+              "condition_met": len(offered) == 2, "recovered_count": len(selected),
+              "selected_card_instance_ids": selected, "revealed_cards": revealed}, source="system"))
 
 
 def _resolve_waiting_live_recovery_choice(
@@ -2868,7 +2942,21 @@ def _refresh_multi_player_choice_options(
         return
     player = state.players[player_id]
     choice_type = options.get("multi_player_choice_type")
-    if choice_type == "multi_player_center_position_change":
+    if choice_type == "multi_player_opponent_live_offer":
+        owner = options["owner_player_id"]
+        candidates = _waiting_live_recovery_candidates(state, owner)
+        if current_index == 0:
+            required = min(2, len({state.cards[item].card.name_ja for item in candidates}))
+        else:
+            offered = options["selections"].get(owner, {}).get("selected_card_instance_ids", [])
+            if (len(offered) != 2 or len(set(offered)) != 2 or any(item not in candidates for item in offered)
+                    or len({state.cards[item].card.name_ja for item in offered}) != 2):
+                raise IllegalActionError("the original public Live offer is no longer legal")
+            candidates, required = list(offered), 1
+        options["candidate_card_instance_ids"] = candidates
+        options["candidate_name_by_instance"] = {item: state.cards[item].card.name_ja for item in candidates}
+        options["minimum"] = options["maximum"] = required
+    elif choice_type == "multi_player_center_position_change":
         center = player.member_area.get("center")
         options["center_card_instance_id"] = center
         options["available_slots"] = ["left", "right"] if center is not None else []
@@ -2933,6 +3021,8 @@ def _complete_multi_player_effect_choice(
     invocation = _find_pending_invocation(state, pending.options.get("invocation_id"))
     effect = state.effect_definitions[invocation.effect_id]
     simultaneous = pending.options.get("deployment_policy") == "simultaneous_member_area_entry"
+    if pending.options.get("multi_player_choice_type") == "multi_player_opponent_live_offer":
+        _complete_opponent_live_offer(state, pending, events)
     if pending.options.get("multi_player_choice_type") == "multi_player_waiting_live_recovery":
         _complete_waiting_live_recovery(state, pending, events)
     if simultaneous:
@@ -6567,6 +6657,7 @@ def _effect_uses_multi_player_choice(effect: Any) -> bool:
             "multi_player_draw_then_discard",
             "multi_player_waiting_live_recovery",
             "multi_player_center_position_change",
+            "multi_player_opponent_live_offer",
         }
     )
 
