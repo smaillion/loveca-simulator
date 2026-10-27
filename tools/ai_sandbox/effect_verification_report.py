@@ -196,6 +196,9 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *((f"both_waiting_live_{first}_{second}", f"両者控室回収 {first}/{second}", f"双方控室回收 {first}/{second}",
+           "PL!N-bp4-007:1", lambda effect, first=first, second=second: _run_both_waiting_live_recovery(effect, first, second))
+          for first, second in ((0, 0), (0, 2), (2, 0), (2, 2))),
         *((f"mill_blade_colors_{case}", f"控室三枚・Blade Heart色条件 {case}", f"顶三控室与Blade Heart颜色 {case}",
            "PL!N-bp7-020:1", lambda effect, case=case: _run_mill_blade_colors(effect, case=case))
           for case in ("none", "same", "two", "three", "all_green", "live_excluded")),
@@ -514,6 +517,8 @@ def _v1_1_dynamic_scenarios(
                 notes_ja=[f"公式日本語テキスト: {effect.label_ja}"],
                 notes_zh=[f"官方日文效果文本：{effect.label_ja}"],
                 rule_reference_ids=(
+                    ["1.3.4", "1.3.4.1", "7.2.1.1", "7.2.1.2", "9.6.3.1", "9.6.3.1.3", "9.7.7"]
+                    if effect_id == "PL!N-bp4-007:1" else
                     ["2.1.1", "2.1.3", "2.2.2.2", "2.7", "4.1.4", "9.7.7", "10.2.2.1", "8.4.11"]
                     if effect_id == "PL!N-bp7-020:1" else
                     ["1.3.2.2", "5.7.1", "9.6.3.1.1", "10.2.2.2", "10.2.3"]
@@ -534,6 +539,48 @@ def _v1_1_dynamic_scenarios(
             )
         )
     return results
+
+
+def _run_both_waiting_live_recovery(effect: EffectDefinition, first: int, second: int) -> dict[str, bool]:
+    source = _v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id], cost=0)
+    cards = [source, _v1_1_member("tail", "Hidden Tail")]
+    waiting = {}
+    for player_id, count in (("player_1", first), ("player_2", second)):
+        waiting[player_id] = []
+        for i in range(count):
+            item = _v1_1_live(f"{player_id}-recovery-{i}", "Recovery Live")
+            item.owner_id = player_id
+            cards.append(item)
+            waiting[player_id].append(item.instance_id)
+    state = _v1_1_state({effect.effect_id: effect}, cards, hand=["source"])
+    state.players["player_1"].main_deck = ["tail"]
+    for player_id in state.players:
+        state.players[player_id].waiting_room = waiting[player_id]
+    played = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1",
+        expected_revision=state.revision, payload={"card_instance_id": "source", "slot": "center",
+        "energy_instance_ids": [], "use_baton_touch": False}))
+    result = apply_action(played.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=played.state.revision, payload={"invocation_id": played.state.pending_effects[0].invocation_id}))
+    unchanged_until_both = True
+    while result.state.pending_choice is not None:
+        pending = result.state.pending_choice
+        selected = pending.options["candidate_card_instance_ids"][:1]
+        chooser = pending.player_id
+        result = apply_action(result.state, ActionRequest(action_type="resolve_effect_choice", player_id=chooser,
+            expected_revision=result.state.revision, payload={"selected_card_instance_ids": selected}))
+        if result.state.pending_choice is not None:
+            unchanged_until_both &= all(item in result.state.players[chooser].waiting_room for item in selected)
+    return {
+        "各自のLiveだけ回収 / 只回收各自Live": all(
+            len(result.state.players[p].hand) == int(count > 0)
+            and all(item.startswith(p + "-recovery-") for item in result.state.players[p].hand)
+            for p, count in (("player_1", first), ("player_2", second))),
+        "両選択後に移動 / 双方选择后才移动": unchanged_until_both,
+        "各控室は一枚だけ減る / 每方控室最多减一": all(
+            len(result.state.players[p].waiting_room) == max(0, count - 1)
+            for p, count in (("player_1", first), ("player_2", second))),
+        "待機完了 / 待机完成": not result.state.pending_effects and result.state.pending_choice is None,
+    }
 
 
 def _run_mill_blade_colors(effect: EffectDefinition, *, case: str) -> dict[str, bool]:

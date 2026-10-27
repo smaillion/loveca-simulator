@@ -338,6 +338,7 @@ class EffectChoice(BaseModel):
         "public_aqours_blade_six_source_score",
         "public_four_lily_white_live",
         "private_ten_minus_hand_keep_two",
+        "public_both_waiting_live_one",
     ] | None = None
     zone: str | None = None
     card_type: str | None = None
@@ -426,6 +427,16 @@ class EffectChoice(BaseModel):
 
     @model_validator(mode="after")
     def validate_deployment_policy(self) -> EffectChoice:
+        if self.selection_policy == "public_both_waiting_live_one" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "multi_player_waiting_live_recovery",
+                "selection_policy": "public_both_waiting_live_one", "zone": "waiting_room",
+                "card_type": "live", "minimum": 1, "selected_destination": "hand",
+            }
+        ):
+            raise ValueError("both-player recovery requires one public Waiting Room Live per player")
+        if self.choice_type == "multi_player_waiting_live_recovery" and self.selection_policy != "public_both_waiting_live_one":
+            raise ValueError("both-player recovery requires its explicit snapshot policy")
         if self.selection_policy == "private_ten_minus_hand_keep_two" and (
             self.model_dump(exclude_defaults=True, exclude_none=True) != {
                 "choice_type": "inspect_top_select",
@@ -627,6 +638,16 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        if self.choice and self.choice.selection_policy == "public_both_waiting_live_one" and (
+            self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
+            or self.effect_type != "triggered" or self.timing != "on_play" or self.trigger != "member_played"
+            or self.duration is not None or self.frequency_limit != "none"
+            or self.execution_mode != "prompt_then_resolve"
+            or [op.model_dump(exclude_defaults=True, exclude_none=True) for op in self.actions] != [
+                {"action_type": "return_from_waiting_room", "target": "both"},
+            ]
+        ):
+            raise ValueError("both-player recovery only supports the fixed mandatory on-play sequence")
         if any(op.action_type == "gain_source_heart_if_milled_member_blade_colors" for op in self.actions) and (
             self.cost or self.cost_choice or self.choice or self.follow_up_choice or self.condition
             or self.is_optional or self.effect_type != "triggered" or self.timing != "on_play"

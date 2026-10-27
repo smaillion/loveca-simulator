@@ -871,6 +871,9 @@ def _manual_adjustment(
     action: ActionRequest,
     events: list[GameEvent],
 ) -> None:
+    if (state.pending_choice is not None
+            and state.pending_choice.options.get("multi_player_choice_type") == "multi_player_waiting_live_recovery"):
+        raise IllegalActionError("structured public recovery must be resolved before manual adjustment")
     if (
         state.pending_choice is not None
         and state.pending_choice.choice_type == "effect_inspection_selection"
@@ -1218,6 +1221,10 @@ def _skip_effect_legal_action(state: MatchState, player_id: str | None) -> Legal
             else state.pending_effects
         )
     ]
+    if (state.pending_choice is not None
+            and state.pending_choice.options.get("multi_player_choice_type") == "multi_player_waiting_live_recovery"):
+        for invocation in invocations:
+            invocation.pop("source_card_instance_id", None)
     return LegalAction(
         action_type="skip_effect",
         player_id=player_id,
@@ -2242,7 +2249,9 @@ def _begin_multi_player_effect_choice(
     if state.pending_choice is not None:
         raise IllegalActionError("another choice is already pending")
     first_chooser = invocation.player_id
-    if state.effect_order_policy is not None:
+    if choice.choice_type == "multi_player_waiting_live_recovery":
+        first_chooser = _effect_active_player_id(state) or invocation.player_id
+    elif state.effect_order_policy is not None:
         first_chooser = _effect_active_player_id(state) or invocation.player_id
     elif choice.deployment_policy is not None:
         first_chooser = state.active_player_id or state.first_player_id or invocation.player_id
@@ -2266,6 +2275,9 @@ def _begin_multi_player_effect_choice(
     }
     if choice.deployment_policy is not None:
         options.update(deployment_policy=choice.deployment_policy, orientation=choice.orientation)
+    if choice.choice_type == "multi_player_waiting_live_recovery":
+        options.update(selected_destination="hand", selection_policy="public_both_waiting_live_one")
+        options.pop("source_card_instance_id", None)
     if choice.choice_type == "multi_player_draw_then_discard":
         amount = choice.amount or 0
         for player_id in player_order:
@@ -2297,6 +2309,10 @@ def _begin_multi_player_effect_choice(
             source="player",
         )
     )
+
+    if choice.choice_type == "multi_player_waiting_live_recovery" and not options["minimum"]:
+        state.pending_choice.options["current_index"] = -1
+        _advance_multi_player_effect_choice(state, events)
 
 
 def _resolve_effect_choice(
@@ -2543,7 +2559,13 @@ def _resolve_multi_player_effect_choice(
     invocation = _find_pending_invocation(state, pending.options.get("invocation_id"))
     _assert_effect_resolution_turn(state, invocation)
     choice_type = pending.options.get("multi_player_choice_type")
-    if choice_type == "multi_player_deploy_waiting_member":
+    if choice_type == "multi_player_waiting_live_recovery":
+        definition = state.effect_definitions[invocation.effect_id].choice
+        if (definition is None or definition.choice_type != choice_type
+                or definition.selection_policy != "public_both_waiting_live_one"):
+            raise IllegalActionError("public recovery requires its actual snapshot definition")
+        _resolve_waiting_live_recovery_choice(state, action, pending, events)
+    elif choice_type == "multi_player_deploy_waiting_member":
         _resolve_multi_player_deploy_choice(state, action, pending, events)
     elif choice_type in {
         "multi_player_discard_to_hand_size_then_draw",
@@ -2553,6 +2575,54 @@ def _resolve_multi_player_effect_choice(
     else:
         raise IllegalActionError("unsupported multi-player effect choice")
     _advance_multi_player_effect_choice(state, events)
+
+
+def _resolve_waiting_live_recovery_choice(
+    state: MatchState, action: ActionRequest, pending: PendingChoice, events: list[GameEvent],
+) -> None:
+    candidates = _waiting_live_recovery_candidates(state, pending.player_id)
+    selected = action.payload.get("selected_card_instance_ids", [])
+    if (not isinstance(selected, list) or len(selected) != (1 if candidates else 0)
+            or any(not isinstance(item, str) or item not in candidates for item in selected)
+            or action.payload.get("selected_card_instance_id") is not None
+            or action.payload.get("ordered_card_instance_ids") not in (None, [])):
+        raise IllegalActionError("each player must select one own public Waiting Room Live when possible")
+    _record_multi_player_selection(pending, pending.player_id, {"selected_card_instance_ids": list(selected)})
+    events.append(GameEvent(
+        event_type="effect_public_waiting_live_selected", player_id=pending.player_id,
+        data={"invocation_id": pending.options["invocation_id"], "effect_id": pending.options["effect_id"],
+              "selected_card_instance_ids": selected,
+              "revealed_cards": [_public_card_snapshot(state, item) for item in selected]}, source="player",
+    ))
+
+
+def _waiting_live_recovery_candidates(state: MatchState, player_id: str) -> list[str]:
+    return [item for item in state.players[player_id].waiting_room
+            if state.cards[item].owner_id == player_id and state.cards[item].card.card_type == "live"]
+
+
+def _complete_waiting_live_recovery(state: MatchState, pending: PendingChoice, events: list[GameEvent]) -> None:
+    moves: dict[str, list[str]] = {}
+    for player_id in pending.options["player_order"]:
+        selection = pending.options["selections"].get(player_id, {})
+        selected = selection.get("selected_card_instance_ids", [])
+        candidates = _waiting_live_recovery_candidates(state, player_id)
+        if (len(selected) != (1 if candidates else 0) or any(item not in candidates for item in selected)):
+            raise IllegalActionError("original public recovery selections are no longer legal")
+        moves[player_id] = list(selected)
+    revealed = [_public_card_snapshot(state, item) for ids in moves.values() for item in ids]
+    for player_id, ids in moves.items():
+        player = state.players[player_id]
+        for item in ids:
+            player.waiting_room.remove(item)
+            player.hand.append(item)
+            state.cards[item].face_up = False
+    events.append(GameEvent(
+        event_type="effect_waiting_lives_recovered",
+        player_id=_find_pending_invocation(state, pending.options["invocation_id"]).player_id,
+        data={"invocation_id": pending.options["invocation_id"], "effect_id": pending.options["effect_id"],
+              "card_instance_ids_by_player": moves, "revealed_cards": revealed}, source="system",
+    ))
 
 
 def _resolve_multi_player_deploy_choice(
@@ -2766,7 +2836,11 @@ def _refresh_multi_player_choice_options(
         return
     player = state.players[player_id]
     choice_type = options.get("multi_player_choice_type")
-    if choice_type == "multi_player_deploy_waiting_member":
+    if choice_type == "multi_player_waiting_live_recovery":
+        candidates = _waiting_live_recovery_candidates(state, player_id)
+        options["candidate_card_instance_ids"] = candidates
+        options["minimum"] = options["maximum"] = int(bool(candidates))
+    elif choice_type == "multi_player_deploy_waiting_member":
         maximum_cost = options.get("maximum_cost")
         candidates = [
             item
@@ -2822,6 +2896,8 @@ def _complete_multi_player_effect_choice(
     invocation = _find_pending_invocation(state, pending.options.get("invocation_id"))
     effect = state.effect_definitions[invocation.effect_id]
     simultaneous = pending.options.get("deployment_policy") == "simultaneous_member_area_entry"
+    if pending.options.get("multi_player_choice_type") == "multi_player_waiting_live_recovery":
+        _complete_waiting_live_recovery(state, pending, events)
     if simultaneous:
         _complete_simultaneous_member_deployment(state, pending, events)
     state.pending_choice = None
@@ -6445,6 +6521,7 @@ def _effect_uses_multi_player_choice(effect: Any) -> bool:
             "multi_player_deploy_waiting_member",
             "multi_player_discard_to_hand_size_then_draw",
             "multi_player_draw_then_discard",
+            "multi_player_waiting_live_recovery",
         }
     )
 

@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+優木せつ菜`PL!N-bp4-007:1`双方控室Live回收已限定适配：主动方先公开选择，双方选完后同时入手。74专项、206图文及四AI/SQL/双视角通过，冻结30局完赛11→12。本轮新类型的来源ID泄露已保护，但另复现旧多玩家类型的同类风险，下一项优先修复，不宣称全局隐私审计完成。[证据与剩余风险](./docs/development/both-waiting-live-recovery-verification.md)
+
 エマ・ヴェルデ`PL!N-bp7-020:1`依据精确卡文及官方Q270适配：顶三控室仅统计Member的有色Blade Heart，两色以上给原来源绿Heart+1，不混用ALL、Live或普通Heart。61专项、202图文及实际三次触发验证；固定30局仍11完赛/19人工停止，不宣称完赛改善。[证据与边界](./docs/development/mill-three-blade-colors-verification.md)
 
 米女メイ`PL!SP-PR-028:1`已按全文/revision/hash精确适配：结算时按10减当前手牌私看，最多取两张且不公开，余牌控室。59项专项、196图文通过；同冻结30牌组完赛9→11，本卡实际触发两次。登记919/1212、293manual；公开四张及成功区特殊计数仍未解决，不冒充完整规则或发布验收。[证据与边界](./docs/development/ten-minus-hand-private-two-verification.md)

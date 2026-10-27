@@ -1923,6 +1923,7 @@ const autoResultOperationEvents = new Set([
   "effect_source_member_readied",
   "effect_blade_comparison_resolved",
   "effect_milled_blade_colors_resolved",
+  "effect_waiting_lives_recovered",
   "effect_cards_milled",
   "effect_cards_revealed",
   "effect_cards_revealed_to_hand",
@@ -2033,6 +2034,9 @@ function autoResultLines(
           || related.data.reason === "overlap_source_member_departed"
           || related.data.reason === "original_source_stage_member_departed"
           || related.data.reason === "no_legal_stage_member_at_resolution")) {
+      const summary = eventSummary(related, state, locale);
+      if (summary) lines.push(summary);
+    } else if (related.event_type === "effect_waiting_lives_recovered") {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
     } else if (related.event_type === "effect_milled_blade_colors_resolved") {
@@ -4221,6 +4225,8 @@ function eventTitle(event: GameEvent, locale: UiLocale): string {
     effect_auto_resolved: ["技能自动发动", "能力の自動解決"],
     effect_blade_comparison_resolved: ["Blade 比较结果", "ブレード比較結果"],
     effect_milled_blade_colors_resolved: ["Blade Heart 颜色判定", "ブレードハート色の判定"],
+    effect_waiting_lives_recovered: ["双方控室 Live 回收", "両者の控室ライブ回収"],
+    effect_public_waiting_live_selected: ["控室 Live 选择", "控室ライブの選択"],
     effect_resolved: ["技能结算", "能力解決"],
     effect_not_activatable: ["技能未自动处理", "能力の自動処理不可"],
     effect_operation_not_applied: ["技能部分未执行", "能力の一部未実行"],
@@ -4329,6 +4335,11 @@ function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): st
     return locale === "zh"
       ? "该登场观察者的重叠时点尚待审核，请手动确认。"
       : "重複時の登場誘発は未審査です。手動で確認してください。";
+  }
+  if (event.event_type === "effect_waiting_lives_recovered") {
+    const moves = event.data.card_instance_ids_by_player as Record<string, unknown> | undefined;
+    return Object.entries(moves ?? {}).map(([id, cards]) =>
+      `${state.players[id]?.name ?? id}: ${stringArray(cards).length} Live`).join(" / ");
   }
   if (event.event_type === "effect_milled_blade_colors_resolved") {
     const count = stringArray(event.data.blade_heart_color_slots).length;
@@ -5163,7 +5174,7 @@ export function EffectResolutionAction({
     deployment_unsupported_slots?: Record<string, string>;
     deployment_unsupported_slots_by_candidate?: Record<string, Record<string, string>>;
     deployment_requires_manual_resolution?: boolean;
-    selection_policy?: "private_filtered_may_choose_none" | "public_single_as_much_as_possible" | "public_named_groups_as_much_as_possible" | "public_other_nijigasaki_cost_heart" | "public_yell_aqours_bottom_three" | "public_nijigasaki_blade_four_heart" | "public_aqours_blade_six_source_score" | "public_four_lily_white_live" | "private_ten_minus_hand_keep_two";
+    selection_policy?: "private_filtered_may_choose_none" | "public_single_as_much_as_possible" | "public_named_groups_as_much_as_possible" | "public_other_nijigasaki_cost_heart" | "public_yell_aqours_bottom_three" | "public_nijigasaki_blade_four_heart" | "public_aqours_blade_six_source_score" | "public_four_lily_white_live" | "private_ten_minus_hand_keep_two" | "public_both_waiting_live_one";
     choice_groups?: Array<{
       group_id: string;
       label_ja?: string | null;
@@ -5614,6 +5625,8 @@ export function InspectionChoiceAction({
   const multiChoiceType = String(action.options.multi_player_choice_type ?? "");
   const isMultiChoice = multiChoiceType.startsWith("multi_player_");
   const isMemberDeployment = multiChoiceType === "multi_player_deploy_waiting_member";
+  const publicRecoveries = multiChoiceType === "multi_player_waiting_live_recovery"
+    ? Object.entries((action.options.selections ?? {}) as Record<string, Record<string, unknown>>) : [];
   const slotOptions = stringArray(action.options.available_slots);
   const inspected = ((action.options.inspected_card_instance_ids
     ?? (isMultiChoice ? action.options.candidate_card_instance_ids : []) ?? []) as string[]).filter(
@@ -5658,6 +5671,10 @@ export function InspectionChoiceAction({
       {isMultiChoice && (
         <small>{tr("选择玩家", "選択するプレイヤー")}: {state.players[action.player_id ?? ""]?.name ?? tr("对战玩家", "プレイヤー")}</small>
       )}
+      {publicRecoveries.map(([playerId, selection]) => (
+        <small key={playerId}>{state.players[playerId]?.name ?? playerId}: {stringArray(selection.selected_card_instance_ids)
+          .map((id) => state.cards[id]?.card.name_ja ?? id).join(" / ") || "0 Live"}</small>
+      ))}
       {action.options.deployment_policy === "simultaneous_member_area_entry" && (
         <small>{tr("双方选择后同时登场；随后处理登場能力。", "双方の選択後に同時に登場し、登場能力を処理します。")}</small>
       )}

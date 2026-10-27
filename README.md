@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+優木せつ菜`PL!N-bp4-007:1`の両者控室Live回収を限定対応。アクティブ側から公開選択し、両選択後に同時に手札へ。74専用テスト、206図解、四AI/SQL/双視点を検証。固定30試合は11→12完了。ただし旧多人数処理で発見した別の発生源ID漏洩は次の優先修正であり、全体の安全性完了ではありません。[証拠と残件](./docs/development/both-waiting-live-recovery-verification.md)
+
 エマ・ヴェルデ`PL!N-bp7-020:1`を正確な本文と公式Q270に基づき対応。上三枚のMemberだけから有色Blade Heartを数え、二色以上なら元の発生源に緑Heart+1。ALL/Live/通常Heartは混同しません。61専用テスト、202図解検証、実際に三回誘発。固定30試合は11完了/19手動停止のままです。[検証と限界](./docs/development/mill-three-blade-colors-verification.md)
 
 米女メイ`PL!SP-PR-028:1`を本文/revision/hash限定で対応。解決時の手札枚数から確認数を計算し、非公開で0–2枚取得、残りは控室へ。59専用テストと196図解検証。同じ30デッキで9→11試合完了、本能力は実際に2回誘発。登録919/1212、293manual。公開四枚・成功置き場の未解決能力は昇格しません。[検証と制限](./docs/development/ten-minus-hand-private-two-verification.md)

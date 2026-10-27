@@ -38,6 +38,15 @@
       "acceptance": ["只为已有至少四张牌库的原型增加受限snapshot策略，不改官方registry或generator，不提高执行率；不足四张在修改状态前明确拒绝，正式PL!-pb2-013仍manual", "公开不改变牌库对象及顺序；全四张lily_white才必须选其中Live一张并丢弃其余，否则无选择且原牌库不变；无Live时明确零张；验证公开/私看隔离、原对象、非法选择原子性和离开返回", "真实状态、SQL Replay、四AI及隐藏信息、原生UI有断言；旧私看快照维持原状。全部profiles/pre-push和新源码绑定的冻结30局通过，中文报告区分原型验证与正式卡裁定", "保留公开短牌库与刷新语义unresolved，不套用私看10.2.2.2，也不把逐张公开FAQ直接当成同时公开四张裁定；未获新PR目标批准前不改policy、不推送、不合并部署"]
     },
     {
+      "id": "multi-player-hidden-source-reference-privacy",
+      "priority": 0,
+      "title": "优先修复旧多玩家legal引用复活隐藏来源卡的泄露",
+      "status": "queued",
+      "depends_on": ["onplay-both-players-waiting-live-recovery"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["先保留真实复现：test_multi_player_entry旧PL!-pb1-018:1夹具的source-live离开Stage到owner手牌，首方选target后轮到player_2，_match_state_payload当前将source-live错误加入对手card map；不是假想漏洞", "审计正常选择与skip legal action及pending复制、历史/重连、AI和语义provider投影；非候补来源/元数据引用不得把对方手牌或未知牌库身份复活，必要的本人私看、公开候补和已公开选择历史仍正常", "覆盖旧多玩家登场/抽弃/弃后抽与新控室回收、双方角色及来源在手牌/未知牌库/公开区域、隐藏身份不变和完整响应；保持原始MatchState/SQL Replay及旧snapshot规则行为，不用改登记或缩小旧测试逃避", "真实状态/API或SSE/重连/四AI与必要UI回归及全部profiles/pre-push通过；源码改变需重新绑定冻结诊断，不提升reviewed、不改默认AI/Card/SQL schema。只做本地验证提交，未获新PR目标明确批准前不改policy、不推送、新建PR、合并部署"]
+    },
+    {
       "id": "onplay-both-players-waiting-live-recovery",
       "priority": 0,
       "title": "按新实际待机审计双方各取自身控室Live一张",

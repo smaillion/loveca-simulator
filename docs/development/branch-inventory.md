@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-27 当前双方控室回收切片：仍使用固定分支/工作树，仅PL!N-bp4-007:1登记变化，同卡后两段未动。新类型隐私已保护；旧多玩家来源ID泄露已只读复现并排最高优先级，旧dirty与ignored报告保留。见`both-waiting-live-recovery-verification.md`；新PR目标未变。
+
 2026-10-27 当前エマ切片：继续固定分支/工作树，按官方Q270适配顶三Member Blade Heart颜色条件；实际触发3次，冻结30局仍11完赛/19人工停止，不宣称完赛改善。旧dirty及ignored报告保留，后续PR目标待批，最终门禁另存。见`mill-three-blade-colors-verification.md`。
 
 2026-10-27 四张公开底座：正式PL!-pb2-013因短牌库公开/刷新语义保持blocked及manual；另建未绑定官方卡的至少四张prototype，条件失败原库不变、旧私看不公开。新冻结30局仍9/21，源码绑定，旧dirty和ignored报告未动，PR目标待批。见`public-four-reveal-foundation.md`。

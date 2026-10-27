@@ -2088,6 +2088,25 @@ describe("App", () => {
     expect((await screen.findAllByText(`メンバーのブレードハート ${colors} 色 · 誘発元の緑ハート +${delta}`)).length).toBeGreaterThan(0);
   });
 
+  it.each([0, 1])("shows simultaneous Waiting Room Live recovery counts (%s)", async (count) => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const data = { invocation_id: "both-recovery", effect_id: "PL!N-bp4-007:1",
+      card_instance_ids_by_player: { player_1: count ? ["returned-1"] : [], player_2: ["returned-2"] } };
+    const matchCreate = { ...MATCH_PAYLOAD, events: [
+      { event_type: "effect_waiting_lives_recovered", player_id: "player_1", source: "system", data },
+      { event_type: "effect_resolved", player_id: "player_1", source: "system", data },
+    ] };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    const create = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(create).not.toBeDisabled());
+    fireEvent.click(create);
+    const expected = `${MATCH_PAYLOAD.state.players.player_1.name}: ${count} Live / ${MATCH_PAYLOAD.state.players.player_2.name}: 1 Live`;
+    expect((await screen.findAllByText(expected)).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect(screen.getAllByText(expected).length).toBeGreaterThan(0);
+  });
+
   it("shows an automatic result notice for milled cards even when the conditional follow-up does not happen", async () => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const sourceId = "player_1-M001";
@@ -3353,6 +3372,30 @@ describe("App", () => {
     fireEvent.click(screen.getByRole("button", { name: "确认取得" }));
     expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_1", {
       selected_card_instance_ids: [], ordered_card_instance_ids: undefined,
+    });
+  });
+
+  it("shows the first public recovery choice and submits only for the second chooser", () => {
+    const onAction = vi.fn();
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: {
+      ...INSPECTION_MATCH_PAYLOAD.state.cards,
+      "player_1-M002": { ...INSPECTION_CARDS["player_1-M002"], card: { ...INSPECTION_CARDS["player_1-M002"].card, card_type: "live" } },
+      "player_1-M003": { ...INSPECTION_CARDS["player_1-M003"], owner_id: "player_2", card: { ...INSPECTION_CARDS["player_1-M003"].card, card_type: "live" } },
+    } };
+    const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], player_id: "player_2", options: {
+      effect_id: "PL!N-bp4-007:1", multi_player_choice_type: "multi_player_waiting_live_recovery",
+      candidate_card_instance_ids: ["player_1-M003"], minimum: 1, maximum: 1, selected_destination: "hand",
+      selections: { player_1: { selected_card_instance_ids: ["player_1-M002"] } },
+    } };
+    render(<InspectionChoiceAction action={action as never} state={state as never}
+      loading={false} onAction={onAction} title="控室 Live" submitLabel="确认回收" />);
+    expect(screen.getByText(new RegExp(`${state.players.player_1.name}: ${INSPECTION_CARDS["player_1-M002"].card.name_ja}`))).toBeInTheDocument();
+    const confirm = screen.getByRole("button", { name: "确认回收" });
+    expect(confirm).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: new RegExp(INSPECTION_CARDS["player_1-M003"].card.name_ja) }));
+    fireEvent.click(confirm);
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_2", {
+      selected_card_instance_ids: ["player_1-M003"], ordered_card_instance_ids: undefined,
     });
   });
 

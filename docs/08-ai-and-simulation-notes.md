@@ -1,5 +1,14 @@
 # AI and Simulation Notes
 
+PL!N-bp4-007:1 uses active-player-first public Waiting Room selections and moves
+both Lives only after both choices. Four-policy new-type dispatch preserves
+old strategies. Frozen30 improves11→12 completed,180/182 executable completions;
+seed18008 triggers this ability twice and finishes3:2 Live on turn8.
+New-type legal references no longer resurrect a hidden source; the analogous
+legacy multi-player projection leak was reproduced and is the next priority,
+not falsely declared fixed. Defaultv1.1 and raw historical snapshots remain.
+[Evidence and residual risk](development/both-waiting-live-recovery-verification.md).
+
 PL!N-bp7-020:1 now automatically mills three and tests distinct printed colored
 Member Blade Hearts, following officialQ270 (ALL+green is insufficient).
 Four policies cover actual play and pending resolution without hidden-identity

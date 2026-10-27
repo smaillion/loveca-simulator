@@ -847,6 +847,7 @@ def _structured_effect_payload_v1(
         "multi_player_discard_to_hand_size_then_draw",
         "multi_player_draw_then_discard",
         "multi_player_deploy_waiting_member",
+        "multi_player_waiting_live_recovery",
     }:
         return payload
     if choice_type in {"member_group_from_stage", "card_groups_from_zone"}:
@@ -1533,6 +1534,7 @@ def _choose_effect_resolution(
         "multi_player_discard_to_hand_size_then_draw",
         "multi_player_draw_then_discard",
         "multi_player_deploy_waiting_member",
+        "multi_player_waiting_live_recovery",
     }:
         return action.action_type, action.player_id, payload, "resolve_multi_player_effect"
     if choice_type in {"member_group_from_stage", "card_groups_from_zone"}:

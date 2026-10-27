@@ -48,6 +48,13 @@ MILL_THREE_BLADE_COLORS_TEXT = (
     "ライブ終了時まで、【heart04】を得る。"
 )
 
+BOTH_WAITING_LIVE_TEXT = "【登場】自分と相手はそれぞれ、自身の控え室からライブカードを1枚手札に加える。"
+BOTH_WAITING_LIVE_FULL_TEXT = (
+    BOTH_WAITING_LIVE_TEXT
+    + " 【常時】自分と相手のエネルギーの合計が15枚以上あるかぎり、【heart02】【heart02】を得る。"
+    + " 【ライブ成功時】自分と相手はそれぞれ、自身のエネルギーデッキから、エネルギーカードを1枚ウェイト状態で置く。"
+)
+
 
 @dataclass(frozen=True)
 class EffectCandidate:
@@ -2762,6 +2769,21 @@ def _onplay_optional_discard_inspect_keep1_any(
             {"action_type": "move_remaining_cards"},
         ],
         duration=None,
+    )
+
+
+def _onplay_both_waiting_live(row: sqlite3.Row) -> EffectCandidate | None:
+    if (row["card_code"] != "PL!N-bp4-007" or row["text_revision_id"] != 363
+            or row["raw_text_hash"] != "7076ae1f8dd1872704b75e15e069471bcc1d8ee6dcf21abb1b2cd4521ed3fe94"
+            or row["raw_effect_text_ja"] != BOTH_WAITING_LIVE_FULL_TEXT):
+        return None
+    return EffectCandidate(
+        **_base(row, pattern_id="onplay_both_waiting_live", effect_index=1),
+        label_ja=BOTH_WAITING_LIVE_TEXT, effect_type="triggered", timing="on_play", trigger="member_played",
+        frequency_limit="none", is_optional=False, condition={}, cost=[], duration=None,
+        choice={"choice_type": "multi_player_waiting_live_recovery", "selection_policy": "public_both_waiting_live_one",
+                "zone": "waiting_room", "card_type": "live", "minimum": 1, "maximum": 1, "selected_destination": "hand"},
+        actions=[{"action_type": "return_from_waiting_room", "target": "both"}],
     )
 
 
@@ -15511,6 +15533,7 @@ _PATTERNS = (
     _onplay_multi_keep_icon_scope_manual,
     _onplay_ten_minus_hand_private_two,
     _onplay_mill_three_blade_colors,
+    _onplay_both_waiting_live,
     _onplay_audited_discard_inspection,
     _onplay_optional_discard_inspect_keep1_any,
     _nijigasaki_onplay_inspection,

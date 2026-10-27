@@ -1,5 +1,13 @@
 # Effect Semantics Audit
 
+PL!N-bp4-007:1 follows1.3.4/1.3.4.1 and7.2: the active player selects first,
+the second knows that public choice, then both selected Lives move together.
+Public-zone mandatory selection uses9.6.3.1/1.3; empty candidates skip only
+that player's impossible choice.74 targeted and4 illustrated state scenarios
+are implementation evidence. The separate legacy hidden-source legal-reference
+leak remains queued for priority repair, not covered by this new-type guard.
+[Evidence](development/both-waiting-live-recovery-verification.md).
+
 PL!N-bp7-020:1 follows officialQ270: ALL plus green does not satisfy two colors.
 Only six colored Blade Hearts on the milled Members count; ordinary Hearts,
 Live cards and special draw/score/ALL icons are not extra colors. A bounded
