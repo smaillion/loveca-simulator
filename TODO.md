@@ -9,6 +9,8 @@
 
 ### 新卡起动与未支持段落
 
+- `PL!-pb2-041:2`审计发现第一段计数常时依赖，现有实体unit计数不能覆盖一张当两张的场景；12项manual/四AI/SQL边界已通过，保持两段manual，原因`success_live_counting_override_not_modeled`。见`docs/development/lily-white-source-score-unresolved.md`。下一独立任务是`PL!-pb2-013:1`顶四全lily white时取得其中Live，先核对短牌库/刷新与精确日文，不直接晋级。
+
 - `PL!S-bp3-025:1`已在本地修正先选人后判Blade六及仅原来源Live加分，有266相关/191图文、新旧SQL Replay、四AI及隐私断言。冻结30局仍9完赛/21人工停止，本卡实际触发0，不宣称完赛改善。最终门禁独立保存；下一项为`PL!-pb2-041:2`的lily white成功区两张与来源score，复杂第一段manual。见`docs/development/aqours-blade-six-score-verification.md`。新PR发布目标另待明确确认，不复用关闭的54。
 
 - `PL!N-sd2-026:1`精确支持有效Blade至少4的虹咲目标双Heart02，包含已支持常时修正但不修改旧Replay过滤。55专项、3UI和187图文通过，918/1212、294manual。同冻结30局9完赛/21人工停止，可执行158/160完成，仍非发布门禁。见`docs/development/nijigasaki-blade-four-heart-verification.md`。下一项审计`PL!-pb2-041:2`成功区lily white两张仅来源Live score+1，区分unit/work并保留第一段manual。

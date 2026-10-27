@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- `PL!-pb2-041:2`の実装前監査で第1段の成功置き場二枚扱いへの依存を確認。12境界テストで待機・四AI・SQL Replayを記録し、両段のmanualを維持する。
+- 中文: 暂不晋级lily white来源得分，登记unresolved_reason=success_live_counting_override_not_modeled；未改变游戏引擎、登记率或默认AI。下一独立切片转为顶四全lily white的Live检索，不按频次虚增覆盖。
+
 - `PL!S-bp3-025:1`の先選択・後Blade6判定を独立snapshot policyで修正し、scoreは元のLiveだけに付与。低Blade、離場・再登場、同領域移動、旧SQL Replayと四AIを検証。
 - 中文: 266项相关回归、191双语图文通过，registry仅目标卡语义变化，918/1212及294manual不变。同冻结30局9完赛/21人工停止、158/160可执行完成、Replay与错误skip均0；本卡随机局触发0，不提升reviewed、不改schema或默认AI，不宣称发布或beta验收。
 

@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-27 lily white审计：PL!-pb2-041:2依赖第一段成功区按两枚计数，暂保留两段manual，12项边界证明不冒充自动执行。应用源码/卡库/registry未变，下一独立任务为PL!-pb2-013:1顶四公开检索。固定工作树/分支继续复用，旧dirty及ignored报告未动，发布目标审批仍待确认。见`lily-white-source-score-unresolved.md`。
+
 2026-10-26T16:17Z：Aqours Blade6切片因限定恢复审批连续三轮缺失登记为blocked，仅保存状态，不再重试被拒绝的修改。现有PR54/90a10c6五项CI仍绿；本地225前端单测通过但完整build的数据导出因registry破损失败。依赖任务及全局门禁均不能绕过；等待已发出的限定审批，不新增分支、不提交推送。
 
 本地未提交检查点：Aqours Blade6/source score两项旧规则错误已真实复现，原型63专项及225前端通过；登记补丁重复上下文误写两个LL-bp5条目，安全检查拒绝自动恢复，已请求维护者限定批准。全局registry暂不能加载，不提交、不推送、不宣称门禁通过。恢复先读`aqours-blade-six-score-progress.md`，未批准不重试被拒绝的恢复；最后已发布90a10c6五项CI全绿，同PR54，旧dirty保留。

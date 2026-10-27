@@ -1,5 +1,11 @@
 # AI and Simulation Notes
 
+PL!-pb2-041:2 is still an explicit mandatory manual wait. Four policy/block-mode
+tests preserve that boundary and hidden-hand invariance; SQL Replay retains the
+first segment's unresolved counting dependency. The prior source-bound seed18019
+actually triggered it once; this audit is not a new frozen30 run or completion gain.
+[Chinese evidence](development/lily-white-source-score-unresolved.md).
+
 PL!S-bp3-025:1 now selects an own Aqours Stage Member before testing effective
 Blade>=6, scoring only its original Live object. Four policies and hidden-hand
 invariance have targeted assertions. Frozen30 remains9 completed/21 manual stops,

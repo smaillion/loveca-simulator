@@ -1,5 +1,12 @@
 # Effect Semantics Audit
 
+PL!-pb2-041:2 remains manual: its count depends on the first segment treating a
+success-area copy as two for own lily-white effects. The legacy physical-unit
+predicate does not model that dependency.12 boundary tests cover actual manual
+waits, four-policy block/invariance and SQL Replay, not automatic score execution.
+Reason:success_live_counting_override_not_modeled. No registry/coverage promotion.
+[Chinese evidence](development/lily-white-source-score-unresolved.md).
+
 PL!N-sd2-026:1 revision958 now supports one own Nijigasaki Stage Member with
 effective Blade>=4 and two Heart02. Static Blade is included only by the new
 bounded policy; historical generic filters stay unchanged.55 focused tests,

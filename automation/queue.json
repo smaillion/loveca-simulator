@@ -20,6 +20,15 @@
       "acceptance": ["核对PL!S-bp3-025:1精确日文/revision/hash与PDF选择目标/有效Blade/来源Live score规则；本轮发现旧登记minimum_blade6及通用modify_score字段，必须先真实复现而非只用脚本判错", "正文先选一名Aqours后判断Blade至少6，验证低Blade目标仍可选但不加分、有效5/6/7与常时/临时修正、无目标、多个Live与来源离开/同ID返回；只修正来源Live，不加全局score", "若可确认则使用独立新快照策略精确修正generator和registry，旧Replay保留原snapshot；若无法可靠确认则回退manual并记录unresolved；真实状态/SQL Replay/四AI/隐藏信息/UI/双语图文通过，不提升reviewed或改schema/默认AI", "同冻结30池有界复跑，源码绑定、实际触发与未触发分列；全部profiles及manifest/pre-push通过，同Draft PR54不合并部署，旧dirty保留", "中断恢复先读docs/development/aqours-blade-six-score-progress.md；安全检查要求维护者明确批准撤销本轮误写的两个LL-bp5条目，未批准不得重试恢复或绕过检查，不得将局部测试当作全局registry通过"]
     },
     {
+      "id": "onplay-lily-white-reveal-four-live-search",
+      "priority": 0,
+      "title": "按实际待机审计顶四全lily white的Live取得",
+      "status": "queued",
+      "depends_on": ["live-start-aqours-blade-six-source-score-integrity"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["精确核对PL!-pb2-013:1完整日文/revision986/hash 0a06fcfee9cde86a6c33f9b5369470994fac45e9a4fe236a94aae1e9e7531f86，先复现原冻结池3次实际人工待机；不按牌组频率晋级", "本次从顶四公开的原对象全为lily_white时才取其中一张Live，区分unit/work、Member/Live、混合单位、无Live及其他区域；核对短牌库/刷新及不足四张时全部公开对象的语义，不猜测FAQ", "必要时使用新受限snapshot策略，真实状态、费用为零、选择原子性、公开信息、旧manual SQL Replay、四AI、UI及双语图文有断言；不依赖成功区计数，不扩大PL!-pb2-041第一段manual边界", "全部required_profiles、manifest/pre-push及绑定源码的冻结诊断完成；未确认语义保留unresolved，不提升reviewed、不改schema/默认AI；新PR目标未明确批准前只做本地验证提交，不改policy、不推送、不合并部署"]
+    },
+    {
       "id": "live-start-success-lily-white-source-score",
       "priority": 0,
       "title": "按实际待机审计lily white成功区两张与来源Live得分",

@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+「春情ロマンティック」`PL!-pb2-041:2`は成功置き場の枚数を二枚扱いにする第1能力に依存するため、両段ともmanualを維持。12境界テストで実際の待機・四AI・SQL Replayを確認し、単純な実枚数での自動化は行いません。[未解決監査](./docs/development/lily-white-source-score-unresolved.md)
+
 `PL!S-bp3-025:1`はAqoursを先に選択し、解決時に有効Blade6以上なら元のLiveだけscore+1。低Bladeも選択可能で、離場後の同IDは再接続しません。旧Replay維持、266関連テスト・191図解を検証。同じ30デッキは9完了/21手動停止、本カードの実入隊は0で完走率の改善とはしません。[検証](./docs/development/aqours-blade-six-score-verification.md)
 
 継続開発のblockedタスクは、承認済みの原因解消を記録する`requeue`で復帰できます。有効な作業リースや未完了の依存を回避せず、古い検証結果も再利用しません。[開発手順](./docs/21-continuous-development.md)
