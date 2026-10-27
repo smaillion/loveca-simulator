@@ -4932,6 +4932,46 @@ describe("App", () => {
     });
   });
 
+  it.each(["wait_opponent", "draw_one"])("submits opponent next-active mode %s", (branch) => {
+    const onAction = vi.fn();
+    const action = {action_type:"resolve_effect",player_id:"player_1",options:{invocations:[{
+      invocation_id:"opponent-wait",effect_id:"PL!S-bp7-025:1",source_card_instance_id:"hidden-source",label_ja:"ライブ成功時",
+      trigger:"live_succeeded",timing:"live_success",execution_mode:"prompt_then_resolve",simulation_support:"test_validated_executable",
+      is_optional:false,candidate_card_instance_ids:[],choice_type:"choose_effect_branch",resolution_stage:"initial",
+      card_selection_minimum:0,card_selection_maximum:0,branch_ids:["wait_opponent","draw_one"],available_branch_ids:["wait_opponent","draw_one"],
+    }]}};
+    render(<EffectResolutionAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never} loading={false} onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.getByRole("button",{name:"结算技能"})).toBeDisabled();
+    fireEvent.click(screen.getByRole("button",{name:branch === "draw_one" ? "抽 1 张" : "对手费用4以下成员最多2人Wait，下回合不复原"}));
+    fireEvent.click(screen.getByRole("button",{name:"结算技能"}));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect","player_1",{invocation_id:"opponent-wait",accepted:true,selected_card_instance_ids:[],energy_instance_ids:[],selected_branch:branch});
+  });
+
+  it.each([0,2])("allows zero or two public opponent targets: %s", (count) => {
+    const onAction=vi.fn();
+    const action={action_type:"resolve_effect",player_id:"player_1",options:{invocations:[{
+      invocation_id:"opponent-wait",effect_id:"PL!S-bp7-025:1",source_card_instance_id:"hidden-source",label_ja:"ライブ成功時",
+      trigger:"live_succeeded",timing:"live_success",execution_mode:"prompt_then_resolve",simulation_support:"test_validated_executable",
+      is_optional:false,candidate_card_instance_ids:["player_1-M002","player_1-M003"],choice_type:"member_from_stage",resolution_stage:"after_cost",
+      card_selection_minimum:0,card_selection_maximum:2,
+    }]}};
+    render(<EffectResolutionAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never} loading={false} onAction={onAction} onManual={vi.fn()} />);
+    if(count){fireEvent.click(screen.getByRole("button",{name:/候補カード/}));fireEvent.click(screen.getByRole("button",{name:/条件外カード/}));}
+    fireEvent.click(screen.getByRole("button",{name:"结算技能"}));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect","player_1",{invocation_id:"opponent-wait",accepted:true,selected_card_instance_ids:count ? ["player_1-M002","player_1-M003"] : [],energy_instance_ids:[]});
+  });
+
+  it.each([[2,2,0],[0,1,0],[0,0,1]] as const)("shows opponent wait and draw result %s/%s/%s", async (waited, restricted, drawn) => {
+    seedSavedDecks([{path:"test.json",deck:SAMPLE_DECK}]);
+    const data={invocation_id:"opponent-wait",effect_id:"PL!S-bp7-025:1",waited_count:waited,restricted_count:restricted,drawn_count:drawn};
+    vi.stubGlobal("fetch",createFetchMock({matchCreate:{...MATCH_PAYLOAD,events:[{event_type:"effect_opponent_member_next_active_resolved",player_id:"player_1",source:"system",data},{event_type:"effect_resolved",player_id:"player_1",source:"system",data}]}}));
+    render(<App />);
+    const create=await screen.findByRole("button",{name:"创建对局"});await waitFor(()=>expect(create).not.toBeDisabled());fireEvent.click(create);
+    expect((await screen.findAllByText(`对手成员 Wait ${waited} 人 · 下回合不复原 ${restricted} 人 · 抽 ${drawn} 张`)).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button",{name:"日本語"}));
+    expect((await screen.findAllByText(`相手メンバー${waited}人をウェイト · 次ターンにアクティブしない${restricted}人 · ${drawn}枚ドロー`)).length).toBeGreaterThan(0);
+  });
+
   it.each(["ready_energy", "attach_energy_deck"])("submits the fixed DiverDiva branch %s", (branch) => {
     const onAction = vi.fn();
     const action = { action_type:"resolve_effect", player_id:"player_1", options:{ invocations:[{

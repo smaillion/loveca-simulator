@@ -873,6 +873,8 @@ def _manual_adjustment(
 ) -> None:
     if any(_diverdiva_energy_modes(state.effect_definitions[i.effect_id]) and i.resolution_stage != "initial" for i in state.pending_effects):
         raise IllegalActionError("DiverDiva branch must finish before manual adjustment")
+    if any(_opponent_wait_modes(state.effect_definitions[i.effect_id]) and i.resolution_stage != "initial" for i in state.pending_effects):
+        raise IllegalActionError("opponent Member branch must finish before manual adjustment")
     if (state.pending_choice is not None
             and state.pending_choice.options.get("multi_player_choice_type") in {"multi_player_waiting_live_recovery", "multi_player_center_position_change", "multi_player_opponent_live_offer"}):
         raise IllegalActionError("structured public recovery must be resolved before manual adjustment")
@@ -1642,6 +1644,10 @@ def _resolve_effect(
         raise IllegalActionError(
             "manual_resolution effects require a ManualAdjustmentAction"
         )
+    if _opponent_wait_modes(effect):
+        if (set(action.payload) - {"invocation_id", "accepted", "selected_branch", "selected_card_instance_ids", "energy_instance_ids", "ai_decision"}
+                or action.payload.get("energy_instance_ids") not in (None, [])):
+            raise IllegalActionError("opponent Member branch does not accept extra effect parameters")
     if _diverdiva_energy_modes(effect):
         if (set(action.payload) - {"invocation_id", "accepted", "selected_branch", "selected_card_instance_ids", "energy_instance_ids", "ai_decision"}
                 or action.payload.get("energy_instance_ids") not in (None, [])):
@@ -6601,6 +6607,7 @@ def _operation_requires_selected_choice(operation: Any) -> bool:
     }:
         return True
     return operation.action_type in {
+        "wait_opponent_cost4_skip_next_turn_active",
         "attach_energy_deck_to_selected_nijigasaki",
         "apply_wait_energy",
         "conceal_selected_cards",
@@ -7031,6 +7038,10 @@ def _record_effect_ready_flag(
 
 def _effect_uses_branch_choice(effect: Any) -> bool:
     return bool(effect.choice and effect.choice.choice_type == "choose_effect_branch")
+
+
+def _opponent_wait_modes(effect: Any) -> bool:
+    return getattr(getattr(effect, "choice", None), "selection_policy", None) == "public_opponent_cost4_wait_or_draw"
 
 
 def _diverdiva_energy_modes(effect: Any) -> bool:
@@ -8194,12 +8205,33 @@ def _execute_operations(
                       "affected_energy_instance_ids": [placed_id] if placed_id else [],
                       "target_turn": state.turn_number + 1}, source="system",
             ))
+        elif operation_type == "wait_opponent_cost4_skip_next_turn_active":
+            opponent_id = "player_2" if invocation.player_id == "player_1" else "player_1"
+            opponent = state.players[opponent_id]
+            waited = []
+            for item in operation_selected_ids:
+                if (_top_member_slot(opponent, item) is None or state.cards[item].card.card_type != "member"
+                        or (state.cards[item].card.cost or 0) > 4):
+                    raise IllegalActionError("restriction target must be an opponent Stage Member costing at most four")
+                if state.cards[item].orientation == "active":
+                    waited.append(item)
+                    state.cards[item].orientation = "wait"
+                opponent.manual_modifiers.append(ManualModifier(
+                    modifier_id=f"effect:{invocation.invocation_id}:member-next-active:{item}", modifier_type="flag",
+                    flag="skip_selected_member_next_turn_active", duration="game", created_turn=state.turn_number,
+                    target_card_instance_id=item, value={"policy": "selected_opponent_cost4_next_turn_active", "target_turn": state.turn_number + 1},
+                ))
+            events.append(GameEvent(event_type="effect_opponent_member_next_active_resolved", player_id=invocation.player_id,
+                data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id, "selected_branch": "wait_opponent",
+                      "selected_member_instance_ids": list(operation_selected_ids), "waited_count": len(waited),
+                      "restricted_count": len(operation_selected_ids), "drawn_count": 0, "target_turn": state.turn_number + 1}, source="system"))
         elif operation_type == "draw_card":
             target_player_id = invocation.player_id
             if operation.target == "opponent":
                 target_player_id = (
                     "player_2" if invocation.player_id == "player_1" else "player_1"
                 )
+            before_draw = len(player.hand) if _opponent_wait_modes(effect) else 0
             _draw(
                 state,
                 target_player_id,
@@ -8207,6 +8239,12 @@ def _execute_operations(
                 events,
                 reason=f"effect:{invocation.effect_id}",
             )
+            if _opponent_wait_modes(effect):
+                _refresh_main_deck(state, target_player_id, events)
+                events.append(GameEvent(event_type="effect_opponent_member_next_active_resolved", player_id=invocation.player_id,
+                    data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id, "selected_branch": "draw_one",
+                          "selected_member_instance_ids": [], "waited_count": 0, "restricted_count": 0, "drawn_count": len(player.hand) - before_draw,
+                          "target_turn": None}, source="system"))
         elif operation_type == "draw_extra_if_opponent_live_succeeded":
             if (state.phase != "live_judgment" or not state.live_success_effects_queued
                     or invocation.trigger_event != "live_succeeded"
@@ -11531,7 +11569,7 @@ def _start_next_turn(
     state.turn_number += 1
     for player in state.players.values():
         player.manual_modifiers = [m for m in player.manual_modifiers if not (
-            _is_placed_energy_block(m) and m.value["target_turn"] < state.turn_number
+            (_is_placed_energy_block(m) or _is_opponent_member_block(m)) and m.value["target_turn"] < state.turn_number
         )]
     state.first_player_id = next_first
     state.second_player_id = next_second
@@ -12352,7 +12390,7 @@ def _clear_departed_card_modifiers(
             modifier
             for modifier in player.manual_modifiers
             if modifier.target_card_instance_id not in departed
-            or (not clear_all and not _is_muse_blade_aura(modifier)
+            or (not clear_all and not _is_muse_blade_aura(modifier) and not _is_opponent_member_block(modifier)
                 and not (modifier.modifier_type == "heart"
                          and modifier.value in ({"policy": "original_live_start_bottom_source"},
                                                 {"policy": "original_live_start_bottom_three_source"})))
@@ -12658,6 +12696,13 @@ def _refresh_main_deck(
     )
 
 
+def _is_opponent_member_block(modifier: Any) -> bool:
+    return (modifier.modifier_type == "flag" and modifier.duration == "game"
+        and modifier.flag == "skip_selected_member_next_turn_active" and isinstance(modifier.value, dict)
+        and type(modifier.value.get("target_turn")) is int
+        and modifier.value == {"policy": "selected_opponent_cost4_next_turn_active", "target_turn": modifier.created_turn + 1})
+
+
 def _is_placed_energy_block(modifier: Any) -> bool:
     return (
         modifier.modifier_type == "flag" and modifier.duration == "game"
@@ -12959,6 +13004,9 @@ def _ready_player_cards(
     if prevent_opponent_member_ready:
         skip_ready_ids.update(stage_member_ids)
     legacy_skip_ready_ids = set(skip_ready_ids)
+    skip_ready_ids.update(m.target_card_instance_id for m in player.manual_modifiers
+        if _is_opponent_member_block(m) and m.value["target_turn"] == state.turn_number
+        and m.target_card_instance_id in stage_member_ids)
     skip_ready_ids.update(
         m.target_card_instance_id for m in player.manual_modifiers
         if _is_placed_energy_block(m) and m.value["target_turn"] == state.turn_number
@@ -12987,7 +13035,7 @@ def _ready_player_cards(
             )
         ]
     player.manual_modifiers = [m for m in player.manual_modifiers if not (
-        _is_placed_energy_block(m) and m.value["target_turn"] <= state.turn_number
+        (_is_placed_energy_block(m) or _is_opponent_member_block(m)) and m.value["target_turn"] <= state.turn_number
     )]
     events.append(
         GameEvent(

@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "live-success-opponent-cost4-wait-or-draw-next-active",
+      "priority": 0,
+      "title": "审计Live成功选择对手低费Member待机并限制下回合Active或抽一张",
+      "status": "queued",
+      "depends_on": ["onplay-diverdiva-two-name-energy-choice-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["精确核对PL!S-bp7-025:1，revision917/hash8f3f0088db7c0001fda1fbc53680efde3f4bc6bcdccc8dde9ac0345ca80d5bc6；冻结seed18007第10回合206动作实际mandatory manual。全文【ライブ成功時】以下から1つを選ぶ。 ・相手のステージにいるコスト4以下のメンバーを2人までウェイトにする。そのメンバーは次のターンのアクティブフェイズにアクティブしない。 ・カードを1枚引く。", "先核对官方选择数量0至2、相手Stage顶层/费用<=4、Wait与次回合期限及移区新对象；本回合未到本人Active不能误消费，下个游戏回合与下次操作不同，不把旧Energy标记直接贴到所有Member。未确认保留unresolved/manual，不猜FAQ或使用第三方攻略", "明确后仅受限新snapshot和目标原对象标记；验证0/1/2候补、已Wait/Active/附属、低于等于高于4、对方所有者选择权限、主动提前ready再Wait、离场同ID返回/组移动、过期清理及抽一张短库刷新，不追改旧branch/ready/manual快照", "真实Live成功/原生SQL跨回合、四AI/隐藏身份不变/不改输入、完整双视角、原生UI图文、全部profiles/pre-push和新源码原30牌组冻结诊断后仅本地提交；不自动requeue空Stage等旧blocked，不提升reviewed/改默认AI或Card/SQL schema，不改policy、不push或新PR、合并部署"]
+    },
+    {
       "id": "onplay-diverdiva-two-name-energy-choice-audit",
       "priority": 0,
       "title": "审计DiverDiva异名两人条件与复原Energy或从Energy Deck附属的分支",

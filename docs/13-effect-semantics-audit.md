@@ -1,5 +1,13 @@
 # Effect Semantics Audit
 
+2026-10-27: PL!S-bp7-025:1 has an exact mandatory Live-success two-mode snapshot.
+Q144/PDF 9.6.3.1.1 permit zero to two public cost-four opponent Members; already
+Wait targets do not change orientation again (1.3.2.1), while the text's separate
+restriction refers to selected Members. Next-game-turn policy is per original
+target, not the old generic skip flag; Q280 is supporting general evidence, not
+a card-specific ruling. Old snapshots and unresolved families remain unchanged.
+See opponent-member-next-active-verification.md for test and final-gate scope.
+
 PL!N-bp7-005:1 has an exact revision868/full-text/hash-bound DiverDiva snapshot.
 Two physical top Members must admit distinct names; the body condition is checked
 at resolution. Ready Energy resolves as much as possible; the other branch moves

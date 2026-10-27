@@ -2803,6 +2803,26 @@ def _onplay_optional_discard_inspect_keep1_any(
     )
 
 
+def _live_success_opponent_cost4_wait_or_draw(row: sqlite3.Row) -> EffectCandidate | None:
+    text = "【ライブ成功時】以下から1つを選ぶ。 ・相手のステージにいるコスト4以下のメンバーを2人までウェイトにする。そのメンバーは次のターンのアクティブフェイズにアクティブしない。 ・カードを1枚引く。"
+    if (row["card_code"] != "PL!S-bp7-025" or row["text_revision_id"] != 917
+            or row["raw_text_hash"] != "8f3f0088db7c0001fda1fbc53680efde3f4bc6bcdccc8dde9ac0345ca80d5bc6"
+            or row["raw_effect_text_ja"] != text):
+        return None
+    return EffectCandidate(
+        **_base(row, pattern_id="live_success_opponent_cost4_wait_or_draw", effect_index=1),
+        label_ja=text, effect_type="triggered", timing="live_success", trigger="live_succeeded",
+        frequency_limit="once_per_live", is_optional=False, condition={}, cost=[], duration=None,
+        choice={"choice_type": "choose_effect_branch", "selection_policy": "public_opponent_cost4_wait_or_draw",
+            "branch_ids": ["wait_opponent", "draw_one"],
+            "branch_selection_minimum": {"wait_opponent": 0, "draw_one": 0},
+            "branch_selection_maximum": {"wait_opponent": 2, "draw_one": 0},
+            "branch_choice_filters": {"wait_opponent": {"choice_type": "member_from_stage", "zone": "stage", "card_type": "member", "target_player": "opponent", "maximum_cost": 4, "minimum": 0, "maximum": 2}}},
+        actions=[{"action_type": "wait_opponent_cost4_skip_next_turn_active", "amount": 2, "target": "selected", "branch": "wait_opponent"},
+                 {"action_type": "draw_card", "amount": 1, "target": "self", "branch": "draw_one"}],
+    )
+
+
 def _onplay_diverdiva_energy_modes(row: sqlite3.Row) -> EffectCandidate | None:
     text = "【登場】自分のステージに名前の異なる『DiverDiva』のメンバーが2人いる場合、以下から1つを選ぶ。 ・エネルギーを2枚アクティブにする。 ・自分のエネルギーデッキから、エネルギーカード1枚を自分のステージにいる『虹ヶ咲』のメンバーの下に置く。"
     if (row["card_code"] != "PL!N-bp7-005" or row["text_revision_id"] != 868
@@ -15763,6 +15783,7 @@ _PATTERNS = (
     _onplay_muse_granted_blade,
     _onplay_both_waiting_live,
     _onplay_diverdiva_energy_modes,
+    _live_success_opponent_cost4_wait_or_draw,
     _onplay_audited_discard_inspection,
     _onplay_optional_discard_inspect_keep1_any,
     _nijigasaki_onplay_inspection,

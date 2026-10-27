@@ -14,6 +14,7 @@ DEFAULT_EFFECT_REGISTRY = (
 )
 
 SUPPORTED_EFFECT_ACTIONS = {
+    "wait_opponent_cost4_skip_next_turn_active",
     "attach_energy_deck_to_selected_nijigasaki",
     "mill_bottom_one_aqours_source_requirement",
     "mill_bottom_five_members_draw_source_score",
@@ -194,6 +195,10 @@ class EffectOperation(BaseModel):
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        if self.action_type == "wait_opponent_cost4_skip_next_turn_active" and self.model_dump(exclude_defaults=True, exclude_none=True) != {
+            "action_type": "wait_opponent_cost4_skip_next_turn_active", "amount": 2, "target": "selected", "branch": "wait_opponent",
+        }:
+            raise ValueError("opponent Member restriction only supports the fixed cost-four branch")
         if self.action_type == "attach_energy_deck_to_selected_nijigasaki" and self.model_dump(exclude_defaults=True, exclude_none=True) != {
             "action_type": "attach_energy_deck_to_selected_nijigasaki", "amount": 1,
             "target": "selected", "branch": "attach_energy_deck",
@@ -431,6 +436,7 @@ class EffectChoice(BaseModel):
         "public_both_center_position_sequential",
         "public_two_distinct_live_opponent_one",
         "public_diverdiva_energy_modes",
+        "public_opponent_cost4_wait_or_draw",
     ] | None = None
     zone: str | None = None
     card_type: str | None = None
@@ -753,6 +759,27 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        opponent_wait = self.choice is not None and self.choice.selection_policy == "public_opponent_cost4_wait_or_draw"
+        if any(op.action_type == "wait_opponent_cost4_skip_next_turn_active" for op in [*self.cost, *self.actions]) and not opponent_wait:
+            raise ValueError("opponent Member restriction requires the bounded Live-success snapshot")
+        if opponent_wait and (
+            self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
+            or self.effect_type != "triggered" or self.timing != "live_success" or self.trigger != "live_succeeded"
+            or self.execution_mode != "prompt_then_resolve" or self.frequency_limit != "once_per_live" or self.duration is not None
+            or self.simulation_support == "manual_resolution"
+            or self.choice.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "choose_effect_branch", "selection_policy": "public_opponent_cost4_wait_or_draw",
+                "branch_ids": ["wait_opponent", "draw_one"],
+                "branch_selection_minimum": {"wait_opponent": 0, "draw_one": 0},
+                "branch_selection_maximum": {"wait_opponent": 2, "draw_one": 0},
+                "branch_choice_filters": {"wait_opponent": {"choice_type": "member_from_stage", "zone": "stage", "card_type": "member", "target_player": "opponent", "maximum_cost": 4, "minimum": 0, "maximum": 2}},
+            }
+            or [op.model_dump(exclude_defaults=True, exclude_none=True) for op in self.actions] != [
+                {"action_type": "wait_opponent_cost4_skip_next_turn_active", "amount": 2, "target": "selected", "branch": "wait_opponent"},
+                {"action_type": "draw_card", "amount": 1, "target": "self", "branch": "draw_one"},
+            ]
+        ):
+            raise ValueError("opponent restriction requires its fixed mandatory Live-success two-mode sequence")
         diverdiva = self.choice is not None and self.choice.selection_policy == "public_diverdiva_energy_modes"
         if any(op.action_type == "attach_energy_deck_to_selected_nijigasaki" for op in [*self.cost, *self.actions]) and not diverdiva:
             raise ValueError("Energy Deck attachment requires the bounded DiverDiva snapshot")

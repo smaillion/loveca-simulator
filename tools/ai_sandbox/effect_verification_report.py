@@ -197,6 +197,9 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *((f"opponent_next_active_{case}", f"相手の次ターン {case}", f"对手下回合 {case}",
+           "PL!S-bp7-025:1", lambda effect, case=case: _run_opponent_next_active(effect, case))
+          for case in ("zero", "one", "two", "already_wait", "draw")),
         *((f"diverdiva_energy_{case}", f"DiverDivaとEnergy {case}", f"DiverDiva与Energy {case}",
            "PL!N-bp7-005:1", lambda effect, case=case: _run_diverdiva_energy(effect, case))
           for case in ("ready_one", "attach", "empty_deck", "false")),
@@ -654,6 +657,33 @@ def _run_opponent_success_draw(effect: EffectDefinition, case: str) -> dict[str,
         "条件成立時だけ必須一枚 / 条件成立才必选一张": len(final.state.players["player_1"].hand) == expected_draw - int(both and bool(hand_before)),
         "待機完了 / 待机完成": not final.state.pending_effects,
     }
+
+
+def _run_opponent_next_active(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    source = _v1_1_live("source", effect.card_code, effect_ids=[effect.effect_id])
+    first = _v1_1_member("first", "FIRST")
+    second = _v1_1_member("second", "SECOND")
+    first.owner_id = second.owner_id = "player_2"
+    first.card.cost = 2
+    second.card.cost = 4
+    if case == "already_wait":
+        first.orientation = "wait"
+    hidden = _v1_1_member("hidden", "HIDDEN")
+    state = _v1_1_state({effect.effect_id: effect}, [source, first, second, hidden], hand=[])
+    state.players["player_2"].member_area = {"left": "first", "center": "second", "right": None}
+    state.players["player_1"].main_deck = ["hidden"]
+    state.pending_effects = [EffectInvocation(invocation_id="opponent-next-active", effect_id=effect.effect_id,
+        player_id="player_1", source_card_instance_id="source", trigger_event="live_succeeded")]
+    action = lambda s, **extra: ActionRequest(action_type="resolve_effect", player_id="player_1", expected_revision=s.revision, payload={"invocation_id": "opponent-next-active", **extra})
+    result = apply_action(state, action(state, selected_branch="draw_one" if case == "draw" else "wait_opponent"))
+    count = 2 if case == "two" else 0 if case in {"zero", "draw"} else 1
+    if case != "draw":
+        result = apply_action(result.state, action(result.state, selected_card_instance_ids=["first", "second"][:count]))
+    data = next(e.data for e in result.events if e.event_type == "effect_opponent_member_next_active_resolved")
+    return {"対象0～2人 / 目标0至2人": data["restricted_count"] == count,
+        "既存Waitを再変更しない / 已Wait不重复改方向": data["waited_count"] == (count - int(case == "already_wait")),
+        "固定ドロー分岐 / 固定抽牌分支": data["drawn_count"] == int(case == "draw"),
+        "待機完了 / 待机完成": not result.state.pending_effects}
 
 
 def _run_diverdiva_energy(effect: EffectDefinition, case: str) -> dict[str, bool]:

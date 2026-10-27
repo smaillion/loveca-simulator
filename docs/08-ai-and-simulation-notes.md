@@ -1,5 +1,12 @@
 # AI and Simulation Notes
 
+The bounded PL!S-bp7-025:1 branch reuses existing AI branch submissions. Four
+versions finish the initial choice and zero-to-two public opponent targets in
+both roles without hidden-identity dependence or input changes. The restriction
+tracks only selected original Members until the next game turn's own Active;
+it is not an Energy flag or a policy/default-strategy change. Frozen outcomes
+and actual branch/timing evidence are recorded separately from targeted tests.
+
 The exact DiverDiva Energy snapshot reuses the generic branch interface. Four AI
 versions finish both branch follow-ups and the initial choice in both roles;
 hidden identities do not change decisions or input. A failed body condition

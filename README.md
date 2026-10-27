@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+`PL!S-bp7-025:1`を全文/revision/hash限定で対応。相手のコスト4以下を0～2人選びWaitと次ゲームターンのActive制限、または一枚ドロー。原対象の離場で解除し、場内移動では保持、旧snapshotは変更しない。85専用/34 SQL、四AI・秘匿、271図解/7 UI、最終門禁と固定30試合は[検証記録](./docs/development/opponent-member-next-active-verification.md)。管理者が新Draft PR作成を承認、merge/deployは別途承認が必要。
+
 宮下愛`PL!N-bp7-005:1`を全文/revision/hash限定で対応。異なる名前のDiverDiva二人を解決時に確認し、Energy二枚を可能な範囲でActiveにするか、Energy Deckから虹ヶ咲メンバーの下へ一枚置く。84専用/22 SQL、四AI・秘匿、266図解と双語UIを保護。旧snapshotと既存blockedは維持し、最終同一ソース門禁・固定30試合は[検証記録](./docs/development/diverdiva-energy-choice-verification.md)を参照。ローカル作業のみ。
 
 `PL!S-bp7-020:1`の全員Active条件を境界監査。空ステージ時の真偽を直接支える公式根拠を今回取得できず、manualを維持する。28境界/11 SQL、四AI・秘匿・人工UIを保護し、第2段や930/1212登録は変更しない。アプリ指紋不変のため固定30試合は再実行しない。[未解決事項と証拠](./docs/development/all-active-live-requirement-unresolved.md)
