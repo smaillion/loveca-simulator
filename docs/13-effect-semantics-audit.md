@@ -1,5 +1,10 @@
 # Effect Semantics Audit
 
+A separate unregistered source-Wait-cost operation preserves the no-cost v1 guard.
+Modern paid parents remain locked; departed-source tests explicitly use legacy-order
+diagnostic checkpoints, not natural interruptions. No official producer is enabled.
+See [bounded prototype](development/ready-source-wait-cost-probe.md).
+
 Five registered direct Member-ready producers have an actual Printemps source unit.
 Kotori's target must also be Printemps; Hanayo's other-Member target need not be.
 Cost and initial departed-source provenance remain separate uncertified paths.

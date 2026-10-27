@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+本人Stage発生源のWait費用後に別メンバーを復原する限定unregistered原型を追加。旧無費用v1は維持し、支払証拠は非公開。71専用/20 SQL、四AI後続選択、2 UI。正式カード未接続、穂乃果manual維持。[検証](./docs/development/ready-source-wait-cost-probe.md)。ローカルのみ。
+
 実際のPrintemps発生源5件を監査し、南ことり`PL!-pb1-012:1`の対象unit漏れだけを修正。費用・離場源・履歴coverageは未認証、正式v1生産者0/5、穂乃果manual維持。[監査記録](./docs/development/printemps-producer-coverage-audit.md)。ローカルのみ。
 
 新snapshot専用のMember実復原provenance底座を追加。元対象tokenと発生源/LKI/turnを記録、未知履歴は0としない。62専用/34 SQL・四AI/秘匿、正式カード未接続、旧ready/Replay維持。[検証](./docs/development/member-ready-provenance-foundation.md)。ローカルのみ。

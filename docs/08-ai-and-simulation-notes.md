@@ -1,5 +1,10 @@
 # AI and Simulation Notes
 
+The source-Wait-cost ready prototype has a separate bounded operation and private
+server payment evidence. Three controllers activate within a restricted legal set;
+v0 keeps its no-activation behavior, and all four submit the subsequent target.
+See [limits and tests](development/ready-source-wait-cost-probe.md).
+
 The Printemps producer audit fixes only Kotori's missing target-unit filter.
 Four controllers submit legal optional selections without hidden-identity dependence.
 No formal ready-history producer is enabled; unknown coverage is not zero.

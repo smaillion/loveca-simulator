@@ -8,6 +8,7 @@ from loveca.simulation.models import LegalAction, MatchState
 def public_invocation_payload(invocation: Any) -> dict[str, Any]:
     payload = invocation.model_dump()
     payload.get("trigger_data", {}).pop("ready_source_lki_v1", None)
+    payload.get("trigger_data", {}).pop("ready_source_wait_cost_v1", None)
     return payload
 
 
@@ -56,6 +57,7 @@ def redact_player_state(
     payload.pop("member_ready_history", None)
     for invocation in payload.get("pending_effects", []):
         invocation.get("trigger_data", {}).pop("ready_source_lki_v1", None)
+        invocation.get("trigger_data", {}).pop("ready_source_wait_cost_v1", None)
     visible_ids = player_visible_card_ids(state, viewer_id)
     for player_id, player in state.players.items():
         own = player_id == viewer_id

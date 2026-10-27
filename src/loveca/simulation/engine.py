@@ -10,7 +10,9 @@ from types import SimpleNamespace
 from typing import Any
 
 from loveca.simulation.ready_history import (
-    OPERATION as READY_PROVENANCE_OPERATION, begin_ready_tracking, mark_ready_departure, prepare_ready_source, record_member_ready,
+    OPERATION as READY_PROVENANCE_OPERATION, PROVENANCE_OPERATIONS, SOURCE_WAIT_OPERATION,
+    begin_ready_tracking, mark_ready_departure, prepare_ready_source, record_member_ready,
+    uses_source_wait_cost, prepare_source_wait_cost, finish_source_wait_cost, validate_source_wait_cost,
 )
 
 from loveca.simulation.models import (
@@ -1465,6 +1467,11 @@ def _activate_effect(
     if (effect_id, source_id) not in legal:
         raise IllegalActionError("the selected activated effect is not legal")
     effect = state.effect_definitions[str(effect_id)]
+    if uses_source_wait_cost(effect) and (
+            set(action.payload) - {"effect_id", "source_card_instance_id", "energy_instance_ids", "selected_card_instance_ids", "ai_decision"}
+            or action.payload.get("energy_instance_ids") not in (None, [])
+            or action.payload.get("selected_card_instance_ids") not in (None, [])):
+        raise IllegalActionError("source Wait ready activation does not accept inline targets or extra costs")
     invocation = EffectInvocation(
         invocation_id=_new_invocation_id(state, effect.effect_id, str(source_id)),
         effect_id=effect.effect_id,
@@ -1474,6 +1481,7 @@ def _activate_effect(
         resolution_stage="after_cost",
     )
     _ready_history_call(prepare_ready_source, state, invocation)
+    _ready_history_call(prepare_source_wait_cost, state, invocation)
     has_cost_selection_payload = "selected_card_instance_ids" in action.payload
     if effect.cost_choice is not None and (
         not has_cost_selection_payload or _effect_uses_auto_cost_branch_choice(effect)
@@ -1543,6 +1551,7 @@ def _activate_effect(
         energy_ids=energy_ids,
     )
     if effect.cost:
+        _ready_history_call(finish_source_wait_cost, state, invocation)
         invocation.trigger_data["cost_selected_card_instance_ids"] = list(
             selected_ids
         )
@@ -1745,11 +1754,15 @@ def _resolve_effect(
         raise IllegalActionError("only the effect owner may resolve this effect")
     _assert_effect_resolution_turn(state, invocation)
     effect = state.effect_definitions[invocation.effect_id]
-    if any(op.action_type == READY_PROVENANCE_OPERATION for op in effect.actions) and (
+    if any(op.action_type in PROVENANCE_OPERATIONS for op in effect.actions) and (
             set(action.payload) - {"invocation_id", "accepted", "selected_card_instance_ids", "energy_instance_ids", "ai_decision"}
             or action.payload.get("energy_instance_ids") not in (None, [])
             or (action.payload.get("accepted") is not None and type(action.payload["accepted"]) is not bool)):
         raise IllegalActionError("ready provenance accepts only its actual current target selection")
+    if uses_source_wait_cost(effect):
+        _ready_history_call(validate_source_wait_cost, state, invocation)
+        if action.payload.get("accepted") is False:
+            raise IllegalActionError("the paid ready effect requires its mandatory target selection")
     if _waiting_nine_live_top_snapshot(effect):
         _resolve_waiting_nine_live_top(state, invocation, action, events)
         return
@@ -6782,6 +6795,7 @@ def _operation_requires_selected_choice(operation: Any) -> bool:
         return True
     return operation.action_type in {
         READY_PROVENANCE_OPERATION,
+        SOURCE_WAIT_OPERATION,
         "wait_opponent_cost4_skip_next_turn_active",
         "attach_energy_deck_to_selected_nijigasaki",
         "apply_wait_energy",
@@ -9387,7 +9401,7 @@ def _execute_operations(
                     player.waiting_room.remove(instance_id)
                 player.main_deck.insert(0, instance_id)
                 state.cards[instance_id].face_up = False
-        elif operation_type in {"ready_member", READY_PROVENANCE_OPERATION}:
+        elif operation_type in {"ready_member", *PROVENANCE_OPERATIONS}:
             if operation.target in {"self_stage_all", "self_stage_unit"}:
                 value = operation.value if isinstance(operation.value, dict) else {}
                 unit_key = value.get("unit_key")
@@ -9404,7 +9418,7 @@ def _execute_operations(
                     ):
                         continue
                     previous = state.cards[instance_id].orientation
-                    if operation_type == READY_PROVENANCE_OPERATION:
+                    if operation_type in PROVENANCE_OPERATIONS:
                         _ready_history_call(record_member_ready, state, invocation, instance_id, previous)
                     state.cards[instance_id].orientation = "active"
                     if previous == "wait":
@@ -9415,7 +9429,7 @@ def _execute_operations(
                         invocation,
                         ready_type="member",
                         previous_orientation=previous,
-                        provenance_recorded=operation_type == READY_PROVENANCE_OPERATION,
+                        provenance_recorded=operation_type in PROVENANCE_OPERATIONS,
                     )
                 operation_context["effect_ready_member_count"] = readied_count
             elif operation.target == "source":
@@ -9439,7 +9453,7 @@ def _execute_operations(
                 if not _is_stage_member_instance(state, invocation.source_card_instance_id):
                     raise IllegalActionError("effect source must be on Stage")
                 previous = state.cards[invocation.source_card_instance_id].orientation
-                if operation_type == READY_PROVENANCE_OPERATION:
+                if operation_type in PROVENANCE_OPERATIONS:
                     _ready_history_call(record_member_ready, state, invocation, invocation.source_card_instance_id, previous)
                 state.cards[invocation.source_card_instance_id].orientation = "active"
                 _record_effect_ready_flag(
@@ -9448,7 +9462,7 @@ def _execute_operations(
                     invocation,
                     ready_type="member",
                     previous_orientation=previous,
-                    provenance_recorded=operation_type == READY_PROVENANCE_OPERATION,
+                    provenance_recorded=operation_type in PROVENANCE_OPERATIONS,
                 )
                 if original_source:
                     events.append(GameEvent(
@@ -9464,7 +9478,7 @@ def _execute_operations(
                     if not _is_stage_member_instance(state, instance_id):
                         raise IllegalActionError("selected Member must be on Stage")
                     previous = state.cards[instance_id].orientation
-                    if operation_type == READY_PROVENANCE_OPERATION:
+                    if operation_type in PROVENANCE_OPERATIONS:
                         _ready_history_call(record_member_ready, state, invocation, instance_id, previous)
                     state.cards[instance_id].orientation = "active"
                     _record_effect_ready_flag(
@@ -9473,7 +9487,7 @@ def _execute_operations(
                         invocation,
                         ready_type="member",
                         previous_orientation=previous,
-                        provenance_recorded=operation_type == READY_PROVENANCE_OPERATION,
+                        provenance_recorded=operation_type in PROVENANCE_OPERATIONS,
                     )
         elif operation_type == "apply_wait_energy":
             required = _operation_amount(operation, selected_count)

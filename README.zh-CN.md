@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+新增本人Stage来源支付Wait后复原另一成员的限定unregistered原型，旧无费用v1不放宽，支付证据内部保存。71专项/20 SQL、四AI后续选择与2 UI；正式卡不绑定，穂乃果manual保持。[验证](./docs/development/ready-source-wait-cost-probe.md)。仅本地提交。
+
 按真实来源单位盘点5条Printemps复原生产者，仅修南ことり`PL!-pb1-012:1`遗漏的目标单位筛选。费用、初始离场来源和历史coverage仍独立待审；正式v1生产者0/5，穂乃果manual保持。[审计记录](./docs/development/printemps-producer-coverage-audit.md)。仅本地提交。
 
 新增显式新快照的成员实际复原历史底座，绑定原对象、来源LKI与回合，未知不当零；62专项/34 SQL、四AI/隐私，旧ready/Replay保持，不绑定正式卡或恢复穂乃果。[底座验证](./docs/development/member-ready-provenance-foundation.md)。仅本地提交。

@@ -1163,7 +1163,7 @@ def _operation_value_without_observation(
         base = 8 * amount
     elif action_type in {"ready_energy", "place_energy_from_deck"}:
         base = 5 * amount
-    elif action_type == "ready_member":
+    elif action_type in {"ready_member", "ready_member_after_source_wait_provenance_v1"}:
         base = 6 * amount
     elif action_type in {"gain_blade", "gain_blade_to_stage_members"}:
         base = 6 * amount

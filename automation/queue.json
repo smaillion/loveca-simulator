@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "effect-ready-source-wait-cost-provenance-probe",
+      "priority": 1,
+      "title": "限定本人Wait费用后的成员复原来源原型",
+      "status": "queued",
+      "depends_on": ["printemps-ready-producer-snapshot-coverage-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["仅unregistered probe，不绑定正式生产者或requeue穂乃果", "显式新操作仅本人原Stage来源支付一次Wait费用后复原另一顶层Member，不放宽既有v1或支持混合费用/离场源", "真实起动来源/回合/费用事实/原目标、分步选择、来源离场返回与非法提交原子性", "旧快照/Replay/flags保持，未知coverage不作零", "双方SQL/四AI/完整玩家与provider构造隐私/必要UI及全部profiles，新源码同原30牌组冻结；仅本地提交不发布"]
+    },
+    {
       "id": "printemps-ready-producer-snapshot-coverage-audit",
       "priority": 1,
       "title": "盘点Printemps实际复原生产者的新快照覆盖边界",

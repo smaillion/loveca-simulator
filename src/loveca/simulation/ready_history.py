@@ -5,7 +5,21 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt
 
 OPERATION = "ready_member_with_provenance_v1"
+SOURCE_WAIT_OPERATION = "ready_member_after_source_wait_provenance_v1"
+PROVENANCE_OPERATIONS = frozenset({OPERATION, SOURCE_WAIT_OPERATION})
 SOURCE_KEY = "ready_source_lki_v1"
+COST_KEY = "ready_source_wait_cost_v1"
+
+
+class ReadySourceWaitCostV1(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    policy: Literal["source_wait_cost_v1"] = "source_wait_cost_v1"
+    invocation_id: str
+    effect_id: str
+    source_instance_id: str
+    player_id: str
+    turn_number: StrictInt = Field(ge=1)
+    paid: StrictBool = False
 
 
 class ReadySourceV1(BaseModel):
@@ -41,7 +55,46 @@ class MemberReadyHistoryV1(BaseModel):
 
 
 def uses_ready_provenance(effect: Any) -> bool:
-    return any(op.action_type == OPERATION for op in getattr(effect, "actions", []))
+    return any(op.action_type in PROVENANCE_OPERATIONS for op in getattr(effect, "actions", []))
+
+
+def uses_source_wait_cost(effect: Any) -> bool:
+    return any(op.action_type == SOURCE_WAIT_OPERATION for op in getattr(effect, "actions", []))
+
+
+def prepare_source_wait_cost(state: Any, invocation: Any) -> None:
+    if not uses_source_wait_cost(state.effect_definitions.get(invocation.effect_id)):
+        return
+    source = state.cards[invocation.source_card_instance_id]
+    if (source.owner_id != invocation.player_id or source.card.card_type != "member"
+            or source.instance_id not in state.players[invocation.player_id].member_area.values()
+            or source.orientation != "active" or invocation.trigger_event != "player_activation"):
+        raise ValueError("source Wait cost requires its own original active Stage Member")
+    invocation.trigger_data[COST_KEY] = ReadySourceWaitCostV1(invocation_id=invocation.invocation_id,
+        effect_id=invocation.effect_id, source_instance_id=source.instance_id,
+        player_id=invocation.player_id, turn_number=state.turn_number).model_dump(mode="json")
+
+
+def validate_source_wait_cost(state: Any, invocation: Any, *, paid: bool = True) -> ReadySourceWaitCostV1:
+    cost = ReadySourceWaitCostV1.model_validate(invocation.trigger_data.get(COST_KEY))
+    if (type(state.turn_number) is not int or cost.paid is not paid or invocation.resolution_stage != "after_cost"
+            or invocation.trigger_event != "player_activation"
+            or (cost.invocation_id, cost.effect_id, cost.source_instance_id, cost.player_id, cost.turn_number)
+            != (invocation.invocation_id, invocation.effect_id, invocation.source_card_instance_id,
+                invocation.player_id, state.turn_number)):
+        raise ValueError("ready operation requires its exact actually paid source Wait cost")
+    return cost
+
+
+def finish_source_wait_cost(state: Any, invocation: Any) -> None:
+    if not uses_source_wait_cost(state.effect_definitions.get(invocation.effect_id)):
+        return
+    cost = validate_source_wait_cost(state, invocation, paid=False)
+    source = state.cards[cost.source_instance_id]
+    if source.orientation != "wait" or source.instance_id not in state.players[cost.player_id].member_area.values():
+        raise ValueError("source Wait payment did not actually occur")
+    cost.paid = True
+    invocation.trigger_data[COST_KEY] = cost.model_dump(mode="json")
 
 
 def begin_ready_tracking(state: Any) -> None:
@@ -98,6 +151,8 @@ def mark_ready_departure(state: Any, instance_ids: list[str], zone: str) -> None
 
 
 def record_member_ready(state: Any, invocation: Any, target_id: str, previous: str) -> None:
+    if uses_source_wait_cost(state.effect_definitions.get(invocation.effect_id)):
+        validate_source_wait_cost(state, invocation)
     history = getattr(state, "member_ready_history", None)
     source = ReadySourceV1.model_validate(invocation.trigger_data.get(SOURCE_KEY))
     if (history is None or history.turn_number != state.turn_number
