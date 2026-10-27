@@ -93,6 +93,7 @@ SUPPORTED_EFFECT_ACTIONS = {
     "draw_if_milled_any_card_type",
     "gain_heart_if_milled_all_have_heart",
     "gain_source_heart_if_milled_member_blade_colors",
+    "gain_source_heart_if_bottom_card_live",
     "gain_heart_from_selected_card_colors",
     "gain_blade_if_milled_any_card_type",
 }
@@ -157,6 +158,7 @@ class EffectOperation(BaseModel):
         "original_live_start_wait_cost_source",
         "original_onplay_mill_source",
         "original_onplay_muse_blade_aura",
+        "original_live_start_bottom_source",
     ] | None = None
     overlap_observer_policy: Literal[
         "ignore_disjoint_source_triggers", "require_complete_source_bindings"
@@ -183,6 +185,18 @@ class EffectOperation(BaseModel):
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        if self.action_type == "gain_source_heart_if_bottom_card_live" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "action_type": "gain_source_heart_if_bottom_card_live",
+                "source_object_policy": "original_live_start_bottom_source",
+                "target": "source", "amount": 1, "color_slot": "heart02",
+            }
+        ):
+            raise ValueError("bottom Live only supports the fixed red source Heart")
+        if self.source_object_policy == "original_live_start_bottom_source" and (
+            self.action_type != "gain_source_heart_if_bottom_card_live"
+        ):
+            raise ValueError("bottom source policy only supports its bounded Heart operation")
         if self.action_type == "grant_muse_blade_aura_if_success_score_icon" and (
             self.model_dump(exclude_defaults=True, exclude_none=True) != {
                 "action_type": "grant_muse_blade_aura_if_success_score_icon",
@@ -286,6 +300,7 @@ class EffectOperation(BaseModel):
             "gain_heart_to_stage_members",
             "gain_heart_if_milled_all_have_heart",
             "gain_source_heart_if_milled_member_blade_colors",
+            "gain_source_heart_if_bottom_card_live",
             "modify_required_heart",
             "replace_member_base_hearts",
             "replace_yell_blade_hearts",
@@ -651,6 +666,19 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        if any(op.action_type == "gain_source_heart_if_bottom_card_live" for op in self.actions) and (
+            self.cost or self.cost_choice or self.choice or self.follow_up_choice or self.condition
+            or self.is_optional or self.effect_type != "triggered" or self.timing != "live_start"
+            or self.trigger != "live_started" or self.frequency_limit != "once_per_live"
+            or self.duration != "live" or self.execution_mode != "auto_resolve"
+            or self.simulation_support == "manual_resolution"
+            or len(self.actions) != 2
+            or self.actions[0].model_dump(exclude_defaults=True, exclude_none=True) != {
+                "action_type": "mill_bottom_cards", "amount": 1,
+            }
+            or self.actions[1].action_type != "gain_source_heart_if_bottom_card_live"
+        ):
+            raise ValueError("bottom Live Heart requires its fixed mandatory Live-start sequence")
         if self.choice and self.choice.selection_policy == "public_both_waiting_live_one" and (
             self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
             or self.effect_type != "triggered" or self.timing != "on_play" or self.trigger != "member_played"

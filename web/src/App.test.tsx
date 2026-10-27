@@ -2088,6 +2088,24 @@ describe("App", () => {
     expect((await screen.findAllByText(`メンバーのブレードハート ${colors} 色 · 誘発元の緑ハート +${delta}`)).length).toBeGreaterThan(0);
   });
 
+  it.each([[1, 1, true], [1, 0, false], [0, 0, true]] as const)("shows bottom Live Heart result count %s delta %s", async (count, delta, available) => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const data = { effect_id: "PL!S-bp7-015:1", invocation_id: "bottom-heart", source_card_instance_id: "player_1-M001",
+      source_available: available, condition_met: delta > 0 || !available, heart_delta: delta, milled_count: count };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate: { ...MATCH_PAYLOAD, events: [
+      { event_type: "effect_bottom_live_heart_resolved", player_id: "player_1", source: "system", data },
+      { event_type: "effect_auto_resolved", player_id: "player_1", source: "system", data },
+    ] } }));
+    render(<App />);
+    const create = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(create).not.toBeDisabled());
+    fireEvent.click(create);
+    expect((await screen.findAllByText(`牌库底 ${count} 张置控室 · 原来源红 Heart +${delta}`)).length).toBeGreaterThan(0);
+    if (!available) expect(await screen.findByText("原来源角色已离场，未加成")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect((await screen.findAllByText(`デッキの下から${count}枚を控室へ · 元の発生源の赤ハート +${delta}`)).length).toBeGreaterThan(0);
+  });
+
   it.each([[1, true], [0, true], [0, false]] as const)("shows granted Muse aura result %s source %s", async (delta, available) => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const data = { effect_id: "PL!-pb2-005:1", invocation_id: "aura", source_card_instance_id: "player_1-M001",

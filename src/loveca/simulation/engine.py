@@ -3081,6 +3081,7 @@ def _captures_original_stage_source(effect: Any) -> bool:
         "original_moved_stage_member", "original_live_start_heart_source",
         "original_live_start_wait_cost_source",
         "original_onplay_mill_source",
+        "original_live_start_bottom_source",
         "original_onplay_muse_blade_aura",
     } for op in effect.actions) or (
         effect.choice is not None
@@ -9591,6 +9592,33 @@ def _execute_operations(
                     events,
                     reason=f"effect:{invocation.effect_id}",
                 )
+        elif operation_type == "gain_source_heart_if_bottom_card_live":
+            if invocation.trigger_data.get("original_source_stage_object") is not True:
+                raise IllegalActionError("original source Stage snapshot is missing")
+            milled = operation_context.get("milled_card_instance_ids", [])
+            # Refresh may move the card again; the condition still refers to this actual move.
+            _refresh_main_deck(state, invocation.player_id, events)
+            matched = len(milled) == 1 and state.cards[milled[0]].card.card_type == "live"
+            source_available = (
+                invocation.trigger_data.get("original_source_stage_object_departed") is not True
+                and _is_stage_member_instance(state, invocation.source_card_instance_id)
+            )
+            delta = int(matched and source_available)
+            if delta:
+                player.manual_modifiers.append(ManualModifier(
+                    modifier_id=f"effect:{invocation.invocation_id}:bottom-live-heart",
+                    modifier_type="heart", duration="live", created_turn=state.turn_number,
+                    amount=1, color_slot="heart02", target_card_instance_id=invocation.source_card_instance_id,
+                    value={"policy": "original_live_start_bottom_source"},
+                ))
+            events.append(GameEvent(
+                event_type="effect_bottom_live_heart_resolved", player_id=invocation.player_id,
+                data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                      "source_card_instance_id": invocation.source_card_instance_id,
+                      "milled_count": len(milled), "condition_met": matched,
+                      "source_available": source_available, "heart_delta": delta, "color_slot": "heart02"},
+                source="system",
+            ))
         elif operation_type == "gain_source_heart_if_milled_member_blade_colors":
             if invocation.trigger_data.get("original_source_stage_object") is not True:
                 raise IllegalActionError("original source Stage snapshot is missing")
@@ -11945,7 +11973,9 @@ def _clear_departed_card_modifiers(
             modifier
             for modifier in player.manual_modifiers
             if modifier.target_card_instance_id not in departed
-            or (not clear_all and not _is_muse_blade_aura(modifier))
+            or (not clear_all and not _is_muse_blade_aura(modifier)
+                and not (modifier.modifier_type == "heart"
+                         and modifier.value == {"policy": "original_live_start_bottom_source"}))
         ]
         removed_count += len(player.manual_modifiers) - len(retained)
         player.manual_modifiers = retained

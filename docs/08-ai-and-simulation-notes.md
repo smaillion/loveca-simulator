@@ -1,5 +1,13 @@
 # AI and Simulation Notes
 
+PL!S-bp7-015:1 now resolves bottom-one milling with a source-bound red Heart
+condition. Four AI versions support native Live start and pending resolution;
+hidden identities do not change their decisions. Frozen30 remains12/18,
+185/188 executable completions: this card is pending behind another manual
+ability, not claimed completed. A separate seed18027 SQL branch resolves it
+with a Member bottom card and zero Heart.60 targeted and217 illustrated cases.
+[Evidence](development/bottom-one-live-heart-verification.md).
+
 PL!-pb2-005:1 grants a source-bound Live-limited Muse Blade aura, not one-time
 bonuses to the initial Stage. Effective Blade and Yell share dynamic evaluation;
 later entries benefit, departure/reentry and unsupported overlap stay explicit.

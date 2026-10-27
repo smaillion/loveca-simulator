@@ -12,7 +12,7 @@ from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
-from loveca.simulation.effect_candidates import MUSE_GRANTED_BLADE_TEXT, NIJIGASAKI_SELECTED_BLADE_SCORE_TEXT
+from loveca.simulation.effect_candidates import BOTTOM_ONE_LIVE_HEART_TEXT, MUSE_GRANTED_BLADE_TEXT, NIJIGASAKI_SELECTED_BLADE_SCORE_TEXT
 from loveca.simulation.models import (
     ActionRequest,
     GameEvent,
@@ -464,6 +464,9 @@ def _semantic_operation_alignment(
 ) -> bool | None:
     comparison = "modify_source_score_if_selected_blade_highest"
     aura = "grant_muse_blade_aura_if_success_score_icon"
+    bottom = "gain_source_heart_if_bottom_card_live"
+    if bottom in operation_types:
+        return operation_types == {"mill_bottom_cards", bottom} and label_ja == BOTTOM_ONE_LIVE_HEART_TEXT
     if aura in operation_types:
         return operation_types == {aura} and label_ja == MUSE_GRANTED_BLADE_TEXT
     if comparison in operation_types:

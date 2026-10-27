@@ -19,6 +19,11 @@ SOURCE_REFERENCE = (
     "Official card text; comprehensive rules ver. 1.06 restricted executor pattern"
 )
 
+BOTTOM_ONE_LIVE_HEART_TEXT = (
+    "【ライブ開始時】自分のデッキの下からカードを1枚控え室に置く。"
+    "それがライブカードの場合、ライブ終了時まで、【heart02】を得る。"
+)
+
 MUSE_GRANTED_BLADE_TEXT = (
     "【登場】自分の成功ライブカード置き場に【スコア】を持つ『μ's』のカードがある場合、"
     "ライブ終了時まで、「【常時】自分のステージにいる『μ's』のメンバーは、【ブレード】を得る。」を得る。"
@@ -2789,6 +2794,23 @@ def _onplay_both_waiting_live(row: sqlite3.Row) -> EffectCandidate | None:
         choice={"choice_type": "multi_player_waiting_live_recovery", "selection_policy": "public_both_waiting_live_one",
                 "zone": "waiting_room", "card_type": "live", "minimum": 1, "maximum": 1, "selected_destination": "hand"},
         actions=[{"action_type": "return_from_waiting_room", "target": "both"}],
+    )
+
+
+def _live_start_bottom_one_heart(row: sqlite3.Row) -> EffectCandidate | None:
+    if (row["card_code"] != "PL!S-bp7-015" or row["text_revision_id"] != 860
+            or row["raw_text_hash"] != "4de00b242755d4712ed8afbb6b6d5a27047c8f4cdbfd76101d0f1f1b7343cbf0"
+            or row["raw_effect_text_ja"] != BOTTOM_ONE_LIVE_HEART_TEXT):
+        return None
+    return EffectCandidate(
+        **_base_with_execution_mode(row, pattern_id="live_start_bottom_one_heart", effect_index=1,
+                                    execution_mode="auto_resolve"),
+        label_ja=BOTTOM_ONE_LIVE_HEART_TEXT, effect_type="triggered", timing="live_start",
+        trigger="live_started", frequency_limit="once_per_live", is_optional=False,
+        condition={}, cost=[], choice=None, actions=[{"action_type": "mill_bottom_cards", "amount": 1}, {
+            "action_type": "gain_source_heart_if_bottom_card_live", "target": "source",
+            "source_object_policy": "original_live_start_bottom_source", "amount": 1, "color_slot": "heart02",
+        }], duration="live",
     )
 
 
@@ -15553,6 +15575,7 @@ _PATTERNS = (
     _onplay_named_baton_draw_then_discard,
     _onplay_multi_keep_icon_scope_manual,
     _onplay_ten_minus_hand_private_two,
+    _live_start_bottom_one_heart,
     _onplay_mill_three_blade_colors,
     _onplay_muse_granted_blade,
     _onplay_both_waiting_live,

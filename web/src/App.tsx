@@ -1921,6 +1921,7 @@ const autoResultTerminalEvents = new Set([
 
 const autoResultOperationEvents = new Set([
   "effect_muse_blade_aura_resolved",
+  "effect_bottom_live_heart_resolved",
   "effect_source_member_readied",
   "effect_blade_comparison_resolved",
   "effect_milled_blade_colors_resolved",
@@ -2040,7 +2041,7 @@ function autoResultLines(
     } else if (related.event_type === "effect_waiting_lives_recovered") {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
-    } else if (related.event_type === "effect_milled_blade_colors_resolved" || related.event_type === "effect_muse_blade_aura_resolved") {
+    } else if (related.event_type === "effect_milled_blade_colors_resolved" || related.event_type === "effect_muse_blade_aura_resolved" || related.event_type === "effect_bottom_live_heart_resolved") {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
       if (related.data.source_available === false) {
@@ -4227,6 +4228,7 @@ function eventTitle(event: GameEvent, locale: UiLocale): string {
     effect_blade_comparison_resolved: ["Blade 比较结果", "ブレード比較結果"],
     effect_milled_blade_colors_resolved: ["Blade Heart 颜色判定", "ブレードハート色の判定"],
     effect_muse_blade_aura_resolved: ["μ's常时Blade能力", "μ's常時ブレード能力"],
+    effect_bottom_live_heart_resolved: ["牌库底Live判定", "デッキ下のライブ判定"],
     effect_waiting_lives_recovered: ["双方控室 Live 回收", "両者の控室ライブ回収"],
     effect_public_waiting_live_selected: ["控室 Live 选择", "控室ライブの選択"],
     effect_resolved: ["技能结算", "能力解決"],
@@ -4342,6 +4344,13 @@ function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): st
     const moves = event.data.card_instance_ids_by_player as Record<string, unknown> | undefined;
     return Object.entries(moves ?? {}).map(([id, cards]) =>
       `${state.players[id]?.name ?? id}: ${stringArray(cards).length} Live`).join(" / ");
+  }
+  if (event.event_type === "effect_bottom_live_heart_resolved") {
+    const count = Number(event.data.milled_count ?? 0);
+    const delta = Number(event.data.heart_delta ?? 0);
+    return locale === "zh"
+      ? `牌库底 ${count} 张置控室 · 原来源红 Heart +${delta}`
+      : `デッキの下から${count}枚を控室へ · 元の発生源の赤ハート +${delta}`;
   }
   if (event.event_type === "effect_muse_blade_aura_resolved") {
     if (Number(event.data.aura_delta ?? 0) > 0) return locale === "zh"

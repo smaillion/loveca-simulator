@@ -1,5 +1,14 @@
 # Effect Semantics Audit
 
+PL!S-bp7-015:1 binds exact text/revision860/hash. Bottom-one movement uses
+ordinary empty-deck refresh, not the private-look prefill rule. The actual
+moved card remains the condition reference after refresh. A bounded source
+snapshot prevents departure/reentry inheritance; only the new tagged Heart
+clears itself under legacy empty departure policy. Old modifiers and old
+mill/manual snapshots retain their behavior.60 targeted tests;923/1212
+registered executable,289manual, no human-reviewed upgrade.
+[Official evidence and limits](development/bottom-one-live-heart-verification.md).
+
 PL!-pb2-005:1 binds exact text/revision978/hash and checks the special score
 Blade Heart icon in the owner's success area, not numeric Live score. The
 granted constant ability affects current Muse Stage Members dynamically under

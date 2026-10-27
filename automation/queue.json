@@ -38,6 +38,15 @@
       "acceptance": ["只为已有至少四张牌库的原型增加受限snapshot策略，不改官方registry或generator，不提高执行率；不足四张在修改状态前明确拒绝，正式PL!-pb2-013仍manual", "公开不改变牌库对象及顺序；全四张lily_white才必须选其中Live一张并丢弃其余，否则无选择且原牌库不变；无Live时明确零张；验证公开/私看隔离、原对象、非法选择原子性和离开返回", "真实状态、SQL Replay、四AI及隐藏信息、原生UI有断言；旧私看快照维持原状。全部profiles/pre-push和新源码绑定的冻结30局通过，中文报告区分原型验证与正式卡裁定", "保留公开短牌库与刷新语义unresolved，不套用私看10.2.2.2，也不把逐张公开FAQ直接当成同时公开四张裁定；未获新PR目标批准前不改policy、不推送、不合并部署"]
     },
     {
+      "id": "live-success-opponent-succeeded-draw-discard",
+      "priority": 0,
+      "title": "审计Live成功后按对方本回合成功状态追加抽弃",
+      "status": "queued",
+      "depends_on": ["live-start-bottom-one-live-source-heart"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["先复现冻结seed18023实际mandatory manual的PL!N-sd2-007:1，核对全文/revision938/hash a0652e4321925ae2826d299c309118fb251aa81c1b11b7fc62ca84091f8111fb，不按持卡频率晋级", "先查官方Live成功判定顺序及本回合对方也成功的语义；先抽一张，条件满足再抽一张并由本人选手牌弃一张，不误用成功区累计数量、上回合结果或首后演出指针，未确认保留unresolved", "本回合双方/单方成功、先后演出、条件前后变化、零/短牌库刷新、来源离场、强制弃牌合法性/原子性、旧新SQL Replay、四AI/双视角隐私/原生UI及图文有真实断言，不修改旧抽弃snapshot", "全部profiles/pre-push及绑定新源码的同牌组冻结诊断通过才本地提交；不提升reviewed、不改schema/默认AI，后续PR目标待明确批准，不改policy、不推送、新建PR、合并部署"]
+    },
+    {
       "id": "live-start-bottom-one-live-source-heart",
       "priority": 0,
       "title": "按实际待机审计牌库底一张Live条件与原来源Heart",

@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+津島善子`PL!S-bp7-015:1`を全文/revision/hash限定で自動化。実際にデッキの下から控室へ移した一枚だけを判定し、Liveなら元の発生源に赤Heart+1。空デッキrefresh、離場/同ID復帰、旧snapshotを区別。60専用、217図解、四AI/SQLと246フロントを検証。固定30試合は12完了のまま、本カードは他のmanual待機で未解決のため、別の制御分岐を明記。[証拠と限界](./docs/development/bottom-one-live-heart-verification.md)
+
 星空凛`PL!-pb2-005:1`を全文/revision/hash限定で対応。成功置き場のμ'sのスコアBlade Heart図柄を確認し、元の発生源が持つ常時能力として後から登場するμ'sにもBlade+1。離場/再登場とLive終了を区別し、重ねる/継承は明示的に保留。75専用、212図解、四AI/SQL/243フロントを検証。固定30試合は12完了のまま、本カード実誘発2回はいずれも条件不成立。[検証と制限](./docs/development/muse-granted-blade-verification.md)
 
 旧多人数処理の発生源ID漏洩を修正。可視性は実際の領域と確認policyで決定し、通常選択・skip・待機コピー・AI・代理contextの参照から非公開カードを復活させません。本人のmanual提出用識別子はカード可視性と分離。64専用テスト、原生SQL/REST/再接続、240フロントテストを検証。固定30試合は12完了/18手動停止のまま、登録率は変更しません。未push・後続PR承認待ち。[検証と範囲](./docs/development/multi-player-source-privacy-verification.md)

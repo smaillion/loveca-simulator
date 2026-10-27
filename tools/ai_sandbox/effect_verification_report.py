@@ -196,6 +196,9 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *((f"bottom_live_heart_{case}", f"デッキ下一枚と発生源Heart {case}", f"牌库底一张与来源Heart {case}",
+           "PL!S-bp7-015:1", lambda effect, case=case: _run_bottom_live_heart(effect, case))
+          for case in ("live", "member", "empty", "one_live", "one_member")),
         *((f"muse_granted_blade_{case}", f"μ's常時Blade付与 {case}", f"μ's临时常时Blade {case}",
            "PL!-pb2-005:1", lambda effect, case=case: _run_muse_granted_blade(effect, case))
           for case in ("score_icon", "numeric_only", "wrong_work", "late_member", "source_leave", "source_position")),
@@ -520,6 +523,8 @@ def _v1_1_dynamic_scenarios(
                 notes_ja=[f"公式日本語テキスト: {effect.label_ja}"],
                 notes_zh=[f"官方日文效果文本：{effect.label_ja}"],
                 rule_reference_ids=(
+                    ["4.1.4", "4.8.2", "4.8.3", "9.7.7", "10.2.2.1", "10.2.3", "8.4.11"]
+                    if effect_id == "PL!S-bp7-015:1" else
                     ["1.3.4", "1.3.4.1", "7.2.1.1", "7.2.1.2", "9.6.3.1", "9.6.3.1.3", "9.7.7"]
                     if effect_id == "PL!N-bp4-007:1" else
                     ["2.1.1", "2.1.3", "2.2.2.2", "2.7", "4.1.4", "9.7.7", "10.2.2.1", "8.4.11"]
@@ -542,6 +547,31 @@ def _v1_1_dynamic_scenarios(
             )
         )
     return results
+
+
+def _run_bottom_live_heart(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    source = _v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id])
+    bottom = _v1_1_live("bottom", "Bottom Live") if case in {"live", "one_live"} else _v1_1_member("bottom", "Bottom Member")
+    live = _v1_1_live("attempt", "Attempt Live")
+    state = _v1_1_state({effect.effect_id: effect}, [source, bottom, live, _v1_1_member("tail", "Hidden Tail")], hand=[])
+    player = state.players["player_1"]
+    player.member_area["center"] = "source"
+    player.live_area = ["attempt"]
+    player.main_deck = [] if case == "empty" else ["bottom"] if case.startswith("one_") else ["tail", "bottom"]
+    state.phase = "performance_first"
+    result = apply_action(state, ActionRequest(action_type="advance_phase", player_id="player_1", expected_revision=state.revision))
+    event = next(e for e in result.events if e.event_type == "effect_bottom_live_heart_resolved")
+    expected = int(case in {"live", "one_live"})
+    final = result.state.players["player_1"]
+    return {
+        "実際に動いた下一枚 / 实际移动的底牌": event.data["milled_count"] == int(case != "empty"),
+        "Liveだけ条件成立 / 仅Live满足条件": event.data["heart_delta"] == expected,
+        "元の発生源だけ赤Heart / 仅原来源红Heart": len(final.manual_modifiers) == expected and all(
+            m.target_card_instance_id == "source" and m.color_slot == "heart02" and m.amount == 1 and m.duration == "live"
+            for m in final.manual_modifiers),
+        "空デッキの通常refresh / 空库正常刷新": final.refresh_count == int(case.startswith("one_")),
+        "選択なし自動処理 / 无选择自动处理": not result.state.pending_effects and result.state.pending_choice is None,
+    }
 
 
 def _run_muse_granted_blade(effect: EffectDefinition, case: str) -> dict[str, bool]:
