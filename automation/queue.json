@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "live-success-opponent-yell-live-draw",
+      "priority": 0,
+      "title": "审计Live成功时对方本次Yell含Live后的抽一张",
+      "status": "queued",
+      "depends_on": ["ui-water-blue-heart-slot-label-correction"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["精确核对渡辺曜PL!S-PR-046:1完整全文/revision1219/hasha8e630b24ea2d9956c6e64421ef222f7f627a68a36eb7ee148b9600fdbb5c97e，cost5/Blade0、work love_live_sunshine/unit cyaron；当前冻结seed18027第4回合84动作同卡两条mandatory manual共同停止", "先核对本次对方Yell历史和正文结算时点，区分0/1/2张Live、未Yell、己方Yell、对方Live Area、旧回合缓存和先后演出，不用全resolution_area替代；对原公开对象移区后的历史/最后公开信息先取得依据，不明保持manual/unresolved", "明确才精确受限新snapshot，固定本人抽一张及短空库刷新，两来源分别一次、来源离场返回、非法原子性、新旧SQL、四AI隐藏身份不变和完整隐私/UI图文须真实验证，旧draw/manual快照不追改", "全部profiles/pre-push及新源码同原30牌组冻结验收后仅本地提交；不提升reviewed、不改默认AI或Card/SQL schema、不自动requeue其他blocked，不push/publish、新PR、合并部署或主机操作"]
+    },
+    {
       "id": "ui-water-blue-heart-slot-label-correction",
       "priority": 0,
       "title": "修正WATER BLUE的heart05蓝色Heart中日文显示及报告",

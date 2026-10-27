@@ -198,6 +198,9 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *((f"opponent_yell_live_draw_{case}", f"相手の現在エール {case}", f"对方当前Yell {case}",
+           "PL!S-PR-046:1", lambda effect, case=case: _run_opponent_yell_draw(effect, case))
+          for case in ("none", "one", "two", "removed", "empty")),
         *((f"aqours_shared_yell_{case}", f"共通ハートとエール {case}", f"共同Heart与应援 {case}",
            "PL!S-cl1-011:1", lambda effect, case=case: _run_aqours_shared_yell(effect, case))
           for case in ("red", "green", "no_common", "two_members", "no_target")),
@@ -664,6 +667,35 @@ def _run_opponent_success_draw(effect: EffectDefinition, case: str) -> dict[str,
         "条件成立時だけ必須一枚 / 条件成立才必选一张": len(final.state.players["player_1"].hand) == expected_draw - int(both and bool(hand_before)),
         "待機完了 / 待机完成": not final.state.pending_effects,
     }
+
+
+def _run_opponent_yell_draw(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    source = _v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id])
+    own_live = _v1_1_live("own-live", "Own Live")
+    other_live = _v1_1_live("other-live", "Opponent Live")
+    yelled = [_v1_1_live(f"yell-{i}", f"Opponent Yell {i}") for i in range(2)]
+    for card in [other_live, *yelled]:
+        card.owner_id = "player_2"
+    deck = [_v1_1_member("draw", "Hidden Draw"), _v1_1_member("tail", "Hidden Tail")]
+    state = _v1_1_state({effect.effect_id: effect}, [source, own_live, other_live, *yelled, *deck], hand=[])
+    p, q = state.players["player_1"], state.players["player_2"]
+    p.member_area["center"], p.live_area = "source", ["own-live"]
+    p.main_deck = [] if case == "empty" else ["draw", "tail"]
+    q.live_area = ["other-live"]
+    count = 0 if case == "none" else 2 if case == "two" else 1
+    ids = [card.instance_id for card in yelled[:count]]
+    q.resolution_area = [] if case == "removed" else list(ids)
+    q.waiting_room = list(ids) if case == "removed" else []
+    q.live_result = LivePerformanceResult(revealed_instance_ids=ids,
+        remaining_yell_instance_ids=[] if case == "removed" else list(ids), yell_tracking_turn=state.turn_number)
+    state.phase, state.active_player_id = "live_judgment", None
+    result = apply_action(state, ActionRequest(action_type="advance_phase", expected_revision=state.revision))
+    data = next(e.data for e in result.events if e.event_type == "effect_opponent_yell_live_draw_resolved")
+    expected = case not in {"none", "removed"}
+    return {"現在の元エールだけ / 仅当前原Yell": data["condition_met"] is expected,
+        "Live枚数に比例しない / 不按Live数量多抽": data["drawn_count"] == int(expected and case != "empty"),
+        "自分だけドロー / 仅本人抽牌": not result.state.players["player_2"].hand,
+        "待機完了 / 待机完成": not result.state.pending_effects}
 
 
 def _run_aqours_shared_yell(effect: EffectDefinition, case: str) -> dict[str, bool]:

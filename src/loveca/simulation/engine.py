@@ -1614,6 +1614,12 @@ def _resolve_effect(
         raise IllegalActionError("only the effect owner may resolve this effect")
     _assert_effect_resolution_turn(state, invocation)
     effect = state.effect_definitions[invocation.effect_id]
+    if any(op.action_type == "draw_if_opponent_current_yell_live" for op in effect.actions) and (
+        set(action.payload) - {"invocation_id", "accepted", "selected_card_instance_ids", "energy_instance_ids", "ai_decision"}
+        or action.payload.get("selected_card_instance_ids") not in (None, [])
+        or action.payload.get("energy_instance_ids") not in (None, [])
+    ):
+        raise IllegalActionError("opponent Yell draw does not accept selections or costs")
     if (effect.choice is not None and effect.choice.selection_policy == "public_two_distinct_live_opponent_one"
             and set(action.payload) - {"invocation_id", "accepted", "ai_decision"}):
         raise IllegalActionError("public Live offers must be selected in their own pending choice")
@@ -8368,6 +8374,33 @@ def _execute_operations(
                     data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id, "selected_branch": "draw_one",
                           "selected_member_instance_ids": [], "waited_count": 0, "restricted_count": 0, "drawn_count": len(player.hand) - before_draw,
                           "target_turn": None}, source="system"))
+        elif operation_type == "draw_if_opponent_current_yell_live":
+            opponent_id = "player_2" if invocation.player_id == "player_1" else "player_1"
+            other = state.players[opponent_id]
+            tracked = other.live_result.remaining_yell_instance_ids
+            if (state.phase != "live_judgment" or not state.live_success_effects_queued
+                    or invocation.trigger_event != "live_succeeded"
+                    or type(invocation.trigger_data.get("turn_number")) is not int
+                    or invocation.trigger_data["turn_number"] != state.turn_number
+                    or invocation.player_id not in state.live_success_player_ids
+                    or type(other.live_result.yell_tracking_turn) is not int
+                    or other.live_result.yell_tracking_turn != state.turn_number or tracked is None):
+                raise IllegalActionError("current-turn opponent Yell context is missing")
+            if (type(tracked) is not list or any(type(i) is not str for i in tracked)
+                    or len(tracked) != len(set(tracked))):
+                raise IllegalActionError("opponent Yell tracking is invalid")
+            current = [i for i in tracked if i in other.resolution_area and i in other.live_result.revealed_instance_ids]
+            if any(i not in state.cards or state.cards[i].owner_id != opponent_id for i in current):
+                raise IllegalActionError("opponent Yell objects are invalid")
+            count = sum(state.cards[i].card.card_type == "live" for i in current)
+            before = len(player.hand)
+            if count:
+                _draw(state, invocation.player_id, 1, events, reason=f"effect:{invocation.effect_id}")
+                _refresh_main_deck(state, invocation.player_id, events)
+            events.append(GameEvent(event_type="effect_opponent_yell_live_draw_resolved", player_id=invocation.player_id,
+                data={"effect_id": invocation.effect_id, "invocation_id": invocation.invocation_id,
+                      "condition_met": bool(count), "opponent_yell_live_count": count,
+                      "drawn_count": len(player.hand) - before}, source="system"))
         elif operation_type == "draw_extra_if_opponent_live_succeeded":
             if (state.phase != "live_judgment" or not state.live_success_effects_queued
                     or invocation.trigger_event != "live_succeeded"
@@ -11221,13 +11254,22 @@ def _reveal_current_live_cards(
         player.live_result = LivePerformanceResult(requirements_satisfied=False)
 
 
+def _opponent_yell_draw_tracking(state: MatchState) -> bool:
+    return any(op.action_type == "draw_if_opponent_current_yell_live"
+        for effect in state.effect_definitions.values() for op in effect.actions)
+
+
 def _run_current_yell(
     state: MatchState,
     events: list[GameEvent],
 ) -> None:
     player_id = state.active_player_id or ""
     player = state.players[player_id]
+    track_opponent_yell = _opponent_yell_draw_tracking(state)
     if not player.live_area:
+        if track_opponent_yell:
+            player.live_result.remaining_yell_instance_ids = []
+            player.live_result.yell_tracking_turn = state.turn_number
         events.append(GameEvent(event_type="yell_skipped", player_id=player_id))
         return
 
@@ -11305,11 +11347,12 @@ def _run_current_yell(
     player.live_result = LivePerformanceResult(
         blade_count=blade_count,
         revealed_instance_ids=revealed,
-        remaining_yell_instance_ids=(list(revealed) if any(
+        remaining_yell_instance_ids=(list(revealed) if track_opponent_yell or any(
             effect.choice is not None
             and effect.choice.selection_policy in {"public_yell_aqours_bottom_three", "public_aqours_shared_heart_yell_one"}
             for effect in state.effect_definitions.values()
         ) else None),
+        yell_tracking_turn=(state.turn_number if track_opponent_yell else None),
         member_hearts=dict(sorted(member_hearts.items())),
         manual_hearts=dict(sorted(manual_hearts.items())),
         yell_hearts=dict(sorted(yell_hearts.items())),

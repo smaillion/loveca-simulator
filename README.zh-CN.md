@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+渡辺曜`PL!S-PR-046:1`按全文/revision/hash限定实现对方当前Yell含Live抽一张，77专项/33 SQL、四AI/隐私、286图文/5 UI；已移区的公开历史不满足条件，旧快照不改。[验证及既有Q253风险](./docs/development/opponent-yell-live-draw-verification.md)分别保留，本切片只本地提交，不推送或上线。
+
 想いよひとつになれ `PL!S-cl1-011:1`按全文/revision/hash限定实现：结算时三名Aqours成员当前Heart取共同色，仅回收本次原Yell中匹配基本Heart的Aqours Member一张。96专项/38 SQL、四AI/隐私、281图文/5 UI；完整门禁及随机实际分支见[验证记录](./docs/development/aqours-shared-heart-yell-verification.md)。旧快照和未解决边界不改，本切片仅本地提交。
 
 WATER BLUE NEW WORLD `PL!S-cl1-013:1`按全文/revision/hash限定实现：控室0至6张无Blade Heart的Aqours Member洗回库底，每满两张给后续所选Aqours成员蓝色Heart两颗。洗后顺序隐藏，原受益对象移区不继承；78专项/31 SQL、四AI/隐私、276图文与7 UI，完整门禁及随机实际分支见[验证记录](./docs/development/water-blue-bottom-heart-verification.md)。结果颜色误写已[另行修正与复验](./docs/development/water-blue-color-label-verification.md)，引擎heart05和数量不变。本切片仅本地验收，不推送或上线。

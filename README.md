@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+渡辺曜`PL!S-PR-046:1`の相手の現在エールLive条件/一枚ドローを全文・revision・hash限定で実装。77専用/33 SQL、四AI・秘匿、286図解/5 UI。移区後の履歴は条件に使わず、旧snapshotを維持。[検証・既存Q253リスク](./docs/development/opponent-yell-live-draw-verification.md)を分離し、本切片はローカルのみ、push/deployしない。
+
 想いよひとつになれ `PL!S-cl1-011:1`を全文/revision/hash限定で実装。解決時のAqours三人の共通Heart色を求め、今回の元エールから同色の基本Heartを持つAqoursメンバー一枚を回収。96専用/38 SQL、四AI・秘匿、281図解/5 UI、最終門禁と実際の分岐は[検証記録](./docs/development/aqours-shared-heart-yell-verification.md)。旧snapshotと未解決事項を変更せず、ローカル検証のみ。
 
 WATER BLUE NEW WORLD `PL!S-cl1-013:1`を全文/revision/hash限定で実装。控室のBlade HeartなしAqoursメンバー0～6枚をシャッフルしてデッキの下へ戻し、2枚につき選んだAqours一人へ青Heart二つ。順番を秘匿し、対象の移区で解除。78専用/31 SQL、四AI・秘匿、276図解/7 UI、全門禁とランダム実績は[検証記録](./docs/development/water-blue-bottom-heart-verification.md)。結果表示の色名誤記は[別途修正・再検証](./docs/development/water-blue-color-label-verification.md)し、エンジンのheart05と数量は変更しない。本切片はローカル検証のみ、push/deployしない。

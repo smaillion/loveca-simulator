@@ -1,5 +1,12 @@
 # AI Rule Conformance and Strategy Audit
 
+2026-10-28 JST: the opponent-current-Yell draw slice has four-controller,
+privacy, SQL and exact-card coverage, not a strategy or beta promotion. The
+unchanged 19/30 completed games and two random false conditions do not establish
+positive draw coverage. A separate valid Q253 probe exposes an existing old
+score condition defect; full engineering gates do not certify that card.
+See [scope and evidence](development/opponent-yell-live-draw-verification.md).
+
 Current boundary checkpoint: the post-Heart score/movement matrix now contains
 20 implementation regressions, each with native Action and SQLite Replay tests.
 Four use synthetic effect fixtures, not registered-card evidence. Four retain a

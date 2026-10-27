@@ -1,5 +1,12 @@
 # AI and Simulation Notes
 
+The bounded PL!S-PR-046:1 snapshot checks only current original opponent Yell
+objects with matching game-turn metadata, then draws at most one card. Four AI
+versions resolve both sources in either role without hidden-identity dependence
+or input mutation. Frozen seed18027 resolved two false conditions, not positive
+draw coverage. The separate existing PL!S-bp6-023 Q253 defect remains open;
+see development/opponent-yell-live-draw-verification.md. Default policies stay.
+
 The exact shared-Heart Yell recovery uses the existing public-card choice and
 move-to-hand operation. All four AI versions complete either body branch with
 both owners without hidden identity dependence or input mutation. Candidate

@@ -14,6 +14,7 @@ DEFAULT_EFFECT_REGISTRY = (
 )
 
 SUPPORTED_EFFECT_ACTIONS = {
+    "draw_if_opponent_current_yell_live",
     "shuffle_waiting_aqours_for_selected_heart",
     "wait_opponent_cost4_skip_next_turn_active",
     "attach_energy_deck_to_selected_nijigasaki",
@@ -766,6 +767,17 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        bounded = "draw_if_opponent_current_yell_live"
+        if any(op.action_type == bounded for op in [*self.cost, *self.actions]) and (
+            self.cost or self.cost_choice or self.choice or self.follow_up_choice or self.condition or self.is_optional
+            or self.effect_type != "triggered" or self.timing != "live_success" or self.trigger != "live_succeeded"
+            or self.execution_mode != "auto_resolve" or self.frequency_limit != "once_per_live" or self.duration is not None
+            or self.simulation_support == "manual_resolution"
+            or [op.model_dump(exclude_defaults=True, exclude_none=True) for op in self.actions] != [
+                {"action_type": bounded, "amount": 1},
+            ]
+        ):
+            raise ValueError("opponent current Yell draw requires its fixed mandatory Live-success snapshot")
         if self.choice is not None and self.choice.selection_policy == "public_aqours_shared_heart_yell_one" and (
             self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
             or self.effect_type != "triggered" or self.timing != "live_success" or self.trigger != "live_succeeded"

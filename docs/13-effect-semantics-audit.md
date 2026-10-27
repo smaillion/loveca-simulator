@@ -1,5 +1,14 @@
 # Effect Semantics Audit
 
+2026-10-28 JST: PL!S-PR-046:1 has an exact new opponent-current-Yell draw snapshot.
+Q253 (another card with the same conditional wording) and Q107 require currently
+public original Yell objects, not permanent reveal history; Q153 covers no Live.
+Optional result-turn metadata is omitted from old snapshots. Old generic Yell
+conditions are not rewritten: a valid native SQL probe independently reproduces
+PL!S-bp6-023's incorrect score bonus after removing its only Yell Live. This is
+not a newly introduced bug or solved by the new card. See the bounded report at
+development/opponent-yell-live-draw-verification.md; do not publish this batch.
+
 2026-10-28 JST: PL!S-cl1-011:1 uses a bounded shared-Heart original-Yell policy.
 Q149 clarifies Stage Member Heart terminology and Q124 explicitly excludes Blade
 Hearts from another card's Member filter. Combined with PDF2.9/9.9, current

@@ -655,6 +655,20 @@ def _live_start_discard_two_same_group_gain_heart_blade(
     return None
 
 
+def _live_success_opponent_yell_live_draw(row: sqlite3.Row) -> EffectCandidate | None:
+    text = "【ライブ成功時】エールにより公開された相手のカードの中にライブカードがある場合、カードを1枚引く。"
+    if (row["card_code"] != "PL!S-PR-046" or row["text_revision_id"] != 1219
+            or row["raw_text_hash"] != "a8e630b24ea2d9956c6e64421ef222f7f627a68a36eb7ee148b9600fdbb5c97e"
+            or row["raw_effect_text_ja"] != text):
+        return None
+    return EffectCandidate(
+        **_base_with_execution_mode(row, pattern_id="live_success_opponent_current_yell_live_draw_v1", effect_index=1, execution_mode="auto_resolve"),
+        label_ja=text, effect_type="triggered", timing="live_success", trigger="live_succeeded", frequency_limit="once_per_live",
+        is_optional=False, condition={}, cost=[], choice=None, duration=None,
+        actions=[{"action_type": "draw_if_opponent_current_yell_live", "amount": 1}],
+    )
+
+
 def _live_success_aqours_shared_heart_yell(row: sqlite3.Row) -> EffectCandidate | None:
     text = "【ライブ成功時】自分のステージに『Aqours』のメンバーが3人以上おり、かつ、それらのメンバーが同じ色のハートを持つ場合、エールにより公開された自分のカードの中から、その色のハートを持つ『Aqours』のメンバーカード1枚を手札に加える。"
     if (row["card_code"] != "PL!S-cl1-011" or row["text_revision_id"] != 970
@@ -15819,6 +15833,7 @@ _PATTERNS = (
     _onplay_diverdiva_energy_modes,
     _live_success_opponent_cost4_wait_or_draw,
     _live_start_water_blue_bottom_heart,
+    _live_success_opponent_yell_live_draw,
     _live_success_aqours_shared_heart_yell,
     _onplay_audited_discard_inspection,
     _onplay_optional_discard_inspect_keep1_any,
