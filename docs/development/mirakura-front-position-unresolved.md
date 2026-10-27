@@ -1,5 +1,7 @@
 # 安養寺姫芽：固定正面移动的边界审计
 
+后续检查点：第2常时镜像错误已有独立新snapshot修复及专项证据，完整验收结论见[镜像修复记录](mirrored-cost-heart-verification.md)的本轮验收入口。本报告“未修复”是发现时历史；第1段目标资格/来源最后位置仍未解决，不自动恢复任务。
+
 2026-10-27，固定`codex/continuous-development`；本轮只审计登场段、补保护测试和报告，不修改应用引擎、卡库、registry或manifest，不推送、新建PR或合并部署。
 
 <img src="https://llofficial-cardgame.com/wordpress/wp-content/images/cardlist/PBHS/PL!HS-pb1-014-P2.png" alt="安養寺姫芽 PL!HS-pb1-014" width="220">

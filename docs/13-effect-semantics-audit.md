@@ -1,5 +1,15 @@
 # Effect Semantics Audit
 
+PL!HS-pb1-014:2 uses an exact full-text/revision/hash repair for new games with the
+bound opposing_member_cost_greater_than_source_mirrored_v1 condition. Old
+same-slot snapshots keep their deterministic replay behavior, not a claim of
+rules correctness.105 targeted tests,46 SQL cases and native Yell protect the
+new mirror. The first segment stays blocked/manual and927/1212 is unchanged.
+The earlier unfixed audit below is history. The stale global discovery contract
+now expects the new bounded pattern name. Complete same-source profile evidence,
+not combined partial runs, determines acceptance and is linked from the report.
+[Evidence](development/mirrored-cost-heart-verification.md).
+
 PL!HS-pb1-014:1 remains manual: fixed-front same-area target eligibility is
 not directly established, and the original departed source's last Stage slot
 is not captured. A test-only generic opponent-position probe is not a registry

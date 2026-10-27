@@ -10051,6 +10051,22 @@ def _activated_more_simple_effects(row: sqlite3.Row) -> EffectCandidate | None:
     return None
 
 
+def _static_mirrored_front_cost_heart(row: sqlite3.Row) -> EffectCandidate | None:
+    label = "【常時】このメンバーの正面のエリアにいる相手のメンバーのコストが、このメンバーのコストより高いかぎり、【heart01】を得る。"
+    full_text = "【登場】自分のステージにいるメンバーが『みらくらぱーく！』のみの場合、相手のステージにいるメンバー1人をこのメンバーの正面のエリアにポジションチェンジさせる。 " + label
+    if (row["card_code"] != "PL!HS-pb1-014" or row["text_revision_id"] != 130
+        or row["raw_text_hash"] != "542b68ba2435dd4aafaaf2f88d9fc0d75cf33321d245934e772175c21e009591"
+        or row["raw_effect_text_ja"] != full_text):
+        return None
+    return EffectCandidate(
+        **_base_with_execution_mode(row, pattern_id="static_mirrored_front_cost_heart_v1", effect_index=2, execution_mode="auto_resolve"),
+        label_ja=label, effect_type="static", timing="static_always", trigger="static_always",
+        frequency_limit="none", is_optional=False,
+        condition={"opposing_member_cost_greater_than_source_mirrored_v1": True}, cost=[], choice=None,
+        actions=[{"action_type": "gain_heart", "amount": 1, "color_slot": "heart01"}], duration="game",
+    )
+
+
 def _static_modifier_effects(row: sqlite3.Row) -> EffectCandidate | None:
     patterns: dict[str, dict[str, Any]] = {
         "【常時】自分のライブ中のライブカードに、【ライブ開始時】能力も【ライブ成功時】能力も持たないカードがあるかぎり、【heart06】【heart06】を得る。": {
@@ -15599,6 +15615,7 @@ def _activated_return_energy_recover_live(row: sqlite3.Row) -> EffectCandidate |
 
 
 _PATTERNS = (
+    _static_mirrored_front_cost_heart,
     _wait_moved_source_ready,
     _activated_pay1_inspect4_reorder,
     _activated_return_energy_recover_live,

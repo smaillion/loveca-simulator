@@ -717,6 +717,18 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        mirrored = "opposing_member_cost_greater_than_source_mirrored_v1"
+        if mirrored in self.condition and (
+            self.condition != {mirrored: True} or self.condition[mirrored] is not True
+            or self.effect_type != "static" or self.timing != "static_always" or self.trigger != "static_always"
+            or self.execution_mode != "auto_resolve" or self.frequency_limit != "none" or self.is_optional
+            or self.duration != "game" or self.cost or self.cost_choice or self.choice or self.follow_up_choice
+            or self.simulation_support == "manual_resolution"
+            or [op.model_dump(exclude_defaults=True, exclude_none=True) for op in self.actions] != [
+                {"action_type": "gain_heart", "amount": 1, "color_slot": "heart01"}
+            ]
+        ):
+            raise ValueError("mirrored front cost requires the bounded static pink Heart condition")
         bottom_five = "mill_bottom_five_members_draw_source_score"
         if any(op.action_type == bottom_five for op in self.cost):
             raise ValueError("bottom five cannot be a cost")

@@ -4071,11 +4071,14 @@ def _effect_unavailable_reason(
             if instance_id is not None
         ):
             return "stage_attached_energy_member_missing"
-    if effect.condition.get("opposing_member_cost_greater_than_source"):
+    mirrored_front = effect.condition.get("opposing_member_cost_greater_than_source_mirrored_v1") is True
+    if mirrored_front or effect.condition.get("opposing_member_cost_greater_than_source"):
         source_slot = _top_member_slot(player, invocation.source_card_instance_id)
         if source_slot is None:
             return "source_slot_mismatch"
-        opposing_id = opponent.member_area.get(source_slot)
+        # Keep the legacy same-slot snapshot replayable; new snapshots use rule 4.5.7.1.
+        opposing_slot = {"left": "right", "center": "center", "right": "left"}[source_slot] if mirrored_front else source_slot
+        opposing_id = opponent.member_area.get(opposing_slot)
         if opposing_id is None:
             return "opposing_member_missing"
         source_cost = state.cards[invocation.source_card_instance_id].card.cost or 0

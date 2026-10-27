@@ -196,6 +196,9 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *((f"mirrored_cost_heart_{slot}_{cost}", f"正面のコスト比較 {slot}/{cost}", f"镜像正面费用比较 {slot}/{cost}",
+           "PL!HS-pb1-014:2", lambda effect, slot=slot, cost=cost: _run_mirrored_cost_heart(effect, slot, cost))
+          for slot, cost in (("left", 10), ("right", 10), ("center", 10), ("left", 4), ("right", 9))),
         *((f"bottom_five_member_score_{case}", f"下五回Memberと元Live得点 {case}", f"底五次Member与原Live得分 {case}",
            "PL!S-bp7-021:1", lambda effect, case=case: _run_bottom_five_member_score(effect, case))
           for case in ("all", "three", "two", "stage_two", "one_repeat", "empty")),
@@ -520,12 +523,12 @@ def _v1_1_dynamic_scenarios(
                 title_zh=title_zh,
                 status="PASS" if all(checks.values()) else "FAIL",
                 effect_id=effect_id,
-                steps_ja=[
+                steps_ja=["左右/中央の公開Stageを構築し、共有の常時Heart計算を照合する。"] if scenario_id.startswith("mirrored_cost_heart_") else [
                     "固定した公開・非公開 Zone と card instance を構築する。",
                     "Legal Action と同じ ActionRequest で effect を解決する。",
                     "解決後の Zone、orientation、modifier、event を照合する。",
                 ],
-                steps_zh=[
+                steps_zh=["构建左右/中央公开场面，核对共享常时Heart计算；原生Action/SQL另有专项。"] if scenario_id.startswith("mirrored_cost_heart_") else [
                     "构建固定的公开/非公开区域与卡牌实例。",
                     "使用与 Legal Action 相同的 ActionRequest 结算技能。",
                     "核对结算后的区域、状态、修正值与事件。",
@@ -538,6 +541,7 @@ def _v1_1_dynamic_scenarios(
                 notes_ja=[f"公式日本語テキスト: {effect.label_ja}"],
                 notes_zh=[f"官方日文效果文本：{effect.label_ja}"],
                 rule_reference_ids=(
+                    ["4.5.7.1", "9.9.1"] if effect_id == "PL!HS-pb1-014:2" else
                     ["4.1.4", "4.8.3", "9.6.2.4.2", "9.7.7", "10.2.1", "10.2.2.1", "10.2.3", "8.4.11"]
                     if effect_id == "PL!S-bp7-021:1" else
                     ["4.1.4", "4.8.2", "4.8.3", "9.7.7", "10.2.1", "10.2.2.1", "10.2.3", "8.4.11"]
@@ -1656,6 +1660,21 @@ def _run_activated_wait_draw(effect: EffectDefinition) -> dict[str, bool]:
         checks["activation_no_second_draw"] = after.players["player_1"].hand == ["held"] and after.players["player_1"].main_deck == ["remaining"]
     checks["activation_queue_finished"] = not after.pending_effects and after.pending_choice is None
     return checks
+
+
+def _run_mirrored_cost_heart(effect: EffectDefinition, slot: str, cost: int) -> dict[str, bool]:
+    source = _v1_1_member("source", effect.card_code, cost=9, effect_ids=[effect.effect_id])
+    opponents = [_v1_1_member("opponent-" + position, "AUDIT-" + position, cost=10 if cost <= 9 else 4)
+                 for position in ("left", "center", "right")]
+    state = _v1_1_state({effect.effect_id: effect}, [source, *opponents],
+        member_area={position: "source" if position == slot else None for position in ("left", "center", "right")})
+    front = {"left": "right", "center": "center", "right": "left"}[slot]
+    state.players["player_2"].member_area = {position: "opponent-" + position for position in ("left", "center", "right")}
+    for opponent in opponents:
+        opponent.owner_id = "player_2"
+        state.cards[opponent.instance_id].owner_id = "player_2"
+    state.cards["opponent-" + front].card.cost = cost
+    return {"mirrored_front_cost_heart": _static_heart_bonus(state, "player_1", "source")["heart01"] == int(cost > 9)}
 
 
 def _run_v1_1_static_live_state(effect: EffectDefinition) -> dict[str, bool]:

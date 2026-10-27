@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+安養寺姫芽`PL!HS-pb1-014:2`左右正面费用比较采用限定新快照修复。105专项、46种SQL与247图文已有证据，旧pattern标识契约已同步；完整验收按当前源码独立记录，不拼接旧绿色。第1段manual、登记927/1212和冻结15完赛均不变，最终结论见报告验收入口。下方未修复文字属于发现时历史。[修复与验收](./docs/development/mirrored-cost-heart-verification.md)
+
 安養寺姫芽`PL!HS-pb1-014:1`因固定正面目标资格/原来源最后位置依赖继续manual。新增37项边界保护，并以原生SQL发现第2常时左右正面未镜像的既有缺陷；本轮未修复，已独立列为下一最高优先级。登记仍927/1212。[审计与已知缺陷](./docs/development/mirakura-front-position-unresolved.md)
 
 小原鞠莉`PL!S-bp7-008:1`已按全文/revision/hash限定适配：私看三张后任意分组、分别排列库顶库底，第2段仍manual。88专项、242图文、269前端通过；冻结30局完赛14→15，但新增局Live0:3，不称双方Live长局。[验证与边界](./docs/development/private-three-top-bottom-verification.md)

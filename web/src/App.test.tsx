@@ -670,6 +670,23 @@ function stubMobileViewport(): void {
 }
 
 describe("App", () => {
+  it.each([2, 3])("renders server-computed mirrored-front member Hearts without a manual bonus (%i)", async (pink) => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const matchCreate = structuredClone(MATCH_PAYLOAD);
+    matchCreate.state.phase = "live_judgment" as typeof matchCreate.state.phase;
+    matchCreate.state.players.player_1.live_result.member_hearts = { heart01: pink };
+    matchCreate.state.players.player_1.live_result.available_hearts = { heart01: pink };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate }));
+    render(<App />);
+    const create = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(create).not.toBeDisabled());
+    fireEvent.click(create);
+    fireEvent.click(await screen.findByRole("button", { name: "Live 判定" }));
+    const lines = await screen.findAllByText("成员爱心");
+    expect(lines.some((line) => line.closest(".heart-line")?.textContent?.includes(`粉色 ${pink}`))).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect(screen.getAllByText("メンバーハート").some((line) => line.closest(".heart-line")?.textContent?.includes(`ピンク ${pink}`))).toBe(true);
+  });
   beforeEach(() => {
     cleanup();
     vi.unstubAllGlobals();

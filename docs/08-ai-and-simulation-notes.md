@@ -1,5 +1,15 @@
 # AI and Simulation Notes
 
+The second Hime static segment uses the bounded mirrored-front snapshot.
+All four AI rule views agree with native Yell; the first manual segment still
+blocks.105 targeted tests and46 SQL cases preserve old replay, hidden identity
+invariance and current positional recalculation. Frozen30 stays15/15 with208/210
+completed invocations; no random positive static coverage is claimed. The
+unfixed wording below is historical. One old pattern-name contract has been
+updated and targeted validation passes. Full same-source gates and local commit
+results are recorded separately through the report's acceptance entry; earlier
+partial green results are not reused. [Evidence](development/mirrored-cost-heart-verification.md).
+
 Mirakura fixed-front on-play stays manual; four controllers in both roles block
 without hidden-identity or input mutation.37 boundary tests do not promote the
 card. The second static effect has a newly reproduced left/right mirror bug,

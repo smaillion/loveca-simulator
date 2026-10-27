@@ -37066,7 +37066,7 @@
       "card_code": "PL!HS-pb1-014",
       "choice": null,
       "condition": {
-        "opposing_member_cost_greater_than_source": true
+        "opposing_member_cost_greater_than_source_mirrored_v1": true
       },
       "cost": [],
       "cost_choice": null,

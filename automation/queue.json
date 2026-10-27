@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "onplay-both-center-position-choice-audit",
+      "priority": 0,
+      "title": "按实际待机审计双方中央成员各自Position Change",
+      "status": "queued",
+      "depends_on": ["static-mirrored-opponent-cost-source-heart"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!SP-bp5-010:1全文/revision215/hasha99058a753bf9e71a54740c7db2fe2e3ca2d5b5a8c6bf42387de11c4122caaf8；冻结seed18013第6回合117动作实际mandatory manual，不按持卡频率晋级", "先核对官方Q223、1.3.4及Position Change规则，区分双方各自选择本人的中央成员目的地与先后公开/同时执行、占位交换、无中央/空Stage/来源离场；不照搬单方选对手或未经确认扩大旧多人snapshot", "若语义明确才新增受限snapshot，真实原生状态/双方0或多目的地/附属与Wait/非法非所有者原子性、新旧SQL Replay、四AI/完整双视角隐私及原生UI图文验收；不明保留manual及unresolved reason，不自动恢复姫芽第一段", "全部profiles/pre-push与新源码同牌组冻结诊断通过后只本地提交，不改默认AI/schema/reviewed；后续PR目标待明确批准，不改policy、不推送、新建PR、合并部署"]
+    },
+    {
       "id": "static-mirrored-opponent-cost-source-heart",
       "priority": 0,
       "title": "优先修复安養寺姫芽常时正面费用比较未镜像左右的既有错误",

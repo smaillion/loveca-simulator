@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-27 镜像常时恢复验收：仅PL!HS-pb1-014:2条件切换为精确限定新snapshot，旧Replay和第1段manual保持。105专项、46种SQL及247图文已有证据；旧pattern名契约同步后144项定向复验通过。本轮独立执行全部profiles，最终验收/提交结果见`mirrored-cost-heart-verification.md`的验收入口，下方未完成状态为历史。冻结仍15完赛，927/1212不增加。固定分支/工作树，旧44/6 dirty、stash及ignored均保留，不push，后续PR目标待批；当前任务验收前不领双方中央移动。
+
 2026-10-27 固定正面移动审计：PL!HS-pb1-014:1继续manual并登记目标资格/来源最后位置未解决；第2段既有左右镜像bug有独立原生SQL红证据，尚未修复。37边界保护，不改变应用/registry/manifest或927/1212登记，不重复冻结池。下一独立最高优先级修复镜像常时；固定分支/工作树、旧44/6 dirty、stash和ignored均保留，不push。见`mirakura-front-position-unresolved.md`。
 
 2026-10-27 私看三张分组排序：仅PL!S-bp7-008:1晋级，第2段manual不变，旧私看/reorder/manual Replay保持。88专项、242图文、269前端；最终冻结14→15完赛、208/210可执行完成，新增局0:3不称双方长局。固定分支/工作树，旧44/6 dirty、stash与ignored均保留，未push，见`private-three-top-bottom-verification.md`。后续PR目标仍待明确批准。
