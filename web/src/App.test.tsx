@@ -4932,6 +4932,52 @@ describe("App", () => {
     });
   });
 
+  it.each([0, 2, 6])("submits WATER BLUE unordered public selection %s", (count) => {
+    const onAction = vi.fn();
+    const state = structuredClone(INSPECTION_MATCH_PAYLOAD.state) as unknown as MatchState;
+    const ids = Array.from({length: 7}, (_, i) => `water-${i}`);
+    ids.forEach((id, i) => { state.cards[id] = {...INSPECTION_CARDS["player_1-M002"], instance_id: id,
+      card: {...INSPECTION_CARDS["player_1-M002"].card, name_ja: `Water ${i}`}}; });
+    const action = {action_type:"resolve_effect",player_id:"player_1",options:{invocations:[{
+      invocation_id:"water",effect_id:"PL!S-cl1-013:1",source_card_instance_id:"hidden-source",label_ja:"WATER BLUE NEW WORLD",
+      trigger:"live_started",timing:"live_start",execution_mode:"prompt_then_resolve",simulation_support:"test_validated_executable",
+      is_optional:false,choice_type:"card_from_zone",choice_zone:"waiting_room",resolution_stage:"initial",
+      selection_policy:"public_water_blue_bottom_heart",card_selection_minimum:0,card_selection_maximum:6,candidate_card_instance_ids:ids,
+    }]}};
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false} onAction={onAction} onManual={vi.fn()} />);
+    ids.slice(0,count).forEach((_, i) => fireEvent.click(screen.getByRole("button",{name:new RegExp(`Water ${i}`)})));
+    if(count === 6) fireEvent.click(screen.getByRole("button",{name:/Water 6/}));
+    expect(screen.queryByRole("button",{name:"上移已选卡"})).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button",{name:"结算技能"}));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect","player_1",{invocation_id:"water",accepted:true,selected_card_instance_ids:ids.slice(0,count),energy_instance_ids:[]});
+  });
+
+  it("requires exactly one public WATER BLUE Heart recipient without a source face", () => {
+    const onAction=vi.fn();
+    const action={action_type:"resolve_effect",player_id:"player_1",options:{invocations:[{
+      invocation_id:"water",effect_id:"PL!S-cl1-013:1",source_card_instance_id:"hidden-source",label_ja:"WATER BLUE NEW WORLD",
+      trigger:"live_started",timing:"live_start",execution_mode:"prompt_then_resolve",simulation_support:"test_validated_executable",
+      is_optional:false,choice_type:"member_from_stage",choice_zone:"stage",resolution_stage:"after_cost",
+      card_selection_minimum:1,card_selection_maximum:1,candidate_card_instance_ids:["player_1-M002","player_1-M003"],
+    }]}};
+    render(<EffectResolutionAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never} loading={false} onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.getByRole("button",{name:"结算技能"})).toBeDisabled();
+    fireEvent.click(screen.getByRole("button",{name:/候補カード/}));
+    fireEvent.click(screen.getByRole("button",{name:"结算技能"}));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect","player_1",{invocation_id:"water",accepted:true,selected_card_instance_ids:["player_1-M002"],energy_instance_ids:[]});
+  });
+
+  it.each([[0,0],[1,0],[6,6]] as const)("shows bilingual WATER BLUE actual count %s/%s", async (count, amount) => {
+    seedSavedDecks([{path:"test.json",deck:SAMPLE_DECK}]);
+    const data={invocation_id:"water",effect_id:"PL!S-cl1-013:1",returned_count:count,heart_amount:amount};
+    vi.stubGlobal("fetch",createFetchMock({matchCreate:{...MATCH_PAYLOAD,events:[{event_type:"effect_water_blue_heart_resolved",player_id:"player_1",source:"system",data},{event_type:"effect_resolved",player_id:"player_1",source:"system",data}]}}));
+    render(<App />);
+    const create=await screen.findByRole("button",{name:"创建对局"});await waitFor(()=>expect(create).not.toBeDisabled());fireEvent.click(create);
+    expect((await screen.findAllByText(`实际放回 ${count} 张 · 所选成员粉 Heart +${amount}，至 Live 结束`)).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button",{name:"日本語"}));
+    expect((await screen.findAllByText(`実際に戻した${count}枚 · 選んだメンバーのピンクハート +${amount}、ライブ終了時まで`)).length).toBeGreaterThan(0);
+  });
+
   it.each(["wait_opponent", "draw_one"])("submits opponent next-active mode %s", (branch) => {
     const onAction = vi.fn();
     const action = {action_type:"resolve_effect",player_id:"player_1",options:{invocations:[{

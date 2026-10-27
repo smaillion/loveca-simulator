@@ -2803,6 +2803,24 @@ def _onplay_optional_discard_inspect_keep1_any(
     )
 
 
+def _live_start_water_blue_bottom_heart(row: sqlite3.Row) -> EffectCandidate | None:
+    text = "【ライブ開始時】自分の控え室にある、ブレードハートを持たない『Aqours』のメンバーカードを6枚まで選ぶ。それらをシャッフルし、デッキの一番下に置く。ライブ終了時まで、自分のステージにいる『Aqours』のメンバー1人は、これによりデッキの下に置いたカード2枚につき、【heart05】【heart05】を得る。"
+    if (row["card_code"] != "PL!S-cl1-013" or row["text_revision_id"] != 972
+            or row["raw_text_hash"] != "92ac3f09ae0da6ba76aff0bd884b762dbd40af9410853a08c4ae05d8abe9576c"
+            or row["raw_effect_text_ja"] != text):
+        return None
+    return EffectCandidate(
+        **_base(row, pattern_id="live_start_water_blue_bottom_heart", effect_index=1), label_ja=text,
+        effect_type="triggered", timing="live_start", trigger="live_started", frequency_limit="once_per_live",
+        is_optional=False, condition={}, cost=[], duration="live",
+        choice={"choice_type": "card_from_zone", "selection_policy": "public_water_blue_bottom_heart", "zone": "waiting_room",
+                "card_type": "member", "work_key": "love_live_sunshine", "exclude_blade_heart": True, "minimum": 0, "maximum": 6},
+        follow_up_choice={"choice_type": "member_from_stage", "zone": "stage",
+                          "card_type": "member", "work_key": "love_live_sunshine", "minimum": 1, "maximum": 1},
+        actions=[{"action_type": "shuffle_waiting_aqours_for_selected_heart", "amount": 6, "target": "selected"}],
+    )
+
+
 def _live_success_opponent_cost4_wait_or_draw(row: sqlite3.Row) -> EffectCandidate | None:
     text = "【ライブ成功時】以下から1つを選ぶ。 ・相手のステージにいるコスト4以下のメンバーを2人までウェイトにする。そのメンバーは次のターンのアクティブフェイズにアクティブしない。 ・カードを1枚引く。"
     if (row["card_code"] != "PL!S-bp7-025" or row["text_revision_id"] != 917
@@ -15784,6 +15802,7 @@ _PATTERNS = (
     _onplay_both_waiting_live,
     _onplay_diverdiva_energy_modes,
     _live_success_opponent_cost4_wait_or_draw,
+    _live_start_water_blue_bottom_heart,
     _onplay_audited_discard_inspection,
     _onplay_optional_discard_inspect_keep1_any,
     _nijigasaki_onplay_inspection,

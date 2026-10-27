@@ -1,5 +1,12 @@
 # AI and Simulation Notes
 
+The exact WATER BLUE snapshot uses two existing generic selection stages. Four
+AI versions submit both with either owner, without hidden identity dependence
+or input mutation. Only the chosen waiting set is public; shuffled order and
+current deck faces remain hidden. Frozen seed18027 actually returned zero cards,
+so positive Heart evidence comes from targeted/SQL tests, not random coverage.
+See development/water-blue-bottom-heart-verification.md for final gate scope.
+
 The bounded PL!S-bp7-025:1 branch reuses existing AI branch submissions. Four
 versions finish the initial choice and zero-to-two public opponent targets in
 both roles without hidden-identity dependence or input changes. The restriction

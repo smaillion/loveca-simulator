@@ -197,6 +197,9 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *((f"water_blue_bottom_{count}", f"控室から下へ {count}", f"控室洗回库底 {count}",
+           "PL!S-cl1-013:1", lambda effect, count=count: _run_water_blue(effect, count))
+          for count in (0, 1, 2, 5, 6)),
         *((f"opponent_next_active_{case}", f"相手の次ターン {case}", f"对手下回合 {case}",
            "PL!S-bp7-025:1", lambda effect, case=case: _run_opponent_next_active(effect, case))
           for case in ("zero", "one", "two", "already_wait", "draw")),
@@ -657,6 +660,34 @@ def _run_opponent_success_draw(effect: EffectDefinition, case: str) -> dict[str,
         "条件成立時だけ必須一枚 / 条件成立才必选一张": len(final.state.players["player_1"].hand) == expected_draw - int(both and bool(hand_before)),
         "待機完了 / 待机完成": not final.state.pending_effects,
     }
+
+
+def _run_water_blue(effect: EffectDefinition, count: int) -> dict[str, bool]:
+    source = _v1_1_live("source", effect.card_code, effect_ids=[effect.effect_id])
+    target = _v1_1_member("target", "TARGET")
+    target.card.work_keys = ["love_live_sunshine"]
+    waiting = [_v1_1_member(f"waiting-{i}", f"WAIT-{i}") for i in range(6)]
+    for item in waiting:
+        item.card.work_keys = ["love_live_sunshine"]
+        item.card.blade_heart_color_slot = None
+        item.card.special_blade_hearts = []
+    tail = _v1_1_member("tail", "Hidden Tail")
+    state = _v1_1_state({effect.effect_id: effect}, [source, target, tail, *waiting], hand=[])
+    p = state.players["player_1"]
+    p.live_area, p.member_area = ["source"], {"left": "target", "center": None, "right": None}
+    p.main_deck, p.waiting_room = ["tail"], [item.instance_id for item in waiting]
+    state.pending_effects = [EffectInvocation(invocation_id="water-blue", effect_id=effect.effect_id,
+        player_id="player_1", source_card_instance_id="source", trigger_event="live_started")]
+    action = lambda s, ids: ActionRequest(action_type="resolve_effect", player_id="player_1", expected_revision=s.revision,
+        payload={"invocation_id": "water-blue", "selected_card_instance_ids": ids})
+    result = apply_action(state, action(state, p.waiting_room[:count]))
+    if count >= 2:
+        result = apply_action(result.state, action(result.state, ["target"]))
+    data = next(e.data for e in result.events if e.event_type == "effect_water_blue_heart_resolved")
+    return {"实际放回 / 実際に戻す": data["returned_count"] == count,
+        "每满两枚粉心两颗 / 2枚につきピンク2": data["heart_amount"] == (count // 2) * 2,
+        "保留原尾牌 / 元の末尾を保持": result.state.players["player_1"].main_deck[0] == "tail",
+        "待機完了 / 待机完成": not result.state.pending_effects}
 
 
 def _run_opponent_next_active(effect: EffectDefinition, case: str) -> dict[str, bool]:

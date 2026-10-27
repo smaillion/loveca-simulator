@@ -875,6 +875,8 @@ def _manual_adjustment(
         raise IllegalActionError("DiverDiva branch must finish before manual adjustment")
     if any(_opponent_wait_modes(state.effect_definitions[i.effect_id]) and i.resolution_stage != "initial" for i in state.pending_effects):
         raise IllegalActionError("opponent Member branch must finish before manual adjustment")
+    if any(_water_blue_snapshot(state.effect_definitions[i.effect_id]) and i.resolution_stage != "initial" for i in state.pending_effects):
+        raise IllegalActionError("WATER BLUE must finish before manual adjustment")
     if (state.pending_choice is not None
             and state.pending_choice.options.get("multi_player_choice_type") in {"multi_player_waiting_live_recovery", "multi_player_center_position_change", "multi_player_opponent_live_offer"}):
         raise IllegalActionError("structured public recovery must be resolved before manual adjustment")
@@ -1644,6 +1646,9 @@ def _resolve_effect(
         raise IllegalActionError(
             "manual_resolution effects require a ManualAdjustmentAction"
         )
+    if _water_blue_snapshot(effect):
+        _resolve_water_blue(state, invocation, action, events)
+        return
     if _opponent_wait_modes(effect):
         if (set(action.payload) - {"invocation_id", "accepted", "selected_branch", "selected_card_instance_ids", "energy_instance_ids", "ai_decision"}
                 or action.payload.get("energy_instance_ids") not in (None, [])):
@@ -5425,6 +5430,9 @@ def _effect_choice_candidates(
     ):
         return []
     follow_up_choice = _effect_follow_up_choice(effect, invocation)
+    if (_water_blue_snapshot(effect) and invocation.resolution_stage == "initial"
+            and not state.players[invocation.player_id].main_deck):
+        return []
     if follow_up_choice is not None:
         if not _choice_condition_met(state, invocation, follow_up_choice):
             return []
@@ -6695,7 +6703,7 @@ def _effect_uses_multi_player_choice(effect: Any) -> bool:
 def _effect_follow_up_choice(effect: Any, invocation: EffectInvocation) -> Any | None:
     if (
         invocation.resolution_stage == "after_cost"
-        and _effect_uses_multi_player_choice(effect)
+        and (_effect_uses_multi_player_choice(effect) or _water_blue_snapshot(effect))
         and effect.follow_up_choice is not None
     ):
         return effect.follow_up_choice
@@ -7038,6 +7046,71 @@ def _record_effect_ready_flag(
 
 def _effect_uses_branch_choice(effect: Any) -> bool:
     return bool(effect.choice and effect.choice.choice_type == "choose_effect_branch")
+
+
+def _water_blue_snapshot(effect: Any) -> bool:
+    return getattr(getattr(effect, "choice", None), "selection_policy", None) == "public_water_blue_bottom_heart"
+
+
+def _resolve_water_blue(state: MatchState, invocation: EffectInvocation, action: ActionRequest, events: list[GameEvent]) -> None:
+    effect = state.effect_definitions[invocation.effect_id]
+    player = state.players[invocation.player_id]
+    ids = action.payload.get("selected_card_instance_ids", [])
+    if (set(action.payload) - {"invocation_id", "accepted", "selected_card_instance_ids", "energy_instance_ids", "ai_decision"}
+            or action.payload.get("energy_instance_ids") not in (None, [])
+            or not isinstance(ids, list) or any(not isinstance(i, str) for i in ids) or len(ids) != len(set(ids))):
+        raise IllegalActionError("WATER BLUE accepts only its current public card selection")
+    if invocation.resolution_stage == "initial":
+        if not player.main_deck:
+            _refresh_main_deck(state, invocation.player_id, events)
+        candidates = _effect_choice_candidates(state, invocation)
+        if len(ids) > 6 or any(i not in candidates for i in ids):
+            raise IllegalActionError("WATER BLUE requires up to six own waiting Aqours Members without Blade Hearts")
+        selected = [i for i in player.waiting_room if i in set(ids)]
+        revealed = [state.cards[i].model_dump(mode="json") for i in selected]
+        player.waiting_room = [i for i in player.waiting_room if i not in set(selected)]
+        shuffled = _deterministic_shuffle(selected, state.seed, f"water-blue:{invocation.invocation_id}")
+        for item in shuffled:
+            state.cards[item].face_up = False
+        player.main_deck.extend(shuffled)
+        invocation.trigger_data["water_blue_returned_count"] = len(selected)
+        invocation.trigger_data["revealed_cards"] = revealed
+        invocation.resolution_stage = "after_cost"
+        events.append(GameEvent(event_type="effect_water_blue_cards_returned", player_id=invocation.player_id,
+            data={"effect_id": effect.effect_id, "invocation_id": invocation.invocation_id,
+                  "returned_count": len(selected), "selected_card_instance_ids": selected,
+                  "revealed_cards": revealed, "shuffle_performed": True}, source="system"))
+        if len(selected) >= 2 and _effect_choice_candidates(state, invocation):
+            _append_effect_choice_started_event(state, invocation, events, reason="water_blue_member_choice")
+            return
+        ids = []
+    elif invocation.resolution_stage == "after_cost":
+        candidates = _effect_choice_candidates(state, invocation)
+        required = min(1, len(candidates))
+        if len(ids) != required or any(i not in candidates for i in ids):
+            raise IllegalActionError("WATER BLUE requires one current own Aqours Stage Member when available")
+    else:
+        raise IllegalActionError("invalid WATER BLUE resolution stage")
+    count = invocation.trigger_data.get("water_blue_returned_count")
+    if type(count) is not int or not 0 <= count <= 6:
+        raise IllegalActionError("WATER BLUE return-count snapshot is missing")
+    amount = (count // 2) * 2
+    if ids and amount:
+        player.manual_modifiers.append(ManualModifier(
+            modifier_id=f"effect:{invocation.invocation_id}:water-blue-heart", modifier_type="heart", duration="live",
+            created_turn=state.turn_number, color_slot="heart05", amount=amount, target_card_instance_id=ids[0],
+            value={"policy": "original_selected_water_blue_member"},
+        ))
+    state.pending_effects.remove(invocation)
+    _record_effect_usage(state, invocation)
+    events.append(GameEvent(event_type="effect_water_blue_heart_resolved", player_id=invocation.player_id,
+        data={"effect_id": effect.effect_id, "invocation_id": invocation.invocation_id,
+              "returned_count": count, "heart_amount": amount if ids else 0,
+              "target_member_instance_id": ids[0] if ids else None}, source="system"))
+    events.append(GameEvent(event_type="effect_resolved", player_id=invocation.player_id,
+        data={"effect_id": effect.effect_id, "invocation_id": invocation.invocation_id}, source="system"))
+    _resolve_automatic_effects(state, events)
+    _continue_after_effect_queue(state, events)
 
 
 def _opponent_wait_modes(effect: Any) -> bool:
@@ -12393,7 +12466,8 @@ def _clear_departed_card_modifiers(
             or (not clear_all and not _is_muse_blade_aura(modifier) and not _is_opponent_member_block(modifier)
                 and not (modifier.modifier_type == "heart"
                          and modifier.value in ({"policy": "original_live_start_bottom_source"},
-                                                {"policy": "original_live_start_bottom_three_source"})))
+                                                {"policy": "original_live_start_bottom_three_source"},
+                                                {"policy": "original_selected_water_blue_member"})))
         ]
         removed_count += len(player.manual_modifiers) - len(retained)
         player.manual_modifiers = retained

@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+WATER BLUE NEW WORLD `PL!S-cl1-013:1`を全文/revision/hash限定で実装。控室のBlade HeartなしAqoursメンバー0～6枚をシャッフルしてデッキの下へ戻し、2枚につき選んだAqours一人へピンクHeart二つ。順番を秘匿し、対象の移区で解除。78専用/31 SQL、四AI・秘匿、276図解/7 UI、全門禁とランダム実績は[検証記録](./docs/development/water-blue-bottom-heart-verification.md)。本切片はローカル検証のみ、push/deployしない。
+
 継続開発のレビュー先は[Draft PR #55](https://github.com/smaillion/loveca-simulator/pull/55)に固定。管理者承認済みの目標変更を独立した全門禁で再検証し、同じ分岐/PRのみ更新する。[検証記録](./docs/development/draft-pr55-target-verification.md)。merge/deployは別途承認が必要。
 
 `PL!S-bp7-025:1`を全文/revision/hash限定で対応。相手のコスト4以下を0～2人選びWaitと次ゲームターンのActive制限、または一枚ドロー。原対象の離場で解除し、場内移動では保持、旧snapshotは変更しない。85専用/34 SQL、四AI・秘匿、271図解/7 UI、最終門禁と固定30試合は[検証記録](./docs/development/opponent-member-next-active-verification.md)。管理者が新Draft PR作成を承認、merge/deployは別途承認が必要。

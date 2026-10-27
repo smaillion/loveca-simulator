@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+WATER BLUE NEW WORLD `PL!S-cl1-013:1`按全文/revision/hash限定实现：控室0至6张无Blade Heart的Aqours Member洗回库底，每满两张给后续所选Aqours成员粉Heart两颗。洗后顺序隐藏，原受益对象移区不继承；78专项/31 SQL、四AI/隐私、276图文与7 UI，完整门禁及随机实际分支见[验证记录](./docs/development/water-blue-bottom-heart-verification.md)。本切片仅本地验收，不推送或上线。
+
 持续开发审查目标固定为[Draft PR #55](https://github.com/smaillion/loveca-simulator/pull/55)。按已获得的明确批准，编号配置独立重新验收后只更新同一分支与PR；[验收记录](./docs/development/draft-pr55-target-verification.md)。合并和上线仍需另行批准。
 
 `PL!S-bp7-025:1`按完整全文/revision/hash限定支持：选择对手费用4以下0至2名成员Wait并限制下个游戏回合Active复原，或抽一张。原对象离场清理、场内移动保留，旧快照不改。85专项/34 SQL、四AI/隐私、271图文/7 UI；完整门禁及同牌组30局见[验收记录](./docs/development/opponent-member-next-active-verification.md)。维护者已批准新Draft PR，合并上线仍需另行批准。

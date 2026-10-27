@@ -1920,6 +1920,8 @@ const autoResultTerminalEvents = new Set([
 ]);
 
 const autoResultOperationEvents = new Set([
+  "effect_water_blue_cards_returned",
+  "effect_water_blue_heart_resolved",
   "effect_opponent_member_next_active_resolved",
   "effect_diverdiva_energy_resolved",
   "effect_bottom_aqours_requirement_resolved",
@@ -2046,7 +2048,7 @@ function autoResultLines(
           || related.data.reason === "no_legal_stage_member_at_resolution")) {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
-    } else if (related.event_type === "effect_diverdiva_energy_resolved" || related.event_type === "effect_opponent_member_next_active_resolved") {
+    } else if (related.event_type === "effect_diverdiva_energy_resolved" || related.event_type === "effect_opponent_member_next_active_resolved" || related.event_type === "effect_water_blue_cards_returned" || related.event_type === "effect_water_blue_heart_resolved") {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
     } else if (related.event_type === "effect_bottom_aqours_requirement_resolved") {
@@ -4251,6 +4253,8 @@ function eventTitle(event: GameEvent, locale: UiLocale): string {
     effect_bottom_aqours_heart_resolved: ["底三张Aqours判定", "下三枚のAqours判定"],
     effect_bottom_five_members_resolved: ["底五次Member与Live得分", "下五回のメンバーとライブ得点"],
     effect_bottom_aqours_requirement_resolved: ["底牌与原Live必要Heart", "下のカードと元ライブの必要ハート"],
+    effect_water_blue_cards_returned: ["控室洗回库底", "控室からシャッフルしてデッキの下へ"],
+    effect_water_blue_heart_resolved: ["所选成员粉Heart", "選んだメンバーのピンクハート"],
     effect_diverdiva_energy_resolved: ["DiverDiva Energy分支", "DiverDivaエネルギー分岐"],
     effect_opponent_member_next_active_resolved: ["对手成员下回合限制", "相手メンバーの次ターン制限"],
     effect_opponent_success_draw_resolved: ["对方本回合成功判定", "相手の今ターン成功判定"],
@@ -4395,6 +4399,16 @@ function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): st
     return locale === "zh"
       ? `对手成员 Wait ${Number(event.data.waited_count)} 人 · 下回合不复原 ${Number(event.data.restricted_count)} 人 · 抽 ${Number(event.data.drawn_count)} 张`
       : `相手メンバー${Number(event.data.waited_count)}人をウェイト · 次ターンにアクティブしない${Number(event.data.restricted_count)}人 · ${Number(event.data.drawn_count)}枚ドロー`;
+  }
+  if (event.event_type === "effect_water_blue_cards_returned") {
+    return locale === "zh"
+      ? `控室 ${Number(event.data.returned_count)} 张洗牌后置于库底`
+      : `控室の${Number(event.data.returned_count)}枚をシャッフルしてデッキの下へ`;
+  }
+  if (event.event_type === "effect_water_blue_heart_resolved") {
+    return locale === "zh"
+      ? `实际放回 ${Number(event.data.returned_count)} 张 · 所选成员粉 Heart +${Number(event.data.heart_amount)}，至 Live 结束`
+      : `実際に戻した${Number(event.data.returned_count)}枚 · 選んだメンバーのピンクハート +${Number(event.data.heart_amount)}、ライブ終了時まで`;
   }
   if (event.event_type === "effect_diverdiva_energy_resolved") {
     return locale === "zh"

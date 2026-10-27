@@ -14,6 +14,7 @@ DEFAULT_EFFECT_REGISTRY = (
 )
 
 SUPPORTED_EFFECT_ACTIONS = {
+    "shuffle_waiting_aqours_for_selected_heart",
     "wait_opponent_cost4_skip_next_turn_active",
     "attach_energy_deck_to_selected_nijigasaki",
     "mill_bottom_one_aqours_source_requirement",
@@ -195,6 +196,10 @@ class EffectOperation(BaseModel):
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        if self.action_type == "shuffle_waiting_aqours_for_selected_heart" and self.model_dump(exclude_defaults=True, exclude_none=True) != {
+            "action_type": "shuffle_waiting_aqours_for_selected_heart", "amount": 6, "target": "selected",
+        }:
+            raise ValueError("WATER BLUE only supports its fixed return-six/selected-Heart operation")
         if self.action_type == "wait_opponent_cost4_skip_next_turn_active" and self.model_dump(exclude_defaults=True, exclude_none=True) != {
             "action_type": "wait_opponent_cost4_skip_next_turn_active", "amount": 2, "target": "selected", "branch": "wait_opponent",
         }:
@@ -437,6 +442,7 @@ class EffectChoice(BaseModel):
         "public_two_distinct_live_opponent_one",
         "public_diverdiva_energy_modes",
         "public_opponent_cost4_wait_or_draw",
+        "public_water_blue_bottom_heart",
     ] | None = None
     zone: str | None = None
     card_type: str | None = None
@@ -759,6 +765,27 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        water_blue = self.choice is not None and self.choice.selection_policy == "public_water_blue_bottom_heart"
+        if any(op.action_type == "shuffle_waiting_aqours_for_selected_heart" for op in [*self.cost, *self.actions]) and not water_blue:
+            raise ValueError("WATER BLUE operation requires its exact bounded snapshot")
+        if water_blue and (
+            self.cost or self.cost_choice or self.condition or self.is_optional
+            or self.effect_type != "triggered" or self.timing != "live_start" or self.trigger != "live_started"
+            or self.execution_mode != "prompt_then_resolve" or self.frequency_limit != "once_per_live" or self.duration != "live"
+            or self.simulation_support == "manual_resolution"
+            or self.choice.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "card_from_zone", "selection_policy": "public_water_blue_bottom_heart", "zone": "waiting_room",
+                "card_type": "member", "work_key": "love_live_sunshine", "exclude_blade_heart": True, "maximum": 6,
+            }
+            or self.follow_up_choice is None or self.follow_up_choice.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "member_from_stage", "zone": "stage",
+                "card_type": "member", "work_key": "love_live_sunshine", "minimum": 1,
+            }
+            or [op.model_dump(exclude_defaults=True, exclude_none=True) for op in self.actions] != [
+                {"action_type": "shuffle_waiting_aqours_for_selected_heart", "amount": 6, "target": "selected"},
+            ]
+        ):
+            raise ValueError("WATER BLUE requires its fixed mandatory Live-start two-step snapshot")
         opponent_wait = self.choice is not None and self.choice.selection_policy == "public_opponent_cost4_wait_or_draw"
         if any(op.action_type == "wait_opponent_cost4_skip_next_turn_active" for op in [*self.cost, *self.actions]) and not opponent_wait:
             raise ValueError("opponent Member restriction requires the bounded Live-success snapshot")

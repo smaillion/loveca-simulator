@@ -1,5 +1,13 @@
 # Effect Semantics Audit
 
+2026-10-28 JST: WATER BLUE PL!S-cl1-013:1 has a bounded six-card waiting shuffle
+and subsequent single-recipient Heart snapshot. PDF5.5.1.2 counts zero/one as a
+shuffle; zero Heart skips a zero-value operation under1.3.2.2. This is a general
+rule/text derivation, not a card-specific FAQ. Q112 excludes special Blade Hearts
+as well as colored ones. Actual returned count, not submitted order or current
+deck bottom, controls Heart. Old snapshots and all unresolved families remain.
+See development/water-blue-bottom-heart-verification.md for evidence and limits.
+
 2026-10-27: PL!S-bp7-025:1 has an exact mandatory Live-success two-mode snapshot.
 Q144/PDF 9.6.3.1.1 permit zero to two public cost-four opponent Members; already
 Wait targets do not change orientation again (1.3.2.1), while the text's separate
