@@ -33,6 +33,7 @@ SUPPORTED_EFFECT_ACTIONS = {
     "gain_blade_to_stage_members",
     "gain_blade_if_milled_all_card_type",
     "grant_live_success_draw",
+    "grant_muse_blade_aura_if_success_score_icon",
     "gain_heart",
     "gain_heart_to_stage_members",
     "inspect_top_cards",
@@ -155,6 +156,7 @@ class EffectOperation(BaseModel):
         "original_moved_stage_member", "original_live_start_heart_source",
         "original_live_start_wait_cost_source",
         "original_onplay_mill_source",
+        "original_onplay_muse_blade_aura",
     ] | None = None
     overlap_observer_policy: Literal[
         "ignore_disjoint_source_triggers", "require_complete_source_bindings"
@@ -181,6 +183,17 @@ class EffectOperation(BaseModel):
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        if self.action_type == "grant_muse_blade_aura_if_success_score_icon" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "action_type": "grant_muse_blade_aura_if_success_score_icon",
+                "source_object_policy": "original_onplay_muse_blade_aura", "target": "source", "amount": 1,
+            }
+        ):
+            raise ValueError("Muse aura requires the fixed original source Blade-one grant")
+        if self.source_object_policy == "original_onplay_muse_blade_aura" and (
+            self.action_type != "grant_muse_blade_aura_if_success_score_icon"
+        ):
+            raise ValueError("Muse aura source policy only supports its bounded grant")
         if self.action_type == "gain_source_heart_if_milled_member_blade_colors" and (
             self.model_dump(exclude_defaults=True, exclude_none=True) != {
                 "action_type": "gain_source_heart_if_milled_member_blade_colors",
@@ -648,6 +661,13 @@ class EffectDefinition(BaseModel):
             ]
         ):
             raise ValueError("both-player recovery only supports the fixed mandatory on-play sequence")
+        if any(op.action_type == "grant_muse_blade_aura_if_success_score_icon" for op in self.actions) and (
+            self.cost or self.cost_choice or self.choice or self.follow_up_choice or self.condition
+            or self.is_optional or self.effect_type != "triggered" or self.timing != "on_play"
+            or self.trigger != "member_played" or self.frequency_limit != "none"
+            or self.duration != "live" or self.execution_mode != "auto_resolve" or len(self.actions) != 1
+        ):
+            raise ValueError("Muse aura only supports the fixed mandatory on-play Live-limited grant")
         if any(op.action_type == "gain_source_heart_if_milled_member_blade_colors" for op in self.actions) and (
             self.cost or self.cost_choice or self.choice or self.follow_up_choice or self.condition
             or self.is_optional or self.effect_type != "triggered" or self.timing != "on_play"

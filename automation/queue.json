@@ -38,6 +38,15 @@
       "acceptance": ["只为已有至少四张牌库的原型增加受限snapshot策略，不改官方registry或generator，不提高执行率；不足四张在修改状态前明确拒绝，正式PL!-pb2-013仍manual", "公开不改变牌库对象及顺序；全四张lily_white才必须选其中Live一张并丢弃其余，否则无选择且原牌库不变；无Live时明确零张；验证公开/私看隔离、原对象、非法选择原子性和离开返回", "真实状态、SQL Replay、四AI及隐藏信息、原生UI有断言；旧私看快照维持原状。全部profiles/pre-push和新源码绑定的冻结30局通过，中文报告区分原型验证与正式卡裁定", "保留公开短牌库与刷新语义unresolved，不套用私看10.2.2.2，也不把逐张公开FAQ直接当成同时公开四张裁定；未获新PR目标批准前不改policy、不推送、不合并部署"]
     },
     {
+      "id": "live-start-bottom-one-live-source-heart",
+      "priority": 0,
+      "title": "按实际待机审计牌库底一张Live条件与原来源Heart",
+      "status": "queued",
+      "depends_on": ["onplay-success-muse-granted-blade-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对seed18027实际mandatory manual的PL!S-bp7-015:1全文/revision860/hash 4de00b242755d4712ed8afbb6b6d5a27047c8f4cdbfd76101d0f1f1b7343cbf0，只绑定完整日文，不按持有频率晋级", "Live开始从主牌库底置一张控室，只检查本次实际移动的原卡是否Live，满足时仅原来源Heart02+1至Live结束；确认底部移动、空库/刷新顺序，不套用私看预先补库", "源对象离场/返回/换位、Member/Live/空库、已有控室/恰一张、原子拒绝、新旧SQL Replay、四AI/隐藏信息及必要UI图文须真实断言；未确认就记录unresolved，不扩大旧snapshot", "全部profiles/pre-push和同牌组新源码冻结诊断通过，更新中日README/Changelog及中文报告；只做本地验证提交，未获明确后续PR目标批准前不改policy、不推送、新建PR、合并部署"]
+    },
+    {
       "id": "onplay-success-muse-granted-blade-audit",
       "priority": 0,
       "title": "审计成功区得分图标条件与临时赋予μs常时Blade能力",

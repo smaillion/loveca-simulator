@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-27 星空凛切片：固定工作树/分支，只有PL!-pb2-005:1登记变化。临时常时Blade动态覆盖后入场μ's，来源离场及Live期限明确；重叠/继承保留门禁。75专项、212图文及243前端通过，冻结30局仍12/18，本卡两次实际处理均条件未满足。旧dirty/ignored保留，未push，后续PR目标待批。见`muse-granted-blade-verification.md`。
+
 2026-10-27 多玩家隐私修复：旧来源引用泄露已补原生动作/SQL红测试并统一修复网页、AI和语义代理投影，正常/skip及待机副本保护隐藏引用，本人manual提交句柄独立保留且不授予卡面权限。64专项与240前端通过，冻结30局仍12/18，原始规则快照及registry未改；当前报告见`multi-player-source-privacy-verification.md`。固定分支/工作树，无push或新PR，旧44/6 dirty与ignored报告保留；下文旧风险为历史检查点。
 
 2026-10-27 当前双方控室回收切片：仍使用固定分支/工作树，仅PL!N-bp4-007:1登记变化，同卡后两段未动。新类型隐私已保护；旧多玩家来源ID泄露已只读复现并排最高优先级，旧dirty与ignored报告保留。见`both-waiting-live-recovery-verification.md`；新PR目标未变。

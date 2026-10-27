@@ -196,6 +196,9 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *((f"muse_granted_blade_{case}", f"μ's常時Blade付与 {case}", f"μ's临时常时Blade {case}",
+           "PL!-pb2-005:1", lambda effect, case=case: _run_muse_granted_blade(effect, case))
+          for case in ("score_icon", "numeric_only", "wrong_work", "late_member", "source_leave", "source_position")),
         *((f"both_waiting_live_{first}_{second}", f"両者控室回収 {first}/{second}", f"双方控室回收 {first}/{second}",
            "PL!N-bp4-007:1", lambda effect, first=first, second=second: _run_both_waiting_live_recovery(effect, first, second))
           for first, second in ((0, 0), (0, 2), (2, 0), (2, 2))),
@@ -539,6 +542,37 @@ def _v1_1_dynamic_scenarios(
             )
         )
     return results
+
+
+def _run_muse_granted_blade(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    source = _v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id], cost=0, work_keys=["love_live"])
+    live = _v1_1_live("success", "Success Live")
+    live.card.work_keys = ["nijigasaki" if case == "wrong_work" else "love_live"]
+    live.card.score = 99
+    if case != "numeric_only":
+        live.card.special_blade_hearts = [SpecialBladeHeart(effect_type="score", source_alt="スコア", value=1)]
+    late = _v1_1_member("late", "Later Member", cost=0, work_keys=["love_live"])
+    state = _v1_1_state({effect.effect_id: effect}, [source, live, late, _v1_1_member("tail", "Hidden Tail")], hand=["source", "late"])
+    state.players["player_1"].success_live_area = ["success"]
+    state.players["player_1"].main_deck = ["tail"]
+    result = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1",
+        expected_revision=state.revision, payload={"card_instance_id": "source", "slot": "center", "energy_instance_ids": []}))
+    granted = next(e for e in result.events if e.event_type == "effect_muse_blade_aura_resolved")
+    if case == "late_member":
+        result = apply_action(result.state, ActionRequest(action_type="play_member", player_id="player_1",
+            expected_revision=result.state.revision, payload={"card_instance_id": "late", "slot": "right", "energy_instance_ids": []}))
+    elif case in {"source_leave", "source_position"}:
+        adjustment = {"adjustment_type": "move_card", "target_card_instance_id": "source", "to_zone": "hand"} if case == "source_leave" else {
+            "adjustment_type": "position_change", "from_slot": "center", "to_slot": "right"}
+        result = apply_action(result.state, ActionRequest(action_type="manual_adjustment", player_id="player_1",
+            expected_revision=result.state.revision, payload={"reason": "AUDIT source object", "adjustments": [{"target_player_id": "player_1", **adjustment}]}))
+    matched = case not in {"numeric_only", "wrong_work"}
+    return {
+        "図柄条件 / 图标条件": granted.data["aura_delta"] == int(matched),
+        "現在の発生源 / 当前原来源": _effective_member_blade(result.state, "player_1", "source") == int(matched and case != "source_leave"),
+        "後から登場 / 后续入场": case != "late_member" or _effective_member_blade(result.state, "player_1", "late") == 1,
+        "待機完了 / 待机完成": not result.state.pending_effects and result.state.pending_choice is None,
+    }
 
 
 def _run_both_waiting_live_recovery(effect: EffectDefinition, first: int, second: int) -> dict[str, bool]:

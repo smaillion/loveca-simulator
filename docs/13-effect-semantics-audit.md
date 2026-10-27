@@ -1,5 +1,13 @@
 # Effect Semantics Audit
 
+PL!-pb2-005:1 binds exact text/revision978/hash and checks the special score
+Blade Heart icon in the owner's success area, not numeric Live score. The
+granted constant ability affects current Muse Stage Members dynamically under
+9.9.3; Q78 supports source departure termination, not a card-specific ruling.
+75 targeted tests preserve old manual snapshots and reject unreviewed overlap
+under complete-source gates. Registry922/1212 and290manual, no reviewed upgrade.
+[Scope and official evidence](development/muse-granted-blade-verification.md).
+
 Legacy multi-player source-reference leakage is repaired in the shared
 projection, not by changing effect rules or downgrading registry entries.
 Native play/manual-control/resolve/first-choice SQL reproduces the old leak.

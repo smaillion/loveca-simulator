@@ -1,5 +1,14 @@
 # AI and Simulation Notes
 
+PL!-pb2-005:1 grants a source-bound Live-limited Muse Blade aura, not one-time
+bonuses to the initial Stage. Effective Blade and Yell share dynamic evaluation;
+later entries benefit, departure/reentry and unsupported overlap stay explicit.
+75 targeted tests, four AI versions, SQL and212 illustrated scenarios pass.
+Frozen30 stays12 completed/18 manual stops,185/187 executable completions.
+Both actual Rin resolutions have false conditions; positive aura behavior is
+covered by controlled state/SQL, not claimed as random-match coverage.
+[Evidence](development/muse-granted-blade-verification.md).
+
 Legacy multiplayer source-reference privacy now uses shared zone/inspection
 visibility for player payloads and AIObservation. Metadata in normal/skip
 actions cannot resurrect hidden cards; semantic contexts redact it too.

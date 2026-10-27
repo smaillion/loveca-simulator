@@ -2088,6 +2088,27 @@ describe("App", () => {
     expect((await screen.findAllByText(`メンバーのブレードハート ${colors} 色 · 誘発元の緑ハート +${delta}`)).length).toBeGreaterThan(0);
   });
 
+  it.each([[1, true], [0, true], [0, false]] as const)("shows granted Muse aura result %s source %s", async (delta, available) => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const data = { effect_id: "PL!-pb2-005:1", invocation_id: "aura", source_card_instance_id: "player_1-M001",
+      source_available: available, condition_met: delta > 0 || !available, aura_delta: delta };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate: { ...MATCH_PAYLOAD, events: [
+      { event_type: "effect_muse_blade_aura_resolved", player_id: "player_1", source: "system", data },
+      { event_type: "effect_auto_resolved", player_id: "player_1", source: "system", data },
+    ] } }));
+    render(<App />);
+    const create = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(create).not.toBeDisabled());
+    fireEvent.click(create);
+    const zh = delta ? "μ's角色常时Blade +1 · 来源在场期间，至Live结束" : available
+      ? "成功区条件未满足，未获得常时能力" : "原来源角色已离场，未获得常时能力";
+    expect((await screen.findAllByText(zh)).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    const ja = delta ? "μ'sメンバー常時ブレード +1 · 発生源がステージにいる間、ライブ終了時まで" : available
+      ? "成功置き場の条件を満たさず、常時能力を得ない" : "元の発生源が離れ、常時能力を得ない";
+    expect((await screen.findAllByText(ja)).length).toBeGreaterThan(0);
+  });
+
   it.each([0, 1])("shows simultaneous Waiting Room Live recovery counts (%s)", async (count) => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const data = { invocation_id: "both-recovery", effect_id: "PL!N-bp4-007:1",

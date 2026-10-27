@@ -1920,6 +1920,7 @@ const autoResultTerminalEvents = new Set([
 ]);
 
 const autoResultOperationEvents = new Set([
+  "effect_muse_blade_aura_resolved",
   "effect_source_member_readied",
   "effect_blade_comparison_resolved",
   "effect_milled_blade_colors_resolved",
@@ -2039,7 +2040,7 @@ function autoResultLines(
     } else if (related.event_type === "effect_waiting_lives_recovered") {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
-    } else if (related.event_type === "effect_milled_blade_colors_resolved") {
+    } else if (related.event_type === "effect_milled_blade_colors_resolved" || related.event_type === "effect_muse_blade_aura_resolved") {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
       if (related.data.source_available === false) {
@@ -4225,6 +4226,7 @@ function eventTitle(event: GameEvent, locale: UiLocale): string {
     effect_auto_resolved: ["技能自动发动", "能力の自動解決"],
     effect_blade_comparison_resolved: ["Blade 比较结果", "ブレード比較結果"],
     effect_milled_blade_colors_resolved: ["Blade Heart 颜色判定", "ブレードハート色の判定"],
+    effect_muse_blade_aura_resolved: ["μ's常时Blade能力", "μ's常時ブレード能力"],
     effect_waiting_lives_recovered: ["双方控室 Live 回收", "両者の控室ライブ回収"],
     effect_public_waiting_live_selected: ["控室 Live 选择", "控室ライブの選択"],
     effect_resolved: ["技能结算", "能力解決"],
@@ -4340,6 +4342,13 @@ function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): st
     const moves = event.data.card_instance_ids_by_player as Record<string, unknown> | undefined;
     return Object.entries(moves ?? {}).map(([id, cards]) =>
       `${state.players[id]?.name ?? id}: ${stringArray(cards).length} Live`).join(" / ");
+  }
+  if (event.event_type === "effect_muse_blade_aura_resolved") {
+    if (Number(event.data.aura_delta ?? 0) > 0) return locale === "zh"
+      ? "μ's角色常时Blade +1 · 来源在场期间，至Live结束"
+      : "μ'sメンバー常時ブレード +1 · 発生源がステージにいる間、ライブ終了時まで";
+    if (!event.data.source_available) return locale === "zh" ? "原来源角色已离场，未获得常时能力" : "元の発生源が離れ、常時能力を得ない";
+    return locale === "zh" ? "成功区条件未满足，未获得常时能力" : "成功置き場の条件を満たさず、常時能力を得ない";
   }
   if (event.event_type === "effect_milled_blade_colors_resolved") {
     const count = stringArray(event.data.blade_heart_color_slots).length;

@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+星空凛`PL!-pb2-005:1`已按全文/revision/hash限定适配：成功区μ's特殊得分Blade Heart图标条件成立时，原来源获得临时常时能力，后续入场的己方μ's也得Blade+1；来源离场返回不继承，重叠/继承保持明确限制。75专项、212图文、四AI/SQL与243前端验证通过。冻结30局仍12完赛，本卡两次真实触发均条件不成立，不冒充正条件实战覆盖。[证据与边界](./docs/development/muse-granted-blade-verification.md)
+
 已修复旧多玩家来源ID被合法操作元数据重新公开的问题，网页、AI及语义代理统一按实际区域和私看/公开策略确定可见卡；正常选择、skip与待机副本都保护隐藏引用，本人必需的manual提交标识与卡面权限分离。64专项、原生SQL/REST/重连与240前端验证通过；固定30局仍12完赛/18人工停止，不增加技能登记率。本批未推送，后续PR目标仍待批。[证据与范围](./docs/development/multi-player-source-privacy-verification.md)
 
 優木せつ菜`PL!N-bp4-007:1`双方控室Live回收已限定适配：主动方先公开选择，双方选完后同时入手。74专项、206图文及四AI/SQL/双视角通过，冻结30局完赛11→12。本轮新类型的来源ID泄露已保护，但另复现旧多玩家类型的同类风险，下一项优先修复，不宣称全局隐私审计完成。[证据与剩余风险](./docs/development/both-waiting-live-recovery-verification.md)

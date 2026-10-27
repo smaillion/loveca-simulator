@@ -19,6 +19,11 @@ SOURCE_REFERENCE = (
     "Official card text; comprehensive rules ver. 1.06 restricted executor pattern"
 )
 
+MUSE_GRANTED_BLADE_TEXT = (
+    "【登場】自分の成功ライブカード置き場に【スコア】を持つ『μ's』のカードがある場合、"
+    "ライブ終了時まで、「【常時】自分のステージにいる『μ's』のメンバーは、【ブレード】を得る。」を得る。"
+)
+
 MULTI_KEEP_ICON_SCOPE_TEXT = (
     "【登場】手札を1枚控え室に置いてもよい：自分のデッキの上からカードを7枚見る。"
     "その中から【heart02】か【heart04】か【heart05】を持つメンバーカードを3枚まで公開して手札に加えてもよい。残りを控え室に置く。"
@@ -2784,6 +2789,22 @@ def _onplay_both_waiting_live(row: sqlite3.Row) -> EffectCandidate | None:
         choice={"choice_type": "multi_player_waiting_live_recovery", "selection_policy": "public_both_waiting_live_one",
                 "zone": "waiting_room", "card_type": "live", "minimum": 1, "maximum": 1, "selected_destination": "hand"},
         actions=[{"action_type": "return_from_waiting_room", "target": "both"}],
+    )
+
+
+def _onplay_muse_granted_blade(row: sqlite3.Row) -> EffectCandidate | None:
+    if (row["card_code"] != "PL!-pb2-005" or row["text_revision_id"] != 978
+            or row["raw_text_hash"] != "e972ec2ccacf722aa4a5f2ff2f55ece68dabbc676d988590c3d27079da601682"
+            or row["raw_effect_text_ja"] != MUSE_GRANTED_BLADE_TEXT):
+        return None
+    return EffectCandidate(
+        **_base_with_execution_mode(row, pattern_id="onplay_muse_granted_blade", effect_index=1,
+                                    execution_mode="auto_resolve"),
+        label_ja=MUSE_GRANTED_BLADE_TEXT, effect_type="triggered", timing="on_play",
+        trigger="member_played", frequency_limit="none", is_optional=False, condition={},
+        cost=[], choice=None, actions=[{"action_type": "grant_muse_blade_aura_if_success_score_icon",
+            "source_object_policy": "original_onplay_muse_blade_aura", "target": "source", "amount": 1}],
+        duration="live",
     )
 
 
@@ -15533,6 +15554,7 @@ _PATTERNS = (
     _onplay_multi_keep_icon_scope_manual,
     _onplay_ten_minus_hand_private_two,
     _onplay_mill_three_blade_colors,
+    _onplay_muse_granted_blade,
     _onplay_both_waiting_live,
     _onplay_audited_discard_inspection,
     _onplay_optional_discard_inspect_keep1_any,

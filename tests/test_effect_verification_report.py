@@ -17,6 +17,8 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
     scenario_ids = {result.scenario_id for result in results}
     assert {
         "both_waiting_live_0_0", "both_waiting_live_0_2", "both_waiting_live_2_0", "both_waiting_live_2_2",
+        "muse_granted_blade_score_icon", "muse_granted_blade_numeric_only", "muse_granted_blade_wrong_work",
+        "muse_granted_blade_late_member", "muse_granted_blade_source_leave", "muse_granted_blade_source_position",
         "mill_blade_colors_none", "mill_blade_colors_same", "mill_blade_colors_two",
         "mill_blade_colors_three", "mill_blade_colors_all_green", "mill_blade_colors_live_excluded",
         "ten_minus_hand_0", "ten_minus_hand_1", "ten_minus_hand_9", "ten_minus_hand_10", "ten_minus_hand_11",

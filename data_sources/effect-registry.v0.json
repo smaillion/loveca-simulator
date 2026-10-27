@@ -15835,8 +15835,8 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution",
-          "amount": null,
+          "action_type": "grant_muse_blade_aura_if_success_score_icon",
+          "amount": 1,
           "amount_source": null,
           "branch": null,
           "card_type": null,
@@ -15844,7 +15844,8 @@
           "flag": null,
           "multiplier": null,
           "orientation": null,
-          "target": null,
+          "source_object_policy": "original_onplay_muse_blade_aura",
+          "target": "source",
           "target_hand_size": null,
           "value": null
         }
@@ -15858,15 +15859,15 @@
       "effect_id": "PL!-pb2-005:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "follow_up_choice": null,
       "frequency_limit": "none",
       "is_optional": false,
       "label_ja": "【登場】自分の成功ライブカード置き場に【スコア】を持つ『μ's』のカードがある場合、ライブ終了時まで、「【常時】自分のステージにいる『μ's』のメンバーは、【ブレード】を得る。」を得る。",
       "raw_text_hash": "e972ec2ccacf722aa4a5f2ff2f55ece68dabbc676d988590c3d27079da601682",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 978,
       "timing": "on_play",
       "trigger": "member_played"
@@ -82629,9 +82630,15 @@
     },
     {
       "actions": [
-        {"action_type": "inspect_top_cards"},
-        {"action_type": "select_to_hand_from_inspected"},
-        {"action_type": "move_remaining_cards"}
+        {
+          "action_type": "inspect_top_cards"
+        },
+        {
+          "action_type": "select_to_hand_from_inspected"
+        },
+        {
+          "action_type": "move_remaining_cards"
+        }
       ],
       "card_code": "PL!SP-PR-028",
       "choice": {

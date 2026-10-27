@@ -3081,6 +3081,7 @@ def _captures_original_stage_source(effect: Any) -> bool:
         "original_moved_stage_member", "original_live_start_heart_source",
         "original_live_start_wait_cost_source",
         "original_onplay_mill_source",
+        "original_onplay_muse_blade_aura",
     } for op in effect.actions) or (
         effect.choice is not None
         and effect.choice.selection_policy == "public_other_nijigasaki_cost_heart"
@@ -7411,6 +7412,9 @@ def _public_overlap_source_gap(
         if not _complete_overlap_source_binding(state, source_id):
             return "overlap_source_binding_incomplete"
         effects = [state.effect_definitions[key] for key in state.cards[source_id].card.effect_ids]
+        if any(op.action_type == "grant_muse_blade_aura_if_success_score_icon"
+               for effect in effects for op in effect.actions):
+            return "overlap_granted_static_ability_requires_review"
         if zone == "attached" and effects:
             return "overlap_attached_ability_requires_review"
         for effect in effects:
@@ -7864,7 +7868,29 @@ def _execute_operations(
                 )
                 if isinstance(item, str)
             ]
-        if operation_type == "apply_wait":
+        if operation_type == "grant_muse_blade_aura_if_success_score_icon":
+            if invocation.trigger_data.get("original_source_stage_object") is not True:
+                raise IllegalActionError("original source Stage snapshot is missing")
+            source_id = invocation.source_card_instance_id
+            available = (not invocation.trigger_data.get("original_source_stage_object_departed", False)
+                         and source_id in player.member_area.values())
+            matched = [item for item in player.success_live_area
+                       if "love_live" in state.cards[item].card.work_keys
+                       and any(icon.effect_type == "score" for icon in state.cards[item].card.special_blade_hearts)]
+            applied = bool(available and matched)
+            if applied:
+                player.manual_modifiers.append(ManualModifier(
+                    modifier_id=f"effect:{invocation.invocation_id}:muse-blade-aura",
+                    modifier_type="flag", flag="granted_muse_stage_blade", duration="live",
+                    created_turn=state.turn_number, amount=1, target_card_instance_id=source_id,
+                    value={"policy": "original_onplay_muse_blade_aura"},
+                ))
+            events.append(GameEvent(event_type="effect_muse_blade_aura_resolved", player_id=invocation.player_id,
+                data={"effect_id": effect.effect_id, "invocation_id": invocation.invocation_id,
+                      "source_card_instance_id": source_id, "source_available": available,
+                      "condition_met": bool(matched), "matching_success_card_instance_ids": matched,
+                      "aura_delta": int(applied)}, source="system"))
+        elif operation_type == "apply_wait":
             state.cards[invocation.source_card_instance_id].orientation = "wait"
         elif operation_type == "source_to_waiting_room":
             slot = _top_member_slot(player, invocation.source_card_instance_id)
@@ -11910,8 +11936,7 @@ def _clear_departed_card_modifiers(
             and _captures_original_stage_source(state.effect_definitions.get(invocation.effect_id))
         ):
             invocation.trigger_data["original_source_stage_object_departed"] = True
-    if state.stage_departure_policy != "clear_departed_card_modifiers":
-        return
+    clear_all = state.stage_departure_policy == "clear_departed_card_modifiers"
     departed = set(instance_ids)
     removed_count = 0
     # A targeted effect may be stored under the opponent who created it.
@@ -11920,6 +11945,7 @@ def _clear_departed_card_modifiers(
             modifier
             for modifier in player.manual_modifiers
             if modifier.target_card_instance_id not in departed
+            or (not clear_all and not _is_muse_blade_aura(modifier))
         ]
         removed_count += len(player.manual_modifiers) - len(retained)
         player.manual_modifiers = retained
@@ -12681,7 +12707,7 @@ def _static_numeric_bonus(
     source_instance_id: str,
     action_type: str,
 ) -> int:
-    total = 0
+    total = _granted_muse_blade_bonus(state, player_id, source_instance_id) if action_type == "gain_blade" else 0
     for effect in _active_static_effects(state, player_id, source_instance_id):
         for operation in effect.actions:
             if operation.action_type == action_type:
@@ -12700,6 +12726,22 @@ def _static_numeric_bonus(
                     operation_context={"source_card_instance_id": source_instance_id},
                 )
     return total
+
+
+def _is_muse_blade_aura(modifier: ManualModifier) -> bool:
+    return (modifier.modifier_type == "flag" and modifier.flag == "granted_muse_stage_blade"
+            and modifier.duration == "live" and modifier.amount == 1
+            and modifier.value == {"policy": "original_onplay_muse_blade_aura"})
+
+
+def _granted_muse_blade_bonus(state: MatchState, player_id: str, target_id: str) -> int:
+    player = state.players[player_id]
+    if (target_id not in player.member_area.values()
+            or "love_live" not in state.cards[target_id].card.work_keys):
+        return 0
+    return sum(1 for modifier in player.manual_modifiers if _is_muse_blade_aura(modifier)
+               and modifier.target_card_instance_id is not None
+               and modifier.target_card_instance_id in player.member_area.values())
 
 
 def _static_score_bonus(state: MatchState, player_id: str) -> int:
