@@ -4996,15 +4996,24 @@ describe("App", () => {
     expect(onAction).toHaveBeenCalledWith("resolve_effect","player_1",{invocation_id:"water",accepted:true,selected_card_instance_ids:["player_1-M002"],energy_instance_ids:[]});
   });
 
-  it.each([[0,0],[1,0],[6,6]] as const)("shows bilingual WATER BLUE actual count %s/%s", async (count, amount) => {
+  it.each([
+    [0, 0, "zh"], [1, 0, "zh"], [6, 6, "zh"],
+    [0, 0, "ja"], [1, 0, "ja"], [6, 6, "ja"],
+  ] as const)("shows WATER BLUE blue Heart result %s/%s in %s", async (count, amount, locale) => {
     seedSavedDecks([{path:"test.json",deck:SAMPLE_DECK}]);
     const data={invocation_id:"water",effect_id:"PL!S-cl1-013:1",returned_count:count,heart_amount:amount};
     vi.stubGlobal("fetch",createFetchMock({matchCreate:{...MATCH_PAYLOAD,events:[{event_type:"effect_water_blue_heart_resolved",player_id:"player_1",source:"system",data},{event_type:"effect_resolved",player_id:"player_1",source:"system",data}]}}));
     render(<App />);
     const create=await screen.findByRole("button",{name:"创建对局"});await waitFor(()=>expect(create).not.toBeDisabled());fireEvent.click(create);
-    expect((await screen.findAllByText(`实际放回 ${count} 张 · 所选成员粉 Heart +${amount}，至 Live 结束`)).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getByRole("button",{name:"日本語"}));
-    expect((await screen.findAllByText(`実際に戻した${count}枚 · 選んだメンバーのピンクハート +${amount}、ライブ終了時まで`)).length).toBeGreaterThan(0);
+    await screen.findAllByText(/实际放回/);
+    if (locale === "ja") fireEvent.click(screen.getByRole("button", {name: "日本語"}));
+    const summary = locale === "zh"
+      ? `实际放回 ${count} 张 · 所选成员蓝色 Heart +${amount}，至 Live 结束`
+      : `実際に戻した${count}枚 · 選んだメンバーの青ハート +${amount}、ライブ終了時まで`;
+    const title = locale === "zh" ? "所选成员蓝色Heart" : "選んだメンバーの青ハート";
+    expect.soft(screen.queryAllByText(summary).length).toBeGreaterThan(0);
+    expect.soft(screen.queryAllByText(title).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/所选成员粉|選んだメンバーのピンク/)).toHaveLength(0);
   });
 
   it.each(["wait_opponent", "draw_one"])("submits opponent next-active mode %s", (branch) => {

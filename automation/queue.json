@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "ui-water-blue-heart-slot-label-correction",
+      "priority": 0,
+      "title": "修正WATER BLUE的heart05蓝色Heart中日文显示及报告",
+      "status": "queued",
+      "depends_on": ["live-success-aqours-shared-heart-yell-recovery-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["先读color-label-risk.md及保存的官方WATER BLUE卡图，确认PL!S-cl1-013:1正文heart05对应蓝色/青；引擎modifier.color_slot=heart05正确，先用0/1/6结果中日红断言复现UI硬编码粉/ピンク", "只修WATER BLUE结果文案、对应原生UI断言与相关中日README/Changelog/中文报告，使用既有颜色格式化约定；数量、槽位和提交保持，不全局替换真实粉色heart01，不改engine、generator、registry、manifest、Card/SQL schema、默认AI、隐私或旧Replay", "最终checkpoint后全部control/registry/backend/web与pre-push重新通过；应用诊断指纹48a6d8251334be8fd6528cfae38d8801159ae4174eaa0eb7731efbd17d020078不变时只核对原30局绑定，不无变化重冻", "只本地提交，不push/publish、新PR、合并部署或主机操作；旧blocked保持，完整done后下一轮才按业务提案领取PL!S-PR-046，不先领宽泛父任务"]
+    },
+    {
       "id": "live-success-aqours-shared-heart-yell-recovery-audit",
       "priority": 0,
       "title": "审计Aqours三人共同Heart颜色与本次Yell公开Member回收",
@@ -17,7 +26,7 @@
       "status": "queued",
       "depends_on": ["continuous-draft-pr-target-pin"],
       "required_profiles": ["control", "registry", "backend", "web"],
-      "acceptance": ["精确核对WATER BLUE NEW WORLD，PL!S-cl1-013:1，revision972/hash92ac3f09ae0da6ba76aff0bd884b762dbd40af9410853a08c4ae05d8abe9576c，Live score10；冻结seed18027第2回合40动作与其他待机共同出现，本卡mandatory manual，不能说唯一阻塞", "先核对官方0至6张、Member/Aqours作品/无任何普通或特殊Blade Heart、洗牌后库底隐私及处理时点、零张时后续选择与无Stage目标的可能范围；不用固定顺序冒充洗牌，不猜FAQ，未确认保留unresolved/manual", "明确才受限新snapshot：实际控室选择并洗回原库底，按本次实际放回数量每满2张给后续所选本人Aqours顶层Member粉Heart两颗至Live结束；0/1/2/5/6张、过量重复非候补、空库/原尾牌、多/无目标、附属/Wait/对手、来源和目标离场返回/场内换位/Live清理、公开历史与当前隐藏库底隔离均须真实断言", "真实Live开始/SQL Replay、四AI隐藏身份不变/不改输入、完整双视角/UI图文、全部profiles/pre-push和新源码原30牌组冻结后只本地提交；不改旧amount_source/随机/manual快照，不提升reviewed/改默认AI或Card/SQL schema，不恢复旧blocked，不改policy、不push或新PR、合并部署"]
+      "acceptance": ["精确核对WATER BLUE NEW WORLD，PL!S-cl1-013:1，revision972/hash92ac3f09ae0da6ba76aff0bd884b762dbd40af9410853a08c4ae05d8abe9576c，Live score10；冻结seed18027第2回合40动作与其他待机共同出现，本卡mandatory manual，不能说唯一阻塞", "先核对官方0至6张、Member/Aqours作品/无任何普通或特殊Blade Heart、洗牌后库底隐私及处理时点、零张时后续选择与无Stage目标的可能范围；不用固定顺序冒充洗牌，不猜FAQ，未确认保留unresolved/manual", "明确才受限新snapshot：实际控室选择并洗回原库底，按本次实际放回数量每满2张给后续所选本人Aqours顶层Member蓝色Heart两颗至Live结束；0/1/2/5/6张、过量重复非候补、空库/原尾牌、多/无目标、附属/Wait/对手、来源和目标离场返回/场内换位/Live清理、公开历史与当前隐藏库底隔离均须真实断言", "真实Live开始/SQL Replay、四AI隐藏身份不变/不改输入、完整双视角/UI图文、全部profiles/pre-push和新源码原30牌组冻结后只本地提交；不改旧amount_source/随机/manual快照，不提升reviewed/改默认AI或Card/SQL schema，不恢复旧blocked，不改policy、不push或新PR、合并部署"]
     },
     {
       "id": "continuous-draft-pr-target-pin",

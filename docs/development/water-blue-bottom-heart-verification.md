@@ -1,6 +1,8 @@
-# WATER BLUE NEW WORLD：控室洗回与所选成员粉Heart
+# WATER BLUE NEW WORLD：控室洗回与所选成员蓝色Heart
 
 2026-10-28 JST。有限任务`live-start-waiting-six-shuffle-bottom-selected-aqours-heart`，固定分支和工作树，不新建分支。完整门禁、实际提交和最后状态见[最终验收记录](../../logs/water-blue-bottom-heart-20261027/final-acceptance.md)；本报告的定向绿色不代替全部profiles。
+
+后续勘误：原结果UI及本报告曾把正确的`heart05`误称粉色。官方卡图和既有颜色表均为蓝色/青；引擎槽位一直正确。独立[颜色修正与复验](./water-blue-color-label-verification.md)不追改此前Replay，也不把旧UI绿色当作正确颜色认证。以下技能验收数字仍是原批次历史。
 
 ## 精确绑定
 
@@ -25,7 +27,7 @@
 
 选中集合先按公开控室顺序规范化，再调用既有确定性随机洗牌器；接在原牌库尾牌之后，不洗整库，不把请求排序冒充洗牌。待机只保存实际数量及合法公开卡面历史，不发布洗后顺序。后续只选本人当前Stage的Aqours顶层Member，附属、对手和其他作品排除，Wait合法。选择期间禁止人工替换父能力。
 
-粉Heart只加给该原Member对象，至Live结束；来源Live离场、回手牌/未知牌库、同ID返回不取消待机。受益Member离场清理，同ID返回不继承；Stage位置移动保留。新marker带自身`original_selected_water_blue_member` policy，旧空离场policy下也限定清理新marker，不追改旧modifier。旧amount_source、随机、通用选牌和manual快照Replay保留。默认AI、Card/SQL schema和隐私投影不改，不提升reviewed。
+蓝色Heart只加给该原Member对象，至Live结束；来源Live离场、回手牌/未知牌库、同ID返回不取消待机。受益Member离场清理，同ID返回不继承；Stage位置移动保留。新marker带自身`original_selected_water_blue_member` policy，旧空离场policy下也限定清理新marker，不追改旧modifier。旧amount_source、随机、通用选牌和manual快照Replay保留。默认AI、Card/SQL schema和隐私投影不改，不提升reviewed。
 
 ## 定向证据
 
@@ -41,7 +43,7 @@ registry结构化diff仅本段，933/1212（76.98%）、279manual；manifest重�
 
 最终目录`logs/water-blue-bottom-heart-20261027/frozen-30-registered/`，seed18000至18029、v1.2/block/max500；与上一轮30副provenance逐项相同。应用诊断指纹`4198617d013e7bbcf40400fca54000f451686c76da366278d3c96b8c9e16f937`与当前应用、provenance和全部30条摘要一致，30Replay真，证据`evidence-binding.json`。完整门禁指纹范围不同，不混用。
 
-仍19正式完赛/11人工停止，225/225可执行完成，非法/runtime/Replay/错误skip为0。比前轮222/224完成多3，本卡1次，另2次是推进后的既有待机，不能全归本卡。本卡seed18027从第2回合40动作推进到45动作、Live0:0，停在`PL!S-cl1-011:1`。`seed18027-detail.json`有界复跑摘要与冻结逐项相同，原事件确认returned_count=0、heart_amount=0、target=null；不是从入队推测完成，也不是人工分支。随机没有覆盖非零洗回或粉Heart加成，正条件只在专项/SQL/图文验证。不称全池双方Live长局、策略或beta通过。
+仍19正式完赛/11人工停止，225/225可执行完成，非法/runtime/Replay/错误skip为0。比前轮222/224完成多3，本卡1次，另2次是推进后的既有待机，不能全归本卡。本卡seed18027从第2回合40动作推进到45动作、Live0:0，停在`PL!S-cl1-011:1`。`seed18027-detail.json`有界复跑摘要与冻结逐项相同，原事件确认returned_count=0、heart_amount=0、target=null；不是从入队推测完成，也不是人工分支。随机没有覆盖非零洗回或蓝色Heart加成，正条件只在专项/SQL/图文验证。不称全池双方Live长局、策略或beta通过。
 
 ## 发布边界
 

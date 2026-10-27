@@ -4,7 +4,7 @@
 
 想いよひとつになれ `PL!S-cl1-011:1`を全文/revision/hash限定で実装。解決時のAqours三人の共通Heart色を求め、今回の元エールから同色の基本Heartを持つAqoursメンバー一枚を回収。96専用/38 SQL、四AI・秘匿、281図解/5 UI、最終門禁と実際の分岐は[検証記録](./docs/development/aqours-shared-heart-yell-verification.md)。旧snapshotと未解決事項を変更せず、ローカル検証のみ。
 
-WATER BLUE NEW WORLD `PL!S-cl1-013:1`を全文/revision/hash限定で実装。控室のBlade HeartなしAqoursメンバー0～6枚をシャッフルしてデッキの下へ戻し、2枚につき選んだAqours一人へピンクHeart二つ。順番を秘匿し、対象の移区で解除。78専用/31 SQL、四AI・秘匿、276図解/7 UI、全門禁とランダム実績は[検証記録](./docs/development/water-blue-bottom-heart-verification.md)。本切片はローカル検証のみ、push/deployしない。
+WATER BLUE NEW WORLD `PL!S-cl1-013:1`を全文/revision/hash限定で実装。控室のBlade HeartなしAqoursメンバー0～6枚をシャッフルしてデッキの下へ戻し、2枚につき選んだAqours一人へ青Heart二つ。順番を秘匿し、対象の移区で解除。78専用/31 SQL、四AI・秘匿、276図解/7 UI、全門禁とランダム実績は[検証記録](./docs/development/water-blue-bottom-heart-verification.md)。結果表示の色名誤記は[別途修正・再検証](./docs/development/water-blue-color-label-verification.md)し、エンジンのheart05と数量は変更しない。本切片はローカル検証のみ、push/deployしない。
 
 継続開発のレビュー先は[Draft PR #55](https://github.com/smaillion/loveca-simulator/pull/55)に固定。管理者承認済みの目標変更を独立した全門禁で再検証し、同じ分岐/PRのみ更新する。[検証記録](./docs/development/draft-pr55-target-verification.md)。merge/deployは別途承認が必要。
 

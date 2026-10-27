@@ -62,6 +62,7 @@ import {
   HEART_LABELS,
   formatEffectText as formatLocalizedEffectText,
   formatHeartSummary as formatLocalizedHeartSummary,
+  heartColorLabel,
 } from "./text-format";
 import type {
   CardInstance,
@@ -4256,7 +4257,10 @@ function eventTitle(event: GameEvent, locale: UiLocale): string {
     effect_bottom_aqours_requirement_resolved: ["底牌与原Live必要Heart", "下のカードと元ライブの必要ハート"],
     effect_aqours_shared_yell_recovered: ["共同Heart的Aqours应援回收", "共通ハートのAqoursエール回収"],
     effect_water_blue_cards_returned: ["控室洗回库底", "控室からシャッフルしてデッキの下へ"],
-    effect_water_blue_heart_resolved: ["所选成员粉Heart", "選んだメンバーのピンクハート"],
+    effect_water_blue_heart_resolved: [
+      `所选成员${heartColorLabel("zh", "heart05")}Heart`,
+      `選んだメンバーの${heartColorLabel("ja", "heart05")}ハート`,
+    ],
     effect_diverdiva_energy_resolved: ["DiverDiva Energy分支", "DiverDivaエネルギー分岐"],
     effect_opponent_member_next_active_resolved: ["对手成员下回合限制", "相手メンバーの次ターン制限"],
     effect_opponent_success_draw_resolved: ["对方本回合成功判定", "相手の今ターン成功判定"],
@@ -4414,8 +4418,8 @@ function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): st
   }
   if (event.event_type === "effect_water_blue_heart_resolved") {
     return locale === "zh"
-      ? `实际放回 ${Number(event.data.returned_count)} 张 · 所选成员粉 Heart +${Number(event.data.heart_amount)}，至 Live 结束`
-      : `実際に戻した${Number(event.data.returned_count)}枚 · 選んだメンバーのピンクハート +${Number(event.data.heart_amount)}、ライブ終了時まで`;
+      ? `实际放回 ${Number(event.data.returned_count)} 张 · 所选成员${heartColorLabel(locale, "heart05")} Heart +${Number(event.data.heart_amount)}，至 Live 结束`
+      : `実際に戻した${Number(event.data.returned_count)}枚 · 選んだメンバーの${heartColorLabel(locale, "heart05")}ハート +${Number(event.data.heart_amount)}、ライブ終了時まで`;
   }
   if (event.event_type === "effect_diverdiva_energy_resolved") {
     return locale === "zh"

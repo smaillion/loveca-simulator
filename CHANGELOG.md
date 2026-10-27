@@ -2,10 +2,13 @@
 
 ## 未リリース / 未发布
 
+- WATER BLUEの結果見出し・説明を公式図像と既存の色名表に合わせて青Heartへ修正。0/1/6枚の中日表示を個別検証し、他カードのピンクheart01は変更しない。
+- 中文: 修正WATER BLUE原结果标题、说明及文档的颜色误写；引擎heart05、数量和选择提交未改。六项红断言后复验，完整门禁与原30局指纹绑定见[颜色修正记录](./docs/development/water-blue-color-label-verification.md)，仅本地提交，不推送或上线。
+
 - 想いよひとつになれ `PL!S-cl1-011:1`の共通Heart/元エールMember回収を限定実装。交差する色だけを参照し、Blade Heartや解決領域全体への拡大を避け、旧snapshotを維持。
 - 中文: 96专项/38 SQL、四AI/完整双视角、281图文与5原生UI；登记仅本段934/1212，不提升reviewed。冻结仍19完赛，本卡实际一次条件失败，不声称随机正条件或beta覆盖，仅本地验收提交。
 
-- WATER BLUE NEW WORLD `PL!S-cl1-013:1`の控室0～6枚シャッフル/実枚数に応じた単一Member Heartを限定実装。洗った順番を公開せず、旧amount_source/random/manual snapshotを変更しない。
+- WATER BLUE NEW WORLD `PL!S-cl1-013:1`の控室0～6枚シャッフル/実枚数に応じた単一Member青Heartを限定実装。洗った順番を公開せず、旧amount_source/random/manual snapshotを変更しない。
 - 中文: 78专项/31 SQL、四AI/完整双视角、276图文/7原生UI；登记仅本段933/1212，不提升reviewed。冻结仍19完赛，本卡实际一次零张/零加成，不称随机正条件或beta覆盖。本切片只本地验收提交。
 
 - 継続開発のDraft PR番号を実在する#55へ固定し、同一head/baseと公開前門禁を維持。merge/deploy権限は追加しない。

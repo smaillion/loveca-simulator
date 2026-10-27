@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-28 JST WATER BLUE颜色勘误：沿用既有固定分支/工作树，限定修正结果标题、说明及相关中日文档的蓝色/青名称，复用heartColorLabel；引擎heart05、数量、提交和旧Replay不改。六项中日红例后复验，原78专项保持；全部门禁与原30局指纹绑定见`water-blue-color-label-verification.md`验收入口。不push/改PR55或合并部署，旧blocked、44/6 dirty、stash及ignored保留。
+
 2026-10-28 JST 共同Heart与Yell回收：仅PL!S-cl1-011:1受限新policy，现有分支/工作树，不新建分支。96专项/38 SQL、四AI/双视角、281图文/5 UI；当前颜色交集和原Yell对象资格分开，旧快照/默认AI/schema不改。最终四组门禁和同30牌组证据见`aqours-shared-heart-yell-verification.md`验收入口；仅本地提交，不push或改PR55，旧44/6 dirty、stash/ignored与blocked保留。
 
 2026-10-28 JST WATER BLUE：继续现有固定分支/工作树，仅PL!S-cl1-013:1受限新快照；78专项/31 SQL、四AI/隐私、276图文/7 UI。实际洗回数量与洗后隐藏顺序分开，受益对象移区清理，旧amount_source/随机/manual保持；最终门禁和同牌组30局见`water-blue-bottom-heart-verification.md`验收入口。本切片只本地提交、不push；PR55远程91e48d3所有现有检查只读确认SUCCESS，未合并部署，旧44/6 dirty、stash及ignored保留。
