@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "live-start-waiting-nine-live-three-top-order",
+      "priority": 1,
+      "title": "审计控室九张以下时最多三张Live回库顶排序",
+      "status": "queued",
+      "depends_on": ["onplay-cost7-baton-draw-two-discard-one"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["PL!S-PR-048:1全文/revision1221/hash1a909fea0f9bf0bb741c346181519d1ad06a2ee4774d4f6be1274570f86c2b54精确绑定；seed18027第10回合222动作与两条LL-bp6-001:2共同manual，不说唯一阻塞", "先核对正文结算时条件、控室总数9以下而非Live数、0至3张Live与实际库顶顺序/公开到隐藏区权限，不明manual/unresolved", "明确才新受限快照：控室0/9/10与待机变化、0-3及多候补/类型/同名实体、重复遗漏非候补/他方/陈旧原子拒绝、库尾/短空库刷新/来源离场返回、SQL/四AI/完整隐私/UI图文和全部profiles，新源码同原30牌组冻结须验证，不改旧amount_source/排序/manual快照", "仅本地实现验证提交，不push/publish、新PR、合并部署、主机或Kyotei操作，不处理相邻LL复杂技能或恢复其他blocked，不虚标reviewed或随机覆盖"]
+    },
+    {
       "id": "onplay-cost7-baton-draw-two-discard-one",
       "priority": 1,
       "title": "审计费用7成员Baton登场后抽二弃一",

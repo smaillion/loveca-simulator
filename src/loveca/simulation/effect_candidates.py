@@ -655,6 +655,23 @@ def _live_start_discard_two_same_group_gain_heart_blade(
     return None
 
 
+def _live_start_waiting_nine_live_top(row: sqlite3.Row) -> EffectCandidate | None:
+    text = "【ライブ開始時】自分の控え室にあるカードが9枚以下の場合、自分の控え室にあるライブカードを3枚まで選び、自分のデッキの上に好きな順番で置く。"
+    if (row["card_code"] != "PL!S-PR-048" or row["text_revision_id"] != 1221
+            or row["raw_text_hash"] != "1a909fea0f9bf0bb741c346181519d1ad06a2ee4774d4f6be1274570f86c2b54"
+            or row["raw_effect_text_ja"] != text):
+        return None
+    return EffectCandidate(
+        **_base(row, pattern_id="live_start_waiting_nine_live_three_top_v1", effect_index=1),
+        label_ja=text, effect_type="triggered", timing="live_start", trigger="live_started", frequency_limit="once_per_live",
+        is_optional=False, condition={}, cost=[], duration=None,
+        choice={"choice_type": "card_from_zone", "selection_policy": "public_waiting_nine_live_three_private_top",
+                "zone": "waiting_room", "card_type": "live", "minimum": 0, "maximum": 3,
+                "requires_order": True, "selected_destination": "main_deck_top_ordered"},
+        actions=[{"action_type": "move_selected_to_deck_top"}],
+    )
+
+
 def _onplay_baton_cost7_draw_discard(row: sqlite3.Row) -> EffectCandidate | None:
     text = "【登場】コスト7のメンバーからバトンタッチして登場した場合、カードを2枚引き、手札を1枚控え室に置く。"
     if (row["card_code"] != "PL!S-PR-045" or row["text_revision_id"] != 1218
@@ -15866,6 +15883,7 @@ _PATTERNS = (
     _onplay_diverdiva_energy_modes,
     _live_success_opponent_cost4_wait_or_draw,
     _live_start_water_blue_bottom_heart,
+    _live_start_waiting_nine_live_top,
     _onplay_baton_cost7_draw_discard,
     _live_success_current_yell_source_score,
     _live_success_opponent_yell_live_draw,

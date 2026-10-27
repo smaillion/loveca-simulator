@@ -1603,6 +1603,58 @@ def _activate_effect(
     _continue_after_effect_queue(state, events)
 
 
+def _waiting_nine_live_top_snapshot(effect: Any) -> bool:
+    return getattr(getattr(effect, "choice", None), "selection_policy", None) == "public_waiting_nine_live_three_private_top"
+
+
+def _waiting_nine_live_top_candidates(state: MatchState, invocation: EffectInvocation) -> list[str]:
+    player = state.players[invocation.player_id]
+    if not player.main_deck or len(player.waiting_room) > 9:
+        return []
+    return [i for i in player.waiting_room if state.cards[i].owner_id == invocation.player_id and state.cards[i].card.card_type == "live"]
+
+
+def _apply_waiting_nine_live_top(state: MatchState, invocation: EffectInvocation, ids: list[str], events: list[GameEvent]) -> None:
+    if (invocation.resolution_stage != "initial" or invocation.trigger_event != "live_started"
+            or invocation.trigger_data.get("performance_player_id") != invocation.player_id
+            or type(invocation.trigger_data.get("turn_number")) is not int
+            or invocation.trigger_data["turn_number"] != state.turn_number):
+        raise IllegalActionError("waiting-nine selection requires its original current Live-start context")
+    player = state.players[invocation.player_id]
+    _refresh_main_deck(state, invocation.player_id, events)
+    waiting_count = len(player.waiting_room)
+    candidates = _waiting_nine_live_top_candidates(state, invocation)
+    if len(ids) > 3 or len(ids) != len(set(ids)) or any(i not in candidates for i in ids):
+        raise IllegalActionError("waiting-nine selection requires zero to three current own Waiting Room Lives")
+    public_ids = [i for i in player.waiting_room if i in set(ids)]
+    revealed = [state.cards[i].model_dump(mode="json") for i in public_ids]
+    player.waiting_room = [i for i in player.waiting_room if i not in set(ids)]
+    for i in ids:
+        state.cards[i].face_up = False
+    player.main_deck = [*ids, *player.main_deck]
+    state.pending_effects.remove(invocation)
+    _record_effect_usage(state, invocation)
+    # Public choice is a set; 4.1.5.1 keeps its actual top-to-bottom order private.
+    data = {"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+        "condition_met": waiting_count <= 9, "waiting_count_at_resolution": waiting_count,
+        "returned_count": len(ids), "selected_card_instance_ids": public_ids, "revealed_cards": revealed}
+    events.append(GameEvent(event_type="effect_waiting_live_top_resolved", player_id=invocation.player_id, data=data, source="system"))
+    events.append(GameEvent(event_type="effect_resolved", player_id=invocation.player_id,
+        data={**data, "source_card_instance_id": invocation.source_card_instance_id}, source="system"))
+
+
+def _resolve_waiting_nine_live_top(state: MatchState, invocation: EffectInvocation, action: ActionRequest, events: list[GameEvent]) -> None:
+    ids = action.payload.get("selected_card_instance_ids", [])
+    if (set(action.payload) - {"invocation_id", "accepted", "selected_card_instance_ids", "energy_instance_ids", "ai_decision"}
+            or (action.payload.get("accepted") is not None and (type(action.payload["accepted"]) is not bool or not action.payload["accepted"]))
+            or action.payload.get("energy_instance_ids") not in (None, [])
+            or not isinstance(ids, list) or any(type(i) is not str for i in ids)):
+        raise IllegalActionError("waiting-nine Live top only accepts its ordered current card selection")
+    _apply_waiting_nine_live_top(state, invocation, ids, events)
+    _resolve_automatic_effects(state, events)
+    _continue_after_effect_queue(state, events)
+
+
 def _baton_cost7_snapshot(effect: Any) -> bool:
     return getattr(getattr(effect, "choice", None), "selection_policy", None) == "private_baton_cost7_draw2_discard1"
 
@@ -1680,6 +1732,9 @@ def _resolve_effect(
         raise IllegalActionError("only the effect owner may resolve this effect")
     _assert_effect_resolution_turn(state, invocation)
     effect = state.effect_definitions[invocation.effect_id]
+    if _waiting_nine_live_top_snapshot(effect):
+        _resolve_waiting_nine_live_top(state, invocation, action, events)
+        return
     if _baton_cost7_snapshot(effect):
         _resolve_baton_cost7(state, invocation, action, events)
         return
@@ -5502,6 +5557,8 @@ def _effect_choice_candidates(
     invocation: EffectInvocation,
 ) -> list[str]:
     effect = state.effect_definitions[invocation.effect_id]
+    if _waiting_nine_live_top_snapshot(effect):
+        return _waiting_nine_live_top_candidates(state, invocation)
     if (
         _effect_uses_deploy_to_empty_stage_choice(effect, invocation)
         and any(
@@ -11176,6 +11233,9 @@ def _resolve_automatic_effects(
         else:
             invocation = state.pending_effects[0]
         effect = state.effect_definitions[invocation.effect_id]
+        if _waiting_nine_live_top_snapshot(effect) and not _waiting_nine_live_top_candidates(state, invocation):
+            _apply_waiting_nine_live_top(state, invocation, [], events)
+            continue
         if _baton_cost7_snapshot(effect) and invocation.resolution_stage == "initial" and not _baton_cost7_condition(state, invocation):
             _finish_baton_cost7(state, invocation, events, condition=False)
             continue

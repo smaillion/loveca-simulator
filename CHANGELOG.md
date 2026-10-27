@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 黒澤ルビィ`PL!S-PR-048:1`の控室9枚以下/Live0～3枚をデッキ上へ、を限定実装。公開集合と秘密の順を分け、条件は解決時、空庫は通常リフレッシュ。旧snapshotを維持。
+- 中文: 89专项/51 SQL、四AI/完整双视角、301图文及6原生UI。登记937/1212、275manual，不提升reviewed；冻结本卡仍随相邻manual待机，不虚报完成或随机排序覆盖。仅本地验收提交，见[验证记录](./docs/development/waiting-nine-live-top-order-verification.md)。
+
 - 津島善子`PL!S-PR-045:1`のコスト7 Baton/2枚ドロー後1枚を控室へ、を限定実装。元Memberの情報を今回の登場に結び、現在のStageや支払ったEnergyで代用しない。旧snapshotを維持。
 - 中文: 94专项/43 SQL、四AI/双视角、296图文及6原生UI。登记936/1212、276manual，不提升reviewed；随机两次条件失败不称正条件覆盖或完赛改善，仅本地验证提交，见[验收记录](./docs/development/baton-cost7-draw-discard-verification.md)。
 

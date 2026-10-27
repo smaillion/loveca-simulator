@@ -4996,6 +4996,44 @@ describe("App", () => {
     expect(onAction).toHaveBeenCalledWith("resolve_effect","player_1",{invocation_id:"water",accepted:true,selected_card_instance_ids:["player_1-M002"],energy_instance_ids:[]});
   });
 
+  it.each([[0, 0], [9, 1], [9, 3], [10, 0]] as const)("shows bilingual waiting-nine top result %s/%s", async (waiting, count) => {
+    seedSavedDecks([{path: "test.json", deck: SAMPLE_DECK}]);
+    const data = {invocation_id: "waiting-top", effect_id: "PL!S-PR-048:1", waiting_count_at_resolution: waiting, condition_met: waiting <= 9, returned_count: count};
+    vi.stubGlobal("fetch", createFetchMock({matchCreate: {...MATCH_PAYLOAD, events: [
+      {event_type: "effect_waiting_live_top_resolved", player_id: "player_1", source: "system", data},
+      {event_type: "effect_resolved", player_id: "player_1", source: "system", data},
+    ]}}));
+    render(<App />);
+    const create = await screen.findByRole("button", {name: "创建对局"});
+    await waitFor(() => expect(create).not.toBeDisabled()); fireEvent.click(create);
+    expect((await screen.findAllByText(`控室 ${waiting} 张 · 条件${waiting <= 9 ? "满足" : "未满足"} · 回库顶 ${count} 张`)).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", {name: "日本語"}));
+    expect((await screen.findAllByText(`控え室${waiting}枚 · 条件${waiting <= 9 ? "成立" : "不成立"} · デッキ上へ${count}枚`)).length).toBeGreaterThan(0);
+  });
+
+  it.each([0, 3])("submits private waiting-nine top order with hidden source and %s selected", (count) => {
+    const onAction = vi.fn();
+    const state = {...INSPECTION_MATCH_PAYLOAD.state, cards: {...INSPECTION_MATCH_PAYLOAD.state.cards}} as unknown as MatchState;
+    const ids = Array.from({length: 4}, (_, i) => `waiting-${i}`);
+    ids.forEach((id, i) => {state.cards[id] = {...state.cards["player_1-M002"], instance_id: id,
+      card: {...state.cards["player_1-M002"].card, name_ja: `Live ${i}`, card_type: "live"}};});
+    const action = {action_type: "resolve_effect", player_id: "player_1", options: {invocations: [{
+      invocation_id: "waiting-top", effect_id: "PL!S-PR-048:1", source_card_instance_id: "hidden-source", label_ja: "黒澤ルビィ",
+      trigger: "live_started", timing: "live_start", execution_mode: "prompt_then_resolve", simulation_support: "test_validated_executable",
+      is_optional: false, resolution_stage: "initial", choice_type: "card_from_zone", choice_zone: "waiting_room",
+      selection_policy: "public_waiting_nine_live_three_private_top", card_selection_requires_order: true,
+      card_selection_minimum: 0, card_selection_maximum: 3, candidate_card_instance_ids: ids,
+    }]}};
+    render(<EffectResolutionAction action={action as never} state={state} loading={false} onAction={onAction} onManual={vi.fn()} />);
+    if (count) {
+      ids.forEach((_, i) => fireEvent.click(screen.getByRole("button", {name: new RegExp(`Live ${i}`)})));
+      fireEvent.click(screen.getAllByRole("button", {name: "上移已选卡"})[2]);
+    }
+    fireEvent.click(screen.getByRole("button", {name: "结算技能"}));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {invocation_id: "waiting-top", accepted: true,
+      selected_card_instance_ids: count ? ["waiting-0", "waiting-2", "waiting-1"] : [], energy_instance_ids: []});
+  });
+
   it.each([[false, 0, 0], [true, 0, 0], [true, 1, 1], [true, 2, 1]] as const)("shows bilingual Baton cost-seven outcome %s/%s/%s", async (condition, drawn, discarded) => {
     seedSavedDecks([{path: "test.json", deck: SAMPLE_DECK}]);
     const data = {invocation_id: "baton-seven", effect_id: "PL!S-PR-045:1", condition_met: condition, drawn_count: drawn, discarded_count: discarded};

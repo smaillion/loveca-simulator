@@ -1334,6 +1334,7 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
         "live_success_opponent_current_yell_live_draw_v1",
         "live_success_current_yell_source_score_q253_v1",
         "onplay_baton_cost7_draw2_discard1_v1",
+        "live_start_waiting_nine_live_three_top_v1",
         "static_source_not_moved_this_turn_blade2",
         "static_attached_energy2_score1",
         "live_success_revealed_all_blade_score1",

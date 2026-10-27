@@ -1,5 +1,10 @@
 # Effect Semantics Audit
 
+PL!S-PR-048:1 checks current total Waiting Room size after any mandatory ordinary
+refresh. Its bounded atomic move publishes the selected set, not the private top
+order under 4.1.5.1. Old amount sources, movement executors and replay remain
+unchanged. See [evidence](development/waiting-nine-live-top-order-verification.md).
+
 PL!S-PR-045:1 has a bounded original-Baton cost-seven snapshot, distinct from
 payment reduction and from later reads of the departed Member. Draw and discard
 refresh handling is scoped to this new policy; old operations and replay stay

@@ -1,5 +1,11 @@
 # AI and Simulation Notes
 
+The exact PL!S-PR-048:1 policy uses the existing ordered card-choice protocol.
+Four controllers submit legal selections without hidden-identity dependence or
+input mutation. All six private top orders have identical full opponent views.
+The frozen invocation remains pending with other manual abilities, not completed.
+See [verification](development/waiting-nine-live-top-order-verification.md).
+
 The exact PL!S-PR-045:1 policy records this Baton entry's original Member cost,
 then uses the existing private post-action choice for draw two/discard one.
 Four controllers complete both stages without hidden-identity dependence or

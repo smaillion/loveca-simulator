@@ -455,6 +455,7 @@ class EffectChoice(BaseModel):
         "public_diverdiva_energy_modes",
         "public_opponent_cost4_wait_or_draw",
         "public_water_blue_bottom_heart",
+        "public_waiting_nine_live_three_private_top",
         "public_aqours_shared_heart_yell_one",
     ] | None = None
     zone: str | None = None
@@ -778,6 +779,15 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        if getattr(self.choice, "selection_policy", None) == "public_waiting_nine_live_three_private_top":
+            expected_choice = EffectChoice(choice_type="card_from_zone", zone="waiting_room", card_type="live", minimum=0, maximum=3,
+                requires_order=True, selected_destination="main_deck_top_ordered", selection_policy="public_waiting_nine_live_three_private_top")
+            if (self.choice != expected_choice or self.actions != [EffectOperation(action_type="move_selected_to_deck_top")]
+                    or self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
+                    or self.effect_type != "triggered" or self.timing != "live_start" or self.trigger != "live_started"
+                    or self.frequency_limit != "once_per_live" or self.duration is not None
+                    or self.execution_mode != "prompt_then_resolve" or self.simulation_support == "manual_resolution"):
+                raise ValueError("waiting-nine Live top policy only supports its fixed mandatory Live-start selection")
         if getattr(self.choice, "selection_policy", None) == "private_baton_cost7_draw2_discard1":
             expected_choice = EffectChoice(choice_type="post_action_card_from_zone", zone="hand", minimum=1, maximum=1,
                 selection_policy="private_baton_cost7_draw2_discard1")

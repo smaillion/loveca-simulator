@@ -198,6 +198,9 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *((f"waiting_nine_live_top_{case}", f"控室9枚とLive上置き {case}", f"控室九张与Live库顶 {case}",
+           "PL!S-PR-048:1", lambda effect, case=case: _run_waiting_nine_live_top(effect, case))
+          for case in ("zero", "one", "three", "too_many", "empty_refresh")),
         *((f"baton_cost7_draw_discard_{case}", f"コスト7バトン {case}", f"费用7 Baton {case}",
            "PL!S-PR-045:1", lambda effect, case=case: _run_baton_cost7(effect, case))
           for case in ("six", "seven", "eight", "normal", "short")),
@@ -673,6 +676,33 @@ def _run_opponent_success_draw(effect: EffectDefinition, case: str) -> dict[str,
         "条件成立時だけ必須一枚 / 条件成立才必选一张": len(final.state.players["player_1"].hand) == expected_draw - int(both and bool(hand_before)),
         "待機完了 / 待机完成": not final.state.pending_effects,
     }
+
+
+def _run_waiting_nine_live_top(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    source = _v1_1_member("source", effect.card_code, cost=13, effect_ids=[effect.effect_id])
+    live = _v1_1_live("own-live", "AUDIT Live")
+    tail = _v1_1_member("tail", "AUDIT tail")
+    total = 10 if case == "too_many" else 9
+    waiting = [_v1_1_live(f"waiting-{i}", f"AUDIT Live {i}") if i < 4 else _v1_1_member(f"waiting-{i}", f"AUDIT Member {i}") for i in range(total)]
+    state = _v1_1_state({effect.effect_id: effect}, [source, live, tail, *waiting], hand=[])
+    state.effect_order_policy = "ap_nap_player_choice"
+    p = state.players["player_1"]
+    p.member_area["center"], p.live_area = "source", ["own-live"]
+    p.main_deck = [] if case == "empty_refresh" else ["tail"]
+    p.waiting_room = [c.instance_id for c in waiting]
+    state.phase, state.active_player_id = "performance_first", "player_1"
+    result = apply_action(state, ActionRequest(action_type="advance_phase", player_id="player_1", expected_revision=state.revision))
+    selected = ["waiting-2", "waiting-0", "waiting-1"] if case == "three" else ["waiting-0"] if case == "one" else []
+    if result.state.pending_effects:
+        invocation = result.state.pending_effects[0]
+        result = apply_action(result.state, ActionRequest(action_type="resolve_effect", player_id="player_1", expected_revision=result.state.revision,
+            payload={"invocation_id": invocation.invocation_id, "selected_card_instance_ids": selected}))
+    data = next(e.data for e in result.events if e.event_type == "effect_waiting_live_top_resolved")
+    return {"控室の全枚数 / 控室总数": data["condition_met"] is (case != "too_many"),
+        "実際の上からの順 / 实际库顶顺序": result.state.players["player_1"].main_deck[:len(selected)] == selected,
+        "0から3枚だけ / 只回零至三张": data["returned_count"] == len(selected),
+        "順を公開しない / 不公开所选顺序": case != "three" or data["selected_card_instance_ids"] == ["waiting-0", "waiting-1", "waiting-2"],
+        "待機完了 / 待机完成": not result.state.pending_effects}
 
 
 def _run_baton_cost7(effect: EffectDefinition, case: str) -> dict[str, bool]:

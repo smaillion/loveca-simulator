@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-28 JST 控室九张与Live库顶：同一固定分支/工作树，仅PL!S-PR-048:1精确新快照，89专项/51 SQL、四AI/隐私、301图文/6 UI。当前控室总数与原子私有顺序分开，旧快照/默认AI/schema不改；冻结本卡1项随其他manual待机，不算新完成。最终门禁和提交见`waiting-nine-live-top-order-verification.md`；不push/改PR55或合并部署，相邻LL复杂技能不处理，其他blocked、44/6 dirty、stash及ignored保留。
+
 2026-10-28 JST 费用7 Baton抽弃：同一固定分支/工作树，仅PL!S-PR-045:1精确新快照，94专项/43 SQL、四AI/隐私、296图文/6 UI。本次原Member费用事实和支付减免分开；旧快照及默认AI/schema不变。最终门禁、同牌组冻结与本地提交见`baton-cost7-draw-discard-verification.md`；不push/改PR55或合并部署，其他blocked、44/6 dirty、stash及ignored保留。
 
 2026-10-28 JST Q253：同一固定分支/工作树，只修PL!S-bp6-023:1当前原Yell与原Live得分，110专项/67 SQL、四AI/隐私、291图文/6 UI。game期限与移区对象分开，旧快照保持，935/1212和manual数不变，不算晋级。最终门禁和新同牌组冻结见`q253-current-yell-source-score-verification.md`，只本地提交，不push/改PR55或合并部署；其他blocked、44/6 dirty、stash及ignored保留。

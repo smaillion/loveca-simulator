@@ -1,5 +1,11 @@
 # AI Rule Conformance and Strategy Audit
 
+The Waiting-Room-nine/top-order slice has SQL, four-controller, full-projection
+privacy and UI evidence, separate from random coverage. The frozen pool is still
+19/30 completed; the new executable invocation remains pending with manual
+siblings, so 246/247 is not reported as full completion or beta promotion.
+See [bounded evidence](development/waiting-nine-live-top-order-verification.md).
+
 The cost-seven Baton slice has exact-card, SQL, four-controller, privacy and UI
 coverage. Its two frozen false conditions do not establish positive draw/discard
 coverage, and the unchanged 19/30 completions do not promote strategy or beta.
