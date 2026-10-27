@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+桜小路きな子`PL!SP-bp7-017:1`を全文/revision/hash限定で対応。実際に置いた新EnergyだけをWaitにし、次ターンの本人Activeで一回だけ自動復原を止める。Q280に基づき能力でのActive/再支払いで制限は消えず、移区/復帰には継承しない。64専用、227図解と254フロントを検証。固定30試合は13→14完了ですが、当該局は0:3 Liveで次ターン前に終了。[証拠と限界](./docs/development/wait-energy-next-active-verification.md)
+
 優木せつ菜`PL!N-sd2-007:1`を全文/revision/hash限定で対応。必ず一枚引き、現在ターンの相手成功を確認した時だけ追加ドローと手札一枚選択。過去の成功置き場や勝敗とは区別し、非公開発生源でもUIを操作可能に修正。86専用、222図解、四AI/SQL/251フロントを検証。固定30試合は12→13完了、実際の正条件一回を記録。[証拠と範囲](./docs/development/opponent-success-draw-discard-verification.md)
 
 津島善子`PL!S-bp7-015:1`を全文/revision/hash限定で自動化。実際にデッキの下から控室へ移した一枚だけを判定し、Liveなら元の発生源に赤Heart+1。空デッキrefresh、離場/同ID復帰、旧snapshotを区別。60専用、217図解、四AI/SQLと246フロントを検証。固定30試合は12完了のまま、本カードは他のmanual待機で未解決のため、別の制御分岐を明記。[証拠と限界](./docs/development/bottom-one-live-heart-verification.md)

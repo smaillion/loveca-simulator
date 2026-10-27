@@ -16,6 +16,8 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
 
     scenario_ids = {result.scenario_id for result in results}
     assert {
+        "wait_energy_next_active_placed", "wait_energy_next_active_empty", "wait_energy_next_active_next_active",
+        "wait_energy_next_active_ready_pay", "wait_energy_next_active_zone_return",
         "opponent_success_draw_both", "opponent_success_draw_only_self", "opponent_success_draw_past_success",
         "opponent_success_draw_short", "opponent_success_draw_empty",
         "bottom_live_heart_live", "bottom_live_heart_member", "bottom_live_heart_empty",

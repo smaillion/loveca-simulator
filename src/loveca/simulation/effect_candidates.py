@@ -19,6 +19,11 @@ SOURCE_REFERENCE = (
     "Official card text; comprehensive rules ver. 1.06 restricted executor pattern"
 )
 
+WAIT_ENERGY_NEXT_ACTIVE_TEXT = (
+    "【登場】自分のエネルギーデッキから、エネルギーカードを1枚ウェイト状態で置く。"
+    "そのエネルギーカードは、次のターンのアクティブフェイズにアクティブしない。"
+)
+
 OPPONENT_SUCCESS_DRAW_DISCARD_TEXT = (
     "【ライブ成功時】カードを1枚引く。このターン、相手もライブを成功している場合、"
     "さらにカードを1枚引き、手札を1枚控え室に置く。"
@@ -2799,6 +2804,20 @@ def _onplay_both_waiting_live(row: sqlite3.Row) -> EffectCandidate | None:
         choice={"choice_type": "multi_player_waiting_live_recovery", "selection_policy": "public_both_waiting_live_one",
                 "zone": "waiting_room", "card_type": "live", "minimum": 1, "maximum": 1, "selected_destination": "hand"},
         actions=[{"action_type": "return_from_waiting_room", "target": "both"}],
+    )
+
+
+def _onplay_wait_energy_next_active(row: sqlite3.Row) -> EffectCandidate | None:
+    if (row["card_code"] != "PL!SP-bp7-017" or row["text_revision_id"] != 904
+            or row["raw_text_hash"] != "30ff25ec59e8e1abece877f098ad0bc1d09d29b79c089c838a1029d192e326d0"
+            or row["raw_effect_text_ja"] != WAIT_ENERGY_NEXT_ACTIVE_TEXT):
+        return None
+    return EffectCandidate(
+        **_base_with_execution_mode(row, pattern_id="onplay_wait_energy_next_active", effect_index=1,
+                                    execution_mode="auto_resolve"),
+        label_ja=WAIT_ENERGY_NEXT_ACTIVE_TEXT, effect_type="triggered", timing="on_play", trigger="member_played",
+        frequency_limit="none", is_optional=False, condition={}, cost=[], choice=None, duration=None,
+        actions=[{"action_type": "place_wait_energy_skip_next_turn_active", "amount": 1}],
     )
 
 
@@ -15597,6 +15616,7 @@ _PATTERNS = (
     _onplay_named_baton_draw_then_discard,
     _onplay_multi_keep_icon_scope_manual,
     _onplay_ten_minus_hand_private_two,
+    _onplay_wait_energy_next_active,
     _live_success_opponent_draw_discard,
     _live_start_bottom_one_heart,
     _onplay_mill_three_blade_colors,

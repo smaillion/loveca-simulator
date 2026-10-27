@@ -2088,6 +2088,23 @@ describe("App", () => {
     expect((await screen.findAllByText(`メンバーのブレードハート ${colors} 色 · 誘発元の緑ハート +${delta}`)).length).toBeGreaterThan(0);
   });
 
+  it.each([[1, 2], [0, 2], [1, 8]])("shows new Wait Energy count %s and target turn %s", async (count, turn) => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const data = { effect_id: "PL!SP-bp7-017:1", invocation_id: "wait-energy", target_turn: turn,
+      affected_energy_instance_ids: count ? ["new-energy"] : [] };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate: { ...MATCH_PAYLOAD, events: [
+      { event_type: "effect_wait_energy_next_active_resolved", player_id: "player_1", source: "system", data },
+      { event_type: "effect_auto_resolved", player_id: "player_1", source: "system", data },
+    ] } }));
+    render(<App />);
+    const create = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(create).not.toBeDisabled());
+    fireEvent.click(create);
+    expect((await screen.findAllByText(count ? `Wait Energy +1 · 仅该张第 ${turn} 回合不自动复原` : "Energy Deck 为空，本次未放置 Energy")).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect((await screen.findAllByText(count ? `ウェイトエネルギー +1 · そのカードだけ${turn}ターン目に自動アクティブ不可` : "エネルギーデッキが空のため、エネルギーを置かない")).length).toBeGreaterThan(0);
+  });
+
   it.each([[true, 1, true], [false, 0, false], [true, 0, false]] as const)("shows conditional extra draw %s count %s", async (condition, count, discard) => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const data = { effect_id: "PL!N-sd2-007:1", invocation_id: "extra-draw", condition_met: condition,

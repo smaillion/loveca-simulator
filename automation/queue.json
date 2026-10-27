@@ -38,6 +38,15 @@
       "acceptance": ["只为已有至少四张牌库的原型增加受限snapshot策略，不改官方registry或generator，不提高执行率；不足四张在修改状态前明确拒绝，正式PL!-pb2-013仍manual", "公开不改变牌库对象及顺序；全四张lily_white才必须选其中Live一张并丢弃其余，否则无选择且原牌库不变；无Live时明确零张；验证公开/私看隔离、原对象、非法选择原子性和离开返回", "真实状态、SQL Replay、四AI及隐藏信息、原生UI有断言；旧私看快照维持原状。全部profiles/pre-push和新源码绑定的冻结30局通过，中文报告区分原型验证与正式卡裁定", "保留公开短牌库与刷新语义unresolved，不套用私看10.2.2.2，也不把逐张公开FAQ直接当成同时公开四张裁定；未获新PR目标批准前不改policy、不推送、不合并部署"]
     },
     {
+      "id": "live-start-bottom-three-aqours-source-heart",
+      "priority": 0,
+      "title": "审计底三张全为Aqours Member的原来源Heart条件",
+      "status": "queued",
+      "depends_on": ["onplay-wait-energy-skip-next-active"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!S-bp7-006:1全文/revision851/hash3c87d290b7b11b30c7b72683a74b6ec5a871266062a46567c1c8258fe5198821；seed18017实际入队1次并与另外两条manual共同待机，不把它单独算作已选定blocker或按持卡频率晋级", "确认从底部逐张三次移动、途中刷新/不足三张/空库与全部条件语义，实际移动对象均须Aqours Member，区分work与unit及Live；不得套用私看预填、不用旧控室或库顶替代，不明语义留unresolved", "仅原来源Heart04+1至Live结束，来源离场/返回/换位、零/短库、相同实体反复刷新移动的历史、新旧SQL、四AI/隐私/UI图文及全部profiles有真实断言，不扩大旧bottom1/mill快照", "同牌组绑定新源码冻结诊断及pre-push通过后只本地提交；不提升reviewed、不改默认AI/schema，后续PR目标待明确批准，不改policy、不推送、新建PR、合并部署"]
+    },
+    {
       "id": "onplay-wait-energy-skip-next-active",
       "priority": 0,
       "title": "审计登场放置Wait Energy且该张下回合不复原",

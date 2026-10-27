@@ -196,6 +196,9 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *((f"wait_energy_next_active_{case}", f"新Energyと次ターンActive {case}", f"新Energy与下回合Active {case}",
+           "PL!SP-bp7-017:1", lambda effect, case=case: _run_wait_energy_next_active(effect, case))
+          for case in ("placed", "empty", "next_active", "ready_pay", "zone_return")),
         *((f"opponent_success_draw_{case}", f"相手成功と追加ドロー {case}", f"对方本回合成功与追加抽弃 {case}",
            "PL!N-sd2-007:1", lambda effect, case=case: _run_opponent_success_draw(effect, case))
           for case in ("both", "only_self", "past_success", "short", "empty")),
@@ -526,6 +529,8 @@ def _v1_1_dynamic_scenarios(
                 notes_ja=[f"公式日本語テキスト: {effect.label_ja}"],
                 notes_zh=[f"官方日文效果文本：{effect.label_ja}"],
                 rule_reference_ids=(
+                    ["4.1.4", "4.7.2", "4.7.3", "7.1.2", "7.3.3", "7.4.1", "9.7.7"]
+                    if effect_id == "PL!SP-bp7-017:1" else
                     ["8.3.16", "8.4.4", "8.4.5", "8.4.6", "9.6.3.1", "9.7.7", "10.2.2.1"]
                     if effect_id == "PL!N-sd2-007:1" else
                     ["4.1.4", "4.8.2", "4.8.3", "9.7.7", "10.2.2.1", "10.2.3", "8.4.11"]
@@ -552,6 +557,38 @@ def _v1_1_dynamic_scenarios(
             )
         )
     return results
+
+
+def _run_wait_energy_next_active(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    cards = [_v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id], cost=0),
+             _v1_1_energy("new-energy"), _v1_1_energy("old-energy")]
+    state = _v1_1_state({effect.effect_id: effect}, cards, hand=["source"])
+    player = state.players["player_1"]
+    player.energy_area, player.energy_deck = ["old-energy"], [] if case == "empty" else ["new-energy"]
+    state.cards["old-energy"].orientation = "wait"
+    result = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1",
+        expected_revision=state.revision, payload={"card_instance_id": "source", "slot": "center", "energy_instance_ids": []}))
+    event = next(e for e in result.events if e.event_type == "effect_wait_energy_next_active_resolved")
+    placed = case != "empty"
+    if case in {"ready_pay", "zone_return"}:
+        changes = [{"adjustment_type": "ready_energy", "target_card_instance_id": "new-energy"},
+                   {"adjustment_type": "pay_energy", "target_card_instance_id": "new-energy"}] if case == "ready_pay" else [
+                   {"adjustment_type": "move_card", "target_card_instance_id": "new-energy", "to_zone": "waiting_room"},
+                   {"adjustment_type": "move_card", "target_card_instance_id": "new-energy", "to_zone": "energy_area"}]
+        result = apply_action(result.state, ActionRequest(action_type="manual_adjustment", player_id="player_1",
+            expected_revision=result.state.revision, payload={"reason": "AUDIT Energy object", "adjustments": [
+                {"target_player_id": "player_1", **c} for c in changes]}))
+    phase_case = case in {"next_active", "ready_pay", "zone_return"}
+    if phase_case:
+        result.state.phase, result.state.active_player_id, result.state.turn_number = "first_active", "player_1", 2
+        result = apply_action(result.state, ActionRequest(action_type="advance_phase", player_id="player_1", expected_revision=result.state.revision))
+    final = result.state.players["player_1"]
+    return {
+        "実際に置いた一枚だけ / 仅实际放置一张": event.data["affected_energy_instance_ids"] == (["new-energy"] if placed else []),
+        "新EnergyはWait / 新Energy为Wait": not placed or result.state.cards["new-energy"].orientation == ("active" if case == "zone_return" else "wait"),
+        "他のEnergyは通常 / 其他Energy正常": result.state.cards["old-energy"].orientation == ("active" if phase_case else "wait"),
+        "期限と新しい領域 / 期限与新区域对象": len(final.manual_modifiers) == int(case == "placed"),
+    }
 
 
 def _run_opponent_success_draw(effect: EffectDefinition, case: str) -> dict[str, bool]:

@@ -1,5 +1,13 @@
 # Effect Semantics Audit
 
+PL!SP-bp7-017:1 binds exact text/revision904/hash and uses a bounded operation
+plus tagged next-game-turn Energy modifier. Native full-turn SQL and a clearly
+synthetic multi-player entry CONTROL distinguish current Active from next turn.
+Energy departure hooks clear only the new marker; old placement/readiness and
+skip_next_active_phase_ready snapshots retain behavior.64 targeted tests,
+925/1212 executable/287manual; no human-reviewed upgrade.
+[Official Q280, rules and scope](development/wait-energy-next-active-verification.md).
+
 PL!N-sd2-007:1 binds exact text/revision938/hash. The bounded extra-draw
 operation uses current-turn Live success, not accumulated success-area cards,
 performance pointer or winning score. The result is retained for the following

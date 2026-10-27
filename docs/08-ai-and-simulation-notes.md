@@ -1,5 +1,13 @@
 # AI and Simulation Notes
 
+PL!SP-bp7-017:1 places one actual new Wait Energy and blocks only that object's
+automatic readiness in the owner's Active Phase of the next game turn. Q280
+readiness/payment does not consume the restriction; zone changes do. Four AI
+versions support native play and pending resolution.64 targeted/227 illustrated
+cases. Frozen30 improves13 to14 completions, but seed18020 ends0:3 Live before
+the target turn, so no random next-turn skip or both-Live claim is made.
+[Evidence](development/wait-energy-next-active-verification.md).
+
 PL!N-sd2-007:1 draws one first, checks the current judgment's successful-player
 history, then conditionally draws and asks the owner to discard one. Four AI
 versions support both branches without hidden-identity influence or input

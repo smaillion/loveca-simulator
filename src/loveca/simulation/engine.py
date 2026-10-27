@@ -7993,6 +7993,25 @@ def _execute_operations(
                     ):
                         continue
                     state.cards[instance_id].orientation = "wait"
+        elif operation_type == "place_wait_energy_skip_next_turn_active":
+            placed_id = player.energy_deck[0] if player.energy_deck else None
+            if placed_id is not None and state.cards[placed_id].card.card_type != "energy":
+                raise IllegalActionError("new Energy placement requires an Energy card")
+            _move_energy_to_area(state, invocation.player_id, 1, events,
+                                 reason=f"effect:{invocation.effect_id}", orientation="wait")
+            if placed_id is not None:
+                player.manual_modifiers.append(ManualModifier(
+                    modifier_id=f"effect:{invocation.invocation_id}:next-turn-energy",
+                    modifier_type="flag", flag="skip_placed_energy_next_turn_active", duration="game",
+                    created_turn=state.turn_number, target_card_instance_id=placed_id,
+                    value={"policy": "placed_energy_next_turn_active", "target_turn": state.turn_number + 1},
+                ))
+            events.append(GameEvent(
+                event_type="effect_wait_energy_next_active_resolved", player_id=invocation.player_id,
+                data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                      "affected_energy_instance_ids": [placed_id] if placed_id else [],
+                      "target_turn": state.turn_number + 1}, source="system",
+            ))
         elif operation_type == "draw_card":
             target_player_id = invocation.player_id
             if operation.target == "opponent":
@@ -8479,6 +8498,7 @@ def _execute_operations(
                         )
                     if state.cards[instance_id].card.card_type != "energy":
                         raise IllegalActionError("effect attach target must be Energy")
+                    _clear_placed_energy_block(player, instance_id)
                     player.energy_area.remove(instance_id)
                 elif source_zone == "waiting_room":
                     if instance_id not in player.waiting_room:
@@ -8602,6 +8622,7 @@ def _execute_operations(
                     )
                 if state.cards[instance_id].card.card_type != "energy":
                     raise IllegalActionError("effect Energy target must be Energy")
+                _clear_placed_energy_block(player, instance_id)
                 player.energy_area.remove(instance_id)
                 player.energy_deck.append(instance_id)
                 state.cards[instance_id].face_up = False
@@ -11177,6 +11198,10 @@ def _start_next_turn(
         state.players[player_id].effect_ready_flags_this_turn = []
         state.players[player_id].refreshed_this_turn = False
     state.turn_number += 1
+    for player in state.players.values():
+        player.manual_modifiers = [m for m in player.manual_modifiers if not (
+            _is_placed_energy_block(m) and m.value["target_turn"] < state.turn_number
+        )]
     state.first_player_id = next_first
     state.second_player_id = next_second
     state.next_first_player_id = None
@@ -11541,6 +11566,7 @@ def _manual_move_card(
         _on_live_card_departure(state, player_id, instance_id)
     _remove_from_player_zones(
         player, instance_id, preserve_yell_object=to_zone == "resolution_area",
+        preserve_energy_object=to_zone == "energy_area",
         preserve_live_card_score=(to_zone == "live_area"
                                   and _new_live_source_score_card(state, instance_id)),
     )
@@ -11648,6 +11674,7 @@ def _attach_card_under_member(
     elif card_type == "energy":
         if instance_id not in player.energy_area:
             raise IllegalActionError("attached Energy must come from Energy Area")
+        _clear_placed_energy_block(player, instance_id)
         player.energy_area.remove(instance_id)
     else:
         raise IllegalActionError("only Member or Energy cards may be attached")
@@ -12088,8 +12115,10 @@ def _remove_resolution_card(player: Any, instance_id: str) -> None:
 
 def _remove_from_player_zones(
     player: Any, instance_id: str, *, preserve_yell_object: bool = False,
-    preserve_live_card_score: bool = False,
+    preserve_live_card_score: bool = False, preserve_energy_object: bool = False,
 ) -> None:
+    if instance_id in player.energy_area and not preserve_energy_object:
+        _clear_placed_energy_block(player, instance_id)
     if instance_id in player.resolution_area and not preserve_yell_object:
         _forget_yell_object(player, instance_id)
     if instance_id in player.live_area and not preserve_live_card_score:
@@ -12291,6 +12320,22 @@ def _refresh_main_deck(
             },
         )
     )
+
+
+def _is_placed_energy_block(modifier: Any) -> bool:
+    return (
+        modifier.modifier_type == "flag" and modifier.duration == "game"
+        and modifier.flag == "skip_placed_energy_next_turn_active"
+        and isinstance(modifier.value, dict)
+        and type(modifier.value.get("target_turn")) is int
+        and modifier.value == {"policy": "placed_energy_next_turn_active", "target_turn": modifier.created_turn + 1}
+    )
+
+
+def _clear_placed_energy_block(player: Any, instance_id: str) -> None:
+    player.manual_modifiers = [m for m in player.manual_modifiers if not (
+        _is_placed_energy_block(m) and m.target_card_instance_id == instance_id
+    )]
 
 
 def _move_energy_to_area(
@@ -12577,6 +12622,13 @@ def _ready_player_cards(
     )
     if prevent_opponent_member_ready:
         skip_ready_ids.update(stage_member_ids)
+    legacy_skip_ready_ids = set(skip_ready_ids)
+    skip_ready_ids.update(
+        m.target_card_instance_id for m in player.manual_modifiers
+        if _is_placed_energy_block(m) and m.value["target_turn"] == state.turn_number
+        and m.target_card_instance_id in player.energy_area
+        and state.cards[m.target_card_instance_id].card.card_type == "energy"
+    )
     ready_ids = [
         *player.energy_area,
         *[instance_id for instance_id in player.member_area.values() if instance_id],
@@ -12589,7 +12641,7 @@ def _ready_player_cards(
             continue
         state.cards[instance_id].orientation = "active"
         readied_ids.append(instance_id)
-    if skip_ready_ids:
+    if legacy_skip_ready_ids:
         player.manual_modifiers = [
             modifier
             for modifier in player.manual_modifiers
@@ -12598,6 +12650,9 @@ def _ready_player_cards(
                 and modifier.flag == "skip_next_active_phase_ready"
             )
         ]
+    player.manual_modifiers = [m for m in player.manual_modifiers if not (
+        _is_placed_energy_block(m) and m.value["target_turn"] <= state.turn_number
+    )]
     events.append(
         GameEvent(
             event_type="cards_readied",

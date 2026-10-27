@@ -14,6 +14,7 @@ DEFAULT_EFFECT_REGISTRY = (
 )
 
 SUPPORTED_EFFECT_ACTIONS = {
+    "place_wait_energy_skip_next_turn_active",
     "draw_extra_if_opponent_live_succeeded",
     "apply_wait",
     "apply_wait_energy",
@@ -186,6 +187,12 @@ class EffectOperation(BaseModel):
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        if self.action_type == "place_wait_energy_skip_next_turn_active" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "action_type": "place_wait_energy_skip_next_turn_active", "amount": 1,
+            }
+        ):
+            raise ValueError("new Energy next-turn block only supports one fixed Wait Energy")
         if self.action_type == "draw_extra_if_opponent_live_succeeded" and (
             self.model_dump(exclude_defaults=True, exclude_none=True) != {
                 "action_type": "draw_extra_if_opponent_live_succeeded", "amount": 1,
@@ -673,6 +680,16 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        if any(op.action_type == "place_wait_energy_skip_next_turn_active" for op in self.cost):
+            raise ValueError("new Energy next-turn block cannot be a cost")
+        if any(op.action_type == "place_wait_energy_skip_next_turn_active" for op in self.actions) and (
+            self.cost or self.cost_choice or self.choice or self.follow_up_choice or self.condition or self.is_optional
+            or self.effect_type != "triggered" or self.timing != "on_play" or self.trigger != "member_played"
+            or self.frequency_limit != "none" or self.duration is not None
+            or self.execution_mode != "auto_resolve" or self.simulation_support == "manual_resolution"
+            or len(self.actions) != 1
+        ):
+            raise ValueError("new Energy next-turn block requires its fixed mandatory on-play sequence")
         if any(op.action_type == "draw_extra_if_opponent_live_succeeded" for op in self.cost):
             raise ValueError("conditional opponent-success draw cannot be a cost")
         if any(op.action_type == "draw_extra_if_opponent_live_succeeded" for op in self.actions) and (
