@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+安養寺姫芽`PL!HS-pb1-014:1`は固定正面への移動対象/発生源の最終位置が未解決で手動のまま。37境界テストを追加し、第2常時の左右鏡像参照に既存不具合を原生SQLで発見した。第2段は本輪未修正、次の最優先修正として分離。927/1212は変更しない。[監査と既知不具合](./docs/development/mirakura-front-position-unresolved.md)
+
 小原鞠莉`PL!S-bp7-008:1`を全文/revision/hash限定で対応。私見三枚を任意に分け、上と下を独立に並べる。第2段は手動のまま。88専用、242図解、269フロントを検証し、固定30試合は14→15完了。ただし追加局は0:3 Liveで、双方Liveの長局達成ではない。[検証と境界](./docs/development/private-three-top-bottom-verification.md)
 
 Live`PL!S-bp7-021:1`を全文/revision/hash限定で対応。解決時のステージ三人条件、下五回のMember履歴、追加一枚ドローと元Liveだけのscore+1を区別する。82専用、238図解、263フロントを検証。固定30試合は14完了のまま、実際の二回は条件不成立/Member三枚ドローであり、無作為のscore+1実績ではない。[検証と限界](./docs/development/bottom-five-member-score-verification.md)

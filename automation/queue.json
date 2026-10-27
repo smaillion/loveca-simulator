@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "static-mirrored-opponent-cost-source-heart",
+      "priority": 0,
+      "title": "优先修复安養寺姫芽常时正面费用比较未镜像左右的既有错误",
+      "status": "queued",
+      "depends_on": [],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["先读mirakura-front-position-unresolved.md与logs/mirakura-front-position-20261027/mirror-native-red.xml、mirror-valid-probe.json和两份SQL；PL!HS-pb1-014:2原本已可执行，不算manual晋级。revision130/完整双段hash542b68ba2435dd4aafaaf2f88d9fc0d75cf33321d245934e772175c21e009591精确绑定，第1段仍blocked/manual不扩大范围", "PDF4.5.7.1明确左右镜像/中央对中央；将新对局固定正面费用比较置于显式新snapshot条件或policy，不全局追改旧opposing_member_cost_greater_than_source以掩盖旧Replay。先加持续红测试，左右cost9来源/同栏4/正面10应+1，反向样例防止碰巧通过", "双方角色/三位置、费用低于等于高于、无对手/附属卡/Wait、位置交换/Formation、来源离场返回、新旧SQL、四AI/双视角与必要UI真实断言；新旧snapshot行为区分，不改Card/SQL schema或默认AI，不提升reviewed/执行数", "应用源码变化后重绑同牌组冻结30局，完整profiles/pre-push通过再本地提交；第1段同区域资格/最后位置未解决不能据此晋级。后续PR目标待明确批准，不改policy、不推送、新建PR、合并部署"]
+    },
+    {
       "id": "onplay-mirakura-opponent-front-position",
       "priority": 0,
       "title": "按实际待机审计仅みらくらぱーく条件与对手正面移动",

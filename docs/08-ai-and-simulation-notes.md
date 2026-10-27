@@ -1,5 +1,12 @@
 # AI and Simulation Notes
 
+Mirakura fixed-front on-play stays manual; four controllers in both roles block
+without hidden-identity or input mutation.37 boundary tests do not promote the
+card. The second static effect has a newly reproduced left/right mirror bug,
+queued independently and still unfixed. Application fingerprint remains3915564c...
+so the existing15/15 frozen pool is verified but not rerun or called new progress.
+[Evidence](development/mirakura-front-position-unresolved.md).
+
 PL!S-bp7-008:1 adds bounded private top/bottom partition ordering to all four
 controllers, legacy sandbox payloads and semantic hints/examples, without changing
 the default policy.88 targeted and242 illustrated cases protect hidden identities

@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+安養寺姫芽`PL!HS-pb1-014:1`因固定正面目标资格/原来源最后位置依赖继续manual。新增37项边界保护，并以原生SQL发现第2常时左右正面未镜像的既有缺陷；本轮未修复，已独立列为下一最高优先级。登记仍927/1212。[审计与已知缺陷](./docs/development/mirakura-front-position-unresolved.md)
+
 小原鞠莉`PL!S-bp7-008:1`已按全文/revision/hash限定适配：私看三张后任意分组、分别排列库顶库底，第2段仍manual。88专项、242图文、269前端通过；冻结30局完赛14→15，但新增局Live0:3，不称双方Live长局。[验证与边界](./docs/development/private-three-top-bottom-verification.md)
 
 Live`PL!S-bp7-021:1`已限定适配：结算时检查三名成员，记录底五次Member移动，至少三次才抽一张，全部为Member才仅原来源Live score+1。82专项、238图文和263前端通过。冻结30局仍14完赛，本卡两次实际完成分别为三人条件失败、三Member抽一张，不称随机加分正条件覆盖。[验证与边界](./docs/development/bottom-five-member-score-verification.md)

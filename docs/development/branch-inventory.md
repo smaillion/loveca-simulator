@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-27 固定正面移动审计：PL!HS-pb1-014:1继续manual并登记目标资格/来源最后位置未解决；第2段既有左右镜像bug有独立原生SQL红证据，尚未修复。37边界保护，不改变应用/registry/manifest或927/1212登记，不重复冻结池。下一独立最高优先级修复镜像常时；固定分支/工作树、旧44/6 dirty、stash和ignored均保留，不push。见`mirakura-front-position-unresolved.md`。
+
 2026-10-27 私看三张分组排序：仅PL!S-bp7-008:1晋级，第2段manual不变，旧私看/reorder/manual Replay保持。88专项、242图文、269前端；最终冻结14→15完赛、208/210可执行完成，新增局0:3不称双方长局。固定分支/工作树，旧44/6 dirty、stash与ignored均保留，未push，见`private-three-top-bottom-verification.md`。后续PR目标仍待明确批准。
 
 2026-10-27 底五张Member：仅PL!S-bp7-021:1从manual改为受限执行，三人条件在结算时检查、移动历史先于抽牌、只给原Live加分。82专项、238图文、263前端；冻结仍14完赛/16人工停止，本卡两次真实处理均无score+1，不冒充长局/随机正条件。旧44/6 dirty和ignored保留，固定分支/工作树、不push，见`bottom-five-member-score-verification.md`。

@@ -4816,6 +4816,30 @@ describe("App", () => {
     });
   });
 
+  it.each([false, true])("keeps the unresolved Mirakura on-play manual with hidden source=%s", (hidden) => {
+    const onAction = vi.fn();
+    const onManual = vi.fn();
+    const source = { invocation_id: "mirakura-front", effect_id: "PL!HS-pb1-014:1",
+      source_card_instance_id: "mirakura-source", player_id: "player_1" };
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: {
+      ...INSPECTION_MATCH_PAYLOAD.state.cards,
+      ...(!hidden ? { "mirakura-source": { ...INSPECTION_CARDS["player_1-M002"],
+        instance_id: "mirakura-source", card: { ...INSPECTION_CARDS["player_1-M002"].card, name_ja: "安養寺姫芽" } } } : {}),
+    }, pending_effects: [source] };
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      ...source, label_ja: "【登場】自分のステージにいるメンバーが『みらくらぱーく！』のみの場合、相手のステージにいるメンバー1人をこのメンバーの正面のエリアにポジションチェンジさせる。",
+      trigger: "member_played", timing: "on_play", execution_mode: "manual_resolution",
+      simulation_support: "manual_resolution", is_optional: false, candidate_card_instance_ids: [],
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never}
+      loading={false} onAction={onAction} onManual={onManual} />);
+    expect(screen.queryByRole("button", { name: "结算技能" })).not.toBeInTheDocument();
+    expect(screen.getByText("登場 · 人工处理 · 强制")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "结构化人工处理" }));
+    expect(onManual).toHaveBeenCalledWith(source);
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
   it.each(["overlap_source_binding_incomplete", "overlap_attached_ability_requires_review",
     "overlap_public_ability_requires_timing_review"])("offers manual processing for an unresolved overlap source: %s", (reason) => {
     const onAction = vi.fn();

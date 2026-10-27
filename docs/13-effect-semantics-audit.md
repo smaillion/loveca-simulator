@@ -1,5 +1,13 @@
 # Effect Semantics Audit
 
+PL!HS-pb1-014:1 remains manual: fixed-front same-area target eligibility is
+not directly established, and the original departed source's last Stage slot
+is not captured. A test-only generic opponent-position probe is not a registry
+executor. Native SQL additionally exposes the existing second static segment's
+same-named-slot comparison instead of mirrored front (rules4.5.7.1); it is NOT
+fixed or validated by this audit.927/1212 stays unchanged. The independent repair
+is queued first. [Evidence](development/mirakura-front-position-unresolved.md).
+
 PL!S-bp7-008:1 binds complete two-segment revision853/hash to the bounded
 private_three_top_bottom_order snapshot. Top and bottom groups are independent
 ordered partitions of the actual inspected cards; Q85/Q86/Q122 cover private
