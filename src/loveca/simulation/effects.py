@@ -14,6 +14,7 @@ DEFAULT_EFFECT_REGISTRY = (
 )
 
 SUPPORTED_EFFECT_ACTIONS = {
+    "mill_bottom_three_aqours_source_heart",
     "place_wait_energy_skip_next_turn_active",
     "draw_extra_if_opponent_live_succeeded",
     "apply_wait",
@@ -161,6 +162,7 @@ class EffectOperation(BaseModel):
         "original_onplay_mill_source",
         "original_onplay_muse_blade_aura",
         "original_live_start_bottom_source",
+        "original_live_start_bottom_three_source",
     ] | None = None
     overlap_observer_policy: Literal[
         "ignore_disjoint_source_triggers", "require_complete_source_bindings"
@@ -187,6 +189,18 @@ class EffectOperation(BaseModel):
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        if self.action_type == "mill_bottom_three_aqours_source_heart" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "action_type": "mill_bottom_three_aqours_source_heart", "amount": 3,
+                "target": "source", "color_slot": "heart04",
+                "source_object_policy": "original_live_start_bottom_three_source",
+            }
+        ):
+            raise ValueError("bottom three only supports the fixed Aqours source Heart sequence")
+        if self.source_object_policy == "original_live_start_bottom_three_source" and (
+            self.action_type != "mill_bottom_three_aqours_source_heart"
+        ):
+            raise ValueError("bottom three source policy requires its bounded operation")
         if self.action_type == "place_wait_energy_skip_next_turn_active" and (
             self.model_dump(exclude_defaults=True, exclude_none=True) != {
                 "action_type": "place_wait_energy_skip_next_turn_active", "amount": 1,
@@ -315,6 +329,7 @@ class EffectOperation(BaseModel):
             "gain_heart_if_milled_all_have_heart",
             "gain_source_heart_if_milled_member_blade_colors",
             "gain_source_heart_if_bottom_card_live",
+            "mill_bottom_three_aqours_source_heart",
             "modify_required_heart",
             "replace_member_base_hearts",
             "replace_yell_blade_hearts",
@@ -680,6 +695,17 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        bottom_three = "mill_bottom_three_aqours_source_heart"
+        if any(op.action_type == bottom_three for op in self.cost):
+            raise ValueError("bottom three cannot be a cost")
+        if any(op.action_type == bottom_three for op in self.actions) and (
+            self.cost or self.cost_choice or self.choice or self.follow_up_choice or self.condition
+            or self.is_optional or self.effect_type != "triggered" or self.timing != "live_start"
+            or self.trigger != "live_started" or self.frequency_limit != "once_per_live"
+            or self.duration != "live" or self.execution_mode != "auto_resolve"
+            or self.simulation_support == "manual_resolution" or len(self.actions) != 1
+        ):
+            raise ValueError("bottom three requires its fixed mandatory Live-start sequence")
         if any(op.action_type == "place_wait_energy_skip_next_turn_active" for op in self.cost):
             raise ValueError("new Energy next-turn block cannot be a cost")
         if any(op.action_type == "place_wait_energy_skip_next_turn_active" for op in self.actions) and (

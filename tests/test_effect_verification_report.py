@@ -21,6 +21,8 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
         "opponent_success_draw_both", "opponent_success_draw_only_self", "opponent_success_draw_past_success",
         "opponent_success_draw_short", "opponent_success_draw_empty",
         "bottom_live_heart_live", "bottom_live_heart_member", "bottom_live_heart_empty",
+        "bottom_three_aqours_all", "bottom_three_aqours_wrong_work", "bottom_three_aqours_live",
+        "bottom_three_aqours_one_repeat", "bottom_three_aqours_empty",
         "bottom_live_heart_one_live", "bottom_live_heart_one_member",
         "both_waiting_live_0_0", "both_waiting_live_0_2", "both_waiting_live_2_0", "both_waiting_live_2_2",
         "muse_granted_blade_score_icon", "muse_granted_blade_numeric_only", "muse_granted_blade_wrong_work",

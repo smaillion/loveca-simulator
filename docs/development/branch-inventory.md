@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-27 底三张Aqours：PL!S-bp7-006原本已可执行，只是与其他manual共同待机，本轮为来源对象/逐张刷新修正，不增加925/1212登记。原生CONTROL/SQL红测试证明离场返回错误，新旧快照有区分。61专项、232图文，冻结仍14完赛/16人工停止；测试SQL分支正条件+1不是随机完成。固定分支/工作树、旧44/6 dirty及ignored保留，不push，见`bottom-three-aqours-heart-verification.md`。
+
 2026-10-27 きな子Wait Energy：仅PL!SP-bp7-017:1登记变化，固定工作树/分支。64专项、227图文、254前端及完整回合SQL验证限定新对象/次回合期限；旧flag行为保持。冻结30局完赛13→14，但新增局败方无Live且未到标记时点，不冒充长局/随机skip验证。旧44/6 dirty和ignored成果保留，未push，后续PR目标待批。见`wait-energy-next-active-verification.md`。
 
 2026-10-27 優木せつ菜条件抽弃：仅PL!N-sd2-007:1登记变化，固定工作树/分支。86专项、222图文、251前端通过；通用技能面板来源隐藏引用崩溃已补保护，不公开卡面。冻结30局完赛12→13，实际正条件完成1次。旧44/6 dirty与ignored成果保留，未push，后续PR目标待批。见`opponent-success-draw-discard-verification.md`。

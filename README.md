@@ -8,6 +8,8 @@
 
 ## 現在の状態
 
+津島善子`PL!S-bp7-006:1`の既存処理を修正。下から三回の移動履歴でAqoursメンバー条件を判定し、元の発生源だけに緑Heartを与える。離場後の同ID復帰への誤適用を原生Action/SQLで再現・保護し、旧snapshotは維持。実行可能数925/1212は変えない。固定30試合は14完了/16手動停止のまま、正条件の単独SQL分岐は別証拠。[検証と範囲](./docs/development/bottom-three-aqours-heart-verification.md)
+
 桜小路きな子`PL!SP-bp7-017:1`を全文/revision/hash限定で対応。実際に置いた新EnergyだけをWaitにし、次ターンの本人Activeで一回だけ自動復原を止める。Q280に基づき能力でのActive/再支払いで制限は消えず、移区/復帰には継承しない。64専用、227図解と254フロントを検証。固定30試合は13→14完了ですが、当該局は0:3 Liveで次ターン前に終了。[証拠と限界](./docs/development/wait-energy-next-active-verification.md)
 
 優木せつ菜`PL!N-sd2-007:1`を全文/revision/hash限定で対応。必ず一枚引き、現在ターンの相手成功を確認した時だけ追加ドローと手札一枚選択。過去の成功置き場や勝敗とは区別し、非公開発生源でもUIを操作可能に修正。86専用、222図解、四AI/SQL/251フロントを検証。固定30試合は12→13完了、実際の正条件一回を記録。[証拠と範囲](./docs/development/opponent-success-draw-discard-verification.md)

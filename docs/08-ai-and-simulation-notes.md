@@ -1,5 +1,13 @@
 # AI and Simulation Notes
 
+PL!S-bp7-006:1 was already executable, pending behind another manual effect in
+seed18017; this is a source-object/refresh correctness fix, not new coverage.
+The bounded operation records three bottom moves (including repeated physical
+IDs after immediate refresh), grants only the original source a green Heart,
+and retains historical generic snapshots. Frozen30 remains14/16 and194/197.
+A separate test SQL branch resolves the actual positive condition; it does not
+replace the frozen result. [Evidence](development/bottom-three-aqours-heart-verification.md).
+
 PL!SP-bp7-017:1 places one actual new Wait Energy and blocks only that object's
 automatic readiness in the owner's Active Phase of the next game turn. Q280
 readiness/payment does not consume the restriction; zone changes do. Four AI

@@ -1922,6 +1922,7 @@ const autoResultTerminalEvents = new Set([
 const autoResultOperationEvents = new Set([
   "effect_muse_blade_aura_resolved",
   "effect_bottom_live_heart_resolved",
+  "effect_bottom_aqours_heart_resolved",
   "effect_opponent_success_draw_resolved",
   "effect_wait_energy_next_active_resolved",
   "effect_source_member_readied",
@@ -2043,7 +2044,7 @@ function autoResultLines(
     } else if (related.event_type === "effect_waiting_lives_recovered") {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
-    } else if (related.event_type === "effect_milled_blade_colors_resolved" || related.event_type === "effect_muse_blade_aura_resolved" || related.event_type === "effect_bottom_live_heart_resolved" || related.event_type === "effect_opponent_success_draw_resolved" || related.event_type === "effect_wait_energy_next_active_resolved") {
+    } else if (related.event_type === "effect_milled_blade_colors_resolved" || related.event_type === "effect_muse_blade_aura_resolved" || related.event_type === "effect_bottom_live_heart_resolved" || related.event_type === "effect_bottom_aqours_heart_resolved" || related.event_type === "effect_opponent_success_draw_resolved" || related.event_type === "effect_wait_energy_next_active_resolved") {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
       if (related.data.source_available === false) {
@@ -4231,6 +4232,7 @@ function eventTitle(event: GameEvent, locale: UiLocale): string {
     effect_milled_blade_colors_resolved: ["Blade Heart 颜色判定", "ブレードハート色の判定"],
     effect_muse_blade_aura_resolved: ["μ's常时Blade能力", "μ's常時ブレード能力"],
     effect_bottom_live_heart_resolved: ["牌库底Live判定", "デッキ下のライブ判定"],
+    effect_bottom_aqours_heart_resolved: ["底三张Aqours判定", "下三枚のAqours判定"],
     effect_opponent_success_draw_resolved: ["对方本回合成功判定", "相手の今ターン成功判定"],
     effect_wait_energy_next_active_resolved: ["新Energy下回合限制", "新エネルギーの次ターン制限"],
     effect_waiting_lives_recovered: ["双方控室 Live 回收", "両者の控室ライブ回収"],
@@ -4361,6 +4363,11 @@ function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): st
     return locale === "zh"
       ? `对方本回合成功：${event.data.condition_met ? "是" : "否"} · 追加抽 ${count} 张 · ${event.data.discard_required ? "需弃 1 张" : "无需弃牌"}`
       : `相手の今ターン成功：${event.data.condition_met ? "あり" : "なし"} · 追加${count}枚ドロー · ${event.data.discard_required ? "手札を1枚控室へ" : "手札を控室に置かない"}`;
+  }
+  if (event.event_type === "effect_bottom_aqours_heart_resolved") {
+    return locale === "zh"
+      ? `底部移动 ${Number(event.data.milled_count ?? 0)} 次 · 全为 Aqours Member：${event.data.condition_met ? "是" : "否"} · 原来源绿 Heart +${Number(event.data.heart_delta ?? 0)}`
+      : `下から${Number(event.data.milled_count ?? 0)}回移動 · すべてAqoursメンバー：${event.data.condition_met ? "はい" : "いいえ"} · 元の発生源の緑ハート +${Number(event.data.heart_delta ?? 0)}`;
   }
   if (event.event_type === "effect_bottom_live_heart_resolved") {
     const count = Number(event.data.milled_count ?? 0);

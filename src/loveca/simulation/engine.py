@@ -3082,6 +3082,7 @@ def _captures_original_stage_source(effect: Any) -> bool:
         "original_live_start_wait_cost_source",
         "original_onplay_mill_source",
         "original_live_start_bottom_source",
+        "original_live_start_bottom_three_source",
         "original_onplay_muse_blade_aura",
     } for op in effect.actions) or (
         effect.choice is not None
@@ -9632,6 +9633,43 @@ def _execute_operations(
                     events,
                     reason=f"effect:{invocation.effect_id}",
                 )
+        elif operation_type == "mill_bottom_three_aqours_source_heart":
+            if invocation.trigger_data.get("original_source_stage_object") is not True:
+                raise IllegalActionError("original bottom-three source Stage snapshot is missing")
+            moved: list[str] = []
+            matches: list[bool] = []
+            for _ in range(3):
+                _refresh_main_deck(state, invocation.player_id, events)
+                if not player.main_deck:
+                    break
+                item = player.main_deck.pop()
+                card = state.cards[item]
+                player.waiting_room.append(item)
+                card.face_up = True
+                moved.append(item)
+                matches.append(card.card.card_type == "member" and "love_live_sunshine" in card.card.work_keys)
+                # Each move is public before an immediate refresh can hide the new object.
+                events.append(GameEvent(event_type="effect_cards_milled", player_id=invocation.player_id,
+                    data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                          "milled_card_instance_ids": [item], "source": "deck_bottom",
+                          "revealed_cards": [_public_card_snapshot(state, item)]}, source="system"))
+                _refresh_main_deck(state, invocation.player_id, events)
+            matched = len(matches) == 3 and all(matches)
+            available = (invocation.trigger_data.get("original_source_stage_object_departed") is not True
+                         and _is_stage_member_instance(state, invocation.source_card_instance_id))
+            delta = int(matched and available)
+            if delta:
+                player.manual_modifiers.append(ManualModifier(
+                    modifier_id=f"effect:{invocation.invocation_id}:bottom-three-heart",
+                    modifier_type="heart", duration="live", created_turn=state.turn_number,
+                    amount=1, color_slot="heart04", target_card_instance_id=invocation.source_card_instance_id,
+                    value={"policy": "original_live_start_bottom_three_source"},
+                ))
+            events.append(GameEvent(event_type="effect_bottom_aqours_heart_resolved", player_id=invocation.player_id,
+                data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                      "source_card_instance_id": invocation.source_card_instance_id, "milled_count": len(moved),
+                      "condition_met": matched, "source_available": available, "heart_delta": delta,
+                      "color_slot": "heart04"}, source="system"))
         elif operation_type == "gain_source_heart_if_bottom_card_live":
             if invocation.trigger_data.get("original_source_stage_object") is not True:
                 raise IllegalActionError("original source Stage snapshot is missing")
@@ -12021,7 +12059,8 @@ def _clear_departed_card_modifiers(
             if modifier.target_card_instance_id not in departed
             or (not clear_all and not _is_muse_blade_aura(modifier)
                 and not (modifier.modifier_type == "heart"
-                         and modifier.value == {"policy": "original_live_start_bottom_source"}))
+                         and modifier.value in ({"policy": "original_live_start_bottom_source"},
+                                                {"policy": "original_live_start_bottom_three_source"})))
         ]
         removed_count += len(player.manual_modifiers) - len(retained)
         player.manual_modifiers = retained

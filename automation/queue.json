@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "live-start-bottom-five-members-source-live-score",
+      "priority": 0,
+      "title": "审计三人条件后的底五张Member计数抽牌与原来源Live得分",
+      "status": "queued",
+      "depends_on": ["live-start-bottom-three-aqours-source-heart"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!S-bp7-021:1全文/revision913/hash4abd5654a85639e01eb2721a21df5439f133589eeccd1238c04944fb4a0b6261，seed18017实际mandatory manual；区分PL!S-bp7-006是已可执行但共同待机，不重复虚增覆盖率", "先确认三人条件的判断时点、底五张逐张移动/途中刷新/同实体多次移动历史；至少三次Member移动才抽一张，全部为Member才仅原来源Live score+1，不能按最终控室或刷新后库顶判定，也不能加全局score", "条件未满足、0/短库/重复实体、Member/Live混合、追加抽牌刷新、来源离场/同ID返回/Live区移动、旧新SQL、四AI/双视角隐私/UI图文和全部profiles有真实断言；未确认保留unresolved，不扩大旧mill或score快照", "绑定新源码同牌组冻结诊断及pre-push后只本地提交，不提升reviewed、不改默认AI/schema；后续PR目标待明确批准，不改policy、不推送、新建PR、合并部署"]
+    },
+    {
       "id": "continuous-authorized-blocked-task-recovery",
       "priority": 0,
       "title": "为已获维护者批准的阻塞任务补充显式恢复入口",

@@ -463,7 +463,7 @@ def test_effect_candidate_discovery_structures_pbll02_clls01_safe_exact_family()
         "PL!S-cl1-005:1": "live_start_look_top1_optional_deck_bottom",
         "PL!S-cl1-008:1": "activated_wait_discard1_draw1",
         "PL!S-cl1-009:1": "activated_source_to_wr_return_member",
-        "PL!S-bp7-006:1": "simple_ai_v1_1_live_start_mill_bottom3_all_aqours_member_heart04",
+        "PL!S-bp7-006:1": "live_start_bottom_three_aqours_heart",
         "PL!S-bp7-019:1": "simple_ai_v1_1_live_success_waiting_aqours_up_to2_deck_bottom",
         "PL!S-bp7-024:1": "simple_ai_v1_1_live_start_aqours_member_replace_base_hearts_heart04",
         "PL!SP-bp7-024:1": "simple_ai_v1_1_live_success_energy_advantage2_score1",

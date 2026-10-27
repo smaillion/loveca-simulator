@@ -2088,6 +2088,23 @@ describe("App", () => {
     expect((await screen.findAllByText(`メンバーのブレードハート ${colors} 色 · 誘発元の緑ハート +${delta}`)).length).toBeGreaterThan(0);
   });
 
+  it.each([[3, true, 1, true], [3, false, 0, true], [0, false, 0, true], [3, true, 0, false]] as const)("shows bottom three Aqours moves %s match %s", async (count, matched, delta, available) => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const data = { effect_id: "PL!S-bp7-006:1", invocation_id: "bottom-three", milled_count: count,
+      condition_met: matched, heart_delta: delta, source_available: available };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate: { ...MATCH_PAYLOAD, events: [
+      { event_type: "effect_bottom_aqours_heart_resolved", player_id: "player_1", source: "system", data },
+      { event_type: "effect_auto_resolved", player_id: "player_1", source: "system", data },
+    ] } }));
+    render(<App />);
+    const create = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(create).not.toBeDisabled());
+    fireEvent.click(create);
+    expect((await screen.findAllByText(`底部移动 ${count} 次 · 全为 Aqours Member：${matched ? "是" : "否"} · 原来源绿 Heart +${delta}`)).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect((await screen.findAllByText(`下から${count}回移動 · すべてAqoursメンバー：${matched ? "はい" : "いいえ"} · 元の発生源の緑ハート +${delta}`)).length).toBeGreaterThan(0);
+  });
+
   it.each([[1, 2], [0, 2], [1, 8]])("shows new Wait Energy count %s and target turn %s", async (count, turn) => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const data = { effect_id: "PL!SP-bp7-017:1", invocation_id: "wait-energy", target_turn: turn,

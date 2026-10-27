@@ -24,6 +24,11 @@ WAIT_ENERGY_NEXT_ACTIVE_TEXT = (
     "そのエネルギーカードは、次のターンのアクティブフェイズにアクティブしない。"
 )
 
+BOTTOM_THREE_AQOURS_HEART_TEXT = (
+    "【ライブ開始時】自分のデッキの下からカードを3枚控え室に置く。"
+    "それらがすべて『Aqours』のメンバーカードの場合、ライブ終了時まで、【heart04】を得る。"
+)
+
 OPPONENT_SUCCESS_DRAW_DISCARD_TEXT = (
     "【ライブ成功時】カードを1枚引く。このターン、相手もライブを成功している場合、"
     "さらにカードを1枚引き、手札を1枚控え室に置く。"
@@ -2835,6 +2840,23 @@ def _live_success_opponent_draw_discard(row: sqlite3.Row) -> EffectCandidate | N
         actions=[{"action_type": "draw_card", "amount": 1},
                  {"action_type": "draw_extra_if_opponent_live_succeeded", "amount": 1},
                  {"action_type": "discard_from_hand"}], duration=None,
+    )
+
+
+def _live_start_bottom_three_aqours_heart(row: sqlite3.Row) -> EffectCandidate | None:
+    if (row["card_code"] != "PL!S-bp7-006" or row["text_revision_id"] != 851
+            or row["raw_text_hash"] != "3c87d290b7b11b30c7b72683a74b6ec5a871266062a46567c1c8258fe5198821"
+            or row["raw_effect_text_ja"] != BOTTOM_THREE_AQOURS_HEART_TEXT):
+        return None
+    return EffectCandidate(
+        **_base_with_execution_mode(row, pattern_id="live_start_bottom_three_aqours_heart", effect_index=1,
+                                    execution_mode="auto_resolve"),
+        label_ja=BOTTOM_THREE_AQOURS_HEART_TEXT, effect_type="triggered", timing="live_start",
+        trigger="live_started", frequency_limit="once_per_live", is_optional=False,
+        condition={}, cost=[], choice=None, duration="live",
+        actions=[{"action_type": "mill_bottom_three_aqours_source_heart", "target": "source",
+                  "amount": 3, "color_slot": "heart04",
+                  "source_object_policy": "original_live_start_bottom_three_source"}],
     )
 
 
@@ -14803,29 +14825,6 @@ def _phase5_v1_final_static_effects(row: sqlite3.Row) -> EffectCandidate | None:
 
 def _simple_ai_v1_1_safe_effects(row: sqlite3.Row) -> EffectCandidate | None:
     patterns: dict[str, dict[str, Any]] = {
-        "【ライブ開始時】自分のデッキの下からカードを3枚控え室に置く。それらがすべて『Aqours』のメンバーカードの場合、ライブ終了時まで、【heart04】を得る。": {
-            "suffix": "live_start_mill_bottom3_all_aqours_member_heart04",
-            "effect_type": "triggered",
-            "timing": "live_start",
-            "trigger": "live_started",
-            "frequency_limit": "once_per_live",
-            "actions": [
-                {"action_type": "mill_bottom_cards", "amount": 3},
-                {
-                    "action_type": "gain_heart",
-                    "target": "source",
-                    "amount": 1,
-                    "color_slot": "heart04",
-                    "value": {
-                        "condition": {
-                            "milled_all_card_type": "member",
-                            "milled_all_work_key": "love_live_sunshine",
-                        }
-                    },
-                },
-            ],
-            "duration": "live",
-        },
         "【ライブ開始時】ライブ終了時まで、自分のステージにいる『Aqours』のメンバー1人は、元々持つハートがすべて【heart04】になる。": {
             "suffix": "live_start_aqours_member_replace_base_hearts_heart04",
             "effect_type": "triggered",
@@ -15619,6 +15618,7 @@ _PATTERNS = (
     _onplay_wait_energy_next_active,
     _live_success_opponent_draw_discard,
     _live_start_bottom_one_heart,
+    _live_start_bottom_three_aqours_heart,
     _onplay_mill_three_blade_colors,
     _onplay_muse_granted_blade,
     _onplay_both_waiting_live,

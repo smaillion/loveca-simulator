@@ -1,5 +1,13 @@
 # Effect Semantics Audit
 
+PL!S-bp7-006:1 was already test-validated executable. A native CONTROL/SQL red
+test reproduces the old generic gain_heart applying to a departed/returned source.
+The new exact-text/revision851/hash-bound operation fixes the original object,
+tracks three sequential moves through immediate refresh (Q104/general rules),
+and records public movement history without authorizing hidden current cards.
+Old generic/manual snapshots and default AI/schema remain unchanged;925/1212
+is not increased. [Evidence](development/bottom-three-aqours-heart-verification.md).
+
 PL!SP-bp7-017:1 binds exact text/revision904/hash and uses a bounded operation
 plus tagged next-game-turn Energy modifier. Native full-turn SQL and a clearly
 synthetic multi-player entry CONTROL distinguish current Active from next turn.

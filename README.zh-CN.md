@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+津島善子`PL!S-bp7-006:1`既有实现已修正：按底部三次实际移动判断Aqours Member，仅原来源获得绿Heart，离场同ID返回不继承。原生动作/SQL红测试复现旧错误，旧快照继续兼容。登记仍925/1212，不算新增覆盖。冻结30局仍14完赛/16人工停止，正条件单独SQL分支另列。[验证与边界](./docs/development/bottom-three-aqours-heart-verification.md)
+
 桜小路きな子`PL!SP-bp7-017:1`已限定适配：只把实际新放置的Energy置Wait，并跳过下回合本人的一次自动复原；主动复原再支付不取消限制，离场返回不继承。64专项、227图文及254前端通过。冻结30局完赛13→14，但该局Live为0:3且未进入标记目标回合，不冒充双方Live或跳过复原的随机覆盖。[验证与边界](./docs/development/wait-energy-next-active-verification.md)
 
 優木せつ菜`PL!N-sd2-007:1`已按全文/revision/hash限定适配：先抽一张，只在当前回合对方也成功时追加抽一张并本人必选弃一张，不用累计成功区或胜负结果代替条件。86专项、222图文、四AI/SQL与251前端验证；来源隐藏时面板仍可提交。冻结30局完赛12→13，本卡实际正条件完成一次。[验证与边界](./docs/development/opponent-success-draw-discard-verification.md)
