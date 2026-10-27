@@ -2,11 +2,59 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+持续开发审查目标固定为[Draft PR #55](https://github.com/smaillion/loveca-simulator/pull/55)。按已获得的明确批准，编号配置独立重新验收后只更新同一分支与PR；[验收记录](./docs/development/draft-pr55-target-verification.md)。合并和上线仍需另行批准。
+
+`PL!S-bp7-025:1`按完整全文/revision/hash限定支持：选择对手费用4以下0至2名成员Wait并限制下个游戏回合Active复原，或抽一张。原对象离场清理、场内移动保留，旧快照不改。85专项/34 SQL、四AI/隐私、271图文/7 UI；完整门禁及同牌组30局见[验收记录](./docs/development/opponent-member-next-active-verification.md)。维护者已批准新Draft PR，合并上线仍需另行批准。
+
+宮下愛`PL!N-bp7-005:1`按全文/revision/hash限定实现：结算时确认两名异名DiverDiva，选择按可能范围复原两Energy，或从Energy Deck直接附属一张到虹ヶ咲成员下。84专项/22种SQL、四AI/隐私、266图文及双语UI保护，旧快照和既有blocked不变。最终完整门禁与新源码冻结结果见[验证记录](./docs/development/diverdiva-energy-choice-verification.md)，仅本地开发。
+
+`PL!S-bp7-020:1`全员Active边界审计：本次未取得空Stage真值的直接官方依据，继续manual，不凭空集合直觉晋级。28项边界/11种SQL、四AI/隐私与人工UI保护；第2段和930/1212登记不变，应用指纹未变，不重复30局。[未解决原因与证据](./docs/development/all-active-live-requirement-unresolved.md)
+
+`PL!S-bp7-020:2`按完整双段/revision/hash限定实现：实际底牌为Aqours Member时，仅原Live无色必要Heart减一。无明示期限按game，移区新对象不继承；第1段仍manual，旧Replay不变。52专项/17种SQL、262图文与中日原生UI有证据；最终同源码门禁及冻结30局见[验证记录](./docs/development/bottom-one-aqours-requirement-verification.md)。仅本地开发，不推送上线。
+
 这是一个面向 Love Live! Series Official Card Game（ラブカ）的本地卡牌数据库、牌组分析与规则验证工具。
 
 项目始终以官方日文资料为唯一权威来源。内部英文标识只用于工程实现，不替代官方日文术语。
 
 ## 当前状态
+
+鬼塚冬毬`PL!SP-bp2-011:1`按全文/revision/hash限定实现：本人提出控室两张不同名Live，再由对手择一，Q118明确不足两种名称不能回收。103专项/27种SQL、四AI/隐私、257图文和中日UI已有证据；完整门禁、同牌组30局及提交结果见验收入口。未push，后续PR目标待批。[验证与边界](./docs/development/opponent-live-offer-verification.md)
+
+ウィーン・マルガレーテ`PL!SP-bp5-010:1`按全文/revision/hash限定实现。Q223与通则1.3.4.1区分各自选择权和主动方先处理，保护占位交换/附属、移动触发待机、旧manual Replay及隐藏信息。69专项、251图文已有证据；完整门禁、同牌组30局及提交结果以最终验收记录为准。未push，后续PR目标待批。[验证与边界](./docs/development/both-center-position-verification.md)
+
+安養寺姫芽`PL!HS-pb1-014:2`左右正面费用比较采用限定新快照修复。105专项、46种SQL与247图文已有证据，旧pattern标识契约已同步；完整验收按当前源码独立记录，不拼接旧绿色。第1段manual、登记927/1212和冻结15完赛均不变，最终结论见报告验收入口。下方未修复文字属于发现时历史。[修复与验收](./docs/development/mirrored-cost-heart-verification.md)
+
+安養寺姫芽`PL!HS-pb1-014:1`因固定正面目标资格/原来源最后位置依赖继续manual。新增37项边界保护，并以原生SQL发现第2常时左右正面未镜像的既有缺陷；本轮未修复，已独立列为下一最高优先级。登记仍927/1212。[审计与已知缺陷](./docs/development/mirakura-front-position-unresolved.md)
+
+小原鞠莉`PL!S-bp7-008:1`已按全文/revision/hash限定适配：私看三张后任意分组、分别排列库顶库底，第2段仍manual。88专项、242图文、269前端通过；冻结30局完赛14→15，但新增局Live0:3，不称双方Live长局。[验证与边界](./docs/development/private-three-top-bottom-verification.md)
+
+Live`PL!S-bp7-021:1`已限定适配：结算时检查三名成员，记录底五次Member移动，至少三次才抽一张，全部为Member才仅原来源Live score+1。82专项、238图文和263前端通过。冻结30局仍14完赛，本卡两次实际完成分别为三人条件失败、三Member抽一张，不称随机加分正条件覆盖。[验证与边界](./docs/development/bottom-five-member-score-verification.md)
+
+津島善子`PL!S-bp7-006:1`既有实现已修正：按底部三次实际移动判断Aqours Member，仅原来源获得绿Heart，离场同ID返回不继承。原生动作/SQL红测试复现旧错误，旧快照继续兼容。登记仍925/1212，不算新增覆盖。冻结30局仍14完赛/16人工停止，正条件单独SQL分支另列。[验证与边界](./docs/development/bottom-three-aqours-heart-verification.md)
+
+桜小路きな子`PL!SP-bp7-017:1`已限定适配：只把实际新放置的Energy置Wait，并跳过下回合本人的一次自动复原；主动复原再支付不取消限制，离场返回不继承。64专项、227图文及254前端通过。冻结30局完赛13→14，但该局Live为0:3且未进入标记目标回合，不冒充双方Live或跳过复原的随机覆盖。[验证与边界](./docs/development/wait-energy-next-active-verification.md)
+
+優木せつ菜`PL!N-sd2-007:1`已按全文/revision/hash限定适配：先抽一张，只在当前回合对方也成功时追加抽一张并本人必选弃一张，不用累计成功区或胜负结果代替条件。86专项、222图文、四AI/SQL与251前端验证；来源隐藏时面板仍可提交。冻结30局完赛12→13，本卡实际正条件完成一次。[验证与边界](./docs/development/opponent-success-draw-discard-verification.md)
+
+津島善子`PL!S-bp7-015:1`已按全文/revision/hash限定自动化：仅判断实际从牌库底移到控室的那张牌，若为Live则原来源红Heart+1。空库刷新、离场/同ID回场及旧快照均有保护。60专项、217图文、四AI/SQL与246前端验证通过。冻结30局仍12完赛，本卡入队后随其他manual待机保留；另存受控分支，不冒充完赛改善。[证据与边界](./docs/development/bottom-one-live-heart-verification.md)
+
+星空凛`PL!-pb2-005:1`已按全文/revision/hash限定适配：成功区μ's特殊得分Blade Heart图标条件成立时，原来源获得临时常时能力，后续入场的己方μ's也得Blade+1；来源离场返回不继承，重叠/继承保持明确限制。75专项、212图文、四AI/SQL与243前端验证通过。冻结30局仍12完赛，本卡两次真实触发均条件不成立，不冒充正条件实战覆盖。[证据与边界](./docs/development/muse-granted-blade-verification.md)
+
+已修复旧多玩家来源ID被合法操作元数据重新公开的问题，网页、AI及语义代理统一按实际区域和私看/公开策略确定可见卡；正常选择、skip与待机副本都保护隐藏引用，本人必需的manual提交标识与卡面权限分离。64专项、原生SQL/REST/重连与240前端验证通过；固定30局仍12完赛/18人工停止，不增加技能登记率。本批未推送，后续PR目标仍待批。[证据与范围](./docs/development/multi-player-source-privacy-verification.md)
+
+優木せつ菜`PL!N-bp4-007:1`双方控室Live回收已限定适配：主动方先公开选择，双方选完后同时入手。74专项、206图文及四AI/SQL/双视角通过，冻结30局完赛11→12。本轮新类型的来源ID泄露已保护，但另复现旧多玩家类型的同类风险，下一项优先修复，不宣称全局隐私审计完成。[证据与剩余风险](./docs/development/both-waiting-live-recovery-verification.md)
+
+エマ・ヴェルデ`PL!N-bp7-020:1`依据精确卡文及官方Q270适配：顶三控室仅统计Member的有色Blade Heart，两色以上给原来源绿Heart+1，不混用ALL、Live或普通Heart。61专项、202图文及实际三次触发验证；固定30局仍11完赛/19人工停止，不宣称完赛改善。[证据与边界](./docs/development/mill-three-blade-colors-verification.md)
+
+米女メイ`PL!SP-PR-028:1`已按全文/revision/hash精确适配：结算时按10减当前手牌私看，最多取两张且不公开，余牌控室。59项专项、196图文通过；同冻结30牌组完赛9→11，本卡实际触发两次。登记919/1212、293manual；公开四张及成功区特殊计数仍未解决，不冒充完整规则或发布验收。[证据与边界](./docs/development/ten-minus-hand-private-two-verification.md)
+
+新增四张公开选择原型：条件失败保留原牌库，旧私看保持隔离；不足四张明确拒绝，正式`PL!-pb2-013:1`仍manual，不增加覆盖率。[受限底座报告](./docs/development/public-four-reveal-foundation.md)
+
+「春情ロマンティック」`PL!-pb2-041:2`依赖同卡第一段的成功区按两张计数，暂保留两段manual。12项边界测试确认真实待机、四AI与SQL Replay，不用实体牌数冒充完整计数规则。[未解决审计](./docs/development/lily-white-source-score-unresolved.md)
+
+`PL!S-bp3-025:1`改为先选择Aqours成员，结算时有效Blade至少6才给原来源Live加1分；低Blade仍可选，同ID离场返回不重绑。保留旧Replay，266项相关回归、191图文通过。同冻结30局仍9完赛/21人工停止，本卡实际触发0次，不冒充完赛率提升。[验证报告](./docs/development/aqours-blade-six-score-verification.md)
+
+持续开发新增显式`requeue`恢复入口：记录已获批准的阻塞解除原因，不绕过有效写入租约或未完成依赖，不复用旧测试授权。[开发流程](./docs/21-continuous-development.md)
 
 精确支持「Fire Bird」`PL!N-sd2-026:1`：选择当前有效Blade至少4的己方虹咲Stage成员，给予两颗Heart02；新策略包含已支持常时修正，旧Replay过滤不变。918/1212、294manual。同冻结30牌组9完赛/21明确人工停止，仍非beta门禁。[验证报告](./docs/development/nijigasaki-blade-four-heart-verification.md)
 

@@ -1,15 +1,186 @@
 # Effect Semantics Audit
 
+2026-10-27: PL!S-bp7-025:1 has an exact mandatory Live-success two-mode snapshot.
+Q144/PDF 9.6.3.1.1 permit zero to two public cost-four opponent Members; already
+Wait targets do not change orientation again (1.3.2.1), while the text's separate
+restriction refers to selected Members. Next-game-turn policy is per original
+target, not the old generic skip flag; Q280 is supporting general evidence, not
+a card-specific ruling. Old snapshots and unresolved families remain unchanged.
+See opponent-member-next-active-verification.md for test and final-gate scope.
+
+PL!N-bp7-005:1 has an exact revision868/full-text/hash-bound DiverDiva snapshot.
+Two physical top Members must admit distinct names; the body condition is checked
+at resolution. Ready Energy resolves as much as possible; the other branch moves
+one Energy directly from its deck under a current own Nijigasaki Member. No
+intermediate Energy Area entry.84 targeted/22 SQL and266 illustrated scenarios
+are not full human adjudication. Old branch/manual snapshots and reviewed remain
+unchanged; see development/diverdiva-energy-choice-verification.md.
+
+PL!S-bp7-020:1 remains manual: all_active_empty_stage_truth_value_unconfirmed.
+OfficialQ96/Q103 cover another card's Energy condition at resolution, not the
+truth of an empty Stage.28 boundary tests/11 SQL protect the manual obligation,
+source privacy and current orientation changes without assigning that truth.
+No executor/registry/manifest changes or executable promotion. See
+development/all-active-live-requirement-unresolved.md for primary evidence and gates.
+
+PL!S-bp7-020:2 has a full two-segment/revision912/hash-bound operation for
+one actual bottom Aqours Member and only the original Live's generic requirement.
+Rule9.2.1.2 makes the unspecified duration game, not live; an own-policy marker
+is cleared on zone departure under4.1.4, without reinterpreting old modifiers.
+Segment1 stays manual.52 targeted/17 SQL and262 illustrated scenarios are not
+complete human adjudication. See development/bottom-one-aqours-requirement-verification.md.
+
+PL!SP-bp2-011:1 is exact full-text/revision565/hash-bound. OfficialQ118
+requires two distinct names before the opponent can choose a Live to recover.
+The new snapshot has owner-first roles, current public Waiting Room candidates,
+then a fixed offered pair. Same-name alternate printings do not form a pair.
+Old multiplayer/manual snapshots remain unchanged.103 targeted tests/27 SQL
+cases and257 illustrated scenarios are not complete human adjudication; see
+development/opponent-live-offer-verification.md for final same-source gates.
+
+PL!SP-bp5-010:1 uses an exact full-text/revision/hash center-position snapshot.
+Q223 establishes each player's own destination choice. Sequential execution is
+derived from rule1.3.4.1 for choice-bearing processes, not a card-specific timing
+FAQ. New movement triggers wait until the parent finishes; old multiplayer and
+manual replay remain unchanged.69 targeted tests/22 SQL cases/251 illustrated
+scenarios are not complete human adjudication. Full acceptance is linked in
+development/both-center-position-verification.md. No publish is authorized.
+
+PL!HS-pb1-014:2 uses an exact full-text/revision/hash repair for new games with the
+bound opposing_member_cost_greater_than_source_mirrored_v1 condition. Old
+same-slot snapshots keep their deterministic replay behavior, not a claim of
+rules correctness.105 targeted tests,46 SQL cases and native Yell protect the
+new mirror. The first segment stays blocked/manual and927/1212 is unchanged.
+The earlier unfixed audit below is history. The stale global discovery contract
+now expects the new bounded pattern name. Complete same-source profile evidence,
+not combined partial runs, determines acceptance and is linked from the report.
+[Evidence](development/mirrored-cost-heart-verification.md).
+
+PL!HS-pb1-014:1 remains manual: fixed-front same-area target eligibility is
+not directly established, and the original departed source's last Stage slot
+is not captured. A test-only generic opponent-position probe is not a registry
+executor. Native SQL additionally exposes the existing second static segment's
+same-named-slot comparison instead of mirrored front (rules4.5.7.1); it is NOT
+fixed or validated by this audit.927/1212 stays unchanged. The independent repair
+is queued first. [Evidence](development/mirakura-front-position-unresolved.md).
+
+PL!S-bp7-008:1 binds complete two-segment revision853/hash to the bounded
+private_three_top_bottom_order snapshot. Top and bottom groups are independent
+ordered partitions of the actual inspected cards; Q85/Q86/Q122 cover private
+short-deck/exact-deck refresh, not simultaneous public reveal. Legacy snapshots
+and the second manual segment remain unchanged.927/1212 is executable registry
+coverage, not human-reviewed rulings. [Evidence](development/private-three-top-bottom-verification.md).
+
+PL!S-bp7-021:1 binds complete text/revision913/hash to a single bounded Live
+operation. Its Stage condition is in the resolving body, never a trigger filter.
+Q120/Q119 support resolution-time conditions; Q104 supports sequential milling
+with immediate refresh. Member movement history is captured before extra draw,
+and score is a targeted live_card_score on the original Live object, not global.
+Legacy snapshots/default AI/schema/reviewed stay unchanged;926/1212 executable.
+[Evidence](development/bottom-five-member-score-verification.md).
+
+PL!S-bp7-006:1 was already test-validated executable. A native CONTROL/SQL red
+test reproduces the old generic gain_heart applying to a departed/returned source.
+The new exact-text/revision851/hash-bound operation fixes the original object,
+tracks three sequential moves through immediate refresh (Q104/general rules),
+and records public movement history without authorizing hidden current cards.
+Old generic/manual snapshots and default AI/schema remain unchanged;925/1212
+is not increased. [Evidence](development/bottom-three-aqours-heart-verification.md).
+
+PL!SP-bp7-017:1 binds exact text/revision904/hash and uses a bounded operation
+plus tagged next-game-turn Energy modifier. Native full-turn SQL and a clearly
+synthetic multi-player entry CONTROL distinguish current Active from next turn.
+Energy departure hooks clear only the new marker; old placement/readiness and
+skip_next_active_phase_ready snapshots retain behavior.64 targeted tests,
+925/1212 executable/287manual; no human-reviewed upgrade.
+[Official Q280, rules and scope](development/wait-energy-next-active-verification.md).
+
+PL!N-sd2-007:1 binds exact text/revision938/hash. The bounded extra-draw
+operation uses current-turn Live success, not accumulated success-area cards,
+performance pointer or winning score. The result is retained for the following
+mandatory private discard, preserving old post-action snapshots. Native SQL
+covers source departure/reentry/unknown deck and moved opponent Live history.
+86 targeted tests;924/1212 executable,288manual, no reviewed upgrade.
+[Rules, proof and UI boundary](development/opponent-success-draw-discard-verification.md).
+
+PL!S-bp7-015:1 binds exact text/revision860/hash. Bottom-one movement uses
+ordinary empty-deck refresh, not the private-look prefill rule. The actual
+moved card remains the condition reference after refresh. A bounded source
+snapshot prevents departure/reentry inheritance; only the new tagged Heart
+clears itself under legacy empty departure policy. Old modifiers and old
+mill/manual snapshots retain their behavior.60 targeted tests;923/1212
+registered executable,289manual, no human-reviewed upgrade.
+[Official evidence and limits](development/bottom-one-live-heart-verification.md).
+
+PL!-pb2-005:1 binds exact text/revision978/hash and checks the special score
+Blade Heart icon in the owner's success area, not numeric Live score. The
+granted constant ability affects current Muse Stage Members dynamically under
+9.9.3; Q78 supports source departure termination, not a card-specific ruling.
+75 targeted tests preserve old manual snapshots and reject unreviewed overlap
+under complete-source gates. Registry922/1212 and290manual, no reviewed upgrade.
+[Scope and official evidence](development/muse-granted-blade-verification.md).
+
+Legacy multi-player source-reference leakage is repaired in the shared
+projection, not by changing effect rules or downgrading registry entries.
+Native play/manual-control/resolve/first-choice SQL reproduces the old leak.
+64 tests preserve both roles, old snapshots, authorized inspections and public
+history while hiding non-candidate references in normal/skip/pending copies.
+Own-manual submission handles match actual server invocations and grant no
+card-map access, preserving source-in-deck manual resolution and raw Replay.
+Registry remains921/1212 and291manual; no promotion to reviewed.
+[Verification and limits](development/multi-player-source-privacy-verification.md).
+
+PL!N-bp4-007:1 follows1.3.4/1.3.4.1 and7.2: the active player selects first,
+the second knows that public choice, then both selected Lives move together.
+Public-zone mandatory selection uses9.6.3.1/1.3; empty candidates skip only
+that player's impossible choice.74 targeted and4 illustrated state scenarios
+are implementation evidence. The separate legacy hidden-source legal-reference
+leak remains queued for priority repair, not covered by this new-type guard.
+[Evidence](development/both-waiting-live-recovery-verification.md).
+
+PL!N-bp7-020:1 follows officialQ270: ALL plus green does not satisfy two colors.
+Only six colored Blade Hearts on the milled Members count; ordinary Hearts,
+Live cards and special draw/score/ALL icons are not extra colors. A bounded
+on-play source snapshot prevents departure/reentry inheritance; milling still
+resolves after source departure.61 targeted and6 illustrated state scenarios
+are implementation evidence, not complete human certification.
+[Evidence](development/mill-three-blade-colors-verification.md).
+
+PL!SP-PR-028:1 uses an exact revision/hash-bound private ten-minus-current-hand
+snapshot. Quantity is evaluated after source play and other pending changes;
+old amount_source/fixed inspection/manual Replay behavior is unchanged.
+Zero to two cards may be kept without revealing them; only discards become public.
+Rules1.3.2.2/5.7.1/9.6.3.1.1/10.2.2.2/10.2.3 support this bounded private path,
+not simultaneous public-four semantics.59 dedicated tests and5 dynamic illustrated
+scenarios are automated implementation evidence, not full human rule certification.
+[Evidence](development/ten-minus-hand-private-two-verification.md).
+
+PL!-pb2-013:1 remains manual: simultaneous public-reveal short-deck refresh semantics
+are unresolved. The separate public-four snapshot prototype requires at least4 cards,
+keeps original deck objects, retains the deck on a false condition, and never promotes
+the official registry. Q166/Q73 concern sequential reveal, not a blanket four-card ruling.
+[Evidence](development/public-four-reveal-foundation.md).
+
+PL!-pb2-041:2 remains manual: its count depends on the first segment treating a
+success-area copy as two for own lily-white effects. The legacy physical-unit
+predicate does not model that dependency.12 boundary tests cover actual manual
+waits, four-policy block/invariance and SQL Replay, not automatic score execution.
+Reason:success_live_counting_override_not_modeled. No registry/coverage promotion.
+[Chinese evidence](development/lily-white-source-score-unresolved.md).
+
 PL!N-sd2-026:1 revision958 now supports one own Nijigasaki Stage Member with
 effective Blade>=4 and two Heart02. Static Blade is included only by the new
 bounded policy; historical generic filters stay unchanged.55 focused tests,
 4 new illustrated state cases and3 UI cases pass.918/1212 test-validated,294 manual;
 no human-reviewed promotion. [Evidence](development/nijigasaki-blade-four-heart-verification.md).
 
-Follow-up risk: existing PL!S-bp3-025:1 still encodes Blade6 as a target filter
-and uses generic score modification. Its text selects first, then checks Blade,
-and modifies only the source Live. This is queued for priority state reproduction
-and snapshot-safe correction; the current Fire Bird tests do not validate it.
+PL!S-bp3-025:1 revision504 corrects the reproduced Blade6 pre-filter and global
+score errors with a new bounded snapshot. It selects first, then checks effective
+Blade, and modifies only the original Live while preserving old Replay snapshots.
+63 dedicated cases/266 related tests and191 illustrated cases pass. Frozen30 did
+not trigger this effect, so its proof is targeted state/SQL/four-policy/UI tests,
+not random-match frequency. Registry remains918/1212 with294 manual and no human
+review promotion. [Evidence](development/aqours-blade-six-score-verification.md).
 
 PL!S-cl1-002:1 revision961 uses a bounded original-Yell Aqours0–3 ordered policy.
 Only opted-in snapshots serialize remaining Yell objects; departure invalidates

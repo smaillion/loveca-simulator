@@ -1920,8 +1920,20 @@ const autoResultTerminalEvents = new Set([
 ]);
 
 const autoResultOperationEvents = new Set([
+  "effect_opponent_member_next_active_resolved",
+  "effect_diverdiva_energy_resolved",
+  "effect_bottom_aqours_requirement_resolved",
+  "effect_muse_blade_aura_resolved",
+  "effect_bottom_live_heart_resolved",
+  "effect_bottom_aqours_heart_resolved",
+  "effect_bottom_five_members_resolved",
+  "effect_opponent_success_draw_resolved",
+  "effect_wait_energy_next_active_resolved",
   "effect_source_member_readied",
   "effect_blade_comparison_resolved",
+  "effect_milled_blade_colors_resolved",
+  "effect_waiting_lives_recovered",
+  "effect_opponent_live_recovered",
   "effect_cards_milled",
   "effect_cards_revealed",
   "effect_cards_revealed_to_hand",
@@ -2034,6 +2046,26 @@ function autoResultLines(
           || related.data.reason === "no_legal_stage_member_at_resolution")) {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
+    } else if (related.event_type === "effect_diverdiva_energy_resolved" || related.event_type === "effect_opponent_member_next_active_resolved") {
+      const summary = eventSummary(related, state, locale);
+      if (summary) lines.push(summary);
+    } else if (related.event_type === "effect_bottom_aqours_requirement_resolved") {
+      const summary = eventSummary(related, state, locale);
+      if (summary) lines.push(summary);
+      if (related.data.source_available === false) lines.push(locale === "zh"
+        ? "原来源 Live 已离场，未减需" : "元のライブが離れたため必要ハートを減らさない");
+    } else if (related.event_type === "effect_waiting_lives_recovered" || related.event_type === "effect_opponent_live_recovered") {
+      const summary = eventSummary(related, state, locale);
+      if (summary) lines.push(summary);
+    } else if (related.event_type === "effect_milled_blade_colors_resolved" || related.event_type === "effect_muse_blade_aura_resolved" || related.event_type === "effect_bottom_live_heart_resolved" || related.event_type === "effect_bottom_aqours_heart_resolved" || related.event_type === "effect_bottom_five_members_resolved" || related.event_type === "effect_opponent_success_draw_resolved" || related.event_type === "effect_wait_energy_next_active_resolved") {
+      const summary = eventSummary(related, state, locale);
+      if (summary) lines.push(summary);
+      if (related.data.source_available === false) {
+        const liveSource = related.event_type === "effect_bottom_five_members_resolved";
+        lines.push(locale === "zh"
+          ? liveSource ? "原来源 Live 已离场，未加分" : "原来源角色已离场，未加成"
+          : liveSource ? "元のライブが離れたため加算なし" : "元のメンバーが離れたため加算なし");
+      }
     } else if (related.event_type === "effect_blade_comparison_resolved") {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
@@ -4213,6 +4245,20 @@ function eventTitle(event: GameEvent, locale: UiLocale): string {
     ai_blocked: ["电脑操作受阻", "CPU操作ブロック"],
     effect_auto_resolved: ["技能自动发动", "能力の自動解決"],
     effect_blade_comparison_resolved: ["Blade 比较结果", "ブレード比較結果"],
+    effect_milled_blade_colors_resolved: ["Blade Heart 颜色判定", "ブレードハート色の判定"],
+    effect_muse_blade_aura_resolved: ["μ's常时Blade能力", "μ's常時ブレード能力"],
+    effect_bottom_live_heart_resolved: ["牌库底Live判定", "デッキ下のライブ判定"],
+    effect_bottom_aqours_heart_resolved: ["底三张Aqours判定", "下三枚のAqours判定"],
+    effect_bottom_five_members_resolved: ["底五次Member与Live得分", "下五回のメンバーとライブ得点"],
+    effect_bottom_aqours_requirement_resolved: ["底牌与原Live必要Heart", "下のカードと元ライブの必要ハート"],
+    effect_diverdiva_energy_resolved: ["DiverDiva Energy分支", "DiverDivaエネルギー分岐"],
+    effect_opponent_member_next_active_resolved: ["对手成员下回合限制", "相手メンバーの次ターン制限"],
+    effect_opponent_success_draw_resolved: ["对方本回合成功判定", "相手の今ターン成功判定"],
+    effect_wait_energy_next_active_resolved: ["新Energy下回合限制", "新エネルギーの次ターン制限"],
+    effect_waiting_lives_recovered: ["双方控室 Live 回收", "両者の控室ライブ回収"],
+    effect_public_live_offer_selected: ["公开 Live 选择", "公開ライブの選択"],
+    effect_opponent_live_recovered: ["对手择一回收", "相手が選んだライブ回収"],
+    effect_public_waiting_live_selected: ["控室 Live 选择", "控室ライブの選択"],
     effect_resolved: ["技能结算", "能力解決"],
     effect_not_activatable: ["技能未自动处理", "能力の自動処理不可"],
     effect_operation_not_applied: ["技能部分未执行", "能力の一部未実行"],
@@ -4321,6 +4367,75 @@ function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): st
     return locale === "zh"
       ? "该登场观察者的重叠时点尚待审核，请手动确认。"
       : "重複時の登場誘発は未審査です。手動で確認してください。";
+  }
+  if (event.event_type === "effect_waiting_lives_recovered") {
+    const moves = event.data.card_instance_ids_by_player as Record<string, unknown> | undefined;
+    return Object.entries(moves ?? {}).map(([id, cards]) =>
+      `${state.players[id]?.name ?? id}: ${stringArray(cards).length} Live`).join(" / ");
+  }
+  if (event.event_type === "effect_opponent_live_recovered") {
+    return event.data.condition_met
+      ? locale === "zh" ? `对手择一回收: ${Number(event.data.recovered_count)} Live` : `相手の選択で回収: ${Number(event.data.recovered_count)} Live`
+      : locale === "zh" ? "未选出两张不同名Live，未回收" : "異なる名前のライブ2枚を選べず、回収なし";
+  }
+  if (event.event_type === "effect_wait_energy_next_active_resolved") {
+    const count = stringArray(event.data.affected_energy_instance_ids).length;
+    if (!count) return locale === "zh" ? "Energy Deck 为空，本次未放置 Energy" : "エネルギーデッキが空のため、エネルギーを置かない";
+    return locale === "zh"
+      ? `Wait Energy +${count} · 仅该张第 ${Number(event.data.target_turn)} 回合不自动复原`
+      : `ウェイトエネルギー +${count} · そのカードだけ${Number(event.data.target_turn)}ターン目に自動アクティブ不可`;
+  }
+  if (event.event_type === "effect_opponent_success_draw_resolved") {
+    const count = Number(event.data.extra_drawn_count ?? 0);
+    return locale === "zh"
+      ? `对方本回合成功：${event.data.condition_met ? "是" : "否"} · 追加抽 ${count} 张 · ${event.data.discard_required ? "需弃 1 张" : "无需弃牌"}`
+      : `相手の今ターン成功：${event.data.condition_met ? "あり" : "なし"} · 追加${count}枚ドロー · ${event.data.discard_required ? "手札を1枚控室へ" : "手札を控室に置かない"}`;
+  }
+  if (event.event_type === "effect_opponent_member_next_active_resolved") {
+    return locale === "zh"
+      ? `对手成员 Wait ${Number(event.data.waited_count)} 人 · 下回合不复原 ${Number(event.data.restricted_count)} 人 · 抽 ${Number(event.data.drawn_count)} 张`
+      : `相手メンバー${Number(event.data.waited_count)}人をウェイト · 次ターンにアクティブしない${Number(event.data.restricted_count)}人 · ${Number(event.data.drawn_count)}枚ドロー`;
+  }
+  if (event.event_type === "effect_diverdiva_energy_resolved") {
+    return locale === "zh"
+      ? `异名 DiverDiva 两人：${event.data.condition_met ? "是" : "否"} · 复原 Energy ${Number(event.data.readied_count)} 张 · Energy Deck 附属 ${Number(event.data.attached_count)} 张`
+      : `異なる名前のDiverDiva二人：${event.data.condition_met ? "はい" : "いいえ"} · エネルギー${Number(event.data.readied_count)}枚をアクティブ · エネルギーデッキから下に${Number(event.data.attached_count)}枚`;
+  }
+  if (event.event_type === "effect_bottom_aqours_requirement_resolved") {
+    return locale === "zh"
+      ? `底部移动 ${Number(event.data.milled_count)} 张 · Aqours Member：${event.data.condition_met ? "是" : "否"} · 原来源 Live 无色必要 Heart ${Number(event.data.required_heart_delta)}`
+      : `下から${Number(event.data.milled_count)}枚移動 · Aqoursメンバー：${event.data.condition_met ? "はい" : "いいえ"} · 元のライブの無色必要ハート ${Number(event.data.required_heart_delta)}`;
+  }
+  if (event.event_type === "effect_bottom_five_members_resolved") {
+    return locale === "zh"
+      ? `Stage 成员 ${Number(event.data.stage_member_count)} · 底部移动 ${Number(event.data.milled_count)} 次 / Member ${Number(event.data.milled_member_count)} 次 · 抽 ${Number(event.data.drawn_count)} 张 · 原来源 Live 得分 +${Number(event.data.score_delta)}`
+      : `ステージ${Number(event.data.stage_member_count)}人 · 下から${Number(event.data.milled_count)}回 / メンバー${Number(event.data.milled_member_count)}回 · ${Number(event.data.drawn_count)}枚ドロー · 元のライブのスコア +${Number(event.data.score_delta)}`;
+  }
+  if (event.event_type === "effect_bottom_aqours_heart_resolved") {
+    return locale === "zh"
+      ? `底部移动 ${Number(event.data.milled_count ?? 0)} 次 · 全为 Aqours Member：${event.data.condition_met ? "是" : "否"} · 原来源绿 Heart +${Number(event.data.heart_delta ?? 0)}`
+      : `下から${Number(event.data.milled_count ?? 0)}回移動 · すべてAqoursメンバー：${event.data.condition_met ? "はい" : "いいえ"} · 元の発生源の緑ハート +${Number(event.data.heart_delta ?? 0)}`;
+  }
+  if (event.event_type === "effect_bottom_live_heart_resolved") {
+    const count = Number(event.data.milled_count ?? 0);
+    const delta = Number(event.data.heart_delta ?? 0);
+    return locale === "zh"
+      ? `牌库底 ${count} 张置控室 · 原来源红 Heart +${delta}`
+      : `デッキの下から${count}枚を控室へ · 元の発生源の赤ハート +${delta}`;
+  }
+  if (event.event_type === "effect_muse_blade_aura_resolved") {
+    if (Number(event.data.aura_delta ?? 0) > 0) return locale === "zh"
+      ? "μ's角色常时Blade +1 · 来源在场期间，至Live结束"
+      : "μ'sメンバー常時ブレード +1 · 発生源がステージにいる間、ライブ終了時まで";
+    if (!event.data.source_available) return locale === "zh" ? "原来源角色已离场，未获得常时能力" : "元の発生源が離れ、常時能力を得ない";
+    return locale === "zh" ? "成功区条件未满足，未获得常时能力" : "成功置き場の条件を満たさず、常時能力を得ない";
+  }
+  if (event.event_type === "effect_milled_blade_colors_resolved") {
+    const count = stringArray(event.data.blade_heart_color_slots).length;
+    const delta = Number(event.data.heart_delta ?? 0);
+    return locale === "zh"
+      ? `Member Blade Heart ${count} 种颜色 · 来源绿 Heart +${delta}`
+      : `メンバーのブレードハート ${count} 色 · 誘発元の緑ハート +${delta}`;
   }
   if (event.event_type === "effect_blade_comparison_resolved") {
     const selected = Number(event.data.selected_blade ?? 0);
@@ -4951,6 +5066,9 @@ function effectBranchLabel(branchId: string, locale: UiLocale): string {
     ],
     ready_member: ["选择 Member 变为 Active", "メンバーを選んでアクティブ"],
     ready_energy: ["选择 Energy 变为 Active", "エネルギーを選んでアクティブ"],
+    attach_energy_deck: ["从 Energy Deck 附属至虹ヶ咲成员", "エネルギーデッキから虹ヶ咲メンバーの下へ"],
+    wait_opponent: ["对手费用4以下成员最多2人Wait，下回合不复原", "相手のコスト4以下を2人までウェイト、次ターンにアクティブしない"],
+    draw_one: ["抽 1 张", "1枚ドロー"],
   };
   const label = labels[branchId];
   if (!label) return branchId;
@@ -5128,6 +5246,7 @@ export function EffectResolutionAction({
     simulation_support: string;
     resolution_stage?: string;
     cost_payment_unavailable_reason?: string;
+    body_condition_met?: boolean;
     candidate_card_instance_ids: string[];
     choice_type?: string;
     card_selection_minimum?: number;
@@ -5148,7 +5267,7 @@ export function EffectResolutionAction({
     deployment_unsupported_slots?: Record<string, string>;
     deployment_unsupported_slots_by_candidate?: Record<string, Record<string, string>>;
     deployment_requires_manual_resolution?: boolean;
-    selection_policy?: "private_filtered_may_choose_none" | "public_single_as_much_as_possible" | "public_named_groups_as_much_as_possible" | "public_other_nijigasaki_cost_heart" | "public_yell_aqours_bottom_three" | "public_nijigasaki_blade_four_heart";
+    selection_policy?: "private_filtered_may_choose_none" | "public_single_as_much_as_possible" | "public_named_groups_as_much_as_possible" | "public_other_nijigasaki_cost_heart" | "public_yell_aqours_bottom_three" | "public_nijigasaki_blade_four_heart" | "public_aqours_blade_six_source_score" | "public_four_lily_white_live" | "private_ten_minus_hand_keep_two" | "public_both_waiting_live_one";
     choice_groups?: Array<{
       group_id: string;
       label_ja?: string | null;
@@ -5260,7 +5379,7 @@ export function EffectResolutionAction({
             {invocations.map((item, index) => (
               <option key={item.invocation_id} value={item.invocation_id}>
                 {action.options.effect_order_choice ? `${index + 1}. ` : ""}
-                {state.cards[item.source_card_instance_id].card.name_ja}
+                {state.cards[item.source_card_instance_id]?.card.name_ja ?? item.effect_id}
               </option>
             ))}
           </select>
@@ -5271,7 +5390,7 @@ export function EffectResolutionAction({
           {tr("另一方技能需等待当前玩家处理完毕。", "相手側の能力は現在の解決完了まで待機します。")}
         </small>
       )}
-      <strong>{state.cards[current.source_card_instance_id].card.name_ja}</strong>
+      <strong>{state.cards[current.source_card_instance_id]?.card.name_ja ?? current.effect_id}</strong>
       <small>
         {effectTriggerLabel(current.trigger, locale)} ·{" "}
         {effectExecutionModeLabel(current.execution_mode, locale)} ·{" "}
@@ -5287,6 +5406,9 @@ export function EffectResolutionAction({
         <p role="status" className="effect-stage-hint">
           {tr("无法支付费用。结束本次待机，不查看牌库。", "費用を払えません。デッキを見ずに今回の待機を取り消します。")}
         </p>
+      )}
+      {current.body_condition_met === false && (
+        <p role="status" className="effect-stage-hint">{tr("异名DiverDiva两人条件未满足。", "異なる名前のDiverDiva二人の条件を満たしていません。")}</p>
       )}
       {incompleteOverlapSources && (
         <p role="status" className="effect-stage-hint">
@@ -5599,6 +5721,11 @@ export function InspectionChoiceAction({
   const multiChoiceType = String(action.options.multi_player_choice_type ?? "");
   const isMultiChoice = multiChoiceType.startsWith("multi_player_");
   const isMemberDeployment = multiChoiceType === "multi_player_deploy_waiting_member";
+  const centerPosition = multiChoiceType === "multi_player_center_position_change";
+  const opponentOffer = multiChoiceType === "multi_player_opponent_live_offer";
+  const offerStage = opponentOffer && Number(action.options.current_index) === 0;
+  const publicRecoveries = (multiChoiceType === "multi_player_waiting_live_recovery" || opponentOffer)
+    ? Object.entries((action.options.selections ?? {}) as Record<string, Record<string, unknown>>) : [];
   const slotOptions = stringArray(action.options.available_slots);
   const inspected = ((action.options.inspected_card_instance_ids
     ?? (isMultiChoice ? action.options.candidate_card_instance_ids : []) ?? []) as string[]).filter(
@@ -5611,6 +5738,7 @@ export function InspectionChoiceAction({
   const minimum = Number(action.options.minimum ?? 0);
   const maximum = Number(action.options.maximum ?? 0);
   const requiresOrder = Boolean(action.options.requires_order);
+  const splitOrder = action.options.selection_policy === "private_three_top_bottom_order";
   const selectedDestination = String(action.options.selected_destination ?? "");
   const effectId = typeof action.options.effect_id === "string" ? action.options.effect_id : "";
   const sourceCardId = typeof action.options.source_card_instance_id === "string"
@@ -5620,24 +5748,41 @@ export function InspectionChoiceAction({
   const sourceCard = sourceCardId ? state.cards[sourceCardId] : undefined;
   const [selected, setSelected] = useState<string[]>([]);
   const [selectedSlot, setSelectedSlot] = useState("");
+  const [bottomOrder, setBottomOrder] = useState<string[]>([]);
 
   useEffect(() => {
     setSelected([]);
     setSelectedSlot("");
+    setBottomOrder(stringArray(action.options.inspected_card_instance_ids));
   }, [state.revision, action.action_type, action.player_id]);
 
-  const isValidSelection =
+  const isValidSelection = centerPosition ? slotOptions.includes(selectedSlot) :
     selected.length >= minimum &&
     selected.length <= maximum &&
     selected.every((item) => candidates.has(item)) &&
+    (!offerStage || new Set(selected.map((id) => state.cards[id]?.card.name_ja)).size === selected.length) &&
     (!isMemberDeployment || selected.length === 0 || slotOptions.includes(selectedSlot));
 
   return (
-    <div className="effect-resolution">
+    <div className={splitOrder ? "effect-resolution split-order-resolution" : "effect-resolution"}>
       <strong>{title}</strong>
+      {action.options.public_reveal_policy === "public_four_lily_white_live" && (
+        <small>{action.options.condition_met
+          ? tr("公开牌全部为 lily white", "公開カードはすべてlily white")
+          : tr("条件不成立，公开牌留在牌库原位置", "条件を満たさず、公開カードはデッキの元の位置に残ります")}</small>
+      )}
       {isMultiChoice && (
         <small>{tr("选择玩家", "選択するプレイヤー")}: {state.players[action.player_id ?? ""]?.name ?? tr("对战玩家", "プレイヤー")}</small>
       )}
+      {opponentOffer && <small>{offerStage ? tr("提出不同名Live", "異なる名前のライブを提示") : tr("从提案选择一张Live", "提示されたライブを1枚選択")}</small>}
+      {centerPosition && Object.entries((action.options.selections ?? {}) as Record<string, Record<string, unknown>>).map(([playerId, choice]) => (
+        <small key={playerId}>{state.players[playerId]?.name ?? playerId}: {choice.skipped
+          ? tr("中央无成员", "センターにメンバーなし") : memberSlotLabel(String(choice.to_slot ?? ""), locale)}</small>
+      ))}
+      {publicRecoveries.map(([playerId, selection]) => (
+        <small key={playerId}>{state.players[playerId]?.name ?? playerId}: {stringArray(selection.selected_card_instance_ids)
+          .map((id) => state.cards[id]?.card.name_ja ?? id).join(" / ") || "0 Live"}</small>
+      ))}
       {action.options.deployment_policy === "simultaneous_member_area_entry" && (
         <small>{tr("双方选择后同时登场；随后处理登場能力。", "双方の選択後に同時に登場し、登場能力を処理します。")}</small>
       )}
@@ -5651,12 +5796,12 @@ export function InspectionChoiceAction({
           <p>{formatEffectText(effectDefinition.label_ja, locale)}</p>
         </div>
       )}
-      <span>
+      {!centerPosition && <span>
         {tr("选择", "選択")} {minimum}–{maximum} {tr("张", "枚")}
         {action.options.reveal_selected_to_opponent
           ? tr("，选中的卡会公开给对手", "。選んだカードは相手に公開されます")
           : ""}
-      </span>
+      </span>}
       {selectedDestination === "main_deck_top_ordered" && (
         <small>
           {tr(
@@ -5677,17 +5822,24 @@ export function InspectionChoiceAction({
               badge={
                 candidate ? undefined : locale === "zh" ? "不符合条件" : "条件外"
               }
-              onSelect={() =>
-                candidate
-                  ? toggleSelected(selected, instanceId, setSelected, maximum)
-                  : undefined
-              }
+              onSelect={() => {
+                if (!candidate) return;
+                if (splitOrder) {
+                  if (selected.includes(instanceId)) {
+                    setSelected(selected.filter((id) => id !== instanceId));
+                    setBottomOrder([...bottomOrder, instanceId]);
+                  } else if (selected.length < maximum) {
+                    setSelected([...selected, instanceId]);
+                    setBottomOrder(bottomOrder.filter((id) => id !== instanceId));
+                  }
+                } else toggleSelected(selected, instanceId, setSelected, maximum);
+              }}
             />
           );
         })}
       </div>
       {requiresOrder && selected.length > 0 && (
-        <div className="order-action">
+        <div className={splitOrder ? "order-action split-order" : "order-action"}>
           {selected.map((id, index) => (
             <span key={id}>
               {state.cards[id].card.name_ja}
@@ -5711,8 +5863,8 @@ export function InspectionChoiceAction({
           ))}
         </div>
       )}
-      {isMemberDeployment && selected.length === 1 && (
-        <div className="effect-candidates effect-position-choices" role="group" aria-label={tr("登场区域", "登場エリア")}>
+      {(centerPosition || (isMemberDeployment && selected.length === 1)) && (
+        <div className="effect-candidates effect-position-choices" role="group" aria-label={centerPosition ? tr("移动目的地", "移動先") : tr("登场区域", "登場エリア")}>
           {slotOptions.map((slot) => (
             <button key={slot} type="button" aria-pressed={selectedSlot === slot}
               className={selectedSlot === slot ? "selected" : ""} onClick={() => setSelectedSlot(slot)}>
@@ -5721,15 +5873,38 @@ export function InspectionChoiceAction({
           ))}
         </div>
       )}
+      {splitOrder && (
+        <div className="order-action split-order" role="group" aria-label={tr("牌库底", "デッキ下")}>
+          <strong>{tr("牌库底", "デッキ下")}</strong>
+          {bottomOrder.map((id, index) => (
+            <span key={id}>
+              {state.cards[id]?.card.name_ja ?? id}
+              <button className="mini-icon" disabled={index === 0}
+                aria-label={tr("上移库底卡", "デッキ下のカードを上へ")}
+                title={tr("上移库底卡", "デッキ下のカードを上へ")}
+                onClick={() => setBottomOrder(moveItem(bottomOrder, index, index - 1))}>
+                <ChevronUp size={14} />
+              </button>
+              <button className="mini-icon" disabled={index === bottomOrder.length - 1}
+                aria-label={tr("下移库底卡", "デッキ下のカードを下へ")}
+                title={tr("下移库底卡", "デッキ下のカードを下へ")}
+                onClick={() => setBottomOrder(moveItem(bottomOrder, index, index + 1))}>
+                <ChevronDown size={14} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
       <button
         className="primary-button"
         disabled={loading || !isValidSelection}
         onClick={() =>
           onAction(action.action_type, action.player_id, {
-            ...(isMemberDeployment
+            ...(centerPosition ? { slot: selectedSlot } : isMemberDeployment
               ? selected.length === 1 ? { selected_card_instance_id: selected[0], slot: selectedSlot } : {}
               : { selected_card_instance_ids: selected,
-                  ordered_card_instance_ids: requiresOrder ? selected : undefined }),
+                  ordered_card_instance_ids: requiresOrder ? selected : undefined,
+                  ...(splitOrder ? { bottom_ordered_card_instance_ids: bottomOrder } : {}) }),
           })
         }
       >

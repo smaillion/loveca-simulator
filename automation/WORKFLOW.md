@@ -1,5 +1,9 @@
 # 持续开发入口
 
+2026-10-28 JST新授权：维护者明确答复“批准修改发布目标并新建 Draft PR”，允许解除已合并PR54的固定目标，在同一分支向develop创建下一份Draft并固定实际新编号。先将获批配置纳入完整四组门禁，再由publish创建；新编号只能在创建后确认，后续固定编号变更单独重新验收，不能复用旧源码指纹。此授权不含合并、部署、主机设置或其他项目操作。以下PR54条款是历史，不能据此再次等待已获批准的目标变更。
+
+唯一新目标已实际创建为[Draft PR #55](https://github.com/smaillion/loveca-simulator/pull/55)：`codex/continuous-development` → `develop`。本轮独立验证`policy.pull_request=55`；只允许更新该固定Draft，若其关闭、合并或改变分支/目标，应停止publish并询问维护者，不能再次自动解除编号或新建替代PR。完整验收和提交状态见[编号固定记录](../docs/development/draft-pr55-target-verification.md)，不能复用解除旧54编号时的源码证据。合并和部署仍需新的明确批准。
+
 当前只有一个自动开发入口：`codex/continuous-development`，固定工作树为主仓库下的
 `.tmp/continuous-development`。任务调度使用当前 Codex 对话的定时接续，每 30 分钟唤醒；
 每轮最多 45 分钟，完成一个可验证的小批次后保存进度。

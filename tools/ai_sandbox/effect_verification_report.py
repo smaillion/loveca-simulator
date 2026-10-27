@@ -22,8 +22,10 @@ from loveca.simulation.effects import (
 )
 from loveca.simulation.engine import (
     IllegalActionError,
+    _card_score,
     _effective_member_blade,
     _effective_member_play_cost,
+    _effective_required_hearts,
     _queue_live_success_effects,
     _resolve_automatic_effects,
     _static_heart_bonus,
@@ -195,6 +197,65 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *((f"opponent_next_active_{case}", f"相手の次ターン {case}", f"对手下回合 {case}",
+           "PL!S-bp7-025:1", lambda effect, case=case: _run_opponent_next_active(effect, case))
+          for case in ("zero", "one", "two", "already_wait", "draw")),
+        *((f"diverdiva_energy_{case}", f"DiverDivaとEnergy {case}", f"DiverDiva与Energy {case}",
+           "PL!N-bp7-005:1", lambda effect, case=case: _run_diverdiva_energy(effect, case))
+          for case in ("ready_one", "attach", "empty_deck", "false")),
+        *((f"bottom_aqours_requirement_{case}", f"下のAqoursと必要ハート {case}", f"底牌Aqours与必要Heart {case}",
+           "PL!S-bp7-020:2", lambda effect, case=case: _run_bottom_aqours_requirement(effect, case))
+          for case in ("member", "live", "wrong_work", "one", "empty")),
+        *((f"mirrored_cost_heart_{slot}_{cost}", f"正面のコスト比較 {slot}/{cost}", f"镜像正面费用比较 {slot}/{cost}",
+           "PL!HS-pb1-014:2", lambda effect, slot=slot, cost=cost: _run_mirrored_cost_heart(effect, slot, cost))
+          for slot, cost in (("left", 10), ("right", 10), ("center", 10), ("left", 4), ("right", 9))),
+        *((f"bottom_five_member_score_{case}", f"下五回Memberと元Live得点 {case}", f"底五次Member与原Live得分 {case}",
+           "PL!S-bp7-021:1", lambda effect, case=case: _run_bottom_five_member_score(effect, case))
+          for case in ("all", "three", "two", "stage_two", "one_repeat", "empty")),
+        *((f"bottom_three_aqours_{case}", f"下一枚ずつ三回とAqours {case}", f"底部逐张三次与Aqours {case}",
+           "PL!S-bp7-006:1", lambda effect, case=case: _run_bottom_three_aqours(effect, case))
+          for case in ("all", "wrong_work", "live", "one_repeat", "empty")),
+        *((f"wait_energy_next_active_{case}", f"新Energyと次ターンActive {case}", f"新Energy与下回合Active {case}",
+           "PL!SP-bp7-017:1", lambda effect, case=case: _run_wait_energy_next_active(effect, case))
+          for case in ("placed", "empty", "next_active", "ready_pay", "zone_return")),
+        *((f"opponent_success_draw_{case}", f"相手成功と追加ドロー {case}", f"对方本回合成功与追加抽弃 {case}",
+           "PL!N-sd2-007:1", lambda effect, case=case: _run_opponent_success_draw(effect, case))
+          for case in ("both", "only_self", "past_success", "short", "empty")),
+        *((f"bottom_live_heart_{case}", f"デッキ下一枚と発生源Heart {case}", f"牌库底一张与来源Heart {case}",
+           "PL!S-bp7-015:1", lambda effect, case=case: _run_bottom_live_heart(effect, case))
+          for case in ("live", "member", "empty", "one_live", "one_member")),
+        *((f"muse_granted_blade_{case}", f"μ's常時Blade付与 {case}", f"μ's临时常时Blade {case}",
+           "PL!-pb2-005:1", lambda effect, case=case: _run_muse_granted_blade(effect, case))
+          for case in ("score_icon", "numeric_only", "wrong_work", "late_member", "source_leave", "source_position")),
+        *((f"opponent_live_offer_{case}", f"控室ライブ提示 {case}", f"控室Live提案 {case}",
+           "PL!SP-bp2-011:1", lambda effect, names=names: _run_opponent_live_offer(effect, names))
+          for case, names in (("zero", ()), ("one", ("A",)), ("same", ("A", "A")),
+                              ("pair", ("A", "B")), ("mixed", ("A", "A", "B")), ("three", ("A", "B", "C")))),
+        *((f"both_center_position_{first}_{second}", f"両者中央の移動 {first}/{second}", f"双方中央移动 {first}/{second}",
+           "PL!SP-bp5-010:1", lambda effect, first=first, second=second: _run_both_center_position(effect, first, second))
+          for first, second in ((False, False), (False, True), (True, False), (True, True))),
+        *((f"both_waiting_live_{first}_{second}", f"両者控室回収 {first}/{second}", f"双方控室回收 {first}/{second}",
+           "PL!N-bp4-007:1", lambda effect, first=first, second=second: _run_both_waiting_live_recovery(effect, first, second))
+          for first, second in ((0, 0), (0, 2), (2, 0), (2, 2))),
+        *((f"mill_blade_colors_{case}", f"控室三枚・Blade Heart色条件 {case}", f"顶三控室与Blade Heart颜色 {case}",
+           "PL!N-bp7-020:1", lambda effect, case=case: _run_mill_blade_colors(effect, case=case))
+          for case in ("none", "same", "two", "three", "all_green", "live_excluded")),
+        *((f"private_three_split_{count}", f"三枚を上下に分割 {count}", f"私看三张分库顶库底 {count}",
+           "PL!S-bp7-008:1", lambda effect, count=count: _run_private_three_split(effect, count))
+          for count in (0, 1, 2, 3)),
+        *((f"ten_minus_hand_{hand}", f"手札{hand}枚・上から確認して最大二枚", f"手牌{hand}张：私看并最多取二",
+           "PL!SP-PR-028:1", lambda effect, hand=hand: _run_ten_minus_hand_inspection(effect, hand=hand))
+          for hand in (0, 1, 9, 10, 11)),
+        ("aqours_blade_six_low", "Blade5も選べる・score加算なし", "Blade5仍可选但不加分",
+         "PL!S-bp3-025:1", lambda effect: _run_aqours_blade_six_source_score(effect, blade=5)),
+        ("aqours_blade_six_exact", "Blade6・発生源Liveだけscore+1", "Blade6仅来源Live加1分",
+         "PL!S-bp3-025:1", _run_aqours_blade_six_source_score),
+        ("aqours_blade_six_static", "Blade5+常時1・発生源score", "基础Blade5加常时1后来源加分",
+         "PL!S-bp3-025:1", lambda effect: _run_aqours_blade_six_source_score(
+             effect, blade=5, static=1)),
+        ("aqours_blade_six_departed", "発生源離脱・別Liveに加算しない",
+         "来源离开后不把分数留给其他Live", "PL!S-bp3-025:1",
+         lambda effect: _run_aqours_blade_six_source_score(effect, departed=True)),
         ("niji_blade_four_below", "Blade3・対象なし", "Blade3：无目标明确结束",
          "PL!N-sd2-026:1", lambda effect: _run_niji_blade_four_heart(effect, blade=3)),
         ("niji_blade_four_exact", "Blade4・Heart二つ", "Blade4：仅目标获得两颗Heart",
@@ -479,12 +540,12 @@ def _v1_1_dynamic_scenarios(
                 title_zh=title_zh,
                 status="PASS" if all(checks.values()) else "FAIL",
                 effect_id=effect_id,
-                steps_ja=[
+                steps_ja=["左右/中央の公開Stageを構築し、共有の常時Heart計算を照合する。"] if scenario_id.startswith("mirrored_cost_heart_") else [
                     "固定した公開・非公開 Zone と card instance を構築する。",
                     "Legal Action と同じ ActionRequest で effect を解決する。",
                     "解決後の Zone、orientation、modifier、event を照合する。",
                 ],
-                steps_zh=[
+                steps_zh=["构建左右/中央公开场面，核对共享常时Heart计算；原生Action/SQL另有专项。"] if scenario_id.startswith("mirrored_cost_heart_") else [
                     "构建固定的公开/非公开区域与卡牌实例。",
                     "使用与 Legal Action 相同的 ActionRequest 结算技能。",
                     "核对结算后的区域、状态、修正值与事件。",
@@ -497,6 +558,26 @@ def _v1_1_dynamic_scenarios(
                 notes_ja=[f"公式日本語テキスト: {effect.label_ja}"],
                 notes_zh=[f"官方日文效果文本：{effect.label_ja}"],
                 rule_reference_ids=(
+                    ["4.5.7.1", "9.9.1"] if effect_id == "PL!HS-pb1-014:2" else
+                    ["4.1.4", "4.8.3", "9.6.2.4.2", "9.7.7", "10.2.1", "10.2.2.1", "10.2.3", "8.4.11"]
+                    if effect_id == "PL!S-bp7-021:1" else
+                    ["4.1.4", "4.8.2", "4.8.3", "9.7.7", "10.2.1", "10.2.2.1", "10.2.3", "8.4.11"]
+                    if effect_id == "PL!S-bp7-006:1" else
+                    ["4.1.4", "4.7.2", "4.7.3", "7.1.2", "7.3.3", "7.4.1", "9.7.7"]
+                    if effect_id == "PL!SP-bp7-017:1" else
+                    ["8.3.16", "8.4.4", "8.4.5", "8.4.6", "9.6.3.1", "9.7.7", "10.2.2.1"]
+                    if effect_id == "PL!N-sd2-007:1" else
+                    ["4.1.4", "4.8.2", "4.8.3", "9.7.7", "10.2.2.1", "10.2.3", "8.4.11"]
+                    if effect_id == "PL!S-bp7-015:1" else
+                    ["1.3.4", "1.3.4.1", "7.2.1.1", "7.2.1.2", "9.6.3.1", "9.6.3.1.3", "9.7.7"]
+                    if effect_id == "PL!N-bp4-007:1" else
+                    ["2.1.1", "2.1.3", "2.2.2.2", "2.7", "4.1.4", "9.7.7", "10.2.2.1", "8.4.11"]
+                    if effect_id == "PL!N-bp7-020:1" else
+                    ["1.3.2.2", "5.7.1", "9.6.3.1.1", "10.2.2.2", "10.2.3"]
+                    if effect_id == "PL!SP-PR-028:1" else
+                    ["2.8.1", "2.10.1", "4.1.4", "8.3.8", "8.4.2", "9.6.3.1",
+                     "9.6.3.1.3", "9.9.1.5"]
+                    if effect_id == "PL!S-bp3-025:1" else
                     ["2.8.1", "2.8.2", "9.9.1.1", "9.9.1.5", "9.6.3.1",
                      "9.6.3.1.3", "11.5.2", "8.4.11"]
                     if effect_id == "PL!N-sd2-026:1" else
@@ -510,6 +591,512 @@ def _v1_1_dynamic_scenarios(
             )
         )
     return results
+
+
+def _run_wait_energy_next_active(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    cards = [_v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id], cost=0),
+             _v1_1_energy("new-energy"), _v1_1_energy("old-energy")]
+    state = _v1_1_state({effect.effect_id: effect}, cards, hand=["source"])
+    player = state.players["player_1"]
+    player.energy_area, player.energy_deck = ["old-energy"], [] if case == "empty" else ["new-energy"]
+    state.cards["old-energy"].orientation = "wait"
+    result = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1",
+        expected_revision=state.revision, payload={"card_instance_id": "source", "slot": "center", "energy_instance_ids": []}))
+    event = next(e for e in result.events if e.event_type == "effect_wait_energy_next_active_resolved")
+    placed = case != "empty"
+    if case in {"ready_pay", "zone_return"}:
+        changes = [{"adjustment_type": "ready_energy", "target_card_instance_id": "new-energy"},
+                   {"adjustment_type": "pay_energy", "target_card_instance_id": "new-energy"}] if case == "ready_pay" else [
+                   {"adjustment_type": "move_card", "target_card_instance_id": "new-energy", "to_zone": "waiting_room"},
+                   {"adjustment_type": "move_card", "target_card_instance_id": "new-energy", "to_zone": "energy_area"}]
+        result = apply_action(result.state, ActionRequest(action_type="manual_adjustment", player_id="player_1",
+            expected_revision=result.state.revision, payload={"reason": "AUDIT Energy object", "adjustments": [
+                {"target_player_id": "player_1", **c} for c in changes]}))
+    phase_case = case in {"next_active", "ready_pay", "zone_return"}
+    if phase_case:
+        result.state.phase, result.state.active_player_id, result.state.turn_number = "first_active", "player_1", 2
+        result = apply_action(result.state, ActionRequest(action_type="advance_phase", player_id="player_1", expected_revision=result.state.revision))
+    final = result.state.players["player_1"]
+    return {
+        "実際に置いた一枚だけ / 仅实际放置一张": event.data["affected_energy_instance_ids"] == (["new-energy"] if placed else []),
+        "新EnergyはWait / 新Energy为Wait": not placed or result.state.cards["new-energy"].orientation == ("active" if case == "zone_return" else "wait"),
+        "他のEnergyは通常 / 其他Energy正常": result.state.cards["old-energy"].orientation == ("active" if phase_case else "wait"),
+        "期限と新しい領域 / 期限与新区域对象": len(final.manual_modifiers) == int(case == "placed"),
+    }
+
+
+def _run_opponent_success_draw(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    source = _v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id])
+    live = _v1_1_live("own-live", "Own Live")
+    other = _v1_1_live("other-live", "Opponent Live")
+    other.owner_id = "player_2"
+    deck = ["draw-a", "draw-b", "tail"]
+    state = _v1_1_state({effect.effect_id: effect}, [source, live, other,
+        *[_v1_1_member(k, "Hidden-" + k) for k in deck]], hand=[])
+    player = state.players["player_1"]
+    player.member_area["center"], player.live_area = "source", ["own-live"]
+    both = case not in {"only_self", "past_success"}
+    state.players["player_2"].live_area = ["other-live"] if both else []
+    if case == "past_success":
+        state.players["player_2"].success_live_area = ["other-live"]
+    player.main_deck = [] if case == "empty" else deck[:1] if case == "short" else deck
+    state.phase, state.active_player_id = "live_judgment", None
+    started = apply_action(state, ActionRequest(action_type="advance_phase", player_id=None, expected_revision=state.revision))
+    invocation = started.state.pending_effects[0]
+    result = apply_action(started.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=started.state.revision, payload={"invocation_id": invocation.invocation_id}))
+    event = next(e for e in result.events if e.event_type == "effect_opponent_success_draw_resolved")
+    expected_draw = 0 if case == "empty" else 1 if case in {"short", "only_self", "past_success"} else 2
+    hand_before = list(result.state.players["player_1"].hand)
+    final = apply_action(result.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=result.state.revision, payload={"invocation_id": invocation.invocation_id,
+        "selected_card_instance_ids": hand_before[:1]})) if both and hand_before else result
+    return {
+        "現在ターンだけ / 仅当前回合成功": event.data["condition_met"] == both,
+        "先に引いてから選ぶ / 先抽后选": len(hand_before) == expected_draw,
+        "条件成立時だけ必須一枚 / 条件成立才必选一张": len(final.state.players["player_1"].hand) == expected_draw - int(both and bool(hand_before)),
+        "待機完了 / 待机完成": not final.state.pending_effects,
+    }
+
+
+def _run_opponent_next_active(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    source = _v1_1_live("source", effect.card_code, effect_ids=[effect.effect_id])
+    first = _v1_1_member("first", "FIRST")
+    second = _v1_1_member("second", "SECOND")
+    first.owner_id = second.owner_id = "player_2"
+    first.card.cost = 2
+    second.card.cost = 4
+    if case == "already_wait":
+        first.orientation = "wait"
+    hidden = _v1_1_member("hidden", "HIDDEN")
+    state = _v1_1_state({effect.effect_id: effect}, [source, first, second, hidden], hand=[])
+    state.players["player_2"].member_area = {"left": "first", "center": "second", "right": None}
+    state.players["player_1"].main_deck = ["hidden"]
+    state.pending_effects = [EffectInvocation(invocation_id="opponent-next-active", effect_id=effect.effect_id,
+        player_id="player_1", source_card_instance_id="source", trigger_event="live_succeeded")]
+    action = lambda s, **extra: ActionRequest(action_type="resolve_effect", player_id="player_1", expected_revision=s.revision, payload={"invocation_id": "opponent-next-active", **extra})
+    result = apply_action(state, action(state, selected_branch="draw_one" if case == "draw" else "wait_opponent"))
+    count = 2 if case == "two" else 0 if case in {"zero", "draw"} else 1
+    if case != "draw":
+        result = apply_action(result.state, action(result.state, selected_card_instance_ids=["first", "second"][:count]))
+    data = next(e.data for e in result.events if e.event_type == "effect_opponent_member_next_active_resolved")
+    return {"対象0～2人 / 目标0至2人": data["restricted_count"] == count,
+        "既存Waitを再変更しない / 已Wait不重复改方向": data["waited_count"] == (count - int(case == "already_wait")),
+        "固定ドロー分岐 / 固定抽牌分支": data["drawn_count"] == int(case == "draw"),
+        "待機完了 / 待机完成": not result.state.pending_effects}
+
+
+def _run_diverdiva_energy(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    source = _v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id])
+    source.card.name_ja, source.card.unit_keys, source.card.work_keys = "宮下 愛", ["diverdiva"], ["nijigasaki"]
+    karin = _v1_1_member("karin", "朝香果林")
+    karin.card.name_ja, karin.card.work_keys = "朝香果林", ["nijigasaki"]
+    karin.card.unit_keys = [] if case == "false" else ["diverdiva"]
+    energy = CardInstance(instance_id="energy", owner_id="player_1", orientation="wait",
+        card=CardDefinition(card_code="ENERGY", card_id="ENERGY", name_ja="Energy", card_type="energy"))
+    state = _v1_1_state({effect.effect_id: effect}, [source, karin, energy], hand=[])
+    p = state.players["player_1"]
+    p.member_area = {"left": "karin", "center": "source", "right": None}
+    p.energy_area = ["energy"] if case == "ready_one" else []
+    p.energy_deck = ["energy"] if case == "attach" else []
+    state.pending_effects = [EffectInvocation(invocation_id="diverdiva", effect_id=effect.effect_id,
+        player_id="player_1", source_card_instance_id="source", trigger_event="member_played")]
+    branch = "ready_energy" if case == "ready_one" else "attach_energy_deck"
+    result = apply_action(state, ActionRequest(action_type="resolve_effect", player_id="player_1", expected_revision=state.revision,
+        payload={"invocation_id": "diverdiva", **({"selected_branch": branch} if case != "false" else {})}))
+    if case != "false":
+        result = apply_action(result.state, ActionRequest(action_type="resolve_effect", player_id="player_1", expected_revision=result.state.revision,
+            payload={"invocation_id": "diverdiva", "selected_card_instance_ids": ["energy"] if case == "ready_one" else ["karin"] if case == "attach" else []}))
+    data = next(e.data for e in result.events if e.event_type == "effect_diverdiva_energy_resolved")
+    return {"条件は解決時 / 条件在结算时": data["condition_met"] == (case != "false"),
+        "可能な範囲でActive / 按可能范围复原": data["readied_count"] == int(case == "ready_one"),
+        "Energy Deckから直接下へ / 从Energy Deck直接附属": data["attached_count"] == int(case == "attach"),
+        "待機完了 / 待机完成": not result.state.pending_effects}
+
+
+def _run_bottom_aqours_requirement(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    source = _v1_1_live("source", effect.card_code, effect_ids=[effect.effect_id])
+    source.card.required_hearts = {"heart0": 2, "heart02": 1}
+    bottom = _v1_1_live("bottom", "Bottom Live") if case == "live" else _v1_1_member("bottom", "Bottom Member")
+    bottom.card.work_keys = ["love_live"] if case == "wrong_work" else ["love_live_sunshine"]
+    state = _v1_1_state({effect.effect_id: effect}, [source, bottom, _v1_1_member("tail", "Hidden Tail")], hand=[])
+    p = state.players["player_1"]
+    p.live_area = ["source"]
+    p.main_deck = [] if case == "empty" else ["bottom"] if case == "one" else ["tail", "bottom"]
+    state.phase = "performance_first"
+    result = apply_action(state, ActionRequest(action_type="advance_phase", player_id="player_1", expected_revision=state.revision))
+    data = next(e.data for e in result.events if e.event_type == "effect_bottom_aqours_requirement_resolved")
+    delta = int(case in {"member", "one"})
+    requirements = _effective_required_hearts(result.state.players["player_1"], "source", source.card.required_hearts)
+    return {
+        "实际底一张 / 実際の下の一枚": data["milled_count"] == int(case != "empty"),
+        "Member和作品 / メンバーと作品": data["required_heart_delta"] == -delta,
+        "只减原Live无色需求 / 元ライブの無色だけ": requirements == {"heart0": 2-delta, "heart02": 1},
+        "无多余确认 / 追加選択なし": not result.state.pending_effects and result.state.pending_choice is None,
+    }
+
+
+def _run_bottom_five_member_score(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    source = _v1_1_live("source", effect.card_code, effect_ids=[effect.effect_id])
+    source.card.score = 5
+    members = 3 if case == "three" else 2 if case == "two" else 5
+    cards = [_v1_1_member(f"bottom{i}", f"Bottom {i}") if i < members
+             else _v1_1_live(f"bottom{i}", f"Bottom {i}") for i in range(5)]
+    stage = [_v1_1_member(f"stage{i}", f"Stage {i}") for i in range(3)]
+    state = _v1_1_state({effect.effect_id: effect}, [source, *cards, *stage,
+        _v1_1_member("draw", "Private Draw"), _v1_1_member("tail", "Private Tail")], hand=[])
+    p = state.players["player_1"]
+    p.live_area = ["source"]
+    p.member_area = {"left":"stage0", "center":"stage1", "right":None if case == "stage_two" else "stage2"}
+    p.main_deck = [] if case == "empty" else ["bottom0"] if case == "one_repeat" else ["draw", "tail", *[c.instance_id for c in cards]]
+    state.phase = "performance_first"
+    result = apply_action(state, ActionRequest(action_type="advance_phase",player_id="player_1",expected_revision=state.revision))
+    data = next(e.data for e in result.events if e.event_type == "effect_bottom_five_members_resolved")
+    count = 0 if case in {"empty", "stage_two"} else 5
+    drawn = int(count > 0 and members >= 3)
+    score = int(case in {"all", "one_repeat"})
+    return {
+        "五回の実移動 / 五次实际移动": data["milled_count"] == count,
+        "Member三回以上で一枚 / Member至少三次才抽一": data["drawn_count"] == drawn,
+        "元Liveだけ得点 / 仅原来源Live得分": _card_score(result.state,"player_1","source") == 5 + score,
+        "全体得点ではない / 不增加全局得分": all(m.modifier_type == "live_card_score" for m in result.state.players["player_1"].manual_modifiers),
+        "選択なし / 不多余确认": not result.state.pending_effects and result.state.pending_choice is None,
+    }
+
+
+def _run_bottom_three_aqours(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    source = _v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id])
+    cards = [_v1_1_member(f"bottom{i}", f"Bottom {i}", work_keys=["love_live_sunshine"]) for i in range(3)]
+    if case == "wrong_work":
+        cards[1].card.work_keys = ["nijigasaki"]
+    if case == "live":
+        cards[1].card.card_type = "live"
+    state = _v1_1_state({effect.effect_id: effect}, [source, *cards,
+        _v1_1_live("attempt", "Attempt"), _v1_1_member("tail", "Hidden Tail")], hand=[])
+    player = state.players["player_1"]
+    player.member_area["center"], player.live_area = "source", ["attempt"]
+    player.main_deck = [] if case == "empty" else ["bottom0"] if case == "one_repeat" else ["tail", "bottom0", "bottom1", "bottom2"]
+    state.phase = "performance_first"
+    result = apply_action(state, ActionRequest(action_type="advance_phase", player_id="player_1", expected_revision=state.revision))
+    event = next(e for e in result.events if e.event_type == "effect_bottom_aqours_heart_resolved")
+    delta = int(case in {"all", "one_repeat"})
+    final = result.state.players["player_1"]
+    return {
+        "実際の三回移動 / 实际三次移动": event.data["milled_count"] == (0 if case == "empty" else 3),
+        "Aqours Memberだけ / 仅Aqours Member": event.data["heart_delta"] == delta,
+        "元の発生源の緑Heart / 原来源绿Heart": len(final.manual_modifiers) == delta and all(
+            m.target_card_instance_id == "source" and m.color_slot == "heart04" and m.amount == 1 for m in final.manual_modifiers),
+        "一枚を三回refresh / 单实体三次刷新": final.refresh_count == (3 if case == "one_repeat" else 0),
+        "選択なし / 无多余确认": not result.state.pending_effects and result.state.pending_choice is None,
+    }
+
+
+def _run_bottom_live_heart(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    source = _v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id])
+    bottom = _v1_1_live("bottom", "Bottom Live") if case in {"live", "one_live"} else _v1_1_member("bottom", "Bottom Member")
+    live = _v1_1_live("attempt", "Attempt Live")
+    state = _v1_1_state({effect.effect_id: effect}, [source, bottom, live, _v1_1_member("tail", "Hidden Tail")], hand=[])
+    player = state.players["player_1"]
+    player.member_area["center"] = "source"
+    player.live_area = ["attempt"]
+    player.main_deck = [] if case == "empty" else ["bottom"] if case.startswith("one_") else ["tail", "bottom"]
+    state.phase = "performance_first"
+    result = apply_action(state, ActionRequest(action_type="advance_phase", player_id="player_1", expected_revision=state.revision))
+    event = next(e for e in result.events if e.event_type == "effect_bottom_live_heart_resolved")
+    expected = int(case in {"live", "one_live"})
+    final = result.state.players["player_1"]
+    return {
+        "実際に動いた下一枚 / 实际移动的底牌": event.data["milled_count"] == int(case != "empty"),
+        "Liveだけ条件成立 / 仅Live满足条件": event.data["heart_delta"] == expected,
+        "元の発生源だけ赤Heart / 仅原来源红Heart": len(final.manual_modifiers) == expected and all(
+            m.target_card_instance_id == "source" and m.color_slot == "heart02" and m.amount == 1 and m.duration == "live"
+            for m in final.manual_modifiers),
+        "空デッキの通常refresh / 空库正常刷新": final.refresh_count == int(case.startswith("one_")),
+        "選択なし自動処理 / 无选择自动处理": not result.state.pending_effects and result.state.pending_choice is None,
+    }
+
+
+def _run_muse_granted_blade(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    source = _v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id], cost=0, work_keys=["love_live"])
+    live = _v1_1_live("success", "Success Live")
+    live.card.work_keys = ["nijigasaki" if case == "wrong_work" else "love_live"]
+    live.card.score = 99
+    if case != "numeric_only":
+        live.card.special_blade_hearts = [SpecialBladeHeart(effect_type="score", source_alt="スコア", value=1)]
+    late = _v1_1_member("late", "Later Member", cost=0, work_keys=["love_live"])
+    state = _v1_1_state({effect.effect_id: effect}, [source, live, late, _v1_1_member("tail", "Hidden Tail")], hand=["source", "late"])
+    state.players["player_1"].success_live_area = ["success"]
+    state.players["player_1"].main_deck = ["tail"]
+    result = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1",
+        expected_revision=state.revision, payload={"card_instance_id": "source", "slot": "center", "energy_instance_ids": []}))
+    granted = next(e for e in result.events if e.event_type == "effect_muse_blade_aura_resolved")
+    if case == "late_member":
+        result = apply_action(result.state, ActionRequest(action_type="play_member", player_id="player_1",
+            expected_revision=result.state.revision, payload={"card_instance_id": "late", "slot": "right", "energy_instance_ids": []}))
+    elif case in {"source_leave", "source_position"}:
+        adjustment = {"adjustment_type": "move_card", "target_card_instance_id": "source", "to_zone": "hand"} if case == "source_leave" else {
+            "adjustment_type": "position_change", "from_slot": "center", "to_slot": "right"}
+        result = apply_action(result.state, ActionRequest(action_type="manual_adjustment", player_id="player_1",
+            expected_revision=result.state.revision, payload={"reason": "AUDIT source object", "adjustments": [{"target_player_id": "player_1", **adjustment}]}))
+    matched = case not in {"numeric_only", "wrong_work"}
+    return {
+        "図柄条件 / 图标条件": granted.data["aura_delta"] == int(matched),
+        "現在の発生源 / 当前原来源": _effective_member_blade(result.state, "player_1", "source") == int(matched and case != "source_leave"),
+        "後から登場 / 后续入场": case != "late_member" or _effective_member_blade(result.state, "player_1", "late") == 1,
+        "待機完了 / 待机完成": not result.state.pending_effects and result.state.pending_choice is None,
+    }
+
+
+def _run_opponent_live_offer(effect: EffectDefinition, names: tuple[str, ...]) -> dict[str, bool]:
+    from loveca.simulation.ai import opponent_live_offer_selection
+    source = _v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id], cost=0)
+    cards = [source, _v1_1_member("tail", "Hidden Tail")]
+    waiting = []
+    for i, name in enumerate(names):
+        item = _v1_1_live(f"offer-{i}", name)
+        cards.append(item)
+        waiting.append(item.instance_id)
+    state = _v1_1_state({effect.effect_id: effect}, cards, hand=["source"])
+    state.players["player_1"].main_deck = ["tail"]
+    state.players["player_1"].waiting_room = waiting
+    result = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1",
+        expected_revision=state.revision, payload={"card_instance_id": "source", "slot": "center",
+        "energy_instance_ids": [], "use_baton_touch": False}))
+    result = apply_action(result.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=result.state.revision, payload={"invocation_id": result.state.pending_effects[0].invocation_id}))
+    actors = []
+    while result.state.pending_choice:
+        pending = result.state.pending_choice
+        actors.append(pending.player_id)
+        selected = opponent_live_offer_selection(pending.options, pending.options["candidate_card_instance_ids"])
+        result = apply_action(result.state, ActionRequest(action_type="resolve_effect_choice", player_id=pending.player_id,
+            expected_revision=result.state.revision, payload={"selected_card_instance_ids": selected}))
+    pair = len(set(names)) >= 2
+    return {
+        "二種類を提示した時だけ回収 / 两种名称才能回收": len(result.state.players["player_1"].hand) == int(pair),
+        "相手の選択権 / 对手选择权": ("player_2" in actors) == pair,
+        "残りは控室 / 其余留控室": len(result.state.players["player_1"].waiting_room) == len(names) - int(pair),
+        "待機完了 / 待机完成": result.state.pending_choice is None and not result.state.pending_effects,
+    }
+
+
+def _run_both_center_position(effect: EffectDefinition, first: bool, second: bool) -> dict[str, bool]:
+    source = _v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id], cost=0)
+    cards = [source, _v1_1_member("tail", "Hidden Tail")]
+    for player_id in ("player_1", "player_2"):
+        for slot in ("center", "right"):
+            item = _v1_1_member(player_id + slot, "Center Audit")
+            item.owner_id, item.orientation = player_id, "wait"
+            cards.append(item)
+    state = _v1_1_state({effect.effect_id: effect}, cards, hand=["source"])
+    state.players["player_1"].main_deck = ["tail"]
+    for player_id, present in (("player_1", first), ("player_2", second)):
+        state.players[player_id].member_area = {"left": None, "center": player_id + "center" if present else None,
+                                               "right": player_id + "right"}
+    result = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1",
+        expected_revision=state.revision, payload={"card_instance_id": "source", "slot": "left",
+        "energy_instance_ids": [], "use_baton_touch": False}))
+    result = apply_action(result.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=result.state.revision, payload={"invocation_id": result.state.pending_effects[0].invocation_id}))
+    while result.state.pending_choice:
+        result = apply_action(result.state, ActionRequest(action_type="resolve_effect_choice",
+            player_id=result.state.pending_choice.player_id, expected_revision=result.state.revision, payload={"slot": "right"}))
+    return {
+        "各自の中央だけ移動 / 各自移动中央": all(result.state.players[p].member_area["right"] ==
+            p + ("center" if present else "right") for p, present in (("player_1", first), ("player_2", second))),
+        "占有先のグループを交換 / 占位组交换": all(result.state.players[p].member_area["center"] ==
+            (p + "right" if present else None) for p, present in (("player_1", first), ("player_2", second))),
+        "待機完了 / 待机完成": not result.state.pending_effects and result.state.pending_choice is None,
+    }
+
+
+def _run_both_waiting_live_recovery(effect: EffectDefinition, first: int, second: int) -> dict[str, bool]:
+    source = _v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id], cost=0)
+    cards = [source, _v1_1_member("tail", "Hidden Tail")]
+    waiting = {}
+    for player_id, count in (("player_1", first), ("player_2", second)):
+        waiting[player_id] = []
+        for i in range(count):
+            item = _v1_1_live(f"{player_id}-recovery-{i}", "Recovery Live")
+            item.owner_id = player_id
+            cards.append(item)
+            waiting[player_id].append(item.instance_id)
+    state = _v1_1_state({effect.effect_id: effect}, cards, hand=["source"])
+    state.players["player_1"].main_deck = ["tail"]
+    for player_id in state.players:
+        state.players[player_id].waiting_room = waiting[player_id]
+    played = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1",
+        expected_revision=state.revision, payload={"card_instance_id": "source", "slot": "center",
+        "energy_instance_ids": [], "use_baton_touch": False}))
+    result = apply_action(played.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=played.state.revision, payload={"invocation_id": played.state.pending_effects[0].invocation_id}))
+    unchanged_until_both = True
+    while result.state.pending_choice is not None:
+        pending = result.state.pending_choice
+        selected = pending.options["candidate_card_instance_ids"][:1]
+        chooser = pending.player_id
+        result = apply_action(result.state, ActionRequest(action_type="resolve_effect_choice", player_id=chooser,
+            expected_revision=result.state.revision, payload={"selected_card_instance_ids": selected}))
+        if result.state.pending_choice is not None:
+            unchanged_until_both &= all(item in result.state.players[chooser].waiting_room for item in selected)
+    return {
+        "各自のLiveだけ回収 / 只回收各自Live": all(
+            len(result.state.players[p].hand) == int(count > 0)
+            and all(item.startswith(p + "-recovery-") for item in result.state.players[p].hand)
+            for p, count in (("player_1", first), ("player_2", second))),
+        "両選択後に移動 / 双方选择后才移动": unchanged_until_both,
+        "各控室は一枚だけ減る / 每方控室最多减一": all(
+            len(result.state.players[p].waiting_room) == max(0, count - 1)
+            for p, count in (("player_1", first), ("player_2", second))),
+        "待機完了 / 待机完成": not result.state.pending_effects and result.state.pending_choice is None,
+    }
+
+
+def _run_mill_blade_colors(effect: EffectDefinition, *, case: str) -> dict[str, bool]:
+    source = _v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id], cost=0)
+    deck = ["mill-a", "mill-b", "mill-c", "mill-tail"]
+    cards = [source, *[_v1_1_member(key, "AUDIT-" + key) for key in deck]]
+    colors = {
+        "none": (None, None, None), "same": ("heart04", "heart04", "heart04"),
+        "two": ("heart01", "heart04", None), "three": ("heart01", "heart03", "heart04"),
+        "all_green": (None, "heart04", None), "live_excluded": ("heart01", "heart04", None),
+    }[case]
+    for card, color in zip(cards[1:], colors):
+        card.card.blade_heart_color_slot = color
+        card.card.basic_hearts = {"heart02": 3, "heart05": 2}
+    if case == "all_green":
+        cards[1].card.special_blade_hearts = [SpecialBladeHeart(effect_type="all_color", source_alt="ALL", value=1)]
+    if case == "live_excluded":
+        cards[1].card.card_type = "live"
+    state = _v1_1_state({effect.effect_id: effect}, cards, hand=["source"])
+    state.players["player_1"].main_deck = deck
+    result = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1",
+        expected_revision=state.revision, payload={"card_instance_id": "source", "slot": "center",
+        "energy_instance_ids": [], "use_baton_touch": False}))
+    event = next(e for e in result.events if e.event_type == "effect_milled_blade_colors_resolved")
+    delta = int(case in {"two", "three"})
+    mods = result.state.players["player_1"].manual_modifiers
+    return {
+        "三枚を控室・後尾維持 / 三张控室且尾牌保留":
+        result.state.players["player_1"].waiting_room == deck[:3] and result.state.players["player_1"].main_deck == deck[3:],
+        "色条件とQ270 / 颜色条件与Q270": event.data["heart_delta"] == delta,
+        "発生源だけHeart / 只有来源获得Heart": len(mods) == delta and all(
+            m.target_card_instance_id == "source" and m.color_slot == "heart04" and m.amount == 1 and m.duration == "live" for m in mods),
+        "自動処理完了 / 自动处理完成": not result.state.pending_effects and result.state.pending_choice is None,
+    }
+
+
+def _run_private_three_split(effect: EffectDefinition, count: int) -> dict[str, bool]:
+    from loveca.webapp import _match_state_payload
+
+    deck = [f"split-{i}" for i in range(5)]
+    cards = [_v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id]),
+             *[_v1_1_member(key, "AUDIT-" + key) for key in deck]]
+    state = _v1_1_pending_state(effect, cards, main_deck=deck)
+    inspected = _v1_1_resolve(state)
+    order = deck[:3][::-1]
+    top, bottom = order[:count], order[count:]
+    public = _match_state_payload(inspected.state, events=inspected.events,
+        legal_actions=inspected.legal_actions, player_id="player_2")
+    result = apply_action(inspected.state, ActionRequest(action_type="resolve_effect_choice",
+        player_id="player_1", expected_revision=inspected.state.revision, payload={
+            "selected_card_instance_ids": top, "ordered_card_instance_ids": top,
+            "bottom_ordered_card_instance_ids": bottom}))
+    final = result.state.players["player_1"]
+    return {
+        "三枚だけ私見 / 仅私看三张": inspected.state.pending_choice.options["inspected_card_instance_ids"] == deck[:3],
+        "相手に非公開 / 对手不可见": not set(deck).intersection(public["state"]["cards"]),
+        "両グループの順序 / 两组顺序": final.main_deck == top + deck[3:] + bottom,
+        "手札控室不変 / 手牌控室不变": not final.hand and not final.waiting_room,
+        "待機完了 / 待机完成": not result.state.pending_effects and result.state.pending_choice is None,
+    }
+
+
+def _run_ten_minus_hand_inspection(effect: EffectDefinition, *, hand: int) -> dict[str, bool]:
+    from loveca.webapp import _match_state_payload
+    deck = [f"ten-peek-{i}" for i in range(12)]
+    hand_ids = [f"ten-hand-{i}" for i in range(hand)]
+    cards = [_v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id]),
+             *[_v1_1_member(key, "AUDIT-" + key) for key in [*deck, *hand_ids]]]
+    state = _v1_1_pending_state(effect, cards, hand=hand_ids, main_deck=deck)
+    inspected = _v1_1_resolve(state)
+    count = max(0, 10 - hand)
+    selected = deck[:min(2, count)]
+    public = _match_state_payload(inspected.state, events=inspected.events,
+                                  legal_actions=inspected.legal_actions, player_id="player_2")
+    result = apply_action(inspected.state, ActionRequest(action_type="resolve_effect_choice",
+        player_id="player_1", expected_revision=inspected.state.revision,
+        payload={"selected_card_instance_ids": selected}))
+    final = result.state.players["player_1"]
+    return {
+        "解決時手札で計算 / 按结算时手牌计算":
+        inspected.state.pending_choice.options["inspected_card_instance_ids"] == deck[:count],
+        "確認は非公開 / 查看不向对手公开":
+        not set(deck).intersection(public["state"]["cards"]),
+        "最大二枚を手札 / 最多两张入手": final.hand == hand_ids + selected,
+        "残り控室・後尾不変 / 余牌控室且尾牌不变":
+        final.waiting_room == deck[len(selected):count] and final.main_deck == deck[count:],
+        "待機完了 / 待机完成": not result.state.pending_effects and result.state.pending_choice is None,
+    }
+
+
+def _run_aqours_blade_six_source_score(
+    effect: EffectDefinition, *, blade: int = 6, static: int = 0, departed: bool = False,
+) -> dict[str, bool]:
+    source = _v1_1_live("source", "Source Live", effect_ids=[effect.effect_id])
+    other_live = _v1_1_live("other-live", "Other Live")
+    target = _v1_1_member("target", "Aqours", work_keys=["aqours"])
+    target.card.blade = blade
+    state = _v1_1_state(
+        {effect.effect_id: effect}, [source, other_live, target],
+        member_area={"left": "target", "center": None, "right": None},
+    )
+    state.players["player_1"].live_area = ["source", "other-live"]
+    if static:
+        raw = effect.model_dump(mode="json")
+        raw.update(effect_id="AUDIT-static", choice=None, effect_type="continuous",
+                   timing="static_always", trigger="static_always", execution_mode="auto_resolve",
+                   frequency_limit="none", duration=None,
+                   actions=[{"action_type": "gain_blade", "amount": static}])
+        static_effect = EffectDefinition.model_validate(raw)
+        state.effect_definitions[static_effect.effect_id] = static_effect
+        target.card.effect_ids = [static_effect.effect_id]
+    state.phase = "performance_first"
+    started = apply_action(state, ActionRequest(
+        action_type="advance_phase", player_id="player_1", expected_revision=state.revision,
+    ))
+    options = next(
+        a for a in started.legal_actions if a.action_type == "resolve_effect"
+    ).options["invocations"][0]
+    resolved = apply_action(started.state, ActionRequest(
+        action_type="resolve_effect", player_id="player_1",
+        expected_revision=started.state.revision,
+        payload={"invocation_id": started.state.pending_effects[0].invocation_id,
+                 "selected_card_instance_ids": ["target"]},
+    ))
+    source_expected = 1 + int(blade + static >= 6)
+    if departed:
+        resolved = apply_action(resolved.state, ActionRequest(
+            action_type="manual_adjustment", player_id="player_1",
+            expected_revision=resolved.state.revision,
+            payload={"adjustments": [{
+                "adjustment_type": "move_card", "target_player_id": "player_1",
+                "target_card_instance_id": "source", "to_zone": "waiting_room",
+            }]},
+        ))
+        source_expected = 1
+    return {
+        "閾値で選択を制限しない / 不按阈值限制选择":
+        options["candidate_card_instance_ids"] == ["target"],
+        "発生源だけ加算 / 仅来源加分":
+        _card_score(resolved.state, "player_1", "source") == source_expected,
+        "他Live不変 / 其他Live不变": _card_score(resolved.state, "player_1", "other-live") == 1,
+        "全体scoreなし / 无全局分数": all(
+            m.modifier_type != "score"
+            for m in resolved.state.players["player_1"].manual_modifiers
+        ),
+        "待機完了 / 待机完成": not resolved.state.pending_effects,
+    }
 
 
 def _run_niji_blade_four_heart(
@@ -1230,6 +1817,21 @@ def _run_activated_wait_draw(effect: EffectDefinition) -> dict[str, bool]:
         checks["activation_no_second_draw"] = after.players["player_1"].hand == ["held"] and after.players["player_1"].main_deck == ["remaining"]
     checks["activation_queue_finished"] = not after.pending_effects and after.pending_choice is None
     return checks
+
+
+def _run_mirrored_cost_heart(effect: EffectDefinition, slot: str, cost: int) -> dict[str, bool]:
+    source = _v1_1_member("source", effect.card_code, cost=9, effect_ids=[effect.effect_id])
+    opponents = [_v1_1_member("opponent-" + position, "AUDIT-" + position, cost=10 if cost <= 9 else 4)
+                 for position in ("left", "center", "right")]
+    state = _v1_1_state({effect.effect_id: effect}, [source, *opponents],
+        member_area={position: "source" if position == slot else None for position in ("left", "center", "right")})
+    front = {"left": "right", "center": "center", "right": "left"}[slot]
+    state.players["player_2"].member_area = {position: "opponent-" + position for position in ("left", "center", "right")}
+    for opponent in opponents:
+        opponent.owner_id = "player_2"
+        state.cards[opponent.instance_id].owner_id = "player_2"
+    state.cards["opponent-" + front].card.cost = cost
+    return {"mirrored_front_cost_heart": _static_heart_bonus(state, "player_1", "source")["heart01"] == int(cost > 9)}
 
 
 def _run_v1_1_static_live_state(effect: EffectDefinition) -> dict[str, bool]:

@@ -1,5 +1,51 @@
 # 分支与工作树清单
 
+2026-10-28 JST：恢复同一`continuous-draft-pr-target-pin`，保留原3项配置WIP，将固定目标55与授权说明独立验收。仍仅使用`codex/continuous-development`和既有工作树；旧44/6 dirty、stash及ignored不动，不新建分支/PR，不合并部署。门禁、实际提交与PR更新结果见`draft-pr55-target-verification.md`验收入口。
+
+2026-10-27 对手成员下回合限制：固定工作树/分支，仅PL!S-bp7-025:1受限新快照，85专项/34 SQL、四AI/隐私、271图文/7原生UI。原目标移区/场内移动与期限分开，旧快照不追改；最终完整门禁/冻结证据见`opponent-member-next-active-verification.md`。本轮维护者明确批准修改目标并新建Draft PR，旧检查已停止后纳入policy变更重验；合并上线仍另批，旧44/6 dirty与stash/ignored保留。
+
+2026-10-27 宮下愛Energy双分支：固定分支/工作树，仅PL!N-bp7-005:1精确新快照，异名条件结算时判断、从Energy Deck直接附属。84专项/22 SQL、四AI/隐私、266图文/6双语UI；最终完整门禁和新源码冻结结果见`diverdiva-energy-choice-verification.md`验收入口。旧44/6 dirty、stash与ignored保留，不push，后续PR目标待批；其他blocked不自动恢复。
+
+2026-10-27 全员Active边界审计：固定分支/工作树，PL!S-bp7-020:1继续manual，reason=all_active_empty_stage_truth_value_unconfirmed。28边界含11种SQL、双方四AI/隐藏来源与人工UI保护；第2段/应用/登记未改，不重复无变化冻结。完整门禁及blocked记录见`all-active-live-requirement-unresolved.md`验收入口；旧44/6 dirty、stash与ignored保留，不push，后续PR目标仍待批。
+
+2026-10-27 底牌与原Live必要Heart：固定分支/工作树，仅PL!S-bp7-020:2精确新snapshot。无色减需/game期限/移区新对象分开验证，第1段manual及旧Replay不变。52专项含17种SQL、262图文/4项中日UI；最终四组门禁和冻结绑定见`bottom-one-aqours-requirement-verification.md`验收入口。旧44/6 dirty、stash与ignored保留；不push，后续PR目标待批。
+
+2026-10-27 鬼塚冬毬公开Live提案：固定分支/工作树，仅PL!SP-bp2-011:1精确限定新快照，按Q118区分两种名称与不足两张，操作者固定本人→对手；旧多人/manual保持。103专项/27种SQL、257图文与4原生UI已有证据，最终四组profiles/冻结另存`opponent-live-offer-verification.md`验收入口。旧44/6 dirty、stash与ignored均保留；不push，后续PR目标待批。
+
+2026-10-27 双方中央位置选择：固定分支/工作树，仅PL!SP-bp5-010:1精确限定新快照，旧多玩家/manual不变。69专项、22种SQL、251图文；完整profiles与最终冻结另存`both-center-position-verification.md`验收入口，不拼接旧证据。旧44/6 dirty、stash与ignored保留；不push，后续PR目标待批。下方“不得先领取双方中央”是镜像任务未完成时的历史。
+
+2026-10-27 镜像常时恢复验收：仅PL!HS-pb1-014:2条件切换为精确限定新snapshot，旧Replay和第1段manual保持。105专项、46种SQL及247图文已有证据；旧pattern名契约同步后144项定向复验通过。本轮独立执行全部profiles，最终验收/提交结果见`mirrored-cost-heart-verification.md`的验收入口，下方未完成状态为历史。冻结仍15完赛，927/1212不增加。固定分支/工作树，旧44/6 dirty、stash及ignored均保留，不push，后续PR目标待批；当前任务验收前不领双方中央移动。
+
+2026-10-27 固定正面移动审计：PL!HS-pb1-014:1继续manual并登记目标资格/来源最后位置未解决；第2段既有左右镜像bug有独立原生SQL红证据，尚未修复。37边界保护，不改变应用/registry/manifest或927/1212登记，不重复冻结池。下一独立最高优先级修复镜像常时；固定分支/工作树、旧44/6 dirty、stash和ignored均保留，不push。见`mirakura-front-position-unresolved.md`。
+
+2026-10-27 私看三张分组排序：仅PL!S-bp7-008:1晋级，第2段manual不变，旧私看/reorder/manual Replay保持。88专项、242图文、269前端；最终冻结14→15完赛、208/210可执行完成，新增局0:3不称双方长局。固定分支/工作树，旧44/6 dirty、stash与ignored均保留，未push，见`private-three-top-bottom-verification.md`。后续PR目标仍待明确批准。
+
+2026-10-27 底五张Member：仅PL!S-bp7-021:1从manual改为受限执行，三人条件在结算时检查、移动历史先于抽牌、只给原Live加分。82专项、238图文、263前端；冻结仍14完赛/16人工停止，本卡两次真实处理均无score+1，不冒充长局/随机正条件。旧44/6 dirty和ignored保留，固定分支/工作树、不push，见`bottom-five-member-score-verification.md`。
+
+2026-10-27 底三张Aqours：PL!S-bp7-006原本已可执行，只是与其他manual共同待机，本轮为来源对象/逐张刷新修正，不增加925/1212登记。原生CONTROL/SQL红测试证明离场返回错误，新旧快照有区分。61专项、232图文，冻结仍14完赛/16人工停止；测试SQL分支正条件+1不是随机完成。固定分支/工作树、旧44/6 dirty及ignored保留，不push，见`bottom-three-aqours-heart-verification.md`。
+
+2026-10-27 きな子Wait Energy：仅PL!SP-bp7-017:1登记变化，固定工作树/分支。64专项、227图文、254前端及完整回合SQL验证限定新对象/次回合期限；旧flag行为保持。冻结30局完赛13→14，但新增局败方无Live且未到标记时点，不冒充长局/随机skip验证。旧44/6 dirty和ignored成果保留，未push，后续PR目标待批。见`wait-energy-next-active-verification.md`。
+
+2026-10-27 優木せつ菜条件抽弃：仅PL!N-sd2-007:1登记变化，固定工作树/分支。86专项、222图文、251前端通过；通用技能面板来源隐藏引用崩溃已补保护，不公开卡面。冻结30局完赛12→13，实际正条件完成1次。旧44/6 dirty与ignored成果保留，未push，后续PR目标待批。见`opponent-success-draw-discard-verification.md`。
+
+2026-10-27 津島善子牌库底切片：仅PL!S-bp7-015:1登记变化，固定工作树/分支。60专项、217图文及246前端通过；旧空离场policy下新补正自身清理，不改旧modifier。冻结30局仍12/18，本卡随其他manual待机保留，另有真实seed受控SQL分支。旧44/6 dirty和ignored报告保留，未push，后续PR目标待批。见`bottom-one-live-heart-verification.md`。
+
+2026-10-27 星空凛切片：固定工作树/分支，只有PL!-pb2-005:1登记变化。临时常时Blade动态覆盖后入场μ's，来源离场及Live期限明确；重叠/继承保留门禁。75专项、212图文及243前端通过，冻结30局仍12/18，本卡两次实际处理均条件未满足。旧dirty/ignored保留，未push，后续PR目标待批。见`muse-granted-blade-verification.md`。
+
+2026-10-27 多玩家隐私修复：旧来源引用泄露已补原生动作/SQL红测试并统一修复网页、AI和语义代理投影，正常/skip及待机副本保护隐藏引用，本人manual提交句柄独立保留且不授予卡面权限。64专项与240前端通过，冻结30局仍12/18，原始规则快照及registry未改；当前报告见`multi-player-source-privacy-verification.md`。固定分支/工作树，无push或新PR，旧44/6 dirty与ignored报告保留；下文旧风险为历史检查点。
+
+2026-10-27 当前双方控室回收切片：仍使用固定分支/工作树，仅PL!N-bp4-007:1登记变化，同卡后两段未动。新类型隐私已保护；旧多玩家来源ID泄露已只读复现并排最高优先级，旧dirty与ignored报告保留。见`both-waiting-live-recovery-verification.md`；新PR目标未变。
+
+2026-10-27 当前エマ切片：继续固定分支/工作树，按官方Q270适配顶三Member Blade Heart颜色条件；实际触发3次，冻结30局仍11完赛/19人工停止，不宣称完赛改善。旧dirty及ignored报告保留，后续PR目标待批，最终门禁另存。见`mill-three-blade-colors-verification.md`。
+
+2026-10-27 四张公开底座：正式PL!-pb2-013因短牌库公开/刷新语义保持blocked及manual；另建未绑定官方卡的至少四张prototype，条件失败原库不变、旧私看不公开。新冻结30局仍9/21，源码绑定，旧dirty和ignored报告未动，PR目标待批。见`public-four-reveal-foundation.md`。
+
+2026-10-27 lily white审计：PL!-pb2-041:2依赖第一段成功区按两枚计数，暂保留两段manual，12项边界证明不冒充自动执行。应用源码/卡库/registry未变，下一独立任务为PL!-pb2-013:1顶四公开检索。固定工作树/分支继续复用，旧dirty及ignored报告未动，发布目标审批仍待确认。见`lily-white-source-score-unresolved.md`。
+
+2026-10-26T16:17Z：Aqours Blade6切片因限定恢复审批连续三轮缺失登记为blocked，仅保存状态，不再重试被拒绝的修改。现有PR54/90a10c6五项CI仍绿；本地225前端单测通过但完整build的数据导出因registry破损失败。依赖任务及全局门禁均不能绕过；等待已发出的限定审批，不新增分支、不提交推送。
+
+本地未提交检查点：Aqours Blade6/source score两项旧规则错误已真实复现，原型63专项及225前端通过；登记补丁重复上下文误写两个LL-bp5条目，安全检查拒绝自动恢复，已请求维护者限定批准。全局registry暂不能加载，不提交、不推送、不宣称门禁通过。恢复先读`aqours-blade-six-score-progress.md`，未批准不重试被拒绝的恢复；最后已发布90a10c6五项CI全绿，同PR54，旧dirty保留。
+
 优先级更新：只读审计发现旧`PL!S-bp3-025:1`有minimum_blade6与通用modify_score登记风险，下一批先真实复现“先选人后判断”与仅来源Live得分；本批不顺手改旧快照，不宣称已经验证。该完整性任务排在lily white新覆盖之前。
 
 有效Blade检查点：精确实现`PL!N-sd2-026:1`，新受限policy使用共享有效Blade含已支持常时修正；旧filter/Replay不变。55专项、148关联回归、3UI交互与187图文通过，918/1212、294manual。同冻结30局完赛8→9、21人工停止，158/160可执行完成，2待机保留，无非法/runtime/Replay/错误skip。见`nijigasaki-blade-four-heart-verification.md`；下一项`PL!-pb2-041:2`lily white成功区条件与来源Live得分。旧44/6 dirty及ignored成果保留，同PR54，不合并部署。
@@ -182,6 +228,8 @@ Replay 缺陷已复现并列最高优先级。见 `occupied-deployment-foundatio
 | `codex/simple-ai-v1-1-registry-integrity` | 0 / 3 | 0 | 已合并历史，报告核对后归档 | `E:\Repository\loveca-simulation\.tmp\simple-ai-v1-1-registry-integrity` |
 | `codex/simple-ai-v1-effect-accuracy` | 0 / 6 | 0 | 已合并历史，报告核对后归档 | `E:\Repository\loveca-simulation\.tmp\simple-ai-v1-effect-accuracy` |
 | `codex/v0-9-card-sync-effects-ai-reliability` | 3 / 0 | 0 | 有独有提交，待对比迁移 | `E:\Repository\loveca-simulation\.tmp\v0-9-card-sync-effects-ai-reliability` |
+
+2026-10-27 恢复补充：PR54已获维护者批准合并上线；固定工作树保存全部15项WIP后快进到`ca3aec4`，Git内容逐项核对一致，备份stash保留。协调器恢复入口已提交`122fd48`，原Aqours任务已通过显式requeue恢复；不把旧表格中的PR54开放状态当作当前事实。其他旧dirty工作树和ignored报告未动，新PR目标仍待单独确认。
 
 ## 分支
 

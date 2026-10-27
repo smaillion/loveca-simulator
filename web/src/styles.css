@@ -2330,6 +2330,29 @@ button {
   background: #d9efed;
 }
 
+.split-order {
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.split-order > strong {
+  flex-basis: 100%;
+}
+
+.split-order-resolution .inspection-card {
+  overflow-wrap: anywhere;
+}
+
+.split-order > span {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 select,
 input {
   min-height: 38px;

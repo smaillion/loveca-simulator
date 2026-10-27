@@ -19,6 +19,37 @@ SOURCE_REFERENCE = (
     "Official card text; comprehensive rules ver. 1.06 restricted executor pattern"
 )
 
+WAIT_ENERGY_NEXT_ACTIVE_TEXT = (
+    "【登場】自分のエネルギーデッキから、エネルギーカードを1枚ウェイト状態で置く。"
+    "そのエネルギーカードは、次のターンのアクティブフェイズにアクティブしない。"
+)
+
+BOTTOM_THREE_AQOURS_HEART_TEXT = (
+    "【ライブ開始時】自分のデッキの下からカードを3枚控え室に置く。"
+    "それらがすべて『Aqours』のメンバーカードの場合、ライブ終了時まで、【heart04】を得る。"
+)
+
+BOTTOM_FIVE_MEMBER_SCORE_TEXT = (
+    "【ライブ開始時】自分のステージにメンバーが3人以上いる場合、自分のデッキの下からカードを5枚控え室に置く。"
+    "それらの中にメンバーカードが3枚以上ある場合、カードを1枚引く。"
+    "それらがすべてメンバーカードの場合、さらにこのカードのスコアを＋１する。"
+)
+
+OPPONENT_SUCCESS_DRAW_DISCARD_TEXT = (
+    "【ライブ成功時】カードを1枚引く。このターン、相手もライブを成功している場合、"
+    "さらにカードを1枚引き、手札を1枚控え室に置く。"
+)
+
+BOTTOM_ONE_LIVE_HEART_TEXT = (
+    "【ライブ開始時】自分のデッキの下からカードを1枚控え室に置く。"
+    "それがライブカードの場合、ライブ終了時まで、【heart02】を得る。"
+)
+
+MUSE_GRANTED_BLADE_TEXT = (
+    "【登場】自分の成功ライブカード置き場に【スコア】を持つ『μ's』のカードがある場合、"
+    "ライブ終了時まで、「【常時】自分のステージにいる『μ's』のメンバーは、【ブレード】を得る。」を得る。"
+)
+
 MULTI_KEEP_ICON_SCOPE_TEXT = (
     "【登場】手札を1枚控え室に置いてもよい：自分のデッキの上からカードを7枚見る。"
     "その中から【heart02】か【heart04】か【heart05】を持つメンバーカードを3枚まで公開して手札に加えてもよい。残りを控え室に置く。"
@@ -35,6 +66,24 @@ NIJIGASAKI_SELECTED_BLADE_SCORE_TEXT = (
     "【ライブ成功時】自分のステージにいる『虹ヶ咲』のメンバー1人を選ぶ。"
     "そのメンバーが、自分と相手のステージにいるほかのすべてのメンバーより多くの"
     "【ブレード】を持つ場合、このカードのスコアを＋１する。"
+)
+
+TEN_MINUS_HAND_PRIVATE_TWO_TEXT = (
+    "【登場】自分のデッキの上から、10から自分の手札の枚数を引いた数に等しい枚数のカードを見る。"
+    "その中から2枚まで手札に加える。残りを控え室に置く。"
+)
+
+MILL_THREE_BLADE_COLORS_TEXT = (
+    "【登場】自分のデッキの上からカードを3枚控え室に置く。"
+    "それらのメンバーカードの中に2種類以上のブレードハートの色がある場合、"
+    "ライブ終了時まで、【heart04】を得る。"
+)
+
+BOTH_WAITING_LIVE_TEXT = "【登場】自分と相手はそれぞれ、自身の控え室からライブカードを1枚手札に加える。"
+BOTH_WAITING_LIVE_FULL_TEXT = (
+    BOTH_WAITING_LIVE_TEXT
+    + " 【常時】自分と相手のエネルギーの合計が15枚以上あるかぎり、【heart02】【heart02】を得る。"
+    + " 【ライブ成功時】自分と相手はそれぞれ、自身のエネルギーデッキから、エネルギーカードを1枚ウェイト状態で置く。"
 )
 
 
@@ -625,6 +674,30 @@ def _live_success_aqours_yell_bottom_three(row: sqlite3.Row) -> EffectCandidate 
             "selection_policy": "public_yell_aqours_bottom_three",
         },
         actions=[{"action_type": "move_selected_to_deck_bottom"}], duration=None,
+    )
+
+
+def _live_start_aqours_selected_blade_six_source_score(row: sqlite3.Row) -> EffectCandidate | None:
+    label = (
+        "【ライブ開始時】自分のステージにいる『Aqours』のメンバー1人を選ぶ。"
+        "そのメンバーが持つ【ブレード】が6つ以上の場合、このカードのスコアを＋１する。"
+    )
+    matched = _matching_segment(row, label)
+    if matched is None:
+        return None
+    effect_index, exact_label = matched
+    return EffectCandidate(
+        **_base(row, pattern_id="live_start_aqours_selected_blade_six_source_score",
+                effect_index=effect_index),
+        label_ja=exact_label, effect_type="triggered", timing="live_start",
+        trigger="live_started", frequency_limit="once_per_live", is_optional=False,
+        condition={}, cost=[], choice={
+            "choice_type": "member_from_stage", "zone": "stage", "card_type": "member",
+            "work_key": "aqours", "minimum": 1, "maximum": 1,
+            "selection_policy": "public_aqours_blade_six_source_score",
+        },
+        actions=[{"action_type": "modify_source_score_if_selected_blade_six", "amount": 1}],
+        duration="live",
     )
 
 
@@ -2727,6 +2800,271 @@ def _onplay_optional_discard_inspect_keep1_any(
             {"action_type": "move_remaining_cards"},
         ],
         duration=None,
+    )
+
+
+def _live_success_opponent_cost4_wait_or_draw(row: sqlite3.Row) -> EffectCandidate | None:
+    text = "【ライブ成功時】以下から1つを選ぶ。 ・相手のステージにいるコスト4以下のメンバーを2人までウェイトにする。そのメンバーは次のターンのアクティブフェイズにアクティブしない。 ・カードを1枚引く。"
+    if (row["card_code"] != "PL!S-bp7-025" or row["text_revision_id"] != 917
+            or row["raw_text_hash"] != "8f3f0088db7c0001fda1fbc53680efde3f4bc6bcdccc8dde9ac0345ca80d5bc6"
+            or row["raw_effect_text_ja"] != text):
+        return None
+    return EffectCandidate(
+        **_base(row, pattern_id="live_success_opponent_cost4_wait_or_draw", effect_index=1),
+        label_ja=text, effect_type="triggered", timing="live_success", trigger="live_succeeded",
+        frequency_limit="once_per_live", is_optional=False, condition={}, cost=[], duration=None,
+        choice={"choice_type": "choose_effect_branch", "selection_policy": "public_opponent_cost4_wait_or_draw",
+            "branch_ids": ["wait_opponent", "draw_one"],
+            "branch_selection_minimum": {"wait_opponent": 0, "draw_one": 0},
+            "branch_selection_maximum": {"wait_opponent": 2, "draw_one": 0},
+            "branch_choice_filters": {"wait_opponent": {"choice_type": "member_from_stage", "zone": "stage", "card_type": "member", "target_player": "opponent", "maximum_cost": 4, "minimum": 0, "maximum": 2}}},
+        actions=[{"action_type": "wait_opponent_cost4_skip_next_turn_active", "amount": 2, "target": "selected", "branch": "wait_opponent"},
+                 {"action_type": "draw_card", "amount": 1, "target": "self", "branch": "draw_one"}],
+    )
+
+
+def _onplay_diverdiva_energy_modes(row: sqlite3.Row) -> EffectCandidate | None:
+    text = "【登場】自分のステージに名前の異なる『DiverDiva』のメンバーが2人いる場合、以下から1つを選ぶ。 ・エネルギーを2枚アクティブにする。 ・自分のエネルギーデッキから、エネルギーカード1枚を自分のステージにいる『虹ヶ咲』のメンバーの下に置く。"
+    if (row["card_code"] != "PL!N-bp7-005" or row["text_revision_id"] != 868
+            or row["raw_text_hash"] != "ad5311610df13efbe44297694127ea7740391a12f280bc947c634172cb6145fb"
+            or row["raw_effect_text_ja"] != text):
+        return None
+    return EffectCandidate(
+        **_base(row, pattern_id="onplay_diverdiva_energy_modes", effect_index=1),
+        label_ja=text, effect_type="triggered", timing="on_play", trigger="member_played",
+        frequency_limit="none", is_optional=False, condition={}, cost=[], duration=None,
+        choice={"choice_type": "choose_effect_branch", "selection_policy": "public_diverdiva_energy_modes",
+            "branch_ids": ["ready_energy", "attach_energy_deck"],
+            "branch_selection_minimum": {"ready_energy": 2, "attach_energy_deck": 1},
+            "branch_selection_maximum": {"ready_energy": 2, "attach_energy_deck": 1},
+            "branch_choice_filters": {
+                "ready_energy": {"choice_type": "energy_from_area", "zone": "energy_area", "card_type": "energy", "orientation": "wait", "minimum": 2, "maximum": 2},
+                "attach_energy_deck": {"choice_type": "member_from_stage", "zone": "stage", "card_type": "member", "work_key": "nijigasaki", "minimum": 1, "maximum": 1},
+            }},
+        actions=[{"action_type": "ready_energy", "amount": 2, "target": "selected", "branch": "ready_energy"},
+                 {"action_type": "attach_energy_deck_to_selected_nijigasaki", "amount": 1, "target": "selected", "branch": "attach_energy_deck"}],
+    )
+
+
+def _onplay_opponent_live_offer(row: sqlite3.Row) -> EffectCandidate | None:
+    text = "【登場】自分の控え室にある、カード名の異なるライブカードを2枚選ぶ。そうした場合、相手はそれらのカードのうち1枚を選ぶ。これにより相手に選ばれたカードを自分の手札に加える。"
+    if (row["card_code"] != "PL!SP-bp2-011" or row["text_revision_id"] != 565
+            or row["raw_text_hash"] != "9e4fd4e9e0b3b110651c0f1139e851bab7f588d77460a36f422db788ae4ef09c"
+            or row["raw_effect_text_ja"] != text):
+        return None
+    return EffectCandidate(
+        **_base(row, pattern_id="onplay_two_distinct_live_opponent_one", effect_index=1),
+        label_ja=text, effect_type="triggered", timing="on_play", trigger="member_played",
+        frequency_limit="none", is_optional=False, condition={}, cost=[], duration=None,
+        choice={"choice_type": "multi_player_opponent_live_offer", "selection_policy": "public_two_distinct_live_opponent_one",
+                "zone": "waiting_room", "card_type": "live", "minimum": 2, "maximum": 2,
+                "selected_destination": "hand"}, actions=[],
+    )
+
+
+def _onplay_both_center_position(row: sqlite3.Row) -> EffectCandidate | None:
+    text = "【登場】自分と相手は、自身のステージのセンターにいるメンバーをポジションチェンジする。(センターにいるメンバーを今いるエリア以外のエリアに移動させる。そのエリアにメンバーがいる場合、そのメンバーはセンターエリアに移動させる。)"
+    if (row["card_code"] != "PL!SP-bp5-010" or row["text_revision_id"] != 215
+            or row["raw_text_hash"] != "a99058a753bf9e71a54740c7db2fe2e3ca2d5b5a8c6bf42387de11c4122caaf8"
+            or row["raw_effect_text_ja"] != text):
+        return None
+    return EffectCandidate(
+        **_base(row, pattern_id="onplay_both_center_position_sequential", effect_index=1),
+        label_ja=text, effect_type="triggered", timing="on_play", trigger="member_played",
+        frequency_limit="none", is_optional=False, condition={}, cost=[], duration=None,
+        choice={"choice_type": "multi_player_center_position_change", "selection_policy": "public_both_center_position_sequential",
+                "zone": "stage", "card_type": "member", "minimum": 1, "maximum": 1}, actions=[],
+    )
+
+
+def _onplay_both_waiting_live(row: sqlite3.Row) -> EffectCandidate | None:
+    if (row["card_code"] != "PL!N-bp4-007" or row["text_revision_id"] != 363
+            or row["raw_text_hash"] != "7076ae1f8dd1872704b75e15e069471bcc1d8ee6dcf21abb1b2cd4521ed3fe94"
+            or row["raw_effect_text_ja"] != BOTH_WAITING_LIVE_FULL_TEXT):
+        return None
+    return EffectCandidate(
+        **_base(row, pattern_id="onplay_both_waiting_live", effect_index=1),
+        label_ja=BOTH_WAITING_LIVE_TEXT, effect_type="triggered", timing="on_play", trigger="member_played",
+        frequency_limit="none", is_optional=False, condition={}, cost=[], duration=None,
+        choice={"choice_type": "multi_player_waiting_live_recovery", "selection_policy": "public_both_waiting_live_one",
+                "zone": "waiting_room", "card_type": "live", "minimum": 1, "maximum": 1, "selected_destination": "hand"},
+        actions=[{"action_type": "return_from_waiting_room", "target": "both"}],
+    )
+
+
+def _onplay_wait_energy_next_active(row: sqlite3.Row) -> EffectCandidate | None:
+    if (row["card_code"] != "PL!SP-bp7-017" or row["text_revision_id"] != 904
+            or row["raw_text_hash"] != "30ff25ec59e8e1abece877f098ad0bc1d09d29b79c089c838a1029d192e326d0"
+            or row["raw_effect_text_ja"] != WAIT_ENERGY_NEXT_ACTIVE_TEXT):
+        return None
+    return EffectCandidate(
+        **_base_with_execution_mode(row, pattern_id="onplay_wait_energy_next_active", effect_index=1,
+                                    execution_mode="auto_resolve"),
+        label_ja=WAIT_ENERGY_NEXT_ACTIVE_TEXT, effect_type="triggered", timing="on_play", trigger="member_played",
+        frequency_limit="none", is_optional=False, condition={}, cost=[], choice=None, duration=None,
+        actions=[{"action_type": "place_wait_energy_skip_next_turn_active", "amount": 1}],
+    )
+
+
+def _live_success_opponent_draw_discard(row: sqlite3.Row) -> EffectCandidate | None:
+    if (row["card_code"] != "PL!N-sd2-007" or row["text_revision_id"] != 938
+            or row["raw_text_hash"] != "a0652e4321925ae2826d299c309118fb251aa81c1b11b7fc62ca84091f8111fb"
+            or row["raw_effect_text_ja"] != OPPONENT_SUCCESS_DRAW_DISCARD_TEXT):
+        return None
+    return EffectCandidate(
+        **_base(row, pattern_id="live_success_opponent_draw_discard", effect_index=1),
+        label_ja=OPPONENT_SUCCESS_DRAW_DISCARD_TEXT, effect_type="triggered", timing="live_success",
+        trigger="live_succeeded", frequency_limit="once_per_live", is_optional=False, condition={}, cost=[],
+        choice={"choice_type": "post_action_card_from_zone", "zone": "hand", "minimum": 1, "maximum": 1,
+                "post_action_condition_key": "opponent_live_success_extra_draw", "post_action_condition_minimum": 1},
+        actions=[{"action_type": "draw_card", "amount": 1},
+                 {"action_type": "draw_extra_if_opponent_live_succeeded", "amount": 1},
+                 {"action_type": "discard_from_hand"}], duration=None,
+    )
+
+
+def _live_start_bottom_aqours_requirement(row: sqlite3.Row) -> EffectCandidate | None:
+    first = "【ライブ開始時】自分のステージにいるすべてのメンバーがアクティブ状態の場合、このカードの必要ハートを【heart0】減らす。"
+    text = "【ライブ開始時】自分のデッキの下からカードを1枚控え室に置く。それが『Aqours』のメンバーカードの場合、このカードの必要ハートを【heart0】減らす。"
+    if (row["card_code"] != "PL!S-bp7-020" or row["text_revision_id"] != 912
+            or row["raw_text_hash"] != "2762be94925766143618a17b7a60b0cb252f776311eaf3f8198af0c49a60d046"
+            or row["raw_effect_text_ja"] != first + " " + text):
+        return None
+    return EffectCandidate(
+        **_base_with_execution_mode(row, pattern_id="live_start_bottom_aqours_source_requirement", effect_index=2,
+                                   execution_mode="auto_resolve"),
+        label_ja=text, effect_type="triggered", timing="live_start", trigger="live_started",
+        frequency_limit="once_per_live", is_optional=False, condition={}, cost=[], choice=None, duration="game",
+        actions=[{"action_type": "mill_bottom_one_aqours_source_requirement", "amount": 1, "target": "source",
+                  "color_slot": "heart0", "source_object_policy": "original_live_start_bottom_aqours_requirement"}],
+    )
+
+
+def _live_start_bottom_five_member_score(row: sqlite3.Row) -> EffectCandidate | None:
+    if (row["card_code"] != "PL!S-bp7-021" or row["text_revision_id"] != 913
+            or row["raw_text_hash"] != "4abd5654a85639e01eb2721a21df5439f133589eeccd1238c04944fb4a0b6261"
+            or row["raw_effect_text_ja"] != BOTTOM_FIVE_MEMBER_SCORE_TEXT):
+        return None
+    return EffectCandidate(
+        **_base_with_execution_mode(row, pattern_id="live_start_bottom_five_member_score", effect_index=1,
+                                    execution_mode="auto_resolve"),
+        label_ja=BOTTOM_FIVE_MEMBER_SCORE_TEXT, effect_type="triggered", timing="live_start",
+        trigger="live_started", frequency_limit="once_per_live", is_optional=False,
+        condition={}, cost=[], choice=None, duration="live",
+        actions=[{"action_type": "mill_bottom_five_members_draw_source_score", "amount": 5,
+                  "target": "source", "source_object_policy": "original_live_start_bottom_five_source"}],
+    )
+
+
+def _live_start_bottom_three_aqours_heart(row: sqlite3.Row) -> EffectCandidate | None:
+    if (row["card_code"] != "PL!S-bp7-006" or row["text_revision_id"] != 851
+            or row["raw_text_hash"] != "3c87d290b7b11b30c7b72683a74b6ec5a871266062a46567c1c8258fe5198821"
+            or row["raw_effect_text_ja"] != BOTTOM_THREE_AQOURS_HEART_TEXT):
+        return None
+    return EffectCandidate(
+        **_base_with_execution_mode(row, pattern_id="live_start_bottom_three_aqours_heart", effect_index=1,
+                                    execution_mode="auto_resolve"),
+        label_ja=BOTTOM_THREE_AQOURS_HEART_TEXT, effect_type="triggered", timing="live_start",
+        trigger="live_started", frequency_limit="once_per_live", is_optional=False,
+        condition={}, cost=[], choice=None, duration="live",
+        actions=[{"action_type": "mill_bottom_three_aqours_source_heart", "target": "source",
+                  "amount": 3, "color_slot": "heart04",
+                  "source_object_policy": "original_live_start_bottom_three_source"}],
+    )
+
+
+def _live_start_bottom_one_heart(row: sqlite3.Row) -> EffectCandidate | None:
+    if (row["card_code"] != "PL!S-bp7-015" or row["text_revision_id"] != 860
+            or row["raw_text_hash"] != "4de00b242755d4712ed8afbb6b6d5a27047c8f4cdbfd76101d0f1f1b7343cbf0"
+            or row["raw_effect_text_ja"] != BOTTOM_ONE_LIVE_HEART_TEXT):
+        return None
+    return EffectCandidate(
+        **_base_with_execution_mode(row, pattern_id="live_start_bottom_one_heart", effect_index=1,
+                                    execution_mode="auto_resolve"),
+        label_ja=BOTTOM_ONE_LIVE_HEART_TEXT, effect_type="triggered", timing="live_start",
+        trigger="live_started", frequency_limit="once_per_live", is_optional=False,
+        condition={}, cost=[], choice=None, actions=[{"action_type": "mill_bottom_cards", "amount": 1}, {
+            "action_type": "gain_source_heart_if_bottom_card_live", "target": "source",
+            "source_object_policy": "original_live_start_bottom_source", "amount": 1, "color_slot": "heart02",
+        }], duration="live",
+    )
+
+
+def _onplay_muse_granted_blade(row: sqlite3.Row) -> EffectCandidate | None:
+    if (row["card_code"] != "PL!-pb2-005" or row["text_revision_id"] != 978
+            or row["raw_text_hash"] != "e972ec2ccacf722aa4a5f2ff2f55ece68dabbc676d988590c3d27079da601682"
+            or row["raw_effect_text_ja"] != MUSE_GRANTED_BLADE_TEXT):
+        return None
+    return EffectCandidate(
+        **_base_with_execution_mode(row, pattern_id="onplay_muse_granted_blade", effect_index=1,
+                                    execution_mode="auto_resolve"),
+        label_ja=MUSE_GRANTED_BLADE_TEXT, effect_type="triggered", timing="on_play",
+        trigger="member_played", frequency_limit="none", is_optional=False, condition={},
+        cost=[], choice=None, actions=[{"action_type": "grant_muse_blade_aura_if_success_score_icon",
+            "source_object_policy": "original_onplay_muse_blade_aura", "target": "source", "amount": 1}],
+        duration="live",
+    )
+
+
+def _onplay_mill_three_blade_colors(row: sqlite3.Row) -> EffectCandidate | None:
+    if (row["card_code"] != "PL!N-bp7-020" or row["text_revision_id"] != 883
+            or row["raw_text_hash"] != "1fd519f551bd331e61e6a8fa1d9cfada8390c609ae73319768e4e7d30701ea04"
+            or row["raw_effect_text_ja"] != MILL_THREE_BLADE_COLORS_TEXT):
+        return None
+    return EffectCandidate(
+        **_base_with_execution_mode(row, pattern_id="onplay_mill_three_blade_colors", effect_index=1,
+                                    execution_mode="auto_resolve"),
+        label_ja=MILL_THREE_BLADE_COLORS_TEXT, effect_type="triggered", timing="on_play",
+        trigger="member_played", frequency_limit="none", is_optional=False, condition={},
+        cost=[], choice=None, actions=[{"action_type": "mill_top_cards", "amount": 3}, {
+            "action_type": "gain_source_heart_if_milled_member_blade_colors",
+            "source_object_policy": "original_onplay_mill_source", "target": "source",
+            "amount": 1, "color_slot": "heart04",
+        }], duration="live",
+    )
+
+
+PRIVATE_THREE_TOP_BOTTOM_TEXT = (
+    "【登場】自分のデッキの上からカードを3枚見る。その中から好きな枚数を好きな順番でデッキの上に置き、残りを好きな順番でデッキの下に置く。"
+)
+PRIVATE_THREE_TOP_BOTTOM_FULL_TEXT = PRIVATE_THREE_TOP_BOTTOM_TEXT + (
+    " 【ライブ開始時】自分のデッキの一番下のカードを控え室に置いてもよい。それが「松浦果南」か「黒澤ダイヤ」の場合、それを手札に加える。"
+)
+
+
+def _onplay_private_three_top_bottom(row: sqlite3.Row) -> EffectCandidate | None:
+    if (row["card_code"] != "PL!S-bp7-008" or row["text_revision_id"] != 853
+            or row["raw_text_hash"] != "1de3807181773c1f9c909324ecf5885928876ce992a6ed6f4d93e2f000a63f6b"
+            or row["raw_effect_text_ja"] != PRIVATE_THREE_TOP_BOTTOM_FULL_TEXT):
+        return None
+    return EffectCandidate(
+        **_base(row, pattern_id="onplay_private_three_top_bottom", effect_index=1),
+        label_ja=PRIVATE_THREE_TOP_BOTTOM_TEXT, effect_type="triggered", timing="on_play",
+        trigger="member_played", frequency_limit="none", is_optional=False, condition={}, cost=[],
+        choice={"choice_type": "inspect_top_select", "selection_policy": "private_three_top_bottom_order",
+                "amount": 3, "minimum": 0, "maximum": 3, "requires_order": True,
+                "selected_destination": "main_deck_top_ordered", "unselected_destination": "main_deck_bottom"},
+        actions=[{"action_type": "inspect_top_cards", "amount": 3},
+                 {"action_type": "reorder_deck_top"}, {"action_type": "move_remaining_cards"}], duration=None,
+    )
+
+
+def _onplay_ten_minus_hand_private_two(row: sqlite3.Row) -> EffectCandidate | None:
+    if (row["card_code"] != "PL!SP-PR-028" or row["text_revision_id"] != 1232
+            or row["raw_text_hash"] != "4e93a5a5a79f7b2afe0fba115053b86de413fd60bd6f84d34fdadb84676fe116"
+            or row["raw_effect_text_ja"] != TEN_MINUS_HAND_PRIVATE_TWO_TEXT):
+        return None
+    return EffectCandidate(
+        **_base(row, pattern_id="onplay_ten_minus_hand_private_two", effect_index=1),
+        label_ja=TEN_MINUS_HAND_PRIVATE_TWO_TEXT, effect_type="triggered", timing="on_play",
+        trigger="member_played", frequency_limit="none", is_optional=False,
+        condition={}, cost=[], choice={
+            "choice_type": "inspect_top_select", "selection_policy": "private_ten_minus_hand_keep_two",
+            "minimum": 0, "maximum": 2, "selected_destination": "hand",
+            "unselected_destination": "waiting_room", "reveal_selected_to_opponent": False,
+        }, actions=[{"action_type": "inspect_top_cards"},
+                    {"action_type": "select_to_hand_from_inspected"},
+                    {"action_type": "move_remaining_cards"}], duration=None,
     )
 
 
@@ -8841,20 +9179,6 @@ def _live_start_deep_modifiers(row: sqlite3.Row) -> EffectCandidate | None:
             "actions": [{"action_type": "gain_blade", "amount": 1}],
             "duration": "live",
         },
-        "【ライブ開始時】自分のステージにいる『Aqours』のメンバー1人を選ぶ。そのメンバーが持つ【ブレード】が6つ以上の場合、このカードのスコアを＋１する。": {
-            "suffix": "choose_aqours_member_blade6_score1",
-            "choice": {
-                "choice_type": "member_from_stage",
-                "zone": "stage",
-                "card_type": "member",
-                "work_key": "love_live_sunshine",
-                "minimum_blade": 6,
-                "minimum": 1,
-                "maximum": 1,
-            },
-            "actions": [{"action_type": "modify_score", "amount": 1}],
-            "duration": "live",
-        },
         "【ライブ開始時】自分の成功ライブカード置き場にカードがある場合、【heart01】か【heart03】か【heart06】のうち、1つを選ぶ。ライブ終了時まで、自分のステージにいる『μ's』のメンバー1人は、選んだハートを1つ得る。": {
             "suffix": "success_exists_choose_muse_member_heart1",
             "condition": {"success_live_count_at_least": 1},
@@ -9816,6 +10140,22 @@ def _activated_more_simple_effects(row: sqlite3.Row) -> EffectCandidate | None:
             duration=values.get("duration"),
         )
     return None
+
+
+def _static_mirrored_front_cost_heart(row: sqlite3.Row) -> EffectCandidate | None:
+    label = "【常時】このメンバーの正面のエリアにいる相手のメンバーのコストが、このメンバーのコストより高いかぎり、【heart01】を得る。"
+    full_text = "【登場】自分のステージにいるメンバーが『みらくらぱーく！』のみの場合、相手のステージにいるメンバー1人をこのメンバーの正面のエリアにポジションチェンジさせる。 " + label
+    if (row["card_code"] != "PL!HS-pb1-014" or row["text_revision_id"] != 130
+        or row["raw_text_hash"] != "542b68ba2435dd4aafaaf2f88d9fc0d75cf33321d245934e772175c21e009591"
+        or row["raw_effect_text_ja"] != full_text):
+        return None
+    return EffectCandidate(
+        **_base_with_execution_mode(row, pattern_id="static_mirrored_front_cost_heart_v1", effect_index=2, execution_mode="auto_resolve"),
+        label_ja=label, effect_type="static", timing="static_always", trigger="static_always",
+        frequency_limit="none", is_optional=False,
+        condition={"opposing_member_cost_greater_than_source_mirrored_v1": True}, cost=[], choice=None,
+        actions=[{"action_type": "gain_heart", "amount": 1, "color_slot": "heart01"}], duration="game",
+    )
 
 
 def _static_modifier_effects(row: sqlite3.Row) -> EffectCandidate | None:
@@ -14639,29 +14979,6 @@ def _phase5_v1_final_static_effects(row: sqlite3.Row) -> EffectCandidate | None:
 
 def _simple_ai_v1_1_safe_effects(row: sqlite3.Row) -> EffectCandidate | None:
     patterns: dict[str, dict[str, Any]] = {
-        "【ライブ開始時】自分のデッキの下からカードを3枚控え室に置く。それらがすべて『Aqours』のメンバーカードの場合、ライブ終了時まで、【heart04】を得る。": {
-            "suffix": "live_start_mill_bottom3_all_aqours_member_heart04",
-            "effect_type": "triggered",
-            "timing": "live_start",
-            "trigger": "live_started",
-            "frequency_limit": "once_per_live",
-            "actions": [
-                {"action_type": "mill_bottom_cards", "amount": 3},
-                {
-                    "action_type": "gain_heart",
-                    "target": "source",
-                    "amount": 1,
-                    "color_slot": "heart04",
-                    "value": {
-                        "condition": {
-                            "milled_all_card_type": "member",
-                            "milled_all_work_key": "love_live_sunshine",
-                        }
-                    },
-                },
-            ],
-            "duration": "live",
-        },
         "【ライブ開始時】ライブ終了時まで、自分のステージにいる『Aqours』のメンバー1人は、元々持つハートがすべて【heart04】になる。": {
             "suffix": "live_start_aqours_member_replace_base_hearts_heart04",
             "effect_type": "triggered",
@@ -15389,6 +15706,9 @@ def _activated_return_energy_recover_live(row: sqlite3.Row) -> EffectCandidate |
 
 
 _PATTERNS = (
+    _onplay_opponent_live_offer,
+    _onplay_both_center_position,
+    _static_mirrored_front_cost_heart,
     _wait_moved_source_ready,
     _activated_pay1_inspect4_reorder,
     _activated_return_energy_recover_live,
@@ -15402,6 +15722,7 @@ _PATTERNS = (
     _live_start_discard_two_same_group_gain_heart_blade,
     _live_start_other_nijigasaki_cost_heart,
     _live_start_nijigasaki_blade_four_heart,
+    _live_start_aqours_selected_blade_six_source_score,
     _live_success_aqours_yell_bottom_three,
     _live_start_success_muse_two_yell_ten,
     _live_start_reduce_yell_count_by8_if_other_member,
@@ -15450,6 +15771,19 @@ _PATTERNS = (
     _onplay_draw_then_discard_one,
     _onplay_named_baton_draw_then_discard,
     _onplay_multi_keep_icon_scope_manual,
+    _onplay_private_three_top_bottom,
+    _onplay_ten_minus_hand_private_two,
+    _onplay_wait_energy_next_active,
+    _live_success_opponent_draw_discard,
+    _live_start_bottom_one_heart,
+    _live_start_bottom_three_aqours_heart,
+    _live_start_bottom_five_member_score,
+    _live_start_bottom_aqours_requirement,
+    _onplay_mill_three_blade_colors,
+    _onplay_muse_granted_blade,
+    _onplay_both_waiting_live,
+    _onplay_diverdiva_energy_modes,
+    _live_success_opponent_cost4_wait_or_draw,
     _onplay_audited_discard_inspection,
     _onplay_optional_discard_inspect_keep1_any,
     _nijigasaki_onplay_inspection,

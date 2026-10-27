@@ -294,6 +294,40 @@ class Workflow:
             progress["status"] = "in_progress"
             return {"lease": state["lease"], "task": task, "recovered_expired_lease": bool(old)}
 
+    def requeue(self, task_id: str, note: str) -> dict[str, str]:
+        self.assert_writer()
+        self.assert_workspace(require_base=False)
+        task = self.task(task_id)
+        if not note.strip():
+            raise WorkflowError("recovery needs an explicit reason")
+        with self.transaction() as state:
+            if state.get("paused"):
+                raise WorkflowError("workflow is paused")
+            old = state.get("lease")
+            if old and datetime.fromisoformat(old["expires_at"]) > now_utc():
+                raise WorkflowError(f"worker already active: {old['owner']}")
+            progress = state["tasks"].get(task_id, {})
+            if progress.get("status", task["status"]) != "blocked":
+                raise WorkflowError("only a blocked task can be requeued")
+            if not all(
+                state["tasks"].get(dep, {}).get("status", self.task(dep)["status"]) == "done"
+                for dep in task.get("depends_on", [])
+            ):
+                raise WorkflowError("task has unfinished dependencies")
+            recovered_at = now_utc().isoformat()
+            progress.setdefault("recovery_history", []).append({
+                "blocked_note": progress.get("note"),
+                "blocked_at": progress.get("updated_at"),
+                "reason": note,
+                "recovered_at": recovered_at,
+            })
+            progress.update(status="queued", note=note, updated_at=recovered_at)
+            state["tasks"][task_id] = progress
+            state["lease"] = None
+            if state.get("last_check", {}).get("task_id") == task_id:
+                state.pop("last_check")
+            return {"task_id": task_id, "status": "queued"}
+
     def renew(self, token: str) -> None:
         self.assert_writer()
         with self.transaction() as state:
@@ -732,6 +766,9 @@ def main() -> int:
     claim = commands.add_parser("claim")
     claim.add_argument("--owner", required=True)
     claim.add_argument("--task")
+    requeue = commands.add_parser("requeue")
+    requeue.add_argument("--task", required=True)
+    requeue.add_argument("--note", required=True)
     for name in ("renew", "release", "complete", "check", "checkpoint"):
         sub = commands.add_parser(name)
         sub.add_argument("--lease", required=True)
@@ -780,6 +817,8 @@ def main() -> int:
                 result = {"paused": state["paused"]}
         elif operation == "claim":
             result = workflow.claim(args.owner, args.task)
+        elif operation == "requeue":
+            result = workflow.requeue(args.task, args.note)
         elif operation == "renew":
             workflow.renew(args.lease)
         elif operation == "release":

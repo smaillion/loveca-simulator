@@ -23,6 +23,21 @@ ManualEffectPolicy = Literal["skip", "block", "noop"]
 LIVE_PROTECTING_POLICIES = frozenset({"simple_ai_v1_1", "simple_ai_v1_2"})
 
 
+def opponent_live_offer_selection(options: dict[str, Any], ranked_ids: list[str]) -> list[str]:
+    selected: list[str] = []
+    names: set[str] = set()
+    required = int(options.get("minimum", 0))
+    for item in ranked_ids:
+        name = options.get("candidate_name_by_instance", {}).get(item)
+        if options.get("current_index") == 0 and name in names:
+            continue
+        if len(selected) >= required:
+            break
+        selected.append(item)
+        names.add(name)
+    return selected
+
+
 @dataclass(frozen=True)
 class SimpleAIDecision:
     action: ActionRequest
@@ -311,6 +326,13 @@ def _choose_follow_up_effect_choice_v1(
 ) -> AICandidate:
     options = action.options
     candidates = list(options.get("candidate_card_instance_ids", []))
+    if options.get("multi_player_choice_type") == "multi_player_opponent_live_offer":
+        ranked = _rank_card_ids(observation, candidates, descending=options.get("current_index") == 0)
+        return AICandidate(action.action_type, action.player_id,
+            {"selected_card_instance_ids": opponent_live_offer_selection(options, ranked)}, 650, "choose_public_live_offer")
+    if options.get("multi_player_choice_type") == "multi_player_center_position_change":
+        return AICandidate(action.action_type, action.player_id,
+            {"slot": _preferred_slot(list(options.get("available_slots", [])))}, 650, "choose_own_center_position")
     if options.get("multi_player_choice_type") == "multi_player_deploy_waiting_member":
         slots = list(options.get("available_slots", []))
         selected = _rank_card_ids(observation, candidates, descending=True)
@@ -348,6 +370,8 @@ def _choose_follow_up_effect_choice_v1(
         payload["invocation_id"] = options["invocation_id"]
     if options.get("requires_order"):
         payload["ordered_card_instance_ids"] = list(selected)
+    if options.get("selection_policy") == "private_three_top_bottom_order":
+        payload["bottom_ordered_card_instance_ids"] = [item for item in candidates if item not in selected]
     return AICandidate(
         action.action_type,
         action.player_id,
@@ -833,7 +857,10 @@ def _structured_effect_payload_v1(
     choice_type = invocation.get("choice_type") or choice.get("choice_type")
     candidates = list(invocation.get("candidate_card_instance_ids", []))
     if candidates and any(
-        op.action_type == "modify_source_score_if_selected_blade_highest"
+        op.action_type in {
+            "modify_source_score_if_selected_blade_highest",
+            "modify_source_score_if_selected_blade_six",
+        }
         for op in effect.actions
     ):
         blade_counts = invocation.get("candidate_blade_counts", {})
@@ -844,6 +871,9 @@ def _structured_effect_payload_v1(
         "multi_player_discard_to_hand_size_then_draw",
         "multi_player_draw_then_discard",
         "multi_player_deploy_waiting_member",
+        "multi_player_waiting_live_recovery",
+        "multi_player_center_position_change",
+        "multi_player_opponent_live_offer",
     }:
         return payload
     if choice_type in {"member_group_from_stage", "card_groups_from_zone"}:
@@ -1139,7 +1169,10 @@ def _operation_value_without_observation(
         base = 6 * amount
     elif action_type in {"gain_heart", "gain_heart_to_stage_members"}:
         base = 7 * amount
-    elif action_type in {"modify_score", "replace_score", "modify_source_score_if_selected_blade_highest"}:
+    elif action_type in {
+        "modify_score", "replace_score", "modify_source_score_if_selected_blade_highest",
+        "modify_source_score_if_selected_blade_six",
+    }:
         base = 11 * amount
     elif action_type in {"return_from_waiting_room", "move_selected_to_hand"}:
         base = 7 * amount
@@ -1380,6 +1413,12 @@ def choose_simple_ai_action(
         action = by_type["resolve_effect_choice"]
         options = action.options
         candidates = list(options.get("candidate_card_instance_ids", []))
+        if options.get("multi_player_choice_type") == "multi_player_opponent_live_offer":
+            return action.action_type, action.player_id, {
+                "selected_card_instance_ids": opponent_live_offer_selection(options, candidates)}, "choose_public_live_offer"
+        if options.get("multi_player_choice_type") == "multi_player_center_position_change":
+            slots = list(options.get("available_slots", []))
+            return action.action_type, action.player_id, {"slot": slots[0]}, "choose_own_center_position"
         if options.get("multi_player_choice_type") == "multi_player_deploy_waiting_member":
             slots = list(options.get("available_slots", []))
             payload: dict[str, Any] = {}
@@ -1395,6 +1434,8 @@ def choose_simple_ai_action(
         payload = {"selected_card_instance_ids": selected}
         if options.get("requires_order"):
             payload["ordered_card_instance_ids"] = list(selected)
+        if options.get("selection_policy") == "private_three_top_bottom_order":
+            payload["bottom_ordered_card_instance_ids"] = [item for item in candidates if item not in selected]
         return action.action_type, action.player_id, payload, "effect_choice_minimum"
     if "resolve_live_requirements" in by_type:
         action = by_type["resolve_live_requirements"]
@@ -1527,6 +1568,9 @@ def _choose_effect_resolution(
         "multi_player_discard_to_hand_size_then_draw",
         "multi_player_draw_then_discard",
         "multi_player_deploy_waiting_member",
+        "multi_player_waiting_live_recovery",
+        "multi_player_center_position_change",
+        "multi_player_opponent_live_offer",
     }:
         return action.action_type, action.player_id, payload, "resolve_multi_player_effect"
     if choice_type in {"member_group_from_stage", "card_groups_from_zone"}:

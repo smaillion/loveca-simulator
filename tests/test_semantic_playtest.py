@@ -161,6 +161,7 @@ def test_agent_cannot_submit_unknown_action():
 
 def test_agent_context_contains_source_text_and_manual_schema():
     state = _state()
+    state.players["player_1"].member_area["center"] = "p1-card-1"
     context = build_agent_context(state, [_manual_action()])
 
     assert context["manual_invocation"]["effect_id"] == "TEST-001:1"

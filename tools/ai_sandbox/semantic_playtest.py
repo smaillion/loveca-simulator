@@ -20,10 +20,16 @@ from pathlib import Path
 from typing import Any, Protocol
 
 from loveca.decks.analyzer import DeckList
+from loveca.simulation.ai import opponent_live_offer_selection
 from loveca.simulation.engine import IllegalActionError, generate_legal_actions
 from loveca.simulation.models import ActionRequest, CardInstance, LegalAction, MatchState
 from loveca.simulation.service import MatchService
-from loveca.simulation.visibility import private_inspection_card_ids
+from loveca.simulation.visibility import (
+    owner_manual_source_handles,
+    player_visible_card_ids,
+    private_inspection_card_ids,
+    redact_hidden_references,
+)
 from tools.ai_sandbox.blackbox_playtest import (
     SandboxDeckSummary,
     build_decks,
@@ -1109,7 +1115,7 @@ def build_api_play_context(
     baseline_decision: tuple[str, str | None, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     acting_player_id = _acting_player_id(state, legal_actions)
-    return {
+    context = {
         "schema_version": SEMANTIC_SCHEMA_VERSION,
         "mode": "api_play",
         "rule_context": asdict(rule_context) if rule_context is not None else None,
@@ -1161,6 +1167,10 @@ def build_api_play_context(
         },
         "legal_actions": [action.model_dump() for action in legal_actions],
     }
+    return redact_hidden_references(
+        context, set(state.cards) - player_visible_card_ids(state, acting_player_id),
+        source_handles=owner_manual_source_handles(state, acting_player_id),
+    )
 
 
 def decision_context(
@@ -1330,6 +1340,13 @@ def legal_action_hint(action: LegalAction) -> dict[str, Any]:
 
 
 def payload_hint_for_action(action: LegalAction) -> dict[str, Any]:
+    if (action.action_type == "resolve_effect_choice"
+            and action.options.get("selection_policy") == "private_three_top_bottom_order"):
+        return {
+            "selected_card_instance_ids": "any inspected subset to put on top",
+            "ordered_card_instance_ids": "selected subset in top-to-bottom order",
+            "bottom_ordered_card_instance_ids": "every remaining inspected id exactly once in top-to-bottom order",
+        }
     hints: dict[str, dict[str, Any]] = {
         "choose_first_player": {
             "first_player_id": "one id from options.player_ids"
@@ -1410,6 +1427,12 @@ def payload_example_for_action(action: LegalAction) -> dict[str, Any]:
             else {}
         )
     if action.action_type == "resolve_effect_choice":
+        if options.get("multi_player_choice_type") == "multi_player_opponent_live_offer":
+            return {"selected_card_instance_ids": opponent_live_offer_selection(options,
+                first_n_strings(options.get("candidate_card_instance_ids"), len(options.get("candidate_card_instance_ids", []))))}
+        if options.get("multi_player_choice_type") == "multi_player_center_position_change":
+            slots = first_n_strings(options.get("available_slots"), 1)
+            return {"slot": slots[0]} if slots else {}
         minimum = options.get("minimum", 0)
         count = minimum if isinstance(minimum, int) else 0
         selected = first_n_strings(
@@ -1419,6 +1442,10 @@ def payload_example_for_action(action: LegalAction) -> dict[str, Any]:
         payload: dict[str, Any] = {"selected_card_instance_ids": selected}
         if options.get("requires_order"):
             payload["ordered_card_instance_ids"] = list(selected)
+        if options.get("selection_policy") == "private_three_top_bottom_order":
+            payload["bottom_ordered_card_instance_ids"] = [
+                item for item in options.get("candidate_card_instance_ids", []) if item not in selected
+            ]
         return payload
     if action.action_type == "resolve_live_requirements":
         if isinstance(options.get("live_instance_ids"), list):
@@ -1487,10 +1514,11 @@ def build_agent_context(
             "simulation_support": "manual_resolution",
         }
     source_card = None
-    if manual_invocation and manual_invocation.get("source_card_instance_id") in state.cards:
+    visible_ids = player_visible_card_ids(state, acting_player_id)
+    if manual_invocation and manual_invocation.get("source_card_instance_id") in visible_ids:
         instance = state.cards[str(manual_invocation["source_card_instance_id"])]
         source_card = card_context(instance, include_private=instance.owner_id == acting_player_id)
-    return {
+    context = {
         "schema_version": SEMANTIC_SCHEMA_VERSION,
         "mode": "manual_resolution",
         "rule_context": asdict(rule_context) if rule_context is not None else None,
@@ -1535,6 +1563,10 @@ def build_agent_context(
         },
         "legal_actions": [action.model_dump() for action in legal_actions],
     }
+    return redact_hidden_references(
+        context, set(state.cards) - visible_ids,
+        source_handles=owner_manual_source_handles(state, acting_player_id),
+    )
 
 
 def manual_adjustment_schema_reference() -> dict[str, Any]:

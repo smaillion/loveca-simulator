@@ -2,11 +2,59 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+継続開発のレビュー先は[Draft PR #55](https://github.com/smaillion/loveca-simulator/pull/55)に固定。管理者承認済みの目標変更を独立した全門禁で再検証し、同じ分岐/PRのみ更新する。[検証記録](./docs/development/draft-pr55-target-verification.md)。merge/deployは別途承認が必要。
+
+`PL!S-bp7-025:1`を全文/revision/hash限定で対応。相手のコスト4以下を0～2人選びWaitと次ゲームターンのActive制限、または一枚ドロー。原対象の離場で解除し、場内移動では保持、旧snapshotは変更しない。85専用/34 SQL、四AI・秘匿、271図解/7 UI、最終門禁と固定30試合は[検証記録](./docs/development/opponent-member-next-active-verification.md)。管理者が新Draft PR作成を承認、merge/deployは別途承認が必要。
+
+宮下愛`PL!N-bp7-005:1`を全文/revision/hash限定で対応。異なる名前のDiverDiva二人を解決時に確認し、Energy二枚を可能な範囲でActiveにするか、Energy Deckから虹ヶ咲メンバーの下へ一枚置く。84専用/22 SQL、四AI・秘匿、266図解と双語UIを保護。旧snapshotと既存blockedは維持し、最終同一ソース門禁・固定30試合は[検証記録](./docs/development/diverdiva-energy-choice-verification.md)を参照。ローカル作業のみ。
+
+`PL!S-bp7-020:1`の全員Active条件を境界監査。空ステージ時の真偽を直接支える公式根拠を今回取得できず、manualを維持する。28境界/11 SQL、四AI・秘匿・人工UIを保護し、第2段や930/1212登録は変更しない。アプリ指紋不変のため固定30試合は再実行しない。[未解決事項と証拠](./docs/development/all-active-live-requirement-unresolved.md)
+
+`PL!S-bp7-020:2`を全文/revision/hash限定で対応。下の実際のAqoursメンバーにより元Liveの無色必要ハートだけを一つ減らす。期限未記載はgame、移区で新オブジェクトとなるため復帰に継承しない。第1段manualと旧Replayは保持。52専用/17 SQL、262図解と中日UIを検証し、最終同一ソースの門禁・固定30試合は[検証記録](./docs/development/bottom-one-aqours-requirement-verification.md)を参照。ローカル作業のみ。
+
 ラブライブ！シリーズ オフィシャルカードゲーム（ラブカ）のための、ローカルカードデータベース、デッキ分析、ルール検証ツールです。
 
 公式日本語データを唯一の権威ソースとして扱います。内部の英語名は安定した実装識別子であり、公式用語の置き換えではありません。
 
 ## 現在の状態
+
+鬼塚冬毬`PL!SP-bp2-011:1`を全文/revision/hash限定で対応。本人が控室の異なる名前のLive二枚を提示し、相手がその一枚を選ぶ。Q118により二種類を選べない場合は回収しない。103専用/27種SQL、四AI・非公開情報、257図解と中日UIを検証。完全門禁・固定30試合・提出結果は検証入口を参照。未push、後続PR目標承認待ち。[検証と範囲](./docs/development/opponent-live-offer-verification.md)
+
+ウィーン・マルガレーテ`PL!SP-bp5-010:1`を全文/revision/hash限定で対応。Q223と通則1.3.4.1に基づき各自が中央の移動先を選び、選択を伴う処理は主动側から順に実行する。占有先の交換/附属/移動誘発の待機、旧manual Replayと非公開情報を保護。69専用テストと251図解を検証し、完全門禁・固定30試合・提出結果は独立記録を参照。未push、後続PR承認待ち。[検証と範囲](./docs/development/both-center-position-verification.md)
+
+安養寺姫芽`PL!HS-pb1-014:2`の左右正面比較を限定snapshotで修正。105専用/46種SQL/247図解と旧pattern名契約の更新を検証し、完全な門禁は同じソースで再確認する。第1段manual、旧Replay、927/1212を維持し、固定30試合も15完了のまま。最終結果は検証記録を参照。下段の未修正記述は履歴。[修正と検証](./docs/development/mirrored-cost-heart-verification.md)
+
+安養寺姫芽`PL!HS-pb1-014:1`は固定正面への移動対象/発生源の最終位置が未解決で手動のまま。37境界テストを追加し、第2常時の左右鏡像参照に既存不具合を原生SQLで発見した。第2段は本輪未修正、次の最優先修正として分離。927/1212は変更しない。[監査と既知不具合](./docs/development/mirakura-front-position-unresolved.md)
+
+小原鞠莉`PL!S-bp7-008:1`を全文/revision/hash限定で対応。私見三枚を任意に分け、上と下を独立に並べる。第2段は手動のまま。88専用、242図解、269フロントを検証し、固定30試合は14→15完了。ただし追加局は0:3 Liveで、双方Liveの長局達成ではない。[検証と境界](./docs/development/private-three-top-bottom-verification.md)
+
+Live`PL!S-bp7-021:1`を全文/revision/hash限定で対応。解決時のステージ三人条件、下五回のMember履歴、追加一枚ドローと元Liveだけのscore+1を区別する。82専用、238図解、263フロントを検証。固定30試合は14完了のまま、実際の二回は条件不成立/Member三枚ドローであり、無作為のscore+1実績ではない。[検証と限界](./docs/development/bottom-five-member-score-verification.md)
+
+津島善子`PL!S-bp7-006:1`の既存処理を修正。下から三回の移動履歴でAqoursメンバー条件を判定し、元の発生源だけに緑Heartを与える。離場後の同ID復帰への誤適用を原生Action/SQLで再現・保護し、旧snapshotは維持。実行可能数925/1212は変えない。固定30試合は14完了/16手動停止のまま、正条件の単独SQL分岐は別証拠。[検証と範囲](./docs/development/bottom-three-aqours-heart-verification.md)
+
+桜小路きな子`PL!SP-bp7-017:1`を全文/revision/hash限定で対応。実際に置いた新EnergyだけをWaitにし、次ターンの本人Activeで一回だけ自動復原を止める。Q280に基づき能力でのActive/再支払いで制限は消えず、移区/復帰には継承しない。64専用、227図解と254フロントを検証。固定30試合は13→14完了ですが、当該局は0:3 Liveで次ターン前に終了。[証拠と限界](./docs/development/wait-energy-next-active-verification.md)
+
+優木せつ菜`PL!N-sd2-007:1`を全文/revision/hash限定で対応。必ず一枚引き、現在ターンの相手成功を確認した時だけ追加ドローと手札一枚選択。過去の成功置き場や勝敗とは区別し、非公開発生源でもUIを操作可能に修正。86専用、222図解、四AI/SQL/251フロントを検証。固定30試合は12→13完了、実際の正条件一回を記録。[証拠と範囲](./docs/development/opponent-success-draw-discard-verification.md)
+
+津島善子`PL!S-bp7-015:1`を全文/revision/hash限定で自動化。実際にデッキの下から控室へ移した一枚だけを判定し、Liveなら元の発生源に赤Heart+1。空デッキrefresh、離場/同ID復帰、旧snapshotを区別。60専用、217図解、四AI/SQLと246フロントを検証。固定30試合は12完了のまま、本カードは他のmanual待機で未解決のため、別の制御分岐を明記。[証拠と限界](./docs/development/bottom-one-live-heart-verification.md)
+
+星空凛`PL!-pb2-005:1`を全文/revision/hash限定で対応。成功置き場のμ'sのスコアBlade Heart図柄を確認し、元の発生源が持つ常時能力として後から登場するμ'sにもBlade+1。離場/再登場とLive終了を区別し、重ねる/継承は明示的に保留。75専用、212図解、四AI/SQL/243フロントを検証。固定30試合は12完了のまま、本カード実誘発2回はいずれも条件不成立。[検証と制限](./docs/development/muse-granted-blade-verification.md)
+
+旧多人数処理の発生源ID漏洩を修正。可視性は実際の領域と確認policyで決定し、通常選択・skip・待機コピー・AI・代理contextの参照から非公開カードを復活させません。本人のmanual提出用識別子はカード可視性と分離。64専用テスト、原生SQL/REST/再接続、240フロントテストを検証。固定30試合は12完了/18手動停止のまま、登録率は変更しません。未push・後続PR承認待ち。[検証と範囲](./docs/development/multi-player-source-privacy-verification.md)
+
+優木せつ菜`PL!N-bp4-007:1`の両者控室Live回収を限定対応。アクティブ側から公開選択し、両選択後に同時に手札へ。74専用テスト、206図解、四AI/SQL/双視点を検証。固定30試合は11→12完了。ただし旧多人数処理で発見した別の発生源ID漏洩は次の優先修正であり、全体の安全性完了ではありません。[証拠と残件](./docs/development/both-waiting-live-recovery-verification.md)
+
+エマ・ヴェルデ`PL!N-bp7-020:1`を正確な本文と公式Q270に基づき対応。上三枚のMemberだけから有色Blade Heartを数え、二色以上なら元の発生源に緑Heart+1。ALL/Live/通常Heartは混同しません。61専用テスト、202図解検証、実際に三回誘発。固定30試合は11完了/19手動停止のままです。[検証と限界](./docs/development/mill-three-blade-colors-verification.md)
+
+米女メイ`PL!SP-PR-028:1`を本文/revision/hash限定で対応。解決時の手札枚数から確認数を計算し、非公開で0–2枚取得、残りは控室へ。59専用テストと196図解検証。同じ30デッキで9→11試合完了、本能力は実際に2回誘発。登録919/1212、293manual。公開四枚・成功置き場の未解決能力は昇格しません。[検証と制限](./docs/development/ten-minus-hand-private-two-verification.md)
+
+四枚の公開選択prototypeを追加。条件不成立なら元のデッキに残し、従来の非公開確認は維持します。四枚未満は未解決として拒否し、公式`PL!-pb2-013:1`には登録しません。実行率の追加なし。[限定底座](./docs/development/public-four-reveal-foundation.md)
+
+「春情ロマンティック」`PL!-pb2-041:2`は成功置き場の枚数を二枚扱いにする第1能力に依存するため、両段ともmanualを維持。12境界テストで実際の待機・四AI・SQL Replayを確認し、単純な実枚数での自動化は行いません。[未解決監査](./docs/development/lily-white-source-score-unresolved.md)
+
+`PL!S-bp3-025:1`はAqoursを先に選択し、解決時に有効Blade6以上なら元のLiveだけscore+1。低Bladeも選択可能で、離場後の同IDは再接続しません。旧Replay維持、266関連テスト・191図解を検証。同じ30デッキは9完了/21手動停止、本カードの実入隊は0で完走率の改善とはしません。[検証](./docs/development/aqours-blade-six-score-verification.md)
+
+継続開発のblockedタスクは、承認済みの原因解消を記録する`requeue`で復帰できます。有効な作業リースや未完了の依存を回避せず、古い検証結果も再利用しません。[開発手順](./docs/21-continuous-development.md)
 
 「Fire Bird」`PL!N-sd2-026:1`に対応。現在の有効Bladeが4以上の自分の虹ヶ咲Stage Memberを1人選び、Heart02を2つ与えます。新policyだけ常時修正も反映し、旧Replayは維持。918/1212、294manual。同じ30デッキは9完了/21手動停止で、beta合格ではありません。[検証](./docs/development/nijigasaki-blade-four-heart-verification.md)
 

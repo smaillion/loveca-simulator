@@ -129,6 +129,81 @@ def test_paused_loop_refuses_claim(workflow):
         workflow.claim("worker")
 
 
+def test_blocked_requeue_preserves_history_and_requires_fresh_gates(workflow):
+    token = workflow.claim("worker")["lease"]["token"]
+    workflow.check(token, ["control"])
+    workflow.complete(token, "blocked", "waiting for a limited repair approval")
+    blocked = workflow.load()["tasks"]["first"].copy()
+    result = workflow.requeue("first", "maintainer approved the specified repair")
+    state = workflow.load()
+    assert result == {"task_id": "first", "status": "queued"}
+    history = state["tasks"]["first"]["recovery_history"]
+    assert history[0]["blocked_note"] == blocked["note"]
+    assert history[0]["blocked_at"] == blocked["updated_at"]
+    assert "last_check" not in state
+    resumed = workflow.claim("resumed-worker", "first")["lease"]["token"]
+    with pytest.raises(WorkflowError, match="passing gates"):
+        workflow.complete(resumed, "done", "old evidence must not authorize completion")
+    assert workflow.check(resumed, ["control"])["passed"]
+    workflow.complete(resumed, "done", "new gates passed")
+
+
+@pytest.mark.parametrize("status", ["queued", "in_progress", "done"])
+def test_requeue_rejects_nonblocked_states(workflow, status):
+    with workflow.transaction() as state:
+        state["tasks"]["first"] = {"status": status}
+    before = workflow.load()
+    with pytest.raises(WorkflowError, match="only a blocked"):
+        workflow.requeue("first", "not blocked")
+    assert workflow.load() == before
+
+
+def test_requeue_refuses_active_writer_without_changing_state(workflow):
+    workflow.claim("active-worker")
+    with workflow.transaction() as state:
+        state["tasks"]["second"] = {"status": "blocked"}
+    before = workflow.load()
+    with pytest.raises(WorkflowError, match="already active"):
+        workflow.requeue("second", "must not interfere")
+    assert workflow.load() == before
+
+
+def test_requeue_refuses_paused_or_unfinished_dependencies(workflow):
+    with workflow.transaction() as state:
+        state["tasks"]["second"] = {"status": "blocked"}
+    before = workflow.load()
+    with pytest.raises(WorkflowError, match="unfinished dependencies"):
+        workflow.requeue("second", "dependency still pending")
+    assert workflow.load() == before
+    with workflow.transaction() as state:
+        state["paused"] = True
+    before = workflow.load()
+    with pytest.raises(WorkflowError, match="paused"):
+        workflow.requeue("second", "must preserve pause")
+    assert workflow.load() == before
+
+
+def test_requeue_rejects_blank_reason_or_unknown_task(workflow):
+    before = workflow.load()
+    with pytest.raises(WorkflowError, match="explicit reason"):
+        workflow.requeue("first", "  ")
+    with pytest.raises(WorkflowError, match="unknown task"):
+        workflow.requeue("missing", "not in queue")
+    assert workflow.load() == before
+
+
+def test_requeue_releases_expired_lease_and_retains_failures(workflow):
+    workflow.claim("expired-worker")
+    with workflow.transaction() as state:
+        state["lease"]["expires_at"] = (now_utc() - timedelta(seconds=1)).isoformat()
+        state["tasks"]["first"].update(status="blocked", consecutive_gate_failures=3)
+    workflow.requeue("first", "failure cause fixed and approved")
+    state = workflow.load()
+    assert state["lease"] is None
+    assert state["tasks"]["first"]["consecutive_gate_failures"] == 3
+    assert workflow.claim("new-worker", "first")["task"]["id"] == "first"
+
+
 def test_gate_evidence_is_bound_to_source_and_required_profiles(workflow):
     token = workflow.claim("worker")["lease"]["token"]
     report = workflow.check(token, ["control"])

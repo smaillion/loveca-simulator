@@ -463,7 +463,7 @@ def test_effect_candidate_discovery_structures_pbll02_clls01_safe_exact_family()
         "PL!S-cl1-005:1": "live_start_look_top1_optional_deck_bottom",
         "PL!S-cl1-008:1": "activated_wait_discard1_draw1",
         "PL!S-cl1-009:1": "activated_source_to_wr_return_member",
-        "PL!S-bp7-006:1": "simple_ai_v1_1_live_start_mill_bottom3_all_aqours_member_heart04",
+        "PL!S-bp7-006:1": "live_start_bottom_three_aqours_heart",
         "PL!S-bp7-019:1": "simple_ai_v1_1_live_success_waiting_aqours_up_to2_deck_bottom",
         "PL!S-bp7-024:1": "simple_ai_v1_1_live_start_aqours_member_replace_base_hearts_heart04",
         "PL!SP-bp7-024:1": "simple_ai_v1_1_live_success_energy_advantage2_score1",
@@ -1330,7 +1330,7 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
         "static_source_most_stage_hearts_score1",
         "static_center_highest_cost_heart03",
         "static_liella_live_required_heart8_heart03",
-        "static_opposing_member_higher_cost_heart01",
+        "static_mirrored_front_cost_heart_v1",
         "static_source_not_moved_this_turn_blade2",
         "static_attached_energy2_score1",
         "live_success_revealed_all_blade_score1",
@@ -1382,7 +1382,7 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
         "live_start_wait_opponent_original_blade3_non_dollchestra_member",
         "live_start_draw1_wait_opponent_cost9_member_up_to1",
         "live_start_stage_total_heart5_wait_opponent_cost2_member",
-        "live_start_deep_choose_aqours_member_blade6_score1",
+        "live_start_aqours_selected_blade_six_source_score",
         "onplay_named_baton_nakasu_kasumi_draw2_discard1",
         "activated_discard2_return_live_required_heart03_3",
         "audited_discard_inspection_PL!S-pb1-013",
@@ -3585,13 +3585,13 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
         "choice_type": "member_from_stage",
         "zone": "stage",
         "card_type": "member",
-        "work_key": "love_live_sunshine",
-        "minimum_blade": 6,
+        "work_key": "aqours",
+        "selection_policy": "public_aqours_blade_six_source_score",
         "minimum": 1,
         "maximum": 1,
     }
     assert aqours_blade_choice_candidate.actions == [
-        {"action_type": "modify_score", "amount": 1}
+        {"action_type": "modify_source_score_if_selected_blade_six", "amount": 1}
     ]
     success_score_candidate = next(
         candidate
