@@ -196,6 +196,9 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *((f"bottom_five_member_score_{case}", f"下五回Memberと元Live得点 {case}", f"底五次Member与原Live得分 {case}",
+           "PL!S-bp7-021:1", lambda effect, case=case: _run_bottom_five_member_score(effect, case))
+          for case in ("all", "three", "two", "stage_two", "one_repeat", "empty")),
         *((f"bottom_three_aqours_{case}", f"下一枚ずつ三回とAqours {case}", f"底部逐张三次与Aqours {case}",
            "PL!S-bp7-006:1", lambda effect, case=case: _run_bottom_three_aqours(effect, case))
           for case in ("all", "wrong_work", "live", "one_repeat", "empty")),
@@ -532,6 +535,8 @@ def _v1_1_dynamic_scenarios(
                 notes_ja=[f"公式日本語テキスト: {effect.label_ja}"],
                 notes_zh=[f"官方日文效果文本：{effect.label_ja}"],
                 rule_reference_ids=(
+                    ["4.1.4", "4.8.3", "9.6.2.4.2", "9.7.7", "10.2.1", "10.2.2.1", "10.2.3", "8.4.11"]
+                    if effect_id == "PL!S-bp7-021:1" else
                     ["4.1.4", "4.8.2", "4.8.3", "9.7.7", "10.2.1", "10.2.2.1", "10.2.3", "8.4.11"]
                     if effect_id == "PL!S-bp7-006:1" else
                     ["4.1.4", "4.7.2", "4.7.3", "7.1.2", "7.3.3", "7.4.1", "9.7.7"]
@@ -627,6 +632,34 @@ def _run_opponent_success_draw(effect: EffectDefinition, case: str) -> dict[str,
         "先に引いてから選ぶ / 先抽后选": len(hand_before) == expected_draw,
         "条件成立時だけ必須一枚 / 条件成立才必选一张": len(final.state.players["player_1"].hand) == expected_draw - int(both and bool(hand_before)),
         "待機完了 / 待机完成": not final.state.pending_effects,
+    }
+
+
+def _run_bottom_five_member_score(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    source = _v1_1_live("source", effect.card_code, effect_ids=[effect.effect_id])
+    source.card.score = 5
+    members = 3 if case == "three" else 2 if case == "two" else 5
+    cards = [_v1_1_member(f"bottom{i}", f"Bottom {i}") if i < members
+             else _v1_1_live(f"bottom{i}", f"Bottom {i}") for i in range(5)]
+    stage = [_v1_1_member(f"stage{i}", f"Stage {i}") for i in range(3)]
+    state = _v1_1_state({effect.effect_id: effect}, [source, *cards, *stage,
+        _v1_1_member("draw", "Private Draw"), _v1_1_member("tail", "Private Tail")], hand=[])
+    p = state.players["player_1"]
+    p.live_area = ["source"]
+    p.member_area = {"left":"stage0", "center":"stage1", "right":None if case == "stage_two" else "stage2"}
+    p.main_deck = [] if case == "empty" else ["bottom0"] if case == "one_repeat" else ["draw", "tail", *[c.instance_id for c in cards]]
+    state.phase = "performance_first"
+    result = apply_action(state, ActionRequest(action_type="advance_phase",player_id="player_1",expected_revision=state.revision))
+    data = next(e.data for e in result.events if e.event_type == "effect_bottom_five_members_resolved")
+    count = 0 if case in {"empty", "stage_two"} else 5
+    drawn = int(count > 0 and members >= 3)
+    score = int(case in {"all", "one_repeat"})
+    return {
+        "五回の実移動 / 五次实际移动": data["milled_count"] == count,
+        "Member三回以上で一枚 / Member至少三次才抽一": data["drawn_count"] == drawn,
+        "元Liveだけ得点 / 仅原来源Live得分": _card_score(result.state,"player_1","source") == 5 + score,
+        "全体得点ではない / 不增加全局得分": all(m.modifier_type == "live_card_score" for m in result.state.players["player_1"].manual_modifiers),
+        "選択なし / 不多余确认": not result.state.pending_effects and result.state.pending_choice is None,
     }
 
 

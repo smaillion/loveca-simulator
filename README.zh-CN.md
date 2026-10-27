@@ -8,6 +8,8 @@
 
 ## 当前状态
 
+Live`PL!S-bp7-021:1`已限定适配：结算时检查三名成员，记录底五次Member移动，至少三次才抽一张，全部为Member才仅原来源Live score+1。82专项、238图文和263前端通过。冻结30局仍14完赛，本卡两次实际完成分别为三人条件失败、三Member抽一张，不称随机加分正条件覆盖。[验证与边界](./docs/development/bottom-five-member-score-verification.md)
+
 津島善子`PL!S-bp7-006:1`既有实现已修正：按底部三次实际移动判断Aqours Member，仅原来源获得绿Heart，离场同ID返回不继承。原生动作/SQL红测试复现旧错误，旧快照继续兼容。登记仍925/1212，不算新增覆盖。冻结30局仍14完赛/16人工停止，正条件单独SQL分支另列。[验证与边界](./docs/development/bottom-three-aqours-heart-verification.md)
 
 桜小路きな子`PL!SP-bp7-017:1`已限定适配：只把实际新放置的Energy置Wait，并跳过下回合本人的一次自动复原；主动复原再支付不取消限制，离场返回不继承。64专项、227图文及254前端通过。冻结30局完赛13→14，但该局Live为0:3且未进入标记目标回合，不冒充双方Live或跳过复原的随机覆盖。[验证与边界](./docs/development/wait-energy-next-active-verification.md)

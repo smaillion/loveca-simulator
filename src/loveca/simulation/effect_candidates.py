@@ -29,6 +29,12 @@ BOTTOM_THREE_AQOURS_HEART_TEXT = (
     "それらがすべて『Aqours』のメンバーカードの場合、ライブ終了時まで、【heart04】を得る。"
 )
 
+BOTTOM_FIVE_MEMBER_SCORE_TEXT = (
+    "【ライブ開始時】自分のステージにメンバーが3人以上いる場合、自分のデッキの下からカードを5枚控え室に置く。"
+    "それらの中にメンバーカードが3枚以上ある場合、カードを1枚引く。"
+    "それらがすべてメンバーカードの場合、さらにこのカードのスコアを＋１する。"
+)
+
 OPPONENT_SUCCESS_DRAW_DISCARD_TEXT = (
     "【ライブ成功時】カードを1枚引く。このターン、相手もライブを成功している場合、"
     "さらにカードを1枚引き、手札を1枚控え室に置く。"
@@ -2840,6 +2846,22 @@ def _live_success_opponent_draw_discard(row: sqlite3.Row) -> EffectCandidate | N
         actions=[{"action_type": "draw_card", "amount": 1},
                  {"action_type": "draw_extra_if_opponent_live_succeeded", "amount": 1},
                  {"action_type": "discard_from_hand"}], duration=None,
+    )
+
+
+def _live_start_bottom_five_member_score(row: sqlite3.Row) -> EffectCandidate | None:
+    if (row["card_code"] != "PL!S-bp7-021" or row["text_revision_id"] != 913
+            or row["raw_text_hash"] != "4abd5654a85639e01eb2721a21df5439f133589eeccd1238c04944fb4a0b6261"
+            or row["raw_effect_text_ja"] != BOTTOM_FIVE_MEMBER_SCORE_TEXT):
+        return None
+    return EffectCandidate(
+        **_base_with_execution_mode(row, pattern_id="live_start_bottom_five_member_score", effect_index=1,
+                                    execution_mode="auto_resolve"),
+        label_ja=BOTTOM_FIVE_MEMBER_SCORE_TEXT, effect_type="triggered", timing="live_start",
+        trigger="live_started", frequency_limit="once_per_live", is_optional=False,
+        condition={}, cost=[], choice=None, duration="live",
+        actions=[{"action_type": "mill_bottom_five_members_draw_source_score", "amount": 5,
+                  "target": "source", "source_object_policy": "original_live_start_bottom_five_source"}],
     )
 
 
@@ -15619,6 +15641,7 @@ _PATTERNS = (
     _live_success_opponent_draw_discard,
     _live_start_bottom_one_heart,
     _live_start_bottom_three_aqours_heart,
+    _live_start_bottom_five_member_score,
     _onplay_mill_three_blade_colors,
     _onplay_muse_granted_blade,
     _onplay_both_waiting_live,

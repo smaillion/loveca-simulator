@@ -76097,18 +76097,19 @@
     {
       "actions": [
         {
-          "action_type": "manual_resolution",
-          "amount": null,
+          "action_type": "mill_bottom_five_members_draw_source_score",
+          "target": "source",
+          "amount": 5,
           "amount_source": null,
           "branch": null,
-          "card_type": null,
-          "color_slot": null,
-          "flag": null,
           "multiplier": null,
           "orientation": null,
-          "target": null,
-          "target_hand_size": null,
-          "value": null
+          "source_object_policy": "original_live_start_bottom_five_source",
+          "color_slot": null,
+          "card_type": null,
+          "flag": null,
+          "value": null,
+          "target_hand_size": null
         }
       ],
       "card_code": "PL!S-bp7-021",
@@ -76120,15 +76121,15 @@
       "effect_id": "PL!S-bp7-021:1",
       "effect_index": 1,
       "effect_type": "triggered",
-      "execution_mode": "manual_resolution",
+      "execution_mode": "auto_resolve",
       "follow_up_choice": null,
       "frequency_limit": "once_per_live",
       "is_optional": false,
       "label_ja": "【ライブ開始時】自分のステージにメンバーが3人以上いる場合、自分のデッキの下からカードを5枚控え室に置く。それらの中にメンバーカードが3枚以上ある場合、カードを1枚引く。それらがすべてメンバーカードの場合、さらにこのカードのスコアを＋１する。",
       "raw_text_hash": "4abd5654a85639e01eb2721a21df5439f133589eeccd1238c04944fb4a0b6261",
-      "review_status": "parsed_draft",
-      "simulation_support": "manual_resolution",
-      "source_reference": "Official card text; timing-only manual fallback pending structured effect modeling",
+      "review_status": "test_validated",
+      "simulation_support": "test_validated_executable",
+      "source_reference": "Official card text; comprehensive rules ver. 1.06 restricted executor pattern",
       "text_revision_id": 913,
       "timing": "live_start",
       "trigger": "live_started"

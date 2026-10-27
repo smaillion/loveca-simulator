@@ -1,5 +1,13 @@
 # AI and Simulation Notes
 
+PL!S-bp7-021:1 checks three top-level Stage Members when resolving (Q120/Q119
+analogy), records five bottom moves across immediate refresh, draws once for at
+least three Member moves and grants only the original Live score+1 for all five.
+Four controllers use native actions without hidden-identity influence.82 targeted
+and238 illustrated cases; frozen30 remains14/16,201/203 completed invocations.
+Two actual resolutions are stage-condition false and three-Member draw, not a
+random positive-score claim. [Evidence](development/bottom-five-member-score-verification.md).
+
 PL!S-bp7-006:1 was already executable, pending behind another manual effect in
 seed18017; this is a source-object/refresh correctness fix, not new coverage.
 The bounded operation records three bottom moves (including repeated physical

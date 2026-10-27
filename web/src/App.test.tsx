@@ -2088,6 +2088,24 @@ describe("App", () => {
     expect((await screen.findAllByText(`メンバーのブレードハート ${colors} 色 · 誘発元の緑ハート +${delta}`)).length).toBeGreaterThan(0);
   });
 
+  it.each([[3,5,5,1,1,true], [3,5,3,1,0,true], [3,5,2,0,0,true], [2,0,0,0,0,true], [3,5,5,1,0,false]] as const)("shows bottom five stage %s moves %s", async (stage, moves, members, draw, score, available) => {
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const data = { effect_id:"PL!S-bp7-021:1", invocation_id:"bottom-five", stage_member_count:stage,
+      milled_count:moves, milled_member_count:members, drawn_count:draw, score_delta:score, source_available:available };
+    vi.stubGlobal("fetch", createFetchMock({ matchCreate: { ...MATCH_PAYLOAD, events: [
+      { event_type:"effect_bottom_five_members_resolved", player_id:"player_1",source:"system",data },
+      { event_type:"effect_auto_resolved",player_id:"player_1",source:"system",data },
+    ] } }));
+    render(<App />);
+    const create=await screen.findByRole("button",{name:"创建对局"});
+    await waitFor(()=>expect(create).not.toBeDisabled());fireEvent.click(create);
+    expect((await screen.findAllByText(`Stage 成员 ${stage} · 底部移动 ${moves} 次 / Member ${members} 次 · 抽 ${draw} 张 · 原来源 Live 得分 +${score}`)).length).toBeGreaterThan(0);
+    if (!available) expect((await screen.findAllByText("原来源 Live 已离场，未加分")).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button",{name:"日本語"}));
+    expect((await screen.findAllByText(`ステージ${stage}人 · 下から${moves}回 / メンバー${members}回 · ${draw}枚ドロー · 元のライブのスコア +${score}`)).length).toBeGreaterThan(0);
+    if (!available) expect((await screen.findAllByText("元のライブが離れたため加算なし")).length).toBeGreaterThan(0);
+  });
+
   it.each([[3, true, 1, true], [3, false, 0, true], [0, false, 0, true], [3, true, 0, false]] as const)("shows bottom three Aqours moves %s match %s", async (count, matched, delta, available) => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const data = { effect_id: "PL!S-bp7-006:1", invocation_id: "bottom-three", milled_count: count,

@@ -1,5 +1,13 @@
 # Effect Semantics Audit
 
+PL!S-bp7-021:1 binds complete text/revision913/hash to a single bounded Live
+operation. Its Stage condition is in the resolving body, never a trigger filter.
+Q120/Q119 support resolution-time conditions; Q104 supports sequential milling
+with immediate refresh. Member movement history is captured before extra draw,
+and score is a targeted live_card_score on the original Live object, not global.
+Legacy snapshots/default AI/schema/reviewed stay unchanged;926/1212 executable.
+[Evidence](development/bottom-five-member-score-verification.md).
+
 PL!S-bp7-006:1 was already test-validated executable. A native CONTROL/SQL red
 test reproduces the old generic gain_heart applying to a departed/returned source.
 The new exact-text/revision851/hash-bound operation fixes the original object,

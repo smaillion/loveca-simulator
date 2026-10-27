@@ -3065,7 +3065,8 @@ def _queue_triggered_effects(
 
 
 def _captures_original_live_source(effect: Any) -> bool:
-    return getattr(getattr(effect, "choice", None), "selection_policy", None) == (
+    return bool(effect and any(op.source_object_policy == "original_live_start_bottom_five_source"
+                               for op in effect.actions)) or getattr(getattr(effect, "choice", None), "selection_policy", None) == (
         "public_aqours_blade_six_source_score"
     )
 
@@ -9633,6 +9634,53 @@ def _execute_operations(
                     events,
                     reason=f"effect:{invocation.effect_id}",
                 )
+        elif operation_type == "mill_bottom_five_members_draw_source_score":
+            if type(invocation.trigger_data.get("original_source_live_object")) is not bool:
+                raise IllegalActionError("original bottom-five Live source snapshot is missing")
+            stage_count = sum(state.cards[item].card.card_type == "member"
+                              for item in player.member_area.values() if item)
+            moved: list[str] = []
+            member_moves: list[bool] = []
+            drawn = 0
+            # Body conditions are evaluated here, not frozen when Live starts.
+            if stage_count >= 3:
+                for _ in range(5):
+                    _refresh_main_deck(state, invocation.player_id, events)
+                    if not player.main_deck:
+                        break
+                    item = player.main_deck.pop()
+                    player.waiting_room.append(item)
+                    state.cards[item].face_up = True
+                    moved.append(item)
+                    member_moves.append(state.cards[item].card.card_type == "member")
+                    events.append(GameEvent(event_type="effect_cards_milled", player_id=invocation.player_id,
+                        data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                              "milled_card_instance_ids": [item], "source": "deck_bottom",
+                              "revealed_cards": [_public_card_snapshot(state, item)]}, source="system"))
+                    _refresh_main_deck(state, invocation.player_id, events)
+                if sum(member_moves) >= 3:
+                    before = len(player.hand)
+                    _draw(state, invocation.player_id, 1, events, reason=f"effect:{invocation.effect_id}")
+                    drawn = len(player.hand) - before
+                    _refresh_main_deck(state, invocation.player_id, events)
+            all_members = len(member_moves) == 5 and all(member_moves)
+            source_id = invocation.source_card_instance_id
+            available = (invocation.trigger_data["original_source_live_object"] is True
+                         and not invocation.trigger_data.get("original_source_live_object_departed", False)
+                         and source_id in player.live_area and state.cards[source_id].card.card_type == "live")
+            delta = int(all_members and available)
+            if delta:
+                player.manual_modifiers.append(ManualModifier(
+                    modifier_id=f"effect:{invocation.invocation_id}:bottom-five-source-score",
+                    modifier_type="live_card_score", duration="live", created_turn=state.turn_number,
+                    amount=1, target_card_instance_id=source_id, value={"policy": "original_live_start_bottom_five_source"},
+                ))
+            events.append(GameEvent(event_type="effect_bottom_five_members_resolved", player_id=invocation.player_id,
+                data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                      "source_card_instance_id": source_id, "stage_member_count": stage_count,
+                      "stage_condition_met": stage_count >= 3, "milled_count": len(moved),
+                      "milled_member_count": sum(member_moves), "all_members": all_members,
+                      "drawn_count": drawn, "source_available": available, "score_delta": delta}, source="system"))
         elif operation_type == "mill_bottom_three_aqours_source_heart":
             if invocation.trigger_data.get("original_source_stage_object") is not True:
                 raise IllegalActionError("original bottom-three source Stage snapshot is missing")

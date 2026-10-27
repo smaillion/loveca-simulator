@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "onplay-private-three-top-bottom-order",
+      "priority": 0,
+      "title": "按实际待机审计私看三张后分别排库顶库底",
+      "status": "queued",
+      "depends_on": ["live-start-bottom-five-members-source-live-score"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!S-bp7-008:1及完整双段日文/revision853/hash1de3807181773c1f9c909324ecf5885928876ce992a6ed6f4d93e2f000a63f6b，seed18017第4回合74动作Baton后实际mandatory manual；第2段可选Live开始能力不自动晋级", "私看顶三张后任意数量按任意顺序放顶，其余任意顺序放底；先核对查看短库刷新10.2.2.2和原对象，禁止控室/取得/公开替代，0/全/分拆与两组顺序需真实断言", "必要时新增受限snapshot，不改旧amount_source/私看/重排快照；重复/遗漏/非候补/他方提交原子拒绝，短库/空库、来源离场、新旧SQL Replay、四AI与完整双视角隐私、原生UI及图文有断言，不泄露私看顺序", "全部profiles/pre-push及绑定新源码同牌组冻结诊断通过后只本地提交；不提升reviewed、不改默认AI/schema，语义不明保留unresolved；后续PR目标待明确批准，不改policy、不推送、新建PR、合并部署"]
+    },
+    {
       "id": "live-start-bottom-five-members-source-live-score",
       "priority": 0,
       "title": "审计三人条件后的底五张Member计数抽牌与原来源Live得分",

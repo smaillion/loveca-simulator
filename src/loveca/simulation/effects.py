@@ -14,6 +14,7 @@ DEFAULT_EFFECT_REGISTRY = (
 )
 
 SUPPORTED_EFFECT_ACTIONS = {
+    "mill_bottom_five_members_draw_source_score",
     "mill_bottom_three_aqours_source_heart",
     "place_wait_energy_skip_next_turn_active",
     "draw_extra_if_opponent_live_succeeded",
@@ -163,6 +164,7 @@ class EffectOperation(BaseModel):
         "original_onplay_muse_blade_aura",
         "original_live_start_bottom_source",
         "original_live_start_bottom_three_source",
+        "original_live_start_bottom_five_source",
     ] | None = None
     overlap_observer_policy: Literal[
         "ignore_disjoint_source_triggers", "require_complete_source_bindings"
@@ -189,6 +191,17 @@ class EffectOperation(BaseModel):
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        if self.action_type == "mill_bottom_five_members_draw_source_score" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "action_type": "mill_bottom_five_members_draw_source_score", "amount": 5,
+                "target": "source", "source_object_policy": "original_live_start_bottom_five_source",
+            }
+        ):
+            raise ValueError("bottom five only supports its fixed Member/draw/source-score sequence")
+        if self.source_object_policy == "original_live_start_bottom_five_source" and (
+            self.action_type != "mill_bottom_five_members_draw_source_score"
+        ):
+            raise ValueError("bottom five source policy requires its bounded operation")
         if self.action_type == "mill_bottom_three_aqours_source_heart" and (
             self.model_dump(exclude_defaults=True, exclude_none=True) != {
                 "action_type": "mill_bottom_three_aqours_source_heart", "amount": 3,
@@ -695,6 +708,17 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        bottom_five = "mill_bottom_five_members_draw_source_score"
+        if any(op.action_type == bottom_five for op in self.cost):
+            raise ValueError("bottom five cannot be a cost")
+        if any(op.action_type == bottom_five for op in self.actions) and (
+            self.cost or self.cost_choice or self.choice or self.follow_up_choice or self.condition
+            or self.is_optional or self.effect_type != "triggered" or self.timing != "live_start"
+            or self.trigger != "live_started" or self.frequency_limit != "once_per_live"
+            or self.duration != "live" or self.execution_mode != "auto_resolve"
+            or self.simulation_support == "manual_resolution" or len(self.actions) != 1
+        ):
+            raise ValueError("bottom five requires the fixed mandatory Live-start sequence")
         bottom_three = "mill_bottom_three_aqours_source_heart"
         if any(op.action_type == bottom_three for op in self.cost):
             raise ValueError("bottom three cannot be a cost")
