@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 継続開発に明示的な`requeue`を追加。blockedタスクの元記録を保持し、有効リース・一時停止・未完了依存を拒否、復帰後の検証を必須にする。PRのmergeやdeployの承認は付与しない。
+- 中文: 新增受保护的阻塞任务恢复入口，保留原阻塞记录及失败计数，作废原任务旧门禁授权；恢复只适用于已批准的原因解除，不代表合并或上线授权。
+
 - 「Fire Bird」`PL!N-sd2-026:1`を精確なsegment/revision/hashで実装。有効Blade4以上の自分の虹ヶ咲Stage Member1人だけにHeart02を2つ付与。新しい限定policyでは既存の共通評価で常時修正も読み、旧minimum_blade filterやmanual Replayは変更しない。対象なしは理由を記録して完了。
 - 中文: 55专项与旧技能回归共148项、3前端交互、187图文（149状态/38契约）通过。相同冻结30牌组完赛8→9、21明确人工停止，可执行待机158/160完成、2随manual保留，无非法/runtime/Replay/错误skip；新增完赛败方无Live，不冒充双方Live验收。登记918/1212、294manual，不提升reviewed、不改Card/SQL schema或默认AI，同PR54不合并部署。
 
