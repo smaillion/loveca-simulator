@@ -290,7 +290,9 @@ Gapv0.3 separates outcomes and legacy skip evidence instead of relabeling skips
 as triggers. Provenance binds src/sandbox Python, card DB, registry and manifest;
 it does not include credentials or hidden hands. Defaultv1.1 is unchanged.
 
-Multi-keep audit: PL!S-bp2-005:1 is manual, not an automatically executable skill.
+Current Q124 checkpoint: PL!S-bp2-005:1 has an exact bounded multi-keep snapshot; the following manual audit is historical. See [verification](development/q124-you-multi-keep-verification.md).
+
+Historical multi-keep audit: PL!S-bp2-005:1 was manual, not an automatically executable skill.
 Four policy versions explicitly decline its optional cost and persist the reason;
 there is no silent error-skip or private inspection.21 targeted card tests retain
 old SQL behavior as compatibility evidence only. Fixed10 does not trigger this

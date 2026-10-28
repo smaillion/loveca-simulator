@@ -9,7 +9,7 @@ from loveca.simulation.ai import SimpleAIController, SimpleAIDecision, SimpleAIP
 from loveca.simulation.effect_candidates import (
     MULTI_KEEP_ICON_SCOPE_REASON,
     MULTI_KEEP_ICON_SCOPE_TEXT,
-    _onplay_multi_keep_icon_scope_manual,
+    _onplay_q124_you_multi_keep,
 )
 from loveca.simulation.effects import EffectDefinition
 from loveca.simulation.engine import IllegalActionError, apply_action, generate_legal_actions
@@ -37,6 +37,12 @@ def _state(*, legacy=False, empty=False):
                    actions=[{"action_type": "inspect_top_cards", "amount": 7},
                             {"action_type": "select_to_hand_from_inspected"}, {"action_type": "move_remaining_cards"}])
         state.effect_definitions[CODE + ":1"] = EffectDefinition.model_validate(raw)
+    else:
+        raw = state.effect_definitions[CODE + ":1"].model_dump(mode="json")
+        raw.update(execution_mode="manual_resolution", simulation_support="manual_resolution", review_status="parsed_draft",
+                   source_reference=f"Historical manual snapshot; unresolved_reason={MULTI_KEEP_ICON_SCOPE_REASON}",
+                   cost=[], cost_choice=None, choice=None, actions=[{"action_type": "manual_resolution"}])
+        state.effect_definitions[CODE + ":1"] = EffectDefinition.model_validate(raw)
     for key, color in (("good-member", "heart02"), ("wrong-work", "heart04"), ("tail", "heart05"), ("blade-heart", "heart01")):
         state.cards[key].card.basic_hearts = {color: 1}
     state.cards["blade-heart"].card.blade_heart_color_slot = "heart02"
@@ -51,21 +57,22 @@ def _state(*, legacy=False, empty=False):
     return state
 
 
-def test_exact_identity_is_explicitly_manual_with_a_structured_gap_reason():
+def test_old_manual_snapshot_and_exact_current_candidate_are_distinct():
     state = _state()
     effect = state.effect_definitions[CODE + ":1"]
     assert (effect.text_revision_id, effect.raw_text_hash) == (548, "1d864314344a8d252f580ccee32897f33b3926a9ee9ff37cc5ca64439197da93")
     assert state.cards["source-live"].card.cost == 13
     assert effect.label_ja == MULTI_KEEP_ICON_SCOPE_TEXT
-    assert effect == EffectDefinition.model_validate(_candidates()[effect.effect_id].to_registry_entry())
+    current = EffectDefinition.model_validate(_candidates()[effect.effect_id].to_registry_entry())
+    assert current.choice.cost_payment_policy == "triggered_inspection_up_to_three_v1"
     assert effect.execution_mode == effect.simulation_support == "manual_resolution"
     assert effect.review_status == "parsed_draft" and not effect.cost and effect.choice is None
     assert MULTI_KEEP_ICON_SCOPE_REASON in effect.source_reference
     assert classify_unresolved_reason(effect.trigger, effect.timing, effect.label_ja) == MULTI_KEEP_ICON_SCOPE_REASON
     assert suggest_next_step(effect.trigger, effect.timing, effect.label_ja).startswith("review_printed_icon_scope")
     row = {"card_code": CODE, "text_revision_id": 548, "raw_text_hash": effect.raw_text_hash, "raw_effect_text_ja": effect.label_ja}
-    assert _onplay_multi_keep_icon_scope_manual({**row, "raw_effect_text_ja": effect.label_ja + "カードを1枚引く。"}) is None
-    assert _onplay_multi_keep_icon_scope_manual({**row, "card_code": "AUDIT-unknown"}) is None
+    assert _onplay_q124_you_multi_keep({**row, "raw_effect_text_ja": effect.label_ja + "カードを1枚引く。"}) is None
+    assert _onplay_q124_you_multi_keep({**row, "card_code": "AUDIT-unknown"}) is None
 
 
 @pytest.mark.parametrize("empty", (False, True))

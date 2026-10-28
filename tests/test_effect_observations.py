@@ -88,6 +88,15 @@ def test_event_trace_and_summary_loading_preserve_separate_metrics(tmp_path):
         load_observations([trace, trace])
 
 
+def _historical_manual_registry(tmp_path):
+    source = json.loads(Path("data_sources/effect-registry.v0.json").read_text(encoding="utf-8"))
+    old = _state().effect_definitions[CODE + ":1"].model_dump(mode="json")
+    source["effects"] = [old if e["effect_id"] == old["effect_id"] else e for e in source["effects"]]
+    path = tmp_path / "historical-registry.json"
+    path.write_text(json.dumps(source, ensure_ascii=False), encoding="utf-8")
+    return path
+
+
 def test_legacy_skip_input_remains_compatible_but_is_not_trigger_evidence(tmp_path):
     legacy = tmp_path / "old.json"
     legacy.write_text(json.dumps({"skipped_effects": {CODE + ":1": 7}}), encoding="utf-8")
@@ -95,7 +104,7 @@ def test_legacy_skip_input_remains_compatible_but_is_not_trigger_evidence(tmp_pa
     with pytest.raises(ValueError, match="legacy"):
         load_observations([legacy])
     report = build_effect_gap_report(
-        effect_observations={}, legacy_skip_counts=load_actual_trigger_counts([legacy]), top=500
+        registry_path=_historical_manual_registry(tmp_path), effect_observations={}, legacy_skip_counts=load_actual_trigger_counts([legacy]), top=500
     )
     group = next(g for g in report["top_manual_patterns"] if CODE + ":1" in g["sample_effect_ids"])
     assert group["actual_trigger_count"] == 0 and group["legacy_skip_count"] == 7
@@ -103,6 +112,7 @@ def test_legacy_skip_input_remains_compatible_but_is_not_trigger_evidence(tmp_pa
 
 def test_gap_filters_current_manual_and_sorts_by_real_trigger_counts(tmp_path):
     report = build_effect_gap_report(
+        registry_path=_historical_manual_registry(tmp_path),
         effect_observations={
             CODE + ":1": {
                 "triggered": 2,
@@ -114,7 +124,7 @@ def test_gap_filters_current_manual_and_sorts_by_real_trigger_counts(tmp_path):
         },
         top=40,
     )
-    registry = load_effect_registry()
+    registry = load_effect_registry(_historical_manual_registry(tmp_path))
     assert report["manual_resolution"] == sum(
         e.simulation_support == "manual_resolution" for e in registry.effects
     )

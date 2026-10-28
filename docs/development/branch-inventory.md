@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-28 JST Q124曜精确快照：本卡限定弃牌后最多三张，旧快照仅作历史Replay，其他blocked不恢复；固定分支只本地验证，见q124-you-multi-keep-verification.md及ignored验收。
+
 2026-10-28 JST 登场弃牌多选受限原型：独立新策略，旧单选策略与正式曜manual保持；固定分支本地验证，见triggered-inspection-up-to-three-probe.md及ignored验收。
 
 2026-10-28 JST Q124旧多张检索兼容审计：实际旧登记结构、双方费用/多选/公开及隐私；正式曜仍manual，其他blocked保持。固定分支只本地验证，见q124-multi-keep-legacy-audit.md及ignored验收。

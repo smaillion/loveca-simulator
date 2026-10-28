@@ -302,7 +302,9 @@ source fingerprints and deck legality. Registry914/1212 unchanged; next bounded
 audit is PL!-pb2-039:1 condition and Yell+10.
 [Chinese results and limits](development/manual-trigger-observation-audit.md).
 
-Multi-keep checkpoint: PL!S-bp2-005:1 is conservatively quarantined as manual,
+Current Q124 checkpoint: PL!S-bp2-005:1 has an exact bounded multi-keep snapshot. The following quarantine is historical; see [verification](development/q124-you-multi-keep-verification.md).
+
+Historical multi-keep checkpoint: PL!S-bp2-005:1 was conservatively quarantined as manual,
 not asserted rules-correct. PDF2.1.3/2.7/2.9 alone does not settle its unqualified
 icon wording for this audit; no bounded up-to3 cost policy was added. Exact-text
 manual discovery and gap reason prevent automatic re-promotion.21 card tests and

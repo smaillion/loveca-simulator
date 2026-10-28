@@ -996,6 +996,20 @@
       ]
     },
     {
+      "id": "q124-you-multi-keep-formal-snapshot-audit",
+      "priority": 0,
+      "title": "逐卡审计Q124曜登场多选与新费用策略等价性",
+      "status": "queued",
+      "depends_on": ["triggered-inspection-up-to-three-cost-probe"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "独立核对PL!S-bp2-005:1完整CardDefinition、原文revision548/hash及本卡Q124，保存正式manual和旧历史登记；Q124只确认基本Heart不读Blade，不代替完整费用/选择/公开时点裁定",
+        "先以真实双方登场和新未登记策略逐项比对可选支付、不可支付、0至3、目标类型/颜色/Blade、短牌库刷新、选牌公开和未选控室，检验原型shape是否与整卡等价；现有原型不自动绑定正式卡",
+        "仅在全部语义及静态验证明确时精确card/完整全文不strip/revision/hash新pattern与snapshot，其他卡与旧JSON/Replay保持；不晋级reviewed、不恢复PL!-pb2-010及其他blocked，证据不足保留manual并记明依赖",
+        "真实SQL Replay、双方四AI/隐藏身份替换、玩家和provider构造隐私、必要UI图文、全部profiles/pre-push，同原30牌组冻结及应用指纹绑定；不称随机触发或策略改善，只本地提交、不push/publish/部署"
+      ]
+    },
+    {
       "id": "effect-accuracy-loop",
       "priority": 3,
       "title": "按实际触发与规则风险扩展技能支持",

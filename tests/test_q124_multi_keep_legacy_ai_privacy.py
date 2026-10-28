@@ -23,7 +23,7 @@ def _action(request, owner):
     return request
 
 
-def test_q124_identity_and_current_formal_manual_guard():
+def test_q124_identity_and_historical_formal_manual_snapshot():
     state = _legacy_state()
     card = state.cards["source-live"].card
     assert card.raw_text_hash == hashlib.sha256(card.raw_effect_text_ja.encode()).hexdigest()

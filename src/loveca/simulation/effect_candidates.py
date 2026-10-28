@@ -3179,19 +3179,27 @@ def _onplay_ten_minus_hand_private_two(row: sqlite3.Row) -> EffectCandidate | No
     )
 
 
-def _onplay_multi_keep_icon_scope_manual(row: sqlite3.Row) -> EffectCandidate | None:
-    if row["card_code"] != "PL!S-bp2-005":
+def _onplay_q124_you_multi_keep(row: sqlite3.Row) -> EffectCandidate | None:
+    if (row["card_code"] != "PL!S-bp2-005"
+            or row["raw_effect_text_ja"] != MULTI_KEEP_ICON_SCOPE_TEXT
+            or row["text_revision_id"] != 548
+            or row["raw_text_hash"] != "1d864314344a8d252f580ccee32897f33b3926a9ee9ff37cc5ca64439197da93"):
         return None
     matched = _matching_segment(row, MULTI_KEEP_ICON_SCOPE_TEXT)
     if matched is None:
         return None
-    base = _base_with_execution_mode(row, pattern_id="multi_keep_icon_scope_manual",
-                                    effect_index=matched[0], execution_mode="manual_resolution")
-    base.update(simulation_support="manual_resolution", review_status="parsed_draft",
-                source_reference=f"Official card text; unresolved_reason={MULTI_KEEP_ICON_SCOPE_REASON}; rules 1.06 2.1.3/2.7/2.9; docs/development/multi-keep-inspection-audit.md")
+    base = _base(row, pattern_id="q124_you_multi_keep_exact_v1", effect_index=matched[0])
+    base["source_reference"] = "Official card text and Q124; comprehensive rules ver. 1.06 bounded multi-keep inspection"
     return EffectCandidate(**base, label_ja=matched[1], effect_type="triggered", timing="on_play",
                            trigger="member_played", frequency_limit="none", is_optional=True,
-                           condition={}, cost=[], choice=None, actions=[{"action_type": "manual_resolution"}], duration=None)
+                           condition={}, cost=[{"action_type": "discard_from_hand"}],
+                           cost_choice={"choice_type": "card_from_zone", "zone": "hand", "minimum": 1, "maximum": 1},
+                           choice={"choice_type": "inspect_top_select", "cost_payment_policy": "triggered_inspection_up_to_three_v1",
+                                   "amount": 7, "card_type": "member", "heart_color_slots_any": ["heart02", "heart04", "heart05"],
+                                   "minimum": 0, "maximum": 3, "selected_destination": "hand",
+                                   "unselected_destination": "waiting_room", "reveal_selected_to_opponent": True},
+                           actions=[{"action_type": "inspect_top_cards", "amount": 7},
+                                    {"action_type": "select_to_hand_from_inspected"}, {"action_type": "move_remaining_cards"}], duration=None)
 
 
 def _onplay_audited_discard_inspection(row: sqlite3.Row) -> EffectCandidate | None:
@@ -15919,7 +15927,7 @@ _PATTERNS = (
     _onplay_baton_liella_energy7_place_two_wait_energy,
     _onplay_draw_then_discard_one,
     _onplay_named_baton_draw_then_discard,
-    _onplay_multi_keep_icon_scope_manual,
+    _onplay_q124_you_multi_keep,
     _onplay_private_three_top_bottom,
     _onplay_ten_minus_hand_private_two,
     _onplay_wait_energy_next_active,

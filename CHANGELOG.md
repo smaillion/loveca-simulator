@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 渡辺曜PL!S-bp2-005:1を原文・revision・hashに限定し、Q124の基本Heart条件と最大3枚検索を実装。
+- 中文: 精确支持曜登场弃牌及最多三张检索；旧快照保持Replay，不提升reviewed。[验证](./docs/development/q124-you-multi-keep-verification.md)。
+
 - 登場時の手札コストと最大3枚の限定検査を未登録原型として追加。旧選択規則は維持。
 - 中文: 新增受限未登记多选费用原型，不放宽旧策略或改变正式人工卡。[验证](./docs/development/triggered-inspection-up-to-three-probe.md)。
 

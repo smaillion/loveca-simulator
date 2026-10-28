@@ -2,9 +2,11 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+限定支持渡辺曜 PL!S-bp2-005:1 登场时最多三张检索，按 Q124 只读取基本 Heart。[验证](./docs/development/q124-you-multi-keep-verification.md)。
+
 新增未登记的登场弃牌、最多取三张检索原型；尚未绑定正式卡。[验证](./docs/development/triggered-inspection-up-to-three-probe.md)。
 
-审计 Q124 对应的旧多张检索快照；正式卡仍保持人工处理。[审计](./docs/development/q124-multi-keep-legacy-audit.md)。
+Q124 对应的旧多张检索快照历史审计见[审计记录](./docs/development/q124-multi-keep-legacy-audit.md)。
 
 审计正式离场与登场复原同时待机；旧来源无法证明时限定覆盖仍为未知。[审计](./docs/development/printemps-mixed-formal-ready-audit.md)。
 

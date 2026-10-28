@@ -313,8 +313,11 @@ def _v1_1_dynamic_scenarios(
          "PL!-pb2-039:1", _run_muse_yell_ten),
         ("muse_yell_wrong_work", "別作品二枚・追加なし", "成功区两张其他作品：不追加应援",
          "PL!-pb2-039:1", lambda effect: _run_muse_yell_ten(effect, work="nijigasaki")),
-        ("multi_keep_manual_with_hand", "未確認の文義・手札ありでも手動", "文义待审：有费用也不自动执行", "PL!S-bp2-005:1", _run_multi_keep_manual_with_hand),
-        ("multi_keep_manual_empty_hand", "未確認の文義・手札なしは任意辞退", "文义待审：无手牌可明确拒绝", "PL!S-bp2-005:1", _run_multi_keep_manual_empty_hand),
+        ("q124_multi_keep_zero", "費用を支払い0枚取得", "支付费用并取得零张", "PL!S-bp2-005:1", lambda e: _run_q124_multi_keep(e, 0)),
+        ("q124_multi_keep_one", "費用を支払い1枚取得", "支付费用并取得一张", "PL!S-bp2-005:1", lambda e: _run_q124_multi_keep(e, 1)),
+        ("q124_multi_keep_three", "費用を支払い3枚取得", "支付费用并取得三张", "PL!S-bp2-005:1", lambda e: _run_q124_multi_keep(e, 3)),
+        ("q124_multi_keep_decline", "任意能力を辞退", "明确辞退可选能力", "PL!S-bp2-005:1", lambda e: _run_q124_multi_keep(e, 0, decline=True)),
+        ("q124_multi_keep_unpayable", "費用を支払えない", "无法支付弃牌费用", "PL!S-bp2-005:1", lambda e: _run_q124_multi_keep(e, 0, empty=True)),
         *(("mixed_heart_inspection_" + code, "MemberのHeart・Liveの必要Heartを区別 " + code,
            "区分Member持有Heart与Live必要Heart " + code, code + ":1", _run_adjacent_discard_inspection)
           for code in ("PL!S-pb1-013", "PL!S-pb1-014", "PL!S-pb1-015")),
@@ -1585,39 +1588,29 @@ def _run_muse_yell_ten(
     }
 
 
-def _run_multi_keep_manual_boundary(effect: EffectDefinition, empty: bool) -> dict[str, bool]:
+def _run_q124_multi_keep(effect: EffectDefinition, keep: int, *, empty: bool = False, decline: bool = False) -> dict[str, bool]:
     state = _v1_1_state({effect.effect_id: effect}, [
         _v1_1_member("source", effect.card_code, cost=0, effect_ids=[effect.effect_id]),
-        _v1_1_member("hand-cost", "AUDIT-cost"), _v1_1_member("private-top", "AUDIT-private")],
+        _v1_1_member("hand-cost", "AUDIT-cost"), *[_v1_1_member(f"private-{i}", f"AUDIT-private-{i}") for i in range(7)]],
         hand=["source"] if empty else ["source", "hand-cost"])
-    state.players["player_1"].main_deck = ["private-top"]
+    state.players["player_1"].main_deck = [f"private-{i}" for i in range(7)]
+    for i in range(3): state.cards[f"private-{i}"].card.basic_hearts = {"heart02": 1}
     played = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1", expected_revision=0,
         payload={"card_instance_id": "source", "slot": "center", "energy_instance_ids": [], "use_baton_touch": False}))
     action = ActionRequest(action_type="resolve_effect", player_id="player_1", expected_revision=played.state.revision,
-        payload={"invocation_id": played.state.pending_effects[0].invocation_id})
-    before = played.state.model_dump(mode="json")
-    rejected = False
-    try:
-        apply_action(played.state, action)
-    except IllegalActionError:
-        rejected = played.state.model_dump(mode="json") == before
-    action.payload["accepted"] = False
+        payload={"invocation_id": played.state.pending_effects[0].invocation_id, "accepted": not decline})
+    if not (empty or decline): action.payload["selected_card_instance_ids"] = ["hand-cost"]
     result = apply_action(played.state, action)
-    return {
-        "multi_keep_explicit_manual": effect.simulation_support == effect.execution_mode == "manual_resolution" and effect.review_status == "parsed_draft",
-        "multi_keep_auto_rejected": rejected,
-        "multi_keep_no_automatic_cost_or_peek": not any(e.event_type in {"effect_cost_paid", "effect_inspection_started", "effect_skipped"} for e in result.events),
-        "multi_keep_decline_no_zone_changes": result.state.players["player_1"].main_deck == ["private-top"] and result.state.players["player_1"].hand == ([] if empty else ["hand-cost"]),
-        "multi_keep_decline_finishes": not result.state.pending_effects and result.state.pending_choice is None,
-    }
-
-
-def _run_multi_keep_manual_with_hand(effect: EffectDefinition) -> dict[str, bool]:
-    return _run_multi_keep_manual_boundary(effect, False)
-
-
-def _run_multi_keep_manual_empty_hand(effect: EffectDefinition) -> dict[str, bool]:
-    return _run_multi_keep_manual_boundary(effect, True)
+    if empty or decline:
+        return {"q124_no_cost_or_inspection": not any(e.event_type in {"effect_cost_paid", "effect_inspection_started"} for e in result.events),
+                "q124_finished": not result.state.pending_effects and result.state.pending_choice is None}
+    inspected = result.state
+    selected = [f"private-{i}" for i in range(keep)]
+    final = apply_action(inspected, ActionRequest(action_type="resolve_effect_choice", player_id="player_1",
+        expected_revision=inspected.revision, payload={"selected_card_instance_ids": selected}))
+    return {"q124_paid_once": sum(e.event_type == "effect_cost_paid" for e in result.events) == 1,
+            "q124_selected": set(final.state.players["player_1"].hand) == set(selected),
+            "q124_remaining": set(final.state.players["player_1"].waiting_room) == {"hand-cost", *[f"private-{i}" for i in range(7)]} - set(selected)}
 
 
 def _run_private3_inspection(effect: EffectDefinition) -> dict[str, bool]:
