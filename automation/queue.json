@@ -982,6 +982,20 @@
       ]
     },
     {
+      "id": "triggered-inspection-up-to-three-cost-probe",
+      "priority": 0,
+      "title": "受限登场检索费用与最多三张未登记原型",
+      "status": "queued",
+      "depends_on": ["q124-multi-keep-legacy-executor-ai-privacy-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "先复现现有triggered_inspection拒绝maximum=3，新增显式未登记受限策略，仅可选本人弃手牌一张后私看七张、按Member基本指定三色选0至3并公开入手、其余控室；不放宽旧策略或绑定正式卡",
+        "双方真实入队与分步费用、不可支付/拒绝/0至3/非法重复超量/短牌库、来源与隐藏牌边界、旧策略和旧JSON SQL Replay逐项验证；仅受控夹具不称完整对局",
+        "四AI支付和后续实际支持范围、隐藏身份替换、双方玩家与provider构造隐私、原生UI有真实证据；PL!S-bp2-005:1保持manual，其他blocked不恢复",
+        "全部profiles和pre-push同源码通过；应用变化同原30牌组seed18000至18029冻结并核对Replay，正式快照未启用原型不称随机正条件或策略改善，仅本地提交不推送发布或部署"
+      ]
+    },
+    {
       "id": "effect-accuracy-loop",
       "priority": 3,
       "title": "按实际触发与规则风险扩展技能支持",

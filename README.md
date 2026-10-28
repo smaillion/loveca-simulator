@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+登場時に手札を捨て最大3枚を選ぶ未登録の限定原型を追加。正式カードには未適用。[検証](./docs/development/triggered-inspection-up-to-three-probe.md)。
+
 Q124対象の旧多枚数検索snapshotを監査。正式カードは手動対応のまま維持。[監査](./docs/development/q124-multi-keep-legacy-audit.md)。
 
 正式な退場・登場復原の同時待機を監査。旧来源が不明な範囲は未知のまま維持。[監査](./docs/development/printemps-mixed-formal-ready-audit.md)。

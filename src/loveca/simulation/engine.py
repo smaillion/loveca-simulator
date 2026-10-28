@@ -5275,7 +5275,7 @@ def _effect_unavailable_reason(
 def _inspection_cost_unavailable_reason(state: MatchState, invocation: EffectInvocation) -> str | None:
     effect = state.effect_definitions[invocation.effect_id]
     if (invocation.resolution_stage != "initial" or effect.choice is None
-            or effect.choice.cost_payment_policy not in {"triggered_inspection", "triggered_inspection_reorder"}):
+            or effect.choice.cost_payment_policy not in {"triggered_inspection", "triggered_inspection_reorder", "triggered_inspection_up_to_three_v1"}):
         return None
     if effect.cost[0].action_type == "discard_from_hand":
         if not _required_cost_choice_available(state, invocation, effect):

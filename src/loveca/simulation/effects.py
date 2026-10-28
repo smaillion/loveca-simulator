@@ -460,7 +460,7 @@ class EffectSelectionGroup(BaseModel):
 
 
 class EffectChoice(BaseModel):
-    cost_payment_policy: Literal["triggered_inspection", "triggered_inspection_reorder"] | None = None
+    cost_payment_policy: Literal["triggered_inspection", "triggered_inspection_reorder", "triggered_inspection_up_to_three_v1"] | None = None
     inspection_activation_policy: Literal["start_after_cost"] | None = None
     choice_type: str
     deployment_policy: Literal["simultaneous_member_area_entry"] | None = None
@@ -630,6 +630,16 @@ class EffectChoice(BaseModel):
             or self.inspection_activation_policy is not None or self.selection_policy is not None
         ):
             raise ValueError("triggered inspection cost policy requires fixed private look and hand selection")
+        if self.cost_payment_policy == "triggered_inspection_up_to_three_v1" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "cost_payment_policy": "triggered_inspection_up_to_three_v1",
+                "choice_type": "inspect_top_select", "amount": 7, "card_type": "member",
+                "heart_color_slots_any": ["heart02", "heart04", "heart05"], "maximum": 3,
+                "selected_destination": "hand", "unselected_destination": "waiting_room",
+                "reveal_selected_to_opponent": True,
+            }
+        ):
+            raise ValueError("three-card inspection requires the fixed bounded private choice")
         if self.cost_payment_policy == "triggered_inspection_reorder" and (
             self.choice_type != "inspect_top_select" or self.target_player != "self"
             or self.amount != 2 or self.amount_source is not None
@@ -770,6 +780,14 @@ class EffectDefinition(BaseModel):
         wait = (cost.action_type == "apply_wait" and cost.target == "source" and hand is None and self.is_optional)
         if not (wait or (discard and not reorder)) or cost.amount is not None or cost.value is not None:
             raise ValueError("triggered inspection cost policy only supports one hand discard or source Wait")
+        if self.choice.cost_payment_policy == "triggered_inspection_up_to_three_v1" and (
+            not self.is_optional or cost != EffectOperation(action_type="discard_from_hand")
+            or hand != EffectChoice(choice_type="card_from_zone", zone="hand", minimum=1, maximum=1)
+            or self.actions != [EffectOperation(action_type="inspect_top_cards", amount=7),
+                                EffectOperation(action_type="select_to_hand_from_inspected"),
+                                EffectOperation(action_type="move_remaining_cards")]
+        ):
+            raise ValueError("three-card inspection requires the fixed optional discard and actions")
         return self
 
     @model_validator(mode="after")

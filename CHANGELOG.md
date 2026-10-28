@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 登場時の手札コストと最大3枚の限定検査を未登録原型として追加。旧選択規則は維持。
+- 中文: 新增受限未登记多选费用原型，不放宽旧策略或改变正式人工卡。[验证](./docs/development/triggered-inspection-up-to-three-probe.md)。
+
 - Q124の旧多枚数検索snapshotを監査し、正式カードは手動のまま維持。
 - 中文: 审计旧多张检索的双方费用、多选回放、AI 和隐私；不凭 Q124 单独提升正式技能。[审计](./docs/development/q124-multi-keep-legacy-audit.md)。
 
