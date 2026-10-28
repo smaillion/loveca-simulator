@@ -26,8 +26,13 @@ RULE_REFERENCE_IDS = ("1.3.2.1", "4.1.4", "4.5.5.2", "9.6.2.4.2", "9.7.7", "9.11
 
 @lru_cache
 def _definitions():
-    return {e.effect_id: e for e in load_effect_registry().effects
-            if e.card_code in {CODE, "PL!-pb1-028", "PL!-pb1-012", "PL!-bp3-005"}}
+    definitions = {e.effect_id: e for e in load_effect_registry().effects
+                   if e.card_code in {CODE, "PL!-pb1-028", "PL!-pb1-012", "PL!-bp3-005"}}
+    # Historical boundary snapshots used Kotori's legacy ready operation.
+    effect = definitions["PL!-pb1-012:1"]
+    definitions[effect.effect_id] = effect.model_copy(update={"actions": [effect.actions[0].model_copy(update={"action_type": "ready_member"})],
+                                                           "choice": effect.choice.model_copy(update={"orientation": "wait"})})
+    return definitions
 
 
 def _state(*, waits=0, members=3, owner="player_1", ready=False, control=False, duplicate=False):

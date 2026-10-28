@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "printemps-kotori-onplay-provenance-snapshot-audit",
+      "priority": 1,
+      "title": "南ことり登场复原的精确来源历史快照审计",
+      "status": "queued",
+      "depends_on": ["effect-ready-qualified-coverage-probe"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["只审PL!-pb1-012:1完整全文/revision427/hashb9330edc34a6956d65e6eb4f353a012df515635f142ff3312f42c9bd9d8b182c，先原生登场/本人Printemps目标0至1及旧快照核对", "明确才精确新pattern/snapshot改用已验证无费用v1；旧ready/旧snapshot/Replay及其他四生产者不追改，不全局启用限定coverage，不requeue穂乃果", "真实来源/回合/原目标，0/1/已Active/非Printemps、源离场隐藏返回/位置、目标离区返回、非法原子性、新旧SQL、四AI/完整隐私/原生UI图文及所有profiles和同原30牌组验收", "只计已执行卡历史生产者1of5，不算manual晋级或消费者完成；证据不足保留依赖，只本地提交，不push/publish、新PR、合并部署或主机操作"]
+    },
+    {
       "id": "effect-ready-qualified-coverage-probe",
       "priority": 1,
       "title": "限定来源范围的复原历史完整性原型",

@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+南ことりPL!-pb1-012:1按全文/revision/hash接入来源历史v3，允许选已Active目标但不虚记复原，旧v2重放保持。81专项/55 SQL、四AI/隐私、3 UI和5新图文；仅正式历史生产者1/5，穂乃果仍manual。[验证](./docs/development/kotori-onplay-provenance-verification.md)。仅本地提交。
+
 新增显式策略下的限定来源复原历史完整性原型。旧全局查询不改，只排除有证明的不匹配来源，未知不当零。77专项/45 SQL、四AI/完整隐私与2 UI，正式生产者仍0/5。[验证](./docs/development/ready-qualified-coverage-probe.md)。仅本地提交。
 
 新增Stage离场后触发的限定复原来源原型，离区前采集旧信息、入队时绑定真实能力。100专项/54 SQL、四AI/隐私及4 UI，旧v1、费用路径和Replay保持，正式卡未绑定。[验证](./docs/development/ready-departed-source-probe.md)。仅本地提交。

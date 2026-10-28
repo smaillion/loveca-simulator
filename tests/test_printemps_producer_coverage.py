@@ -40,6 +40,10 @@ def _producer_inventory():
 def _state(*, owner="player_1", targets="both", legacy=False, control=False):
     state = _entry_state(CODE)
     effect = state.effect_definitions[EFFECT]
+    # This audit fixture preserves the pre-provenance v2 snapshot.
+    effect = effect.model_copy(update={"actions": [effect.actions[0].model_copy(update={"action_type": "ready_member"})],
+                                     "choice": effect.choice.model_copy(update={"orientation": "wait"})})
+    state.effect_definitions[EFFECT] = effect
     if legacy:
         raw = effect.model_dump(mode="json")
         raw["choice"]["unit_key"] = None
@@ -106,7 +110,7 @@ def test_inventory_uses_real_source_unit_and_does_not_promote_consumer():
     assert all("printemps" in r["card"]["unit_keys"] for r in rows)
     assert all(r["card"]["raw_text_hash"] == r["effect"]["raw_text_hash"] for r in rows)
     assert all(r["card"]["text_revision_id"] == r["effect"]["text_revision_id"] for r in rows)
-    assert all(OPERATION not in [a["action_type"] for a in r["effect"]["actions"]] for r in rows)
+    assert {r["effect"]["effect_id"] for r in rows if OPERATION in [a["action_type"] for a in r["effect"]["actions"]]} == {EFFECT}
     assert any("Printemps" not in r["effect"]["label_ja"] for r in rows)
     consumer = next(e for e in load_effect_registry().effects if e.effect_id == "PL!-pb2-010:1")
     assert consumer.simulation_support == "manual_resolution"
@@ -119,7 +123,7 @@ def test_exact_generator_binding_rejects_changed_identity():
            "raw_text_hash": card.raw_text_hash, "text_revision_id": card.text_revision_id}
     candidate = _onplay_ready_printemps_member_up_to1(row)
     assert candidate.choice["unit_key"] == "printemps"
-    assert candidate.pattern_id.endswith("_v2")
+    assert candidate.pattern_id.endswith("_provenance_v3")
     for key, value in [("card_code", "OTHER"), ("raw_effect_text_ja", "OTHER"),
                        ("raw_effect_text_ja", " " + card.raw_effect_text_ja),
                        ("raw_text_hash", "OTHER"), ("text_revision_id", 428)]:

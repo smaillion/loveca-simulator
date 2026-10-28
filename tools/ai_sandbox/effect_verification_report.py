@@ -198,6 +198,9 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *((f"kotori_provenance_{case}", f"ことり登場の復原履歴 {case}", f"南ことり登场复原历史 {case}",
+           "PL!-pb1-012:1", lambda effect, case=case: _run_kotori_provenance(effect, case))
+          for case in ("zero", "one", "active", "no_member", "wrong_unit")),
         *((f"waiting_nine_live_top_{case}", f"控室9枚とLive上置き {case}", f"控室九张与Live库顶 {case}",
            "PL!S-PR-048:1", lambda effect, case=case: _run_waiting_nine_live_top(effect, case))
           for case in ("zero", "one", "three", "too_many", "empty_refresh")),
@@ -577,6 +580,7 @@ def _v1_1_dynamic_scenarios(
                 notes_ja=[f"公式日本語テキスト: {effect.label_ja}"],
                 notes_zh=[f"官方日文效果文本：{effect.label_ja}"],
                 rule_reference_ids=(
+                    ["1.3.2.1", "4.1.4", "9.6.2.4.2", "9.7.7", "9.11.1", "9.12.2"] if effect_id == "PL!-pb1-012:1" else
                     ["4.5.7.1", "9.9.1"] if effect_id == "PL!HS-pb1-014:2" else
                     ["4.1.4", "4.8.3", "9.6.2.4.2", "9.7.7", "10.2.1", "10.2.2.1", "10.2.3", "8.4.11"]
                     if effect_id == "PL!S-bp7-021:1" else
@@ -676,6 +680,37 @@ def _run_opponent_success_draw(effect: EffectDefinition, case: str) -> dict[str,
         "条件成立時だけ必須一枚 / 条件成立才必选一张": len(final.state.players["player_1"].hand) == expected_draw - int(both and bool(hand_before)),
         "待機完了 / 待机完成": not final.state.pending_effects,
     }
+
+
+def _run_kotori_provenance(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    source = _v1_1_member("source", "南ことり", cost=2, unit_keys=["printemps"], work_keys=["love_live"],
+                           card_code=effect.card_code, effect_ids=[effect.effect_id])
+    source.card.blade = 1
+    source.card.text_revision_id, source.card.raw_text_hash = effect.text_revision_id, effect.raw_text_hash
+    source.card.raw_effect_text_ja = effect.label_ja
+    target = _v1_1_member("target", "AUDIT target", unit_keys=["bibi" if case == "wrong_unit" else "printemps"],
+                         orientation="active" if case == "active" else "wait")
+    energies = [_v1_1_energy(f"energy-{i}") for i in range(2)]
+    state = _v1_1_state({effect.effect_id: effect}, [source, target, *energies], hand=["source"])
+    state.effect_order_policy = "ap_nap_player_choice"
+    p = state.players["player_1"]
+    if case != "no_member": p.member_area["left"] = "target"
+    else: p.hand.append("target")
+    p.energy_area = [c.instance_id for c in energies]
+    result = apply_action(state, ActionRequest(action_type="play_member", player_id="player_1", expected_revision=state.revision,
+        payload={"card_instance_id": "source", "slot": "center", "energy_instance_ids": p.energy_area, "use_baton_touch": False}))
+    if result.state.pending_effects:
+        inv = result.state.pending_effects[0]
+        result = apply_action(result.state, ActionRequest(action_type="resolve_effect", player_id="player_1", expected_revision=result.state.revision,
+            payload={"invocation_id": inv.invocation_id, "selected_card_instance_ids": ["target"] if case in {"one", "active"} else []}))
+    history = result.state.member_ready_history
+    expected = int(case == "one")
+    return {"実際の登場と支払い / 原生登场及支付": result.state.players["player_1"].member_area["center"] == "source" and all(result.state.cards[c.instance_id].orientation == "wait" for c in energies),
+        "実際のWaitからActiveだけ / 仅实际Wait到Active": history is not None and len(history.events) == expected,
+        "元のPrintemps発生源 / 原Printemps来源": not expected or history.events[0].source.unit_keys == ["printemps"] and history.events[0].source.effect_id == effect.effect_id,
+        "対象一人だけ / 只复原选中一人": result.state.cards["target"].orientation == ("active" if case in {"one", "active"} else "wait"),
+        "限定coverageは未接続 / 不启用范围策略": result.state.member_ready_coverage_policy is None,
+        "待機完了 / 待机完成": not result.state.pending_effects}
 
 
 def _run_waiting_nine_live_top(effect: EffectDefinition, case: str) -> dict[str, bool]:

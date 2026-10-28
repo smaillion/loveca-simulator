@@ -16,6 +16,8 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
 
     scenario_ids = {result.scenario_id for result in results}
     assert {
+        "kotori_provenance_zero", "kotori_provenance_one", "kotori_provenance_active",
+        "kotori_provenance_no_member", "kotori_provenance_wrong_unit",
         "mirrored_cost_heart_left_10", "mirrored_cost_heart_right_10", "mirrored_cost_heart_center_10",
         "q253_current_yell_score_none", "q253_current_yell_score_one", "q253_current_yell_score_two",
         "q253_current_yell_score_removed", "q253_current_yell_score_source_return",

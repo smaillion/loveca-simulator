@@ -1,5 +1,10 @@
 # AI and Simulation Notes
 
+Kotori's exact v3 snapshot now records actual Member-ready provenance. The formerly
+unvalued prototype operation receives the existing ready value, not a new strategy
+parameter. Active targets remain legal but add no ready event. Default versions
+stay unchanged. See [single producer](development/kotori-onplay-provenance-verification.md).
+
 Qualified ready coverage has a separate opt-in internal query. Legacy ready only
 adds conservative unknown facts; AI versions and strategies do not call the new
 query. Four-controller hidden-source invariance is tested, not a strategy gain.

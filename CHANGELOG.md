@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 南ことりPL!-pb1-012:1を復原履歴v3に限定接続。Active対象の選択を許可し、実際の方向変化だけ記録。旧v2/Replayと他4生産者は維持、範囲policyは既定で無効。
+- 中文: 81专项/55 SQL、四AI/隐私、3 UI及5新图文；补v1复原估值别名避免新快照降值，默认版本不改。仅正式历史生产者1/5，不算manual晋级或穂乃果完成。[记录](./docs/development/kotori-onplay-provenance-verification.md)，只本地提交。
+
 - 発生源の所有者・効果プレイヤー・unit/workを分離した限定coverage原型を追加。旧readyは未知事実のみ、旧JSON/Replayと全体coverageを維持し、正式カードには接続しない。
 - 中文: 77专项/45 SQL、四AI/完整隐私与2 UI；已知非匹配来源不污染范围，缺证明/旧费用/已离场源/晚启用仍未知。最终门禁与同牌组见[记录](./docs/development/ready-qualified-coverage-probe.md)，只本地提交、不恢复穂乃果。
 

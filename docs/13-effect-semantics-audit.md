@@ -1,5 +1,10 @@
 # Effect Semantics Audit
 
+The first formal ready-history producer is PL!-pb1-012:1 only. Its v3 snapshot
+removes the legacy Wait-only target prefilter; old v2 snapshots preserve it for
+Replay, not as a rule certification. Qualified coverage remains opt-in and Honoka
+remains manual. See [audit](development/kotori-onplay-provenance-verification.md).
+
 Qualified coverage excludes only attested nonmatching sources. Missing source
 proof, legacy cost/departure paths, and late baselines remain unknown, never zero.
 Old global coverage and query semantics stay unchanged; formal producers remain

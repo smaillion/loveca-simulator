@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-28 JST 南ことり单卡v3：固定分支/工作树，全文/revision/hash绑定，81专项/55 SQL、四AI/隐私、3 UI与5图文；仅PL!-pb1-012:1的操作及目标方向筛选变化，其他四生产者不动，旧v2夹具与Replay固定。正式历史生产者1/5，范围policy仍默认None，穂乃果/其他blocked保持，937/1212与reviewed不提升。估值别名使新v1与既有ready同值，默认版本不改；最终记录见kotori-onplay-provenance-verification.md。仅本地提交，旧44/6 dirty/stash/ignored保留。
+
 2026-10-28 JST 限定来源完整性原型：固定分支/工作树，77专项/45 SQL、四AI/完整隐私与2 UI；显式新策略和独立查询，旧全局coverage/JSON/Replay保持，实际目标所有者与来源所有者/效果玩家分离。正式生产者0/5、穂乃果及其余blocked不恢复；最终门禁/同牌组见ready-qualified-coverage-probe.md。只本地提交，旧44/6 dirty/stash/ignored保留，不改PR55或主机。
 
 2026-10-28 JST 已离场复原来源原型：同一固定分支/工作树，100专项/54 SQL、315关联、四AI/完整隐私和4 UI；四处入口离区前采集，真实入队后绑定，现代结算锁不改。仅新unregistered操作，正式生产者0/5、穂乃果及其他blocked保持。最终门禁/同牌组见`ready-departed-source-probe.md`。不push/改PR55或合并部署，44/6 dirty/stash/ignored保留。

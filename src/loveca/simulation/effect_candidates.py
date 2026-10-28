@@ -6228,7 +6228,7 @@ def _onplay_ready_printemps_member_up_to1(row: sqlite3.Row) -> EffectCandidate |
     return EffectCandidate(
         **_base(
             row,
-            pattern_id="onplay_ready_printemps_member_up_to1_v2",
+            pattern_id="onplay_ready_printemps_member_up_to1_provenance_v3",
             effect_index=1,
         ),
         label_ja=expected,
@@ -6243,12 +6243,11 @@ def _onplay_ready_printemps_member_up_to1(row: sqlite3.Row) -> EffectCandidate |
             "choice_type": "member_from_stage",
             "zone": "stage",
             "card_type": "member",
-            "orientation": "wait",
             "unit_key": "printemps",
             "minimum": 0,
             "maximum": 1,
         },
-        actions=[{"action_type": "ready_member"}],
+        actions=[{"action_type": "ready_member_with_provenance_v1"}],
         duration=None,
     )
 
