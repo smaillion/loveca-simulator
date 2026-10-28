@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+Q246 の重複色は一度だけ得る例と既存処理の境界を監査。正式能力は手動のまま。[監査](./docs/development/q246-named-cost-color-union-unresolved.md)。
+
 三人カードの指定名手札コストと色Heartの未解決範囲を監査。ライブ開始能力は手動のまま。[監査](./docs/development/ll-bp6-named-discard-color-unresolved.md)。
 
 Love marginal の復原人数による必要Heart軽減は手動のまま、履歴と未知範囲を監査。[監査](./docs/development/printemps-tiered-requirement-unresolved.md)。

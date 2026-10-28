@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+审计 Q246 的重叠颜色去重示例与现有操作边界；正式能力仍为人工处理。[审计](./docs/development/q246-named-cost-color-union-unresolved.md)。
+
 审计三人卡指定名称弃牌与颜色 Heart 边界；Live 开始能力仍为人工处理。[审计](./docs/development/ll-bp6-named-discard-color-unresolved.md)。
 
 审计 Love marginal 按复原人数分档减需；来源覆盖未知时仍保持人工处理。[审计](./docs/development/printemps-tiered-requirement-unresolved.md)。

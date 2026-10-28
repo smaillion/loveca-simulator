@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-29 JST Q246 直接FAQ及未登记费用/逐卡颜色边界审计：重叠基本颜色示例已确认，正式卡仍manual，详见 q246-named-cost-color-union-unresolved.md 与 ignored 验收。
+
 2026-10-29 JST 三人卡指定名弃牌颜色边界审计：仅第二段保持manual，不改已有登场登记；详见 ll-bp6-named-discard-color-unresolved.md 及 ignored 验收。
 
 2026-10-28 JST Love marginal 分档减需边界审计：正式卡保持manual，未知来源不当零；详见 printemps-tiered-requirement-unresolved.md 及 ignored 验收。

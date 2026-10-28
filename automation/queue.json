@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "q246-named-discard-color-union-gap-audit",
+      "priority": 0,
+      "title": "Q246指定名称费用颜色并集边界审计",
+      "status": "queued",
+      "depends_on": ["ll-bp6-named-discard-color-scope-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对官方LL-bp6-001直接Q246及全文revision/hash，示例交叠基本Heart按颜色并集各一次；不将示例扩展为Blade或整卡裁定", "用明确未登记合成快照审计现有私有指定名可变弃牌费用及已支付结果、零枚与重复名称候选、非法原子性和SQL Replay；不得将构造样例冒充本卡正式能力", "核查既有操作能否表达所付费用多卡颜色并集，缺口明确保留；正式卡manual及其他blocked不恢复，旧快照/Replay/默认AI不改", "必要隐私与已有四AI证据范围清晰区分，全部profiles和pre-push通过；应用不变核对同30牌组冻结，仅本地提交"]
+    },
+    {
       "id": "ll-bp6-named-discard-color-scope-audit",
       "priority": 0,
       "title": "三人卡指定名称弃牌颜色能力边界审计",
