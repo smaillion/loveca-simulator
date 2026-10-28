@@ -1,5 +1,7 @@
 # Effect Semantics Audit
 
+Hanayo PL!-bp6-008:1 is the third bounded formal ready-history producer. Only its exact full text, revision and hash select the v2 snapshot; the live-start consumer remains manual. The v2 legal-action guard excludes an unpayable source, while the separately unregistered v1 prototype retains a documented unresolved candidate-list defect; see `development/hanayo-source-wait-provenance-verification.md`.
+
 PL!-bp3-001:2 is the second formal ready-history producer. Its mandatory ability
 allows zero targets and already-active Members; declining activation is distinct.
 The first segment and old snapshots remain unchanged. See [audit](development/honoka-live-start-provenance-verification.md).

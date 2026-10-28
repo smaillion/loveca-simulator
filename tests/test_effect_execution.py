@@ -1194,7 +1194,7 @@ def test_effect_candidate_discovery_is_review_only_after_registry_update():
         "onplay_inspect3_reorder_rest_wr",
         "live_success_inspect3_reorder_all_top",
         "live_success_inspect3_reorder_rest_wr",
-        "activated_wait_ready_other_member",
+        "activated_hanayo_wait_ready_other_provenance_v2",
         "onplay_choose_draw_discard_or_wait_opponent_cost2",
         "onplay_choose_mill3_or_wait_opponent_cost2",
         "onplay_pay1_choose_wait_opponent_cost4_or_draw1",

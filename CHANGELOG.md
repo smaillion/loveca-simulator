@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 花陽PL!-bp6-008:1を限定v2履歴に接続し、Active対象も合法に選択。旧登録のReplayは維持し、v2だけの支払不能な起動候補表示を修正。
+- 中文: 86专项含44 SQL、四AI/隐私、4 UI及5图文；正式生产者3/5、不恢复消费者。未登记v1原型仍可能列出不可支付的起动，执行层会拒绝，另列有限修复。[记录](./docs/development/hanayo-source-wait-provenance-verification.md)，只本地验证。
+
 - Wait費用後の対象を別MemberのWait/Active両方に限定対応するunregistered v2を追加。旧費用v1はWait限定のまま、無費用v1とReplayも維持。
 - 中文: 93专项/34 SQL、646关联和4 UI；已Active目标仍实际支付和消耗次数，但不记复原。正式卡未绑定、生产者仍2/5，不恢复消费者。完整门禁与同牌组见[记录](./docs/development/ready-source-wait-active-v2-probe.md)，只本地提交。
 

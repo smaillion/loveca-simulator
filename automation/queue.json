@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "printemps-hanayo-source-wait-provenance-snapshot-audit",
+      "priority": 1,
+      "title": "花陽本人Wait费用复原的单卡来源历史快照审计",
+      "status": "queued",
+      "depends_on": ["effect-ready-source-wait-active-target-probe-v2"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["只审PL!-bp6-008:1完整全文/revision10/hashc5c21450dc637b1907f36eb45ba9c264b4fbd1a6a7092aa2dbc6a5bc9b27179c，先保存CardDefinition及原登记并复算", "精确新pattern/snapshot前核对原来源Active/Stage条件与v2真实验证的等价性；其他生产者与旧JSON/Replay不追改，不全局启用范围策略、不requeue消费者", "原生Main起动支付本人来源Wait后分步严格选其他本人顶层Member，可Wait或Active；Active不记复原但支付和次数真实消费，无其他Member不得扣费，附属/他方/来源自己不合格；父能力锁保持", "双方来源LKI/隐藏返回、目标原对象、同名来源、非法原子性、新旧SQL/四AI/完整隐私/必要UI图文及全部profiles与新源码同原30牌组验收", "仅已可执行卡的第三个正式历史生产者3of5，不算manual晋级或消费者完成；证据不足保留依赖。只本地提交，不push/publish、新PR、合并部署或主机操作"]
+    },
+    {
       "id": "effect-ready-source-wait-active-target-probe-v2",
       "priority": 1,
       "title": "本人Wait费用后允许已Active目标的独立复原原型",

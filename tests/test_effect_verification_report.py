@@ -16,6 +16,8 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
 
     scenario_ids = {result.scenario_id for result in results}
     assert {
+        "hanayo_source_wait_wait", "hanayo_source_wait_active", "hanayo_source_wait_non_printemps",
+        "hanayo_source_wait_no_other", "hanayo_source_wait_source_wait",
         "honoka_provenance_zero", "honoka_provenance_one", "honoka_provenance_active",
         "honoka_provenance_self", "honoka_provenance_non_printemps",
         "kotori_provenance_zero", "kotori_provenance_one", "kotori_provenance_active",

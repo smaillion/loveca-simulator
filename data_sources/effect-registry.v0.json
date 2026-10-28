@@ -11892,7 +11892,7 @@
     {
       "actions": [
         {
-          "action_type": "ready_member",
+          "action_type": "ready_member_after_source_wait_provenance_v2",
           "amount": null,
           "amount_source": null,
           "branch": null,
@@ -11901,7 +11901,7 @@
           "flag": null,
           "multiplier": null,
           "orientation": null,
-          "target": null,
+          "target": "selected",
           "target_hand_size": null,
           "value": null
         }
@@ -11949,7 +11949,7 @@
         "minimum_required_heart_total": null,
         "minimum_score": null,
         "name_ja_any": [],
-        "orientation": "wait",
+        "orientation": null,
         "position_target_unit_keys_any": [],
         "post_action_condition_key": null,
         "post_action_condition_minimum": null,
@@ -11971,10 +11971,7 @@
         "work_key": null,
         "zone": "stage"
       },
-      "condition": {
-        "source_orientation": "active",
-        "source_zone": "stage"
-      },
+      "condition": {},
       "cost": [
         {
           "action_type": "apply_wait",

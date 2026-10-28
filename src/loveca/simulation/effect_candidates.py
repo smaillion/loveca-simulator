@@ -1317,11 +1317,26 @@ def _live_start_no_timing_live_choose_other_member_gain_blade2(
 
 
 def _activated_wait_ready_other(row: sqlite3.Row) -> EffectCandidate | None:
-    text = str(row["raw_effect_text_ja"]).strip()
-    if text != (
+    expected = (
         "【起動】【ターン1回】このメンバーをウェイトにする："
         "自分のステージにいるほかのメンバー1人をアクティブにする。"
-    ):
+    )
+    if row["card_code"] == "PL!-bp6-008":
+        if (row["raw_effect_text_ja"] != expected or row["text_revision_id"] != 10
+                or row["raw_text_hash"] != "c5c21450dc637b1907f36eb45ba9c264b4fbd1a6a7092aa2dbc6a5bc9b27179c"):
+            return None
+        return EffectCandidate(
+            **_base(row, pattern_id="activated_hanayo_wait_ready_other_provenance_v2", effect_index=1),
+            label_ja=expected, effect_type="activated", timing="activated_main", trigger="player_activation",
+            frequency_limit="once_per_turn", is_optional=False, condition={},
+            cost=[{"action_type": "apply_wait", "target": "source"}],
+            choice={"choice_type": "member_from_stage", "zone": "stage", "card_type": "member",
+                    "exclude_source": True, "minimum": 1, "maximum": 1},
+            actions=[{"action_type": "ready_member_after_source_wait_provenance_v2", "target": "selected"}],
+            duration=None,
+        )
+    text = str(row["raw_effect_text_ja"]).strip()
+    if text != expected:
         return None
     return EffectCandidate(
         **_base(row, pattern_id="activated_wait_ready_other_member", effect_index=1),

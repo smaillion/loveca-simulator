@@ -27,14 +27,22 @@ def _producer_inventory():
     rows = []
     with closing(connect_database(Path("data/loveca.sqlite3"))) as db:
         for code in sorted({e.card_code for e in definitions.values()
-                            if any(a.action_type in {"ready_member", "ready_member_with_provenance_v1"} for a in e.actions)}):
+                            if any(a.action_type in {"ready_member", "ready_member_with_provenance_v1", "ready_member_after_source_wait_provenance_v2"} for a in e.actions)}):
             card = _load_definition(db, code, None, definitions, {})
             if "printemps" not in card.unit_keys:
                 continue
             rows.extend({"card": card.model_dump(mode="json"), "effect": e.model_dump(mode="json")}
                 for e in definitions.values() if e.card_code == code
-                and any(a.action_type in {"ready_member", "ready_member_with_provenance_v1"} for a in e.actions))
+                and any(a.action_type in {"ready_member", "ready_member_with_provenance_v1", "ready_member_after_source_wait_provenance_v2"} for a in e.actions))
     return rows
+
+
+def _legacy_hanayo(effect):
+    raw = effect.model_dump(mode="json")
+    raw["actions"] = [{"action_type": "ready_member"}]
+    raw["choice"]["orientation"] = "wait"
+    raw["condition"] = {"source_zone": "stage", "source_orientation": "active"}
+    return EffectDefinition.model_validate(raw)
 
 
 def _state(*, owner="player_1", targets="both", legacy=False, control=False):
@@ -228,7 +236,7 @@ def test_four_ai_actual_selection_hidden_invariance(owner, policy):
 def test_actual_cost_producer_cannot_be_blindly_upgraded():
     from pydantic import ValidationError
     row = next(r for r in _producer_inventory() if r["effect"]["effect_id"] == "PL!-bp6-008:1")
-    raw = row["effect"]
+    raw = _legacy_hanayo(EffectDefinition.model_validate(row["effect"])).model_dump(mode="json")
     assert raw["cost"] and raw["choice"]["exclude_source"]
     raw["actions"][0]["action_type"] = OPERATION
     with pytest.raises(ValidationError):
@@ -256,7 +264,7 @@ def test_actual_hanayo_cost_then_other_non_printemps_target_sql(tmp_path, owner)
     with closing(connect_database(Path("data/loveca.sqlite3"))) as db:
         state.cards["good-target"].card = _load_definition(db, "PL!-bp6-008", None, defs, {})
     state.cards["good-target"].orientation = "active"
-    state.effect_definitions["PL!-bp6-008:1"] = defs["PL!-bp6-008:1"]
+    state.effect_definitions["PL!-bp6-008:1"] = _legacy_hanayo(defs["PL!-bp6-008:1"])
     repo = _repo(state, tmp_path)
     result = repo.apply(state.match_id, ActionRequest(action_type="activate_effect", player_id=owner,
         expected_revision=state.revision, payload={"effect_id": "PL!-bp6-008:1", "source_card_instance_id": "good-target",

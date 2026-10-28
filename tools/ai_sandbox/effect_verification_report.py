@@ -198,6 +198,9 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *((f"hanayo_source_wait_{case}", f"花陽Wait費用と復原 {case}", f"花陽Wait费用与复原 {case}",
+           "PL!-bp6-008:1", lambda effect, case=case: _run_hanayo_source_wait(effect, case))
+          for case in ("wait", "active", "non_printemps", "no_other", "source_wait")),
         *((f"honoka_provenance_{case}", f"穂乃果Live開始の復原履歴 {case}", f"穂乃果Live开始复原历史 {case}",
            "PL!-bp3-001:2", lambda effect, case=case: _run_honoka_provenance(effect, case))
           for case in ("zero", "one", "active", "self", "non_printemps")),
@@ -583,6 +586,7 @@ def _v1_1_dynamic_scenarios(
                 notes_ja=[f"公式日本語テキスト: {effect.label_ja}"],
                 notes_zh=[f"官方日文效果文本：{effect.label_ja}"],
                 rule_reference_ids=(
+                    ["1.3.2.1", "4.1.4", "9.4.1", "9.6.3.1.2", "9.11.1", "9.12.2"] if effect_id == "PL!-bp6-008:1" else
                     ["1.3.2.1", "4.1.4", "9.6.2.4.2", "9.7.7", "9.11.1", "9.12.2"] if effect_id in {"PL!-pb1-012:1", "PL!-bp3-001:2"} else
                     ["4.5.7.1", "9.9.1"] if effect_id == "PL!HS-pb1-014:2" else
                     ["4.1.4", "4.8.3", "9.6.2.4.2", "9.7.7", "10.2.1", "10.2.2.1", "10.2.3", "8.4.11"]
@@ -683,6 +687,44 @@ def _run_opponent_success_draw(effect: EffectDefinition, case: str) -> dict[str,
         "条件成立時だけ必須一枚 / 条件成立才必选一张": len(final.state.players["player_1"].hand) == expected_draw - int(both and bool(hand_before)),
         "待機完了 / 待机完成": not final.state.pending_effects,
     }
+
+
+def _run_hanayo_source_wait(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    source = _v1_1_member("source", "小泉花陽", cost=7, unit_keys=["printemps"], work_keys=["love_live"],
+        card_code=effect.card_code, effect_ids=[effect.effect_id], orientation="wait" if case == "source_wait" else "active")
+    source.card.blade = 1
+    source.card.text_revision_id, source.card.raw_text_hash = effect.text_revision_id, effect.raw_text_hash
+    target = _v1_1_member("target", "AUDIT target", unit_keys=["bibi" if case == "non_printemps" else "printemps"],
+        work_keys=["love_live_sunshine"], orientation="active" if case == "active" else "wait")
+    state = _v1_1_state({effect.effect_id: effect}, [source, target],
+        member_area={"left": "source", "center": None if case == "no_other" else "target", "right": None},
+        hand=["target"] if case == "no_other" else [])
+    state.effect_order_policy = "ap_nap_player_choice"
+    request = ActionRequest(action_type="activate_effect", player_id="player_1", expected_revision=state.revision,
+        payload={"effect_id": effect.effect_id, "source_card_instance_id": "source", "energy_instance_ids": []})
+    if case in {"no_other", "source_wait"}:
+        legal = [entry for action in generate_legal_actions(state) if action.action_type == "activate_effect"
+                 for entry in action.options["activations"]]
+        try:
+            apply_action(state, request)
+        except IllegalActionError:
+            rejected = True
+        else:
+            rejected = False
+        return {"起動不可 / 不可起动": rejected and not legal,
+            "費用未払い / 未支付费用": state.cards["source"].orientation == ("wait" if case == "source_wait" else "active"),
+            "回数未消費 / 次数未消费": not state.effect_usage}
+    paid = apply_action(state, request).state
+    inv = next(i for i in paid.pending_effects if i.effect_id == effect.effect_id)
+    result = apply_action(paid, ActionRequest(action_type="resolve_effect", player_id="player_1", expected_revision=paid.revision,
+        payload={"invocation_id": inv.invocation_id, "selected_card_instance_ids": ["target"]})).state
+    expected = int(case != "active")
+    return {"本人Waitを支払う / 支付本人Wait": paid.cards["source"].orientation == "wait" and inv.trigger_data["ready_source_wait_cost_v1"]["paid"] is True,
+        "実変化だけ記録 / 仅记录实际变化": result.member_ready_history is not None and len(result.member_ready_history.events) == expected,
+        "元Printemps源 / 原Printemps来源": not expected or result.member_ready_history.events[0].source.unit_keys == ["printemps"],
+        "他のMemberを選択 / 选择其他Member": result.cards["target"].orientation == "active",
+        "回数を消費 / 消费次数": len([u for u in result.effect_usage if u.effect_id == effect.effect_id]) == 1,
+        "待機完了 / 待机完成": not result.pending_effects}
 
 
 def _run_honoka_provenance(effect: EffectDefinition, case: str) -> dict[str, bool]:

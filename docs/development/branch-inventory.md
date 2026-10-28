@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-28 JST 花陽单卡历史：固定分支/工作树，PL!-bp6-008:1精确绑定v2，86专项/44 SQL、四AI/隐私、4 UI和5图文；v2非法起动候选单独修正，旧v1未登记原型同类显示风险保留待修，执行层拒绝且未绑正式卡。正式生产者3/5，消费者与其他blocked不恢复；最终结果见hanayo-source-wait-provenance-verification.md。只本地验证，旧44/6 dirty/stash/ignored保留，不操作PR55或主机。
+
 2026-10-28 JST Wait费用/Active目标v2：固定分支/工作树，仅unregistered新操作，不放宽旧v1；93专项/34 SQL、646关联、四AI后续/完整隐私和4 UI。正式生产者仍2/5，消费者及其他blocked不恢复，937/1212与reviewed不变；最终门禁/同牌组见ready-source-wait-active-v2-probe.md。仅本地提交，不改PR55或主机，旧44/6 dirty/stash/ignored保留。
 
 2026-10-28 JST 高坂穂乃果PL!-bp3-001:2单卡来源历史：固定分支/工作树，82专项/53 SQL、四AI/隐私、3 UI及5图文，完整双段身份绑定但第一段起动抽弃不改；仅第2段动作/Wait预筛/可拒绝发动三叶变化，旧Replay和其他三生产者保持。正式历史生产者2/5，937/1212与reviewed不升，消费者和其他blocked不恢复，最终证据见honoka-live-start-provenance-verification.md。只本地提交，不改PR55/主机，旧44/6 dirty/stash/ignored保留。

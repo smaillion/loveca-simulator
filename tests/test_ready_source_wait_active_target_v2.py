@@ -58,6 +58,25 @@ def test_native_active_target_consumes_real_wait_cost_but_no_ready_event_red():
     assert len([u for u in result.effect_usage if u.effect_id == PROBE]) == 1
 
 
+@pytest.mark.parametrize("invalid", ["wait", "other_owner", "not_member"])
+def test_v2_never_advertises_an_unpayable_source(invalid):
+    state = _state(active=True)
+    if invalid == "wait":
+        state.cards["source-live"].orientation = "wait"
+    elif invalid == "other_owner":
+        state.cards["source-live"].owner_id = "player_2"
+    else:
+        state.cards["source-live"].card.card_type = "live"
+    before = match_state_hash(state)
+    activations = [entry for action in generate_legal_actions(state) if action.action_type == "activate_effect"
+                   for entry in action.options["activations"]]
+    assert not any(entry["effect_id"] == PROBE for entry in activations)
+    assert match_state_hash(state) == before
+    with pytest.raises(IllegalActionError):
+        apply_action(state, _activate(state))
+    assert match_state_hash(state) == before
+
+
 @pytest.mark.parametrize("owner", ["player_1", "player_2"])
 @pytest.mark.parametrize("active", [False, True])
 def test_native_two_step_payment_and_target_sql(tmp_path, owner, active):

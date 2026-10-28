@@ -1,5 +1,7 @@
 # AI and Simulation Notes
 
+Hanayo PL!-bp6-008:1 uses the bounded v2 paid-source ready operation. Four controllers are exercised on both sides; a no-safe-activation result is followed by a native player activation before testing the AI's actual target choice. The default AI version is unchanged. The unregistered v1 prototype can still advertise an unpayable source, though execution rejects it; see `development/hanayo-source-wait-provenance-verification.md`.
+
 Honoka PL!-bp3-001:2 now uses the existing no-cost ready provenance operation.
 The existing ready valuation and default AI version are unchanged. Its first
 activated draw/discard segment remains identical. See [audit](development/honoka-live-start-provenance-verification.md).
