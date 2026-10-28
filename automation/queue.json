@@ -884,6 +884,20 @@
       "acceptance": ["按实际PL!N-sd2-006:1与PL!N-bp7-012:1全文/revision/hash绑定，精确选择己方Active虹咲Member一人Wait作费用，拒绝可选能力不支付", "Blade+2或六色Heart+1只给原来源Member而非费用目标；费用目标为来源自身时合法，Wait Member不贡献Yell，来源离场/同ID回场不继承加成", "实际Live触发、非法目标/费用/颜色原子性、Live清理、新旧snapshot/SQL Replay、四AI/隐私与原生UI有断言；固定10局和图文报告不冒充随机触发覆盖", "全部profile/manifest/pre-push通过才晋级test_validated，不提升reviewed；六条重叠/继承卡保持manual，原dirty工作树不改，同一Draft PR54不合并部署"]
     },
     {
+      "id": "effect-ready-source-wait-v1-legal-action-audit",
+      "priority": 0,
+      "title": "修正未登记v1费用原型的不合法起动候选",
+      "status": "queued",
+      "depends_on": ["printemps-hanayo-source-wait-provenance-snapshot-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "先复现未登记ready_member_after_source_wait_provenance_v1在原来源已Wait或构造的异所有者时仍列起动候选但实际提交原子拒绝，确认正式v1费用生产者为空；不声称生产对局或SQL覆盖",
+        "限定v1真实来源本人顶层Active Member可支付一次Wait时才列候选，保留v1原Wait-only目标及v2现有保护，不全局放宽费用、修改旧JSON或伪称旧候选列表相同；旧快照状态和SQL Replay保持",
+        "双方角色、源状态/区域/所有者、目标有无及方向、费用和次数、非法原子性、v1/v2新旧SQL、四AI实际支持范围、完整玩家及provider构造隐私、必要UI和全部profiles验证；新源码同原30牌组冻结，未登记原型不当作随机正条件",
+        "不绑定任何正式生产者、不增加覆盖率、不requeue消费者或其他blocked；只本地验证提交，不push/publish、新PR、合并部署或主机操作"
+      ]
+    },
+    {
       "id": "effect-accuracy-loop",
       "priority": 3,
       "title": "按实际触发与规则风险扩展技能支持",

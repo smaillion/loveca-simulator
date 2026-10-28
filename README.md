@@ -2,7 +2,9 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
-小泉花陽PL!-bp6-008:1を全文/revision/hash限定の復原履歴へ接続。別の本人MemberがActiveでも選択でき、Wait費用と使用回数は実際に消費する。正式生産者3/5、旧Replay維持。[検証](./docs/development/hanayo-source-wait-provenance-verification.md)。未登録v1の起動候補表示は別途未解決、ローカルのみ。
+未登録Wait費用v1原型の支払不能な発生源を起動候補から除外。旧Replay状態とWait対象制限を維持し、正式生産者は増やさない。[監査](./docs/development/ready-source-wait-v1-legal-audit.md)。
+
+小泉花陽PL!-bp6-008:1を全文/revision/hash限定の復原履歴へ接続。別の本人MemberがActiveでも選択でき、Wait費用と使用回数は実際に消費する。正式生産者3/5、旧Replay維持。[検証](./docs/development/hanayo-source-wait-provenance-verification.md)。ローカルのみ。
 
 Wait費用後に別のActive Memberも選べる限定unregistered v2原型を追加。支払と使用回数は消費し、同状態では復原履歴を作らない。旧v1/Replayを維持、93専用/34 SQL・四AI後続選択・4 UI。正式生産者2/5のまま。[検証](./docs/development/ready-source-wait-active-v2-probe.md)。ローカルのみ。
 

@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-28 JST 未登记v1费用原型：限定修正无法支付来源的起动候选，旧Replay状态与Wait目标保留；不绑定正式卡、不恢复消费者，最终结果见ready-source-wait-v1-legal-audit.md和ignored验收记录。固定分支/工作树，只本地验证，旧44/6 dirty、stash与其他blocked保留。
+
 2026-10-28 JST 花陽单卡历史：固定分支/工作树，PL!-bp6-008:1精确绑定v2，86专项/44 SQL、四AI/隐私、4 UI和5图文；v2非法起动候选单独修正，旧v1未登记原型同类显示风险保留待修，执行层拒绝且未绑正式卡。正式生产者3/5，消费者与其他blocked不恢复；最终结果见hanayo-source-wait-provenance-verification.md。只本地验证，旧44/6 dirty/stash/ignored保留，不操作PR55或主机。
 
 2026-10-28 JST Wait费用/Active目标v2：固定分支/工作树，仅unregistered新操作，不放宽旧v1；93专项/34 SQL、646关联、四AI后续/完整隐私和4 UI。正式生产者仍2/5，消费者及其他blocked不恢复，937/1212与reviewed不变；最终门禁/同牌组见ready-source-wait-active-v2-probe.md。仅本地提交，不改PR55或主机，旧44/6 dirty/stash/ignored保留。

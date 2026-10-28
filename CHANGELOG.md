@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 未登録のWait費用v1原型で、支払不能な発生源を起動候補から除外。旧Replay状態とWait対象制限は維持。
+- 中文: 未登记v1原型限定修正非法来源候选；旧JSON/Replay状态不追改，不新增正式生产者或解除消费者依赖。[审计](./docs/development/ready-source-wait-v1-legal-audit.md)。
+
 - 花陽PL!-bp6-008:1を限定v2履歴に接続し、Active対象も合法に選択。旧登録のReplayは維持し、v2だけの支払不能な起動候補表示を修正。
 - 中文: 86专项含44 SQL、四AI/隐私、4 UI及5图文；正式生产者3/5、不恢复消费者。未登记v1原型仍可能列出不可支付的起动，执行层会拒绝，另列有限修复。[记录](./docs/development/hanayo-source-wait-provenance-verification.md)，只本地验证。
 

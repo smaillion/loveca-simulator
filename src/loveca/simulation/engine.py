@@ -1284,7 +1284,7 @@ def _legal_effect_activations(
                 continue
             if _effect_usage_limit_reached(state, effect, instance_id):
                 continue
-            if any(op.action_type == SOURCE_WAIT_V2_OPERATION for op in effect.actions) and (
+            if any(op.action_type in {SOURCE_WAIT_OPERATION, SOURCE_WAIT_V2_OPERATION} for op in effect.actions) and (
                 instance.owner_id != player_id or instance.card.card_type != "member" or instance.orientation != "active"
             ):
                 continue

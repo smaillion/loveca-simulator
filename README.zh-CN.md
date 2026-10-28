@@ -2,7 +2,9 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
-小泉花陽PL!-bp6-008:1按全文/revision/hash接入复原来源历史，允许选择其他已Active成员但仍真实支付Wait并消耗次数。正式历史生产者3/5、旧Replay保持；未登记v1原型的非法起动候选显示另待修复。[验证](./docs/development/hanayo-source-wait-provenance-verification.md)。仅本地验证。
+未登记Wait费用v1原型不再列出无法支付的来源；旧Replay状态和Wait目标限制保持，正式生产者不增加。[审计](./docs/development/ready-source-wait-v1-legal-audit.md)。
+
+小泉花陽PL!-bp6-008:1按全文/revision/hash接入复原来源历史，允许选择其他已Active成员但仍真实支付Wait并消耗次数。正式历史生产者3/5、旧Replay保持。[验证](./docs/development/hanayo-source-wait-provenance-verification.md)。仅本地验证。
 
 新增本人Wait费用后可选另一已Active成员的独立unregistered v2原型；真实支付并消耗次数，同状态不制造复原历史。旧v1/Replay不变，93专项/34 SQL、四AI后续选择和4 UI；正式历史生产者仍2/5，消费者不恢复。[验证](./docs/development/ready-source-wait-active-v2-probe.md)。仅本地提交。
 

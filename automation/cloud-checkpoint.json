@@ -3,10 +3,10 @@
   "branch": "codex/continuous-development",
   "base_ref": "origin/develop",
   "pull_request": 55,
-  "source_head": "b8fd04a4aedfff9986f523241503d0a5368abe02",
-  "generated_at": "2026-10-28T04:13:50.828372+00:00",
+  "source_head": "71c37ec8b35caab6ee04b668713d9b21b028e8e1",
+  "generated_at": "2026-10-28T05:16:38.761185+00:00",
   "task_states": {
-    "printemps-hanayo-source-wait-provenance-snapshot-audit": "in_progress",
+    "printemps-hanayo-source-wait-provenance-snapshot-audit": "done",
     "effect-ready-source-wait-active-target-probe-v2": "done",
     "printemps-honoka-live-start-provenance-snapshot-audit": "done",
     "printemps-kotori-onplay-provenance-snapshot-audit": "done",
@@ -104,6 +104,7 @@
     "named-multi-member-selection-audit": "done",
     "live-start-discard2-choose-heart": "done",
     "live-start-wait-nijigasaki-source-bonus": "done",
+    "effect-ready-source-wait-v1-legal-action-audit": "in_progress",
     "effect-accuracy-loop": "queued",
     "phase6-conformance-matrix": "queued"
   }
