@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-28 JST WAO-WAO三人复原/来源Live得分：仅PL!-pb1-028:1精确快照，旧全局得分和旧Replay保留历史，不称正确；消费者及旧blocked保持。最终同源码门禁、冻结和验收见waowao-ready-three-source-score-verification.md及ignored记录。固定工作树/分支，只本地验证，不发布；旧dirty/stash保留。
+
 2026-10-28 JST 离场来源双方目标：仅未登记v2原型，旧本人Wait v1与Replay保持；不绑定PL!-PR-001或解除消费者blocked，正式生产者仍3/5。最终门禁及同牌组见departed-ready-both-owner-probe.md和ignored验收记录。固定分支/工作树，仅本地验证，保留旧dirty/stash。
 
 2026-10-28 JST 穂乃果PL!-PR-001离场范围审计：正文未限定本人或Wait，现有登记与离场原型只列本人Wait；双方原生SQL及四AI记录旧行为，目标语义及覆盖依赖未解除，不绑定来源原型或发布本地批次。正式生产者仍3/5，消费者及旧blocked保持；见honoka-departed-ready-scope-unresolved.md。固定分支/工作树，保留旧dirty/stash。

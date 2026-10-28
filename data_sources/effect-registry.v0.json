@@ -15086,7 +15086,7 @@
     {
       "actions": [
         {
-          "action_type": "ready_member",
+          "action_type": "ready_member_with_provenance_v1",
           "amount": null,
           "amount_source": null,
           "branch": null,
@@ -15102,7 +15102,7 @@
           }
         },
         {
-          "action_type": "modify_score",
+          "action_type": "gain_source_score_if_three_readied_printemps",
           "amount": 1,
           "amount_source": null,
           "branch": null,
@@ -15111,13 +15111,10 @@
           "flag": null,
           "multiplier": null,
           "orientation": null,
-          "target": null,
+          "source_object_policy": "original_live_start_three_readied_source",
+          "target": "source",
           "target_hand_size": null,
-          "value": {
-            "condition": {
-              "effect_ready_member_count_at_least": 3
-            }
-          }
+          "value": null
         }
       ],
       "card_code": "PL!-pb1-028",
@@ -15125,7 +15122,7 @@
       "condition": {},
       "cost": [],
       "cost_choice": null,
-      "duration": "live",
+      "duration": "game",
       "effect_id": "PL!-pb1-028:1",
       "effect_index": 1,
       "effect_type": "triggered",

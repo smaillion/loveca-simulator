@@ -383,7 +383,9 @@ def test_member_comparison_counts_heart_cost_and_original_blade_matches() -> Non
 
 
 def test_printemps_ready_count_controls_live_score_bonus() -> None:
-    effect = _definition("PL!-pb1-028:1")
+    # This fixture exercises the historical snapshot and its historical score behavior.
+    from test_printemps_ready_history_boundary import _definitions
+    effect = _definitions()["PL!-pb1-028:1"]
     source = _live("source", "Source Live", effect_ids=[effect.effect_id])
     members = [
         _member(

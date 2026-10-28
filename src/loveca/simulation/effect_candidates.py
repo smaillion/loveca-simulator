@@ -15113,6 +15113,20 @@ def _phase5_v1_final_static_effects(row: sqlite3.Row) -> EffectCandidate | None:
 
 
 def _simple_ai_v1_1_safe_effects(row: sqlite3.Row) -> EffectCandidate | None:
+    if row["card_code"] == "PL!-pb1-028":
+        text = "【ライブ開始時】自分のステージにいる『Printemps』のメンバーをアクティブにする。これによりウェイト状態のメンバーが3人以上アクティブ状態になったとき、このカードのスコアを＋１する。"
+        if (row["raw_effect_text_ja"] != text or row["text_revision_id"] != 437
+                or row["raw_text_hash"] != "2079004eee0c3c29da064a8859bd918c283872063c845f240311f8b9120e9ff5"):
+            return None
+        return EffectCandidate(
+            **_base_with_execution_mode(row, pattern_id="live_start_waowao_ready_three_source_score_v2",
+                                        effect_index=1, execution_mode="auto_resolve"),
+            label_ja=text, effect_type="triggered", timing="live_start", trigger="live_started",
+            frequency_limit="once_per_live", is_optional=False, condition={}, cost=[], choice=None,
+            actions=[{"action_type": "ready_member_with_provenance_v1", "target": "self_stage_unit", "value": {"unit_key": "printemps"}},
+                     {"action_type": "gain_source_score_if_three_readied_printemps", "target": "source", "amount": 1,
+                      "source_object_policy": "original_live_start_three_readied_source"}], duration="game",
+        )
     patterns: dict[str, dict[str, Any]] = {
         "【ライブ開始時】ライブ終了時まで、自分のステージにいる『Aqours』のメンバー1人は、元々持つハートがすべて【heart04】になる。": {
             "suffix": "live_start_aqours_member_replace_base_hearts_heart04",

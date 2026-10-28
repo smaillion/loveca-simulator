@@ -1924,6 +1924,7 @@ const autoResultOperationEvents = new Set([
   "effect_waiting_live_top_resolved",
   "effect_baton_cost7_draw_discard_resolved",
   "effect_current_yell_source_score_resolved",
+  "effect_three_ready_source_score_resolved",
   "effect_opponent_yell_live_draw_resolved",
   "effect_aqours_shared_yell_recovered",
   "effect_water_blue_cards_returned",
@@ -2062,7 +2063,7 @@ function autoResultLines(
       if (summary) lines.push(summary);
       if (related.data.source_available === false) lines.push(locale === "zh"
         ? "原来源 Live 已离场，未减需" : "元のライブが離れたため必要ハートを減らさない");
-    } else if (related.event_type === "effect_waiting_lives_recovered" || related.event_type === "effect_opponent_live_recovered" || related.event_type === "effect_aqours_shared_yell_recovered" || related.event_type === "effect_current_yell_source_score_resolved" || related.event_type === "effect_baton_cost7_draw_discard_resolved" || related.event_type === "effect_waiting_live_top_resolved") {
+    } else if (related.event_type === "effect_waiting_lives_recovered" || related.event_type === "effect_opponent_live_recovered" || related.event_type === "effect_aqours_shared_yell_recovered" || related.event_type === "effect_current_yell_source_score_resolved" || related.event_type === "effect_three_ready_source_score_resolved" || related.event_type === "effect_baton_cost7_draw_discard_resolved" || related.event_type === "effect_waiting_live_top_resolved") {
       const summary = eventSummary(related, state, locale);
       if (summary) lines.push(summary);
     } else if (related.event_type === "effect_milled_blade_colors_resolved" || related.event_type === "effect_muse_blade_aura_resolved" || related.event_type === "effect_bottom_live_heart_resolved" || related.event_type === "effect_bottom_aqours_heart_resolved" || related.event_type === "effect_bottom_five_members_resolved" || related.event_type === "effect_opponent_success_draw_resolved" || related.event_type === "effect_opponent_yell_live_draw_resolved" || related.event_type === "effect_wait_energy_next_active_resolved") {
@@ -4270,6 +4271,7 @@ function eventTitle(event: GameEvent, locale: UiLocale): string {
     effect_opponent_success_draw_resolved: ["对方本回合成功判定", "相手の今ターン成功判定"],
     effect_opponent_yell_live_draw_resolved: ["对方当前Yell Live判定", "相手の現在エールLive判定"],
     effect_current_yell_source_score_resolved: ["当前Yell与原Live得分", "現在エールと元Liveのスコア"],
+    effect_three_ready_source_score_resolved: ["实际复原与原Live得分", "実際のアクティブと元Liveのスコア"],
     effect_baton_cost7_draw_discard_resolved: ["Baton费用7抽弃", "コスト7バトンのドローと手札"],
     effect_waiting_live_top_resolved: ["控室Live回库顶", "控室Liveをデッキ上へ"],
     effect_wait_energy_next_active_resolved: ["新Energy下回合限制", "新エネルギーの次ターン制限"],
@@ -4417,6 +4419,12 @@ function eventSummary(event: GameEvent, state: MatchState, locale: UiLocale): st
     return locale === "zh"
       ? `费用7 Baton：${event.data.condition_met ? "满足" : "未满足"} · 抽 ${Number(event.data.drawn_count)} 张 · 弃 ${Number(event.data.discarded_count)} 张`
       : `コスト7バトン：${event.data.condition_met ? "成立" : "不成立"} · ${Number(event.data.drawn_count)}枚ドロー · 手札${Number(event.data.discarded_count)}枚を控室へ`;
+  }
+  if (event.event_type === "effect_three_ready_source_score_resolved") {
+    const suffix = event.data.source_available ? "" : locale === "zh" ? " · 原Live已离场" : " · 元Liveは移動済み";
+    return (locale === "zh"
+      ? `实际复原 ${Number(event.data.readied_count)} 人 · 原Live得分 +${Number(event.data.score_delta)}`
+      : `実際にアクティブ ${Number(event.data.readied_count)}人 · 元Liveのスコア +${Number(event.data.score_delta)}`) + suffix;
   }
   if (event.event_type === "effect_current_yell_source_score_resolved") {
     const suffix = event.data.source_available ? "" : locale === "zh" ? " · 原Live已离场" : " · 元Liveは移動済み";

@@ -13,7 +13,7 @@ from loveca.simulation.ready_history import (
     OPERATION as READY_PROVENANCE_OPERATION, PROVENANCE_OPERATIONS, SOURCE_WAIT_OPERATION, SOURCE_WAIT_V2_OPERATION, DEPARTED_OPERATION, DEPARTED_BOTH_OPERATION,
     begin_ready_tracking, mark_ready_departure, prepare_ready_source, record_member_ready,
     uses_source_wait_cost, prepare_source_wait_cost, finish_source_wait_cost, validate_source_wait_cost,
-    capture_ready_departure, uses_departed_source, validate_departed_ready_source,
+    capture_ready_departure, uses_departed_source, validate_departed_ready_source, validate_live_start_ready_source,
     record_unproven_member_ready, QUALIFIED_POLICY, QUALIFIED_SOURCE_KEY,
 )
 
@@ -1779,6 +1779,8 @@ def _resolve_effect(
             raise IllegalActionError("the paid ready effect requires its mandatory target selection")
     if uses_departed_source(effect):
         _ready_history_call(validate_departed_ready_source, state, invocation)
+    if any(op.action_type == "gain_source_score_if_three_readied_printemps" for op in effect.actions):
+        _ready_history_call(validate_live_start_ready_source, state, invocation)
     if _waiting_nine_live_top_snapshot(effect):
         _resolve_waiting_nine_live_top(state, invocation, action, events)
         return
@@ -3402,7 +3404,8 @@ def _queue_triggered_effects(
 
 def _captures_original_live_source(effect: Any) -> bool:
     return bool(effect and any(op.source_object_policy in {
-        "original_live_start_bottom_five_source", "original_live_start_bottom_aqours_requirement", "original_live_success_yell_source"}
+        "original_live_start_bottom_five_source", "original_live_start_bottom_aqours_requirement", "original_live_success_yell_source",
+        "original_live_start_three_readied_source"}
                                for op in effect.actions)) or getattr(getattr(effect, "choice", None), "selection_policy", None) == (
         "public_aqours_blade_six_source_score"
     )
@@ -9894,6 +9897,25 @@ def _execute_operations(
                 data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
                       "condition_met": bool(count), "current_yell_live_count": count,
                       "source_available": available, "score_delta": delta}, source="system"))
+        elif operation_type == "gain_source_score_if_three_readied_printemps":
+            if (type(invocation.trigger_data.get("original_source_live_object")) is not bool
+                    or type(operation_context.get("effect_ready_member_count")) is not int):
+                raise IllegalActionError("three ready source score requires its original Live and actual ready count")
+            source_id = invocation.source_card_instance_id
+            available = (invocation.trigger_data["original_source_live_object"] is True
+                         and not invocation.trigger_data.get("original_source_live_object_departed", False)
+                         and source_id in player.live_area and state.cards[source_id].card.card_type == "live")
+            count = operation_context["effect_ready_member_count"]
+            if count >= 3 and available:
+                player.manual_modifiers.append(ManualModifier(
+                    modifier_id=f"effect:{invocation.invocation_id}:three-ready-live-score",
+                    modifier_type="live_card_score", duration="game", created_turn=state.turn_number,
+                    amount=1, target_card_instance_id=source_id,
+                    value={"policy": "original_live_start_three_readied_source"}))
+            events.append(GameEvent(event_type="effect_three_ready_source_score_resolved", player_id=invocation.player_id,
+                data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                      "source_card_instance_id": source_id, "readied_count": count,
+                      "source_available": available, "score_delta": int(count >= 3 and available)}, source="system"))
         elif operation_type == "modify_score":
             player.manual_modifiers.append(
                 ManualModifier(

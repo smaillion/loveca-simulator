@@ -32,6 +32,12 @@ def _definitions():
     effect = definitions["PL!-pb1-012:1"]
     definitions[effect.effect_id] = effect.model_copy(update={"actions": [effect.actions[0].model_copy(update={"action_type": "ready_member"})],
                                                            "choice": effect.choice.model_copy(update={"orientation": "wait"})})
+    ready = definitions[READY].model_dump(mode="json")
+    ready["actions"] = [{"action_type": "ready_member", "target": "self_stage_unit", "value": {"unit_key": "printemps"}},
+                        {"action_type": "modify_score", "amount": 1,
+                         "value": {"condition": {"effect_ready_member_count_at_least": 3}}}]
+    ready["duration"] = "live"
+    definitions[READY] = EffectDefinition.model_validate(ready)
     return definitions
 
 

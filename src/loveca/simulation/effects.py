@@ -15,6 +15,7 @@ DEFAULT_EFFECT_REGISTRY = (
 
 SUPPORTED_EFFECT_ACTIONS = {
     "gain_source_score_if_current_yell_live",
+    "gain_source_score_if_three_readied_printemps",
     "draw_if_opponent_current_yell_live",
     "shuffle_waiting_aqours_for_selected_heart",
     "wait_opponent_cost4_skip_next_turn_active",
@@ -178,6 +179,7 @@ class EffectOperation(BaseModel):
         "original_live_start_bottom_five_source",
         "original_live_start_bottom_aqours_requirement",
         "original_live_success_yell_source",
+        "original_live_start_three_readied_source",
     ] | None = None
     overlap_observer_policy: Literal[
         "ignore_disjoint_source_triggers", "require_complete_source_bindings"
@@ -204,6 +206,14 @@ class EffectOperation(BaseModel):
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        ready_score = "gain_source_score_if_three_readied_printemps"
+        ready_score_policy = "original_live_start_three_readied_source"
+        if self.action_type == ready_score and self.model_dump(exclude_defaults=True, exclude_none=True) != {
+            "action_type": ready_score, "amount": 1, "target": "source", "source_object_policy": ready_score_policy,
+        }:
+            raise ValueError("three ready source score requires its fixed original Live operation")
+        if self.source_object_policy == ready_score_policy and self.action_type != ready_score:
+            raise ValueError("three ready source score policy requires its bounded operation")
         if self.action_type in {"ready_member_with_provenance_v1", "ready_member_after_source_wait_provenance_v1", "ready_member_after_source_wait_provenance_v2", "ready_member_from_departed_source_provenance_v1", "ready_member_from_departed_both_provenance_v2"}:
             if (set(self.model_dump(exclude_defaults=True, exclude_none=True)) - {"action_type", "target", "value"}
                     or self.target not in {None, "selected", "source", "self_stage_all", "self_stage_unit"}
@@ -795,6 +805,19 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        ready_score = "gain_source_score_if_three_readied_printemps"
+        if any(op.action_type == ready_score for op in self.cost):
+            raise ValueError("three ready source score cannot be a cost")
+        if any(op.action_type == ready_score for op in self.actions):
+            expected = [EffectOperation(action_type="ready_member_with_provenance_v1", target="self_stage_unit",
+                                        value={"unit_key": "printemps"}),
+                        EffectOperation(action_type=ready_score, target="source", amount=1,
+                                        source_object_policy="original_live_start_three_readied_source")]
+            if (self.actions != expected or self.condition or self.cost or self.cost_choice or self.choice or self.follow_up_choice
+                    or self.effect_type != "triggered" or self.timing != "live_start" or self.trigger != "live_started"
+                    or self.frequency_limit != "once_per_live" or self.is_optional or self.duration != "game"
+                    or self.execution_mode != "auto_resolve" or self.simulation_support == "manual_resolution"):
+                raise ValueError("three ready source score requires its fixed mandatory Live-start shape")
         if any(op.action_type in {"ready_member_with_provenance_v1", "ready_member_after_source_wait_provenance_v1", "ready_member_after_source_wait_provenance_v2", "ready_member_from_departed_source_provenance_v1", "ready_member_from_departed_both_provenance_v2"} for op in self.cost):
             raise ValueError("ready provenance is an effect operation, not a cost")
         departed_ready = "ready_member_from_departed_source_provenance_v1"

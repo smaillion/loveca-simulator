@@ -71,7 +71,7 @@ def test_identity_and_only_one_formal_history_producer():
     assert hashlib.sha256(card.raw_effect_text_ja.encode()).hexdigest() == card.raw_text_hash == "b9330edc34a6956d65e6eb4f353a012df515635f142ff3312f42c9bd9d8b182c"
     assert card.unit_keys == ["printemps"] and card.work_keys == ["love_live"]
     definitions = load_effect_registry().effects
-    assert {e.effect_id for e in definitions if any(a.action_type == OPERATION for a in e.actions)} == {EFFECT, "PL!-bp3-001:2"}
+    assert {e.effect_id for e in definitions if any(a.action_type == OPERATION for a in e.actions)} == {EFFECT, "PL!-bp3-001:2", "PL!-pb1-028:1"}
     consumer = next(e for e in definitions if e.effect_id == "PL!-pb2-010:1")
     assert consumer.simulation_support == "manual_resolution"
     assert state.member_ready_coverage_policy is None

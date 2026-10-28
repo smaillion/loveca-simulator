@@ -286,6 +286,21 @@ def prepare_ready_source(state: Any, invocation: Any, departure: Any = None) -> 
     invocation.trigger_data[SOURCE_KEY] = source.model_dump(mode="json")
 
 
+def validate_live_start_ready_source(state: Any, invocation: Any) -> None:
+    source = ReadySourceV1.model_validate(invocation.trigger_data.get(SOURCE_KEY))
+    departed = invocation.trigger_data.get("original_source_live_object_departed", False)
+    if (type(state.turn_number) is not int or invocation.trigger_event != "live_started"
+            or invocation.trigger_data.get("original_source_live_object") is not True
+            or type(departed) is not bool or source.departed is not departed
+            or source.turn_number != state.turn_number or source.zone != "live_area"
+            or (source.invocation_id, source.effect_id, source.instance_id, source.effect_player_id, source.owner_id)
+            != (invocation.invocation_id, invocation.effect_id, invocation.source_card_instance_id,
+                invocation.player_id, invocation.player_id)):
+        raise ValueError("three ready source score requires its original Live-start source")
+    if not departed and source.instance_id not in state.players[invocation.player_id].live_area:
+        raise ValueError("three ready source score requires current original Live or departure evidence")
+
+
 def mark_ready_departure(state: Any, instance_ids: list[str], zone: str) -> None:
     history = getattr(state, "member_ready_history", None)
     if history is None and getattr(state, "member_ready_coverage_policy", None) != QUALIFIED_POLICY:

@@ -1171,7 +1171,7 @@ def _operation_value_without_observation(
         base = 7 * amount
     elif action_type in {
         "modify_score", "replace_score", "modify_source_score_if_selected_blade_highest",
-        "modify_source_score_if_selected_blade_six",
+        "modify_source_score_if_selected_blade_six", "gain_source_score_if_three_readied_printemps",
     }:
         base = 11 * amount
     elif action_type in {"return_from_waiting_room", "move_selected_to_hand"}:

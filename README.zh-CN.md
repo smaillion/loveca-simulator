@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+WAO-WAO PL!-pb1-028:1限定记录实际复原人数并只给原Live加分；旧全局得分快照仅为Replay保留。[验证](./docs/development/waowao-ready-three-source-score-verification.md)。
+
 新增保留离场来源信息、支持双方公开成员目标的未登记v2原型；不用于裁定正式卡目标范围。[验证](./docs/development/departed-ready-both-owner-probe.md)。
 
 穂乃果PL!-PR-001:1离场复原的目标范围仍待确认；旧登记和来源原型的范围不能直接当作完整卡文语义。[审计](./docs/development/honoka-departed-ready-scope-unresolved.md)。未改正式登记，仅本地验证。

@@ -489,6 +489,10 @@ def _v1_1_dynamic_scenarios(
             "PL!-pb1-028:1",
             _run_v1_1_printemps_ready_score,
         ),
+        *[(f"waowao_ready_{count}", f"実際に{count}人を復原", f"实际复原{count}人", "PL!-pb1-028:1",
+           lambda effect, count=count: _run_waowao_ready_case(effect, count, False)) for count in range(4)],
+        ("waowao_source_departed", "元Liveの移動後", "原Live离场", "PL!-pb1-028:1",
+         lambda effect: _run_waowao_ready_case(effect, 3, True)),
         (
             "v1_1_same_name_discard_target",
             "捨てた同名 Member だけを対象化",
@@ -2418,12 +2422,17 @@ def _run_v1_1_member_comparison(effect: EffectDefinition) -> dict[str, bool]:
 
 
 def _run_v1_1_printemps_ready_score(effect: EffectDefinition) -> dict[str, bool]:
+    return _run_waowao_ready_case(effect, 3, False)
+
+
+def _run_waowao_ready_case(effect: EffectDefinition, count: int, departed: bool) -> dict[str, bool]:
+    from loveca.simulation.ready_history import mark_ready_departure, prepare_ready_source
     members = [
         _v1_1_member(
             f"member-{index}",
             f"Member {index}",
             unit_keys=["printemps"],
-            orientation="wait",
+            orientation="wait" if index < count else "active",
         )
         for index in range(3)
     ]
@@ -2437,6 +2446,14 @@ def _run_v1_1_printemps_ready_score(effect: EffectDefinition) -> dict[str, bool]
         "center": "member-1",
         "right": "member-2",
     }
+    invocation = state.pending_effects[0]
+    prepare_ready_source(state, invocation)
+    invocation.trigger_data["original_source_live_object"] = "source" in state.players["player_1"].live_area
+    if departed:
+        mark_ready_departure(state, ["source"], "live_area")
+        invocation.trigger_data["original_source_live_object_departed"] = True
+        state.players["player_1"].live_area.remove("source")
+        state.players["player_1"].hand.append("source")
     result = _v1_1_resolve(state)
     player = result.state.players["player_1"]
     return {
@@ -2447,9 +2464,9 @@ def _run_v1_1_printemps_ready_score(effect: EffectDefinition) -> dict[str, bool]
         "ready_count_modifies_score": [
             modifier.amount
             for modifier in player.manual_modifiers
-            if modifier.modifier_type == "score"
+            if modifier.modifier_type == "live_card_score" and modifier.target_card_instance_id == "source"
         ]
-        == [1],
+        == ([1] if count == 3 and not departed else []),
     }
 
 

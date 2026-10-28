@@ -118,7 +118,7 @@ def test_inventory_uses_real_source_unit_and_does_not_promote_consumer():
     assert all("printemps" in r["card"]["unit_keys"] for r in rows)
     assert all(r["card"]["raw_text_hash"] == r["effect"]["raw_text_hash"] for r in rows)
     assert all(r["card"]["text_revision_id"] == r["effect"]["text_revision_id"] for r in rows)
-    assert {r["effect"]["effect_id"] for r in rows if OPERATION in [a["action_type"] for a in r["effect"]["actions"]]} == {EFFECT, "PL!-bp3-001:2"}
+    assert {r["effect"]["effect_id"] for r in rows if OPERATION in [a["action_type"] for a in r["effect"]["actions"]]} == {EFFECT, "PL!-bp3-001:2", "PL!-pb1-028:1"}
     assert any("Printemps" not in r["effect"]["label_ja"] for r in rows)
     consumer = next(e for e in load_effect_registry().effects if e.effect_id == "PL!-pb2-010:1")
     assert consumer.simulation_support == "manual_resolution"
@@ -246,7 +246,8 @@ def test_actual_cost_producer_cannot_be_blindly_upgraded():
 def test_legacy_producer_is_unknown_not_zero_in_opted_in_snapshot():
     from test_member_ready_provenance import _state as _probe_state, _advance
     state = _probe_state()
-    legacy = next(r["effect"] for r in _producer_inventory() if r["effect"]["effect_id"] == "PL!-pb1-028:1")
+    from test_printemps_ready_history_boundary import _definitions
+    legacy = _definitions()["PL!-pb1-028:1"].model_dump(mode="json")
     state.effect_definitions[legacy["effect_id"]] = EffectDefinition.model_validate(legacy)
     state.cards["live-1"].card.effect_ids.append(legacy["effect_id"])
     current = apply_action(state, _advance(state)).state

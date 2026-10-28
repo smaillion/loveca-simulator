@@ -3,8 +3,8 @@
   "branch": "codex/continuous-development",
   "base_ref": "origin/develop",
   "pull_request": 55,
-  "source_head": "7ecc04b495dd38d60352c11f06c32ceb6af6041d",
-  "generated_at": "2026-10-28T06:34:36.689528+00:00",
+  "source_head": "604ae34fe5096179f5b5ab7527f48b94b267d70a",
+  "generated_at": "2026-10-28T08:41:06.529171+00:00",
   "task_states": {
     "printemps-hanayo-source-wait-provenance-snapshot-audit": "done",
     "effect-ready-source-wait-active-target-probe-v2": "done",
@@ -106,7 +106,8 @@
     "live-start-wait-nijigasaki-source-bonus": "done",
     "effect-ready-source-wait-v1-legal-action-audit": "done",
     "printemps-honoka-departed-ready-scope-audit": "done",
-    "departed-ready-both-owner-target-provenance-probe": "in_progress",
+    "departed-ready-both-owner-target-provenance-probe": "done",
+    "printemps-waowao-ready-three-source-score-audit": "in_progress",
     "effect-accuracy-loop": "queued",
     "phase6-conformance-matrix": "queued"
   }

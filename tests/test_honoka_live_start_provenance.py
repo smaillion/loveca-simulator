@@ -88,7 +88,7 @@ def test_exact_full_identity_first_segment_and_two_producers():
     assert [(a.action_type, a.amount) for a in first.actions] == [("draw_card", 1), ("discard_from_hand", None)]
     assert first.choice.zone == "hand" and first.choice.minimum == first.choice.maximum == 1
     definitions = load_effect_registry().effects
-    assert {e.effect_id for e in definitions if any(a.action_type == "ready_member_with_provenance_v1" for a in e.actions)} == {EFFECT, "PL!-pb1-012:1"}
+    assert {e.effect_id for e in definitions if any(a.action_type == "ready_member_with_provenance_v1" for a in e.actions)} == {EFFECT, "PL!-pb1-012:1", "PL!-pb1-028:1"}
     assert next(e for e in definitions if e.effect_id == "PL!-pb2-010:1").simulation_support == "manual_resolution"
 
 

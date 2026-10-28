@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- WAO-WAOの実際の復原人数と原Liveのスコアを限定記録。旧全体score snapshotはReplay用に維持。
+- 中文: 仅精确绑定PL!-pb1-028:1；三人实际复原只给原Live加分，旧全局得分快照保留历史Replay，不提升manual或reviewed。[验证](./docs/development/waowao-ready-three-source-score-verification.md)。
+
 - 退場元の履歴を保ち、双方の公開Memberを選べる未登録v2原型を追加。旧本人Wait原型とReplayは維持。
 - 中文: 仅未登记双方目标原型，实际Wait复原才记录原对象；不绑定穂乃果、不裁定其目标语义或恢复消费者。[记录](./docs/development/departed-ready-both-owner-probe.md)。
 

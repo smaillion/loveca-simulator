@@ -926,6 +926,20 @@
       ]
     },
     {
+      "id": "printemps-waowao-ready-three-source-score-audit",
+      "priority": 0,
+      "title": "审计WAO-WAO三人复原与来源Live得分",
+      "status": "queued",
+      "depends_on": ["departed-ready-both-owner-target-provenance-probe"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "先复核PL!-pb1-028:1的完整卡文、revision437及hash2079004eee0c3c29da064a8859bd918c283872063c845f240311f8b9120e9ff5，保留实际CardDefinition和旧登记；核对直接Q178/Q179及适用规则，不以不同卡FAQ替代本卡裁定",
+        "先通过真实Live开始状态和SQL证明0至3次实际Wait到Active、已Active不计、来源Live和其他Live分数范围以及来源移区/同ID返回；确认旧通用分数行为，不假设原型支持多动作等价",
+        "仅在完整文本、复原计数及原来源Live对象/期限明确且实现可证明时逐卡精确新快照；否则保留登记、不称旧规则正确、记录独立依赖，不半支持或恢复消费者",
+        "双方角色、并发来源、真实SQL Replay、四AI、玩家/provider构造隐私、必要UI图文与全部profiles；应用变化时固定同原30牌组冻结，禁止虚称随机正条件或覆盖率晋级，仅本地提交，不推送发布或操作主机"
+      ]
+    },
+    {
       "id": "effect-accuracy-loop",
       "priority": 3,
       "title": "按实际触发与规则风险扩展技能支持",

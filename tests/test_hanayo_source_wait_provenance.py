@@ -88,7 +88,7 @@ def test_precise_generator_and_unchanged_registry_scope():
     assert new.condition == {} and new.choice.orientation is None
     assert new.actions[0].action_type == "ready_member_after_source_wait_provenance_v2"
     producers = {e.effect_id for e in definitions if any(a.action_type in {"ready_member_with_provenance_v1", "ready_member_after_source_wait_provenance_v2"} for a in e.actions)}
-    assert producers == {EFFECT, "PL!-pb1-012:1", "PL!-bp3-001:2"}
+    assert producers == {EFFECT, "PL!-pb1-012:1", "PL!-bp3-001:2", "PL!-pb1-028:1"}
     assert next(e for e in definitions if e.effect_id == "PL!-pb2-010:1").simulation_support == "manual_resolution"
 
 
