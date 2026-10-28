@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- Q124の旧多枚数検索snapshotを監査し、正式カードは手動のまま維持。
+- 中文: 审计旧多张检索的双方费用、多选回放、AI 和隐私；不凭 Q124 单独提升正式技能。[审计](./docs/development/q124-multi-keep-legacy-audit.md)。
+
 - 正式な退場・登場復原の同時待機と限定履歴を監査。未確認の旧対象範囲は変更しない。
 - 中文: 同一Baton审计正式新旧复原来源及SQL Replay，旧来源未知时保留未知，不解除消费者依赖。[审计](./docs/development/printemps-mixed-formal-ready-audit.md)。
 

@@ -3474,6 +3474,33 @@ describe("App", () => {
     });
   });
 
+  it.each([0, 1, 2, 3])("handles %s selected cards in the historical Q124 multi-keep snapshot", (keep) => {
+    const onAction = vi.fn();
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    const ids = ["q124-a", "q124-b", "q124-c", "q124-ineligible"];
+    for (const [index, id] of ids.entries()) {
+      const base = state.cards["player_1-M002"];
+      state.cards[id] = { ...base, instance_id: id, card: { ...base.card, name_ja: `Q124候補${index}` } };
+    }
+    const action = { ...INSPECTION_MATCH_PAYLOAD.legal_actions[0], options: {
+      ...INSPECTION_MATCH_PAYLOAD.legal_actions[0].options,
+      effect_id: "PL!S-bp2-005:1", inspected_card_instance_ids: ids,
+      candidate_card_instance_ids: ids.slice(0, 3), minimum: 0, maximum: 3,
+      requires_order: false, reveal_selected_to_opponent: true,
+      selected_destination: "hand", unselected_destination: "waiting_room",
+    } };
+    render(<InspectionChoiceAction action={action as never} state={state as never}
+      loading={false} onAction={onAction} title="查看结果" submitLabel="确认取得" />);
+    expect(screen.getByRole("button", { name: /Q124候補3/ })).toBeDisabled();
+    for (const id of ids.slice(0, keep)) {
+      fireEvent.click(screen.getByRole("button", { name: new RegExp(state.cards[id].card.name_ja) }));
+    }
+    fireEvent.click(screen.getByRole("button", { name: "确认取得" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect_choice", "player_1", {
+      selected_card_instance_ids: ids.slice(0, keep), ordered_card_instance_ids: undefined,
+    });
+  });
+
   it.each([0, 1, 2])("privately keeps %s cards from the ten-minus-hand inspection", (keep) => {
     const onAction = vi.fn();
     const ids = ["player_1-M002", "player_1-M003"] as const;

@@ -968,6 +968,20 @@
       ]
     },
     {
+      "id": "q124-multi-keep-legacy-executor-ai-privacy-audit",
+      "priority": 0,
+      "title": "审计Q124多张检索旧快照的AI与隐私边界",
+      "status": "queued",
+      "depends_on": ["inspection-multi-keep-heart-wording-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "复核PL!S-bp2-005:1完整原文/revision/hash和本卡直接Q124，仅基本Heart的已确认边界；精确保留正式manual登记，不将旧自动快照或其他FAQ当作整卡裁定",
+        "只在真实旧快照及明确构造状态中审计双方费用、私看7张、0至3张选择及公开与其余控室、短牌库和非法原子性，SQL Replay与对象区域核对，旧JSON/Replay不追改",
+        "四AI在实际费用与多选后续候补中真实选择或明确不支持，验证未授权隐藏信息替换不改变决策、输入不改，双方玩家/API-play/provider构造context不泄露未公开牌；必要UI明确执行范围",
+        "发现产品缺陷先保留红例及原子边界，只在语义明确时独立限定修复；不得按Q124单独晋级manual/reviewed或解除其他blocked。全部profiles同源码、应用变化时重绑原30牌组冻结，仅本地提交不发布部署"
+      ]
+    },
+    {
       "id": "effect-accuracy-loop",
       "priority": 3,
       "title": "按实际触发与规则风险扩展技能支持",

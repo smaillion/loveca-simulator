@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+Q124対象の旧多枚数検索snapshotを監査。正式カードは手動対応のまま維持。[監査](./docs/development/q124-multi-keep-legacy-audit.md)。
+
 正式な退場・登場復原の同時待機を監査。旧来源が不明な範囲は未知のまま維持。[監査](./docs/development/printemps-mixed-formal-ready-audit.md)。
 
 Printempsの直接復原元5件を監査し、履歴記録は4件のみと確認。残る対象範囲と消費側は未解決。[監査](./docs/development/printemps-four-producer-coverage-audit.md)。

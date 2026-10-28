@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+审计 Q124 对应的旧多张检索快照；正式卡仍保持人工处理。[审计](./docs/development/q124-multi-keep-legacy-audit.md)。
+
 审计正式离场与登场复原同时待机；旧来源无法证明时限定覆盖仍为未知。[审计](./docs/development/printemps-mixed-formal-ready-audit.md)。
 
 按实际登记审计Printemps五条直接复原来源，目前四条记录来源历史；剩余目标范围和消费者仍未解决。[审计](./docs/development/printemps-four-producer-coverage-audit.md)。

@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-28 JST Q124旧多张检索兼容审计：实际旧登记结构、双方费用/多选/公开及隐私；正式曜仍manual，其他blocked保持。固定分支只本地验证，见q124-multi-keep-legacy-audit.md及ignored验收。
+
 2026-10-28 JST 正式新旧复原同时待机审计：Baton真实入队、双方及顺序与限定来源未知边界；不改登记或解除消费者blocked。固定工作树本地验证，见printemps-mixed-formal-ready-audit.md及ignored验收。
 
 2026-10-28 JST Printemps四条来源覆盖审计：五条实际直接来源中四条记录来源历史，旧离场来源证明不足保持未知；未解除PL!-PR-001目标语义或消费者依赖。固定分支/工作树仅本地验证，见printemps-four-producer-coverage-audit.md及ignored验收。
