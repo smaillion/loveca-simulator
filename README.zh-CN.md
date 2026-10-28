@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+穂乃果PL!-PR-001:1离场复原的目标范围仍待确认；旧登记和来源原型的范围不能直接当作完整卡文语义。[审计](./docs/development/honoka-departed-ready-scope-unresolved.md)。未改正式登记，仅本地验证。
+
 未登记Wait费用v1原型不再列出无法支付的来源；旧Replay状态和Wait目标限制保持，正式生产者不增加。[审计](./docs/development/ready-source-wait-v1-legal-audit.md)。
 
 小泉花陽PL!-bp6-008:1按全文/revision/hash接入复原来源历史，允许选择其他已Active成员但仍真实支付Wait并消耗次数。正式历史生产者3/5、旧Replay保持。[验证](./docs/development/hanayo-source-wait-provenance-verification.md)。仅本地验证。

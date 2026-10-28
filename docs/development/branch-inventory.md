@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-28 JST 穂乃果PL!-PR-001离场范围审计：正文未限定本人或Wait，现有登记与离场原型只列本人Wait；双方原生SQL及四AI记录旧行为，目标语义及覆盖依赖未解除，不绑定来源原型或发布本地批次。正式生产者仍3/5，消费者及旧blocked保持；见honoka-departed-ready-scope-unresolved.md。固定分支/工作树，保留旧dirty/stash。
+
 2026-10-28 JST 未登记v1费用原型：限定修正无法支付来源的起动候选，旧Replay状态与Wait目标保留；不绑定正式卡、不恢复消费者，最终结果见ready-source-wait-v1-legal-audit.md和ignored验收记录。固定分支/工作树，只本地验证，旧44/6 dirty、stash与其他blocked保留。
 
 2026-10-28 JST 花陽单卡历史：固定分支/工作树，PL!-bp6-008:1精确绑定v2，86专项/44 SQL、四AI/隐私、4 UI和5图文；v2非法起动候选单独修正，旧v1未登记原型同类显示风险保留待修，执行层拒绝且未绑正式卡。正式生产者3/5，消费者与其他blocked不恢复；最终结果见hanayo-source-wait-provenance-verification.md。只本地验证，旧44/6 dirty/stash/ignored保留，不操作PR55或主机。

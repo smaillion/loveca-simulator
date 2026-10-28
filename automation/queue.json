@@ -898,6 +898,20 @@
       ]
     },
     {
+      "id": "printemps-honoka-departed-ready-scope-audit",
+      "priority": 0,
+      "title": "审计穂乃果离场复原的目标范围与来源历史",
+      "status": "queued",
+      "depends_on": ["effect-ready-source-wait-v1-legal-action-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "先复核PL!-PR-001:1完整原文、revision712和hash15fa6ca29ca4e4bfab665dadebfe6bd076b833f84d99527392df394c43e80cfc及真实旧登记，独立核对没有本人限定的目标范围，不以仅本人目标的离场探针代替正式语义",
+        "先真实原生离场、双方目标/方向/来源最后信息和旧快照审计；官方依据不足或离场探针不能完整覆盖时保持原登记及消费者blocked，记录明确依赖，禁止半支持或擅自晋级",
+        "仅语义和原对象范围完整证明时精确全文绑定新快照；覆盖双方角色及候补、已Active/可选拒绝、离场来源/返回与目标对象、SQL Replay、四AI、完整隐私、必要UI图文和全部profiles",
+        "应用变化须重做同原30牌组冻结；不把原型绿色当消费者完成，不恢复其他blocked，不推送、发布、合并部署或操作主机"
+      ]
+    },
+    {
       "id": "effect-accuracy-loop",
       "priority": 3,
       "title": "按实际触发与规则风险扩展技能支持",

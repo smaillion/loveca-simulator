@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 穂乃果PL!-PR-001:1の退場後復原を監査。旧登録と原型は自分のWait対象に限られ、本文の対象範囲は未裁定のまま。
+- 中文: 双方离场及SQL/AI审计仅记录旧行为，不绑定来源原型或提升覆盖率；目标所有者及Active范围尚待官方依据。[审计](./docs/development/honoka-departed-ready-scope-unresolved.md)。
+
 - 未登録のWait費用v1原型で、支払不能な発生源を起動候補から除外。旧Replay状態とWait対象制限は維持。
 - 中文: 未登记v1原型限定修正非法来源候选；旧JSON/Replay状态不追改，不新增正式生产者或解除消费者依赖。[审计](./docs/development/ready-source-wait-v1-legal-audit.md)。
 

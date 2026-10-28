@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+穂乃果PL!-PR-001:1の退場後復原は、旧登録と原型の対象範囲が本文と完全に一致するか未確定。[監査](./docs/development/honoka-departed-ready-scope-unresolved.md)。正式登録は変更せず、ローカルのみ。
+
 未登録Wait費用v1原型の支払不能な発生源を起動候補から除外。旧Replay状態とWait対象制限を維持し、正式生産者は増やさない。[監査](./docs/development/ready-source-wait-v1-legal-audit.md)。
 
 小泉花陽PL!-bp6-008:1を全文/revision/hash限定の復原履歴へ接続。別の本人MemberがActiveでも選択でき、Wait費用と使用回数は実際に消費する。正式生産者3/5、旧Replay維持。[検証](./docs/development/hanayo-source-wait-provenance-verification.md)。ローカルのみ。
