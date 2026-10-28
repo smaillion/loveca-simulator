@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+审计对手成员 Live 成功能力无效化；目标与实际新无效判断仍未实现。[审计](./docs/development/opponent-success-disable-scope-unresolved.md)。
+
 限定支持渡辺曜 PL!S-bp2-005:1 登场时最多三张检索，按 Q124 只读取基本 Heart。[验证](./docs/development/q124-you-multi-keep-verification.md)。
 
 新增未登记的登场弃牌、最多取三张检索原型；尚未绑定正式卡。[验证](./docs/development/triggered-inspection-up-to-three-probe.md)。

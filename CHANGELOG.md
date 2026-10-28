@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 相手Memberのライブ成功能力無効化について、既存の自身限定処理との差を監査。
+- 中文: 实测对手目标与来源自身无效操作不等价，正式卡仍人工处理。[审计](./docs/development/opponent-success-disable-scope-unresolved.md)。
+
 - 渡辺曜PL!S-bp2-005:1を原文・revision・hashに限定し、Q124の基本Heart条件と最大3枚検索を実装。
 - 中文: 精确支持曜登场弃牌及最多三张检索；旧快照保持Replay，不提升reviewed。[验证](./docs/development/q124-you-multi-keep-verification.md)。
 

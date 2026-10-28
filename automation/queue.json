@@ -1010,6 +1010,20 @@
       ]
     },
     {
+      "id": "opponent-member-live-success-disable-scope-audit",
+      "priority": 0,
+      "title": "审计对手成员Live成功能力无效化边界",
+      "status": "queued",
+      "depends_on": ["q124-you-multi-keep-formal-snapshot-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "真实复核固定诊断两次停在PL!-pb2-003:1的证据及完整CardDefinition/全文/revision/hash，官方规则和本卡FAQ仅按实际来源记录；不将入队当条件成立或整卡人工裁定",
+        "用双方真实Live开始、未登记控制夹具和SQL Replay审计现有自身Live成功无效操作、对手顶层Member与来源/角色/获得能力/离区返回边界，明确是否能够证明实际无效数量及后续Heart；不把自身原操作盲用为对手目标",
+        "四AI的当前manual行为与双方玩家/provider构造隐私和必要UI如实验证；证据不足保持本卡manual并记录具体依赖，不半支持或解除任何blocked，不改旧JSON/Replay/其他登记",
+        "全部profiles和pre-push同源码通过，应用不变只核对旧固定30牌组冻结；只本地提交，不push/publish或合并部署，不操作主机"
+      ]
+    },
+    {
       "id": "effect-accuracy-loop",
       "priority": 3,
       "title": "按实际触发与规则风险扩展技能支持",

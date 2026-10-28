@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-28 JST 对手成员Live成功能力无效化审计：来源自身操作不能作为对手选择的实现，本卡仍manual；详见opponent-success-disable-scope-unresolved.md和ignored验收。固定分支只本地验证。
+
 2026-10-28 JST Q124曜精确快照：本卡限定弃牌后最多三张，旧快照仅作历史Replay，其他blocked不恢复；固定分支只本地验证，见q124-you-multi-keep-verification.md及ignored验收。
 
 2026-10-28 JST 登场弃牌多选受限原型：独立新策略，旧单选策略与正式曜manual保持；固定分支本地验证，见triggered-inspection-up-to-three-probe.md及ignored验收。
