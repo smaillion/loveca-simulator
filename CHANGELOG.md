@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 正式な退場・登場復原の同時待機と限定履歴を監査。未確認の旧対象範囲は変更しない。
+- 中文: 同一Baton审计正式新旧复原来源及SQL Replay，旧来源未知时保留未知，不解除消费者依赖。[审计](./docs/development/printemps-mixed-formal-ready-audit.md)。
+
 - Printemps直接復原元5件のうち履歴記録は4件。残る対象範囲は未裁定。
 - 中文: 按实际卡定义和登记审计四条来源历史，旧离场来源缺少证明时限定查询保持未知，不恢复受阻消费者。[审计](./docs/development/printemps-four-producer-coverage-audit.md)。
 

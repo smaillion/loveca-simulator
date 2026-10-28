@@ -954,6 +954,20 @@
       ]
     },
     {
+      "id": "printemps-mixed-formal-departure-onplay-coverage-audit",
+      "priority": 0,
+      "title": "审计正式离场与登场复原混用的限定覆盖",
+      "status": "queued",
+      "depends_on": ["printemps-ready-four-producer-coverage-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "在同一真实Baton登场中使用正式PL!-PR-001旧离场快照和PL!-pb1-012新登场快照，双方分别实际选择复原，按现有合法待机顺序记录来源、目标与未知限定范围，不宣称旧卡目标规则正确",
+        "真实SQL Replay审计同时触发的不同合法顺序、仅新来源、旧来源可选辞退与隐藏来源，未知旧ready不当零，目标离区与回合边界不得猜历史；测试构造与完整对局区分",
+        "核对双方四AI实际支持范围、玩家和provider构造隐私及必要UI，旧策略/旧JSON/正式登记不变；不重新领取或修改已完成审计，不恢复消费者或其他blocked",
+        "全部profiles及门禁后pre-push同源码通过，应用不变只核对旧30牌组冻结；只本地提交，不推送发布、合并部署或操作主机"
+      ]
+    },
+    {
       "id": "effect-accuracy-loop",
       "priority": 3,
       "title": "按实际触发与规则风险扩展技能支持",
