@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- Love marginal の復原履歴と段階的必要Heart軽減の境界を監査。正式能力は手動のまま。
+- 中文: 审计分档减需的真实复原历史和未知覆盖，未绑定正式能力。[审计](./docs/development/printemps-tiered-requirement-unresolved.md)。
+
 - 相手Memberの識別済み直接ライブ成功能力を対象とする未登録原型を追加。完全な能力範囲は未確認。
 - 中文: 新增受限对手直接能力无效化原型，明确整体覆盖未知，不绑定正式卡。[验证](./docs/development/opponent-direct-disable-probe.md)。
 

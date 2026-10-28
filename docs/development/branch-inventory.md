@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-28 JST Love marginal 分档减需边界审计：正式卡保持manual，未知来源不当零；详见 printemps-tiered-requirement-unresolved.md 及 ignored 验收。
+
 2026-10-28 JST 对手直接Live成功能力未登记原型：逐效果记录已识别新无效、整体覆盖未知，正式卡仍manual；见opponent-direct-disable-probe.md及ignored验收，固定分支只本地验证。
 
 2026-10-28 JST 对手成员Live成功能力无效化审计：来源自身操作不能作为对手选择的实现，本卡仍manual；详见opponent-success-disable-scope-unresolved.md和ignored验收。固定分支只本地验证。

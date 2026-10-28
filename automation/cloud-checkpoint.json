@@ -3,9 +3,10 @@
   "branch": "codex/continuous-development",
   "base_ref": "origin/develop",
   "pull_request": 55,
-  "source_head": "eaa13074ad4314995531395b846637a9eab9909a",
-  "generated_at": "2026-10-28T13:10:07.293094+00:00",
+  "source_head": "5e152c01d40cf8e2a35b6fb39fa91bd89e405715",
+  "generated_at": "2026-10-28T14:27:35.076646+00:00",
   "task_states": {
+    "printemps-tiered-ready-requirement-scope-audit": "in_progress",
     "printemps-hanayo-source-wait-provenance-snapshot-audit": "done",
     "effect-ready-source-wait-active-target-probe-v2": "done",
     "printemps-honoka-live-start-provenance-snapshot-audit": "done",
@@ -114,7 +115,7 @@
     "triggered-inspection-up-to-three-cost-probe": "done",
     "q124-you-multi-keep-formal-snapshot-audit": "done",
     "opponent-member-live-success-disable-scope-audit": "done",
-    "opponent-direct-live-success-disable-provenance-probe": "in_progress",
+    "opponent-direct-live-success-disable-provenance-probe": "done",
     "effect-accuracy-loop": "queued",
     "phase6-conformance-matrix": "queued"
   }

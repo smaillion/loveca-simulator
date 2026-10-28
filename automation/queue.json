@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "printemps-tiered-ready-requirement-scope-audit",
+      "priority": 0,
+      "title": "Printemps实际复原人数分档减需边界审计",
+      "status": "queued",
+      "depends_on": ["printemps-ready-four-producer-coverage-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!-pb2-040:1完整CardDefinition及原登记、revision/hash和冻结seed18016真实manual，不把已完成其他卡审计当本卡裁定", "双方真实Live开始及限定来源查询、旧来源未知和目标对象边界以SQL Replay验证；0至3分档只依据卡文，未知不当零，不假称消费者依赖已解除", "保持卡库、登记、旧快照与blocked不变；审计四AI真实支持和双方隐私，必要时记录明确依赖，不半支持或requeue", "全部profiles及门禁后pre-push通过；应用未变仅核对原30牌组冻结，保留本地提交，不推送发布或部署"]
+    },
+    {
       "id": "printemps-hanayo-source-wait-provenance-snapshot-audit",
       "priority": 1,
       "title": "花陽本人Wait费用复原的单卡来源历史快照审计",

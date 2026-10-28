@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+Love marginal の復原人数による必要Heart軽減は手動のまま、履歴と未知範囲を監査。[監査](./docs/development/printemps-tiered-requirement-unresolved.md)。
+
 相手Memberの識別済み直接能力のみを無効化する未登録原型を追加。取得・継承を含む完全性は未確認。[検証](./docs/development/opponent-direct-disable-probe.md)。
 
 相手Memberのライブ成功能力無効化を監査。対象・実際の無効化判定は未対応。[監査](./docs/development/opponent-success-disable-scope-unresolved.md)。

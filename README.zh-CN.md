@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+审计 Love marginal 按复原人数分档减需；来源覆盖未知时仍保持人工处理。[审计](./docs/development/printemps-tiered-requirement-unresolved.md)。
+
 新增仅处理对手成员已识别直接能力的未登记原型；获得和继承能力的完整性仍未知。[验证](./docs/development/opponent-direct-disable-probe.md)。
 
 审计对手成员 Live 成功能力无效化；目标与实际新无效判断仍未实现。[审计](./docs/development/opponent-success-disable-scope-unresolved.md)。
