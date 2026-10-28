@@ -16,6 +16,8 @@ def test_effect_verification_report_covers_branch_fix_scenarios(tmp_path):
 
     scenario_ids = {result.scenario_id for result in results}
     assert {
+        "honoka_provenance_zero", "honoka_provenance_one", "honoka_provenance_active",
+        "honoka_provenance_self", "honoka_provenance_non_printemps",
         "kotori_provenance_zero", "kotori_provenance_one", "kotori_provenance_active",
         "kotori_provenance_no_member", "kotori_provenance_wrong_unit",
         "mirrored_cost_heart_left_10", "mirrored_cost_heart_right_10", "mirrored_cost_heart_center_10",

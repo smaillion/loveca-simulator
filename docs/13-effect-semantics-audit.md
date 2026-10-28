@@ -1,5 +1,9 @@
 # Effect Semantics Audit
 
+PL!-bp3-001:2 is the second formal ready-history producer. Its mandatory ability
+allows zero targets and already-active Members; declining activation is distinct.
+The first segment and old snapshots remain unchanged. See [audit](development/honoka-live-start-provenance-verification.md).
+
 The first formal ready-history producer is PL!-pb1-012:1 only. Its v3 snapshot
 removes the legacy Wait-only target prefilter; old v2 snapshots preserve it for
 Replay, not as a rule certification. Qualified coverage remains opt-in and Honoka

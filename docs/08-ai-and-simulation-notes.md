@@ -1,5 +1,9 @@
 # AI and Simulation Notes
 
+Honoka PL!-bp3-001:2 now uses the existing no-cost ready provenance operation.
+The existing ready valuation and default AI version are unchanged. Its first
+activated draw/discard segment remains identical. See [audit](development/honoka-live-start-provenance-verification.md).
+
 Kotori's exact v3 snapshot now records actual Member-ready provenance. The formerly
 unvalued prototype operation receives the existing ready value, not a new strategy
 parameter. Active targets remain legal but add no ready event. Default versions

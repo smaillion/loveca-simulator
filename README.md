@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+高坂穂乃果PL!-bp3-001:2を全文/revision/hash限定の復原履歴へ接続。任意の本人Member 0–1名、Active選択可・強制能力とゼロ選択を分離。第1段を維持し、82専用/53 SQL・四AI・秘匿・3 UI・5図文。正式生産者2/5、消費者manual維持。[検証](./docs/development/honoka-live-start-provenance-verification.md)。ローカルのみ。
+
 南ことりPL!-pb1-012:1を全文/revision/hashで限定した復原履歴v3へ接続。Active目標も選択可能、実際のWait→Activeだけを記録し、旧v2 Replayを維持。81専用/55 SQL、四AI・秘匿、3 UI・5図文。正式生産者1/5、穂乃果manual維持。[検証](./docs/development/kotori-onplay-provenance-verification.md)。ローカルのみ。
 
 発生源限定の復原履歴coverageを明示的新策略の原型として追加。旧全体coverageは変更せず、証明済み非該当元だけを除外し、不明をゼロにしない。77専用/45 SQL、四AI・秘匿、2 UI。正式カード未接続。[検証](./docs/development/ready-qualified-coverage-probe.md)。ローカルのみ。

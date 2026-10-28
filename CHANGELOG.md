@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 高坂穂乃果PL!-bp3-001:2を原発生源履歴へ限定接続。旧Wait限定と任意発動を修正し、旧Replay・第1段・他3生産者を維持。
+- 中文: 82专项/53 SQL、四AI/隐私、3 UI及5图文；仅正式历史生产者2/5，范围策略不全局启用，消费者不恢复。[记录](./docs/development/honoka-live-start-provenance-verification.md)，只本地提交。
+
 - 南ことりPL!-pb1-012:1を復原履歴v3に限定接続。Active対象の選択を許可し、実際の方向変化だけ記録。旧v2/Replayと他4生産者は維持、範囲policyは既定で無効。
 - 中文: 81专项/55 SQL、四AI/隐私、3 UI及5新图文；补v1复原估值别名避免新快照降值，默认版本不改。仅正式历史生产者1/5，不算manual晋级或穂乃果完成。[记录](./docs/development/kotori-onplay-provenance-verification.md)，只本地提交。
 

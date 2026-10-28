@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+高坂穂乃果PL!-bp3-001:2精确接入来源历史，任意本人Member 0至1，已Active合法，强制发动与选择零区分；第一段不改。82专项/53 SQL、四AI/隐私、3 UI与5新图文，仅正式生产者2/5，消费者保持manual。[验证](./docs/development/honoka-live-start-provenance-verification.md)。仅本地提交。
+
 南ことりPL!-pb1-012:1按全文/revision/hash接入来源历史v3，允许选已Active目标但不虚记复原，旧v2重放保持。81专项/55 SQL、四AI/隐私、3 UI和5新图文；仅正式历史生产者1/5，穂乃果仍manual。[验证](./docs/development/kotori-onplay-provenance-verification.md)。仅本地提交。
 
 新增显式策略下的限定来源复原历史完整性原型。旧全局查询不改，只排除有证明的不匹配来源，未知不当零。77专项/45 SQL、四AI/完整隐私与2 UI，正式生产者仍0/5。[验证](./docs/development/ready-qualified-coverage-probe.md)。仅本地提交。

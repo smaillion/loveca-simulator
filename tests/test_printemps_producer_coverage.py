@@ -110,7 +110,7 @@ def test_inventory_uses_real_source_unit_and_does_not_promote_consumer():
     assert all("printemps" in r["card"]["unit_keys"] for r in rows)
     assert all(r["card"]["raw_text_hash"] == r["effect"]["raw_text_hash"] for r in rows)
     assert all(r["card"]["text_revision_id"] == r["effect"]["text_revision_id"] for r in rows)
-    assert {r["effect"]["effect_id"] for r in rows if OPERATION in [a["action_type"] for a in r["effect"]["actions"]]} == {EFFECT}
+    assert {r["effect"]["effect_id"] for r in rows if OPERATION in [a["action_type"] for a in r["effect"]["actions"]]} == {EFFECT, "PL!-bp3-001:2"}
     assert any("Printemps" not in r["effect"]["label_ja"] for r in rows)
     consumer = next(e for e in load_effect_registry().effects if e.effect_id == "PL!-pb2-010:1")
     assert consumer.simulation_support == "manual_resolution"

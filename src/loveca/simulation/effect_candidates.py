@@ -6252,6 +6252,26 @@ def _onplay_ready_printemps_member_up_to1(row: sqlite3.Row) -> EffectCandidate |
     )
 
 
+def _live_start_honoka_ready_provenance(row: sqlite3.Row) -> EffectCandidate | None:
+    full_text = (
+        "【起動】【ターン1回】このメンバーをウェイトにする：カードを1枚引き、手札を1枚控え室に置く。"
+        "（ウェイト状態のメンバーが持つ【ブレード】は、エールで公開する枚数を増やさない。） "
+        "【ライブ開始時】自分のステージにいるメンバーを1人までアクティブにする。"
+    )
+    if (row["card_code"] != "PL!-bp3-001" or row["raw_effect_text_ja"] != full_text
+            or row["text_revision_id"] != 442
+            or row["raw_text_hash"] != "03019af91423572a345dd28a3ff40213fb05239ed99452cff65fdd8c559bb476"):
+        return None
+    return EffectCandidate(
+        **_base(row, pattern_id="live_start_honoka_ready_member_provenance_v1", effect_index=2),
+        label_ja="【ライブ開始時】自分のステージにいるメンバーを1人までアクティブにする。",
+        effect_type="triggered", timing="live_start", trigger="live_started", frequency_limit="once_per_live",
+        is_optional=False, condition={}, cost=[],
+        choice={"choice_type": "card_from_zone", "zone": "stage", "card_type": "member", "minimum": 0, "maximum": 1},
+        actions=[{"action_type": "ready_member_with_provenance_v1"}], duration=None,
+    )
+
+
 def _onplay_ready_member_up_to1(row: sqlite3.Row) -> EffectCandidate | None:
     expected = "【登場】自分のステージにいるメンバーを1人までアクティブにする。"
     matched = _matching_segment(row, expected)
@@ -15950,6 +15970,7 @@ _PATTERNS = (
     _onplay_shuffle_waiting_members_bottom_return_live_blade2,
     _onplay_return_waiting_member_cost2_up_to2,
     _onplay_ready_printemps_member_up_to1,
+    _live_start_honoka_ready_provenance,
     _onplay_ready_member_up_to1,
     _onplay_more_simple_effects,
     _live_success_yell_to_hand,

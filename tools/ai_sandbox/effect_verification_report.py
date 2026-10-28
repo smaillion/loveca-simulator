@@ -198,6 +198,9 @@ def _v1_1_dynamic_scenarios(
         "PL!N-sd1-002", "PL!N-sd1-003", "PL!S-PR-013", "PL!S-PR-019",
     )
     cases = (
+        *((f"honoka_provenance_{case}", f"穂乃果Live開始の復原履歴 {case}", f"穂乃果Live开始复原历史 {case}",
+           "PL!-bp3-001:2", lambda effect, case=case: _run_honoka_provenance(effect, case))
+          for case in ("zero", "one", "active", "self", "non_printemps")),
         *((f"kotori_provenance_{case}", f"ことり登場の復原履歴 {case}", f"南ことり登场复原历史 {case}",
            "PL!-pb1-012:1", lambda effect, case=case: _run_kotori_provenance(effect, case))
           for case in ("zero", "one", "active", "no_member", "wrong_unit")),
@@ -580,7 +583,7 @@ def _v1_1_dynamic_scenarios(
                 notes_ja=[f"公式日本語テキスト: {effect.label_ja}"],
                 notes_zh=[f"官方日文效果文本：{effect.label_ja}"],
                 rule_reference_ids=(
-                    ["1.3.2.1", "4.1.4", "9.6.2.4.2", "9.7.7", "9.11.1", "9.12.2"] if effect_id == "PL!-pb1-012:1" else
+                    ["1.3.2.1", "4.1.4", "9.6.2.4.2", "9.7.7", "9.11.1", "9.12.2"] if effect_id in {"PL!-pb1-012:1", "PL!-bp3-001:2"} else
                     ["4.5.7.1", "9.9.1"] if effect_id == "PL!HS-pb1-014:2" else
                     ["4.1.4", "4.8.3", "9.6.2.4.2", "9.7.7", "10.2.1", "10.2.2.1", "10.2.3", "8.4.11"]
                     if effect_id == "PL!S-bp7-021:1" else
@@ -680,6 +683,32 @@ def _run_opponent_success_draw(effect: EffectDefinition, case: str) -> dict[str,
         "条件成立時だけ必須一枚 / 条件成立才必选一张": len(final.state.players["player_1"].hand) == expected_draw - int(both and bool(hand_before)),
         "待機完了 / 待机完成": not final.state.pending_effects,
     }
+
+
+def _run_honoka_provenance(effect: EffectDefinition, case: str) -> dict[str, bool]:
+    source = _v1_1_member("source", "高坂穂乃果", cost=13, unit_keys=["printemps"], work_keys=["love_live"],
+        card_code=effect.card_code, effect_ids=[effect.effect_id], orientation="wait" if case == "self" else "active")
+    source.card.blade = 3
+    source.card.text_revision_id, source.card.raw_text_hash = effect.text_revision_id, effect.raw_text_hash
+    target = _v1_1_member("target", "AUDIT target", unit_keys=["bibi" if case == "non_printemps" else "printemps"],
+        work_keys=["love_live_sunshine"], orientation="active" if case == "active" else "wait")
+    live = _v1_1_live("live", "AUDIT Live")
+    state = _v1_1_state({effect.effect_id: effect}, [source, target, live], member_area={"left": "source", "center": "target", "right": None})
+    state.phase, state.effect_order_policy = "performance_first", "ap_nap_player_choice"
+    state.players["player_1"].live_area = ["live"]
+    result = apply_action(state, ActionRequest(action_type="advance_phase", player_id="player_1", expected_revision=state.revision))
+    inv = next(i for i in result.state.pending_effects if i.effect_id == effect.effect_id)
+    selected = [] if case == "zero" else ["source" if case == "self" else "target"]
+    result = apply_action(result.state, ActionRequest(action_type="resolve_effect", player_id="player_1", expected_revision=result.state.revision,
+        payload={"invocation_id": inv.invocation_id, "selected_card_instance_ids": selected}))
+    history = result.state.member_ready_history
+    expected = int(case not in {"zero", "active"})
+    return {"原生Live開始 / 原生Live开始": inv.trigger_event == "live_started",
+        "実際の変化だけ / 仅实际方向变化": history is not None and len(history.events) == expected,
+        "元のPrintemps源 / 原Printemps来源": not expected or history.events[0].source.unit_keys == ["printemps"],
+        "任意の本人Member / 本人不限单位": not expected or history.events[0].target_instance_id == selected[0],
+        "限定coverageは未接続 / 不启用范围策略": result.state.member_ready_coverage_policy is None,
+        "待機完了 / 待机完成": not result.state.pending_effects}
 
 
 def _run_kotori_provenance(effect: EffectDefinition, case: str) -> dict[str, bool]:

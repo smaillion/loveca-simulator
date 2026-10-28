@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "printemps-honoka-live-start-provenance-snapshot-audit",
+      "priority": 1,
+      "title": "高坂穂乃果Live开始复原的精确历史快照审计",
+      "status": "queued",
+      "depends_on": ["printemps-kotori-onplay-provenance-snapshot-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["只审PL!-bp3-001:2完整双段全文/revision442/hash03019af91423572a345dd28a3ff40213fb05239ed99452cff65fdd8c559bb476，第一段起动费用抽弃逐项不改", "先原生Live开始核对本人任意Member0至1及已Active和强制发动vs选零；明确才精确新v1快照，旧快照/Replay与其他三生产者不追改，不全局启用范围策略，不requeue消费者", "真实来源/回合/原目标、双方0/1/非Printemps/附属/来源离场隐藏返回/位置及目标原对象，同名来源、SQL/四AI/完整隐私/UI图文与所有profiles和新源码同30牌组验证", "仅正式历史生产者2of5，不算manual晋级或消费者完成；证据不足保留依赖，只本地提交，不push/publish、新PR、合并部署或主机操作"]
+    },
+    {
       "id": "printemps-kotori-onplay-provenance-snapshot-audit",
       "priority": 1,
       "title": "南ことり登场复原的精确来源历史快照审计",
