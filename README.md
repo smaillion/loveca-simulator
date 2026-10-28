@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+三人曜カードの手札コストに複合名と枚数上限の既存問題を確認。修正は未完了。[監査](./docs/development/ll-bp2-composite-cost-unresolved.md)。
+
 支払済みの基本Heart色を重複なく扱う未登録原型を追加。正式カードは未対応。[検証](./docs/development/q246-paid-basic-color-union-probe.md)。
 
 Q246 の重複色は一度だけ得る例と既存処理の境界を監査。正式能力は手動のまま。[監査](./docs/development/q246-named-cost-color-union-unresolved.md)。

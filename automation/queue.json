@@ -1074,6 +1074,20 @@
       ]
     },
     {
+      "id": "ll-bp2-001-composite-name-cost-audit",
+      "priority": 0,
+      "title": "审计三人曜卡手牌组合名称费用",
+      "status": "queued",
+      "depends_on": ["q246-paid-basic-heart-color-union-probe"],
+      "required_profiles": ["backend", "control", "registry", "web"],
+      "acceptance": [
+        "核对LL-bp2-001:3完整CardDefinition及全文revision592/hash，官方规则2.3.2与本卡括号中自身组合卡可支付语句；不将搜索摘要当已读取规则正文",
+        "先用真实正式快照及双方Live开始构造：手牌中的同一组合卡和单名候选、无关卡、重复ID及拒绝选择，实际候选与支付和SQL Replay；记录旧名称筛选结果，不将合成输入冒充完整对局",
+        "若全部目标语义可证，仅以独立新策略精确绑定本卡新快照，保持旧JSON/Replay和其他登记；无法证明则保留既有快照但明确错误风险及依赖，不放宽共享匹配或虚称修复",
+        "双方四AI实际选择、隐藏身份替换、玩家和provider构造隐私、必要UI、全部profiles/pre-push和应用变化时同原30牌组冻结；不修改其他blocked、不推送部署"
+      ]
+    },
+    {
       "id": "effect-accuracy-loop",
       "priority": 3,
       "title": "按实际触发与规则风险扩展技能支持",

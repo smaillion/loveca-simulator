@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 三人曜カードの複合名手札コストと枚数上限の既存問題を監査。修正は未完了。
+- 中文: 复现正式三人曜卡组合名称拒绝与三张上限差异，保留旧快照待完整修复。[审计](./docs/development/ll-bp2-composite-cost-unresolved.md)。
+
 - 支払済み基本Heartの色を重複なく集計する未登録原型を追加。正式カードは未対応。
 - 中文: 新增受限已支付基本颜色并集原型，未知颜色拒绝且不绑定正式卡。[验证](./docs/development/q246-paid-basic-color-union-probe.md)。
 
