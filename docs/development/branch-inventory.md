@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-29 JST 私有名称任意张弃牌未登记原型：仅固定测试形状，旧正式登记风险仍未修复，见 private-named-unlimited-discard-probe.md。
+
 2026-10-29 JST 三人曜卡组合名称及费用上限审计：已复现正式登记风险，未改变旧快照；见 ll-bp2-composite-cost-unresolved.md。
 
 2026-10-29 JST Q246 已支付基本颜色并集未登记原型：来源与支付证明受限，正式卡仍manual，详见 q246-paid-basic-color-union-probe.md 及 ignored 验收。

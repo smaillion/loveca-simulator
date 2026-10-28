@@ -4929,6 +4929,28 @@ describe("App", () => {
     });
   });
 
+  it.each([0, 4])("submits dynamic named discard count=%s", (count) => {
+    const onAction = vi.fn();
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    const ids = Array.from({ length: 4 }, (_, i) => `named-cost-${i}`);
+    ids.forEach((id, i) => {
+      state.cards[id] = { ...state.cards["player_1-M002"], instance_id: id,
+        card: { ...state.cards["player_1-M002"].card, name_ja: `NAMED COST ${i}` } };
+    });
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "named-unlimited", effect_id: "UNREGISTERED-NAMED-DISCARD:1", source_card_instance_id: "player_1-M001",
+      label_ja: "AUDIT named discard", execution_mode: "prompt_then_resolve", is_optional: true,
+      simulation_support: "test_validated_executable", choice_type: "card_from_zone", choice_zone: "hand",
+      candidate_card_instance_ids: ids, card_selection_minimum: 0, card_selection_maximum: ids.length,
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false} onAction={onAction} onManual={vi.fn()} />);
+    ids.slice(0, count).forEach((_, i) => fireEvent.click(screen.getByRole("button", { name: new RegExp(`NAMED COST ${i}`) })));
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "named-unlimited", accepted: true, selected_card_instance_ids: ids.slice(0, count), energy_instance_ids: [],
+    });
+  });
+
   it.each([
     { hidden: false, orientation: "active" as const }, { hidden: true, orientation: "active" as const },
     { hidden: false, orientation: "wait" as const }, { hidden: true, orientation: "wait" as const },

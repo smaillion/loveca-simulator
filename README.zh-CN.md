@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+新增未登记的私有名称部分匹配与动态弃牌费用原型，尚未绑定正式卡。[验证](./docs/development/private-named-unlimited-discard-probe.md)。
+
 已复现三人曜卡手牌费用的组合名称与数量上限问题，修复尚未完成。[审计](./docs/development/ll-bp2-composite-cost-unresolved.md)。
 
 新增仅处理已支付基本 Heart 颜色并集的未登记原型；尚未绑定正式卡。[验证](./docs/development/q246-paid-basic-color-union-probe.md)。

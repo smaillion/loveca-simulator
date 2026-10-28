@@ -1088,6 +1088,20 @@
       ]
     },
     {
+      "id": "private-named-unlimited-discard-probe",
+      "priority": 0,
+      "title": "未登记私有名称任意张弃牌原型",
+      "status": "queued",
+      "depends_on": ["ll-bp2-001-composite-name-cost-audit"],
+      "required_profiles": ["backend", "control", "registry", "web"],
+      "acceptance": [
+        "仅未登记固定shape，依据固定PDF 2.3.2.1/2.3.2.2引号名称部分匹配；私有本人手牌按实际候选动态上限选择零至全部，不用假定的三张或牌组上限，禁止将原型绑定正式卡",
+        "双方真实触发与SQL Replay覆盖单名、组合名、无关名、四张及更多、零张、拒绝、重复/非候补原子拒绝及隐藏信息；严格限定费用、效果、触发、来源和静态shape，旧精确名称策略与旧快照不变",
+        "四AI双方实际选择、隐藏身份替换、玩家近期事件及provider构造上下文隐私，必要原生UI与全部profiles/pre-push；应用变化时同原30牌组冻结，不称随机正条件或策略改善",
+        "不绑定LL-bp2-001:3或其他正式卡，不放宽旧校验，不改卡库/SQL表，不恢复其他blocked，只本地提交不推送部署"
+      ]
+    },
+    {
       "id": "effect-accuracy-loop",
       "priority": 3,
       "title": "按实际触发与规则风险扩展技能支持",

@@ -502,6 +502,7 @@ class EffectChoice(BaseModel):
         "public_waiting_nine_live_three_private_top",
         "public_aqours_shared_heart_yell_one",
         "public_departed_ready_both_one",
+        "private_partial_names_unlimited_discard_v1",
     ] | None = None
     zone: str | None = None
     card_type: str | None = None
@@ -842,6 +843,20 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        named_policy = "private_partial_names_unlimited_discard_v1"
+        if any(c is not None and c.selection_policy == named_policy for c in (self.cost_choice, self.choice, self.follow_up_choice)):
+            expected_choice = EffectChoice(choice_type="card_from_zone", zone="hand", target_player="self",
+                name_ja_any=["渡辺 曜", "鬼塚夏美", "大沢瑠璃乃"], minimum=0, maximum=0,
+                selection_policy=named_policy)
+            if (not self.card_code.startswith("UNREGISTERED-") or self.effect_id != self.card_code + ":1"
+                    or self.cost_choice != expected_choice or self.choice is not None or self.follow_up_choice is not None
+                    or self.cost != [EffectOperation(action_type="discard_from_hand")]
+                    or self.actions != [EffectOperation(action_type="draw_card", amount=1)]
+                    or self.condition or self.effect_type != "triggered" or self.timing != "live_start"
+                    or self.trigger != "live_started" or self.frequency_limit != "once_per_live"
+                    or not self.is_optional or self.duration is not None
+                    or self.execution_mode != "prompt_then_resolve" or self.simulation_support == "manual_resolution"):
+                raise ValueError("partial-name unlimited discard is an unregistered fixed Live-start probe")
         union = "gain_source_heart_from_paid_basic_color_union_v1"
         if any(op.action_type == union for op in self.cost):
             raise ValueError("paid basic color union cannot be a cost")
@@ -1308,7 +1323,8 @@ class EffectDefinition(BaseModel):
         ):
             raise ValueError("overlap source policy requires a bounded positional entry observer")
         if (
-            (self.cost_choice and self.cost_choice.selection_policy is not None)
+            (self.cost_choice and self.cost_choice.selection_policy is not None
+             and self.cost_choice.selection_policy != "private_partial_names_unlimited_discard_v1")
             or (self.follow_up_choice and self.follow_up_choice.selection_policy is not None)
             or (
                 self.choice and self.choice.selection_policy == "private_filtered_may_choose_none"

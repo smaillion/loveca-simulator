@@ -1763,6 +1763,17 @@ def _resolve_effect(
         raise IllegalActionError("only the effect owner may resolve this effect")
     _assert_effect_resolution_turn(state, invocation)
     effect = state.effect_definitions[invocation.effect_id]
+    if (effect.cost_choice is not None
+            and effect.cost_choice.selection_policy == "private_partial_names_unlimited_discard_v1"):
+        source = state.cards.get(invocation.source_card_instance_id)
+        selected = action.payload.get("selected_card_instance_ids", [])
+        if (set(action.payload) - {"invocation_id", "accepted", "selected_card_instance_ids", "energy_instance_ids", "ai_decision"}
+                or action.payload.get("energy_instance_ids") not in (None, [])
+                or (action.payload.get("accepted") is not None and type(action.payload["accepted"]) is not bool)
+                or (action.payload.get("accepted") is False and selected not in (None, []))
+                or invocation.trigger_event != "live_started" or invocation.resolution_stage != "initial"
+                or source is None or source.owner_id != invocation.player_id):
+            raise IllegalActionError("partial-name discard accepts only its owner's actual cost selection")
     if any(op.action_type == "gain_source_heart_from_paid_basic_color_union_v1" for op in effect.actions):
         source = state.cards.get(invocation.source_card_instance_id)
         selected = action.payload.get("selected_card_instance_ids", [])
@@ -1919,10 +1930,13 @@ def _resolve_effect(
     candidates = _effect_choice_candidates(state, invocation)
     if _effect_uses_cost_card_choice(effect) and invocation.resolution_stage == "initial":
         cost_candidates = _effect_cost_choice_candidates(state, invocation)
+        cost_maximum = (len(cost_candidates) if effect.cost_choice is not None
+                        and effect.cost_choice.selection_policy == "private_partial_names_unlimited_discard_v1"
+                        else effect.cost_choice.maximum if effect.cost_choice is not None else 0)
         if (
             effect.cost_choice is None
             or len(selected_ids) < effect.cost_choice.minimum
-            or len(selected_ids) > effect.cost_choice.maximum
+            or len(selected_ids) > cost_maximum
             or len(selected_ids) != len(set(selected_ids))
             or any(item not in cost_candidates for item in selected_ids)
             or not _selected_cards_satisfy_choice_condition(
@@ -5401,7 +5415,8 @@ def _effect_resolution_options(
         options["choice_type"] = effect.cost_choice.choice_type
         options["choice_zone"] = effect.cost_choice.zone
         options["card_selection_minimum"] = effect.cost_choice.minimum
-        options["card_selection_maximum"] = effect.cost_choice.maximum
+        options["card_selection_maximum"] = (len(candidate_ids) if effect.cost_choice.selection_policy
+            == "private_partial_names_unlimited_discard_v1" else effect.cost_choice.maximum)
         options["cost_choice"] = effect.cost_choice.model_dump()
         if _effect_accepts_color_choice(effect):
             options["requires_color_choice"] = True
@@ -6586,11 +6601,13 @@ def _effect_candidates_for_choice(
             if allowed_units.intersection(state.cards[item].card.unit_keys)
         ]
     if choice.name_ja_any:
-        candidates = [
-            item
-            for item in candidates
-            if _card_name_in(state.cards[item].card.name_ja, choice.name_ja_any)
-        ]
+        if getattr(choice, "selection_policy", None) == "private_partial_names_unlimited_discard_v1":
+            names = [_normalized_card_name(name) for name in choice.name_ja_any]
+            candidates = [item for item in candidates if any(
+                name in _normalized_card_name(state.cards[item].card.name_ja) for name in names)]
+        else:
+            candidates = [item for item in candidates
+                          if _card_name_in(state.cards[item].card.name_ja, choice.name_ja_any)]
     exclude_name_ja_any = getattr(choice, "exclude_name_ja_any", [])
     if exclude_name_ja_any:
         candidates = [

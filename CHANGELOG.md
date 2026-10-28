@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 非公開の部分名照合と任意枚数コストを未登録原型として追加。正式カードには未適用。
+- 中文: 新增受限的私有部分名称匹配和动态弃牌费用原型，不改变旧快照或正式登记。[验证](./docs/development/private-named-unlimited-discard-probe.md)。
+
 - 三人曜カードの複合名手札コストと枚数上限の既存問題を監査。修正は未完了。
 - 中文: 复现正式三人曜卡组合名称拒绝与三张上限差异，保留旧快照待完整修复。[审计](./docs/development/ll-bp2-composite-cost-unresolved.md)。
 

@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+非公開の部分名照合と任意枚数コストを未登録原型で検証。正式カードには未適用。[検証](./docs/development/private-named-unlimited-discard-probe.md)。
+
 三人曜カードの手札コストに複合名と枚数上限の既存問題を確認。修正は未完了。[監査](./docs/development/ll-bp2-composite-cost-unresolved.md)。
 
 支払済みの基本Heart色を重複なく扱う未登録原型を追加。正式カードは未対応。[検証](./docs/development/q246-paid-basic-color-union-probe.md)。
