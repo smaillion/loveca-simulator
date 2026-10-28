@@ -14,6 +14,7 @@ from loveca.simulation.ready_history import (
     begin_ready_tracking, mark_ready_departure, prepare_ready_source, record_member_ready,
     uses_source_wait_cost, prepare_source_wait_cost, finish_source_wait_cost, validate_source_wait_cost,
     capture_ready_departure, uses_departed_source, validate_departed_ready_source,
+    record_unproven_member_ready, QUALIFIED_POLICY, QUALIFIED_SOURCE_KEY,
 )
 
 from loveca.simulation.models import (
@@ -1758,6 +1759,11 @@ def _resolve_effect(
         raise IllegalActionError("only the effect owner may resolve this effect")
     _assert_effect_resolution_turn(state, invocation)
     effect = state.effect_definitions[invocation.effect_id]
+    if (state.member_ready_coverage_policy == QUALIFIED_POLICY
+            and any(op.action_type == "ready_member" for op in effect.actions)
+            and (set(action.payload) & {QUALIFIED_SOURCE_KEY, "member_ready_coverage_policy", "member_ready_qualified_coverage"}
+                 or (not effect.cost and not effect.cost_choice and action.payload.get("energy_instance_ids") not in (None, [])))):
+        raise IllegalActionError("qualified ready evidence is server-owned and cannot accept extra payment")
     if any(op.action_type in PROVENANCE_OPERATIONS for op in effect.actions) and (
             set(action.payload) - {"invocation_id", "accepted", "selected_card_instance_ids", "energy_instance_ids", "ai_decision"}
             or action.payload.get("energy_instance_ids") not in (None, [])
@@ -7224,11 +7230,18 @@ def _record_effect_ready_flag(
     ready_type: str,
     previous_orientation: str,
     provenance_recorded: bool = False,
+    target_instance_id: str | None = None,
 ) -> None:
     if previous_orientation != "wait":
         return
     if ready_type == "member" and getattr(state, "member_ready_history", None) is not None and not provenance_recorded:
         state.member_ready_history.coverage_complete = False
+    if ready_type == "member" and not provenance_recorded:
+        if state_policy := getattr(state, "member_ready_coverage_policy", None):
+            if state_policy == QUALIFIED_POLICY and target_instance_id is None:
+                raise IllegalActionError("qualified ready coverage requires its actual target")
+        owner_id = state.cards[target_instance_id].owner_id if target_instance_id is not None else player.player_id
+        _ready_history_call(record_unproven_member_ready, state, invocation, owner_id)
     source_card = state.cards[invocation.source_card_instance_id].card
     work_keys = invocation.trigger_data["ready_source_lki_v1"]["work_keys"] if provenance_recorded else source_card.work_keys
     for work_key in work_keys:
@@ -9440,6 +9453,7 @@ def _execute_operations(
                         ready_type="member",
                         previous_orientation=previous,
                         provenance_recorded=operation_type in PROVENANCE_OPERATIONS,
+                        target_instance_id=instance_id,
                     )
                 operation_context["effect_ready_member_count"] = readied_count
             elif operation.target == "source":
@@ -9473,6 +9487,7 @@ def _execute_operations(
                     ready_type="member",
                     previous_orientation=previous,
                     provenance_recorded=operation_type in PROVENANCE_OPERATIONS,
+                    target_instance_id=invocation.source_card_instance_id,
                 )
                 if original_source:
                     events.append(GameEvent(
@@ -9498,6 +9513,7 @@ def _execute_operations(
                         ready_type="member",
                         previous_orientation=previous,
                         provenance_recorded=operation_type in PROVENANCE_OPERATIONS,
+                        target_instance_id=instance_id,
                     )
         elif operation_type == "apply_wait_energy":
             required = _operation_amount(operation, selected_count)
@@ -11961,6 +11977,10 @@ def _start_next_turn(
         state.member_ready_history.events = []
         state.member_ready_history.object_ids = {}
         state.member_ready_history.coverage_complete = True
+    if state.member_ready_qualified_coverage is not None:
+        state.member_ready_qualified_coverage.turn_number = state.turn_number
+        state.member_ready_qualified_coverage.baseline_complete = state.member_ready_history is not None
+        state.member_ready_qualified_coverage.unknown_changes = []
     for player in state.players.values():
         player.manual_modifiers = [m for m in player.manual_modifiers if not (
             (_is_placed_energy_block(m) or _is_opponent_member_block(m)) and m.value["target_turn"] < state.turn_number

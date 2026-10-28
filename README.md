@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+発生源限定の復原履歴coverageを明示的新策略の原型として追加。旧全体coverageは変更せず、証明済み非該当元だけを除外し、不明をゼロにしない。77専用/45 SQL、四AI・秘匿、2 UI。正式カード未接続。[検証](./docs/development/ready-qualified-coverage-probe.md)。ローカルのみ。
+
 Stage離場後の復原元情報を離区前に採取し、実際の待機生成時に結ぶ限定unregistered原型を追加。100専用/54 SQL、四AI・秘匿、4 UI、旧v1/費用経路/Replay維持。正式カード未接続。[検証](./docs/development/ready-departed-source-probe.md)。ローカルのみ。
 
 本人Stage発生源のWait費用後に別メンバーを復原する限定unregistered原型を追加。旧無費用v1は維持し、支払証拠は非公開。71専用/20 SQL、四AI後続選択、2 UI。正式カード未接続、穂乃果manual維持。[検証](./docs/development/ready-source-wait-cost-probe.md)。ローカルのみ。

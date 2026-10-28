@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-28 JST 限定来源完整性原型：固定分支/工作树，77专项/45 SQL、四AI/完整隐私与2 UI；显式新策略和独立查询，旧全局coverage/JSON/Replay保持，实际目标所有者与来源所有者/效果玩家分离。正式生产者0/5、穂乃果及其余blocked不恢复；最终门禁/同牌组见ready-qualified-coverage-probe.md。只本地提交，旧44/6 dirty/stash/ignored保留，不改PR55或主机。
+
 2026-10-28 JST 已离场复原来源原型：同一固定分支/工作树，100专项/54 SQL、315关联、四AI/完整隐私和4 UI；四处入口离区前采集，真实入队后绑定，现代结算锁不改。仅新unregistered操作，正式生产者0/5、穂乃果及其他blocked保持。最终门禁/同牌组见`ready-departed-source-probe.md`。不push/改PR55或合并部署，44/6 dirty/stash/ignored保留。
 
 2026-10-28 JST 本人Wait费用复原原型：同一固定分支/工作树，71专项/20 SQL、四AI后续/完整隐私及2 UI；现代父能力锁保持，旧顺序来源检查点不冒充自然中断。仅新unregistered操作，正式生产者0/5、消费者仍blocked；最终门禁/同牌组证据见`ready-source-wait-cost-probe.md`。不push/改PR55、合并部署，其他blocked/44/6 dirty/stash/ignored保留。

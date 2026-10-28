@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "effect-ready-qualified-coverage-probe",
+      "priority": 1,
+      "title": "限定来源范围的复原历史完整性原型",
+      "status": "queued",
+      "depends_on": ["effect-ready-departed-source-lki-probe"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["仅unregistered闭合范围新policy与独立只读查询，不绑定正式卡或requeue穂乃果", "按权威来源所有者/效果玩家/unit/work限定完整性，旧全局coverage和查询默认语义/旧JSON/Replay保持", "只记实际Wait到Active和原对象；已知非匹配旧来源不污染范围，无源证据/晚启用/旧flags必须未知，不从当前裸ID/方向/Stage/隐藏库猜过去", "旧ready仅新policy记录必要未知事实，不全局升级旧生产者或认证复杂获得/继承", "双方角色/匹配非匹配未知/重复及已Active/来源LKI目标对象和回合清理、SQL/四AI/完整玩家与provider隐私/必要UI、全部profiles与同原30牌组冻结；仅本地提交不发布"]
+    },
+    {
       "id": "effect-ready-departed-source-lki-probe",
       "priority": 1,
       "title": "限定Stage离场到控室后触发的复原来源原型",

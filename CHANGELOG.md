@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 発生源の所有者・効果プレイヤー・unit/workを分離した限定coverage原型を追加。旧readyは未知事実のみ、旧JSON/Replayと全体coverageを維持し、正式カードには接続しない。
+- 中文: 77专项/45 SQL、四AI/完整隐私与2 UI；已知非匹配来源不污染范围，缺证明/旧费用/已离场源/晚启用仍未知。最终门禁与同牌组见[记录](./docs/development/ready-qualified-coverage-probe.md)，只本地提交、不恢复穂乃果。
+
 - 元Stage Memberが控室に置かれた後の復原を、離区前情報と実際のinvocationで結ぶ限定原型として追加。旧v1の初期発生源制限は維持し、正式カードには接続しない。
 - 中文: 100专项/54 SQL、315关联、四AI/完整双视角/provider构造隐私及4 UI。原来源返回不覆盖旧信息，目标移区不继承旧token；不恢复穂乃果、不算manual晋级。最终门禁及同牌组证据见[记录](./docs/development/ready-departed-source-probe.md)，仅本地提交。
 

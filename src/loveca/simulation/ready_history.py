@@ -11,6 +11,8 @@ PROVENANCE_OPERATIONS = frozenset({OPERATION, SOURCE_WAIT_OPERATION, DEPARTED_OP
 SOURCE_KEY = "ready_source_lki_v1"
 COST_KEY = "ready_source_wait_cost_v1"
 DEPARTED_KEY = "ready_departed_source_v1"
+QUALIFIED_SOURCE_KEY = "qualified_ready_source_v1"
+QUALIFIED_POLICY = "qualified_source_v1"
 
 
 class StageReadyDepartureV1(BaseModel):
@@ -78,6 +80,22 @@ class MemberReadyHistoryV1(BaseModel):
     coverage_complete: StrictBool = True
     object_ids: dict[str, str] = Field(default_factory=dict)
     events: list[MemberReadyEventV1] = Field(default_factory=list)
+
+
+class UnprovenMemberReadyV1(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    invocation_id: str
+    effect_player_id: str
+    target_owner_id: str
+    source: ReadySourceV1 | None = None
+
+
+class MemberReadyQualifiedCoverageV1(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    policy: Literal["qualified_source_v1"] = "qualified_source_v1"
+    turn_number: StrictInt = Field(ge=1)
+    baseline_complete: StrictBool = False
+    unknown_changes: list[UnprovenMemberReadyV1] = Field(default_factory=list)
 
 
 def uses_ready_provenance(effect: Any) -> bool:
@@ -178,10 +196,62 @@ def finish_source_wait_cost(state: Any, invocation: Any) -> None:
 
 
 def begin_ready_tracking(state: Any) -> None:
+    history_was_missing = getattr(state, "member_ready_history", None) is None
     if getattr(state, "member_ready_history", None) is None and any(uses_ready_provenance(e) for e in state.effect_definitions.values()):
         state.member_ready_history = MemberReadyHistoryV1(turn_number=state.turn_number,
             coverage_complete=state.revision == 0 and not any(
                 any(flag.endswith(":member") for flag in p.effect_ready_flags_this_turn) for p in state.players.values()))
+    if (getattr(state, "member_ready_coverage_policy", None) == QUALIFIED_POLICY
+            and getattr(state, "member_ready_qualified_coverage", None) is None):
+        history = getattr(state, "member_ready_history", None)
+        state.member_ready_qualified_coverage = MemberReadyQualifiedCoverageV1(turn_number=state.turn_number,
+            baseline_complete=state.revision == 0 and history is not None and history.coverage_complete)
+    if (getattr(state, "member_ready_coverage_policy", None) == QUALIFIED_POLICY and history_was_missing
+            and getattr(state, "member_ready_history", None) is not None and state.revision != 0):
+        state.member_ready_qualified_coverage.baseline_complete = False
+
+
+def prepare_qualified_ready_source(state: Any, invocation: Any) -> None:
+    effect = state.effect_definitions.get(invocation.effect_id)
+    if (getattr(state, "member_ready_coverage_policy", None) != QUALIFIED_POLICY
+            or getattr(effect, "cost", None) or getattr(effect, "cost_choice", None)
+            or not any(op.action_type == "ready_member" for op in
+                       getattr(effect, "actions", []))):
+        return
+    zone = _source_zone(state, invocation.source_card_instance_id)
+    if zone is None:
+        return
+    instance = state.cards[invocation.source_card_instance_id]
+    invocation.trigger_data[QUALIFIED_SOURCE_KEY] = ReadySourceV1(
+        invocation_id=invocation.invocation_id, effect_id=invocation.effect_id,
+        instance_id=instance.instance_id, effect_player_id=invocation.player_id, owner_id=instance.owner_id,
+        turn_number=state.turn_number, zone=zone, unit_keys=list(instance.card.unit_keys),
+        work_keys=list(instance.card.work_keys)).model_dump(mode="json")
+
+
+def record_unproven_member_ready(state: Any, invocation: Any, target_owner_id: str) -> None:
+    if getattr(state, "member_ready_coverage_policy", None) != QUALIFIED_POLICY:
+        return
+    ledger = getattr(state, "member_ready_qualified_coverage", None)
+    if ledger is None or type(state.turn_number) is not int or ledger.turn_number != state.turn_number:
+        raise ValueError("qualified ready coverage requires its current explicit ledger")
+    raw = invocation.trigger_data.get(QUALIFIED_SOURCE_KEY)
+    source = ReadySourceV1.model_validate(raw) if raw is not None else None
+    if source is not None:
+        if (source.turn_number != state.turn_number
+                or (source.invocation_id, source.effect_id, source.instance_id, source.effect_player_id)
+                != (invocation.invocation_id, invocation.effect_id, invocation.source_card_instance_id, invocation.player_id)):
+            raise ValueError("qualified ready source requires its original invocation")
+        if not source.departed:
+            if _source_zone(state, source.instance_id) != source.zone:
+                raise ValueError("qualified ready source departure evidence is missing")
+            instance = state.cards[source.instance_id]
+            source.owner_id = instance.owner_id
+            source.unit_keys, source.work_keys = list(instance.card.unit_keys), list(instance.card.work_keys)
+    change = UnprovenMemberReadyV1(invocation_id=invocation.invocation_id, effect_player_id=invocation.player_id,
+        target_owner_id=target_owner_id, source=source)
+    if change not in ledger.unknown_changes:
+        ledger.unknown_changes.append(change)
 
 
 def _source_zone(state: Any, instance_id: str) -> str | None:
@@ -194,6 +264,7 @@ def _source_zone(state: Any, instance_id: str) -> str | None:
 
 
 def prepare_ready_source(state: Any, invocation: Any, departure: Any = None) -> None:
+    prepare_qualified_ready_source(state, invocation)
     if not uses_ready_provenance(state.effect_definitions.get(invocation.effect_id)):
         return
     if uses_departed_source(state.effect_definitions.get(invocation.effect_id)):
@@ -214,23 +285,24 @@ def prepare_ready_source(state: Any, invocation: Any, departure: Any = None) -> 
 
 def mark_ready_departure(state: Any, instance_ids: list[str], zone: str) -> None:
     history = getattr(state, "member_ready_history", None)
-    if history is None:
+    if history is None and getattr(state, "member_ready_coverage_policy", None) != QUALIFIED_POLICY:
         return
-    if zone == "stage":
+    if zone == "stage" and history is not None:
         for instance_id in instance_ids:
             history.object_ids.pop(instance_id, None)
     for invocation in state.pending_effects:
-        raw = invocation.trigger_data.get(SOURCE_KEY)
-        if not isinstance(raw, dict):
-            continue
-        source = ReadySourceV1.model_validate(raw)
-        if source.instance_id not in instance_ids or source.zone != zone or source.departed:
-            continue
-        instance = state.cards[source.instance_id]
-        source.owner_id = instance.owner_id
-        source.unit_keys, source.work_keys = list(instance.card.unit_keys), list(instance.card.work_keys)
-        source.departed = True
-        invocation.trigger_data[SOURCE_KEY] = source.model_dump(mode="json")
+        for key in (SOURCE_KEY, QUALIFIED_SOURCE_KEY):
+            raw = invocation.trigger_data.get(key)
+            if not isinstance(raw, dict):
+                continue
+            source = ReadySourceV1.model_validate(raw)
+            if source.instance_id not in instance_ids or source.zone != zone or source.departed:
+                continue
+            instance = state.cards[source.instance_id]
+            source.owner_id = instance.owner_id
+            source.unit_keys, source.work_keys = list(instance.card.unit_keys), list(instance.card.work_keys)
+            source.departed = True
+            invocation.trigger_data[key] = source.model_dump(mode="json")
 
 
 def record_member_ready(state: Any, invocation: Any, target_id: str, previous: str) -> None:
@@ -282,6 +354,42 @@ def current_effect_readied_members(state: Any, player_id: str, *, unit_key: str 
         and e.source.owner_id == player_id and e.target_owner_id == player_id
         and (unit_key is None or unit_key in e.source.unit_keys)
         and (work_key is None or work_key in e.source.work_keys)
+        and history.object_ids.get(e.target_instance_id) == e.target_object_id}
+    return [i for i in state.players[player_id].member_area.values()
+            if i in eligible and state.cards[i].card.card_type == "member"]
+
+
+def current_qualified_effect_readied_members(state: Any, player_id: str, *, source_owner_id: str,
+        effect_player_id: str, unit_key: str | None = None, work_key: str | None = None) -> list[str] | None:
+    """A separate opt-in query; legacy ready facts can disprove completeness, never prove a count."""
+    if getattr(state, "member_ready_coverage_policy", None) != QUALIFIED_POLICY:
+        return None
+    if (any(p not in state.players for p in (player_id, source_owner_id, effect_player_id))
+            or any(k is not None and (type(k) is not str or not k) for k in (unit_key, work_key))):
+        raise ValueError("qualified ready query requires explicit valid players and qualifiers")
+    ledger = getattr(state, "member_ready_qualified_coverage", None)
+    history = getattr(state, "member_ready_history", None)
+    if ledger is None or history is None:
+        return None
+    if type(state.turn_number) is not int or ledger.turn_number != state.turn_number or history.turn_number != state.turn_number:
+        raise ValueError("qualified ready query belongs to a different game turn")
+    if not ledger.baseline_complete:
+        return None
+    def matches(source: ReadySourceV1) -> bool:
+        return (source.owner_id == source_owner_id and source.effect_player_id == effect_player_id
+                and (unit_key is None or unit_key in source.unit_keys)
+                and (work_key is None or work_key in source.work_keys))
+    for change in ledger.unknown_changes:
+        if (change.effect_player_id not in state.players or change.target_owner_id not in state.players
+                or (change.source is not None and (change.source.turn_number != state.turn_number
+                    or change.source.invocation_id != change.invocation_id
+                    or change.source.effect_player_id != change.effect_player_id or change.source.owner_id not in state.players))):
+            raise ValueError("qualified ready unknown evidence is malformed or stale")
+        if change.target_owner_id == player_id and change.effect_player_id == effect_player_id:
+            if change.source is None or matches(change.source):
+                return None
+    eligible = {e.target_instance_id for e in history.events
+        if e.source.turn_number == state.turn_number and e.target_owner_id == player_id and matches(e.source)
         and history.object_ids.get(e.target_instance_id) == e.target_object_id}
     return [i for i in state.players[player_id].member_area.values()
             if i in eligible and state.cards[i].card.card_type == "member"]

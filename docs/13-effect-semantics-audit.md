@@ -1,5 +1,10 @@
 # Effect Semantics Audit
 
+Qualified coverage excludes only attested nonmatching sources. Missing source
+proof, legacy cost/departure paths, and late baselines remain unknown, never zero.
+Old global coverage and query semantics stay unchanged; formal producers remain
+unbound. See [scope](development/ready-qualified-coverage-probe.md).
+
 The departed-source operation has separate pre-move evidence. Old v1 still rejects
 an initially departed source, and the cost path retains its payment requirements.
 Neither this metadata nor its slot field certifies Hime's target/LKI rules.

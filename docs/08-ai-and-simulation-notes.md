@@ -1,5 +1,10 @@
 # AI and Simulation Notes
 
+Qualified ready coverage has a separate opt-in internal query. Legacy ready only
+adds conservative unknown facts; AI versions and strategies do not call the new
+query. Four-controller hidden-source invariance is tested, not a strategy gain.
+See [bounded coverage](development/ready-qualified-coverage-probe.md).
+
 The departed-source prototype captures Stage information before movement and binds
 it only to the actual post-movement invocation. Four controllers submit real choices
 with hidden-source invariance; no official producer or consumer is enabled.

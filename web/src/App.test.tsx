@@ -4844,6 +4844,26 @@ describe("App", () => {
     });
   });
 
+  it.each([false, true])("submits qualified coverage probe without private evidence hidden=%s", (hidden) => {
+    const onAction = vi.fn();
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    state.cards["player_1-M002"] = { ...state.cards["player_1-M002"], card: { ...state.cards["player_1-M002"].card, name_ja: "QUALIFIED PROBE TARGET" } };
+    if (hidden) delete state.cards["player_1-M001"];
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "qualified-probe", effect_id: "UNREGISTERED-READY:1", source_card_instance_id: "player_1-M001",
+      label_ja: "AUDIT unregistered qualified coverage", execution_mode: "prompt_then_resolve", is_optional: false,
+      simulation_support: "test_validated_executable", choice_type: "member_from_stage", choice_zone: "stage",
+      candidate_card_instance_ids: ["player_1-M002"], card_selection_minimum: 1, card_selection_maximum: 1,
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false} onAction={onAction} onManual={vi.fn()} />);
+    expect(onAction).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /QUALIFIED PROBE TARGET/ }));
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "qualified-probe", accepted: true, selected_card_instance_ids: ["player_1-M002"], energy_instance_ids: [],
+    });
+  });
+
   it("requires one explicit named Member choice instead of auto-selecting the first copy", () => {
     const onAction = vi.fn();
     const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
