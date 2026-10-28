@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "effect-ready-source-wait-active-target-probe-v2",
+      "priority": 1,
+      "title": "本人Wait费用后允许已Active目标的独立复原原型",
+      "status": "queued",
+      "depends_on": ["printemps-honoka-live-start-provenance-snapshot-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["只做unregistered显式v2新操作/快照，核对PL!-bp6-008:1全文/revision10/hashc5c21450dc637b1907f36eb45ba9c264b4fbd1a6a7092aa2dbc6a5bc9b27179c与旧v1 Wait-only差异，不直接绑定正式花陽", "本人原Stage顶层Active来源实际支付一次Wait，分步严格选另一本人顶层Member；目标可Wait或已Active，Active不记复原但必须有实际支付和次数消费；没有其他Member与仅Active目标的资格/费用先核对", "旧v1/JSON/Replay/flags/未知coverage不全局放宽，不支持混合费用/初始离场源/复杂继承；来源LKI/原目标对象/父能力锁/非法原子性/新旧SQL/四AI支持范围/完整隐私/必要UI与所有profiles及新源码同原30牌组验收", "只底座原型，正式历史生产者仍2of5、消费者和其他blocked不requeue；正式花陽后续单卡验收。仅本地提交，不push/publish、新PR、合并部署或主机操作"]
+    },
+    {
       "id": "printemps-honoka-live-start-provenance-snapshot-audit",
       "priority": 1,
       "title": "高坂穂乃果Live开始复原的精确历史快照审计",

@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- Wait費用後の対象を別MemberのWait/Active両方に限定対応するunregistered v2を追加。旧費用v1はWait限定のまま、無費用v1とReplayも維持。
+- 中文: 93专项/34 SQL、646关联和4 UI；已Active目标仍实际支付和消耗次数，但不记复原。正式卡未绑定、生产者仍2/5，不恢复消费者。完整门禁与同牌组见[记录](./docs/development/ready-source-wait-active-v2-probe.md)，只本地提交。
+
 - 高坂穂乃果PL!-bp3-001:2を原発生源履歴へ限定接続。旧Wait限定と任意発動を修正し、旧Replay・第1段・他3生産者を維持。
 - 中文: 82专项/53 SQL、四AI/隐私、3 UI及5图文；仅正式历史生产者2/5，范围策略不全局启用，消费者不恢复。[记录](./docs/development/honoka-live-start-provenance-verification.md)，只本地提交。
 

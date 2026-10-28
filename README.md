@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+Wait費用後に別のActive Memberも選べる限定unregistered v2原型を追加。支払と使用回数は消費し、同状態では復原履歴を作らない。旧v1/Replayを維持、93専用/34 SQL・四AI後続選択・4 UI。正式生産者2/5のまま。[検証](./docs/development/ready-source-wait-active-v2-probe.md)。ローカルのみ。
+
 高坂穂乃果PL!-bp3-001:2を全文/revision/hash限定の復原履歴へ接続。任意の本人Member 0–1名、Active選択可・強制能力とゼロ選択を分離。第1段を維持し、82専用/53 SQL・四AI・秘匿・3 UI・5図文。正式生産者2/5、消費者manual維持。[検証](./docs/development/honoka-live-start-provenance-verification.md)。ローカルのみ。
 
 南ことりPL!-pb1-012:1を全文/revision/hashで限定した復原履歴v3へ接続。Active目標も選択可能、実際のWait→Activeだけを記録し、旧v2 Replayを維持。81専用/55 SQL、四AI・秘匿、3 UI・5図文。正式生産者1/5、穂乃果manual維持。[検証](./docs/development/kotori-onplay-provenance-verification.md)。ローカルのみ。

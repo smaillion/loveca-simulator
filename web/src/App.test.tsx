@@ -4824,6 +4824,30 @@ describe("App", () => {
     });
   });
 
+  it.each([
+    { hidden: false, orientation: "active" as const }, { hidden: true, orientation: "active" as const },
+    { hidden: false, orientation: "wait" as const }, { hidden: true, orientation: "wait" as const },
+  ])("submits v2 any-orientation target $orientation hidden=$hidden", ({ hidden, orientation }) => {
+    const onAction = vi.fn();
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    state.cards["player_1-M002"] = { ...state.cards["player_1-M002"], orientation, card: { ...state.cards["player_1-M002"].card, name_ja: "V2 OTHER MEMBER" } };
+    if (hidden) delete state.cards["player_1-M001"];
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "source-wait-v2", effect_id: "UNREGISTERED-SOURCE-WAIT-READY-V2:1", source_card_instance_id: "player_1-M001",
+      label_ja: "AUDIT v2 any-orientation target", execution_mode: "prompt_then_resolve", is_optional: false,
+      simulation_support: "test_validated_executable", choice_type: "member_from_stage", choice_zone: "stage",
+      candidate_card_instance_ids: ["player_1-M002"], card_selection_minimum: 1, card_selection_maximum: 1,
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false} onAction={onAction} onManual={vi.fn()} />);
+    expect(onAction).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /V2 OTHER MEMBER/ }));
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "source-wait-v2", accepted: true, selected_card_instance_ids: ["player_1-M002"], energy_instance_ids: [],
+    });
+  });
+
   it.each([[false, 0], [false, 1], [true, 0], [true, 1]])("submits bounded departed-source choices hidden=%s count=%s", (hidden, count) => {
     const onAction = vi.fn();
     const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;

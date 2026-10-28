@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from loveca.simulation.ready_history import (
-    OPERATION as READY_PROVENANCE_OPERATION, PROVENANCE_OPERATIONS, SOURCE_WAIT_OPERATION, DEPARTED_OPERATION,
+    OPERATION as READY_PROVENANCE_OPERATION, PROVENANCE_OPERATIONS, SOURCE_WAIT_OPERATION, SOURCE_WAIT_V2_OPERATION, DEPARTED_OPERATION,
     begin_ready_tracking, mark_ready_departure, prepare_ready_source, record_member_ready,
     uses_source_wait_cost, prepare_source_wait_cost, finish_source_wait_cost, validate_source_wait_cost,
     capture_ready_departure, uses_departed_source, validate_departed_ready_source,
@@ -6809,6 +6809,7 @@ def _operation_requires_selected_choice(operation: Any) -> bool:
     return operation.action_type in {
         READY_PROVENANCE_OPERATION,
         SOURCE_WAIT_OPERATION,
+        SOURCE_WAIT_V2_OPERATION,
         DEPARTED_OPERATION,
         "wait_opponent_cost4_skip_next_turn_active",
         "attach_energy_deck_to_selected_nijigasaki",

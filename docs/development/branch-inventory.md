@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-28 JST Wait费用/Active目标v2：固定分支/工作树，仅unregistered新操作，不放宽旧v1；93专项/34 SQL、646关联、四AI后续/完整隐私和4 UI。正式生产者仍2/5，消费者及其他blocked不恢复，937/1212与reviewed不变；最终门禁/同牌组见ready-source-wait-active-v2-probe.md。仅本地提交，不改PR55或主机，旧44/6 dirty/stash/ignored保留。
+
 2026-10-28 JST 高坂穂乃果PL!-bp3-001:2单卡来源历史：固定分支/工作树，82专项/53 SQL、四AI/隐私、3 UI及5图文，完整双段身份绑定但第一段起动抽弃不改；仅第2段动作/Wait预筛/可拒绝发动三叶变化，旧Replay和其他三生产者保持。正式历史生产者2/5，937/1212与reviewed不升，消费者和其他blocked不恢复，最终证据见honoka-live-start-provenance-verification.md。只本地提交，不改PR55/主机，旧44/6 dirty/stash/ignored保留。
 
 2026-10-28 JST 南ことり单卡v3：固定分支/工作树，全文/revision/hash绑定，81专项/55 SQL、四AI/隐私、3 UI与5图文；仅PL!-pb1-012:1的操作及目标方向筛选变化，其他四生产者不动，旧v2夹具与Replay固定。正式历史生产者1/5，范围policy仍默认None，穂乃果/其他blocked保持，937/1212与reviewed不提升。估值别名使新v1与既有ready同值，默认版本不改；最终记录见kotori-onplay-provenance-verification.md。仅本地提交，旧44/6 dirty/stash/ignored保留。
