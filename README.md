@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+相手Memberの識別済み直接能力のみを無効化する未登録原型を追加。取得・継承を含む完全性は未確認。[検証](./docs/development/opponent-direct-disable-probe.md)。
+
 相手Memberのライブ成功能力無効化を監査。対象・実際の無効化判定は未対応。[監査](./docs/development/opponent-success-disable-scope-unresolved.md)。
 
 渡辺曜 PL!S-bp2-005:1 の登場時の最大3枚検索を限定対応。Q124に従い基本Heartのみを参照。[検証](./docs/development/q124-you-multi-keep-verification.md)。

@@ -3,8 +3,8 @@
   "branch": "codex/continuous-development",
   "base_ref": "origin/develop",
   "pull_request": 55,
-  "source_head": "66718bd91ef4d736d46873a439a9d630c83d954a",
-  "generated_at": "2026-10-28T12:30:53.940578+00:00",
+  "source_head": "eaa13074ad4314995531395b846637a9eab9909a",
+  "generated_at": "2026-10-28T13:10:07.293094+00:00",
   "task_states": {
     "printemps-hanayo-source-wait-provenance-snapshot-audit": "done",
     "effect-ready-source-wait-active-target-probe-v2": "done",
@@ -113,7 +113,8 @@
     "q124-multi-keep-legacy-executor-ai-privacy-audit": "done",
     "triggered-inspection-up-to-three-cost-probe": "done",
     "q124-you-multi-keep-formal-snapshot-audit": "done",
-    "opponent-member-live-success-disable-scope-audit": "in_progress",
+    "opponent-member-live-success-disable-scope-audit": "done",
+    "opponent-direct-live-success-disable-provenance-probe": "in_progress",
     "effect-accuracy-loop": "queued",
     "phase6-conformance-matrix": "queued"
   }

@@ -1024,6 +1024,20 @@
       ]
     },
     {
+      "id": "opponent-direct-live-success-disable-provenance-probe",
+      "priority": 0,
+      "title": "对手原成员直接Live成功能力新无效化原型",
+      "status": "queued",
+      "depends_on": ["opponent-member-live-success-disable-scope-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "先复核原审计红边界、来源自身旧操作和其他卡Q106的重复无效参考；仅明确未登记受限原型，不把其他卡FAQ当PL!-pb2-003直接裁定、不绑定正式卡",
+        "仅若可真实证明，针对对手当前公开顶层Member及其可识别直接Live成功能力建立原对象/所有者绑定，区分无能力、首次禁用与已禁用并记录实际新无效；来源和目标离区同ID返回、位置变化、Live结束清理、双方角色原子验证",
+        "获得/继承/未知来源或重复状态不能假称完整覆盖，无法证明则明确拒绝或保留依赖；不全局修改旧自身操作、旧JSON/Replay、既有登记，不恢复消费者和其他blocked",
+        "真实SQL Replay、四AI实际支持范围与隐藏替换、双方玩家/provider构造隐私、必要UI、全部profiles及应用变化同原30牌组冻结；不称随机正条件或策略改善，仅本地提交、不push/publish/部署"
+      ]
+    },
+    {
       "id": "effect-accuracy-loop",
       "priority": 3,
       "title": "按实际触发与规则风险扩展技能支持",

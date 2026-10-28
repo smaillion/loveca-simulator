@@ -1763,6 +1763,11 @@ def _resolve_effect(
         raise IllegalActionError("only the effect owner may resolve this effect")
     _assert_effect_resolution_turn(state, invocation)
     effect = state.effect_definitions[invocation.effect_id]
+    if any(op.action_type == "disable_opponent_direct_live_success_v1" for op in effect.actions) and (
+            set(action.payload) - {"invocation_id", "accepted", "selected_card_instance_ids", "energy_instance_ids", "ai_decision"}
+            or action.payload.get("energy_instance_ids") not in (None, [])
+            or (action.payload.get("accepted") is not None and type(action.payload["accepted"]) is not bool)):
+        raise IllegalActionError("opponent direct disable accepts only its current target selection")
     if (state.member_ready_coverage_policy == QUALIFIED_POLICY
             and any(op.action_type == "ready_member" for op in effect.actions)
             and (set(action.payload) & {QUALIFIED_SOURCE_KEY, "member_ready_coverage_policy", "member_ready_qualified_coverage"}
@@ -3330,7 +3335,7 @@ def _queue_triggered_effects(
                     "member_entry_count_at_trigger": count,
                     "source_stage_at_trigger": True,
                 }
-            if _source_trigger_disabled(state, source.owner_id, source_id, trigger):
+            if _source_trigger_disabled(state, source.owner_id, source_id, trigger, effect_id=effect_id):
                 events.append(
                     GameEvent(
                         event_type="effect_trigger_disabled",
@@ -3379,6 +3384,14 @@ def _queue_triggered_effects(
                 continue
             if _captures_original_stage_source(effect):
                 invocation.trigger_data["original_source_stage_object"] = True
+            if any(op.action_type == "disable_opponent_direct_live_success_v1" for op in effect.actions):
+                invocation.trigger_data["opponent_direct_disable_source_v1"] = {
+                    "invocation_id": invocation.invocation_id, "effect_id": effect_id,
+                    "instance_id": source_id, "owner_id": source.owner_id,
+                    "turn_number": state.turn_number,
+                    "stage_member": _top_member_slot(state.players[source.owner_id], source_id) is not None
+                                    and source.card.card_type == "member",
+                }
             if _captures_original_live_source(effect):
                 invocation.trigger_data["original_source_live_object"] = (
                     source_id in state.players[source.owner_id].live_area
@@ -3425,6 +3438,7 @@ def _captures_original_stage_source(effect: Any) -> bool:
         "original_live_start_bottom_source",
         "original_live_start_bottom_three_source",
         "original_onplay_muse_blade_aura",
+        "original_opponent_direct_disable_source_v1",
     } for op in effect.actions) or (
         effect.choice is not None
         and effect.choice.selection_policy == "public_other_nijigasaki_cost_heart"
@@ -3495,6 +3509,8 @@ def _source_trigger_disabled(
     player_id: str,
     source_card_instance_id: str,
     trigger: str,
+    *,
+    effect_id: str | None = None,
 ) -> bool:
     for modifier in state.players[player_id].manual_modifiers:
         if (
@@ -3505,6 +3521,11 @@ def _source_trigger_disabled(
             continue
         if not isinstance(modifier.value, dict):
             return True
+        if modifier.value.get("policy") == "opponent_direct_disable_v1":
+            direct_ids = modifier.value.get("direct_effect_ids")
+            if (not isinstance(direct_ids, list) or not all(isinstance(item, str) for item in direct_ids)
+                    or effect_id is None or effect_id not in direct_ids):
+                continue
         disabled_trigger = modifier.value.get("trigger")
         if disabled_trigger in {None, trigger}:
             return True
@@ -8725,6 +8746,48 @@ def _execute_operations(
                     target_card_instance_id=invocation.source_card_instance_id,
                 )
             )
+        elif operation_type == "disable_opponent_direct_live_success_v1":
+            snapshot = invocation.trigger_data.get("opponent_direct_disable_source_v1")
+            expected = {"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                        "instance_id": invocation.source_card_instance_id, "owner_id": invocation.player_id,
+                        "turn_number": state.turn_number, "stage_member": True}
+            if (not isinstance(snapshot, dict) or type(snapshot.get("turn_number")) is not int
+                    or type(snapshot.get("stage_member")) is not bool or snapshot != expected
+                    or type(state.turn_number) is not int
+                    or invocation.trigger_event != "live_started" or len(operation_selected_ids) != 1):
+                raise IllegalActionError("opponent direct disable source snapshot is invalid")
+            opponent_id = next((p for p in state.players if p != invocation.player_id), None)
+            target_id = operation_selected_ids[0]
+            opponent = state.players.get(opponent_id) if opponent_id is not None else None
+            target = state.cards.get(target_id)
+            if (opponent is None or target is None or target.owner_id != opponent_id
+                    or target.card.card_type != "member" or target_id not in opponent.member_area.values()):
+                raise IllegalActionError("opponent direct disable target is invalid")
+            if any(i.source_card_instance_id == target_id and i.trigger_event == "live_succeeded"
+                   for i in state.pending_effects):
+                raise IllegalActionError("opponent direct disable cannot change already queued success effects")
+            known = []
+            for effect_id in target.card.effect_ids:
+                target_effect = state.effect_definitions.get(effect_id)
+                if target_effect is None or target_effect.card_code != target.card.card_code:
+                    continue
+                if "live_succeeded" in str(target_effect.trigger).split("|"):
+                    known.append(effect_id)
+            newly_disabled = [effect_id for effect_id in dict.fromkeys(known)
+                              if not _source_trigger_disabled(state, opponent_id, target_id, "live_succeeded", effect_id=effect_id)]
+            if newly_disabled:
+                opponent.manual_modifiers.append(ManualModifier(
+                    modifier_id=f"effect:{invocation.invocation_id}:opponent_direct_disable_v1",
+                    modifier_type="flag", duration="live", created_turn=state.turn_number,
+                    flag="disabled_live_success_effects", target_card_instance_id=target_id,
+                    value={"trigger": "live_succeeded", "policy": "opponent_direct_disable_v1",
+                           "direct_effect_ids": newly_disabled, "source_invocation_id": invocation.invocation_id,
+                           "source_effect_id": invocation.effect_id, "source_instance_id": invocation.source_card_instance_id,
+                           "source_owner_id": invocation.player_id, "target_owner_id": opponent_id}))
+            events.append(GameEvent(event_type="opponent_direct_success_disable_probe", player_id=invocation.player_id,
+                data={"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                      "target_card_instance_id": target_id, "known_direct_newly_disabled": len(newly_disabled),
+                      "coverage_complete": False}, source="system"))
         elif operation_type == "reveal_top_cards":
             amount = _operation_amount(
                 operation,
@@ -12850,6 +12913,8 @@ def _clear_departed_card_modifiers(
             for modifier in player.manual_modifiers
             if modifier.target_card_instance_id not in departed
             or (not clear_all and not _is_muse_blade_aura(modifier) and not _is_opponent_member_block(modifier)
+                and not (modifier.flag == "disabled_live_success_effects" and isinstance(modifier.value, dict)
+                         and modifier.value.get("policy") == "opponent_direct_disable_v1")
                 and not (modifier.modifier_type == "heart"
                          and modifier.value in ({"policy": "original_live_start_bottom_source"},
                                                 {"policy": "original_live_start_bottom_three_source"},

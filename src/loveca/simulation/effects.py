@@ -38,6 +38,7 @@ SUPPORTED_EFFECT_ACTIONS = {
     "draw_card_per_stage_member",
     "draw_until_hand_size",
     "disable_source_live_success_effects",
+    "disable_opponent_direct_live_success_v1",
     "deploy_selected_to_empty_stage",
     "deploy_selected_to_stage",
     "gain_blade",
@@ -180,6 +181,7 @@ class EffectOperation(BaseModel):
         "original_live_start_bottom_aqours_requirement",
         "original_live_success_yell_source",
         "original_live_start_three_readied_source",
+        "original_opponent_direct_disable_source_v1",
     ] | None = None
     overlap_observer_policy: Literal[
         "ignore_disjoint_source_triggers", "require_complete_source_bindings"
@@ -206,6 +208,14 @@ class EffectOperation(BaseModel):
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        direct_disable = "disable_opponent_direct_live_success_v1"
+        direct_policy = "original_opponent_direct_disable_source_v1"
+        if self.action_type == direct_disable and self.model_dump(exclude_defaults=True, exclude_none=True) != {
+            "action_type": direct_disable, "target": "selected", "source_object_policy": direct_policy,
+        }:
+            raise ValueError("opponent direct disable requires its fixed original source operation")
+        if self.source_object_policy == direct_policy and self.action_type != direct_disable:
+            raise ValueError("opponent direct disable source policy requires its bounded operation")
         ready_score = "gain_source_score_if_three_readied_printemps"
         ready_score_policy = "original_live_start_three_readied_source"
         if self.action_type == ready_score and self.model_dump(exclude_defaults=True, exclude_none=True) != {
@@ -823,6 +833,18 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        direct_disable = "disable_opponent_direct_live_success_v1"
+        if any(op.action_type == direct_disable for op in self.actions):
+            expected = EffectOperation(action_type=direct_disable, target="selected",
+                source_object_policy="original_opponent_direct_disable_source_v1")
+            choice = EffectChoice(choice_type="member_from_stage", zone="stage", card_type="member",
+                target_player="opponent", minimum=1, maximum=1)
+            if (not self.card_code.startswith("UNREGISTERED-") or self.actions != [expected]
+                    or self.choice != choice or self.condition or self.cost or self.cost_choice or self.follow_up_choice
+                    or self.effect_type != "triggered" or self.timing != "live_start" or self.trigger != "live_started"
+                    or self.frequency_limit != "once_per_live" or self.is_optional or self.duration != "live"
+                    or self.execution_mode != "prompt_then_resolve" or self.simulation_support == "manual_resolution"):
+                raise ValueError("opponent direct disable is an unregistered bounded Live-start probe")
         ready_score = "gain_source_score_if_three_readied_printemps"
         if any(op.action_type == ready_score for op in self.cost):
             raise ValueError("three ready source score cannot be a cost")
