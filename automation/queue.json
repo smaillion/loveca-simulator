@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "q246-paid-basic-heart-color-union-probe",
+      "priority": 0,
+      "title": "已支付基本Heart颜色并集的未登记原型",
+      "status": "queued",
+      "depends_on": ["q246-named-discard-color-union-gap-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["仅未登记固定形状原型，实际支付私有手牌费用后按被支付卡片基本Heart颜色集合每色一次；Q246为直接示例但不绑定正式卡或推断Blade/正式名称资格/零枚费用裁定", "严格费用实体和来源原Stage对象，零至多张、共享颜色去重、重复名称、非法输入原子拒绝、来源离区同ID返回与Live清理及新旧SQL Replay", "真实双方执行、四AI实际支持及隐藏身份变化、完整玩家/provider构造隐私与必要UI；不改旧操作/快照/默认AI，不恢复blocked", "全部profiles/pre-push及应用变化后同原30牌组冻结，正式卡仍manual，仅本地提交，不推送发布或部署"]
+    },
+    {
       "id": "q246-named-discard-color-union-gap-audit",
       "priority": 0,
       "title": "Q246指定名称费用颜色并集边界审计",

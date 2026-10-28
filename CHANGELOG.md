@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 支払済み基本Heartの色を重複なく集計する未登録原型を追加。正式カードは未対応。
+- 中文: 新增受限已支付基本颜色并集原型，未知颜色拒绝且不绑定正式卡。[验证](./docs/development/q246-paid-basic-color-union-probe.md)。
+
 - Q246 の重複色の例と既存のカード単位処理との差を監査。正式能力は手動のまま。
 - 中文: 核对 Q246 基本颜色去重示例与旧逐卡操作的差异，不绑定正式能力。[审计](./docs/development/q246-named-cost-color-union-unresolved.md)。
 

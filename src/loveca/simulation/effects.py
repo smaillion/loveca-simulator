@@ -112,6 +112,7 @@ SUPPORTED_EFFECT_ACTIONS = {
     "gain_source_heart_if_milled_member_blade_colors",
     "gain_source_heart_if_bottom_card_live",
     "gain_heart_from_selected_card_colors",
+    "gain_source_heart_from_paid_basic_color_union_v1",
     "gain_blade_if_milled_any_card_type",
 }
 
@@ -182,6 +183,7 @@ class EffectOperation(BaseModel):
         "original_live_success_yell_source",
         "original_live_start_three_readied_source",
         "original_opponent_direct_disable_source_v1",
+        "original_paid_basic_color_union_source_v1",
     ] | None = None
     overlap_observer_policy: Literal[
         "ignore_disjoint_source_triggers", "require_complete_source_bindings"
@@ -208,6 +210,13 @@ class EffectOperation(BaseModel):
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        union = "gain_source_heart_from_paid_basic_color_union_v1"
+        if self.action_type == union and self.model_dump(exclude_defaults=True, exclude_none=True) != {
+            "action_type": union, "target": "cost_selected", "source_object_policy": "original_paid_basic_color_union_source_v1",
+        }:
+            raise ValueError("paid basic color union requires its fixed original source operation")
+        if self.source_object_policy == "original_paid_basic_color_union_source_v1" and self.action_type != union:
+            raise ValueError("paid basic color union source policy requires its bounded operation")
         direct_disable = "disable_opponent_direct_live_success_v1"
         direct_policy = "original_opponent_direct_disable_source_v1"
         if self.action_type == direct_disable and self.model_dump(exclude_defaults=True, exclude_none=True) != {
@@ -833,6 +842,22 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        union = "gain_source_heart_from_paid_basic_color_union_v1"
+        if any(op.action_type == union for op in self.cost):
+            raise ValueError("paid basic color union cannot be a cost")
+        if any(op.action_type == union for op in self.actions):
+            expected = EffectOperation(action_type=union, target="cost_selected",
+                source_object_policy="original_paid_basic_color_union_source_v1")
+            cost = EffectOperation(action_type="discard_from_hand", target="selected")
+            choice = EffectChoice(choice_type="card_from_zone", zone="hand", card_type="member",
+                target_player="self", name_ja_any=["南 ことり", "黒澤ダイヤ", "徒町小鈴"], minimum=0, maximum=4)
+            if (not self.card_code.startswith("UNREGISTERED-") or self.actions != [expected]
+                    or self.cost != [cost] or self.cost_choice != choice or self.choice or self.follow_up_choice
+                    or self.condition or self.effect_type != "triggered" or self.timing != "live_start"
+                    or self.trigger != "live_started" or self.frequency_limit != "once_per_live"
+                    or not self.is_optional or self.duration != "live"
+                    or self.execution_mode != "prompt_then_resolve" or self.simulation_support == "manual_resolution"):
+                raise ValueError("paid basic color union is an unregistered bounded Live-start probe")
         direct_disable = "disable_opponent_direct_live_success_v1"
         if any(op.action_type == direct_disable for op in self.actions):
             expected = EffectOperation(action_type=direct_disable, target="selected",

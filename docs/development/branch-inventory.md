@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-29 JST Q246 已支付基本颜色并集未登记原型：来源与支付证明受限，正式卡仍manual，详见 q246-paid-basic-color-union-probe.md 及 ignored 验收。
+
 2026-10-29 JST Q246 直接FAQ及未登记费用/逐卡颜色边界审计：重叠基本颜色示例已确认，正式卡仍manual，详见 q246-named-cost-color-union-unresolved.md 与 ignored 验收。
 
 2026-10-29 JST 三人卡指定名弃牌颜色边界审计：仅第二段保持manual，不改已有登场登记；详见 ll-bp6-named-discard-color-unresolved.md 及 ignored 验收。

@@ -1763,6 +1763,34 @@ def _resolve_effect(
         raise IllegalActionError("only the effect owner may resolve this effect")
     _assert_effect_resolution_turn(state, invocation)
     effect = state.effect_definitions[invocation.effect_id]
+    if any(op.action_type == "gain_source_heart_from_paid_basic_color_union_v1" for op in effect.actions):
+        source = state.cards.get(invocation.source_card_instance_id)
+        selected = action.payload.get("selected_card_instance_ids", [])
+        source_snapshot = {"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                           "source_id": invocation.source_card_instance_id, "player_id": invocation.player_id,
+                           "turn_number": state.turn_number, "stage_member": True}
+        captured_source = invocation.trigger_data.get("paid_basic_color_source_v1")
+        if (set(action.payload) - {"invocation_id", "accepted", "selected_card_instance_ids", "energy_instance_ids", "ai_decision"}
+                or action.payload.get("energy_instance_ids") not in (None, [])
+                or (action.payload.get("accepted") is not None and type(action.payload["accepted"]) is not bool)
+                or (action.payload.get("accepted") is False and selected not in (None, []))
+                or invocation.trigger_event != "live_started" or type(state.turn_number) is not int
+                or invocation.trigger_data.get("original_source_stage_object") is not True
+                or not isinstance(captured_source, dict) or type(captured_source.get("turn_number")) is not int
+                or type(captured_source.get("stage_member")) is not bool or captured_source != source_snapshot
+                or invocation.resolution_stage != "initial"
+                or "paid_basic_color_union_v1" in invocation.trigger_data
+                or source is None or source.owner_id != invocation.player_id):
+            raise IllegalActionError("paid basic color union requires its original source and cost selection")
+        if isinstance(selected, list):
+            allowed_colors = {f"heart0{i}" for i in range(1, 7)}
+            for item in selected:
+                card = state.cards.get(item) if isinstance(item, str) else None
+                if (card is not None and card.owner_id == invocation.player_id
+                        and item in state.players[invocation.player_id].hand
+                        and any(color not in allowed_colors or type(amount) is not int or amount < 0
+                                for color, amount in card.card.basic_hearts.items())):
+                    raise IllegalActionError("paid basic color union cannot interpret an unknown Heart")
     if any(op.action_type == "disable_opponent_direct_live_success_v1" for op in effect.actions) and (
             set(action.payload) - {"invocation_id", "accepted", "selected_card_instance_ids", "energy_instance_ids", "ai_decision"}
             or action.payload.get("energy_instance_ids") not in (None, [])
@@ -2099,6 +2127,12 @@ def _resolve_effect(
             invocation.trigger_data["cost_selected_card_instance_ids"] = list(
                 selected_ids
             )
+            if any(op.action_type == "gain_source_heart_from_paid_basic_color_union_v1" for op in effect.actions):
+                invocation.trigger_data["paid_basic_color_union_v1"] = {
+                    "invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                    "source_id": invocation.source_card_instance_id, "player_id": invocation.player_id,
+                    "turn_number": state.turn_number, "selected_ids": list(selected_ids), "paid": True,
+                }
             events.append(
                 GameEvent(
                     event_type="effect_cost_paid",
@@ -3384,6 +3418,13 @@ def _queue_triggered_effects(
                 continue
             if _captures_original_stage_source(effect):
                 invocation.trigger_data["original_source_stage_object"] = True
+            if any(op.action_type == "gain_source_heart_from_paid_basic_color_union_v1" for op in effect.actions):
+                invocation.trigger_data["paid_basic_color_source_v1"] = {
+                    "invocation_id": invocation.invocation_id, "effect_id": effect_id,
+                    "source_id": source_id, "player_id": source.owner_id, "turn_number": state.turn_number,
+                    "stage_member": _top_member_slot(state.players[source.owner_id], source_id) is not None
+                                    and source.card.card_type == "member",
+                }
             if any(op.action_type == "disable_opponent_direct_live_success_v1" for op in effect.actions):
                 invocation.trigger_data["opponent_direct_disable_source_v1"] = {
                     "invocation_id": invocation.invocation_id, "effect_id": effect_id,
@@ -3439,6 +3480,7 @@ def _captures_original_stage_source(effect: Any) -> bool:
         "original_live_start_bottom_three_source",
         "original_onplay_muse_blade_aura",
         "original_opponent_direct_disable_source_v1",
+        "original_paid_basic_color_union_source_v1",
     } for op in effect.actions) or (
         effect.choice is not None
         and effect.choice.selection_policy == "public_other_nijigasaki_cost_heart"
@@ -8388,7 +8430,7 @@ def _execute_operations(
             selected_ids,
             selected_ids_by_group,
         )
-        if operation.source_object_policy in {"original_live_start_heart_source", "original_live_start_wait_cost_source"}:
+        if operation.source_object_policy in {"original_live_start_heart_source", "original_live_start_wait_cost_source", "original_paid_basic_color_union_source_v1"}:
             if invocation.trigger_data.get("original_source_stage_object") is not True:
                 raise IllegalActionError("original source Stage snapshot is missing")
             if (invocation.trigger_data.get("original_source_stage_object_departed") is True
@@ -9842,6 +9884,24 @@ def _execute_operations(
                             target_card_instance_id=target_id,
                         )
                     )
+        elif operation_type == "gain_source_heart_from_paid_basic_color_union_v1":
+            proof = {"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                     "source_id": invocation.source_card_instance_id, "player_id": invocation.player_id,
+                     "turn_number": state.turn_number, "selected_ids": operation_selected_ids, "paid": True}
+            if (invocation.resolution_stage != "after_cost" or invocation.trigger_data.get("paid_basic_color_union_v1") != proof
+                    or "cost_selected_card_instance_ids" not in invocation.trigger_data
+                    or len(operation_selected_ids) != len(set(operation_selected_ids))
+                    or any(item not in player.waiting_room or item not in state.cards
+                           or state.cards[item].owner_id != invocation.player_id for item in operation_selected_ids)):
+                raise IllegalActionError("paid basic color union requires actual discarded costs")
+            colors = sorted({color for item in operation_selected_ids
+                             for color, amount in state.cards[item].card.basic_hearts.items() if amount > 0})
+            for color in colors:
+                player.manual_modifiers.append(ManualModifier(
+                    modifier_id=f"effect:{invocation.invocation_id}:paid_basic_color_union:{color}",
+                    modifier_type="heart", duration="live", created_turn=state.turn_number,
+                    amount=1, color_slot=color, target_card_instance_id=invocation.source_card_instance_id,
+                    value={"policy": "paid_basic_color_union_v1"}))
         elif operation_type == "replace_member_base_hearts":
             color_slot = operation.color_slot or selected_color_slot
             if not isinstance(color_slot, str):
@@ -12918,6 +12978,7 @@ def _clear_departed_card_modifiers(
                 and not (modifier.modifier_type == "heart"
                          and modifier.value in ({"policy": "original_live_start_bottom_source"},
                                                 {"policy": "original_live_start_bottom_three_source"},
+                                                {"policy": "paid_basic_color_union_v1"},
                                                 {"policy": "original_selected_water_blue_member"})))
         ]
         removed_count += len(player.manual_modifiers) - len(retained)

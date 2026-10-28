@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+新增仅处理已支付基本 Heart 颜色并集的未登记原型；尚未绑定正式卡。[验证](./docs/development/q246-paid-basic-color-union-probe.md)。
+
 审计 Q246 的重叠颜色去重示例与现有操作边界；正式能力仍为人工处理。[审计](./docs/development/q246-named-cost-color-union-unresolved.md)。
 
 审计三人卡指定名称弃牌与颜色 Heart 边界；Live 开始能力仍为人工处理。[审计](./docs/development/ll-bp6-named-discard-color-unresolved.md)。

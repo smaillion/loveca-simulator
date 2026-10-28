@@ -4993,6 +4993,25 @@ describe("App", () => {
     });
   });
 
+  it.each([0, 1])("submits paid color union probe with %s selected cards and no proof", (count) => {
+    const onAction = vi.fn();
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "paid-color-union", effect_id: "UNREGISTERED-Q246-COST-AUDIT:1", source_card_instance_id: "player_1-M001",
+      label_ja: "AUDIT paid color union", execution_mode: "prompt_then_resolve", is_optional: true,
+      simulation_support: "test_validated_executable", resolution_stage: "initial", choice_type: "card_from_zone", choice_zone: "hand",
+      candidate_card_instance_ids: ["player_1-M002"], card_selection_minimum: 0, card_selection_maximum: 4,
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={INSPECTION_MATCH_PAYLOAD.state as never}
+      loading={false} onAction={onAction} onManual={vi.fn()} />);
+    expect(onAction).not.toHaveBeenCalled();
+    if (count) fireEvent.click(screen.getByRole("button", { name: /候補カード/ }));
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "paid-color-union", accepted: true,
+      selected_card_instance_ids: count ? ["player_1-M002"] : [], energy_instance_ids: [],
+    });
+  });
+
   it.each([false, true])("submits opponent direct-disable probe without source snapshot hidden=%s", (hidden) => {
     const onAction = vi.fn();
     const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
