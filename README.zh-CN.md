@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+按实际登记审计Printemps五条直接复原来源，目前四条记录来源历史；剩余目标范围和消费者仍未解决。[审计](./docs/development/printemps-four-producer-coverage-audit.md)。
+
 WAO-WAO PL!-pb1-028:1限定记录实际复原人数并只给原Live加分；旧全局得分快照仅为Replay保留。[验证](./docs/development/waowao-ready-three-source-score-verification.md)。
 
 新增保留离场来源信息、支持双方公开成员目标的未登记v2原型；不用于裁定正式卡目标范围。[验证](./docs/development/departed-ready-both-owner-probe.md)。

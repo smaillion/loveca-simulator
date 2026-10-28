@@ -940,6 +940,20 @@
       ]
     },
     {
+      "id": "printemps-ready-four-producer-coverage-audit",
+      "priority": 0,
+      "title": "审计四条正式复原来源的覆盖完整性",
+      "status": "queued",
+      "depends_on": ["printemps-waowao-ready-three-source-score-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "按真实CardDefinition单位及快照盘点五条Printemps来源，逐项保存完整身份与登记，确认现有四条来源历史及PL!-PR-001旧快照的范围和未建模依赖；不凭名字或WIP宣称覆盖完整",
+        "真实状态及SQL审计新旧快照混用、同回合晚启用、未知旧ready、来源隐藏离场、目标新对象及限定来源查询；证据不足保留None而非零，不猜历史",
+        "明确区分审计完成与PL!-pb2-010消费者依赖解除，未经独立正式来源和官方语义验收不得requeue消费者或其他blocked；不更改PL!-PR-001登记或扩大规则",
+        "四AI及玩家/provider构造隐私、必要UI及全部profiles真实验收，应用变化则固定同30牌组冻结；仅本地提交，不推送发布、合并部署或操作主机"
+      ]
+    },
+    {
       "id": "effect-accuracy-loop",
       "priority": 3,
       "title": "按实际触发与规则风险扩展技能支持",

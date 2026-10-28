@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- Printemps直接復原元5件のうち履歴記録は4件。残る対象範囲は未裁定。
+- 中文: 按实际卡定义和登记审计四条来源历史，旧离场来源缺少证明时限定查询保持未知，不恢复受阻消费者。[审计](./docs/development/printemps-four-producer-coverage-audit.md)。
+
 - WAO-WAOの実際の復原人数と原Liveのスコアを限定記録。旧全体score snapshotはReplay用に維持。
 - 中文: 仅精确绑定PL!-pb1-028:1；三人实际复原只给原Live加分，旧全局得分快照保留历史Replay，不提升manual或reviewed。[验证](./docs/development/waowao-ready-three-source-score-verification.md)。
 
