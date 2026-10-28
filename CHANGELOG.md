@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 三人カードの指定名手札コストと色Heartの境界を監査。ライブ開始能力は手動のまま。
+- 中文: 审计指定名称弃牌及颜色结果的未知范围，不绑定正式自动能力。[审计](./docs/development/ll-bp6-named-discard-color-unresolved.md)。
+
 - Love marginal の復原履歴と段階的必要Heart軽減の境界を監査。正式能力は手動のまま。
 - 中文: 审计分档减需的真实复原历史和未知覆盖，未绑定正式能力。[审计](./docs/development/printemps-tiered-requirement-unresolved.md)。
 

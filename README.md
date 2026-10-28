@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+三人カードの指定名手札コストと色Heartの未解決範囲を監査。ライブ開始能力は手動のまま。[監査](./docs/development/ll-bp6-named-discard-color-unresolved.md)。
+
 Love marginal の復原人数による必要Heart軽減は手動のまま、履歴と未知範囲を監査。[監査](./docs/development/printemps-tiered-requirement-unresolved.md)。
 
 相手Memberの識別済み直接能力のみを無効化する未登録原型を追加。取得・継承を含む完全性は未確認。[検証](./docs/development/opponent-direct-disable-probe.md)。

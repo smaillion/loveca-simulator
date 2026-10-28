@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "ll-bp6-named-discard-color-scope-audit",
+      "priority": 0,
+      "title": "三人卡指定名称弃牌颜色能力边界审计",
+      "status": "queued",
+      "depends_on": ["live-start-waiting-nine-live-three-top-order"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对LL-bp6-001:2完整卡文和两段登记、revision/hash及冻结seed18027的两来源真实待机，不将卡面解读冒充完整裁定", "真实双方Live开始及可选发动与零枚费用边界、旧人工快照与绕过原子性以SQL Replay核验；私有手牌候选、重复名称、颜色来源及费用结果未证实时明确依赖，不半支持", "四AI实际支持及双方隐私、来源原对象和其他blocked保持；不修改正式登记、旧Replay或默认行为", "全部profiles和pre-push通过，应用不变仅核对同30牌组冻结；仅本地提交不推送或部署"]
+    },
+    {
       "id": "printemps-tiered-ready-requirement-scope-audit",
       "priority": 0,
       "title": "Printemps实际复原人数分档减需边界审计",
