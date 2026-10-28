@@ -9,7 +9,8 @@ SOURCE_WAIT_OPERATION = "ready_member_after_source_wait_provenance_v1"
 SOURCE_WAIT_V2_OPERATION = "ready_member_after_source_wait_provenance_v2"
 SOURCE_WAIT_OPERATIONS = frozenset({SOURCE_WAIT_OPERATION, SOURCE_WAIT_V2_OPERATION})
 DEPARTED_OPERATION = "ready_member_from_departed_source_provenance_v1"
-PROVENANCE_OPERATIONS = frozenset({OPERATION, *SOURCE_WAIT_OPERATIONS, DEPARTED_OPERATION})
+DEPARTED_BOTH_OPERATION = "ready_member_from_departed_both_provenance_v2"
+PROVENANCE_OPERATIONS = frozenset({OPERATION, *SOURCE_WAIT_OPERATIONS, DEPARTED_OPERATION, DEPARTED_BOTH_OPERATION})
 SOURCE_KEY = "ready_source_lki_v1"
 COST_KEY = "ready_source_wait_cost_v1"
 DEPARTED_KEY = "ready_departed_source_v1"
@@ -109,7 +110,7 @@ def uses_source_wait_cost(effect: Any) -> bool:
 
 
 def uses_departed_source(effect: Any) -> bool:
-    return any(op.action_type == DEPARTED_OPERATION for op in getattr(effect, "actions", []))
+    return any(op.action_type in {DEPARTED_OPERATION, DEPARTED_BOTH_OPERATION} for op in getattr(effect, "actions", []))
 
 
 def capture_ready_departure(state: Any, player_id: str, instance_id: str) -> dict[str, Any] | None:

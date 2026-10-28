@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+退場元の最後情報を保持し、双方の公開Memberを対象にできる未登録v2原型を追加。正式カードの対象裁定には使わない。[検証](./docs/development/departed-ready-both-owner-probe.md)。
+
 穂乃果PL!-PR-001:1の退場後復原は、旧登録と原型の対象範囲が本文と完全に一致するか未確定。[監査](./docs/development/honoka-departed-ready-scope-unresolved.md)。正式登録は変更せず、ローカルのみ。
 
 未登録Wait費用v1原型の支払不能な発生源を起動候補から除外。旧Replay状態とWait対象制限を維持し、正式生産者は増やさない。[監査](./docs/development/ready-source-wait-v1-legal-audit.md)。

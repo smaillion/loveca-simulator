@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 退場元の履歴を保ち、双方の公開Memberを選べる未登録v2原型を追加。旧本人Wait原型とReplayは維持。
+- 中文: 仅未登记双方目标原型，实际Wait复原才记录原对象；不绑定穂乃果、不裁定其目标语义或恢复消费者。[记录](./docs/development/departed-ready-both-owner-probe.md)。
+
 - 穂乃果PL!-PR-001:1の退場後復原を監査。旧登録と原型は自分のWait対象に限られ、本文の対象範囲は未裁定のまま。
 - 中文: 双方离场及SQL/AI审计仅记录旧行为，不绑定来源原型或提升覆盖率；目标所有者及Active范围尚待官方依据。[审计](./docs/development/honoka-departed-ready-scope-unresolved.md)。
 

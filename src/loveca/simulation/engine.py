@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from loveca.simulation.ready_history import (
-    OPERATION as READY_PROVENANCE_OPERATION, PROVENANCE_OPERATIONS, SOURCE_WAIT_OPERATION, SOURCE_WAIT_V2_OPERATION, DEPARTED_OPERATION,
+    OPERATION as READY_PROVENANCE_OPERATION, PROVENANCE_OPERATIONS, SOURCE_WAIT_OPERATION, SOURCE_WAIT_V2_OPERATION, DEPARTED_OPERATION, DEPARTED_BOTH_OPERATION,
     begin_ready_tracking, mark_ready_departure, prepare_ready_source, record_member_ready,
     uses_source_wait_cost, prepare_source_wait_cost, finish_source_wait_cost, validate_source_wait_cost,
     capture_ready_departure, uses_departed_source, validate_departed_ready_source,
@@ -6460,6 +6460,11 @@ def _effect_candidates_for_choice(
         candidates = [
             item for item in target_player.member_area.values() if item is not None
         ]
+        if getattr(choice, "selection_policy", None) == "public_departed_ready_both_one":
+            opponent = state.players["player_2" if invocation.player_id == "player_1" else "player_1"]
+            candidates.extend(item for item in opponent.member_area.values() if item is not None)
+            candidates = [item for item in candidates if state.cards[item].owner_id in state.players
+                          and item in state.players[state.cards[item].owner_id].member_area.values()]
     elif zone == "energy_area":
         candidates = list(player.energy_area)
     elif zone == "resolution_area":
@@ -6815,6 +6820,7 @@ def _operation_requires_selected_choice(operation: Any) -> bool:
         SOURCE_WAIT_OPERATION,
         SOURCE_WAIT_V2_OPERATION,
         DEPARTED_OPERATION,
+        DEPARTED_BOTH_OPERATION,
         "wait_opponent_cost4_skip_next_turn_active",
         "attach_energy_deck_to_selected_nijigasaki",
         "apply_wait_energy",

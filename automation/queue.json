@@ -912,6 +912,20 @@
       ]
     },
     {
+      "id": "departed-ready-both-owner-target-provenance-probe",
+      "priority": 0,
+      "title": "审计离场来源复原跨双方目标的未登记原型",
+      "status": "queued",
+      "depends_on": ["printemps-honoka-departed-ready-scope-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "只设计未登记受限原型，先核对当前双方目标所有者、已有原目标token及真实来源LKI的可表达性；不假定PL!-PR-001官方目标语义已裁定",
+        "仅范围可证明时独立版本化支持双方当前顶层Member及Active同状态，旧本人Wait离场原型和旧快照、Replay、覆盖未知状态不追改；否则记录依赖，不半支持",
+        "覆盖双方角色及目标拥有者、Active/Wait、来源离区隐藏返回、目标移区同ID返回、SQL Replay、四AI、玩家/provider构造隐私、必要UI和全部profiles；应用变化须同原30牌组冻结",
+        "不绑定PL!-PR-001或其他正式卡、不恢复消费者和其他blocked；仅本地开发，不推送发布、合并部署或操作主机"
+      ]
+    },
+    {
       "id": "effect-accuracy-loop",
       "priority": 3,
       "title": "按实际触发与规则风险扩展技能支持",

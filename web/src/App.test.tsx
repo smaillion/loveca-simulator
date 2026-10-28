@@ -4892,6 +4892,26 @@ describe("App", () => {
     });
   });
 
+  it.each([false, true])("submits public opponent target for departed both probe hidden=%s", (hidden) => {
+    const onAction = vi.fn();
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    state.cards["player_2-PROBE"] = { ...state.cards["player_1-M002"], owner_id: "player_2", card: { ...state.cards["player_1-M002"].card, name_ja: "OPPONENT PUBLIC TARGET" } };
+    if (hidden) delete state.cards["player_1-M001"];
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "departed-both", effect_id: "UNREGISTERED-DEPARTED-READY:1", source_card_instance_id: "player_1-M001",
+      label_ja: "AUDIT departed both", execution_mode: "prompt_then_resolve", is_optional: true,
+      simulation_support: "test_validated_executable", choice_type: "member_from_stage", choice_zone: "stage",
+      candidate_card_instance_ids: ["player_1-M002", "player_2-PROBE"], card_selection_minimum: 0, card_selection_maximum: 1,
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false} onAction={onAction} onManual={vi.fn()} />);
+    expect(onAction).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /OPPONENT PUBLIC TARGET/ }));
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "departed-both", accepted: true, selected_card_instance_ids: ["player_2-PROBE"], energy_instance_ids: [],
+    });
+  });
+
   it.each([false, true])("submits qualified coverage probe without private evidence hidden=%s", (hidden) => {
     const onAction = vi.fn();
     const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;

@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+新增保留离场来源信息、支持双方公开成员目标的未登记v2原型；不用于裁定正式卡目标范围。[验证](./docs/development/departed-ready-both-owner-probe.md)。
+
 穂乃果PL!-PR-001:1离场复原的目标范围仍待确认；旧登记和来源原型的范围不能直接当作完整卡文语义。[审计](./docs/development/honoka-departed-ready-scope-unresolved.md)。未改正式登记，仅本地验证。
 
 未登记Wait费用v1原型不再列出无法支付的来源；旧Replay状态和Wait目标限制保持，正式生产者不增加。[审计](./docs/development/ready-source-wait-v1-legal-audit.md)。
