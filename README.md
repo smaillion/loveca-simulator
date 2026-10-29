@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+千歌の支払い後の高コストメンバー回収候補を監査。[監査](./docs/development/chika-cost10-post-discard-unresolved.md)。
+
 非空手札すべてをコストにする未登録プロトタイプを追加。正式カードには未適用。[検証](./docs/development/tomari-nonempty-all-hand-probe.md)。
 
 冬毬の全手札コストと固定枚数選択の差を監査。[監査](./docs/development/tomari-all-hand-fixed-cost-gap.md)。

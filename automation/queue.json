@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "chika-cost10-post-discard-recovery-scope-audit",
+      "priority": 0,
+      "title": "审计千歌弃费后高费成员回收候选",
+      "status": "queued",
+      "depends_on": ["tomari-nonempty-all-hand-discard-probe"],
+      "required_profiles": ["backend", "control", "registry", "web"],
+      "acceptance": ["核对PL!S-bp7-001:1全文revision846/hash及旧manual；固定牌组5次人工辞退只作历史观察，不当执行率改善", "仅未登记弃一张后从控室选择cost10以上Member回手的构造快照，双方真实登场验证实际支付卡成为候选、其他候选、无候选和非法原子以及SQL Replay；不绑定正式卡、不实现名字追加Blade", "四AI双方实际支持范围和对手隐藏身份替换、双方玩家费用及回手后近期事件与provider构造隐私；明确本卡名称部分匹配、来源原对象、无目标和附加Blade依赖，旧JSON/Replay及其他blocked保持", "全部profiles/pre-push通过；应用不变核对同30冻结，仅本地提交，不推送发布部署"]
+    },
+    {
       "id": "tomari-nonempty-all-hand-discard-probe",
       "priority": 0,
       "title": "非空手全部弃牌抽六的未登记原型",

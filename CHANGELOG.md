@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 千歌のコスト支払い後の高コストメンバー回収候補を監査。正式効果は未対応。
+- 中文: 审计千歌弃牌费用后高费用成员回收候选，正式能力仍为人工处理。[审计](./docs/development/chika-cost10-post-discard-unresolved.md)。
+
 - 非空手札すべてをコストにする未登録の登場時プロトタイプを追加。正式カードには未適用。
 - 中文: 新增受限非空手全手弃牌抽六原型，未绑定正式卡。[验证](./docs/development/tomari-nonempty-all-hand-probe.md)。
 
