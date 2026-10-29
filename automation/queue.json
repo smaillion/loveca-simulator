@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "tomari-nonempty-all-hand-discard-probe",
+      "priority": 0,
+      "title": "非空手全部弃牌抽六的未登记原型",
+      "status": "queued",
+      "depends_on": ["tomari-all-hand-fixed-cost-gap-audit"],
+      "required_profiles": ["backend", "control", "registry", "web"],
+      "acceptance": ["仅UNREGISTERED固定登场形状、非空手本人全部手牌弃牌后抽六；空手明确不支持，不将原型绑定PL!SP-bp7-011或称正式规则", "客户端选择必须等于当前本人全部手牌，动态数量不设固定上限；部分/重复/他人/额外字段/错误角色原子拒绝，原有选择器和旧JSON Replay保持", "双方真实登场非空1至多张、辞退、空手拒绝路径和短库刷新真实事件与SQL Replay；四AI实际选择与隐藏身份替换、双方近期事件及provider构造隐私、必要UI", "全部profiles/pre-push、应用变化后同原30冻结；正式卡仍manual，空手及正式刷新语义待单独确认，不恢复其他blocked，仅本地提交不发布"]
+    },
+    {
       "id": "tomari-all-hand-fixed-cost-gap-audit",
       "priority": 0,
       "title": "审计冬毬全部手牌费用与固定选择器缺口",

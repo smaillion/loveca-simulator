@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+新增非空手全手弃牌抽六的受限未登记原型，未绑定正式卡。[验证](./docs/development/tomari-nonempty-all-hand-probe.md)。
+
 已审计冬毬全部手牌费用与固定选择器的差异；正式能力仍为人工处理。[审计](./docs/development/tomari-all-hand-fixed-cost-gap.md)。
 
 已审计冬毬弃全部手牌抽六的人工待机边界；正式能力仍待验证。[审计](./docs/development/tomari-all-hand-discard-unresolved.md)。

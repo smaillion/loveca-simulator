@@ -525,6 +525,7 @@ class EffectChoice(BaseModel):
         "public_aqours_shared_heart_yell_one",
         "public_departed_ready_both_one",
         "private_partial_names_unlimited_discard_v1",
+        "private_all_hand_nonempty_v1",
     ] | None = None
     zone: str | None = None
     card_type: str | None = None
@@ -866,6 +867,18 @@ class EffectDefinition(BaseModel):
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
         named_policy = "private_partial_names_unlimited_discard_v1"
+        all_hand_policy = "private_all_hand_nonempty_v1"
+        if any(c is not None and c.selection_policy == all_hand_policy for c in (self.cost_choice, self.choice, self.follow_up_choice)):
+            expected_choice = EffectChoice(choice_type="card_from_zone", zone="hand", target_player="self",
+                                           minimum=1, maximum=0, selection_policy=all_hand_policy)
+            if (not self.card_code.startswith("UNREGISTERED-") or self.effect_id != self.card_code + ":1"
+                    or self.cost_choice != expected_choice or self.choice is not None or self.follow_up_choice is not None
+                    or self.cost != [EffectOperation(action_type="discard_from_hand")]
+                    or self.actions != [EffectOperation(action_type="draw_card", amount=6)] or self.duration is not None
+                    or self.condition or self.effect_type != "triggered" or self.timing != "on_play"
+                    or self.trigger != "member_played" or self.frequency_limit != "none" or not self.is_optional
+                    or self.execution_mode != "prompt_then_resolve" or self.simulation_support == "manual_resolution"):
+                raise ValueError("all-hand discard requires its unregistered fixed on-play shape")
         paid_blade = "gain_source_blade_for_paid_named_v1"
         if any(op.action_type == paid_blade for op in self.cost):
             raise ValueError("paid named Blade cannot be a cost")
@@ -1362,7 +1375,7 @@ class EffectDefinition(BaseModel):
             raise ValueError("overlap source policy requires a bounded positional entry observer")
         if (
             (self.cost_choice and self.cost_choice.selection_policy is not None
-             and self.cost_choice.selection_policy != "private_partial_names_unlimited_discard_v1")
+             and self.cost_choice.selection_policy not in {"private_partial_names_unlimited_discard_v1", "private_all_hand_nonempty_v1"})
             or (self.follow_up_choice and self.follow_up_choice.selection_policy is not None)
             or (
                 self.choice and self.choice.selection_policy == "private_filtered_may_choose_none"

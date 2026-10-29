@@ -5429,6 +5429,32 @@ describe("App", () => {
       selected_card_instance_ids: stage === "initial" ? [] : ["player_1-M002"], energy_instance_ids: []});
   });
 
+  it.each([1, 4])("requires every nonempty all-hand cost card count=%s", (count) => {
+    const onAction = vi.fn();
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    const ids = Array.from({ length: count }, (_, i) => `all-hand-cost-${i}`);
+    ids.forEach((id, i) => {
+      state.cards[id] = { ...state.cards["player_1-M002"], instance_id: id,
+        card: { ...state.cards["player_1-M002"].card, name_ja: `ALL HAND COST ${i}` } };
+    });
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "all-hand", effect_id: "UNREGISTERED-TOMARI-ALL-HAND:1", source_card_instance_id: "player_1-M001",
+      label_ja: "AUDIT nonempty all-hand discard", execution_mode: "prompt_then_resolve", is_optional: true,
+      simulation_support: "test_validated_executable", choice_type: "card_from_zone", choice_zone: "hand",
+      candidate_card_instance_ids: ids, card_selection_minimum: count, card_selection_maximum: count,
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false} onAction={onAction} onManual={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+    ids.forEach((_, i) => {
+      fireEvent.click(screen.getByRole("button", { name: new RegExp(`ALL HAND COST ${i}`) }));
+      if (i < count - 1) expect(screen.getByRole("button", { name: "结算技能" })).toBeDisabled();
+    });
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "all-hand", accepted: true, selected_card_instance_ids: ids, energy_instance_ids: [],
+    });
+  });
+
   it.each([0, 1, 2, 3, -1])("shows bilingual three-ready source-only score %s", async (count) => {
     seedSavedDecks([{path: "test.json", deck: SAMPLE_DECK}]);
     const available = count >= 0;

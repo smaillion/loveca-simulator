@@ -1763,6 +1763,16 @@ def _resolve_effect(
         raise IllegalActionError("only the effect owner may resolve this effect")
     _assert_effect_resolution_turn(state, invocation)
     effect = state.effect_definitions[invocation.effect_id]
+    if effect.cost_choice is not None and effect.cost_choice.selection_policy == "private_all_hand_nonempty_v1":
+        source = state.cards.get(invocation.source_card_instance_id)
+        selected = action.payload.get("selected_card_instance_ids", [])
+        if (set(action.payload) - {"invocation_id", "accepted", "selected_card_instance_ids", "energy_instance_ids", "ai_decision"}
+                or action.payload.get("energy_instance_ids") not in (None, [])
+                or (action.payload.get("accepted") is not None and type(action.payload["accepted"]) is not bool)
+                or (action.payload.get("accepted") is False and selected not in (None, []))
+                or invocation.trigger_event != "member_played" or invocation.resolution_stage != "initial"
+                or source is None or source.owner_id != invocation.player_id):
+            raise IllegalActionError("all-hand discard accepts only its owner's actual cost selection")
     if (effect.cost_choice is not None
             and effect.cost_choice.selection_policy == "private_partial_names_unlimited_discard_v1"):
         source = state.cards.get(invocation.source_card_instance_id)
@@ -1941,7 +1951,7 @@ def _resolve_effect(
     if _effect_uses_cost_card_choice(effect) and invocation.resolution_stage == "initial":
         cost_candidates = _effect_cost_choice_candidates(state, invocation)
         cost_maximum = (len(cost_candidates) if effect.cost_choice is not None
-                        and effect.cost_choice.selection_policy == "private_partial_names_unlimited_discard_v1"
+                        and effect.cost_choice.selection_policy in {"private_partial_names_unlimited_discard_v1", "private_all_hand_nonempty_v1"}
                         else effect.cost_choice.maximum if effect.cost_choice is not None else 0)
         if (
             effect.cost_choice is None
@@ -1949,6 +1959,8 @@ def _resolve_effect(
             or len(selected_ids) > cost_maximum
             or len(selected_ids) != len(set(selected_ids))
             or any(item not in cost_candidates for item in selected_ids)
+            or (effect.cost_choice.selection_policy == "private_all_hand_nonempty_v1"
+                and (not cost_candidates or set(selected_ids) != set(cost_candidates)))
             or not _selected_cards_satisfy_choice_condition(
                 state, selected_ids, effect.cost_choice
             )
@@ -5438,9 +5450,10 @@ def _effect_resolution_options(
     if effect.cost_choice is not None and invocation.resolution_stage == "initial":
         options["choice_type"] = effect.cost_choice.choice_type
         options["choice_zone"] = effect.cost_choice.zone
-        options["card_selection_minimum"] = effect.cost_choice.minimum
+        options["card_selection_minimum"] = (len(candidate_ids) if effect.cost_choice.selection_policy
+            == "private_all_hand_nonempty_v1" else effect.cost_choice.minimum)
         options["card_selection_maximum"] = (len(candidate_ids) if effect.cost_choice.selection_policy
-            == "private_partial_names_unlimited_discard_v1" else effect.cost_choice.maximum)
+            in {"private_partial_names_unlimited_discard_v1", "private_all_hand_nonempty_v1"} else effect.cost_choice.maximum)
         options["cost_choice"] = effect.cost_choice.model_dump()
         if _effect_accepts_color_choice(effect):
             options["requires_color_choice"] = True

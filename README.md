@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+非空手札すべてをコストにする未登録プロトタイプを追加。正式カードには未適用。[検証](./docs/development/tomari-nonempty-all-hand-probe.md)。
+
 冬毬の全手札コストと固定枚数選択の差を監査。[監査](./docs/development/tomari-all-hand-fixed-cost-gap.md)。
 
 冬毬の手札全廃棄と6枚ドローの手動解決境界を監査。[監査](./docs/development/tomari-all-hand-discard-unresolved.md)。
