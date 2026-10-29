@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "tomari-all-hand-fixed-cost-gap-audit",
+      "priority": 0,
+      "title": "审计冬毬全部手牌费用与固定选择器缺口",
+      "status": "queued",
+      "depends_on": ["tomari-all-hand-discard-draw-six-scope-audit"],
+      "required_profiles": ["backend", "control", "registry", "web"],
+      "acceptance": ["复核PL!SP-bp7-011全文revision898/hash和既有manual，固定样本只作历史观察，不称本轮新随机触发", "仅未登记固定1至3张手牌费用加抽六的受控快照，双方实际登场验证部分选择、全选、超过上限、非法原子、空手及短库刷新与SQL Replay；现有行为不当正式卡裁定", "四AI双方实际选择及对手隐藏身份替换、双方玩家/provider构造隐私；明确零手支付、动态全手费用与刷新依赖，不改变正式登记、产品、旧Replay或其他blocked", "全部profiles/pre-push通过；应用不变核对同30冻结，仅本地提交，不推送发布部署"]
+    },
+    {
       "id": "tomari-all-hand-discard-draw-six-scope-audit",
       "priority": 0,
       "title": "审计冬毬弃全部手牌抽六的人工边界",

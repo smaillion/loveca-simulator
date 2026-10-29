@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-29 JST 冬毬全部手牌与固定费用选择缺口：正式卡仍 manual；见 tomari-all-hand-fixed-cost-gap.md。
+
 2026-10-29 JST 冬毬弃全部手牌抽六范围审计：正式卡仍 manual；见 tomari-all-hand-discard-unresolved.md。
 
 2026-10-29 JST Aqours 三组 Live 数据交集与中央 Blade 范围审计：正式卡仍 manual；见 aqours-three-live-groups-center-blade-unresolved.md。

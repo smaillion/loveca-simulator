@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 冬毬の全手札コストと固定枚数選択の差を未登録スナップショットで検証。
+- 中文: 审计冬毬全部手牌费用与固定选择器的差异，正式能力仍为人工处理。[审计](./docs/development/tomari-all-hand-fixed-cost-gap.md)。
+
 - 冬毬の手札全廃棄と6枚ドローの手動解決境界を監査。正式効果は未対応。
 - 中文: 审计冬毬弃全部手牌抽六的人工待机与隐私边界，正式能力仍待验证。[审计](./docs/development/tomari-all-hand-discard-unresolved.md)。
 
