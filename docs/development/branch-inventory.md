@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-29 JST 三人卡名称匹配与 Blade Heart 色槽盘点：正式第二段仍 manual；见 ll-bp6-named-blade-heart-inventory.md。
+
 2026-10-29 JST 三人曜卡名称费用及原来源 Blade 精确快照：旧 Replay 保留历史，其他登记不变；见 ll-bp2-named-source-blade-verification.md。
 
 2026-10-29 JST 已付名称费用原来源 Blade 未登记原型：旧正式卡来源离区行为仍有风险，见 paid-named-original-source-blade-probe.md。

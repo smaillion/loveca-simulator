@@ -3,9 +3,10 @@
   "branch": "codex/continuous-development",
   "base_ref": "origin/develop",
   "pull_request": 55,
-  "source_head": "799d43faca1f10f565197bbaf8ebfeb605689838",
-  "generated_at": "2026-10-29T00:24:57.719626+00:00",
+  "source_head": "e019790aebb02843d31f41189e23243d844373c6",
+  "generated_at": "2026-10-29T01:35:54.836607+00:00",
   "task_states": {
+    "ll-bp6-named-blade-heart-inventory-audit": "in_progress",
     "q246-paid-basic-heart-color-union-probe": "done",
     "q246-named-discard-color-union-gap-audit": "done",
     "ll-bp6-named-discard-color-scope-audit": "done",
@@ -122,7 +123,7 @@
     "ll-bp2-001-composite-name-cost-audit": "done",
     "private-named-unlimited-discard-probe": "done",
     "paid-named-original-source-blade-probe": "done",
-    "ll-bp2-001-named-discard-source-blade-formal-audit": "in_progress",
+    "ll-bp2-001-named-discard-source-blade-formal-audit": "done",
     "effect-accuracy-loop": "queued",
     "phase6-conformance-matrix": "queued"
   }

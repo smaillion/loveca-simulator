@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 三人カードの指定名とBlade Heart色スロットの実カード分布を監査。正式効果は未対応。
+- 中文: 盘点三人卡名称匹配记录的 Blade Heart 色槽并验证受限原型；正式能力仍为人工处理。[审计](./docs/development/ll-bp6-named-blade-heart-inventory.md)。
+
 - 三人曜カードの名称コストと元のメンバーへのBladeを厳密なカード文に限定して修正。
 - 中文: 精确绑定三人曜卡的名称动态费用和原来源 Blade，保留旧快照与 Replay。[验证](./docs/development/ll-bp2-named-source-blade-verification.md)。
 

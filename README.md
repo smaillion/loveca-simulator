@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+三人カードの指定名とBlade Heart色スロットを監査。正式効果は未対応。[監査](./docs/development/ll-bp6-named-blade-heart-inventory.md)。
+
 三人曜カードの名称コストと元のメンバーのBladeを厳密なカード文に限定して修正。[検証](./docs/development/ll-bp2-named-source-blade-verification.md)。
 
 支払済み名称コストと元のステージメンバーのBladeを結ぶ未登録原型を追加。正式カードには未適用。[検証](./docs/development/paid-named-original-source-blade-probe.md)。
