@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-29 JST Aqours 三组 Live 数据交集与中央 Blade 范围审计：正式卡仍 manual；见 aqours-three-live-groups-center-blade-unresolved.md。
+
 2026-10-29 JST 三人卡名称匹配与 Blade Heart 色槽盘点：正式第二段仍 manual；见 ll-bp6-named-blade-heart-inventory.md。
 
 2026-10-29 JST 三人曜卡名称费用及原来源 Blade 精确快照：旧 Replay 保留历史，其他登记不变；见 ll-bp2-named-source-blade-verification.md。

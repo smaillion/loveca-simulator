@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "aqours-three-live-groups-center-blade-scope-audit",
+      "priority": 0,
+      "title": "审计Aqours三组Live回库底与中央Blade边界",
+      "status": "queued",
+      "depends_on": ["ll-bp6-named-blade-heart-inventory-audit"],
+      "required_profiles": ["backend", "control", "registry", "web"],
+      "acceptance": ["复核PL!S-cl1-010:1完整原文revision969/hash及旧manual，固定30牌组中实际待机和AI拒绝次数只作观察，不当完成率或策略改善", "双方真实Live开始、不同来源与人工辞退和结构化绕过原子性以SQL Replay核验；盘点真实Aqours Live三类图标的重叠和不足，分清卡库属性与官方目标资格，顺序、同一卡跨组及无色图标语义不擅自裁定", "四AI双方实际人工能力行为与隐藏身份变化、玩家/provider构造上下文隐私；明确中央目标原对象与Live期限等依赖，保持正式manual、旧快照、产品和其他blocked不变", "全部profiles/pre-push通过，应用不变核对同30牌组冻结；仅本地提交，不推送发布部署"]
+    },
+    {
       "id": "ll-bp6-named-blade-heart-inventory-audit",
       "priority": 0,
       "title": "审计三人卡指定名称候选的Blade Heart实际覆盖",

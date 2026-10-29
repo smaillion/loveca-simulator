@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- Aqoursライブ三分類の属性重複と手動解決境界を監査。正式効果は未対応。
+- 中文: 审计 Aqours 三组 Live 数据特征交集与人工待机，未更改正式登记。[审计](./docs/development/aqours-three-live-groups-center-blade-unresolved.md)。
+
 - 三人カードの指定名とBlade Heart色スロットの実カード分布を監査。正式効果は未対応。
 - 中文: 盘点三人卡名称匹配记录的 Blade Heart 色槽并验证受限原型；正式能力仍为人工处理。[审计](./docs/development/ll-bp6-named-blade-heart-inventory.md)。
 

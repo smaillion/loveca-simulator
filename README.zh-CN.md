@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+已审计 Aqours 三组 Live 的数据特征交集及人工待机边界；正式能力仍待验证。[审计](./docs/development/aqours-three-live-groups-center-blade-unresolved.md)。
+
 已盘点三人卡名称匹配记录的 Blade Heart 色槽；正式能力仍为人工处理。[审计](./docs/development/ll-bp6-named-blade-heart-inventory.md)。
 
 按精确卡文修复三人曜卡的名称费用与原来源 Blade。[验证](./docs/development/ll-bp2-named-source-blade-verification.md)。
