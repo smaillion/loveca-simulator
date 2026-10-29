@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from loveca.db.bootstrap import connect_database
-from loveca.simulation.effects import DEFAULT_EFFECT_REGISTRY, load_effect_registry
+from loveca.simulation.effects import DEFAULT_EFFECT_REGISTRY, LL_BP2_FULL_HASH, LL_BP2_FULL_TEXT, LL_BP2_NAMED_BLADE_TEXT, load_effect_registry
 
 SOURCE_REFERENCE = (
     "Official card text; comprehensive rules ver. 1.06 restricted executor pattern"
@@ -150,6 +150,11 @@ def discover_effect_candidates(
                 row_candidates.append(candidate)
             row_candidates.extend(_manual_timing_candidates(row))
             for candidate in row_candidates:
+                if (row["card_code"] == "LL-bp2-001" and candidate.effect_index == 3
+                        and (row["raw_effect_text_ja"] != LL_BP2_FULL_TEXT or row["text_revision_id"] != 592
+                             or row["raw_text_hash"] != LL_BP2_FULL_HASH)
+                        and candidate.pattern_id != "manual_timing_fallback"):
+                    continue
                 identity = (
                     candidate.card_code,
                     candidate.text_revision_id,
@@ -268,6 +273,26 @@ def _matching_segment(
         if label == expected or (startswith and label.startswith(expected)):
             return effect_index, expected if startswith else label
     return None
+
+
+def _live_start_ll_bp2_named_source_blade(row: sqlite3.Row) -> EffectCandidate | None:
+    if (row["card_code"] != "LL-bp2-001" or row["raw_effect_text_ja"] != LL_BP2_FULL_TEXT
+            or row["text_revision_id"] != 592 or row["raw_text_hash"] != LL_BP2_FULL_HASH):
+        return None
+    matched = _matching_segment(row, LL_BP2_NAMED_BLADE_TEXT)
+    if matched is None or matched[0] != 3:
+        return None
+    return EffectCandidate(
+        **_base(row, pattern_id="ll_bp2_named_source_blade_exact_v1", effect_index=3),
+        label_ja=matched[1], effect_type="triggered", timing="live_start", trigger="live_started",
+        frequency_limit="once_per_live", is_optional=True, condition={},
+        cost=[{"action_type": "discard_from_hand"}],
+        cost_choice={"choice_type": "card_from_zone", "zone": "hand", "target_player": "self",
+                     "name_ja_any": ["渡辺 曜", "鬼塚夏美", "大沢瑠璃乃"], "minimum": 0, "maximum": 0,
+                     "selection_policy": "private_partial_names_unlimited_discard_v1"},
+        choice=None, actions=[{"action_type": "gain_source_blade_for_paid_named_v1", "target": "cost_selected",
+                               "source_object_policy": "original_paid_named_blade_source_v1"}], duration="live",
+    )
 
 
 def _wait_moved_source_ready(row: sqlite3.Row) -> EffectCandidate | None:
@@ -15863,6 +15888,7 @@ def _activated_return_energy_recover_live(row: sqlite3.Row) -> EffectCandidate |
 
 
 _PATTERNS = (
+    _live_start_ll_bp2_named_source_blade,
     _onplay_opponent_live_offer,
     _onplay_both_center_position,
     _static_mirrored_front_cost_heart,

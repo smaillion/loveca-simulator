@@ -7,7 +7,7 @@ import pytest
 
 from loveca.db.bootstrap import connect_database
 from loveca.simulation.catalog import _load_definition
-from loveca.simulation.effects import load_effect_registry
+from loveca.simulation.effects import EffectOperation, load_effect_registry
 from loveca.simulation.ai import SimpleAIController, SimpleAIDecision, SimpleAIPolicy
 from loveca.simulation.engine import IllegalActionError, generate_legal_actions
 from loveca.simulation.models import CardDefinition, CardInstance
@@ -23,6 +23,12 @@ HASH = "dfe7ad5c2413211c958b11e6f7ef92a11245426e036193a2acc8cb9a48d236ba"
 def _actual(owner):
     state = _state(owner=owner)
     effects = {e.effect_id: e for e in load_effect_registry().effects if e.card_code == CODE}
+    if effects[EFFECT].actions[0].action_type == "gain_source_blade_for_paid_named_v1":
+        current = effects[EFFECT]
+        effects[EFFECT] = current.model_copy(update={
+            "actions": [EffectOperation(action_type="gain_blade", amount_source="selected_count")],
+            "cost_choice": current.cost_choice.model_copy(update={"selection_policy": None, "maximum": 3}),
+        })
     with closing(connect_database(Path("data/loveca.sqlite3"))) as db:
         card = _load_definition(db, CODE, None, effects, {})
     for instance in state.cards.values():

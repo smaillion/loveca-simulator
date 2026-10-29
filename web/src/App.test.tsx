@@ -4953,6 +4953,30 @@ describe("App", () => {
     });
   });
 
+  it.each([[false, 0], [false, 4], [true, 0], [true, 4]])("submits LL-bp2-001 cost hidden=%s count=%s", (hidden, count) => {
+    const onAction = vi.fn();
+    const state = { ...INSPECTION_MATCH_PAYLOAD.state, cards: { ...INSPECTION_MATCH_PAYLOAD.state.cards } } as unknown as MatchState;
+    const ids = Array.from({ length: 4 }, (_, i) => `formal-named-${i}`);
+    ids.forEach((id, i) => {
+      state.cards[id] = { ...state.cards["player_1-M002"], instance_id: id,
+        card: { ...state.cards["player_1-M002"].card, name_ja: `FORMAL NAMED ${i}` } };
+    });
+    if (hidden) delete state.cards["player_1-M001"];
+    const action = { action_type: "resolve_effect", player_id: "player_1", options: { invocations: [{
+      invocation_id: "ll-bp2-formal", effect_id: "LL-bp2-001:3", source_card_instance_id: "player_1-M001",
+      label_ja: "【ライブ開始時】手札の「渡辺 曜」と「鬼塚夏美」と「大沢瑠璃乃」を、好きな枚数控え室に置いてもよい：ライブ終了時まで、これによって控え室に置いた枚数1枚につき、【ブレード】を得る。 （手札のこのカードもこの効果で控え室に置ける。）",
+      execution_mode: "prompt_then_resolve", is_optional: true, simulation_support: "test_validated_executable",
+      choice_type: "card_from_zone", choice_zone: "hand", candidate_card_instance_ids: ids,
+      card_selection_minimum: 0, card_selection_maximum: ids.length,
+    }] } };
+    render(<EffectResolutionAction action={action as never} state={state as never} loading={false} onAction={onAction} onManual={vi.fn()} />);
+    ids.slice(0, count).forEach((_, i) => fireEvent.click(screen.getByRole("button", { name: new RegExp(`FORMAL NAMED ${i}`) })));
+    fireEvent.click(screen.getByRole("button", { name: "结算技能" }));
+    expect(onAction).toHaveBeenCalledWith("resolve_effect", "player_1", {
+      invocation_id: "ll-bp2-formal", accepted: true, selected_card_instance_ids: ids.slice(0, count), energy_instance_ids: [],
+    });
+  });
+
   it.each([
     { hidden: false, orientation: "active" as const }, { hidden: true, orientation: "active" as const },
     { hidden: false, orientation: "wait" as const }, { hidden: true, orientation: "wait" as const },

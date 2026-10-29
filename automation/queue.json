@@ -1116,6 +1116,20 @@
       ]
     },
     {
+      "id": "ll-bp2-001-named-discard-source-blade-formal-audit",
+      "priority": 0,
+      "title": "逐卡验证三人曜名称费用与原来源Blade",
+      "status": "queued",
+      "depends_on": ["paid-named-original-source-blade-probe"],
+      "required_profiles": ["backend", "control", "registry", "web"],
+      "acceptance": [
+        "复算LL-bp2-001完整原文revision592/hash、官方2.3.2.1/2.3.2.2及旧登记并保存旧快照，先逐项证明名称部分匹配、任意数量、自身组合卡、可选零张、真实支付及原来源Blade的语义等价，不以原型通过替代逐卡审查",
+        "仅全部语义可证时按卡号、完整全文不strip、revision和hash精确绑定新策略/操作，只改该效果登记并生成manifest；旧JSON/Replay及其他登记不改，证据不足保留既有登记并记具体依赖，不半支持或解除其他blocked",
+        "双方真实Live开始和SQL Replay验证0至六、组合/单名/无关、拒绝/非法原子、来源离区隐藏及同ID返回/场内换位、已得Blade离区和Live结束清理；四AI双方实际选择及隐藏身份替换、双方玩家近期事件和provider构造隐私、必要UI图文",
+        "全部profiles/pre-push及应用变化同原30牌组冻结；不称随机正条件或策略改善，只本地提交不推送部署"
+      ]
+    },
+    {
       "id": "effect-accuracy-loop",
       "priority": 3,
       "title": "按实际触发与规则风险扩展技能支持",

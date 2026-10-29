@@ -122,6 +122,18 @@ class EffectRegistryError(RuntimeError):
     """Raised when a registry cannot be safely loaded."""
 
 
+LL_BP2_NAMED_BLADE_TEXT = (
+    "【ライブ開始時】手札の「渡辺 曜」と「鬼塚夏美」と「大沢瑠璃乃」を、好きな枚数控え室に置いてもよい："
+    "ライブ終了時まで、これによって控え室に置いた枚数1枚につき、【ブレード】を得る。"
+    " （手札のこのカードもこの効果で控え室に置ける。）"
+)
+LL_BP2_FULL_TEXT = (
+    "【常時】手札にあるこのメンバーカードのコストは、このカード以外の自分の手札1枚につき、1少なくなる。 "
+    "【常時】このメンバーはバトンタッチで控え室に置けない。 " + LL_BP2_NAMED_BLADE_TEXT
+)
+LL_BP2_FULL_HASH = "dfe7ad5c2413211c958b11e6f7ef92a11245426e036193a2acc8cb9a48d236ba"
+
+
 class EffectOperation(BaseModel):
     action_type: str
     target: str | None = None
@@ -865,7 +877,13 @@ class EffectDefinition(BaseModel):
             expected_choice = EffectChoice(choice_type="card_from_zone", zone="hand", target_player="self",
                 name_ja_any=["渡辺 曜", "鬼塚夏美", "大沢瑠璃乃"], minimum=0, maximum=0,
                 selection_policy=named_policy)
-            if (not self.card_code.startswith("UNREGISTERED-") or self.effect_id != self.card_code + ":1"
+            probe_identity = self.card_code.startswith("UNREGISTERED-") and self.effect_id == self.card_code + ":1"
+            formal_identity = (self.card_code == "LL-bp2-001" and self.effect_id == "LL-bp2-001:3"
+                               and self.effect_index == 3 and self.text_revision_id == 592
+                               and self.raw_text_hash == LL_BP2_FULL_HASH and self.label_ja == LL_BP2_NAMED_BLADE_TEXT
+                               and self.actions == [EffectOperation(action_type=paid_blade, target="cost_selected",
+                                   source_object_policy="original_paid_named_blade_source_v1")])
+            if (not (probe_identity or formal_identity)
                     or self.cost_choice != expected_choice or self.choice is not None or self.follow_up_choice is not None
                     or self.cost != [EffectOperation(action_type="discard_from_hand")]
                     or (self.actions, self.duration) not in (
@@ -876,7 +894,7 @@ class EffectDefinition(BaseModel):
                     or self.trigger != "live_started" or self.frequency_limit != "once_per_live"
                     or not self.is_optional
                     or self.execution_mode != "prompt_then_resolve" or self.simulation_support == "manual_resolution"):
-                raise ValueError("partial-name unlimited discard is an unregistered fixed Live-start probe")
+                raise ValueError("partial-name unlimited discard requires its fixed Live-start identity and shape")
         union = "gain_source_heart_from_paid_basic_color_union_v1"
         if any(op.action_type == union for op in self.cost):
             raise ValueError("paid basic color union cannot be a cost")

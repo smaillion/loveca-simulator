@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 三人曜カードの名称コストと元のメンバーへのBladeを厳密なカード文に限定して修正。
+- 中文: 精确绑定三人曜卡的名称动态费用和原来源 Blade，保留旧快照与 Replay。[验证](./docs/development/ll-bp2-named-source-blade-verification.md)。
+
 - 支払済み名称コストと元のメンバーのBladeを結ぶ未登録原型を追加。正式カードには未適用。
 - 中文: 新增已付指定名称费用的原来源 Blade 原型，不修改旧快照或正式登记。[验证](./docs/development/paid-named-original-source-blade-probe.md)。
 

@@ -318,6 +318,11 @@ def _v1_1_dynamic_scenarios(
         ("q124_multi_keep_three", "費用を支払い3枚取得", "支付费用并取得三张", "PL!S-bp2-005:1", lambda e: _run_q124_multi_keep(e, 3)),
         ("q124_multi_keep_decline", "任意能力を辞退", "明确辞退可选能力", "PL!S-bp2-005:1", lambda e: _run_q124_multi_keep(e, 0, decline=True)),
         ("q124_multi_keep_unpayable", "費用を支払えない", "无法支付弃牌费用", "PL!S-bp2-005:1", lambda e: _run_q124_multi_keep(e, 0, empty=True)),
+        ("ll_bp2_named_zero", "零枚を選択", "明确选择零张", "LL-bp2-001:3", lambda e: _run_ll_bp2_named_blade(e, 0)),
+        ("ll_bp2_named_composite", "複合名のカード一枚", "支付一张组合名称卡", "LL-bp2-001:3", lambda e: _run_ll_bp2_named_blade(e, 1)),
+        ("ll_bp2_named_four", "指定名カード四枚", "支付四张指定名称卡", "LL-bp2-001:3", lambda e: _run_ll_bp2_named_blade(e, 4)),
+        ("ll_bp2_named_decline", "任意能力を辞退", "明确辞退可选能力", "LL-bp2-001:3", lambda e: _run_ll_bp2_named_blade(e, 0, decline=True)),
+        ("ll_bp2_named_empty", "該当する手札なし", "没有合格手牌", "LL-bp2-001:3", lambda e: _run_ll_bp2_named_blade(e, 0, empty=True)),
         *(("mixed_heart_inspection_" + code, "MemberのHeart・Liveの必要Heartを区別 " + code,
            "区分Member持有Heart与Live必要Heart " + code, code + ":1", _run_adjacent_discard_inspection)
           for code in ("PL!S-pb1-013", "PL!S-pb1-014", "PL!S-pb1-015")),
@@ -1586,6 +1591,34 @@ def _run_muse_yell_ten(
         "muse_yell_actual_reveals": len(result.state.players["player_1"].resolution_area)
         == 1 + expected,
     }
+
+
+def _run_ll_bp2_named_blade(effect: EffectDefinition, count: int, *, empty: bool = False, decline: bool = False) -> dict[str, bool]:
+    source = _v1_1_member("source", effect.card_code, effect_ids=[effect.effect_id])
+    names = ["渡辺 曜&鬼塚夏美&大沢瑠璃乃", "渡辺 曜", "鬼塚夏美", "大沢瑠璃乃", "渡辺 曜"]
+    cards = [_v1_1_member(f"named-{i}", "UNRELATED" if empty else name) for i, name in enumerate(names)]
+    state = _v1_1_state({effect.effect_id: effect}, [source, _v1_1_live("live", "監査Live"), *cards],
+        member_area={"left": None, "center": "source", "right": None}, hand=[c.instance_id for c in cards])
+    state.phase = "performance_first"
+    state.players["player_1"].live_area = ["live"]
+    state.cards["live"].face_up = False
+    started = apply_action(state, ActionRequest(action_type="advance_phase", player_id="player_1", expected_revision=0))
+    options = next(a for a in started.legal_actions if a.action_type == "resolve_effect").options["invocations"][0]
+    selected = [f"named-{i}" for i in range(count)]
+    result = apply_action(started.state, ActionRequest(action_type="resolve_effect", player_id="player_1",
+        expected_revision=started.state.revision, payload={"invocation_id": started.state.pending_effects[0].invocation_id,
+            "accepted": not decline, "selected_card_instance_ids": [] if decline else selected}))
+    player = result.state.players["player_1"]
+    markers = [m for m in player.manual_modifiers if m.value == {"policy": "paid_named_blade_v1"}]
+    return {"named_candidates": len(options["candidate_card_instance_ids"]) == (0 if empty else 5),
+            "named_dynamic_maximum": options["card_selection_maximum"] == (0 if empty else 5),
+            "named_paid": (not any(e.event_type == "effect_cost_paid" for e in result.events)
+                and all(c.instance_id in player.hand for c in cards)) if decline else (
+                sum(e.event_type == "effect_cost_paid" for e in result.events) == 1
+                and all(i in player.waiting_room for i in selected)),
+            "named_source_blade": ([m.amount for m in markers] == ([count] if count and not decline else [])
+                and all(m.target_card_instance_id == "source" and m.duration == "live" for m in markers)),
+            "named_finished": not result.state.pending_effects}
 
 
 def _run_q124_multi_keep(effect: EffectDefinition, keep: int, *, empty: bool = False, decline: bool = False) -> dict[str, bool]:

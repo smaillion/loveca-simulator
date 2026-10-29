@@ -353,18 +353,19 @@
     {
       "actions": [
         {
-          "action_type": "gain_blade",
+          "action_type": "gain_source_blade_for_paid_named_v1",
           "amount": null,
-          "amount_source": "selected_count",
+          "amount_source": null,
           "branch": null,
           "card_type": null,
           "color_slot": null,
           "flag": null,
           "multiplier": null,
           "orientation": null,
-          "target": null,
+          "target": "cost_selected",
           "target_hand_size": null,
-          "value": null
+          "value": null,
+          "source_object_policy": "original_paid_named_blade_source_v1"
         }
       ],
       "card_code": "LL-bp2-001",
@@ -413,7 +414,7 @@
         "heart_color_slot": null,
         "heart_color_slots_all": [],
         "heart_color_slots_any": [],
-        "maximum": 3,
+        "maximum": 0,
         "maximum_blade": null,
         "maximum_cost": null,
         "maximum_cost_less_than_cost_selected": false,
@@ -452,7 +453,8 @@
         "unselected_destination": null,
         "value": null,
         "work_key": null,
-        "zone": "hand"
+        "zone": "hand",
+        "selection_policy": "private_partial_names_unlimited_discard_v1"
       },
       "duration": "live",
       "effect_id": "LL-bp2-001:3",

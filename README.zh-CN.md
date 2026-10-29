@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+按精确卡文修复三人曜卡的名称费用与原来源 Blade。[验证](./docs/development/ll-bp2-named-source-blade-verification.md)。
+
 新增已支付名称费用与原来源 Blade 绑定的未登记原型，尚未应用于正式卡。[验证](./docs/development/paid-named-original-source-blade-probe.md)。
 
 新增未登记的私有名称部分匹配与动态弃牌费用原型，尚未绑定正式卡。[验证](./docs/development/private-named-unlimited-discard-probe.md)。

@@ -3,8 +3,8 @@
   "branch": "codex/continuous-development",
   "base_ref": "origin/develop",
   "pull_request": 55,
-  "source_head": "472d9499a1ae910ac332bc2a5b47c9e1b568bcd8",
-  "generated_at": "2026-10-28T22:45:55.317135+00:00",
+  "source_head": "799d43faca1f10f565197bbaf8ebfeb605689838",
+  "generated_at": "2026-10-29T00:24:57.719626+00:00",
   "task_states": {
     "q246-paid-basic-heart-color-union-probe": "done",
     "q246-named-discard-color-union-gap-audit": "done",
@@ -121,7 +121,8 @@
     "opponent-direct-live-success-disable-provenance-probe": "done",
     "ll-bp2-001-composite-name-cost-audit": "done",
     "private-named-unlimited-discard-probe": "done",
-    "paid-named-original-source-blade-probe": "in_progress",
+    "paid-named-original-source-blade-probe": "done",
+    "ll-bp2-001-named-discard-source-blade-formal-audit": "in_progress",
     "effect-accuracy-loop": "queued",
     "phase6-conformance-matrix": "queued"
   }
