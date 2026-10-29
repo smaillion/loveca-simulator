@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-29 JST 千歌回收名称与原来源 Blade 旧组件缺口：正式卡仍 manual；见 chika-recovered-name-source-blade-gap.md。
+
 2026-10-29 JST 千歌弃费后高费用成员回收范围审计：正式卡仍 manual；见 chika-cost10-post-discard-unresolved.md。
 
 2026-10-29 JST 非空手全手弃牌抽六未登记原型：正式卡仍 manual；见 tomari-nonempty-all-hand-probe.md。

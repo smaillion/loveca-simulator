@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+千歌の回収カード名と元のメンバーのBlade適用境界を監査。[監査](./docs/development/chika-recovered-name-source-blade-gap.md)。
+
 千歌の支払い後の高コストメンバー回収候補を監査。[監査](./docs/development/chika-cost10-post-discard-unresolved.md)。
 
 非空手札すべてをコストにする未登録プロトタイプを追加。正式カードには未適用。[検証](./docs/development/tomari-nonempty-all-hand-probe.md)。

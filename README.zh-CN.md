@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+已审计千歌回收牌名称和原来源 Blade 的旧组件缺口；正式能力仍待验证。[审计](./docs/development/chika-recovered-name-source-blade-gap.md)。
+
 已审计千歌弃牌费用后的高费用成员回收候选；正式能力仍待验证。[审计](./docs/development/chika-cost10-post-discard-unresolved.md)。
 
 新增非空手全手弃牌抽六的受限未登记原型，未绑定正式卡。[验证](./docs/development/tomari-nonempty-all-hand-probe.md)。

@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 千歌の回収カード名と元のメンバーのBlade適用境界を監査。正式効果は未対応。
+- 中文: 审计千歌回收牌名称与原来源 Blade 的旧组件缺口，正式能力仍为人工处理。[审计](./docs/development/chika-recovered-name-source-blade-gap.md)。
+
 - 千歌のコスト支払い後の高コストメンバー回収候補を監査。正式効果は未対応。
 - 中文: 审计千歌弃牌费用后高费用成员回收候选，正式能力仍为人工处理。[审计](./docs/development/chika-cost10-post-discard-unresolved.md)。
 

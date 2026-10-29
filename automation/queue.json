@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "chika-recovered-name-source-blade-gap-audit",
+      "priority": 0,
+      "title": "审计千歌回收名称与原来源Blade缺口",
+      "status": "queued",
+      "depends_on": ["chika-cost10-post-discard-recovery-scope-audit"],
+      "required_profiles": ["backend", "control", "registry", "web"],
+      "acceptance": ["复核PL!S-bp7-001:1全文revision846/hash与旧manual，不将其他卡FAQ当本卡裁定", "仅未登记构造快照，分别让费用牌和回收牌名称匹配或不匹配，验证旧cost_selected名称条件读取哪一实体及受控来源离区同ID返回时旧Blade操作表现；双方SQL Replay，不能把旧行为当本卡正确规则", "四AI双方实际支持范围、隐藏身份替换、玩家近期事件与provider构造隐私；名称部分匹配、来源原对象、无目标和正式Blade语义继续保留依赖，不改产品/registry/旧Replay或其他blocked", "全部profiles/pre-push通过，应用不变核对同30冻结；仅本地提交，不推送发布部署"]
+    },
+    {
       "id": "chika-cost10-post-discard-recovery-scope-audit",
       "priority": 0,
       "title": "审计千歌弃费后高费成员回收候选",
