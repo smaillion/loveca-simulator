@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+冬毬の手札全廃棄と6枚ドローの手動解決境界を監査。[監査](./docs/development/tomari-all-hand-discard-unresolved.md)。
+
 Aqoursライブ三分類の重複と手動解決境界を監査。正式効果は未対応。[監査](./docs/development/aqours-three-live-groups-center-blade-unresolved.md)。
 
 三人カードの指定名とBlade Heart色スロットを監査。正式効果は未対応。[監査](./docs/development/ll-bp6-named-blade-heart-inventory.md)。

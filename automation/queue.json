@@ -2,6 +2,15 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "tomari-all-hand-discard-draw-six-scope-audit",
+      "priority": 0,
+      "title": "审计冬毬弃全部手牌抽六的人工边界",
+      "status": "queued",
+      "depends_on": ["aqours-three-live-groups-center-blade-scope-audit"],
+      "required_profiles": ["backend", "control", "registry", "web"],
+      "acceptance": ["复核PL!SP-bp7-011:1完整文本revision898/hash及旧manual，固定牌组的触发与AI辞退只作观察，不当完成率或策略改善", "双方真实登场后空手与多张手牌、短牌库的人工接受拒绝和结构化绕过原子性以SQL Replay核验；不把构造状态当自然中断", "四AI双方实际人工能力行为、对手隐藏身份替换及双方玩家/provider构造隐私；明确空手支付、全部费用原子和抽六刷新顺序依赖，正式manual及其他blocked保持", "全部profiles及pre-push通过，应用不变核对同30牌组冻结；仅本地提交，不推送发布部署"]
+    },
+    {
       "id": "aqours-three-live-groups-center-blade-scope-audit",
       "priority": 0,
       "title": "审计Aqours三组Live回库底与中央Blade边界",

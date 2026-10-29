@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 冬毬の手札全廃棄と6枚ドローの手動解決境界を監査。正式効果は未対応。
+- 中文: 审计冬毬弃全部手牌抽六的人工待机与隐私边界，正式能力仍待验证。[审计](./docs/development/tomari-all-hand-discard-unresolved.md)。
+
 - Aqoursライブ三分類の属性重複と手動解決境界を監査。正式効果は未対応。
 - 中文: 审计 Aqours 三组 Live 数据特征交集与人工待机，未更改正式登记。[审计](./docs/development/aqours-three-live-groups-center-blade-unresolved.md)。
 
