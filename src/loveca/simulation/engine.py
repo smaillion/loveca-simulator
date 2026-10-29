@@ -1774,6 +1774,16 @@ def _resolve_effect(
                 or invocation.trigger_event != "live_started" or invocation.resolution_stage != "initial"
                 or source is None or source.owner_id != invocation.player_id):
             raise IllegalActionError("partial-name discard accepts only its owner's actual cost selection")
+        if any(op.action_type == "gain_source_blade_for_paid_named_v1" for op in effect.actions):
+            captured = invocation.trigger_data.get("paid_named_blade_source_v1")
+            expected = {"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                        "source_id": invocation.source_card_instance_id, "player_id": invocation.player_id,
+                        "turn_number": state.turn_number, "stage_member": True}
+            if (type(state.turn_number) is not int or not isinstance(captured, dict)
+                    or type(captured.get("turn_number")) is not int or type(captured.get("stage_member")) is not bool
+                    or captured != expected or invocation.trigger_data.get("original_source_stage_object") is not True
+                    or "paid_named_blade_cost_v1" in invocation.trigger_data):
+                raise IllegalActionError("paid named Blade requires its original source snapshot")
     if any(op.action_type == "gain_source_heart_from_paid_basic_color_union_v1" for op in effect.actions):
         source = state.cards.get(invocation.source_card_instance_id)
         selected = action.payload.get("selected_card_instance_ids", [])
@@ -2143,6 +2153,12 @@ def _resolve_effect(
             )
             if any(op.action_type == "gain_source_heart_from_paid_basic_color_union_v1" for op in effect.actions):
                 invocation.trigger_data["paid_basic_color_union_v1"] = {
+                    "invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                    "source_id": invocation.source_card_instance_id, "player_id": invocation.player_id,
+                    "turn_number": state.turn_number, "selected_ids": list(selected_ids), "paid": True,
+                }
+            if any(op.action_type == "gain_source_blade_for_paid_named_v1" for op in effect.actions):
+                invocation.trigger_data["paid_named_blade_cost_v1"] = {
                     "invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
                     "source_id": invocation.source_card_instance_id, "player_id": invocation.player_id,
                     "turn_number": state.turn_number, "selected_ids": list(selected_ids), "paid": True,
@@ -3439,6 +3455,13 @@ def _queue_triggered_effects(
                     "stage_member": _top_member_slot(state.players[source.owner_id], source_id) is not None
                                     and source.card.card_type == "member",
                 }
+            if any(op.action_type == "gain_source_blade_for_paid_named_v1" for op in effect.actions):
+                invocation.trigger_data["paid_named_blade_source_v1"] = {
+                    "invocation_id": invocation.invocation_id, "effect_id": effect_id,
+                    "source_id": source_id, "player_id": source.owner_id, "turn_number": state.turn_number,
+                    "stage_member": _top_member_slot(state.players[source.owner_id], source_id) is not None
+                                    and source.card.card_type == "member",
+                }
             if any(op.action_type == "disable_opponent_direct_live_success_v1" for op in effect.actions):
                 invocation.trigger_data["opponent_direct_disable_source_v1"] = {
                     "invocation_id": invocation.invocation_id, "effect_id": effect_id,
@@ -3495,6 +3518,7 @@ def _captures_original_stage_source(effect: Any) -> bool:
         "original_onplay_muse_blade_aura",
         "original_opponent_direct_disable_source_v1",
         "original_paid_basic_color_union_source_v1",
+        "original_paid_named_blade_source_v1",
     } for op in effect.actions) or (
         effect.choice is not None
         and effect.choice.selection_policy == "public_other_nijigasaki_cost_heart"
@@ -8447,7 +8471,7 @@ def _execute_operations(
             selected_ids,
             selected_ids_by_group,
         )
-        if operation.source_object_policy in {"original_live_start_heart_source", "original_live_start_wait_cost_source", "original_paid_basic_color_union_source_v1"}:
+        if operation.source_object_policy in {"original_live_start_heart_source", "original_live_start_wait_cost_source", "original_paid_basic_color_union_source_v1", "original_paid_named_blade_source_v1"}:
             if invocation.trigger_data.get("original_source_stage_object") is not True:
                 raise IllegalActionError("original source Stage snapshot is missing")
             if (invocation.trigger_data.get("original_source_stage_object_departed") is True
@@ -9901,6 +9925,21 @@ def _execute_operations(
                             target_card_instance_id=target_id,
                         )
                     )
+        elif operation_type == "gain_source_blade_for_paid_named_v1":
+            proof = {"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
+                     "source_id": invocation.source_card_instance_id, "player_id": invocation.player_id,
+                     "turn_number": state.turn_number, "selected_ids": operation_selected_ids, "paid": True}
+            if (invocation.resolution_stage != "after_cost" or invocation.trigger_data.get("paid_named_blade_cost_v1") != proof
+                    or "cost_selected_card_instance_ids" not in invocation.trigger_data
+                    or len(operation_selected_ids) != len(set(operation_selected_ids))
+                    or any(item not in player.waiting_room or item not in state.cards
+                           or state.cards[item].owner_id != invocation.player_id for item in operation_selected_ids)):
+                raise IllegalActionError("paid named Blade requires actual discarded costs")
+            if operation_selected_ids:
+                player.manual_modifiers.append(ManualModifier(
+                    modifier_id=f"effect:{invocation.invocation_id}:paid_named_blade", modifier_type="blade",
+                    duration="live", created_turn=state.turn_number, amount=len(operation_selected_ids),
+                    target_card_instance_id=invocation.source_card_instance_id, value={"policy": "paid_named_blade_v1"}))
         elif operation_type == "gain_source_heart_from_paid_basic_color_union_v1":
             proof = {"invocation_id": invocation.invocation_id, "effect_id": invocation.effect_id,
                      "source_id": invocation.source_card_instance_id, "player_id": invocation.player_id,
@@ -12992,6 +13031,7 @@ def _clear_departed_card_modifiers(
             or (not clear_all and not _is_muse_blade_aura(modifier) and not _is_opponent_member_block(modifier)
                 and not (modifier.flag == "disabled_live_success_effects" and isinstance(modifier.value, dict)
                          and modifier.value.get("policy") == "opponent_direct_disable_v1")
+                and not (modifier.modifier_type == "blade" and modifier.value == {"policy": "paid_named_blade_v1"})
                 and not (modifier.modifier_type == "heart"
                          and modifier.value in ({"policy": "original_live_start_bottom_source"},
                                                 {"policy": "original_live_start_bottom_three_source"},

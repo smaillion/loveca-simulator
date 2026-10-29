@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+新增已支付名称费用与原来源 Blade 绑定的未登记原型，尚未应用于正式卡。[验证](./docs/development/paid-named-original-source-blade-probe.md)。
+
 新增未登记的私有名称部分匹配与动态弃牌费用原型，尚未绑定正式卡。[验证](./docs/development/private-named-unlimited-discard-probe.md)。
 
 已复现三人曜卡手牌费用的组合名称与数量上限问题，修复尚未完成。[审计](./docs/development/ll-bp2-composite-cost-unresolved.md)。

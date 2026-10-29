@@ -113,6 +113,7 @@ SUPPORTED_EFFECT_ACTIONS = {
     "gain_source_heart_if_bottom_card_live",
     "gain_heart_from_selected_card_colors",
     "gain_source_heart_from_paid_basic_color_union_v1",
+    "gain_source_blade_for_paid_named_v1",
     "gain_blade_if_milled_any_card_type",
 }
 
@@ -184,6 +185,7 @@ class EffectOperation(BaseModel):
         "original_live_start_three_readied_source",
         "original_opponent_direct_disable_source_v1",
         "original_paid_basic_color_union_source_v1",
+        "original_paid_named_blade_source_v1",
     ] | None = None
     overlap_observer_policy: Literal[
         "ignore_disjoint_source_triggers", "require_complete_source_bindings"
@@ -210,6 +212,14 @@ class EffectOperation(BaseModel):
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        paid_blade = "gain_source_blade_for_paid_named_v1"
+        paid_blade_policy = "original_paid_named_blade_source_v1"
+        if self.action_type == paid_blade and self.model_dump(exclude_defaults=True, exclude_none=True) != {
+            "action_type": paid_blade, "target": "cost_selected", "source_object_policy": paid_blade_policy,
+        }:
+            raise ValueError("paid named Blade requires its fixed original source operation")
+        if self.source_object_policy == paid_blade_policy and self.action_type != paid_blade:
+            raise ValueError("paid named Blade source policy requires its bounded operation")
         union = "gain_source_heart_from_paid_basic_color_union_v1"
         if self.action_type == union and self.model_dump(exclude_defaults=True, exclude_none=True) != {
             "action_type": union, "target": "cost_selected", "source_object_policy": "original_paid_basic_color_union_source_v1",
@@ -844,6 +854,13 @@ class EffectDefinition(BaseModel):
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
         named_policy = "private_partial_names_unlimited_discard_v1"
+        paid_blade = "gain_source_blade_for_paid_named_v1"
+        if any(op.action_type == paid_blade for op in self.cost):
+            raise ValueError("paid named Blade cannot be a cost")
+        if any(op.action_type == paid_blade for op in self.actions) and (
+            self.cost_choice is None or self.cost_choice.selection_policy != named_policy
+        ):
+            raise ValueError("paid named Blade requires the fixed private named cost")
         if any(c is not None and c.selection_policy == named_policy for c in (self.cost_choice, self.choice, self.follow_up_choice)):
             expected_choice = EffectChoice(choice_type="card_from_zone", zone="hand", target_player="self",
                 name_ja_any=["渡辺 曜", "鬼塚夏美", "大沢瑠璃乃"], minimum=0, maximum=0,
@@ -851,10 +868,13 @@ class EffectDefinition(BaseModel):
             if (not self.card_code.startswith("UNREGISTERED-") or self.effect_id != self.card_code + ":1"
                     or self.cost_choice != expected_choice or self.choice is not None or self.follow_up_choice is not None
                     or self.cost != [EffectOperation(action_type="discard_from_hand")]
-                    or self.actions != [EffectOperation(action_type="draw_card", amount=1)]
+                    or (self.actions, self.duration) not in (
+                        ([EffectOperation(action_type="draw_card", amount=1)], None),
+                        ([EffectOperation(action_type=paid_blade, target="cost_selected",
+                            source_object_policy="original_paid_named_blade_source_v1")], "live"))
                     or self.condition or self.effect_type != "triggered" or self.timing != "live_start"
                     or self.trigger != "live_started" or self.frequency_limit != "once_per_live"
-                    or not self.is_optional or self.duration is not None
+                    or not self.is_optional
                     or self.execution_mode != "prompt_then_resolve" or self.simulation_support == "manual_resolution"):
                 raise ValueError("partial-name unlimited discard is an unregistered fixed Live-start probe")
         union = "gain_source_heart_from_paid_basic_color_union_v1"

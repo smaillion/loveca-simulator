@@ -1213,6 +1213,8 @@ describe("App", () => {
       "誘発元が一度ステージを離れたため、控え室や再登場したカードにハートを加えず解決しました。", "gain_heart"],
     ["original_source_stage_member_departed", "来源 Member 曾离开 Stage，不向控室或重新登场的卡牌添加 Blade；能力已结束。",
       "誘発元が一度ステージを離れたため、控え室や再登場したカードにブレードを加えず解決しました。", "gain_blade"],
+    ["original_source_stage_member_departed", "来源 Member 曾离开 Stage，不向控室或重新登场的卡牌添加 Blade；能力已结束。",
+      "誘発元が一度ステージを離れたため、控え室や再登場したカードにブレードを加えず解決しました。", "gain_source_blade_for_paid_named_v1"],
     ["no_legal_stage_member_at_resolution", "结算时没有合法的场上 Member，此项效果不适用，能力已结束。",
       "解決時に対象にできるメンバーがいないため、この効果を適用せず解決しました。"],
   ])("shows why a triggered operation did not apply (%s)", async (reason, zh, ja, operation = "") => {

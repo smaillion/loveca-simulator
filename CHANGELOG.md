@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 支払済み名称コストと元のメンバーのBladeを結ぶ未登録原型を追加。正式カードには未適用。
+- 中文: 新增已付指定名称费用的原来源 Blade 原型，不修改旧快照或正式登记。[验证](./docs/development/paid-named-original-source-blade-probe.md)。
+
 - 非公開の部分名照合と任意枚数コストを未登録原型として追加。正式カードには未適用。
 - 中文: 新增受限的私有部分名称匹配和动态弃牌费用原型，不改变旧快照或正式登记。[验证](./docs/development/private-named-unlimited-discard-probe.md)。
 

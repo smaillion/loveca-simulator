@@ -2,6 +2,8 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
+支払済み名称コストと元のステージメンバーのBladeを結ぶ未登録原型を追加。正式カードには未適用。[検証](./docs/development/paid-named-original-source-blade-probe.md)。
+
 非公開の部分名照合と任意枚数コストを未登録原型で検証。正式カードには未適用。[検証](./docs/development/private-named-unlimited-discard-probe.md)。
 
 三人曜カードの手札コストに複合名と枚数上限の既存問題を確認。修正は未完了。[監査](./docs/development/ll-bp2-composite-cost-unresolved.md)。

@@ -1,5 +1,7 @@
 # 分支与工作树清单
 
+2026-10-29 JST 已付名称费用原来源 Blade 未登记原型：旧正式卡来源离区行为仍有风险，见 paid-named-original-source-blade-probe.md。
+
 2026-10-29 JST 私有名称任意张弃牌未登记原型：仅固定测试形状，旧正式登记风险仍未修复，见 private-named-unlimited-discard-probe.md。
 
 2026-10-29 JST 三人曜卡组合名称及费用上限审计：已复现正式登记风险，未改变旧快照；见 ll-bp2-composite-cost-unresolved.md。

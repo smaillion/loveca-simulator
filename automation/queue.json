@@ -1102,6 +1102,20 @@
       ]
     },
     {
+      "id": "paid-named-original-source-blade-probe",
+      "priority": 0,
+      "title": "已付指定名称费用的原来源Blade原型",
+      "status": "queued",
+      "depends_on": ["private-named-unlimited-discard-probe"],
+      "required_profiles": ["backend", "control", "registry", "web"],
+      "acceptance": [
+        "先复现正式LL-bp2-001:3旧Blade操作在来源离区及同ID返回的行为，核对正式完整全文revision592/hash及固定规则来源；不得以合成夹具冒称完整对局或官方整卡裁定",
+        "仅未登记固定Live开始原型，结合已验证的私有部分名称任意张费用与实际支付证明，每张支付赋予原来源一Blade至Live结束；真实来源invocation/effect/player/回合/原Stage绑定，来源离区同ID返回不继承，所得补正离区或Live结束清理，旧操作/JSON/Replay不改",
+        "严格限定静态shape及客户端输入，双方SQL Replay涵盖零至多张、拒绝/非法原子、来源隐藏/返回/场内移动、费用支付后与Live结束清理；四AI实际决策、双方玩家近期事件及provider构造隐私、必要UI",
+        "仅在全部门禁与同原30牌组冻结通过后本地提交；不绑定任何正式卡、不声称修复LL-bp2-001:3、不恢复其他blocked、不推送部署"
+      ]
+    },
+    {
       "id": "effect-accuracy-loop",
       "priority": 3,
       "title": "按实际触发与规则风险扩展技能支持",
