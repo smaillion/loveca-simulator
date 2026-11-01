@@ -22,7 +22,7 @@ more specific to this repository:
   `--environment cloud` uses a normal checkout of the same branch; writes are
   denied while policy `active_environment` is local. Never start a second writer
   or copy local credentials/runtime. Pause the local schedule and obtain explicit
-  cutover approval before changing ownership; keep Draft PR #54 pinned.
+  cutover approval before changing ownership; keep the PR in automation/policy.json pinned.
 - Treat official Japanese card text and the pinned comprehensive rules profile
   as authoritative. Unsupported or ambiguous effects must stay explicit; do
   not use silent skips or inflate executable coverage.

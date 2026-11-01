@@ -2,6 +2,20 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "documentation-entrypoint-consolidation",
+      "priority": 0,
+      "title": "收敛双语README和开发文档入口",
+      "status": "queued",
+      "depends_on": ["chika-recovered-name-source-blade-gap-audit"],
+      "required_profiles": ["control", "registry"],
+      "acceptance": [
+        "依据维护者2026-11-01整理文档授权，在固定分支收敛重复入口；双语README保留产品能力、限制、使用与开发命令，不再复制逐轮验收流水",
+        "建立文档职责和完整专题导航，历史分支快照与当前运行事实分离；所有原单卡报告及ignored证据保持原位，不晋级manual或解除blocked",
+        "核对改动文件的相对链接、原专题入口覆盖、双语章节及git diff；仅文档和任务元数据变化，执行control/registry及pre-push，不复用旧指纹声称新全量测试",
+        "不合并、不部署、不改变发布目标或应用；后续文档更新优先合并既有主题，避免README/清单/审计总览重复追加"
+      ]
+    },
+    {
       "id": "chika-recovered-name-source-blade-gap-audit",
       "priority": 0,
       "title": "审计千歌回收名称与原来源Blade缺口",

@@ -1,302 +1,30 @@
 # 分支与工作树清单
 
-2026-10-29 JST 千歌回收名称与原来源 Blade 旧组件缺口：正式卡仍 manual；见 chika-recovered-name-source-blade-gap.md。
+## 当前使用约束
 
-2026-10-29 JST 千歌弃费后高费用成员回收范围审计：正式卡仍 manual；见 chika-cost10-post-discard-unresolved.md。
+- 持续开发只写入 `codex/continuous-development`，固定目录为主仓库的 `.tmp/continuous-development`，不按轮次新建分支。
+- 分支/PR 目标以 [policy](../../automation/policy.json) 和 GitHub 实际状态为准；运行租约、任务进度以协调器 `status` 为准。
+- 当前固定审查目标的授权见 [PR55 验收](./draft-pr55-target-verification.md)。PR54 已完成历史合并，不能再当开放目标或复用其上线许可。
+- 推送不等于合并或部署。目标关闭、合并、转为非 Draft 或 head/base 改变时停止 publish，不自行建立替代 PR。
+- 旧 v0.9 的 44 项、API Play 的 6 项未提交成果及 ignored 报告必须保留；历史备份 stash `68e4666ec45c41bbddf0603d571cb0f286b853aa` 不清理。
+- 本页只维护分支职责与保留约束。逐卡进展统一查[专题导航](./README.md)，不再向清单追加审计流水。
 
-2026-10-29 JST 非空手全手弃牌抽六未登记原型：正式卡仍 manual；见 tomari-nonempty-all-hand-probe.md。
+需要最新清单时，在固定工作树运行 `python -m tools.development.loop inventory --output .tmp/worktree-inventory.json`。
+该输出是本机只读盘点，不是允许删除工作树的授权。
 
-2026-10-29 JST 冬毬全部手牌与固定费用选择缺口：正式卡仍 manual；见 tomari-all-hand-fixed-cost-gap.md。
+## 历史盘点（不是当前状态）
 
-2026-10-29 JST 冬毬弃全部手牌抽六范围审计：正式卡仍 manual；见 tomari-all-hand-discard-unresolved.md。
+以下表格保留 2026-10-25 06:57 UTC 的原始快照。领先/落后、dirty 数量和路径均为当时值；
+不要用它们覆盖当前 Git 或 runtime，也不要把 ahead=0 当作可删除 ignored 证据。
 
-2026-10-29 JST Aqours 三组 Live 数据交集与中央 Blade 范围审计：正式卡仍 manual；见 aqours-three-live-groups-center-blade-unresolved.md。
+当时删除了 9 个已合入 develop 且无工作树占用的本地旧 ref，其他现场保留。
+旧 v0.9 / API Play 的迁移范围见[来源档案迁移](../22-ruleset-source-profile-migration.md)和[API Play 迁移](./legacy-api-play-migration.md)。
+2026-10-27 的 PR54 恢复已保存 WIP、核对快进结果并保留备份 stash；之后 PR55 固定目标已独立验收。
 
-2026-10-29 JST 三人卡名称匹配与 Blade Heart 色槽盘点：正式第二段仍 manual；见 ll-bp6-named-blade-heart-inventory.md。
+<details>
+<summary>2026-10-25 工作树与分支原始表格</summary>
 
-2026-10-29 JST 三人曜卡名称费用及原来源 Blade 精确快照：旧 Replay 保留历史，其他登记不变；见 ll-bp2-named-source-blade-verification.md。
-
-2026-10-29 JST 已付名称费用原来源 Blade 未登记原型：旧正式卡来源离区行为仍有风险，见 paid-named-original-source-blade-probe.md。
-
-2026-10-29 JST 私有名称任意张弃牌未登记原型：仅固定测试形状，旧正式登记风险仍未修复，见 private-named-unlimited-discard-probe.md。
-
-2026-10-29 JST 三人曜卡组合名称及费用上限审计：已复现正式登记风险，未改变旧快照；见 ll-bp2-composite-cost-unresolved.md。
-
-2026-10-29 JST Q246 已支付基本颜色并集未登记原型：来源与支付证明受限，正式卡仍manual，详见 q246-paid-basic-color-union-probe.md 及 ignored 验收。
-
-2026-10-29 JST Q246 直接FAQ及未登记费用/逐卡颜色边界审计：重叠基本颜色示例已确认，正式卡仍manual，详见 q246-named-cost-color-union-unresolved.md 与 ignored 验收。
-
-2026-10-29 JST 三人卡指定名弃牌颜色边界审计：仅第二段保持manual，不改已有登场登记；详见 ll-bp6-named-discard-color-unresolved.md 及 ignored 验收。
-
-2026-10-28 JST Love marginal 分档减需边界审计：正式卡保持manual，未知来源不当零；详见 printemps-tiered-requirement-unresolved.md 及 ignored 验收。
-
-2026-10-28 JST 对手直接Live成功能力未登记原型：逐效果记录已识别新无效、整体覆盖未知，正式卡仍manual；见opponent-direct-disable-probe.md及ignored验收，固定分支只本地验证。
-
-2026-10-28 JST 对手成员Live成功能力无效化审计：来源自身操作不能作为对手选择的实现，本卡仍manual；详见opponent-success-disable-scope-unresolved.md和ignored验收。固定分支只本地验证。
-
-2026-10-28 JST Q124曜精确快照：本卡限定弃牌后最多三张，旧快照仅作历史Replay，其他blocked不恢复；固定分支只本地验证，见q124-you-multi-keep-verification.md及ignored验收。
-
-2026-10-28 JST 登场弃牌多选受限原型：独立新策略，旧单选策略与正式曜manual保持；固定分支本地验证，见triggered-inspection-up-to-three-probe.md及ignored验收。
-
-2026-10-28 JST Q124旧多张检索兼容审计：实际旧登记结构、双方费用/多选/公开及隐私；正式曜仍manual，其他blocked保持。固定分支只本地验证，见q124-multi-keep-legacy-audit.md及ignored验收。
-
-2026-10-28 JST 正式新旧复原同时待机审计：Baton真实入队、双方及顺序与限定来源未知边界；不改登记或解除消费者blocked。固定工作树本地验证，见printemps-mixed-formal-ready-audit.md及ignored验收。
-
-2026-10-28 JST Printemps四条来源覆盖审计：五条实际直接来源中四条记录来源历史，旧离场来源证明不足保持未知；未解除PL!-PR-001目标语义或消费者依赖。固定分支/工作树仅本地验证，见printemps-four-producer-coverage-audit.md及ignored验收。
-
-2026-10-28 JST WAO-WAO三人复原/来源Live得分：仅PL!-pb1-028:1精确快照，旧全局得分和旧Replay保留历史，不称正确；消费者及旧blocked保持。最终同源码门禁、冻结和验收见waowao-ready-three-source-score-verification.md及ignored记录。固定工作树/分支，只本地验证，不发布；旧dirty/stash保留。
-
-2026-10-28 JST 离场来源双方目标：仅未登记v2原型，旧本人Wait v1与Replay保持；不绑定PL!-PR-001或解除消费者blocked，正式生产者仍3/5。最终门禁及同牌组见departed-ready-both-owner-probe.md和ignored验收记录。固定分支/工作树，仅本地验证，保留旧dirty/stash。
-
-2026-10-28 JST 穂乃果PL!-PR-001离场范围审计：正文未限定本人或Wait，现有登记与离场原型只列本人Wait；双方原生SQL及四AI记录旧行为，目标语义及覆盖依赖未解除，不绑定来源原型或发布本地批次。正式生产者仍3/5，消费者及旧blocked保持；见honoka-departed-ready-scope-unresolved.md。固定分支/工作树，保留旧dirty/stash。
-
-2026-10-28 JST 未登记v1费用原型：限定修正无法支付来源的起动候选，旧Replay状态与Wait目标保留；不绑定正式卡、不恢复消费者，最终结果见ready-source-wait-v1-legal-audit.md和ignored验收记录。固定分支/工作树，只本地验证，旧44/6 dirty、stash与其他blocked保留。
-
-2026-10-28 JST 花陽单卡历史：固定分支/工作树，PL!-bp6-008:1精确绑定v2，86专项/44 SQL、四AI/隐私、4 UI和5图文；v2非法起动候选单独修正，旧v1未登记原型同类显示风险保留待修，执行层拒绝且未绑正式卡。正式生产者3/5，消费者与其他blocked不恢复；最终结果见hanayo-source-wait-provenance-verification.md。只本地验证，旧44/6 dirty/stash/ignored保留，不操作PR55或主机。
-
-2026-10-28 JST Wait费用/Active目标v2：固定分支/工作树，仅unregistered新操作，不放宽旧v1；93专项/34 SQL、646关联、四AI后续/完整隐私和4 UI。正式生产者仍2/5，消费者及其他blocked不恢复，937/1212与reviewed不变；最终门禁/同牌组见ready-source-wait-active-v2-probe.md。仅本地提交，不改PR55或主机，旧44/6 dirty/stash/ignored保留。
-
-2026-10-28 JST 高坂穂乃果PL!-bp3-001:2单卡来源历史：固定分支/工作树，82专项/53 SQL、四AI/隐私、3 UI及5图文，完整双段身份绑定但第一段起动抽弃不改；仅第2段动作/Wait预筛/可拒绝发动三叶变化，旧Replay和其他三生产者保持。正式历史生产者2/5，937/1212与reviewed不升，消费者和其他blocked不恢复，最终证据见honoka-live-start-provenance-verification.md。只本地提交，不改PR55/主机，旧44/6 dirty/stash/ignored保留。
-
-2026-10-28 JST 南ことり单卡v3：固定分支/工作树，全文/revision/hash绑定，81专项/55 SQL、四AI/隐私、3 UI与5图文；仅PL!-pb1-012:1的操作及目标方向筛选变化，其他四生产者不动，旧v2夹具与Replay固定。正式历史生产者1/5，范围policy仍默认None，穂乃果/其他blocked保持，937/1212与reviewed不提升。估值别名使新v1与既有ready同值，默认版本不改；最终记录见kotori-onplay-provenance-verification.md。仅本地提交，旧44/6 dirty/stash/ignored保留。
-
-2026-10-28 JST 限定来源完整性原型：固定分支/工作树，77专项/45 SQL、四AI/完整隐私与2 UI；显式新策略和独立查询，旧全局coverage/JSON/Replay保持，实际目标所有者与来源所有者/效果玩家分离。正式生产者0/5、穂乃果及其余blocked不恢复；最终门禁/同牌组见ready-qualified-coverage-probe.md。只本地提交，旧44/6 dirty/stash/ignored保留，不改PR55或主机。
-
-2026-10-28 JST 已离场复原来源原型：同一固定分支/工作树，100专项/54 SQL、315关联、四AI/完整隐私和4 UI；四处入口离区前采集，真实入队后绑定，现代结算锁不改。仅新unregistered操作，正式生产者0/5、穂乃果及其他blocked保持。最终门禁/同牌组见`ready-departed-source-probe.md`。不push/改PR55或合并部署，44/6 dirty/stash/ignored保留。
-
-2026-10-28 JST 本人Wait费用复原原型：同一固定分支/工作树，71专项/20 SQL、四AI后续/完整隐私及2 UI；现代父能力锁保持，旧顺序来源检查点不冒充自然中断。仅新unregistered操作，正式生产者0/5、消费者仍blocked；最终门禁/同牌组证据见`ready-source-wait-cost-probe.md`。不push/改PR55、合并部署，其他blocked/44/6 dirty/stash/ignored保留。
-
-2026-10-28 JST Printemps生产者覆盖审计：同一固定分支/工作树，5条真实来源清单，单修PL!-pb1-012:1目标unit遗漏，42专项/24 SQL、四AI/隐私与2 UI。旧ready操作不升级，正式v1生产者0/5，消费者仍blocked；最终门禁/同30牌组见`printemps-producer-coverage-audit.md`。不push/改PR55、合并部署，其他blocked/44/6 dirty/stash/ignored保留。
-
-2026-10-28 JST 复原历史底座：固定分支/工作树，仅新快照unregistered操作记录来源/LKI/回合和原Member对象；62专项/34 SQL、四AI/完整隐私，旧快照Replay保持，不绑定正式卡。新源码同30牌组最终结果与门禁见`member-ready-provenance-foundation.md`，不恢复穂乃果或其他blocked，不push/改PR55、合并部署，44/6 dirty/stash/ignored保持。
-
-2026-10-28 JST Printemps复原历史边界：同一固定分支/工作树，PL!-pb2-010:1仍manual。40专项/24 SQL、四AI/双视角和2原生UI证明旧作品级复原标志不足以计数原目标；明确执行模型依赖，不伪称规则未知。应用指纹不变、登记937/1212和275manual保持，不重冻、不push/改PR55或合并部署，相邻LL及其他blocked/44/6 dirty/stash/ignored保留；见`printemps-ready-history-unresolved.md`。
-
-2026-10-28 JST 控室九张与Live库顶：同一固定分支/工作树，仅PL!S-PR-048:1精确新快照，89专项/51 SQL、四AI/隐私、301图文/6 UI。当前控室总数与原子私有顺序分开，旧快照/默认AI/schema不改；冻结本卡1项随其他manual待机，不算新完成。最终门禁和提交见`waiting-nine-live-top-order-verification.md`；不push/改PR55或合并部署，相邻LL复杂技能不处理，其他blocked、44/6 dirty、stash及ignored保留。
-
-2026-10-28 JST 费用7 Baton抽弃：同一固定分支/工作树，仅PL!S-PR-045:1精确新快照，94专项/43 SQL、四AI/隐私、296图文/6 UI。本次原Member费用事实和支付减免分开；旧快照及默认AI/schema不变。最终门禁、同牌组冻结与本地提交见`baton-cost7-draw-discard-verification.md`；不push/改PR55或合并部署，其他blocked、44/6 dirty、stash及ignored保留。
-
-2026-10-28 JST Q253：同一固定分支/工作树，只修PL!S-bp6-023:1当前原Yell与原Live得分，110专项/67 SQL、四AI/隐私、291图文/6 UI。game期限与移区对象分开，旧快照保持，935/1212和manual数不变，不算晋级。最终门禁和新同牌组冻结见`q253-current-yell-source-score-verification.md`，只本地提交，不push/改PR55或合并部署；其他blocked、44/6 dirty、stash及ignored保留。
-
-2026-10-28 JST 曜对方当前Yell：同一固定分支/工作树，只有PL!S-PR-046:1晋级，77专项/33 SQL、四AI/隐私、286图文/5 UI。当前原Yell对象和回合元数据与旧Replay分开，默认AI/Card/SQL表结构不改；最终门禁/冻结与既有Q253风险见`opponent-yell-live-draw-verification.md`。只本地提交，不push/改PR55、合并部署；旧blocked、44/6 dirty、stash及ignored保留。
-
-2026-10-28 JST WATER BLUE颜色勘误：沿用既有固定分支/工作树，限定修正结果标题、说明及相关中日文档的蓝色/青名称，复用heartColorLabel；引擎heart05、数量、提交和旧Replay不改。六项中日红例后复验，原78专项保持；全部门禁与原30局指纹绑定见`water-blue-color-label-verification.md`验收入口。不push/改PR55或合并部署，旧blocked、44/6 dirty、stash及ignored保留。
-
-2026-10-28 JST 共同Heart与Yell回收：仅PL!S-cl1-011:1受限新policy，现有分支/工作树，不新建分支。96专项/38 SQL、四AI/双视角、281图文/5 UI；当前颜色交集和原Yell对象资格分开，旧快照/默认AI/schema不改。最终四组门禁和同30牌组证据见`aqours-shared-heart-yell-verification.md`验收入口；仅本地提交，不push或改PR55，旧44/6 dirty、stash/ignored与blocked保留。
-
-2026-10-28 JST WATER BLUE：继续现有固定分支/工作树，仅PL!S-cl1-013:1受限新快照；78专项/31 SQL、四AI/隐私、276图文/7 UI。实际洗回数量与洗后隐藏顺序分开，受益对象移区清理，旧amount_source/随机/manual保持；最终门禁和同牌组30局见`water-blue-bottom-heart-verification.md`验收入口。本切片只本地提交、不push；PR55远程91e48d3所有现有检查只读确认SUCCESS，未合并部署，旧44/6 dirty、stash及ignored保留。
-
-2026-10-28 JST：恢复同一`continuous-draft-pr-target-pin`，保留原3项配置WIP，将固定目标55与授权说明独立验收。仍仅使用`codex/continuous-development`和既有工作树；旧44/6 dirty、stash及ignored不动，不新建分支/PR，不合并部署。门禁、实际提交与PR更新结果见`draft-pr55-target-verification.md`验收入口。
-
-2026-10-27 对手成员下回合限制：固定工作树/分支，仅PL!S-bp7-025:1受限新快照，85专项/34 SQL、四AI/隐私、271图文/7原生UI。原目标移区/场内移动与期限分开，旧快照不追改；最终完整门禁/冻结证据见`opponent-member-next-active-verification.md`。本轮维护者明确批准修改目标并新建Draft PR，旧检查已停止后纳入policy变更重验；合并上线仍另批，旧44/6 dirty与stash/ignored保留。
-
-2026-10-27 宮下愛Energy双分支：固定分支/工作树，仅PL!N-bp7-005:1精确新快照，异名条件结算时判断、从Energy Deck直接附属。84专项/22 SQL、四AI/隐私、266图文/6双语UI；最终完整门禁和新源码冻结结果见`diverdiva-energy-choice-verification.md`验收入口。旧44/6 dirty、stash与ignored保留，不push，后续PR目标待批；其他blocked不自动恢复。
-
-2026-10-27 全员Active边界审计：固定分支/工作树，PL!S-bp7-020:1继续manual，reason=all_active_empty_stage_truth_value_unconfirmed。28边界含11种SQL、双方四AI/隐藏来源与人工UI保护；第2段/应用/登记未改，不重复无变化冻结。完整门禁及blocked记录见`all-active-live-requirement-unresolved.md`验收入口；旧44/6 dirty、stash与ignored保留，不push，后续PR目标仍待批。
-
-2026-10-27 底牌与原Live必要Heart：固定分支/工作树，仅PL!S-bp7-020:2精确新snapshot。无色减需/game期限/移区新对象分开验证，第1段manual及旧Replay不变。52专项含17种SQL、262图文/4项中日UI；最终四组门禁和冻结绑定见`bottom-one-aqours-requirement-verification.md`验收入口。旧44/6 dirty、stash与ignored保留；不push，后续PR目标待批。
-
-2026-10-27 鬼塚冬毬公开Live提案：固定分支/工作树，仅PL!SP-bp2-011:1精确限定新快照，按Q118区分两种名称与不足两张，操作者固定本人→对手；旧多人/manual保持。103专项/27种SQL、257图文与4原生UI已有证据，最终四组profiles/冻结另存`opponent-live-offer-verification.md`验收入口。旧44/6 dirty、stash与ignored均保留；不push，后续PR目标待批。
-
-2026-10-27 双方中央位置选择：固定分支/工作树，仅PL!SP-bp5-010:1精确限定新快照，旧多玩家/manual不变。69专项、22种SQL、251图文；完整profiles与最终冻结另存`both-center-position-verification.md`验收入口，不拼接旧证据。旧44/6 dirty、stash与ignored保留；不push，后续PR目标待批。下方“不得先领取双方中央”是镜像任务未完成时的历史。
-
-2026-10-27 镜像常时恢复验收：仅PL!HS-pb1-014:2条件切换为精确限定新snapshot，旧Replay和第1段manual保持。105专项、46种SQL及247图文已有证据；旧pattern名契约同步后144项定向复验通过。本轮独立执行全部profiles，最终验收/提交结果见`mirrored-cost-heart-verification.md`的验收入口，下方未完成状态为历史。冻结仍15完赛，927/1212不增加。固定分支/工作树，旧44/6 dirty、stash及ignored均保留，不push，后续PR目标待批；当前任务验收前不领双方中央移动。
-
-2026-10-27 固定正面移动审计：PL!HS-pb1-014:1继续manual并登记目标资格/来源最后位置未解决；第2段既有左右镜像bug有独立原生SQL红证据，尚未修复。37边界保护，不改变应用/registry/manifest或927/1212登记，不重复冻结池。下一独立最高优先级修复镜像常时；固定分支/工作树、旧44/6 dirty、stash和ignored均保留，不push。见`mirakura-front-position-unresolved.md`。
-
-2026-10-27 私看三张分组排序：仅PL!S-bp7-008:1晋级，第2段manual不变，旧私看/reorder/manual Replay保持。88专项、242图文、269前端；最终冻结14→15完赛、208/210可执行完成，新增局0:3不称双方长局。固定分支/工作树，旧44/6 dirty、stash与ignored均保留，未push，见`private-three-top-bottom-verification.md`。后续PR目标仍待明确批准。
-
-2026-10-27 底五张Member：仅PL!S-bp7-021:1从manual改为受限执行，三人条件在结算时检查、移动历史先于抽牌、只给原Live加分。82专项、238图文、263前端；冻结仍14完赛/16人工停止，本卡两次真实处理均无score+1，不冒充长局/随机正条件。旧44/6 dirty和ignored保留，固定分支/工作树、不push，见`bottom-five-member-score-verification.md`。
-
-2026-10-27 底三张Aqours：PL!S-bp7-006原本已可执行，只是与其他manual共同待机，本轮为来源对象/逐张刷新修正，不增加925/1212登记。原生CONTROL/SQL红测试证明离场返回错误，新旧快照有区分。61专项、232图文，冻结仍14完赛/16人工停止；测试SQL分支正条件+1不是随机完成。固定分支/工作树、旧44/6 dirty及ignored保留，不push，见`bottom-three-aqours-heart-verification.md`。
-
-2026-10-27 きな子Wait Energy：仅PL!SP-bp7-017:1登记变化，固定工作树/分支。64专项、227图文、254前端及完整回合SQL验证限定新对象/次回合期限；旧flag行为保持。冻结30局完赛13→14，但新增局败方无Live且未到标记时点，不冒充长局/随机skip验证。旧44/6 dirty和ignored成果保留，未push，后续PR目标待批。见`wait-energy-next-active-verification.md`。
-
-2026-10-27 優木せつ菜条件抽弃：仅PL!N-sd2-007:1登记变化，固定工作树/分支。86专项、222图文、251前端通过；通用技能面板来源隐藏引用崩溃已补保护，不公开卡面。冻结30局完赛12→13，实际正条件完成1次。旧44/6 dirty与ignored成果保留，未push，后续PR目标待批。见`opponent-success-draw-discard-verification.md`。
-
-2026-10-27 津島善子牌库底切片：仅PL!S-bp7-015:1登记变化，固定工作树/分支。60专项、217图文及246前端通过；旧空离场policy下新补正自身清理，不改旧modifier。冻结30局仍12/18，本卡随其他manual待机保留，另有真实seed受控SQL分支。旧44/6 dirty和ignored报告保留，未push，后续PR目标待批。见`bottom-one-live-heart-verification.md`。
-
-2026-10-27 星空凛切片：固定工作树/分支，只有PL!-pb2-005:1登记变化。临时常时Blade动态覆盖后入场μ's，来源离场及Live期限明确；重叠/继承保留门禁。75专项、212图文及243前端通过，冻结30局仍12/18，本卡两次实际处理均条件未满足。旧dirty/ignored保留，未push，后续PR目标待批。见`muse-granted-blade-verification.md`。
-
-2026-10-27 多玩家隐私修复：旧来源引用泄露已补原生动作/SQL红测试并统一修复网页、AI和语义代理投影，正常/skip及待机副本保护隐藏引用，本人manual提交句柄独立保留且不授予卡面权限。64专项与240前端通过，冻结30局仍12/18，原始规则快照及registry未改；当前报告见`multi-player-source-privacy-verification.md`。固定分支/工作树，无push或新PR，旧44/6 dirty与ignored报告保留；下文旧风险为历史检查点。
-
-2026-10-27 当前双方控室回收切片：仍使用固定分支/工作树，仅PL!N-bp4-007:1登记变化，同卡后两段未动。新类型隐私已保护；旧多玩家来源ID泄露已只读复现并排最高优先级，旧dirty与ignored报告保留。见`both-waiting-live-recovery-verification.md`；新PR目标未变。
-
-2026-10-27 当前エマ切片：继续固定分支/工作树，按官方Q270适配顶三Member Blade Heart颜色条件；实际触发3次，冻结30局仍11完赛/19人工停止，不宣称完赛改善。旧dirty及ignored报告保留，后续PR目标待批，最终门禁另存。见`mill-three-blade-colors-verification.md`。
-
-2026-10-27 四张公开底座：正式PL!-pb2-013因短牌库公开/刷新语义保持blocked及manual；另建未绑定官方卡的至少四张prototype，条件失败原库不变、旧私看不公开。新冻结30局仍9/21，源码绑定，旧dirty和ignored报告未动，PR目标待批。见`public-four-reveal-foundation.md`。
-
-2026-10-27 lily white审计：PL!-pb2-041:2依赖第一段成功区按两枚计数，暂保留两段manual，12项边界证明不冒充自动执行。应用源码/卡库/registry未变，下一独立任务为PL!-pb2-013:1顶四公开检索。固定工作树/分支继续复用，旧dirty及ignored报告未动，发布目标审批仍待确认。见`lily-white-source-score-unresolved.md`。
-
-2026-10-26T16:17Z：Aqours Blade6切片因限定恢复审批连续三轮缺失登记为blocked，仅保存状态，不再重试被拒绝的修改。现有PR54/90a10c6五项CI仍绿；本地225前端单测通过但完整build的数据导出因registry破损失败。依赖任务及全局门禁均不能绕过；等待已发出的限定审批，不新增分支、不提交推送。
-
-本地未提交检查点：Aqours Blade6/source score两项旧规则错误已真实复现，原型63专项及225前端通过；登记补丁重复上下文误写两个LL-bp5条目，安全检查拒绝自动恢复，已请求维护者限定批准。全局registry暂不能加载，不提交、不推送、不宣称门禁通过。恢复先读`aqours-blade-six-score-progress.md`，未批准不重试被拒绝的恢复；最后已发布90a10c6五项CI全绿，同PR54，旧dirty保留。
-
-优先级更新：只读审计发现旧`PL!S-bp3-025:1`有minimum_blade6与通用modify_score登记风险，下一批先真实复现“先选人后判断”与仅来源Live得分；本批不顺手改旧快照，不宣称已经验证。该完整性任务排在lily white新覆盖之前。
-
-有效Blade检查点：精确实现`PL!N-sd2-026:1`，新受限policy使用共享有效Blade含已支持常时修正；旧filter/Replay不变。55专项、148关联回归、3UI交互与187图文通过，918/1212、294manual。同冻结30局完赛8→9、21人工停止，158/160可执行完成，2待机保留，无非法/runtime/Replay/错误skip。见`nijigasaki-blade-four-heart-verification.md`；下一项`PL!-pb2-041:2`lily white成功区条件与来源Live得分。旧44/6 dirty及ignored成果保留，同PR54，不合并部署。
-
-应援入底检查点：`PL!S-cl1-002:1`受限原Yell对象策略，Member/Live0–3张排序、离开回场新对象、旧Replay及隐私42专项和2UI交互通过，183图文（145状态/38契约）。同冻结30局完赛7→8、22人工停止，非法/runtime/Replay/错误skip0；917/1212、295manual。见`aqours-yell-bottom-verification.md`，下一项`PL!N-sd2-026:1`。旧44/6 dirty和ignored成果保留，同PR54，不合并部署。
-
-其他虹咲Heart检查点：`PL!N-PR-036:1`受限策略、cost15信息与支付减费区别、来源离场回场新对象、目标清理、新旧SQL Replay、四AI、隐私及真实UI断言收口。45专项、142关联回归、217前端、180图文（142状态/38契约）；同冻结30局7完赛23人工停止，非法/runtime/Replay0。本段9入队含2个受其他manual阻塞的待机，不虚称全部完成。916/1212、296manual，见`other-nijigasaki-heart-verification.md`；下一切片`PL!S-cl1-002:1`Yell公开历史回收。旧44/6 dirty保留，同PR54，不合并部署。
-
-Yell加十检查点：精确实现`PL!-pb2-039:1`，正文条件在结算时检查成功区μs两张，不加Stage Blade；第二段保留manual。28专项、177图文（139状态/38契约），同冻结30局完赛6→7、23明确人工停止，非法/runtime/Replay错误0；未达双方均成功Live及发布门禁。登记915/1212、297manual，见`live-yell-ten-verification.md`。下一项`PL!N-PR-036:1`；旧44/6 dirty保留，同PR54，不合并部署。
-
-真实manual统计检查点：修正旧skip摘要不能代表触发，新增只输出effect ID/计数的事件观察与可选技能密集池。30合法牌组/30局，6完赛24人工停止，42种manual入队80次/辞退51/强制待机28，无非法/runtime/Replay错误。源码指纹和seed/牌组已记录；不作为发布门禁通过，登记914/1212不变。下一切片`PL!-pb2-039:1`条件和Yell+10，见`manual-trigger-observation-audit.md`；同PR54，旧44/6 dirty保留，不合并部署。
-
-最多取3张审计检查点：`PL!S-bp2-005:1`全文/revision/hash及cost13核对；文义范围与专用策略缺证据，保守回退manual，不猜测实现。21专项+5关联回归、214前端、173图文通过，新对局不自动付费/查看，四AI明确辞退，旧SQL Replay保留。登记下调914/1212、298manual，后续按实际manual触发取样，见`multi-keep-inspection-audit.md`。同Draft PR54，旧44/6 dirty及报告不动，不合并部署。
-
-混合Heart检索检查点：三条精确费用快照、165专项（72交叉边界）、213前端、172图文通过。固定10局均合格但三条未触发；登记915/1212不变，不改engine/Card/SQL schema与旧Replay。单弃牌扫描余1条`PL!S-bp2-005:1`独立审计多张取得及Blade Heart文义，不能直接扩大policy。见`mixed-heart-inspection-audit.md`；旧44/6 dirty和报告保留，同Draft PR54，不合并部署。
-
-Member/Liella检索检查点：五条精确费用快照、165专项、207前端、166图文通过。固定10局合格，`PL!SP-bp1-005:1`真实支付/查看/结算各5次，其他四条专项覆盖；登记915/1212不变，不改engine/Card/SQL schema和旧Replay。余4扫描下轮仅3条混合Heart筛选，最多取3张另审。见`member-liella-inspection-audit.md`；旧44/6 dirty及报告不动，同Draft PR54，不合并部署。
-
-作品/组合检索检查点：六条精确文本采用已验证费用策略，192专项、197前端、156图文通过。固定十局AI均3–9回合且双方成功Live，但本批六条未触发；登记915/1212不变，不改engine/Card/SQL schema或旧Replay。余9扫描下一批仅5条Member/Liella；见`work-unit-inspection-audit.md`。旧44/6项dirty及ignored报告不动，同Draft PR54，不合并部署。
-
-顶5/顶2检查点：同一continuous分支修正六条Member/Live公开顶5及私下顶2的费用路径，174专项、185前端及144图文通过；固定10局AI合格但未触发这六条。登记仍915/1212、297manual，engine/SQL/Card schema与旧snapshot不改；下一批六条作品/组合筛选。见`inspection-siblings-audit.md`，旧44/6项dirty与ignored成果保持，同Draft PR54，不合并部署。
-
-同文顶3检查点：同一continuous分支接入15条单独核对revision/hash的私下取1费用快照，435专项、173前端及132图文通过；固定10局AI合格但本批未触发。登记915/1212、297manual不变，后续Live段不动；下一批六条顶5/顶2同类。见`private3-inspection-family-audit.md`；原44/6项dirty和ignored成果不改，同Draft PR54，不合并部署。
-
-相邻弃牌检索检查点：同一continuous分支将六条精确卡文接入已有费用策略，不改engine/SQL/Card schema；177专项、143前端和102图文通过，固定10局AI均合格但未触发本批六条。登记仍915/1212、297manual；下一批同文顶3私下取1逐卡审计。旧44/6项dirty与ignored成果不变，仅更新Draft PR54，不合并部署；见`adjacent-inspection-cost-audit.md`。
-
-既有检索费用检查点：同一continuous分支修正7条自身Wait和3条虹咲弃牌费用，166专项、90图文、131前端通过；固定10局均3–9回合，唐可可实际检索4次。登记仍915/1212、297manual，旧snapshot不追改，原44/6项dirty与ignored成果不改。见`existing-inspection-cost-audit.md`；只更新Draft PR54，不合并部署。
-
-检索费用检查点：同一continuous分支新增`PL!-pb2-032:1 / PL!SP-bp7-018:1 / PL!-pb2-008:1`，显式新snapshot重检费用、明确取消不可支付待机、区分公开与私下保留。105专项、80图文、四AI及固定10局回归；915/1212、297manual。见`typed-inspection-cost-verification.md`。既有单Wait检索另排审计，旧44/6dirty和复杂重叠限制不改；同Draft PR54，不合并部署。
-
-虹咲检索检查点：同一continuous分支新增`PL!N-sd2-009/012/014:1`和`PL!N-bp7-018:1`。完整技能段匹配，补查看选择的无Blade Heart筛选，102专项覆盖真实登场/费用/零张/刷新/四AI/双视角/SQL Replay；76图文、固定10局AI回归，登记912/1212、300manual。见`nijigasaki-inspection-verification.md`。六条复杂重叠仍manual，旧44/6dirty不改，同一Draft PR54，不合并部署。
-
-Stage Wait费用检查点：同一continuous分支精确新增彼方`PL!N-sd2-006:1`和嵐珠`PL!N-bp7-012:1`，费用Member与来源加成分离，自费Wait不贡献Blade应援，原来源离场后同ID回场不继承。908/1212、304manual；63定向、72图文、固定10局AI合格，见`live-wait-cost-verification.md`。旧44/6dirty、复杂重叠父任务保留，不合并部署，同一Draft PR54。
-
-弃牌选色检查点：同一continuous分支新增`PL!N-sd2-005:1`，来源对象快照防止离场同ID再入场误加成；费用与颜色组合UI同时修复既有四条登记。906/1212、306manual，48专项、70图文、固定10局AI合格，见`live-discard-color-verification.md`。重叠父任务和旧44/6项dirty仍保留，不合并部署，只更新Draft PR54。
-
-双姓名Live检查点：同一continuous分支修复Tiny Stars `PL!SP-bp1-024:1` 自动首张选择，改为两组独立显式选人；缺席组不取消另一组，旧auto Replay保留。登记仍905/1212、307manual；68图文场景，固定10局AI合格。见 `named-live-group-verification.md`。六条复杂登场、旧44/6项dirty与ignored报告不改，只更新Draft PR54，不合并部署。
-
-公开来源检查点：同一continuous分支为受控重叠登场增加显式完整绑定策略，核对双方公开Stage/附属/表向Live与入场候补，不读隐藏手牌/牌库/背面Live。来源未知导致全区域受阻时不支付费用，原生手动处理与AI可读暂停均有验证。见 `overlap-source-binding-verification.md`；904/1212不变，六卡仍manual，完整继承父任务继续。原44/6项dirty不改，只更新Draft PR54，不合并部署。
-
-移动来源检查点：同一continuous分支精确适配四季`PL!SP-bp7-008:2`，显式policy区分原Stage对象与离场后同ID回场。登记904/1212、308manual；完整重叠/继承与六卡仍保留父任务。见 `moved-source-ready-verification.md`，旧44/6项dirty与ignored报告不改；只更新Draft PR #54，不合并部署。
-
-玩家响应隐私检查点：同一continuous分支修复隐藏牌库card map/真实ID/顺序、未公开技能定义与私有历史输出；在线完整Replay延后至完赛或关闭房间。本地完整视图、原始Replay及SQLite不变。登记903/1212不变，旧44/6项dirty成果不改。见 `player-payload-privacy-verification.md`；只更新Draft PR #54，不合并部署。
-
-起动技能检查点：精确新增四季 `PL!SP-bp7-008:1` 与ミア `PL!N-bp7-023:1`，
-费用与抽后弃牌继续用原生操作；修复manual起动占位操作错误自动执行，保留旧结构化前缀。
-当前902/1212、310manual；四季第2段及六条重叠卡不晋级。原44/6项dirty和ignored报告不动。
-见 `activated-wait-draw-verification.md`。同一Draft PR #54，不合并部署。
-
-Live矩阵检查点：只读核对旧58项核心描述及20项Live原型，迁移Live20项并补原生Action、
-17字段完整预期、实际区域清理与逐项SQLite Replay。4项Match Point措辞待审与4项合成技能
-单独标记，不搬运旧75项完成声明；旧End Phase清理/触发顺序仍待修，原44/6项dirty及报告不改。
-见 `live-boundary-matrix-verification.md`。同一Draft PR #54，不合并部署，登记900/1212不变。
-
-等待房间检查点：创建时固定Ruleset四字段，复用runtime_metadata独立JSON，不改表结构或decklist。
-规则变化在Match写入前409拒绝，旧房间不补造身份，元数据随room保留期清理。见
-`room-ruleset-lifecycle-verification.md`。原Ruleset迁移父任务本批收口，核心矩阵继续排队。
-仍仅更新Draft PR #54，不合并部署，不改旧44/6项dirty成果与ignored报告。
-
-重叠时点检查点：新增显式operation策略，区分旧Member无关的自身/Live时点与真正观察者，
-50项受控状态/Replay/四policy验证、20局回归；六条manual和900/1212登记数不变。
-完整重叠/继承仍留父任务。见 `disjoint-overlap-source-verification.md`。
-仍只更新Draft PR #54，不合并部署，不改旧dirty工作树或ignored原始报告。
-
-Ruleset检查点：同一continuous分支选择性接回Match/Replay身份，不复制旧房间ALTER TABLE。
-补上指纹不符时拒绝Action、只读导出与中日提示，旧snapshot不补写字段。等待房间版本固定
-仍归父任务，旧44项/6项dirty文件未改动。见 `ruleset-match-replay-verification.md`。
-只更新Draft PR #54，不合并部署，不启用Cloud。
-
-虹咲Live检查点：同一continuous分支精确适配 `PL!N-bp7-027:1`，37项状态/快照/Replay/
-四policy/隐私专项及中日结果提示通过；冻结50局block中原3次manual blocker消失。
-登记900/1212，不提升reviewed。见 `selected-blade-source-score-verification.md`。
-仍只更新Draft PR #54，不合并部署，不修改旧dirty工作树与原始报告。
-
-冻结牌组检查点：同一continuous分支为旧blackbox工具增加可选共用AI策略与原始牌组/seed恢复。
-50局同260步：legacy34 / v1.1 42 / v1.2 48完赛；保留3次manual skip与新2个上限案例。
-下一项为实际触发的 `PL!N-bp7-027:1`，见 `ai-frozen-pool-verification.md`。
-仍只更新Draft PR #54，不合并部署，旧dirty工作树与ignored原始报告保留。
-
-AI换牌检查点：同一continuous分支新增可选v1.2，默认v1.1不变；固定50局平均7.64→5.94回合，
-前10局均在10回合内结束且双方成功Live。旧30套牌脚本仍34/50，父AI可靠性任务继续跟踪。
-见 `ai-live-cycle-verification.md`。只更新Draft PR #54，不合并部署，旧工作树未改动。
-
-第3次登場检查点：已修复实际 `PL!N-bp3-005:1` 计数与普通交代漏触发，保留第二段“2回以上”
-及旧Replay；46项专项与固定10局回归通过。见 `third-entry-observer-verification.md`。
-父任务保留，下一优先项为AI固定seed长局/零Live归因；仍为同一Draft PR #54，不合并部署，旧工作树不变。
-
-本轮检查点：已在同一 continuous 分支修复新对局 Stage 离场遗留定向补正，真实花帆状态 / SQL Replay /
-三policy与固定10局回归通过，旧快照保持原行为；父重叠任务与六张manual卡保留。
-见 `stage-departure-modifier-verification.md`。只更新Draft PR #54，不合并部署，旧dirty工作树不变。
-
-生成时间（UTC）：2026-10-25T06:57:14.815226+00:00。基线：`origin/develop`。
-本地分支 32 个；工作树 14 个。
-
-本次已删除 9 个完整合入 develop、且没有工作树占用的本地旧分支引用。
-历史工作树与 ignored 报告尚未删除；当前只有 continuous-development 是自动任务写入入口。
-`git cherry` 已确认 aidlc-workflow-adoption 的 1 个提交和
-v0-9-card-sync-effects-ai-reliability 的 3 个提交与当前分支 patch 等价，不需要再次迁移。
-优先核对 v0-9-rule-conformance-beta 的 44 项、phase5-api-play-coverage-next 的 6 项未提交改动。
-远程仍有旧 PR #27（develop Draft）、#28（preview）、#38（test）；本次不自动关闭它们。
-
-2026-10-25 迁移检查点：旧 v0.9 的 44 项与 API Play 的 6 项 dirty 内容均已只读清点；
-只选择性迁移 Ruleset 来源定义 / JSON / 测试 / spec，并修正路径相关指纹与未审 FAQ 激活。
-未提交原文件和 ignored 报告未改动、未删除。其他内容仍待队列逐批迁移；不视为已收敛。
-详细范围见 `../22-ruleset-source-profile-migration.md`，后续任务见 `automation/queue.json`。
-
-API Play 检查点：16 个旧提交已按功能分组核对，选择性补回 CLI 预检/采样入口，并修正
-测试输入中的对手背面卡和他方 private choice 暴露。6 项 dirty 原型仍保留，成本分支与
-Baton 手牌登场登记另列任务，不直接继承旧 executable 状态。见 `legacy-api-play-migration.md`。
-
-成本分支检查点：已选择性重建 `PL!-bp5-003:2`，修正旧原型的费用 ID 清空、可选回收数量
-和非本分支操作混入问题；旧 6 项 dirty 文件仍原样保留。剩余 Baton 原型继续独立复核。
-见 `cost-result-branch-verification.md`。
-
-Baton 原型检查点：已核对 `07f51e4` 的两个 PR entry，没有直接恢复其 executable 标记。
-已修正精确文本手动提示条件；区域 / 朝向 / UI / AI 底座另列有限任务，并保留原工作树。
-见 `baton-hand-deploy-audit.md`。旧 API Play 的提交与 dirty 成果已逐类登记去向，底座未完成前
-父收敛任务继续保持进行中。
-
-效果登场检查点：六条明确空区域的技能已修正 Active / 分步选择 / UI / AI；
-四条没有空区域限定的虹咲技能已退回 manual。尚未迁移的已有 Member 区域替换和入场身份
-规则继续由父任务追踪，两张 PR 卡仍不提升。原 dirty 工作树和报告未动。
-见 `empty-effect-deployment-verification.md`。
-
-入场历史检查点：新增对局以卡牌身份追踪外部 Member 卡进入 Stage，限制随当前顶部 / 附属卡
-位置变化；旧快照缺省保留原语义和序列化。未恢复四条虹咲和两张 PR 卡的 executable，
-附属卡转为顶部时的技能触发与通用替换登场另列任务。原工作树和报告继续保留。
-
-双方登場检查点：`PL!-pb1-018:1` 已使用独立 snapshot 策略，双方选择后统一 Wait 入场，
-再检测并处理登場触发；修正候选卡 / 区域 UI，保留旧 Replay。见 `multi-player-entry-verification.md`。
-仍只有同一 continuous 分支与 Draft PR #54，不合并部署，不启用 Cloud，旧 dirty 工作树未动。
-
-## 工作树
-
-来源对象检查点：已为 `PL!HS-pb1-009:1` 增加有界 operation snapshot 策略，重叠前检查中心，
-来源离场后不向新对象应用本次 Blade；旧 Replay 保留，registry/manifest 同步。见 `overlap-source-modifier-verification.md`。
-非重叠对象、继承与其他旧 modifier 清理仍待审计；六卡 manual、同一 PR #54，旧工作树未改动，不合并部署。
-
-Wait Energy 检查点：已修正 `PL!N-pb1-012:1` 在普通替换后漏补能量，包含附属 Energy 先返还、
-费用 / 次数 / 空牌库和顺序消耗资源；新策略保留旧 Replay。见 `overlap-energy-observer-verification.md`。
-旧工作树未修改，六张待审卡仍 manual，完整重叠父任务保留；同一 Draft PR #54，不合并部署。
-
-待机排序检查点：已补同玩家技能顺序、AP/NAP 重检和已开始的费用/双方选择锁定，
-新对局显式启用独立策略，旧 Replay 不变。见 `pending-effect-order-verification.md`。
-完整重叠父任务与六张 manual 卡继续保留；旧 dirty 工作树未动，同一 PR #54 不合并部署。
-
-重叠观察者检查点：真实 `PL!N-pb1-005:1` 的普通替换/费用Baton差异已补有限策略与状态验证，
-新对局启用、旧 Replay 不变；复杂时点父任务保留。见 `overlap-entry-observer-verification.md`。
-未晋级六张手动卡，原工作树和报告不动，继续同一 PR #54，不合并部署。
-
-非公开选择检查点：已拆出并完成 `effect-private-filtered-hand-choice` 的受控零目标语义、
-费用 / 旧 Replay / UI / AI 验证；未迁移或修改旧工作树。完整重叠父任务仍在进行，六张卡保持 manual。
-见 `private-hand-choice-verification.md`；同一 PR #54，不合并部署，Cloud 仍未切换。
-
-Energy Replay 后续检查点：两张卡的空朝向已在真实费用 / 分支路径修复，旧坏快照明确拒绝且不改写。
-API / SSE 返回安全诊断，前端停止永久错误重试；候选恢复为精确文本匹配，登记率不变。
-见 `energy-return-replay-verification.md`。仍使用 PR #54，旧工作树 / 报告未修改，不合并部署。
-
-已有区域底座检查点：新增受控 `deploy_selected_to_stage`，简单覆盖 / 附属卡清理 / 触发已测试，
-不绑定正式卡牌；完整重叠触发和私有手牌零张选择继续排队。旧 Energy 回牌库的空朝向
-Replay 缺陷已复现并列最高优先级。见 `occupied-deployment-foundation.md`；旧工作树未动。
-
-附属 Member 审计检查点：`PL!-bp6-003:2` 新 effect snapshot 不再把 Area 内转移算作外部登場，
-保留旧 snapshot 的触发 / events / hash。另已复现多人控室登場漏发触发并独立排队。
-见 `attachment-promotion-verification.md`。Cloud 仅备交接，旧 dirty 工作树仍未上传或删除。
+### 工作树
 
 | 分支 | 领先 / 落后 develop | 未提交文件 | 处理方式 | 路径 |
 |---|---:|---:|---|---|
@@ -315,9 +43,7 @@ Replay 缺陷已复现并列最高优先级。见 `occupied-deployment-foundatio
 | `codex/simple-ai-v1-effect-accuracy` | 0 / 6 | 0 | 已合并历史，报告核对后归档 | `E:\Repository\loveca-simulation\.tmp\simple-ai-v1-effect-accuracy` |
 | `codex/v0-9-card-sync-effects-ai-reliability` | 3 / 0 | 0 | 有独有提交，待对比迁移 | `E:\Repository\loveca-simulation\.tmp\v0-9-card-sync-effects-ai-reliability` |
 
-2026-10-27 恢复补充：PR54已获维护者批准合并上线；固定工作树保存全部15项WIP后快进到`ca3aec4`，Git内容逐项核对一致，备份stash保留。协调器恢复入口已提交`122fd48`，原Aqours任务已通过显式requeue恢复；不把旧表格中的PR54开放状态当作当前事实。其他旧dirty工作树和ignored报告未动，新PR目标仍待单独确认。
-
-## 分支
+### 分支
 
 | 分支 | 领先 / 落后 develop | 被工作树使用 |
 |---|---:|---|
@@ -356,3 +82,5 @@ Replay 缺陷已复现并列最高优先级。见 `occupied-deployment-foundatio
 
 `ahead=0` 仅说明提交已包含在 develop；不代表工作树中的未提交文件或 ignored 报告可以删除。
 dirty、独有提交与无法读取的工作树全部保留。常规自动任务只使用 continuous-development。
+
+</details>

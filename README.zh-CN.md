@@ -2,370 +2,19 @@
 
 [日本語](./README.md) | [简体中文](./README.zh-CN.md)
 
-已审计千歌回收牌名称和原来源 Blade 的旧组件缺口；正式能力仍待验证。[审计](./docs/development/chika-recovered-name-source-blade-gap.md)。
-
-已审计千歌弃牌费用后的高费用成员回收候选；正式能力仍待验证。[审计](./docs/development/chika-cost10-post-discard-unresolved.md)。
-
-新增非空手全手弃牌抽六的受限未登记原型，未绑定正式卡。[验证](./docs/development/tomari-nonempty-all-hand-probe.md)。
-
-已审计冬毬全部手牌费用与固定选择器的差异；正式能力仍为人工处理。[审计](./docs/development/tomari-all-hand-fixed-cost-gap.md)。
-
-已审计冬毬弃全部手牌抽六的人工待机边界；正式能力仍待验证。[审计](./docs/development/tomari-all-hand-discard-unresolved.md)。
-
-已审计 Aqours 三组 Live 的数据特征交集及人工待机边界；正式能力仍待验证。[审计](./docs/development/aqours-three-live-groups-center-blade-unresolved.md)。
-
-已盘点三人卡名称匹配记录的 Blade Heart 色槽；正式能力仍为人工处理。[审计](./docs/development/ll-bp6-named-blade-heart-inventory.md)。
-
-按精确卡文修复三人曜卡的名称费用与原来源 Blade。[验证](./docs/development/ll-bp2-named-source-blade-verification.md)。
-
-新增已支付名称费用与原来源 Blade 绑定的未登记原型，尚未应用于正式卡。[验证](./docs/development/paid-named-original-source-blade-probe.md)。
-
-新增未登记的私有名称部分匹配与动态弃牌费用原型，尚未绑定正式卡。[验证](./docs/development/private-named-unlimited-discard-probe.md)。
-
-已复现三人曜卡手牌费用的组合名称与数量上限问题，修复尚未完成。[审计](./docs/development/ll-bp2-composite-cost-unresolved.md)。
-
-新增仅处理已支付基本 Heart 颜色并集的未登记原型；尚未绑定正式卡。[验证](./docs/development/q246-paid-basic-color-union-probe.md)。
-
-审计 Q246 的重叠颜色去重示例与现有操作边界；正式能力仍为人工处理。[审计](./docs/development/q246-named-cost-color-union-unresolved.md)。
-
-审计三人卡指定名称弃牌与颜色 Heart 边界；Live 开始能力仍为人工处理。[审计](./docs/development/ll-bp6-named-discard-color-unresolved.md)。
-
-审计 Love marginal 按复原人数分档减需；来源覆盖未知时仍保持人工处理。[审计](./docs/development/printemps-tiered-requirement-unresolved.md)。
-
-新增仅处理对手成员已识别直接能力的未登记原型；获得和继承能力的完整性仍未知。[验证](./docs/development/opponent-direct-disable-probe.md)。
-
-审计对手成员 Live 成功能力无效化；目标与实际新无效判断仍未实现。[审计](./docs/development/opponent-success-disable-scope-unresolved.md)。
-
-限定支持渡辺曜 PL!S-bp2-005:1 登场时最多三张检索，按 Q124 只读取基本 Heart。[验证](./docs/development/q124-you-multi-keep-verification.md)。
-
-新增未登记的登场弃牌、最多取三张检索原型；尚未绑定正式卡。[验证](./docs/development/triggered-inspection-up-to-three-probe.md)。
-
-Q124 对应的旧多张检索快照历史审计见[审计记录](./docs/development/q124-multi-keep-legacy-audit.md)。
-
-审计正式离场与登场复原同时待机；旧来源无法证明时限定覆盖仍为未知。[审计](./docs/development/printemps-mixed-formal-ready-audit.md)。
-
-按实际登记审计Printemps五条直接复原来源，目前四条记录来源历史；剩余目标范围和消费者仍未解决。[审计](./docs/development/printemps-four-producer-coverage-audit.md)。
-
-WAO-WAO PL!-pb1-028:1限定记录实际复原人数并只给原Live加分；旧全局得分快照仅为Replay保留。[验证](./docs/development/waowao-ready-three-source-score-verification.md)。
-
-新增保留离场来源信息、支持双方公开成员目标的未登记v2原型；不用于裁定正式卡目标范围。[验证](./docs/development/departed-ready-both-owner-probe.md)。
-
-穂乃果PL!-PR-001:1离场复原的目标范围仍待确认；旧登记和来源原型的范围不能直接当作完整卡文语义。[审计](./docs/development/honoka-departed-ready-scope-unresolved.md)。未改正式登记，仅本地验证。
-
-未登记Wait费用v1原型不再列出无法支付的来源；旧Replay状态和Wait目标限制保持，正式生产者不增加。[审计](./docs/development/ready-source-wait-v1-legal-audit.md)。
-
-小泉花陽PL!-bp6-008:1按全文/revision/hash接入复原来源历史，允许选择其他已Active成员但仍真实支付Wait并消耗次数。正式历史生产者3/5、旧Replay保持。[验证](./docs/development/hanayo-source-wait-provenance-verification.md)。仅本地验证。
-
-新增本人Wait费用后可选另一已Active成员的独立unregistered v2原型；真实支付并消耗次数，同状态不制造复原历史。旧v1/Replay不变，93专项/34 SQL、四AI后续选择和4 UI；正式历史生产者仍2/5，消费者不恢复。[验证](./docs/development/ready-source-wait-active-v2-probe.md)。仅本地提交。
-
-高坂穂乃果PL!-bp3-001:2精确接入来源历史，任意本人Member 0至1，已Active合法，强制发动与选择零区分；第一段不改。82专项/53 SQL、四AI/隐私、3 UI与5新图文，仅正式生产者2/5，消费者保持manual。[验证](./docs/development/honoka-live-start-provenance-verification.md)。仅本地提交。
-
-南ことりPL!-pb1-012:1按全文/revision/hash接入来源历史v3，允许选已Active目标但不虚记复原，旧v2重放保持。81专项/55 SQL、四AI/隐私、3 UI和5新图文；仅正式历史生产者1/5，穂乃果仍manual。[验证](./docs/development/kotori-onplay-provenance-verification.md)。仅本地提交。
-
-新增显式策略下的限定来源复原历史完整性原型。旧全局查询不改，只排除有证明的不匹配来源，未知不当零。77专项/45 SQL、四AI/完整隐私与2 UI，正式生产者仍0/5。[验证](./docs/development/ready-qualified-coverage-probe.md)。仅本地提交。
-
-新增Stage离场后触发的限定复原来源原型，离区前采集旧信息、入队时绑定真实能力。100专项/54 SQL、四AI/隐私及4 UI，旧v1、费用路径和Replay保持，正式卡未绑定。[验证](./docs/development/ready-departed-source-probe.md)。仅本地提交。
-
-新增本人Stage来源支付Wait后复原另一成员的限定unregistered原型，旧无费用v1不放宽，支付证据内部保存。71专项/20 SQL、四AI后续选择与2 UI；正式卡不绑定，穂乃果manual保持。[验证](./docs/development/ready-source-wait-cost-probe.md)。仅本地提交。
-
-按真实来源单位盘点5条Printemps复原生产者，仅修南ことり`PL!-pb1-012:1`遗漏的目标单位筛选。费用、初始离场来源和历史coverage仍独立待审；正式v1生产者0/5，穂乃果manual保持。[审计记录](./docs/development/printemps-producer-coverage-audit.md)。仅本地提交。
-
-新增显式新快照的成员实际复原历史底座，绑定原对象、来源LKI与回合，未知不当零；62专项/34 SQL、四AI/隐私，旧ready/Replay保持，不绑定正式卡或恢复穂乃果。[底座验证](./docs/development/member-ready-provenance-foundation.md)。仅本地提交。
-
-高坂穂乃果`PL!-pb2-010:1`完成Printemps实际Wait→Active历史边界审计。作品级标志无法证明人数和原成员对象，保留manual；40专项/24 SQL、四AI隐私及2 UI，不晋级。[执行模型依赖](./docs/development/printemps-ready-history-unresolved.md)。仅本地提交。
-
-黒澤ルビィ`PL!S-PR-048:1`按全文/revision/hash限定实现：结算时控室总数九张以下，0至3张Live按私有顺序回库顶。公开集合不泄露实际顺序，旧快照保持；89专项/51 SQL、四AI/隐私、301图文/6 UI。[验证记录](./docs/development/waiting-nine-live-top-order-verification.md)。仅本地提交，不推送或上线。
-
-津島善子`PL!S-PR-045:1`按全文/revision/hash限定实现：保存本次费用7 Baton事实，先本人抽二，再从当前手牌严格弃一。94专项/43 SQL、四AI/隐私、296图文/6 UI；旧快照保持。[验证记录](./docs/development/baton-cost7-draw-discard-verification.md)。仅本地提交，不推送或上线。
-
-按直接官方Q253修正`PL!S-bp6-023:1`的当前原Yell条件及仅原Live得分。110专项/67 SQL、四AI/隐私、291图文/6 UI；未写期限按game，移区新对象不继承，旧Replay保留。[验证记录](./docs/development/q253-current-yell-source-score-verification.md)。这是既有可执行技能修复，不算manual晋级，只本地提交，不推送上线。
-
-渡辺曜`PL!S-PR-046:1`按全文/revision/hash限定实现对方当前Yell含Live抽一张，77专项/33 SQL、四AI/隐私、286图文/5 UI；已移区的公开历史不满足条件，旧快照不改。[验证及既有Q253风险](./docs/development/opponent-yell-live-draw-verification.md)分别保留，本切片只本地提交，不推送或上线。
-
-想いよひとつになれ `PL!S-cl1-011:1`按全文/revision/hash限定实现：结算时三名Aqours成员当前Heart取共同色，仅回收本次原Yell中匹配基本Heart的Aqours Member一张。96专项/38 SQL、四AI/隐私、281图文/5 UI；完整门禁及随机实际分支见[验证记录](./docs/development/aqours-shared-heart-yell-verification.md)。旧快照和未解决边界不改，本切片仅本地提交。
-
-WATER BLUE NEW WORLD `PL!S-cl1-013:1`按全文/revision/hash限定实现：控室0至6张无Blade Heart的Aqours Member洗回库底，每满两张给后续所选Aqours成员蓝色Heart两颗。洗后顺序隐藏，原受益对象移区不继承；78专项/31 SQL、四AI/隐私、276图文与7 UI，完整门禁及随机实际分支见[验证记录](./docs/development/water-blue-bottom-heart-verification.md)。结果颜色误写已[另行修正与复验](./docs/development/water-blue-color-label-verification.md)，引擎heart05和数量不变。本切片仅本地验收，不推送或上线。
-
-持续开发审查目标固定为[Draft PR #55](https://github.com/smaillion/loveca-simulator/pull/55)。按已获得的明确批准，编号配置独立重新验收后只更新同一分支与PR；[验收记录](./docs/development/draft-pr55-target-verification.md)。合并和上线仍需另行批准。
-
-`PL!S-bp7-025:1`按完整全文/revision/hash限定支持：选择对手费用4以下0至2名成员Wait并限制下个游戏回合Active复原，或抽一张。原对象离场清理、场内移动保留，旧快照不改。85专项/34 SQL、四AI/隐私、271图文/7 UI；完整门禁及同牌组30局见[验收记录](./docs/development/opponent-member-next-active-verification.md)。维护者已批准新Draft PR，合并上线仍需另行批准。
-
-宮下愛`PL!N-bp7-005:1`按全文/revision/hash限定实现：结算时确认两名异名DiverDiva，选择按可能范围复原两Energy，或从Energy Deck直接附属一张到虹ヶ咲成员下。84专项/22种SQL、四AI/隐私、266图文及双语UI保护，旧快照和既有blocked不变。最终完整门禁与新源码冻结结果见[验证记录](./docs/development/diverdiva-energy-choice-verification.md)，仅本地开发。
-
-`PL!S-bp7-020:1`全员Active边界审计：本次未取得空Stage真值的直接官方依据，继续manual，不凭空集合直觉晋级。28项边界/11种SQL、四AI/隐私与人工UI保护；第2段和930/1212登记不变，应用指纹未变，不重复30局。[未解决原因与证据](./docs/development/all-active-live-requirement-unresolved.md)
-
-`PL!S-bp7-020:2`按完整双段/revision/hash限定实现：实际底牌为Aqours Member时，仅原Live无色必要Heart减一。无明示期限按game，移区新对象不继承；第1段仍manual，旧Replay不变。52专项/17种SQL、262图文与中日原生UI有证据；最终同源码门禁及冻结30局见[验证记录](./docs/development/bottom-one-aqours-requirement-verification.md)。仅本地开发，不推送上线。
-
-这是一个面向 Love Live! Series Official Card Game（ラブカ）的本地卡牌数据库、牌组分析与规则验证工具。
-
-项目始终以官方日文资料为唯一权威来源。内部英文标识只用于工程实现，不替代官方日文术语。
+面向 Love Live! Series Official Card Game（ラブカ）的本地卡牌数据库、牌组分析与规则验证工具。
+官方日文资料是规则权威来源；内部英文标识只用于工程实现。本项目不是官方数字客户端，目前处于 alpha 阶段。
 
 ## 当前状态
 
-鬼塚冬毬`PL!SP-bp2-011:1`按全文/revision/hash限定实现：本人提出控室两张不同名Live，再由对手择一，Q118明确不足两种名称不能回收。103专项/27种SQL、四AI/隐私、257图文和中日UI已有证据；完整门禁、同牌组30局及提交结果见验收入口。未push，后续PR目标待批。[验证与边界](./docs/development/opponent-live-offer-verification.md)
-
-ウィーン・マルガレーテ`PL!SP-bp5-010:1`按全文/revision/hash限定实现。Q223与通则1.3.4.1区分各自选择权和主动方先处理，保护占位交换/附属、移动触发待机、旧manual Replay及隐藏信息。69专项、251图文已有证据；完整门禁、同牌组30局及提交结果以最终验收记录为准。未push，后续PR目标待批。[验证与边界](./docs/development/both-center-position-verification.md)
-
-安養寺姫芽`PL!HS-pb1-014:2`左右正面费用比较采用限定新快照修复。105专项、46种SQL与247图文已有证据，旧pattern标识契约已同步；完整验收按当前源码独立记录，不拼接旧绿色。第1段manual、登记927/1212和冻结15完赛均不变，最终结论见报告验收入口。下方未修复文字属于发现时历史。[修复与验收](./docs/development/mirrored-cost-heart-verification.md)
-
-安養寺姫芽`PL!HS-pb1-014:1`因固定正面目标资格/原来源最后位置依赖继续manual。新增37项边界保护，并以原生SQL发现第2常时左右正面未镜像的既有缺陷；本轮未修复，已独立列为下一最高优先级。登记仍927/1212。[审计与已知缺陷](./docs/development/mirakura-front-position-unresolved.md)
-
-小原鞠莉`PL!S-bp7-008:1`已按全文/revision/hash限定适配：私看三张后任意分组、分别排列库顶库底，第2段仍manual。88专项、242图文、269前端通过；冻结30局完赛14→15，但新增局Live0:3，不称双方Live长局。[验证与边界](./docs/development/private-three-top-bottom-verification.md)
-
-Live`PL!S-bp7-021:1`已限定适配：结算时检查三名成员，记录底五次Member移动，至少三次才抽一张，全部为Member才仅原来源Live score+1。82专项、238图文和263前端通过。冻结30局仍14完赛，本卡两次实际完成分别为三人条件失败、三Member抽一张，不称随机加分正条件覆盖。[验证与边界](./docs/development/bottom-five-member-score-verification.md)
-
-津島善子`PL!S-bp7-006:1`既有实现已修正：按底部三次实际移动判断Aqours Member，仅原来源获得绿Heart，离场同ID返回不继承。原生动作/SQL红测试复现旧错误，旧快照继续兼容。登记仍925/1212，不算新增覆盖。冻结30局仍14完赛/16人工停止，正条件单独SQL分支另列。[验证与边界](./docs/development/bottom-three-aqours-heart-verification.md)
-
-桜小路きな子`PL!SP-bp7-017:1`已限定适配：只把实际新放置的Energy置Wait，并跳过下回合本人的一次自动复原；主动复原再支付不取消限制，离场返回不继承。64专项、227图文及254前端通过。冻结30局完赛13→14，但该局Live为0:3且未进入标记目标回合，不冒充双方Live或跳过复原的随机覆盖。[验证与边界](./docs/development/wait-energy-next-active-verification.md)
-
-優木せつ菜`PL!N-sd2-007:1`已按全文/revision/hash限定适配：先抽一张，只在当前回合对方也成功时追加抽一张并本人必选弃一张，不用累计成功区或胜负结果代替条件。86专项、222图文、四AI/SQL与251前端验证；来源隐藏时面板仍可提交。冻结30局完赛12→13，本卡实际正条件完成一次。[验证与边界](./docs/development/opponent-success-draw-discard-verification.md)
-
-津島善子`PL!S-bp7-015:1`已按全文/revision/hash限定自动化：仅判断实际从牌库底移到控室的那张牌，若为Live则原来源红Heart+1。空库刷新、离场/同ID回场及旧快照均有保护。60专项、217图文、四AI/SQL与246前端验证通过。冻结30局仍12完赛，本卡入队后随其他manual待机保留；另存受控分支，不冒充完赛改善。[证据与边界](./docs/development/bottom-one-live-heart-verification.md)
-
-星空凛`PL!-pb2-005:1`已按全文/revision/hash限定适配：成功区μ's特殊得分Blade Heart图标条件成立时，原来源获得临时常时能力，后续入场的己方μ's也得Blade+1；来源离场返回不继承，重叠/继承保持明确限制。75专项、212图文、四AI/SQL与243前端验证通过。冻结30局仍12完赛，本卡两次真实触发均条件不成立，不冒充正条件实战覆盖。[证据与边界](./docs/development/muse-granted-blade-verification.md)
-
-已修复旧多玩家来源ID被合法操作元数据重新公开的问题，网页、AI及语义代理统一按实际区域和私看/公开策略确定可见卡；正常选择、skip与待机副本都保护隐藏引用，本人必需的manual提交标识与卡面权限分离。64专项、原生SQL/REST/重连与240前端验证通过；固定30局仍12完赛/18人工停止，不增加技能登记率。本批未推送，后续PR目标仍待批。[证据与范围](./docs/development/multi-player-source-privacy-verification.md)
-
-優木せつ菜`PL!N-bp4-007:1`双方控室Live回收已限定适配：主动方先公开选择，双方选完后同时入手。74专项、206图文及四AI/SQL/双视角通过，冻结30局完赛11→12。本轮新类型的来源ID泄露已保护，但另复现旧多玩家类型的同类风险，下一项优先修复，不宣称全局隐私审计完成。[证据与剩余风险](./docs/development/both-waiting-live-recovery-verification.md)
-
-エマ・ヴェルデ`PL!N-bp7-020:1`依据精确卡文及官方Q270适配：顶三控室仅统计Member的有色Blade Heart，两色以上给原来源绿Heart+1，不混用ALL、Live或普通Heart。61专项、202图文及实际三次触发验证；固定30局仍11完赛/19人工停止，不宣称完赛改善。[证据与边界](./docs/development/mill-three-blade-colors-verification.md)
-
-米女メイ`PL!SP-PR-028:1`已按全文/revision/hash精确适配：结算时按10减当前手牌私看，最多取两张且不公开，余牌控室。59项专项、196图文通过；同冻结30牌组完赛9→11，本卡实际触发两次。登记919/1212、293manual；公开四张及成功区特殊计数仍未解决，不冒充完整规则或发布验收。[证据与边界](./docs/development/ten-minus-hand-private-two-verification.md)
-
-新增四张公开选择原型：条件失败保留原牌库，旧私看保持隔离；不足四张明确拒绝，正式`PL!-pb2-013:1`仍manual，不增加覆盖率。[受限底座报告](./docs/development/public-four-reveal-foundation.md)
-
-「春情ロマンティック」`PL!-pb2-041:2`依赖同卡第一段的成功区按两张计数，暂保留两段manual。12项边界测试确认真实待机、四AI与SQL Replay，不用实体牌数冒充完整计数规则。[未解决审计](./docs/development/lily-white-source-score-unresolved.md)
-
-`PL!S-bp3-025:1`改为先选择Aqours成员，结算时有效Blade至少6才给原来源Live加1分；低Blade仍可选，同ID离场返回不重绑。保留旧Replay，266项相关回归、191图文通过。同冻结30局仍9完赛/21人工停止，本卡实际触发0次，不冒充完赛率提升。[验证报告](./docs/development/aqours-blade-six-score-verification.md)
-
-持续开发新增显式`requeue`恢复入口：记录已获批准的阻塞解除原因，不绕过有效写入租约或未完成依赖，不复用旧测试授权。[开发流程](./docs/21-continuous-development.md)
-
-精确支持「Fire Bird」`PL!N-sd2-026:1`：选择当前有效Blade至少4的己方虹咲Stage成员，给予两颗Heart02；新策略包含已支持常时修正，旧Replay过滤不变。918/1212、294manual。同冻结30牌组9完赛/21明确人工停止，仍非beta门禁。[验证报告](./docs/development/nijigasaki-blade-four-heart-verification.md)
-
-精确支持桜内梨子`PL!S-cl1-002:1`：从原应援公开的Aqours卡中选0–3张任意排序入底，含Member与Live；区分离开后返回的新对象，保持旧Replay及对手不可见的牌库顺序。917/1212、295manual。同冻结30牌组8完赛/22明确人工停止，仍非beta门禁。[验证报告](./docs/development/aqours-yell-bottom-verification.md)
-
-精确支持桜坂しずく`PL!N-PR-036:1`：选择另一名己方虹咲成员，结算时卡牌信息cost至少15则获得两颗Heart03，否则一颗。无目标明确结束；同ID离场回场按新对象处理。登记916/1212（75.58%）、296manual。[目标、Replay及AI验证](./docs/development/other-nijigasaki-heart-verification.md)
-
-精确支持「僕たちはひとつの光」`PL!-pb2-039:1`：结算时检查成功区μs至少两张，只将应援公开数量加十，不改变成员Blade；第二段继续人工。登记915/1212（75.50%）、297manual。同一30牌组诊断从6局完赛升至7局，其余23局明确人工停止，尚未达到发布门禁。[卡图与验证报告](./docs/development/live-yell-ten-verification.md)
-
-渡边曜`PL!S-bp2-005:1`的“持有Heart”范围及顶7最多取3张专用处理尚缺确认，已保守转回人工处理，不再自动付款或查看；可明确不使用，旧Replay保留。该次审计基线为914/1212、298manual。[原因与兼容性证据](./docs/development/multi-keep-inspection-audit.md)
-
-复核`PL!S-pb1-013/014/015:1`三条混合Heart检索：区分Member持有Heart与Live必要Heart，验证指定色至少2及公开零张，修正费用不足结束路径。165项专项、172项图文通过；登记仍915/1212。[卡图与证据](./docs/development/mixed-heart-inspection-audit.md)
-
-复核五条Member／Liella检索的顶4/5/6张、类型／作品筛选与费用不足结束路径。165项专项、166项图文验证通过；固定十局中叶月恋`PL!SP-bp1-005:1`真实支付、查看、结算各5次。登记仍915/1212。[卡图与逐卡证据](./docs/development/member-liella-inspection-audit.md)
-
-复核六条作品／组合指定的登场检索：费用不足可不查看并结束，Member与Live候补、可选公开取得和旧Replay均保留。192项专项、156项图文验证通过；登记仍915/1212，不冒充新增覆盖。[卡图与逐卡证据](./docs/development/work-unit-inspection-audit.md)
-
-修正六条顶5／顶2检索的费用不足结束路径：顶5按Member或Live筛选并可选零张公开取得，顶2付款后必须私下取1张。174项专项、144项图文验证通过，旧Replay保持不变；登记仍915/1212。[卡图与逐卡核对](./docs/development/inspection-siblings-audit.md)
-
-逐卡修正15条同文“弃1、看顶3、私下取1”的费用不足结束路径：付款可拒绝，但付款后必须取1张；不改同卡后续Live能力或旧快照。435项专项、132项图文验证通过；登记仍915/1212（75.50%）。[卡图、名单与审计边界](./docs/development/private3-inspection-family-audit.md)
-
-复核六条弃手牌登场检索（`PL!-bp3-010 / bp5-014 / bp6-004 / pb1-016 / sd1-011 / sd1-012:1`）：费用不足可不查看并正常结束待机；四条公开取得允许选零张，两条私下取得付款后必须取一张。登记仍915/1212，不增加虚假覆盖。[卡图与状态核对](./docs/development/adjacent-inspection-cost-audit.md)
-
-修正既有10条登场检索费用：7条自身Wait不能重复横置或使用离场后的新对象付费，3条虹咲弃牌检索在费用不足时可不查看并正常结束待机。验证顶2张任选0–2张排序、隐藏顺序和旧Replay。登记仍915/1212（75.50%），不靠重登凑数。[卡图与逐卡审计结果](./docs/development/existing-inspection-cost-audit.md)
-
-新增 `PL!-pb2-032:1` 星空凛、`PL!SP-bp7-018:1` 米女メイ、`PL!-pb2-008:1` 小泉花陽的登场检索：分别处理强制手牌、Live手牌和自身Wait费用，区分公开与私下取得。新快照在结算时重检费用，不可支付可明确结束待机，不查看牌库。登记915/1212（75.50%），297条manual。[验证与既有技能待审风险](./docs/development/typed-inspection-cost-verification.md)
-
-新增虹咲登场检索4段（`PL!N-sd2-009/012/014:1`、`PL!N-bp7-018:1`）：区分可选弃牌费用、允许选零张、无Blade Heart条件。查看中的卡只有本人能看到，最终公开的一张能由对手确认。登记912/1212（75.25%），300条manual。[卡图与真实状态验证](./docs/development/nijigasaki-inspection-verification.md)
-
-新增 `PL!N-sd2-006:1` 近江彼方、`PL!N-bp7-012:1` 鐘 嵐珠：选择己方Active虹咲成员Wait作费用，仅给来源自身Blade+2或指定颜色Heart+1。可以选择来源自身，但Wait成员的Blade不计应援；离场同ID回场不继承加成。登记908/1212（74.92%），304条manual。[卡图与验证](./docs/development/live-wait-cost-verification.md)
-
-新增 `PL!N-sd2-005:1` 宮下 愛的“弃两张手牌，选择一种颜色获得两颗Heart”。费用卡与颜色一起确认，同时修复已有四条同类能力缺少颜色控件的问题。来源离场后同ID回场不会继承加成。登记906/1212（74.75%），306条manual。[卡图与验证](./docs/development/live-discard-color-verification.md)
-
-修复 `PL!SP-bp1-024:1`「Tiny Stars」自动选择首张同名卡的问题：分别选择一名「澁谷かのん」与「唐 可可」，各自的Heart和Blade作用于同一选定目标。一方不在场时仍结算另一方，旧Replay行为保留。登记仍905/1212，属于准确性修正而非新增覆盖。[卡图与验证结果](./docs/development/named-live-group-verification.md)
-
-新增 `PL!SP-bp7-025:1`「Memories」：Live开始时显式选择己方场上一名「嵐 千砂都」，只为选定一人添加持续到Live结束的Blade+1。同名多份不自动取第一张；目标在结算时决定，不存在时明确显示原因并结束。登记905/1212（74.67%），307条manual。[卡图、状态与Replay验证](./docs/development/named-live-blade-verification.md)
-
-效果重叠登场的审计底座新增显式来源完整性策略，核对双方公开Stage、表向Live和入场候补的全文/版本/hash。未确认能力导致所有区域不可用时，不扣费用、不冒充无目标结算，而是暂停并提供手动处理入口。旧快照不改，六条复杂登场仍manual。[验证与适用范围](./docs/development/overlap-source-binding-verification.md)
-
-新增 `PL!SP-bp7-008:2` 若菜四季“Wait移动区域后自身复原”：已触发后离场、同ID回场不误复原新对象，明确显示原因并正常结束能力；不代表完整重叠或继承语义完成。[卡图、状态与Replay验证](./docs/development/moved-source-ready-verification.md)
-
-在线玩家响应不再发送牌库卡面、真实ID/顺序及未公开技能定义，只保留数量；己方手牌、公开区域及明确公开的结果保持可见。完整Replay改为完赛或房间关闭后下载，对局中禁用。本地双人调试及数据格式不变。[验证与限制](./docs/development/player-payload-privacy-verification.md)
-
-新增 `PL!N-bp7-006:1` 近江彼方支付Energy后私下查看并重排顶4张，排序不重复付费；第二段仍需手动处理。[卡图、状态与Replay验证](./docs/development/activated-inspection-verification.md)
-
-新增 `PL!SP-bp7-008:1` 若菜四季“自身Wait后抽1”及 `PL!N-bp7-023:1` ミア“自身Wait后抽2、再弃2”。区分次数限制与抽后选择，修复manual起动直接报错。[卡图、状态与Replay验证](./docs/development/activated-wait-draw-verification.md)
-
-Live得分、成功区移动及胜负已扩展至20项实现回归，逐项验证SQLite Replay。4项仍需复核PDF 8.4.7.1的区域措辞与现有Match Point解释；不把回归通过当作官方裁定认证，不改引擎或登记率。[验证范围与未解决点](./docs/development/live-boundary-matrix-verification.md)
-
-效果登场的受控底座已区分旧 Member 的自身登场、起动及 Live 时点能力，不再将它们混同为另一 Member 的入场观察者；常时、继承及不完整原文仍保留限制，本轮不增加卡牌支持数。[验证与边界](./docs/development/disjoint-overlap-source-verification.md)
-
-新对局及等待房间均固定Ruleset ID、指纹和裁定包；创建后规则变化时拒绝加入并要求重建房间。旧快照不补写字段，不兼容对局仍仅供查看和导出Replay。[房间兼容与清理验证](./docs/development/room-ruleset-lifecycle-verification.md)
-
-已适配 `PL!N-bp7-027`「オードリー」的 Live 成功技能：选择虹咲 Member，用有效 Blade 与双方其他场上 Member 严格比较，满足时仅来源 Live 加1分；同分不加分，界面明确展示比较结果。[状态、Replay与50局验证](./docs/development/selected-blade-source-score-verification.md)
-
-修正 `PL!N-bp3-005:1` 宮下愛只在本回合第3次登场时补手牌，第4次以后不误触发；
-已触发后再离场或发生第4次登场不丢失待机能力。第二段“2回以上”不变。[状态与旧Replay验证](./docs/development/third-entry-observer-verification.md)。
-
-新建对局修复普通替换、Baton、受控效果登场和手动离场遗留卡牌补正的问题；
-同一卡回场不再带回旧 Blade / Heart，Stage 内移动和玩家整体补正保留。
-旧 Replay 与登记率不变。[真实花帆 / Replay / AI 验证](./docs/development/stage-departure-modifier-verification.md)。
-
-补齐 `PL!HS-pb1-009:1` 花帆中心观察者：已触发后因普通替换离场，仍处理能力并计次数，
-但不把本次自身 Blade 加成给控室或重新登场的同一卡牌。旧 Replay 不变，非重叠对象追踪仍待审计。
-[中文状态 / 限制 / AI 验证](./docs/development/overlap-source-modifier-verification.md)。
-
-新建对局修正 `PL!N-pb1-012` 鐘嵐珠普通替换离场后漏补 Wait Energy 的问题，
-包含重叠整理返还附属 Energy 后再补入的边界；无牌可补时明确显示结果。旧 Replay 与登记率不变。
-[中文状态 / AI / UI 验证报告](./docs/development/overlap-energy-observer-verification.md)。
-
-新建对局可选择多个待机技能的结算顺序，统一 AP / NAP 优先级并禁止打断已开始的多步处理。
-旧 Replay 不变；这不代表完整规则调度已经完成，技能登记率不变。
-[中文顺序 / 状态 / AI 验证报告](./docs/development/pending-effect-order-verification.md)。
-
-新建对局修正 `PL!N-pb1-005` 宮下愛被 cost10 Member 普通替换时漏抽1的问题；
-Baton 中先作为费用离场的对照不抽。旧 Replay 保留原行为，复杂重叠仍待审计。
-[中文状态与兼容性报告](./docs/development/overlap-entry-observer-verification.md)。
-
-受控效果登場底座已支持按条件筛选非公开手牌时明确选零张：费用不退回，旧快照与公开必选目标不变。
-这是未登记的底座能力，不代表六张待审卡已经自动适配；复杂重叠仍未完成。
-[中文截图与状态验证](./docs/development/private-hand-choice-verification.md)。
-
-修复 `PL!SP-bp5-111:2` / `PL!SP-pb2-010:1` 将 Energy 返回牌库后无法读取保存状态的问题。
-旧坏快照不自动改写：返回明确错误，停止前端重试并提示新建对局，不提升技能登记率。
-[中文状态 / API / Replay 验证报告](./docs/development/energy-return-replay-verification.md)。
-
-持续开发统一使用 `codex/continuous-development` 和固定工作树，自动接续任务、验证并更新
-同一个 Draft PR。入口见[持续开发指南](./docs/21-continuous-development.md)与
-[执行流程](./automation/WORKFLOW.md)；合并和部署仍需维护者确认。
-
-已准备 [Codex Cloud 交接入口](./docs/development/codex-cloud-handoff.md)：提供 Linux 初始化、
-可移植任务检查点和单写者预检。当前仍由本机执行，云端切换、定时接续及同一 PR 更新待实测；
-不复制认证信息，也不迁移或部署生产对战服务。
-
-已从旧工作树迁移综合规则 ver.1.06 的只读 Profile 与 49 条规则引用；未审核 FAQ 不生效。
-对局 / Replay 接入和规则矩阵仍在后续队列，来源校验不代表 v0.9 规则门禁完成。
-详见[迁移范围与限制](./docs/22-ruleset-source-profile-migration.md)。
-
-Deck Builder 详情中主动选择的卡面不会再被后台数据更新重置；打开其他卡牌时重新初始化印刷版。
-
-API Play 测试工具已隔离对手背面卡与他方私有选择，区分 mock / 真实模型，默认不保存输入样本。
-这属于测试底座改进，不计入技能可执行覆盖率。
-
-新增 `PL!-bp5-003:2` 起动能力的结构化处理：根据实际弃牌决定查看 4 张选 2 张，或回收
-控室 Live。待查看卡不向对手画面 / AI 暴露，费用选择与后续选择之间会重置 UI。
-[中文验证记录](./docs/development/cost-result-branch-verification.md)
-
-`PL!-PR-015` / `PL!SP-PR-020` 仅在确实从较低费用 Member Baton 入场时显示手动技能提示。
-两张卡仍为手动处理，暂不把不完整的区域 / 朝向选择登记为自动支持。
-[中文审计报告](./docs/development/baton-hand-deploy-audit.md)
-已逐项复核 10 条旧效果登场：6 条明确空区域的技能改为 Active 登场并支持位置选择；
-4 条不限定空区域的虹咲技能退回手动处理，等待合法替换区域底座。旧 Replay 朝向不变。
-[本轮验证及限制](./docs/development/empty-effect-deployment-verification.md)。登记率不代表规则正确率。
-
-新建对局的本回合登场区域限制现按 Member 卡的当前位置判断：Position / Formation Change 后，
-限制不会错误地留在旧区域；本回合从 Stage 外放入下方的 Member 卡也会随组追踪。
-旧 Replay 保留原行为；本轮不提升技能登记率。[验证记录](./docs/development/member-entry-area-history-verification.md)
-
-修正 `PL!-bp6-003:2` 从下方移到空区域时额外触发登場能力、增加次数的问题。新技能快照区分
-Area 内转移与外部登場，旧 Replay 保留原结果；结算面板显示中文 / 日文说明。
-[状态验证及后续缺口](./docs/development/attachment-promotion-verification.md)，不增加虚假覆盖率。
-
-修正 `PL!-pb1-018:1` 双方控室登場漏触发能力的问题：双方先选卡与空区域，再同时 Wait 登場，
-父技能结束后处理触发效果。补齐多人选卡 / 区域 UI，保留旧 Replay 结果。
-[中文状态验证报告](./docs/development/multi-player-entry-verification.md)，本轮不增加登记率。
-
-已有 Member 区域的效果登場已增加受控执行底座，但复杂重叠触发和私有手牌选择仍未完成；
-两张 PR 卡及四张虹咲卡继续手动处理，不增加登记率。
-[本轮验证范围与新发现的 Replay 缺口](./docs/development/occupied-deployment-foundation.md)已记录。
-
-`develop`（下一版 `v0.9`）当前已收录:
-
-- 基于官方 `card_list` JSON API 的正式卡牌 importer
-- 避免 `＋` / `+` 混用的卡号正规化
-- SQLite Schema v2 本地卡牌数据库
-- 带本地保存能力的 Deck Builder
-- 基于 `decklist.v0` 的 Deck Analyzer
-- FastAPI + React SPA 可视化规则验证器
-- 可回放的 Action-only GameState
-- 包含 2026-10-24 发售的 `CLLS01`，以及 `PBLL02` / `BP07` / `NSD02` 的锁版本卡牌数据库
-  - 1,977 条 Gameplay Card / 2,700 个印刷版本 / 1,246 条文本修订 / 24 个 Card Set
-  - importer 优先使用官方 products API，不会把尚未公开卡表的未来商品或 unit filter 误当成卡包
-- 1,212 条 effect registry entry
-  - 900 条（74.26%）为 `test_validated_executable`
-  - 312 条为 timing prompt / 未支持处理用 `manual_resolution`
-  - 新卡包中发现的未支持技能也会显式登记为 manual，避免静默跳过
-- 面向未来低成本 online 同步的 state hash / compatibility metadata 基础
-- Hosted Online MVP 房间 API
-  - 通过 room code 创建 / 加入房间
-  - 使用 HTTP polling 同步状态
-  - 服务端复用 Python Rule Engine
-  - 临时 room 默认 24 小时过期
-  - server 预计每天 JST 04:00 自动重启并整理 runtime cache
-- 锁版本权威卡牌 SQLite
-  - CI、Docker 和 Pages data export 使用仓库内 `data/loveca.sqlite3`
-  - `data/loveca-db-manifest.json` 记录 DB / effect registry 指纹
-- GitHub Pages browser preview 用静态 SPA 发布 workflow
-  - preview data package 只包含解析后的卡牌 / 技能数据
-  - 不打包卡图文件，牌面图片走官方 `image_url`
-  - 首次启动时在 browser localStorage 中生成 5 个合法的 `decklist.v0` preview sample deck
-  - 支持 decklist.v0 JSON 导入 / 导出
-
-当前开发主线:
-
-- Roadmap 当前让 Phase 5 进入维护，同时推进 Phase 6 官方规则符合性与结构化技能准确度。
-- Phase 1 / 2 / 3 已基本实现，进入维护和改善阶段。
-- Phase 4 的 Human-vs-Human 验证器和 Phase 7 的 UI 已提前完成大部分。
-- Phase 9 / 10 的低成本 online 验证会和 Phase 5 并行提前推进。
-- Simple AI v1.1 已可在 local / Hosted FastAPI 中使用，会基于 Rule Engine 的评估值对 Member、Live 和结构化技能进行 deterministic 评分；旧 Replay 仍保留 v0 / v1 policy。MCTS、Monte Carlo、学习型 AI 和胜率引擎不在本轮范围。
-- 新增可选实验策略 `simple_ai_v1_2`：没有 Live 时最多设置3张富余 Member 换牌，保留2张。同一20套牌的50局平均7.64→5.94回合，前10局全部在10回合内结束且双方有成功Live；默认仍为v1.1。[规则依据、完整结果与限制](docs/development/ai-live-cycle-verification.md)
-- 旧30套牌现可冻结导入并做同池比较：50局、相同260步上限，旧heuristic完成34局、v1.1完成42局、v1.2完成48局。v1.2仍有3次未支持能力的显式skip，不等于全规则合规。[冻结牌组验证报告](docs/development/ai-frozen-pool-verification.md)
-
-当前规则验证器已覆盖:
-
-- 先后攻、起手、调度、初始 Energy
-- Member 登场、满位替换、`バトンタッチ`
-- Live Set、等量补抽、Live 公开、应援
-- Heart 分配、部分特殊 Blade Heart 自动处理
-- 成功 Live 移动、下一回合先攻判定、3 张成功 Live 胜负
-- 少量技能支持包含手牌 / Energy / Stage Member / Heart 颜色 / 牌堆顶检查的限定结构化 prompt
-- 部分双方都需要选择的效果已可通过 multi-player pending choice 顺序处理
-- 支持把 Stage Member 目标拆成多个选择组，并对各组选中目标应用相同的临时 modifier
-- 支持每个分支使用不同 Stage Member 候选池的技能选择
-- 按 registry entry 计算的 `test_validated_executable` 覆盖率为 74.26%（900 / 1,212）。未适配新技能和审计发现不准确的旧登场效果均明确标为 manual，不靠错误登记维持数字
-- `PBSP02` 相关技能 74 条中 63 条已结构化，新补充包覆盖率确认达到 85.14%
-- 追加结构化支持 μ's / Aqours / Saint Snow / Nijigasaki / Hasunosora / Edel Note 的部分控室回收、Energy ready、牌堆顶检查、应援公开条件和带手牌成本的 Live 开始时效果
-- static Heart / Blade 等常时效果现在只会在 operation 侧条件满足时计入
-- `PBSP02` 集中 block sandbox 为 `30 decks x 20 matches` 中 19 局完走，`mandatory_manual_resolution = 0`，剩余 1 局为 `max_actions:match_point_players_have_no_live_in_hand`
-- Phase 5 broad black-box sandbox 已在 `30 decks x 100 matches` block mode 中达到 `100/100` 完走，blocker 为 0
-- 最新 skill-dense Simple AI regression 为 `30 decks x 100 matches` 100/100 完赛，blocker / silent skip / Replay error 均为 0
-- 之前问题卡 targeted sandbox 中的 `PL!S-bp6-001:1` / `PL!S-pb1-001:1` 已完成结构化；剩余 312 条未支持技能通过 gap report 记录原因
-- 已结构化 `LL-bp5-002:1`：Stage 上存在 3 名不同组合的 Member 时，中心 Member 获得持续到本次 Live 结束的任意色 Heart
-- 2026-10 全量同步后，基于官方综合规则 ver.1.06 的 AI 逐 Action 审计为 20/20 完赛，13/20 满足“10 回合内且双方至少各成功一次 Live”；共 13,539 条检查，Replay error / effect-error skip 均为 0
-- 最新 30 deck / 50 match black-box run 中 executable effect 为 314/314、skipped effect 为 0、Replay error 为 0；34 局完赛，剩余 16 局因 Live 获取或长局策略达到 action cap，作为 AI 策略问题而非非法规则操作追踪
-- Live 判定另有 9 个固定边界门禁，分别审计 Live 成功、本轮胜者、Match Point 时的成功 Live 移动资格及最终胜负
-- 触发时条件满足的 pending effect 如果在同一时点中被其他效果改变条件导致失效，会记录明确的 `effect_not_activatable` event 并继续推进
-- 公开并加入手牌的效果会在对手侧履历中保留公开卡名，方便联机复盘
-- 现在提供 60 个日文 / 中文人类可读技能验证场景，其中 21 个会实际验证 GameState 状态变化
-- Simple AI v1.1 / v1 的 200 局镜像 benchmark 为 200/200 完赛、v1.1 积分率 54%、平均 8.38 回合、P95 14 回合、单次决策 P95 6.975 ms、illegal action / Replay error 均为 0；19 次未支持技能均显式记录为 skip，没有静默处理，55% 强度目标尚未达到
-- 使用 `amount_source=selected_count` 的效果已支持按选中张数抽牌
-- `PL!HS-bp6-006` 已结构化支持手牌中 cost reduction、非みらくらぱーく！Baton replacement 限制、Live 成功时 Wait + 下一 Active Phase 不转 Active
-- `PL!HS-bp6-014:1` 等从手牌发动的效果，在没有目标 Stage Member 时也会处理成本和抽牌，只把目标 modifier 空结算
-- 两段式技能会在进入后续选择时记录 `effect_choice_started` event，方便 UI、Replay 和 sandbox report 确认当前是在等待技能后续选择
-- local / Hosted FastAPI 可以把 Player 2 设为 `simple_ai` 创建对电脑战。AI 只从 LegalAction 中选择，并在 event / replay 中记录选择理由
-- Simple AI 验收已使用 20 套牌完成 Human-vs-AI 20 局 + AI-vs-AI 20 局，结果为 `40/40` 完整结束、blocker 0、Replay error 0
-- 电脑无法安全处理操作或达到连续 action 上限时，会把来源卡、技能时点等信息作为 `ai_blocked` event 写入 runtime 与 Replay，UI 可引导到当前可处理操作
-- 暂不能自动执行的技能通过 `ManualAdjustmentAction` 补充
-- 无法处理的技能可以用调试用 `effect_skipped_due_to_error` 显式记录后跳过
-
-Deck Builder 当前状态:
-
-- 创建、读取、更新、删除本地保存牌组
-- 画面内折叠式 manual 可说明搜索、加入牌组、构筑条件、分析、保存、分享和进入对战的流程
-- 按 `Member` / `Live` / `Energy` 分区显示已组牌组
-- 检查 `Member 48` / `Live 12` / `Energy 12` 的构筑数量
-- 按作品、组合、Heart 颜色、Blade、Live 所需 Heart、Score、Blade Heart 筛选
-- 在卡牌详情弹窗中选择印刷版本并确认卡图
-- 通过 dashboard 查看 cost、Heart、score、特殊 Blade Heart 与技能时点统计
-
-当前还没有:
-
-- 全卡技能自动执行
-- 面向全量卡池的完整技能提示覆盖
-- 强 AI、Monte Carlo、胜率引擎
-- Simple AI 当前是优先保证合法性和流程推进的 deterministic policy，不保证对战强度或最优操作
-- 正式在线运营、账户、用户同步和严格防作弊
-- GitHub Pages preview 在打包解析后 data package 时，已经可以不依赖 FastAPI 浏览卡库、使用浏览器本地 deck 保存，并执行 MVP deck 分析。对战只有在 `runtime-config.json` 的 `apiBaseUrl` 指向 Hosted FastAPI 时可用。
+- 卡牌目录、Deck Builder、牌组导入导出与基础分析可用。
+- 规则验证器支持 Member 登场、Baton、Live 判定、结构化技能选择、人工调整与 Replay。
+- 本地和 Hosted API 支持人机对局；默认 Simple AI v1.1，v1.2 是可选实验策略，不保证最优策略或全卡自动化。
+- Hosted Online 提供房间码联机；纯静态 Browser Preview 提供卡库和组牌，对战需要配置 Hosted API。
+- 未支持或规则依据不足的能力保持人工处理。原型通过、登记为可执行、完整对局验收和正式发布是不同状态，不能互相替代。
+
+当前任务、规则边界、逐卡证据及发布状态的查阅方法统一放在[文档导航](./docs/README.md)；
+逐轮变化只记入[变更记录](./CHANGELOG.md)，不再把历史测试数或旧 PR 状态累加到本页。
 
 ## 反馈与约战
 
@@ -375,7 +24,7 @@ Bug 报告、规则行为讨论和 online 对战伙伴寻找请前往 [Discord](
 
 - 这是开发中的 alpha 版本，不是官方数字客户端。当前目标是规则验证和收集 playtest feedback。
 - 还没有覆盖全卡技能自动执行。未支持技能可能需要 `ManualAdjustmentAction`、结构化 pending choice，或用调试 skip 继续推进。
-- 当前明确保留 312 条 `manual_resolution`；未在测试池触发或语义复杂的技能仍需人工处理，最新分类见 `docs/13-effect-semantics-audit.md` 与 `TODO.md`。
+- 未支持能力保持 `manual_resolution`；当前登记以锁定 registry 为准，语义限制见[专题证据导航](./docs/development/README.md)。测试或登记数量不等于完整规则覆盖率。
 - `BP07` 的 `無2` 特殊 Blade Heart 无法仅凭综合规则 ver.1.06 确定语义，因此不会猜测实现，当前保持未支持状态。
 - 依赖 FAQ 或个别裁定的效果尚未规格化。
 - `data/loveca.sqlite3` 是仓库内锁版本权威卡牌 DB。官方补充包或 parser/schema/effect registry 变化后，由维护者重建并提交新的 DB 与 `data/loveca-db-manifest.json`；普通用户和 CI 不应自行 import 产生不同线上 DB。保存牌组是 `decklist.v0` 用户数据，可以和卡牌数据库分开保留。
@@ -511,33 +160,16 @@ bun .codex/tools/aidlc-utility.ts doctor
 
 ### 本地启动
 
-1. 初始化卡牌数据库。
+使用仓库已提交的锁定卡库，不需要重新抓取官网或删除 SQLite。
+卡库更新、增量导入和重建由维护者按[数据库更新指南](./docs/14-database-migration-and-update-guide.md)执行。
+
+1. 校验锁定数据。
 
 ```powershell
-loveca cards init --database data/loveca.sqlite3
+python scripts/card-db-manifest.py verify
 ```
 
-版本更新后如果 importer / parser / schema 有变化，请先备份或删除旧的 `data/loveca.sqlite3`，再按本流程重建卡牌数据库。继续使用旧 DB 可能导致卡号、图片、effect registry 或 online compatibility fingerprint 不一致。
-
-2. 从官网抓取卡牌并生成本地规范化产物。
-
-```powershell
-loveca cards import-official `
-  --output-root data/imports/official `
-  --delay 1
-```
-
-3. 将规范化产物导入 SQLite。
-
-```powershell
-loveca cards import `
-  --database data/loveca.sqlite3 `
-  --input data/imports/official/normalized/cards-official.json `
-  --normalization data_sources/card-entity-normalization.json `
-  --report logs/import-full.md
-```
-
-4. 构建前端。
+2. 构建前端。
 
 ```powershell
 cd web
@@ -545,7 +177,7 @@ npm run build
 cd ..
 ```
 
-5. 如需牌面图片，先缓存官方图片。
+3. 如需牌面图片，先缓存官方图片。
 
 ```powershell
 loveca cards cache-images `
@@ -554,7 +186,7 @@ loveca cards cache-images `
   --delay 1
 ```
 
-6. 启动 Web UI。
+4. 启动 Web UI。
 
 ```powershell
 loveca web serve `
@@ -600,26 +232,14 @@ curl http://127.0.0.1:8765/api/health
 
 正式低成本部署推荐使用 Cloudflare Worker `workers.dev` 作为稳定 API gateway，VPS 上用 Caddy 暴露由 secret 管理的 origin hostname 的 `/api/*`，并反代到 `127.0.0.1:8765`。
 
-GitHub Actions：
+远程发布须另行批准，feature push 和 Draft PR 不等于上线。
+[API 镜像工作流](./.github/workflows/api-image.yml)在 PR 中只验证构建，手动运行可以推送镜像；
+[API 部署工作流](./.github/workflows/deploy-api.yml)在 develop 上匹配路径的 push 或手动执行时会部署。
+合并前必须检查触发条件，并取得合并及部署授权。
 
-- `.github/workflows/api-image.yml` 会构建 Docker image。
-- Pull Request 只做 build 验证。
-- `api-image.yml` 在 push 到 `develop` / `preview` 或手动执行时，会推送 GHCR 镜像 `ghcr.io/smaillion/loveca-simulator-api`。
-- `.github/workflows/deploy-api.yml` 在 push 到 `develop` 或手动执行时，会构建 / 推送 GHCR image，并通过 SSH 更新 VPS 上的 compose service。
-- `.github/workflows/deploy-worker.yml` 在 `develop` / `preview` 的 Worker 相关文件变更或手动执行时，会更新 Cloudflare Worker gateway。
-- `.github/workflows/pages-preview.yml` 在 push 到 `preview` 或手动执行时发布 GitHub Pages preview。
-- 当前阶段 push 到 `main` 不触发自动 publish / deploy。接近生产的 release promotion 必须由 maintainer 明确手动执行 workflow，或走专门 release 流程。
-
-部署需要的 GitHub Secrets：
-
-- `DEPLOY_HOST`
-- `DEPLOY_USER`
-- `DEPLOY_SSH_KEY`
-- `DEPLOY_PATH`
-- `API_BASE_URL`
-- `LOVECA_ALLOWED_ORIGINS`
-
-如果 GitHub Pages 要连接 Hosted API，请在 repository variable `VITE_PUBLIC_API_BASE_URL` 中设置 Cloudflare Worker URL。
+配置与运维统一查[联机方案](./docs/16-low-cost-online-battle-plan.md)、
+[Preview 发布说明](./docs/17-browser-only-preview-and-pages-release.md)和[发布检查表](./docs/18-hosted-online-smoke-checklist.md)；
+实际所需 Secrets/Variables 以对应工作流为准，README 不另维护一份清单。
 
 ### 常用命令
 
