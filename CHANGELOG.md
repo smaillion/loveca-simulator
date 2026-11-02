@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 次ターンの先攻決定と実際のターン開始、選択待ち、SQL Replay、4種AIの回帰検証を追加。ゲーム処理は変更しない。
+- 中文：补充下一回合先攻的26项状态与契约验证，区分实际成功Live移动与Live成功；不计作完整结束循环验收。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
 - 新規対戦で最後の1枚を引いた直後のリフレッシュを修正。過去の対戦は従来のReplayを維持。
 - 中文：修复新对局抽牌取空牌库后延迟刷新的问题，保留旧对局回放；不扩展为所有移牌与刷新路径已验证。[验证](./docs/development/live-boundary-matrix-verification.md)。
 
