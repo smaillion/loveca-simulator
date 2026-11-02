@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 初期手札の引き直し順序、0～6枚の移動、初期エネルギー、SQL Replayと4種AIの回帰検証を追加。ゲーム処理は変更しない。
+- 中文：补充开局换牌的34项状态与契约验证，检查先补抽后洗回和双方完成后的能量交接；不计作完整核心矩阵验收。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
 - 次ターンの先攻決定と実際のターン開始、選択待ち、SQL Replay、4種AIの回帰検証を追加。ゲーム処理は変更しない。
 - 中文：补充下一回合先攻的26项状态与契约验证，区分实际成功Live移动与Live成功；不计作完整结束循环验收。[验证](./docs/development/live-boundary-matrix-verification.md)。
 
