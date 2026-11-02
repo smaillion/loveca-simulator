@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 新規対戦では勝利チェックを期限終了処理より先に行い、過去の対戦のReplayを維持。
+- 中文：修正新对局终局前提前清除Live期限补正的问题，旧对局回放不变；完整结束阶段循环仍待完成。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
 - Live成功順序の監査結果と中国語説明を統一。ゲームの判定基準は変更しない。
 - 中文：修正Live成功顺序审计中通过/失败与说明矛盾的问题，新增8项工程回归，不增加规则场景覆盖。[验证](./docs/development/live-boundary-matrix-verification.md)。
 

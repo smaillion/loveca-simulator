@@ -12290,10 +12290,6 @@ def _complete_live_judgment(
                     _forget_yell_object(player, instance_id)
                 zone.remove(instance_id)
                 player.waiting_room.append(instance_id)
-    for player_id in state.players:
-        _expire_modifiers(state, player_id, "live", events)
-    state.pending_choice = None
-    state.active_player_id = None
     success_counts = {
         player_id: len(player.success_live_area)
         for player_id, player in state.players.items()
@@ -12301,6 +12297,16 @@ def _complete_live_judgment(
     threshold_players = [
         player_id for player_id, count in success_counts.items() if count >= 3
     ]
+    # 8.4.9/10.3 end the game before 8.4.11 expiry. Legacy snapshots keep their event order.
+    terminal_before_expiry = (
+        getattr(state, "victory_check_policy", None) == "before_end_expiry_v1"
+        and bool(threshold_players)
+    )
+    if not terminal_before_expiry:
+        for player_id in state.players:
+            _expire_modifiers(state, player_id, "live", events)
+    state.pending_choice = None
+    state.active_player_id = None
     if len(threshold_players) == 2:
         state.game_result = GameResult(
             outcome="draw",
