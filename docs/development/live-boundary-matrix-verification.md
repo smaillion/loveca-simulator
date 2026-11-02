@@ -1,5 +1,35 @@
 # Live得分与成功区移动：20项实现回归
 
+## 2026-11-03 核心矩阵证据读取基础
+
+旧核心矩阵读取器只检查failure/error，skipped被当作通过；重复节点覆盖前一次结果，
+pytest非零退出未参与判定。隔离旧函数的三组构造XML/退出码证据均复现误通过，旧文件
+未修改。新`tools/development/pytest_evidence.py`将此验收工具能力迁入当前开发目录。
+
+- 输入是相对pytest根目录的**精确已收集实例**列表、JUnit报告及同次执行的退出码；
+  不以函数名前缀匹配参数实例，保留测试类、参数中的点和`::`，拒绝重复或歧义身份。
+- 只有退出0、所有预期节点恰好报告一次且通过、无意外节点或报告结构问题时才通过。
+  缺文件、无报告、跳过/xfail、失败、错误、重复、套件计数不一致、未运行状态、
+  集合错误及不支持的结构全部拒绝；附带报告SHA-256而不覆盖原始输入。
+- 输出仅为pytest证据判定，不生成核心规则通过数，不合并38行为候选、18工程契约、
+  2隐私契约或20项Live回归。精确规则引用、实际状态断言和人工审查仍需单独关联。
+- 调用方必须证明报告与退出码来自同一次执行，并核对源码和时间；读取器不能证明
+  调用方提供的数据新鲜或真实。使用pytest不同rootdir时应重新收集对应的完整节点，
+  不能靠宽松后缀匹配跨根目录报告。它不是自动生成75核心矩阵的完整运行器。
+- 56项工程测试包括真实pytest pass/skip/xfail、测试类/参数实例和CLI；初轮3项集成
+  失败来自临时夹具继承仓库根目录，显式固定rootdir后重新验证，未放宽身份匹配。
+  历史开局34项报告也以未变的测试源码独立收集节点核对，只验证读取器，不冒称新对局。
+- 复现、专项、完整门禁与审查记录见
+  `logs/end-phase-planning-20261102/pytest-evidence-review/final-acceptance.md`。
+  应用/卡库/registry不变，无新UI或规则运行行为，不重冻牌组，不增加reviewed。
+  父任务仍in_progress；正式矩阵关联和结束阶段续接尚未完成。
+
+调用示例（expected.json须为完整节点字符串数组，returncode须来自同一次真实pytest）：
+
+```powershell
+python -m tools.development.pytest_evidence --junit run.xml --expected expected.json --returncode 0 --output evidence.json
+```
+
 ## 2026-11-03 开局换牌的核心候选复核
 
 从旧`test_setup_phase_order_and_next_turn_start`候选拆出开局换牌，按固定PDF 1.06
