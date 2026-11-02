@@ -482,6 +482,10 @@ def _advance_phase(
 ) -> None:
     if action.player_id not in {None, state.active_player_id}:
         raise IllegalActionError("advance_phase belongs to the active player")
+    if (state.live_choice_guard_policy == "require_resolution_v1"
+            and state.pending_choice is not None
+            and state.pending_choice.choice_type in {"live_requirements", "success_live"}):
+        raise IllegalActionError("a pending Live choice must be resolved before advancing")
     transitions = {
         "first_active": "first_energy",
         "first_energy": "first_draw",

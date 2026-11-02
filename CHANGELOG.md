@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 新規対戦ではLive選択待ちのフェイズ再進行を拒否し、エールの二重実行を防止。旧Replayの動作は維持。
+- 中文：修复Live选择暂停时直接推进导致重复应援的问题，新增特殊Blade Heart及兼容验证；仅新对局启用。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
 - 基本Performance/Yellの公開・移動・ActiveのみのBlade・全メンバーのHeartを実状態と4種AIで検証。特殊アイコンや全チェックタイミングは対象外。
 - 中文：补充基础Performance/Yell的46项状态与契约验证，接入限定矩阵；不改变引擎或扩大正式规则完成声明。[验证](./docs/development/live-boundary-matrix-verification.md)。
 
