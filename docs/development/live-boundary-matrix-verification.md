@@ -1,5 +1,22 @@
 # Live得分与成功区移动：20项实现回归
 
+## 2026-11-02 审计说明与判定一致性修复
+
+`live_success_before_score_comparison` 的 verdict 与 evidence 使用先后手顺序，
+但中文说明曾比较处理中间列表。当同一 Action 的 Heart 判定事件补入先攻玩家时，
+中间列表可能先有后攻、后有先攻，导致 pass 显示失败说明；反序输入则 fail 显示成功说明。
+本批用构造的状态和事件复现这两种矛盾，统一使用既有顺序比较结果，不改变判定标准。
+
+- 新增8项工程回归：交换先攻身份，验证正序、逆序、缺失和重复名单；断言说明、
+  verdict、evidence、JSON序列化一致，且不修改输入状态和事件。
+- 红测试为4失败/4通过，修复后与已有Live审计组合48项通过。
+- 构造事件用于审计函数的防御性检查，不声明该组合来自真实引擎对局；不增加20项Live
+  行为矩阵或75项核心行为的完成数，不是新卡规则或官方裁定证据。
+- 引擎、SQL/Replay、registry、AI决策和前端不变，不重新冻结30套牌或宣称策略改善。
+  完整门禁使用control/registry/backend；未重跑web，最终同源码结果另存
+  `logs/live-success-audit-summary-20261102/final-acceptance.md`。
+- 仅本地提交。PR55已合并，其发布许可不复用，后续发布仍需批准。
+
 ## 本轮结论
 
 在同一 `codex/continuous-development` / Draft PR #54 选择性迁移旧Live矩阵，

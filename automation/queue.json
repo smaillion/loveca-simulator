@@ -2,6 +2,20 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "live-success-audit-summary-order",
+      "priority": 0,
+      "title": "统一Live成功顺序审计的判定与中文说明",
+      "status": "queued",
+      "depends_on": ["live-judgment-boundary-matrix-expansion"],
+      "required_profiles": ["control", "registry", "backend"],
+      "acceptance": [
+        "先用同一Action的Heart判定事件补入先攻玩家的构造输入复现pass配失败说明和fail配成功说明，不称为真实完整对局或新的规则裁定",
+        "说明与既有verdict及evidence统一按先后手顺序比较；覆盖双方先攻身份、正序/逆序/缺失/重复成功名单、输入不变和JSON报告序列化，不改变既有判定或引擎",
+        "续写既有Live矩阵报告及双语CHANGELOG，checkpoint后完整control/registry/backend与pre-push通过；不改UI、registry、SQL或AI策略，不重冻牌组或宣称75场景父任务完成",
+        "仅固定分支本地提交，不push、不新建PR、不复用PR55合并部署许可，旧现场及ignored证据保留"
+      ]
+    },
+    {
       "id": "start-screen-runtime-mode-label",
       "priority": 0,
       "title": "修正首页正式运行环境的本地误标",

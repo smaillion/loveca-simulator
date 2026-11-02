@@ -652,13 +652,14 @@ def _event_conformance_checks(
                 if player_id in expected
             ]
             actual = list(event.data.get("successful_player_ids", []))
+            success_order_matches = actual == ordered_players
             checks.append(
                 RuleCheck(
                     check_id="live_success_before_score_comparison",
-                    verdict="pass" if actual == ordered_players else "fail",
+                    verdict="pass" if success_order_matches else "fail",
                     summary_zh=(
                         "在比较总分前，按 Live 区是否仍有卡确定 Live 成功玩家。"
-                        if actual == expected
+                        if success_order_matches
                         else "Live 成功玩家与 Heart 判定后的 Live 区不一致。"
                     ),
                     rule_refs=("8.4.4", "8.4.5"),

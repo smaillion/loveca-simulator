@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- Live成功順序の監査結果と中国語説明を統一。ゲームの判定基準は変更しない。
+- 中文：修正Live成功顺序审计中通过/失败与说明矛盾的问题，新增8项工程回归，不增加规则场景覆盖。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
 - 開始画面の環境表示を実行設定に合わせ、Hosted Online をローカルと誤表示しないよう修正。
 - 中文：修正首页运行环境误标，按配置区分正式模式、预览模式和浏览器预览；不改变 API 路由或对局权限。[运行说明](./docs/17-browser-only-preview-and-pages-release.md)。
 
