@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from loveca.simulation.ai import SimpleAIController, SimpleAIDecision, SimpleAIPolicy
 from loveca.cards.importer import import_normalized_cards
 from loveca.decks.analyzer import load_deck, parse_deck
 from loveca.simulation.engine import (
@@ -16,12 +17,14 @@ from loveca.simulation.engine import (
     generate_legal_actions,
 )
 from loveca.simulation.models import ActionRequest, MatchState
+from loveca.simulation.online import match_state_hash
 from loveca.simulation.runtime import (
     MatchRepository,
     RuntimeSchemaError,
     initialize_runtime_database,
 )
 from loveca.simulation.service import MatchService
+from loveca.webapp import _match_state_payload
 
 # Official comprehensive rules ver. 1.06:
 # 6.2.1.5 opening hand 6; 6.2.1.6 mulligan; 6.2.1.7 initial Energy 3;
@@ -1392,6 +1395,128 @@ def test_live_set_draws_exactly_the_number_of_set_cards(tmp_path):
     drawn = next(event for event in result.events if event.event_type == "cards_drawn")
     assert drawn.data["reason"] == "live_set_replacement"
     assert len(drawn.data["instance_ids"]) == 3
+
+
+@pytest.mark.parametrize("owner", ["player_1", "player_2"])
+@pytest.mark.parametrize("count", range(4))
+def test_live_set_exact_zones_draw_order_privacy_and_sql_replay(tmp_path, owner, count):
+    # CR 1.06 8.2.2/8.2.4: any hand cards, face down, then draw the same count.
+    service, match_id, state = _live_set_for_owner(tmp_path, owner)
+    player = state.players[owner]
+    other = next(key for key in state.players if key != owner)
+    member = next(item for item in player.hand if state.cards[item].card.card_type == "member")
+    selected = ([member] + [item for item in player.hand if item != member])[:count]
+    expected_draw = player.main_deck[:count]
+    expected_hand = [item for item in player.hand if item not in selected] + expected_draw
+    before = match_state_hash(state)
+
+    result = service.apply(match_id, ActionRequest(
+        action_type="set_live_cards", player_id=owner, expected_revision=state.revision,
+        payload={"card_instance_ids": selected},
+    ))
+    after = result.state.players[owner]
+    assert after.live_area == selected
+    assert after.hand == expected_hand
+    assert after.main_deck == player.main_deck[count:]
+    assert result.state.players[other].model_dump() == state.players[other].model_dump()
+    assert all(not result.state.cards[item].face_up for item in selected)
+    assert result.state.phase == ("live_set_second" if owner == "player_1" else "performance_first")
+    assert result.state.active_player_id == other
+    drawn = [item for event in result.events if event.event_type == "cards_drawn"
+             for item in event.data["instance_ids"]]
+    assert drawn == expected_draw
+    assert all(event.data["reason"] == "live_set_replacement"
+               for event in result.events if event.event_type == "cards_drawn")
+    set_events = [event for event in result.events if event.event_type == "live_cards_set"]
+    assert len(set_events) == 1
+    assert set_events[0].player_id == owner
+    assert set_events[0].data == {"count": count, "replacement_draw_count": count}
+    replay = service.repository.replay(match_id)
+    assert replay["metadata"]["deterministic_replay_verified"] is True
+    assert replay["final_state"] == result.state.model_dump()
+
+    for viewer in (owner, other):
+        opponent = other if viewer == owner else owner
+        hidden = (result.state.players[opponent].hand
+                  + result.state.players[opponent].live_area
+                  + result.state.players[opponent].main_deck)
+        payload = _match_state_payload(result.state, events=result.events,
+                                       legal_actions=result.legal_actions, player_id=viewer)
+        encoded = json.dumps(payload)
+        assert all(item not in payload["state"]["cards"] for item in hidden)
+        assert all(json.dumps(item) not in encoded for item in hidden)
+        assert all(item in payload["state"]["cards"] for item in result.state.players[viewer].hand)
+    assert match_state_hash(state) == before
+    assert service.repository.get_state(match_id).model_dump() == result.state.model_dump()
+
+
+@pytest.mark.parametrize("owner", ["player_1", "player_2"])
+@pytest.mark.parametrize("invalid", ["four", "duplicate", "deck", "opponent"])
+def test_live_set_rejects_invalid_selection_without_sql_mutation(tmp_path, owner, invalid):
+    service, match_id, state = _live_set_for_owner(tmp_path, owner)
+    player = state.players[owner]
+    other = next(key for key in state.players if key != owner)
+    selected = {
+        "four": player.hand[:4],
+        "duplicate": [player.hand[0], player.hand[0]],
+        "deck": [player.main_deck[0]],
+        "opponent": [state.players[other].hand[0]],
+    }[invalid]
+    before = service.repository.replay(match_id)
+    with pytest.raises(IllegalActionError, match="Live set"):
+        service.apply(match_id, ActionRequest(
+            action_type="set_live_cards", player_id=owner, expected_revision=state.revision,
+            payload={"card_instance_ids": selected},
+        ))
+    assert service.repository.get_state(match_id).model_dump() == state.model_dump()
+    assert service.repository.replay(match_id) == before
+
+
+@pytest.mark.parametrize("owner", ["player_1", "player_2"])
+@pytest.mark.parametrize("policy", ["simple_ai_v0", "simple_ai_v1", "simple_ai_v1_1", "simple_ai_v1_2"])
+def test_live_set_four_ai_policies_choose_valid_private_hand_action(tmp_path, owner, policy):
+    service, match_id, state = _live_set_for_owner(tmp_path, owner)
+    legal = generate_legal_actions(state)
+    controller = SimpleAIController(SimpleAIPolicy(policy_version=policy, manual_effect_policy="block"))
+    before = match_state_hash(state)
+    decision = controller.choose_action(state, legal, controlled_player_ids={owner})
+    assert isinstance(decision, SimpleAIDecision)
+    assert decision.action.action_type == "set_live_cards"
+    assert decision.action.player_id == owner
+    selected = decision.action.payload["card_instance_ids"]
+    assert len(selected) <= 3 and len(set(selected)) == len(selected)
+    assert set(selected) <= set(state.players[owner].hand)
+
+    # Opponent hidden definitions must not affect the decision, even for legacy v0.
+    altered = state.model_copy(deep=True)
+    other = next(key for key in state.players if key != owner)
+    hidden = (altered.players[other].hand + altered.players[other].main_deck
+              + altered.players[other].live_area)
+    for item in hidden:
+        altered.cards[item].card = altered.cards[item].card.model_copy(update={
+            "name_ja": "UNSEEN", "score": 999, "cost": 999,
+        })
+    altered_before = match_state_hash(altered)
+    changed = controller.choose_action(altered, generate_legal_actions(altered), controlled_player_ids={owner})
+    assert isinstance(changed, SimpleAIDecision)
+    assert changed.action.model_dump() == decision.action.model_dump()
+    assert match_state_hash(altered) == altered_before
+    assert match_state_hash(state) == before
+    result = service.apply(match_id, decision.action)
+    replay = service.repository.replay(match_id)
+    assert replay["metadata"]["deterministic_replay_verified"] is True
+    assert replay["final_state"] == result.state.model_dump()
+
+
+def _live_set_for_owner(tmp_path, owner):
+    service, match_id = _create_match(tmp_path, seed=808)
+    state = _reach_live_set(service, match_id)
+    if owner == "player_2":
+        state = _apply(service, match_id, state, "set_live_cards", player_id="player_1",
+                       payload={"card_instance_ids": []})
+    assert state.active_player_id == owner
+    assert not state.pending_effects and state.pending_choice is None
+    return service, match_id, state
 
 
 def test_draw_refreshes_main_deck_deterministically_and_replays(tmp_path):

@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- Liveセットの両手番0～3枚、補充順序、非公開情報とSQL Replayの回帰検証を追加。ゲーム処理は変更しない。
+- 中文：补充双方Live设置的24项状态与契约验证；不将参数实例计作完整核心矩阵或新增规则支持。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
 - 新規対戦では勝利チェックを期限終了処理より先に行い、過去の対戦のReplayを維持。
 - 中文：修正新对局终局前提前清除Live期限补正的问题，旧对局回放不变；完整结束阶段循环仍待完成。[验证](./docs/development/live-boundary-matrix-verification.md)。
 
