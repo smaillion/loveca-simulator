@@ -745,6 +745,36 @@ describe("App", () => {
     );
   });
 
+  it.each([
+    { mode: "release", browserPreview: false, apiBaseUrl: "https://api.test", zh: "正式模式", ja: "正式モード" },
+    { mode: "release", browserPreview: false, apiBaseUrl: "", zh: "正式模式", ja: "正式モード" },
+    { mode: "preview", browserPreview: true, apiBaseUrl: "", zh: "浏览器预览", ja: "ブラウザプレビュー" },
+    { mode: "preview", browserPreview: false, apiBaseUrl: "https://api.test", zh: "预览模式", ja: "プレビューモード" },
+    { mode: "release", browserPreview: true, apiBaseUrl: "https://api.test", zh: "浏览器预览", ja: "ブラウザプレビュー" },
+  ])("labels the configured runtime mode without inventing a deployment host ($mode, $browserPreview, $apiBaseUrl)", async ({ mode, browserPreview, apiBaseUrl, zh, ja }) => {
+    resetRuntimeConfigForTests({
+      mode: mode === "release" ? "preview" : "release",
+      browserPreview: !browserPreview,
+      apiBaseUrl: "",
+      publicMatchHistory: false,
+      cardDatabaseFingerprint: "",
+    });
+    vi.stubGlobal("fetch", createFetchMock({
+      runtimeConfig: { mode, browserPreview, apiBaseUrl, publicMatchHistory: false, cardDatabaseFingerprint: "test" },
+    }));
+
+    const { container } = render(<App />);
+    expect(container.querySelector(".local-badge")).not.toHaveTextContent(zh);
+    await waitFor(() => expect(container.querySelector(".local-badge")).toHaveTextContent(zh));
+    expect(screen.queryByText(/127\.0\.0\.1/)).not.toBeInTheDocument();
+    expect(screen.getByText("可重放规则验证环境")).toBeInTheDocument();
+    expect(container.querySelector(".local-badge")).not.toHaveTextContent(/https?:/);
+
+    fireEvent.click(screen.getByRole("button", { name: "日本語" }));
+    expect(container.querySelector(".local-badge")).toHaveTextContent(ja);
+    expect(screen.getByText("リプレイ対応ルール検証環境")).toBeInTheDocument();
+  });
+
   it("does not request match history in browser preview without a hosted API", async () => {
     const fetchMock = createFetchMock({
       runtimeConfig: {

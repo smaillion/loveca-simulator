@@ -773,6 +773,7 @@ export default function App() {
           loading={loading}
           error={error}
           browserPreview={browserPreview}
+          runtimeMode={runtimeConfig.mode}
           hostedOnline={hostedOnline}
           publicMatchHistory={publicMatchHistory}
           matchCreationDisabled={browserPreview}
@@ -2624,6 +2625,7 @@ function StartScreen({
   loading,
   error,
   browserPreview,
+  runtimeMode,
   hostedOnline,
   publicMatchHistory,
   matchCreationDisabled,
@@ -2650,6 +2652,7 @@ function StartScreen({
   loading: boolean;
   error: string | null;
   browserPreview: boolean;
+  runtimeMode: RuntimeConfig["mode"];
   hostedOnline: boolean;
   publicMatchHistory: boolean;
   matchCreationDisabled: boolean;
@@ -2723,7 +2726,7 @@ function StartScreen({
           <Swords size={24} />
           <div>
             <strong>{tr("LoveCA 规则验证器", "LoveCA ルール検証ツール")}</strong>
-            <span>{tr("本地可重放规则调试环境", "ローカル・リプレイ対応ルール検証環境")}</span>
+            <span>{tr("可重放规则验证环境", "リプレイ対応ルール検証環境")}</span>
           </div>
         </div>
         <div className="start-actions">
@@ -2736,7 +2739,11 @@ function StartScreen({
             <HelpCircle size={18} />
           </button>
           <span className="local-badge">
-            {browserPreview ? tr("GitHub Pages · 预览", "GitHub Pages · プレビュー") : tr("127.0.0.1 · 本地", "127.0.0.1 · ローカル")}
+            {browserPreview
+              ? tr("浏览器预览", "ブラウザプレビュー")
+              : runtimeMode === "release"
+                ? tr("正式模式", "正式モード")
+                : tr("预览模式", "プレビューモード")}
           </span>
         </div>
       </header>

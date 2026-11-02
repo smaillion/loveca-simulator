@@ -2,6 +2,20 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "start-screen-runtime-mode-label",
+      "priority": 0,
+      "title": "修正首页正式运行环境的本地误标",
+      "status": "queued",
+      "depends_on": ["documentation-entrypoint-consolidation"],
+      "required_profiles": ["control", "registry", "web"],
+      "acceptance": [
+        "以PR55上线后公开页面仍显示127.0.0.1本地标签为复现依据，标签只描述已加载运行配置，不以browserPreview=false断言本地部署，也不声称健康或暴露API URL",
+        "覆盖远程API正式模式、同源正式模式、浏览器预览及非浏览器预览模式，中日文和异步配置更新均有回归；不改API路由、对局权限、运行配置格式、规则或registry",
+        "续写既有Pages运行说明及双语CHANGELOG，完整control/registry/web与pre-push通过，必要本地浏览器检查；不宣称新的backend或规则全量验收",
+        "仅固定分支本地提交，不push、不重用已合并PR55发布、不新建PR、不部署；旧dirty和ignored证据保留"
+      ]
+    },
+    {
       "id": "documentation-entrypoint-consolidation",
       "priority": 0,
       "title": "收敛双语README和开发文档入口",
