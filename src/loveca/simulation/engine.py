@@ -12281,6 +12281,12 @@ def _complete_live_judgment(
     state: MatchState,
     events: list[GameEvent],
 ) -> None:
+    _cleanup_live_judgment_zones(state)
+    _finish_live_judgment(state, events)
+
+
+def _cleanup_live_judgment_zones(state: MatchState) -> None:
+    """Perform the existing 8.4.8 moves once, after success-Live choices finish."""
     for player in state.players.values():
         for zone in (player.live_area, player.resolution_area):
             for instance_id in list(zone):
@@ -12290,6 +12296,10 @@ def _complete_live_judgment(
                     _forget_yell_object(player, instance_id)
                 zone.remove(instance_id)
                 player.waiting_room.append(instance_id)
+
+
+def _finish_live_judgment(state: MatchState, events: list[GameEvent]) -> None:
+    # Preserve the existing outcome/expiry order; this is not the 8.4.9-12 check loop.
     success_counts = {
         player_id: len(player.success_live_area)
         for player_id, player in state.players.items()

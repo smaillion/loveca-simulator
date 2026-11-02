@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- Live終了時の領域整理と完了処理を分離し、従来の状態・イベント・Replay互換性を検証。終了時誘発の追加ではない。
+- 中文：分离Live完成流程中的区域清理与完成出口，为后续续接准备；保持现有行为，不宣称结束阶段循环已实现。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
 - pytest証拠の厳密な読取を追加。skip、重複、欠落、異常終了を合格扱いせず、ルール承認数とは分離する。
 - 中文：迁移核心矩阵的严格证据读取基础，拒绝跳过、重复、缺失及非零退出造成的误通过；不改变游戏逻辑或规则完成统计。[验证](./docs/development/live-boundary-matrix-verification.md)。
 
