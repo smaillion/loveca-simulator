@@ -19,12 +19,12 @@ def _evidence():
     return {"passed": True, "results": [{"node_id": "tests/test_case.py::test_ok", "reported_status": "passed"}]}
 
 
-def test_catalog_has_four_scoped_rows_without_counting_contracts_as_rules():
+def test_catalog_has_scoped_rows_without_counting_contracts_as_rules():
     rows = matrix.catalog()
-    assert len(rows) == 4
-    assert len(matrix.matrix_nodes(rows)) == 118
-    assert sum(len(row.behavior_nodes) for row in rows) == 50
-    assert sum(len(row.contract_nodes) for row in rows) == 68
+    assert len(rows) == 5
+    assert len(matrix.matrix_nodes(rows)) == 162
+    assert sum(len(row.behavior_nodes) for row in rows) == 62
+    assert sum(len(row.contract_nodes) for row in rows) == 100
     assert all(row.exclusions and row.pages and row.rule_refs for row in rows)
     assert hashlib.sha256(Path(matrix.PDF_PATH).read_bytes()).hexdigest() == matrix.PDF_SHA256
 

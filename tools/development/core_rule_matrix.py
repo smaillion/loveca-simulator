@@ -41,6 +41,7 @@ def catalog() -> tuple[Row, ...]:
     normal = "test_normal_phase_boundary"
     live = "test_match_engine"
     next_turn = "test_next_first_player_boundary"
+    baton = "test_baton_payment_boundary"
     ai = [f"{policy}-{player}" for policy in POLICIES for player in PLAYERS]
     return (
         Row("opening-exchange", ("6.2.1.5", "6.2.1.6", "6.2.1.7"), (6,),
@@ -77,6 +78,14 @@ def catalog() -> tuple[Row, ...]:
             _nodes(next_turn, "test_rejected_next_turn_command_preserves_sql",
                    [f"{kind}-{p}" for kind in ("stale", "repeat") for p in PLAYERS])
             + _nodes(next_turn, "test_four_ai_policies_start_new_first_players_turn", ai)),
+        Row("baton-basic-payment", ("7.7.2.2", "9.6.2.1.2", "9.6.2.1.2.1", "9.6.2.3.1", "9.6.2.3.2", "9.6.2.3.2.1", "9.6.2.4.1", "5.9.1", "9.4.2"), (6, 7, 9, 10),
+            "Both seats, positive/zero cost difference, Active/Wait outgoing Member; exact payment, zones and SQL Replay.",
+            "Constructed no-ability cards; no attachments, cost modifiers, partial-payment ordering, departure triggers or complete games.",
+            _nodes(baton, "test_baton_cost_difference_exact_zones_energy_and_sql",
+                   [f"{orientation}-{cost}-{p}" for orientation in ("active", "wait") for cost in (5, 3, 2) for p in PLAYERS]),
+            _nodes(baton, "test_baton_invalid_payment_is_atomic_in_sql",
+                   [f"{kind}-{p}" for kind in ("short", "excess", "duplicate", "wait", "opponent_energy", "deck_energy", "zero_cost", "empty_area", "entered", "wrong_player", "stale", "repeat") for p in PLAYERS])
+            + _nodes(baton, "test_four_ai_baton_payment_ignores_hidden_cards_and_replays", ai)),
     )
 
 
