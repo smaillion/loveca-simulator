@@ -1249,6 +1249,20 @@
       ]
     },
     {
+      "id": "draw-depletion-immediate-refresh",
+      "priority": 0,
+      "title": "抽牌取空牌库后立即刷新并保留旧Replay",
+      "status": "queued",
+      "depends_on": ["legacy-ruleset-match-replay", "terminal-victory-before-expiry"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "依固定1.06总则10.2.1/10.2.2.1/10.2.3先证明抽走最后一张后未立即刷新的缺口；只修复逐张抽牌路径，不宣称公开、检索、磨牌或结束循环全部正确",
+        "新对局使用显式draw_refresh_policy；旧快照省略字段，保留修复前状态和事件哈希及SQL Replay，不迁移既有对局或改registry",
+        "双方原生抽牌及Live补抽、控室空、双方区域空、非末张、跨库连续抽牌的SQL和隐私验证；四AI双方原生动作、隐藏信息不影响决策，本地及联机新建入口验证",
+        "全部required_profiles、审查和pre-push通过后仅本地提交；不算完整对局或策略提升，不增加75核心完成数，PR55发布许可不复用"
+      ]
+    },
+    {
       "id": "effect-accuracy-loop",
       "priority": 3,
       "title": "按实际触发与规则风险扩展技能支持",

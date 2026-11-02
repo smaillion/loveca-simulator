@@ -13302,6 +13302,9 @@ def _draw(
         player.hand.append(instance_id)
         state.cards[instance_id].face_up = True
         drawn.append(instance_id)
+        # Refresh after the destination move; old snapshots keep their event order.
+        if state.draw_refresh_policy == "after_each_draw_v1":
+            _refresh_main_deck(state, player_id, events)
     if drawn:
         events.append(
             GameEvent(

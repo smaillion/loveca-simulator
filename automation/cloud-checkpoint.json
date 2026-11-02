@@ -3,8 +3,8 @@
   "branch": "codex/continuous-development",
   "base_ref": "origin/develop",
   "pull_request": 55,
-  "source_head": "181d2be04a14f7f6f2c925d901253b0d68f23f84",
-  "generated_at": "2026-11-02T16:38:25.401036+00:00",
+  "source_head": "ae0ac4ca7cbd6877667c9e43d0ef0177b06c2f9e",
+  "generated_at": "2026-11-02T17:12:38.917395+00:00",
   "task_states": {
     "live-success-audit-summary-order": "done",
     "start-screen-runtime-mode-label": "done",
@@ -134,6 +134,7 @@
     "paid-named-original-source-blade-probe": "done",
     "ll-bp2-001-named-discard-source-blade-formal-audit": "done",
     "terminal-victory-before-expiry": "done",
+    "draw-depletion-immediate-refresh": "in_progress",
     "effect-accuracy-loop": "queued",
     "phase6-conformance-matrix": "queued"
   }
