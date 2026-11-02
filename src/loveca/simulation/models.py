@@ -7,6 +7,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, model_serializer
 
 from loveca.simulation.effects import EffectDefinition
+from loveca.simulation.ready_history import MemberReadyHistoryV1, MemberReadyQualifiedCoverageV1
 
 RULE_VERSION = "1.06"
 MATCH_RUNTIME_SCHEMA_VERSION = 2
@@ -102,6 +103,7 @@ class LivePerformanceResult(BaseModel):
     revealed_instance_ids: list[str] = Field(default_factory=list)
     # Only new Yell-object policies opt in; omit this from historical snapshots.
     remaining_yell_instance_ids: list[str] | None = None
+    yell_tracking_turn: int | None = Field(default=None, strict=True)
     member_hearts: dict[str, int] = Field(default_factory=dict)
     manual_hearts: dict[str, int] = Field(default_factory=dict)
     yell_hearts: dict[str, int] = Field(default_factory=dict)
@@ -120,6 +122,8 @@ class LivePerformanceResult(BaseModel):
         payload = handler(self)
         if self.remaining_yell_instance_ids is None:
             payload.pop("remaining_yell_instance_ids", None)
+        if self.yell_tracking_turn is None:
+            payload.pop("yell_tracking_turn", None)
         return payload
 
 
@@ -214,6 +218,9 @@ class GameResult(BaseModel):
 
 class MatchState(BaseModel):
     match_id: str
+    member_ready_history: MemberReadyHistoryV1 | None = None
+    member_ready_coverage_policy: Literal["qualified_source_v1"] | None = None
+    member_ready_qualified_coverage: MemberReadyQualifiedCoverageV1 | None = None
     rule_version: str = RULE_VERSION
     ruleset_id: str | None = None
     ruleset_fingerprint: str | None = None
@@ -260,6 +267,11 @@ class MatchState(BaseModel):
     @model_serializer(mode="wrap")
     def serialize_overlap_policy(self, handler: Any) -> dict[str, Any]:
         payload = handler(self)
+        if self.member_ready_history is None:
+            payload.pop("member_ready_history", None)
+        for field in ("member_ready_coverage_policy", "member_ready_qualified_coverage"):
+            if getattr(self, field) is None:
+                payload.pop(field, None)
         for field in ("ruleset_id", "ruleset_fingerprint", "ruling_pack_version"):
             if getattr(self, field) is None:
                 payload.pop(field, None)

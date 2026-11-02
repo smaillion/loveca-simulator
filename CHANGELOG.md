@@ -2,6 +2,210 @@
 
 ## 未リリース / 未发布
 
+- 文書入口を整理：日中 README の逐次監査記録を既存の変更履歴・テーマ別証拠へ集約し、文書の責務と更新規約を明確化。過去の分岐一覧は日付付き履歴に分離。ルールやカード登録、Replay は変更しない。
+- 中文：精简双语 README，合并重复的持续开发操作说明，新增[文档导航](./docs/README.md)和[专题索引](./docs/development/README.md)，区分当前事实与历史盘点。原审计报告及证据不搬移，不改变技能支持状态。
+
+- 千歌の回収カード名と元のメンバーのBlade適用境界を監査。正式効果は未対応。
+- 中文: 审计千歌回收牌名称与原来源 Blade 的旧组件缺口，正式能力仍为人工处理。[审计](./docs/development/chika-recovered-name-source-blade-gap.md)。
+
+- 千歌のコスト支払い後の高コストメンバー回収候補を監査。正式効果は未対応。
+- 中文: 审计千歌弃牌费用后高费用成员回收候选，正式能力仍为人工处理。[审计](./docs/development/chika-cost10-post-discard-unresolved.md)。
+
+- 非空手札すべてをコストにする未登録の登場時プロトタイプを追加。正式カードには未適用。
+- 中文: 新增受限非空手全手弃牌抽六原型，未绑定正式卡。[验证](./docs/development/tomari-nonempty-all-hand-probe.md)。
+
+- 冬毬の全手札コストと固定枚数選択の差を未登録スナップショットで検証。
+- 中文: 审计冬毬全部手牌费用与固定选择器的差异，正式能力仍为人工处理。[审计](./docs/development/tomari-all-hand-fixed-cost-gap.md)。
+
+- 冬毬の手札全廃棄と6枚ドローの手動解決境界を監査。正式効果は未対応。
+- 中文: 审计冬毬弃全部手牌抽六的人工待机与隐私边界，正式能力仍待验证。[审计](./docs/development/tomari-all-hand-discard-unresolved.md)。
+
+- Aqoursライブ三分類の属性重複と手動解決境界を監査。正式効果は未対応。
+- 中文: 审计 Aqours 三组 Live 数据特征交集与人工待机，未更改正式登记。[审计](./docs/development/aqours-three-live-groups-center-blade-unresolved.md)。
+
+- 三人カードの指定名とBlade Heart色スロットの実カード分布を監査。正式効果は未対応。
+- 中文: 盘点三人卡名称匹配记录的 Blade Heart 色槽并验证受限原型；正式能力仍为人工处理。[审计](./docs/development/ll-bp6-named-blade-heart-inventory.md)。
+
+- 三人曜カードの名称コストと元のメンバーへのBladeを厳密なカード文に限定して修正。
+- 中文: 精确绑定三人曜卡的名称动态费用和原来源 Blade，保留旧快照与 Replay。[验证](./docs/development/ll-bp2-named-source-blade-verification.md)。
+
+- 支払済み名称コストと元のメンバーのBladeを結ぶ未登録原型を追加。正式カードには未適用。
+- 中文: 新增已付指定名称费用的原来源 Blade 原型，不修改旧快照或正式登记。[验证](./docs/development/paid-named-original-source-blade-probe.md)。
+
+- 非公開の部分名照合と任意枚数コストを未登録原型として追加。正式カードには未適用。
+- 中文: 新增受限的私有部分名称匹配和动态弃牌费用原型，不改变旧快照或正式登记。[验证](./docs/development/private-named-unlimited-discard-probe.md)。
+
+- 三人曜カードの複合名手札コストと枚数上限の既存問題を監査。修正は未完了。
+- 中文: 复现正式三人曜卡组合名称拒绝与三张上限差异，保留旧快照待完整修复。[审计](./docs/development/ll-bp2-composite-cost-unresolved.md)。
+
+- 支払済み基本Heartの色を重複なく集計する未登録原型を追加。正式カードは未対応。
+- 中文: 新增受限已支付基本颜色并集原型，未知颜色拒绝且不绑定正式卡。[验证](./docs/development/q246-paid-basic-color-union-probe.md)。
+
+- Q246 の重複色の例と既存のカード単位処理との差を監査。正式能力は手動のまま。
+- 中文: 核对 Q246 基本颜色去重示例与旧逐卡操作的差异，不绑定正式能力。[审计](./docs/development/q246-named-cost-color-union-unresolved.md)。
+
+- 三人カードの指定名手札コストと色Heartの境界を監査。ライブ開始能力は手動のまま。
+- 中文: 审计指定名称弃牌及颜色结果的未知范围，不绑定正式自动能力。[审计](./docs/development/ll-bp6-named-discard-color-unresolved.md)。
+
+- Love marginal の復原履歴と段階的必要Heart軽減の境界を監査。正式能力は手動のまま。
+- 中文: 审计分档减需的真实复原历史和未知覆盖，未绑定正式能力。[审计](./docs/development/printemps-tiered-requirement-unresolved.md)。
+
+- 相手Memberの識別済み直接ライブ成功能力を対象とする未登録原型を追加。完全な能力範囲は未確認。
+- 中文: 新增受限对手直接能力无效化原型，明确整体覆盖未知，不绑定正式卡。[验证](./docs/development/opponent-direct-disable-probe.md)。
+
+- 相手Memberのライブ成功能力無効化について、既存の自身限定処理との差を監査。
+- 中文: 实测对手目标与来源自身无效操作不等价，正式卡仍人工处理。[审计](./docs/development/opponent-success-disable-scope-unresolved.md)。
+
+- 渡辺曜PL!S-bp2-005:1を原文・revision・hashに限定し、Q124の基本Heart条件と最大3枚検索を実装。
+- 中文: 精确支持曜登场弃牌及最多三张检索；旧快照保持Replay，不提升reviewed。[验证](./docs/development/q124-you-multi-keep-verification.md)。
+
+- 登場時の手札コストと最大3枚の限定検査を未登録原型として追加。旧選択規則は維持。
+- 中文: 新增受限未登记多选费用原型，不放宽旧策略或改变正式人工卡。[验证](./docs/development/triggered-inspection-up-to-three-probe.md)。
+
+- Q124の旧多枚数検索snapshotを監査し、正式カードは手動のまま維持。
+- 中文: 审计旧多张检索的双方费用、多选回放、AI 和隐私；不凭 Q124 单独提升正式技能。[审计](./docs/development/q124-multi-keep-legacy-audit.md)。
+
+- 正式な退場・登場復原の同時待機と限定履歴を監査。未確認の旧対象範囲は変更しない。
+- 中文: 同一Baton审计正式新旧复原来源及SQL Replay，旧来源未知时保留未知，不解除消费者依赖。[审计](./docs/development/printemps-mixed-formal-ready-audit.md)。
+
+- Printemps直接復原元5件のうち履歴記録は4件。残る対象範囲は未裁定。
+- 中文: 按实际卡定义和登记审计四条来源历史，旧离场来源缺少证明时限定查询保持未知，不恢复受阻消费者。[审计](./docs/development/printemps-four-producer-coverage-audit.md)。
+
+- WAO-WAOの実際の復原人数と原Liveのスコアを限定記録。旧全体score snapshotはReplay用に維持。
+- 中文: 仅精确绑定PL!-pb1-028:1；三人实际复原只给原Live加分，旧全局得分快照保留历史Replay，不提升manual或reviewed。[验证](./docs/development/waowao-ready-three-source-score-verification.md)。
+
+- 退場元の履歴を保ち、双方の公開Memberを選べる未登録v2原型を追加。旧本人Wait原型とReplayは維持。
+- 中文: 仅未登记双方目标原型，实际Wait复原才记录原对象；不绑定穂乃果、不裁定其目标语义或恢复消费者。[记录](./docs/development/departed-ready-both-owner-probe.md)。
+
+- 穂乃果PL!-PR-001:1の退場後復原を監査。旧登録と原型は自分のWait対象に限られ、本文の対象範囲は未裁定のまま。
+- 中文: 双方离场及SQL/AI审计仅记录旧行为，不绑定来源原型或提升覆盖率；目标所有者及Active范围尚待官方依据。[审计](./docs/development/honoka-departed-ready-scope-unresolved.md)。
+
+- 未登録のWait費用v1原型で、支払不能な発生源を起動候補から除外。旧Replay状態とWait対象制限は維持。
+- 中文: 未登记v1原型限定修正非法来源候选；旧JSON/Replay状态不追改，不新增正式生产者或解除消费者依赖。[审计](./docs/development/ready-source-wait-v1-legal-audit.md)。
+
+- 花陽PL!-bp6-008:1を限定v2履歴に接続し、Active対象も合法に選択。旧登録のReplayは維持し、v2だけの支払不能な起動候補表示を修正。
+- 中文: 86专项含44 SQL、四AI/隐私、4 UI及5图文；正式生产者3/5、不恢复消费者。未登记v1原型仍可能列出不可支付的起动，执行层会拒绝，另列有限修复。[记录](./docs/development/hanayo-source-wait-provenance-verification.md)，只本地验证。
+
+- Wait費用後の対象を別MemberのWait/Active両方に限定対応するunregistered v2を追加。旧費用v1はWait限定のまま、無費用v1とReplayも維持。
+- 中文: 93专项/34 SQL、646关联和4 UI；已Active目标仍实际支付和消耗次数，但不记复原。正式卡未绑定、生产者仍2/5，不恢复消费者。完整门禁与同牌组见[记录](./docs/development/ready-source-wait-active-v2-probe.md)，只本地提交。
+
+- 高坂穂乃果PL!-bp3-001:2を原発生源履歴へ限定接続。旧Wait限定と任意発動を修正し、旧Replay・第1段・他3生産者を維持。
+- 中文: 82专项/53 SQL、四AI/隐私、3 UI及5图文；仅正式历史生产者2/5，范围策略不全局启用，消费者不恢复。[记录](./docs/development/honoka-live-start-provenance-verification.md)，只本地提交。
+
+- 南ことりPL!-pb1-012:1を復原履歴v3に限定接続。Active対象の選択を許可し、実際の方向変化だけ記録。旧v2/Replayと他4生産者は維持、範囲policyは既定で無効。
+- 中文: 81专项/55 SQL、四AI/隐私、3 UI及5新图文；补v1复原估值别名避免新快照降值，默认版本不改。仅正式历史生产者1/5，不算manual晋级或穂乃果完成。[记录](./docs/development/kotori-onplay-provenance-verification.md)，只本地提交。
+
+- 発生源の所有者・効果プレイヤー・unit/workを分離した限定coverage原型を追加。旧readyは未知事実のみ、旧JSON/Replayと全体coverageを維持し、正式カードには接続しない。
+- 中文: 77专项/45 SQL、四AI/完整隐私与2 UI；已知非匹配来源不污染范围，缺证明/旧费用/已离场源/晚启用仍未知。最终门禁与同牌组见[记录](./docs/development/ready-qualified-coverage-probe.md)，只本地提交、不恢复穂乃果。
+
+- 元Stage Memberが控室に置かれた後の復原を、離区前情報と実際のinvocationで結ぶ限定原型として追加。旧v1の初期発生源制限は維持し、正式カードには接続しない。
+- 中文: 100专项/54 SQL、315关联、四AI/完整双视角/provider构造隐私及4 UI。原来源返回不覆盖旧信息，目标移区不继承旧token；不恢复穂乃果、不算manual晋级。最终门禁及同牌组证据见[记录](./docs/development/ready-departed-source-probe.md)，仅本地提交。
+
+- 自分の元Stage発生源によるWait費用後の限定復原原型を別操作で追加。支払済みinvocation/turnを照合し、旧無費用v1とReplayを維持。正式カード未接続。
+- 中文: 71专项/20 SQL、四AI后续选择、双方/provider构造隐私及2 UI；v0不主动起动与旧顺序来源检查点边界如实记录，不放宽父能力锁或恢复穂乃果。最终门禁与同30牌组见[验证](./docs/development/ready-source-wait-cost-probe.md)，只本地提交。
+
+- 実際のPrintemps発生源5件を監査。南ことりのPrintemps対象漏れを全文/revision/hash限定で修正し、旧snapshot Replayを維持。新歴史操作への正式接続なし。
+- 中文: 42专项/24 SQL、四AI/完整双视角和2原生UI；费用、离场来源及覆盖证明仍待独立审计，不恢复穂乃果，不算manual晋级。最终门禁与同30牌组证据见[记录](./docs/development/printemps-producer-coverage-audit.md)，只本地提交。
+
+- 新snapshot専用Member ready provenance v1底座。元対象・発生源LKI・turnを記録し、旧ready/Replayを維持、正式カード未接続。
+- 中文: 62专项/34 SQL、四AI/双视角/provider构造隐私，未知不作零；新源码同30牌组绑定以最终验收为准，不宣称随机原型覆盖，见[验证](./docs/development/member-ready-provenance-foundation.md)。不自动恢复blocked。
+
+- `PL!-pb2-010:1`のPrintemps実復原履歴を監査。作品別ブール記録では人数・unit・元対象を証明できず、manualのまま。40専用/24 SQL、四AI秘匿と2 UI。
+- 中文: 记录`printemps_member_ready_target_object_provenance_unmodeled`依赖，不新增半支持登记，不重跑无变化冻结或虚报执行率，见[边界报告](./docs/development/printemps-ready-history-unresolved.md)。
+
+- 黒澤ルビィ`PL!S-PR-048:1`の控室9枚以下/Live0～3枚をデッキ上へ、を限定実装。公開集合と秘密の順を分け、条件は解決時、空庫は通常リフレッシュ。旧snapshotを維持。
+- 中文: 89专项/51 SQL、四AI/完整双视角、301图文及6原生UI。登记937/1212、275manual，不提升reviewed；冻结本卡仍随相邻manual待机，不虚报完成或随机排序覆盖。仅本地验收提交，见[验证记录](./docs/development/waiting-nine-live-top-order-verification.md)。
+
+- 津島善子`PL!S-PR-045:1`のコスト7 Baton/2枚ドロー後1枚を控室へ、を限定実装。元Memberの情報を今回の登場に結び、現在のStageや支払ったEnergyで代用しない。旧snapshotを維持。
+- 中文: 94专项/43 SQL、四AI/双视角、296图文及6原生UI。登记936/1212、276manual，不提升reviewed；随机两次条件失败不称正条件覆盖或完赛改善，仅本地验证提交，见[验收记录](./docs/development/baton-cost7-draw-discard-verification.md)。
+
+- Q253対象`PL!S-bp6-023:1`を正確な新snapshotへ更新。現在の元エールLiveだけを数え、元Liveに+1、全体scoreを変更しない。無記載期限gameと移区解除を分離し、旧condition/Replayを維持。
+- 中文: 110专项/67 SQL、四AI/双视角、291图文与6原生UI，登记935/1212及277manual不变，不提升reviewed。完整同源码门禁和同30牌组证据见[Q253修复记录](./docs/development/q253-current-yell-source-score-verification.md)，仅本地验证提交，不推送发布。下述旧风险是修复前历史。
+
+- 渡辺曜`PL!S-PR-046:1`の相手の現在エールLive/一枚ドローを限定実装。Q253/Q107に沿って現在の元オブジェクトだけを参照し、旧snapshotを維持。
+- 中文: 77专项/33 SQL、四AI/双视角、286图文和5原生UI；登记935/1212，不提升reviewed。随机两来源均条件失败，不称正条件或完赛改善；另复现既有PL!S-bp6-023的Q253错误，下一有限切片修复，整批不推送发布。
+
+- WATER BLUEの結果見出し・説明を公式図像と既存の色名表に合わせて青Heartへ修正。0/1/6枚の中日表示を個別検証し、他カードのピンクheart01は変更しない。
+- 中文: 修正WATER BLUE原结果标题、说明及文档的颜色误写；引擎heart05、数量和选择提交未改。六项红断言后复验，完整门禁与原30局指纹绑定见[颜色修正记录](./docs/development/water-blue-color-label-verification.md)，仅本地提交，不推送或上线。
+
+- 想いよひとつになれ `PL!S-cl1-011:1`の共通Heart/元エールMember回収を限定実装。交差する色だけを参照し、Blade Heartや解決領域全体への拡大を避け、旧snapshotを維持。
+- 中文: 96专项/38 SQL、四AI/完整双视角、281图文与5原生UI；登记仅本段934/1212，不提升reviewed。冻结仍19完赛，本卡实际一次条件失败，不声称随机正条件或beta覆盖，仅本地验收提交。
+
+- WATER BLUE NEW WORLD `PL!S-cl1-013:1`の控室0～6枚シャッフル/実枚数に応じた単一Member青Heartを限定実装。洗った順番を公開せず、旧amount_source/random/manual snapshotを変更しない。
+- 中文: 78专项/31 SQL、四AI/完整双视角、276图文/7原生UI；登记仅本段933/1212，不提升reviewed。冻结仍19完赛，本卡实际一次零张/零加成，不称随机正条件或beta覆盖。本切片只本地验收提交。
+
+- 継続開発のDraft PR番号を実在する#55へ固定し、同一head/baseと公開前門禁を維持。merge/deploy権限は追加しない。
+- 中文: 维护者批准创建新Draft后，独立复验编号55配置及全部四组门禁；不复用功能提交旧指纹、不改技能/默认AI/卡库，不自动创建其他替代PR。
+
+- `PL!S-bp7-025:1`の相手Member Wait/次ターンActive制限またはドローを限定実装。0～2人、原対象の移区と期限、旧snapshotを分離。
+- 中文: 85专项/34 SQL、214关联、271图文和7项原生UI，四AI/完整隐私保护；只变本段登记932/1212、不提升reviewed。维护者本轮明确批准修改目标并新建Draft PR，配置变更纳入重新全量验收；不包含合并上线。
+
+- 宮下愛`PL!N-bp7-005:1`の異名DiverDiva条件とEnergy二分岐を限定実装。条件は解決時、複合名一枚は一人、Energy Deckから直接下に置き旧Energy Area処理と混同しない。
+- 中文: 84专项/22 SQL、四AI/完整隐私、266图文及6原生UI保护，旧分支/manual Replay不变；只改本段登记931/1212，不提升reviewed，完整门禁和冻结实际分支另存证据，不推送发布。
+
+- `PL!S-bp7-020:1`の全員Active条件を監査。空ステージの真偽を公式根拠から確定できずmanualを保持、Energyの別FAQや言語直感を流用しない。
+- 中文: 28项边界含11种SQL、双方四AI/隐藏来源人工句柄、2项原生人工UI保护。应用/登记与第2段未改，930/1212不变，无新随机验收或完赛改善；未解决原因和最终完整门禁另存报告。
+
+- `PL!S-bp7-020:2`の下のAqoursメンバー/元Live必要ハートを限定対応。無色一つだけ減らし、期限なしはgame、離場/同ID復帰で継承しない。第1段manualと旧snapshotは維持。
+- 中文: 52专项含17种SQL、四AI/完整隐私、262图文及4项双语原生UI；只变本段登记930/1212，不提升reviewed。完整门禁与同牌组冻结结果独立绑定，未推送或发布。
+
+- 鬼塚冬毬`PL!SP-bp2-011:1`の本人提示・相手選択を限定実装。Q118に基づき異なる名前の二枚を選べない場合は回収しない。旧多人数/manual Replayは維持。
+- 中文: 103专项/27种SQL、四AI/隐私、257图文及4项原生UI保护，不代对手选、不误收同名或不足两张。仅本段登记929/1212，不提升reviewed，完整门禁与冻结诊断独立保存，不推送发布。
+
+- `PL!SP-bp5-010:1`に限定された両者中央Position Changeを追加。各自が本人の目的地を選択し、主动側から処理。旧多人数/manual snapshotは変更しない。
+- 中文: 69专项含22种SQL、四AI、来源离场与隐私；251图文及目的地原生UI保护。只变本段登记，不提升reviewed，完整门禁与冻结诊断另存，不推送上线。
+
+- 安養寺姫芽`PL!HS-pb1-014:2`の正面費用比較を新しい限定条件で左右鏡像へ修正。旧同名欄snapshotのReplayと第1段manualは保持。
+- 中文: 八项原生红测试转绿，105专项、46种SQL、四AI规则视图/隐私、247图文和双语结果显示保护。同步全局旧pattern名契约后144项定向复验通过，完整门禁及本地提交结果独立保存于镜像修复报告的验收入口。登记927/1212及冻结15完赛不变，不扩大第一段或发布授权。
+
+- 安養寺姫芽の固定正面移動を監査。第1段は手動を維持し、原発生源の最終位置/同エリア対象の未解決境界を記録。第2常時の左右鏡像バグを原生SQLで別途発見し、次の独立修正へ登録。
+- 中文: 37项边界及人工入口/四AI/隐私/SQL保护，不增加927/1212执行登记。第2段左右红测试仍未修复，工程门禁绿色不是本卡正确性认证；无应用源码变化，不重复30局，不推送部署。
+
+- 小原鞠莉`PL!S-bp7-008:1`の私見三枚を上下二群に分けて独立順序で戻す限定snapshotを追加。旧私見/reorder/manual Replayと第2段は変更しない。
+- 中文: 88专项、242图文及269前端通过，登记927/1212、285manual，不提升reviewed。最终冻结15完赛/15人工停止、208/210可执行完成，本卡实际一次全放顶；新增完赛0:3 Live不冒充双方长局。仅本地提交。
+
+- `僕らの旅は終わらない`のLive開始時を限定対応。三人条件を解決時に確認し、下五回の履歴でMember三回ドロー/全部Memberの元Live得点を処理。旧manual/汎用millのReplayは保持。
+- 中文: 82专项、271目标/关联回归、238图文、263前端通过。登记926/1212、286manual，不提升reviewed；冻结仍14完赛/16人工停止，201/203可执行完成，本卡真实完成2次但无随机score+1正条件。仅本地提交。
+
+- 津島善子`PL!S-bp7-006:1`の元発生源Heartと三回移動/即時refreshを限定修正。Q104と通則に基づき、移動回数は同じ実体を再移動しても保持する。旧汎用snapshotのReplayは変えない。
+- 中文: 来源离场返回错误已红测试复现；61专项、232图文及双语原生UI覆盖。冻结仍14完赛/16人工停止；本卡原本已可执行，不虚增925/1212登记或完赛率。仅本地提交，不推送上线。
+
+- 桜小路きな子`PL!SP-bp7-017:1`を限定実装。新Energy一枚だけをWaitに置き、次ターンの本人Activeで自動復原しない。Q280のActive後再支払い、当ターンActive、移区/同ID復帰、旧flagとの区別を検証。
+- 中文: 64专项、218关联、227图文、3原生UI与四AI/SQL/双视角通过。冻结30局完赛13→14、16人工停止、194/197可执行完成；本卡实际放置1次，但0:3Live在第7回合结束，未到第8回合标记时点。登记925/1212、287manual，不提升reviewed、不改默认AI/schema，仅本地提交。
+
+- 優木せつ菜`PL!N-sd2-007:1`を限定対応。一枚ドロー後、現在ターンの相手成功を判定し、成立時のみ追加一枚ドローと必須一枚捨て。旧post-action snapshotを変更せず、非公開発生源のUI参照落ちも修正する。
+- 中文: 86专项、179关联、222图文、四AI/SQL/双视角和5项原生UI通过。固定30局完赛12→13、17人工停止、192/195可执行完成；本卡seed18023正条件完成一次，第9回合192动作、Live3:2。登记924/1212、288manual，不提升reviewed、不改默认AI/schema，仅本地提交。
+
+- 津島善子`PL!S-bp7-015:1`を全文/revision/hashで限定対応。下から移した実際のカードがLiveなら元の発生源に赤Heart+1。通常refresh後も移動履歴で判定し、旧離場policyが空でも新しい補正は離場で失効する。旧mill/manual snapshotは維持。
+- 中文: 60专项、227来源/清理回归、3原生UI与217图文，四AI/SQL/隐私验证通过。冻结30局仍12完赛/18人工停止、185/188可执行完成；本卡因同批manual保留待机，受控分支底牌Member、不加心，不虚称实战完成。登记923/1212、289manual，不提升reviewed，仅本地提交。
+
+- 星空凛`PL!-pb2-005:1`の一時的な常時Blade能力を限定実装。成功置き場のμ'sの特殊スコア図柄と通常scoreを区別し、後続登場にも動的適用。元の発生源離場で失効し、同ID復帰に継承しない。未確認の重ねる/継承は明示的に拒否する。
+- 中文: 75专项、234来源/重叠回归、3原生UI与212图文验证；四AI、SQL和双视角保护。冻结30局仍12完赛/18人工停止、185/187可执行完成，Replay/错误skip0。本卡实际两次处理均条件不成立；登记922/1212、290manual，不提升reviewed，不改schema/默认AI，本批仅本地提交。
+
+- 旧多人数処理の発生源参照による非公開カードの復活を修正。可視集合を領域/実際のinspectionから共有し、通常/skip/legal待機コピー・AI・代理contextを保護。公開候補と公開済み履歴、旧snapshot/SQL Replayは維持する。
+- 中文: 64专项、12原生SQL角色/区域/旧快照组合、本人manual提交句柄及伪造保护、房间REST/动作/SSE/重连、四AI及隐藏身份替换、2项原生UI通过。冻结30局仍12完赛/18人工停止、180/182可执行完成、Replay/错误skip0；登记921/1212不变。不声称全局安全认证，本批仅本地提交，发布目标待批。
+
+- 優木せつ菜`PL!N-bp4-007:1`を三段全文/revision/hashで限定対応。両者が自身の控室Liveを一枚ずつ公開選択し、両選択後に同時回収。空候補を自動処理し、旧多人数snapshotは維持する。
+- 中文: 74专项、3原生UI、206图文覆盖主动顺序、强制选择、同时移动、四AI、隐私、来源离场及新旧SQL。冻结30局12完赛/18人工停止、180/182可执行完成，Replay/错误skip0，本卡实际两次触发；登记921/1212、291manual。新类型已堵住隐藏来源ID复活，旧多玩家同类风险已真实复现并排最高优先级，不冒充全局修复或完整裁定。
+
+- エマ・ヴェルデ`PL!N-bp7-020:1`を公式Q270と全文/revision/hashに限定して自動化。上三枚のMemberの有色Blade Heartが二種類以上なら元の発生源に緑Heart+1。新しい発生源snapshotで離場/復帰の継承を防ぐ。
+- 中文: 61专项、3项双语UI与202图文覆盖六色/ALL/普通Heart/Live、短库刷新、原来源、Live清理、四AI/隐私及新旧SQL Replay。冻结30局仍11完赛/19人工停止、167/169可执行完成、Replay/错误skip0，本卡实际三次触发并推进至其他manual。登记920/1212、292manual，不提升reviewed或改schema/默认AI；仅本地提交。
+
+- 米女メイ`PL!SP-PR-028:1`に限定snapshotを追加。解決時の手札数で上から確認する枚数を計算し、非公開で最大二枚取得。旧amount_sourceとmanual Replayを維持し、確認前/後のrefreshを区別する。
+- 中文: 59专项、5项原生UI与196图文覆盖手牌0/1/9/10/11、四AI、SQL Replay、隐私及原子性。冻结30局完赛9→11、19人工停止、162/164可执行完成，Replay与错误skip0；本卡两次实际触发，新增一局败方无Live，不冒充双方Live门禁。登记919/1212、293manual，不提升reviewed、不改schema/默认AI，仅本地提交。
+
+- 公式カード未登録の四枚公開prototypeを追加。元のデッキを維持して公開し、全てlily whiteならLiveを一枚取得、条件不成立なら移動しない。旧非公開確認と区別し、四枚未満は裁定未確認として拒否する。
+- 中文: 增加受限公开底座及双方可见性、四AI、SQL Replay、原子选择和UI保护；正式卡和执行率不变。新源码冻结30局仍9完赛/21人工停止，原型未触发，不宣称正式卡完成或完赛改善。
+
+- `PL!-pb2-041:2`の実装前監査で第1段の成功置き場二枚扱いへの依存を確認。12境界テストで待機・四AI・SQL Replayを記録し、両段のmanualを維持する。
+- 中文: 暂不晋级lily white来源得分，登记unresolved_reason=success_live_counting_override_not_modeled；未改变游戏引擎、登记率或默认AI。下一独立切片转为顶四全lily white的Live检索，不按频次虚增覆盖。
+
+- `PL!S-bp3-025:1`の先選択・後Blade6判定を独立snapshot policyで修正し、scoreは元のLiveだけに付与。低Blade、離場・再登場、同領域移動、旧SQL Replayと四AIを検証。
+- 中文: 266项相关回归、191双语图文通过，registry仅目标卡语义变化，918/1212及294manual不变。同冻结30局9完赛/21人工停止、158/160可执行完成、Replay与错误skip均0；本卡随机局触发0，不提升reviewed、不改schema或默认AI，不宣称发布或beta验收。
+
+- 継続開発に明示的な`requeue`を追加。blockedタスクの元記録を保持し、有効リース・一時停止・未完了依存を拒否、復帰後の検証を必須にする。PRのmergeやdeployの承認は付与しない。
+- 中文: 新增受保护的阻塞任务恢复入口，保留原阻塞记录及失败计数，作废原任务旧门禁授权；恢复只适用于已批准的原因解除，不代表合并或上线授权。
+
 - 「Fire Bird」`PL!N-sd2-026:1`を精確なsegment/revision/hashで実装。有効Blade4以上の自分の虹ヶ咲Stage Member1人だけにHeart02を2つ付与。新しい限定policyでは既存の共通評価で常時修正も読み、旧minimum_blade filterやmanual Replayは変更しない。対象なしは理由を記録して完了。
 - 中文: 55专项与旧技能回归共148项、3前端交互、187图文（149状态/38契约）通过。相同冻结30牌组完赛8→9、21明确人工停止，可执行待机158/160完成、2随manual保留，无非法/runtime/Replay/错误skip；新增完赛败方无Live，不冒充双方Live验收。登记918/1212、294manual，不提升reviewed、不改Card/SQL schema或默认AI，同PR54不合并部署。
 

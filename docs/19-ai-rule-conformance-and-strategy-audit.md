@@ -1,5 +1,38 @@
 # AI Rule Conformance and Strategy Audit
 
+The ready provenance foundation is validated with unregistered probes only.
+The 30 formal-card summaries are unchanged except for source fingerprint;
+neither prototype random coverage nor consumer promotion is claimed.
+See [evidence](development/member-ready-provenance-foundation.md).
+
+The Printemps history boundary adds no executable promotion or random outcome.
+Four-policy blockers, source handles and full hidden-zone projections are tested;
+the unchanged application fingerprint reuses the prior 30-match diagnostic only
+after verifying its binding. See [boundary evidence](development/printemps-ready-history-unresolved.md).
+
+The Waiting-Room-nine/top-order slice has SQL, four-controller, full-projection
+privacy and UI evidence, separate from random coverage. The frozen pool is still
+19/30 completed; the new executable invocation remains pending with manual
+siblings, so 246/247 is not reported as full completion or beta promotion.
+See [bounded evidence](development/waiting-nine-live-top-order-verification.md).
+
+The cost-seven Baton slice has exact-card, SQL, four-controller, privacy and UI
+coverage. Its two frozen false conditions do not establish positive draw/discard
+coverage, and the unchanged 19/30 completions do not promote strategy or beta.
+See [bounded evidence](development/baton-cost7-draw-discard-verification.md).
+
+The previously exposed Q253 defect is addressed by a restricted new snapshot,
+not a global rewrite of old Yell conditions. Dedicated SQL, four-controller,
+privacy and UI checks are separate from random-match coverage and human review.
+See [Q253 verification](development/q253-current-yell-source-score-verification.md).
+
+2026-10-28 JST: the opponent-current-Yell draw slice has four-controller,
+privacy, SQL and exact-card coverage, not a strategy or beta promotion. The
+unchanged 19/30 completed games and two random false conditions do not establish
+positive draw coverage. A separate valid Q253 probe exposes an existing old
+score condition defect; full engineering gates do not certify that card.
+See [scope and evidence](development/opponent-yell-live-draw-verification.md).
+
 Current boundary checkpoint: the post-Heart score/movement matrix now contains
 20 implementation regressions, each with native Action and SQLite Replay tests.
 Four use synthetic effect fixtures, not registered-card evidence. Four retain a

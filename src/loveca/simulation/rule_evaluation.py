@@ -30,7 +30,7 @@ from loveca.simulation.models import (
     LegalAction,
     MatchState,
 )
-from loveca.simulation.visibility import private_inspection_card_ids
+from loveca.simulation.visibility import player_visible_card_ids, private_inspection_card_ids
 
 
 @dataclass(frozen=True)
@@ -234,7 +234,7 @@ def build_ai_observation(
     """Build a controller view without opponent hand identities or deck order."""
 
     private_inspected = private_inspection_card_ids(state, player_id)
-    visible_ids: set[str] = set()
+    visible_ids = player_visible_card_ids(state, player_id)
     observed_players: dict[str, ObservedPlayer] = {}
     for observed_id, player in state.players.items():
         own = observed_id == player_id
@@ -243,26 +243,6 @@ def build_ai_observation(
             for item in player.live_area
             if own or state.cards[item].face_up
         )
-        public_ids = {
-            item
-            for item in (
-                *player.member_area.values(),
-                *(
-                    attached
-                    for items in player.member_area_attachments.values()
-                    for attached in items
-                ),
-                *player.energy_area,
-                *visible_live_ids,
-                *player.waiting_room,
-                *(item for item in player.resolution_area if item not in private_inspected),
-                *player.success_live_area,
-            )
-            if item is not None
-        }
-        visible_ids.update(public_ids)
-        if own:
-            visible_ids.update(player.hand)
         observed_players[observed_id] = ObservedPlayer(
             player_id=observed_id,
             hand=tuple(player.hand) if own else (),
@@ -277,12 +257,6 @@ def build_ai_observation(
             resolution_area=tuple(item for item in player.resolution_area if item not in private_inspected),
             success_live_area=tuple(player.success_live_area),
         )
-
-    # LegalActionGenerator is authoritative for private cards explicitly exposed
-    # by a structured choice (for example an inspected or revealed candidate).
-    for action in legal_actions:
-        if action.player_id in {None, player_id}:
-            visible_ids.update(_card_ids_in_value(action.options, state.cards))
 
     cards = {
         instance_id: state.cards[instance_id].card.model_copy(deep=True)
@@ -344,20 +318,6 @@ def estimate_live_combo_missing_hearts(
         remaining = sum(max(0.0, amount) for amount in available.values()) + flexible
         missing += max(0.0, generic - remaining)
     return round(missing, 4)
-
-
-def _card_ids_in_value(value: Any, cards: Mapping[str, Any]) -> set[str]:
-    if isinstance(value, str):
-        return {value} if value in cards else set()
-    if isinstance(value, dict):
-        return {
-            item
-            for nested in value.values()
-            for item in _card_ids_in_value(nested, cards)
-        }
-    if isinstance(value, (list, tuple, set)):
-        return {item for nested in value for item in _card_ids_in_value(nested, cards)}
-    return set()
 
 
 def _effect_ids_in_value(

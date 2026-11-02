@@ -1,5 +1,255 @@
 # AI and Simulation Notes
 
+Hanayo PL!-bp6-008:1 uses the bounded v2 paid-source ready operation. Four controllers are exercised on both sides; a no-safe-activation result is followed by a native player activation before testing the AI's actual target choice. The default AI version is unchanged. The unregistered v1 prototype can still advertise an unpayable source, though execution rejects it; see `development/hanayo-source-wait-provenance-verification.md`.
+
+Honoka PL!-bp3-001:2 now uses the existing no-cost ready provenance operation.
+The existing ready valuation and default AI version are unchanged. Its first
+activated draw/discard segment remains identical. See [audit](development/honoka-live-start-provenance-verification.md).
+
+Kotori's exact v3 snapshot now records actual Member-ready provenance. The formerly
+unvalued prototype operation receives the existing ready value, not a new strategy
+parameter. Active targets remain legal but add no ready event. Default versions
+stay unchanged. See [single producer](development/kotori-onplay-provenance-verification.md).
+
+Qualified ready coverage has a separate opt-in internal query. Legacy ready only
+adds conservative unknown facts; AI versions and strategies do not call the new
+query. Four-controller hidden-source invariance is tested, not a strategy gain.
+See [bounded coverage](development/ready-qualified-coverage-probe.md).
+
+The departed-source prototype captures Stage information before movement and binds
+it only to the actual post-movement invocation. Four controllers submit real choices
+with hidden-source invariance; no official producer or consumer is enabled.
+See [bounded departure](development/ready-departed-source-probe.md).
+
+The source-Wait-cost ready prototype has a separate bounded operation and private
+server payment evidence. Three controllers activate within a restricted legal set;
+v0 keeps its no-activation behavior, and all four submit the subsequent target.
+See [limits and tests](development/ready-source-wait-cost-probe.md).
+
+The Printemps producer audit fixes only Kotori's missing target-unit filter.
+Four controllers submit legal optional selections without hidden-identity dependence.
+No formal ready-history producer is enabled; unknown coverage is not zero.
+See [producer audit](development/printemps-producer-coverage-audit.md).
+
+The opt-in ready provenance prototype has actual four-controller target choices
+and hidden-identity invariance. Internal history is absent from player/provider
+views; unknown producer coverage is not zero. No official card is enabled.
+See [foundation](development/member-ready-provenance-foundation.md).
+
+PL!-pb2-010:1 remains manual: the work-level ready flag cannot establish the
+Printemps effect source, target count or original Member object. Four controllers
+retain their actual blocker under hidden-identity changes, without input mutation.
+See [provenance boundary](development/printemps-ready-history-unresolved.md).
+
+The exact PL!S-PR-048:1 policy uses the existing ordered card-choice protocol.
+Four controllers submit legal selections without hidden-identity dependence or
+input mutation. All six private top orders have identical full opponent views.
+The frozen invocation remains pending with other manual abilities, not completed.
+See [verification](development/waiting-nine-live-top-order-verification.md).
+
+The exact PL!S-PR-045:1 policy records this Baton entry's original Member cost,
+then uses the existing private post-action choice for draw two/discard one.
+Four controllers complete both stages without hidden-identity dependence or
+input mutation. Frozen false conditions are not positive draw/discard coverage.
+See [verification](development/baton-cost7-draw-discard-verification.md).
+
+Q253 now has a card-exact current-original-Yell/source-Live score snapshot.
+Four controllers resolve two sources in either role without hidden-identity
+dependence or input mutation. This fixes an executable card, not a manual or
+strategy promotion; historical generic snapshots remain replay-compatible.
+See [bounded verification](development/q253-current-yell-source-score-verification.md).
+
+The bounded PL!S-PR-046:1 snapshot checks only current original opponent Yell
+objects with matching game-turn metadata, then draws at most one card. Four AI
+versions resolve both sources in either role without hidden-identity dependence
+or input mutation. Frozen seed18027 resolved two false conditions, not positive
+draw coverage. The separate existing PL!S-bp6-023 Q253 defect remains open;
+see development/opponent-yell-live-draw-verification.md. Default policies stay.
+
+The exact shared-Heart Yell recovery uses the existing public-card choice and
+move-to-hand operation. All four AI versions complete either body branch with
+both owners without hidden identity dependence or input mutation. Candidate
+identity comes from the current original-Yell tracker, not the whole public
+resolution area; public recovery history does not grant current hand access.
+Frozen seed18027 actually resolved a false condition, not a positive recovery.
+See development/aqours-shared-heart-yell-verification.md for final gate evidence.
+
+The exact WATER BLUE snapshot uses two existing generic selection stages. Four
+AI versions submit both with either owner, without hidden identity dependence
+or input mutation. Only the chosen waiting set is public; shuffled order and
+current deck faces remain hidden. Frozen seed18027 actually returned zero cards,
+so positive Heart evidence comes from targeted/SQL tests, not random coverage.
+See development/water-blue-bottom-heart-verification.md for final gate scope.
+
+The bounded PL!S-bp7-025:1 branch reuses existing AI branch submissions. Four
+versions finish the initial choice and zero-to-two public opponent targets in
+both roles without hidden-identity dependence or input changes. The restriction
+tracks only selected original Members until the next game turn's own Active;
+it is not an Energy flag or a policy/default-strategy change. Frozen outcomes
+and actual branch/timing evidence are recorded separately from targeted tests.
+
+The exact DiverDiva Energy snapshot reuses the generic branch interface. Four AI
+versions finish both branch follow-ups and the initial choice in both roles;
+hidden identities do not change decisions or input. A failed body condition
+exports no branch choice and is a no-op, not a cost failure or manual skip.
+Default AI and provider wire format are unchanged; this is not a paid-provider
+live evaluation. Fresh same-deck frozen evidence is bound in the DiverDiva report.
+
+The all-active Live first segment PL!S-bp7-020:1 remains unresolved/manual.
+Four AI versions in both roles return no_safe_ai_action without consulting hidden
+identities or mutating input; this differs from the sandbox blocker category
+mandatory_manual_resolution. Manual source handles remain usable after the
+source enters an unknown deck, without restoring its card face. No application
+fingerprint change and no repeated frozen30 run; see the boundary audit report.
+
+PL!S-bp7-020:2 uses a mandatory source-only auto operation without new AI policy.
+Four versions execute both native Live-start and isolated pending actions with
+hidden instance/name/code/Blade invariance and unchanged input. Official segment1
+remains manual and may block the pair; enqueueing segment2 is not completion.
+New same-deck frozen evidence is bound separately in
+development/bottom-one-aqours-requirement-verification.md. Default AI is unchanged.
+
+The bounded public Live-offer choice supports all four AI versions, including
+the initial pending effect. The owner proposes distinct public names and the
+opponent chooses only within that pair. Hidden card identities and input state
+are invariant. The same finite selector supplies sandbox/provider examples;
+default policy selection and old snapshots are unchanged. New frozen30 evidence
+is bound separately in development/opponent-live-offer-verification.md.
+
+The bounded both-center choice lets each of four AI versions submit only its
+own destination. Existing ai_decision metadata is retained but cannot change
+the movement target. Hidden identity substitution and input immutability are
+tested. Previous public destinations do not authorize hidden card faces.
+Final frozen30 evidence and limitations are linked from
+development/both-center-position-verification.md; intermediate runs are not
+reused after source changes. Default policy selection is unchanged.
+
+The second Hime static segment uses the bounded mirrored-front snapshot.
+All four AI rule views agree with native Yell; the first manual segment still
+blocks.105 targeted tests and46 SQL cases preserve old replay, hidden identity
+invariance and current positional recalculation. Frozen30 stays15/15 with208/210
+completed invocations; no random positive static coverage is claimed. The
+unfixed wording below is historical. One old pattern-name contract has been
+updated and targeted validation passes. Full same-source gates and local commit
+results are recorded separately through the report's acceptance entry; earlier
+partial green results are not reused. [Evidence](development/mirrored-cost-heart-verification.md).
+
+Mirakura fixed-front on-play stays manual; four controllers in both roles block
+without hidden-identity or input mutation.37 boundary tests do not promote the
+card. The second static effect has a newly reproduced left/right mirror bug,
+queued independently and still unfixed. Application fingerprint remains3915564c...
+so the existing15/15 frozen pool is verified but not rerun or called new progress.
+[Evidence](development/mirakura-front-position-unresolved.md).
+
+PL!S-bp7-008:1 adds bounded private top/bottom partition ordering to all four
+controllers, legacy sandbox payloads and semantic hints/examples, without changing
+the default policy.88 targeted and242 illustrated cases protect hidden identities
+and old snapshots. Frozen30 advances14 to15 completions,208/210 invocations; the
+one actual resolution puts all three on top. Its0:3 Live finish is not bilateral
+Live long-game acceptance. [Evidence](development/private-three-top-bottom-verification.md).
+
+PL!S-bp7-021:1 checks three top-level Stage Members when resolving (Q120/Q119
+analogy), records five bottom moves across immediate refresh, draws once for at
+least three Member moves and grants only the original Live score+1 for all five.
+Four controllers use native actions without hidden-identity influence.82 targeted
+and238 illustrated cases; frozen30 remains14/16,201/203 completed invocations.
+Two actual resolutions are stage-condition false and three-Member draw, not a
+random positive-score claim. [Evidence](development/bottom-five-member-score-verification.md).
+
+PL!S-bp7-006:1 was already executable, pending behind another manual effect in
+seed18017; this is a source-object/refresh correctness fix, not new coverage.
+The bounded operation records three bottom moves (including repeated physical
+IDs after immediate refresh), grants only the original source a green Heart,
+and retains historical generic snapshots. Frozen30 remains14/16 and194/197.
+A separate test SQL branch resolves the actual positive condition; it does not
+replace the frozen result. [Evidence](development/bottom-three-aqours-heart-verification.md).
+
+PL!SP-bp7-017:1 places one actual new Wait Energy and blocks only that object's
+automatic readiness in the owner's Active Phase of the next game turn. Q280
+readiness/payment does not consume the restriction; zone changes do. Four AI
+versions support native play and pending resolution.64 targeted/227 illustrated
+cases. Frozen30 improves13 to14 completions, but seed18020 ends0:3 Live before
+the target turn, so no random next-turn skip or both-Live claim is made.
+[Evidence](development/wait-energy-next-active-verification.md).
+
+PL!N-sd2-007:1 draws one first, checks the current judgment's successful-player
+history, then conditionally draws and asks the owner to discard one. Four AI
+versions support both branches without hidden-identity influence or input
+mutation. Frozen30 improves12 to13 completed,192/195 executable completions;
+seed18023 has one actual positive condition and finishes turn9 at3:2 Live.
+This is not an all-pool long-game/beta claim.86 targeted and222 illustrated.
+[Evidence](development/opponent-success-draw-discard-verification.md).
+
+PL!S-bp7-015:1 now resolves bottom-one milling with a source-bound red Heart
+condition. Four AI versions support native Live start and pending resolution;
+hidden identities do not change their decisions. Frozen30 remains12/18,
+185/188 executable completions: this card is pending behind another manual
+ability, not claimed completed. A separate seed18027 SQL branch resolves it
+with a Member bottom card and zero Heart.60 targeted and217 illustrated cases.
+[Evidence](development/bottom-one-live-heart-verification.md).
+
+PL!-pb2-005:1 grants a source-bound Live-limited Muse Blade aura, not one-time
+bonuses to the initial Stage. Effective Blade and Yell share dynamic evaluation;
+later entries benefit, departure/reentry and unsupported overlap stay explicit.
+75 targeted tests, four AI versions, SQL and212 illustrated scenarios pass.
+Frozen30 stays12 completed/18 manual stops,185/187 executable completions.
+Both actual Rin resolutions have false conditions; positive aura behavior is
+covered by controlled state/SQL, not claimed as random-match coverage.
+[Evidence](development/muse-granted-blade-verification.md).
+
+Legacy multiplayer source-reference privacy now uses shared zone/inspection
+visibility for player payloads and AIObservation. Metadata in normal/skip
+actions cannot resurrect hidden cards; semantic contexts redact it too.
+Required own-manual submission handles remain separate from card visibility.
+64 targeted tests cover native SQL, both roles, four policies and identity
+invariance. Raw snapshots/Replay and default AI stay unchanged. Frozen30 remains
+12 completed/18 manual stops,180/182 executable completions,all Replay verified.
+[Scope and evidence](development/multi-player-source-privacy-verification.md).
+
+PL!N-bp4-007:1 uses active-player-first public Waiting Room selections and moves
+both Lives only after both choices. Four-policy new-type dispatch preserves
+old strategies. Frozen30 improves11→12 completed,180/182 executable completions;
+seed18008 triggers this ability twice and finishes3:2 Live on turn8.
+New-type legal references no longer resurrect a hidden source; the analogous
+legacy multi-player projection leak was reproduced and is the next priority,
+not falsely declared fixed. Defaultv1.1 and raw historical snapshots remain.
+[Evidence and residual risk](development/both-waiting-live-recovery-verification.md).
+
+PL!N-bp7-020:1 now automatically mills three and tests distinct printed colored
+Member Blade Hearts, following officialQ270 (ALL+green is insufficient).
+Four policies cover actual play and pending resolution without hidden-identity
+dependence. Frozen30 stays11 completed/19 manual stops, now167/169 executable
+completions. This card actually triggers3 times and advances two prior blockers
+to other manual cards, not a completion-rate gain. Defaultv1.1 stays unchanged.
+[Chinese evidence](development/mill-three-blade-colors-verification.md).
+
+PL!SP-PR-028:1 privately inspects max(0,10-current hand) at resolution, keeping0–2.
+Four-policy native follow-up/invariance tests and old/new SQL Replay pass.
+The same source-bound frozen30 now completes11 games (previously9), with19 manual
+stops and162/164 executable completions. The card actually triggers twice;
+seed18025 finishes2:3 Live, while18028 finishes3:0, not a bilateral-Live success.
+No default-policy change, error skip, or release claim.
+[Chinese evidence](development/ten-minus-hand-private-two-verification.md).
+
+The unregistered public-four prototype uses only offered public cards. Four-policy
+choice/invariance and SQL Replay tests cover it; old private snapshots stay private.
+New source-bound frozen30 remains9 complete/21 manual,158/160 executable completions,
+with0 prototype triggers. This is not PL!-pb2-013 automation or a completion gain.
+[Chinese evidence](development/public-four-reveal-foundation.md).
+
+PL!-pb2-041:2 is still an explicit mandatory manual wait. Four policy/block-mode
+tests preserve that boundary and hidden-hand invariance; SQL Replay retains the
+first segment's unresolved counting dependency. The prior source-bound seed18019
+actually triggered it once; this audit is not a new frozen30 run or completion gain.
+[Chinese evidence](development/lily-white-source-score-unresolved.md).
+
+PL!S-bp3-025:1 now selects an own Aqours Stage Member before testing effective
+Blade>=6, scoring only its original Live object. Four policies and hidden-hand
+invariance have targeted assertions. Frozen30 remains9 completed/21 manual stops,
+158/160 executable completions; this effect actually triggered0 times in that pool.
+Defaultv1.1 and historical Replay snapshots stay unchanged.
+[Chinese evidence](development/aqours-blade-six-score-verification.md).
+
 PL!N-sd2-026:1 uses the engine's effective Member Blade (including supported
 static modifiers), not printed Blade or a player-level Yell bonus. Its opt-in
 policy preserves old Replay filtering. Four policies pass current-target and
@@ -40,7 +290,9 @@ Gapv0.3 separates outcomes and legacy skip evidence instead of relabeling skips
 as triggers. Provenance binds src/sandbox Python, card DB, registry and manifest;
 it does not include credentials or hidden hands. Defaultv1.1 is unchanged.
 
-Multi-keep audit: PL!S-bp2-005:1 is manual, not an automatically executable skill.
+Current Q124 checkpoint: PL!S-bp2-005:1 has an exact bounded multi-keep snapshot; the following manual audit is historical. See [verification](development/q124-you-multi-keep-verification.md).
+
+Historical multi-keep audit: PL!S-bp2-005:1 was manual, not an automatically executable skill.
 Four policy versions explicitly decline its optional cost and persist the reason;
 there is no silent error-skip or private inspection.21 targeted card tests retain
 old SQL behavior as compatibility evidence only. Fixed10 does not trigger this

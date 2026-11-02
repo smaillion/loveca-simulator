@@ -2,13 +2,486 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "documentation-entrypoint-consolidation",
+      "priority": 0,
+      "title": "收敛双语README和开发文档入口",
+      "status": "queued",
+      "depends_on": ["chika-recovered-name-source-blade-gap-audit"],
+      "required_profiles": ["control", "registry"],
+      "acceptance": [
+        "依据维护者2026-11-01整理文档授权，在固定分支收敛重复入口；双语README保留产品能力、限制、使用与开发命令，不再复制逐轮验收流水",
+        "建立文档职责和完整专题导航，历史分支快照与当前运行事实分离；所有原单卡报告及ignored证据保持原位，不晋级manual或解除blocked",
+        "核对改动文件的相对链接、原专题入口覆盖、双语章节及git diff；仅文档和任务元数据变化，执行control/registry及pre-push，不复用旧指纹声称新全量测试",
+        "不合并、不部署、不改变发布目标或应用；后续文档更新优先合并既有主题，避免README/清单/审计总览重复追加"
+      ]
+    },
+    {
+      "id": "chika-recovered-name-source-blade-gap-audit",
+      "priority": 0,
+      "title": "审计千歌回收名称与原来源Blade缺口",
+      "status": "queued",
+      "depends_on": ["chika-cost10-post-discard-recovery-scope-audit"],
+      "required_profiles": ["backend", "control", "registry", "web"],
+      "acceptance": ["复核PL!S-bp7-001:1全文revision846/hash与旧manual，不将其他卡FAQ当本卡裁定", "仅未登记构造快照，分别让费用牌和回收牌名称匹配或不匹配，验证旧cost_selected名称条件读取哪一实体及受控来源离区同ID返回时旧Blade操作表现；双方SQL Replay，不能把旧行为当本卡正确规则", "四AI双方实际支持范围、隐藏身份替换、玩家近期事件与provider构造隐私；名称部分匹配、来源原对象、无目标和正式Blade语义继续保留依赖，不改产品/registry/旧Replay或其他blocked", "全部profiles/pre-push通过，应用不变核对同30冻结；仅本地提交，不推送发布部署"]
+    },
+    {
+      "id": "chika-cost10-post-discard-recovery-scope-audit",
+      "priority": 0,
+      "title": "审计千歌弃费后高费成员回收候选",
+      "status": "queued",
+      "depends_on": ["tomari-nonempty-all-hand-discard-probe"],
+      "required_profiles": ["backend", "control", "registry", "web"],
+      "acceptance": ["核对PL!S-bp7-001:1全文revision846/hash及旧manual；固定牌组5次人工辞退只作历史观察，不当执行率改善", "仅未登记弃一张后从控室选择cost10以上Member回手的构造快照，双方真实登场验证实际支付卡成为候选、其他候选、无候选和非法原子以及SQL Replay；不绑定正式卡、不实现名字追加Blade", "四AI双方实际支持范围和对手隐藏身份替换、双方玩家费用及回手后近期事件与provider构造隐私；明确本卡名称部分匹配、来源原对象、无目标和附加Blade依赖，旧JSON/Replay及其他blocked保持", "全部profiles/pre-push通过；应用不变核对同30冻结，仅本地提交，不推送发布部署"]
+    },
+    {
+      "id": "tomari-nonempty-all-hand-discard-probe",
+      "priority": 0,
+      "title": "非空手全部弃牌抽六的未登记原型",
+      "status": "queued",
+      "depends_on": ["tomari-all-hand-fixed-cost-gap-audit"],
+      "required_profiles": ["backend", "control", "registry", "web"],
+      "acceptance": ["仅UNREGISTERED固定登场形状、非空手本人全部手牌弃牌后抽六；空手明确不支持，不将原型绑定PL!SP-bp7-011或称正式规则", "客户端选择必须等于当前本人全部手牌，动态数量不设固定上限；部分/重复/他人/额外字段/错误角色原子拒绝，原有选择器和旧JSON Replay保持", "双方真实登场非空1至多张、辞退、空手拒绝路径和短库刷新真实事件与SQL Replay；四AI实际选择与隐藏身份替换、双方近期事件及provider构造隐私、必要UI", "全部profiles/pre-push、应用变化后同原30冻结；正式卡仍manual，空手及正式刷新语义待单独确认，不恢复其他blocked，仅本地提交不发布"]
+    },
+    {
+      "id": "tomari-all-hand-fixed-cost-gap-audit",
+      "priority": 0,
+      "title": "审计冬毬全部手牌费用与固定选择器缺口",
+      "status": "queued",
+      "depends_on": ["tomari-all-hand-discard-draw-six-scope-audit"],
+      "required_profiles": ["backend", "control", "registry", "web"],
+      "acceptance": ["复核PL!SP-bp7-011全文revision898/hash和既有manual，固定样本只作历史观察，不称本轮新随机触发", "仅未登记固定1至3张手牌费用加抽六的受控快照，双方实际登场验证部分选择、全选、超过上限、非法原子、空手及短库刷新与SQL Replay；现有行为不当正式卡裁定", "四AI双方实际选择及对手隐藏身份替换、双方玩家/provider构造隐私；明确零手支付、动态全手费用与刷新依赖，不改变正式登记、产品、旧Replay或其他blocked", "全部profiles/pre-push通过；应用不变核对同30冻结，仅本地提交，不推送发布部署"]
+    },
+    {
+      "id": "tomari-all-hand-discard-draw-six-scope-audit",
+      "priority": 0,
+      "title": "审计冬毬弃全部手牌抽六的人工边界",
+      "status": "queued",
+      "depends_on": ["aqours-three-live-groups-center-blade-scope-audit"],
+      "required_profiles": ["backend", "control", "registry", "web"],
+      "acceptance": ["复核PL!SP-bp7-011:1完整文本revision898/hash及旧manual，固定牌组的触发与AI辞退只作观察，不当完成率或策略改善", "双方真实登场后空手与多张手牌、短牌库的人工接受拒绝和结构化绕过原子性以SQL Replay核验；不把构造状态当自然中断", "四AI双方实际人工能力行为、对手隐藏身份替换及双方玩家/provider构造隐私；明确空手支付、全部费用原子和抽六刷新顺序依赖，正式manual及其他blocked保持", "全部profiles及pre-push通过，应用不变核对同30牌组冻结；仅本地提交，不推送发布部署"]
+    },
+    {
+      "id": "aqours-three-live-groups-center-blade-scope-audit",
+      "priority": 0,
+      "title": "审计Aqours三组Live回库底与中央Blade边界",
+      "status": "queued",
+      "depends_on": ["ll-bp6-named-blade-heart-inventory-audit"],
+      "required_profiles": ["backend", "control", "registry", "web"],
+      "acceptance": ["复核PL!S-cl1-010:1完整原文revision969/hash及旧manual，固定30牌组中实际待机和AI拒绝次数只作观察，不当完成率或策略改善", "双方真实Live开始、不同来源与人工辞退和结构化绕过原子性以SQL Replay核验；盘点真实Aqours Live三类图标的重叠和不足，分清卡库属性与官方目标资格，顺序、同一卡跨组及无色图标语义不擅自裁定", "四AI双方实际人工能力行为与隐藏身份变化、玩家/provider构造上下文隐私；明确中央目标原对象与Live期限等依赖，保持正式manual、旧快照、产品和其他blocked不变", "全部profiles/pre-push通过，应用不变核对同30牌组冻结；仅本地提交，不推送发布部署"]
+    },
+    {
+      "id": "ll-bp6-named-blade-heart-inventory-audit",
+      "priority": 0,
+      "title": "审计三人卡指定名称候选的Blade Heart实际覆盖",
+      "status": "queued",
+      "depends_on": ["q246-paid-basic-heart-color-union-probe", "ll-bp2-001-named-discard-source-blade-formal-audit"],
+      "required_profiles": ["backend", "control", "registry", "web"],
+      "acceptance": ["复核LL-bp6-001完整原文revision/hash、Q246直接示例和官方名称规则，仅审指定名称费用实际候选的基本及Blade Heart色槽，不把其他卡FAQ当本卡裁定", "以当前真实卡库复算单人及组合名称候选和Blade色槽分布，区分基本颜色重叠及Blade独有颜色；用受控真实卡面验证原型对Blade色槽的实际行为及SQL Replay，不将构造结果当正式裁定", "明确零枚费用、原对象及Blade是否计入仍未确定，正式第二段保持manual，不改产品/registry/默认AI/旧Replay，不解除其他blocked；隐藏数据和双方行为测试的范围如实报告", "全部profiles及pre-push通过，应用不变核对原30牌组冻结，仅本地提交，不推送发布部署"]
+    },
+    {
+      "id": "q246-paid-basic-heart-color-union-probe",
+      "priority": 0,
+      "title": "已支付基本Heart颜色并集的未登记原型",
+      "status": "queued",
+      "depends_on": ["q246-named-discard-color-union-gap-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["仅未登记固定形状原型，实际支付私有手牌费用后按被支付卡片基本Heart颜色集合每色一次；Q246为直接示例但不绑定正式卡或推断Blade/正式名称资格/零枚费用裁定", "严格费用实体和来源原Stage对象，零至多张、共享颜色去重、重复名称、非法输入原子拒绝、来源离区同ID返回与Live清理及新旧SQL Replay", "真实双方执行、四AI实际支持及隐藏身份变化、完整玩家/provider构造隐私与必要UI；不改旧操作/快照/默认AI，不恢复blocked", "全部profiles/pre-push及应用变化后同原30牌组冻结，正式卡仍manual，仅本地提交，不推送发布或部署"]
+    },
+    {
+      "id": "q246-named-discard-color-union-gap-audit",
+      "priority": 0,
+      "title": "Q246指定名称费用颜色并集边界审计",
+      "status": "queued",
+      "depends_on": ["ll-bp6-named-discard-color-scope-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对官方LL-bp6-001直接Q246及全文revision/hash，示例交叠基本Heart按颜色并集各一次；不将示例扩展为Blade或整卡裁定", "用明确未登记合成快照审计现有私有指定名可变弃牌费用及已支付结果、零枚与重复名称候选、非法原子性和SQL Replay；不得将构造样例冒充本卡正式能力", "核查既有操作能否表达所付费用多卡颜色并集，缺口明确保留；正式卡manual及其他blocked不恢复，旧快照/Replay/默认AI不改", "必要隐私与已有四AI证据范围清晰区分，全部profiles和pre-push通过；应用不变核对同30牌组冻结，仅本地提交"]
+    },
+    {
+      "id": "ll-bp6-named-discard-color-scope-audit",
+      "priority": 0,
+      "title": "三人卡指定名称弃牌颜色能力边界审计",
+      "status": "queued",
+      "depends_on": ["live-start-waiting-nine-live-three-top-order"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对LL-bp6-001:2完整卡文和两段登记、revision/hash及冻结seed18027的两来源真实待机，不将卡面解读冒充完整裁定", "真实双方Live开始及可选发动与零枚费用边界、旧人工快照与绕过原子性以SQL Replay核验；私有手牌候选、重复名称、颜色来源及费用结果未证实时明确依赖，不半支持", "四AI实际支持及双方隐私、来源原对象和其他blocked保持；不修改正式登记、旧Replay或默认行为", "全部profiles和pre-push通过，应用不变仅核对同30牌组冻结；仅本地提交不推送或部署"]
+    },
+    {
+      "id": "printemps-tiered-ready-requirement-scope-audit",
+      "priority": 0,
+      "title": "Printemps实际复原人数分档减需边界审计",
+      "status": "queued",
+      "depends_on": ["printemps-ready-four-producer-coverage-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!-pb2-040:1完整CardDefinition及原登记、revision/hash和冻结seed18016真实manual，不把已完成其他卡审计当本卡裁定", "双方真实Live开始及限定来源查询、旧来源未知和目标对象边界以SQL Replay验证；0至3分档只依据卡文，未知不当零，不假称消费者依赖已解除", "保持卡库、登记、旧快照与blocked不变；审计四AI真实支持和双方隐私，必要时记录明确依赖，不半支持或requeue", "全部profiles及门禁后pre-push通过；应用未变仅核对原30牌组冻结，保留本地提交，不推送发布或部署"]
+    },
+    {
+      "id": "printemps-hanayo-source-wait-provenance-snapshot-audit",
+      "priority": 1,
+      "title": "花陽本人Wait费用复原的单卡来源历史快照审计",
+      "status": "queued",
+      "depends_on": ["effect-ready-source-wait-active-target-probe-v2"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["只审PL!-bp6-008:1完整全文/revision10/hashc5c21450dc637b1907f36eb45ba9c264b4fbd1a6a7092aa2dbc6a5bc9b27179c，先保存CardDefinition及原登记并复算", "精确新pattern/snapshot前核对原来源Active/Stage条件与v2真实验证的等价性；其他生产者与旧JSON/Replay不追改，不全局启用范围策略、不requeue消费者", "原生Main起动支付本人来源Wait后分步严格选其他本人顶层Member，可Wait或Active；Active不记复原但支付和次数真实消费，无其他Member不得扣费，附属/他方/来源自己不合格；父能力锁保持", "双方来源LKI/隐藏返回、目标原对象、同名来源、非法原子性、新旧SQL/四AI/完整隐私/必要UI图文及全部profiles与新源码同原30牌组验收", "仅已可执行卡的第三个正式历史生产者3of5，不算manual晋级或消费者完成；证据不足保留依赖。只本地提交，不push/publish、新PR、合并部署或主机操作"]
+    },
+    {
+      "id": "effect-ready-source-wait-active-target-probe-v2",
+      "priority": 1,
+      "title": "本人Wait费用后允许已Active目标的独立复原原型",
+      "status": "queued",
+      "depends_on": ["printemps-honoka-live-start-provenance-snapshot-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["只做unregistered显式v2新操作/快照，核对PL!-bp6-008:1全文/revision10/hashc5c21450dc637b1907f36eb45ba9c264b4fbd1a6a7092aa2dbc6a5bc9b27179c与旧v1 Wait-only差异，不直接绑定正式花陽", "本人原Stage顶层Active来源实际支付一次Wait，分步严格选另一本人顶层Member；目标可Wait或已Active，Active不记复原但必须有实际支付和次数消费；没有其他Member与仅Active目标的资格/费用先核对", "旧v1/JSON/Replay/flags/未知coverage不全局放宽，不支持混合费用/初始离场源/复杂继承；来源LKI/原目标对象/父能力锁/非法原子性/新旧SQL/四AI支持范围/完整隐私/必要UI与所有profiles及新源码同原30牌组验收", "只底座原型，正式历史生产者仍2of5、消费者和其他blocked不requeue；正式花陽后续单卡验收。仅本地提交，不push/publish、新PR、合并部署或主机操作"]
+    },
+    {
+      "id": "printemps-honoka-live-start-provenance-snapshot-audit",
+      "priority": 1,
+      "title": "高坂穂乃果Live开始复原的精确历史快照审计",
+      "status": "queued",
+      "depends_on": ["printemps-kotori-onplay-provenance-snapshot-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["只审PL!-bp3-001:2完整双段全文/revision442/hash03019af91423572a345dd28a3ff40213fb05239ed99452cff65fdd8c559bb476，第一段起动费用抽弃逐项不改", "先原生Live开始核对本人任意Member0至1及已Active和强制发动vs选零；明确才精确新v1快照，旧快照/Replay与其他三生产者不追改，不全局启用范围策略，不requeue消费者", "真实来源/回合/原目标、双方0/1/非Printemps/附属/来源离场隐藏返回/位置及目标原对象，同名来源、SQL/四AI/完整隐私/UI图文与所有profiles和新源码同30牌组验证", "仅正式历史生产者2of5，不算manual晋级或消费者完成；证据不足保留依赖，只本地提交，不push/publish、新PR、合并部署或主机操作"]
+    },
+    {
+      "id": "printemps-kotori-onplay-provenance-snapshot-audit",
+      "priority": 1,
+      "title": "南ことり登场复原的精确来源历史快照审计",
+      "status": "queued",
+      "depends_on": ["effect-ready-qualified-coverage-probe"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["只审PL!-pb1-012:1完整全文/revision427/hashb9330edc34a6956d65e6eb4f353a012df515635f142ff3312f42c9bd9d8b182c，先原生登场/本人Printemps目标0至1及旧快照核对", "明确才精确新pattern/snapshot改用已验证无费用v1；旧ready/旧snapshot/Replay及其他四生产者不追改，不全局启用限定coverage，不requeue穂乃果", "真实来源/回合/原目标，0/1/已Active/非Printemps、源离场隐藏返回/位置、目标离区返回、非法原子性、新旧SQL、四AI/完整隐私/原生UI图文及所有profiles和同原30牌组验收", "只计已执行卡历史生产者1of5，不算manual晋级或消费者完成；证据不足保留依赖，只本地提交，不push/publish、新PR、合并部署或主机操作"]
+    },
+    {
+      "id": "effect-ready-qualified-coverage-probe",
+      "priority": 1,
+      "title": "限定来源范围的复原历史完整性原型",
+      "status": "queued",
+      "depends_on": ["effect-ready-departed-source-lki-probe"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["仅unregistered闭合范围新policy与独立只读查询，不绑定正式卡或requeue穂乃果", "按权威来源所有者/效果玩家/unit/work限定完整性，旧全局coverage和查询默认语义/旧JSON/Replay保持", "只记实际Wait到Active和原对象；已知非匹配旧来源不污染范围，无源证据/晚启用/旧flags必须未知，不从当前裸ID/方向/Stage/隐藏库猜过去", "旧ready仅新policy记录必要未知事实，不全局升级旧生产者或认证复杂获得/继承", "双方角色/匹配非匹配未知/重复及已Active/来源LKI目标对象和回合清理、SQL/四AI/完整玩家与provider隐私/必要UI、全部profiles与同原30牌组冻结；仅本地提交不发布"]
+    },
+    {
+      "id": "effect-ready-departed-source-lki-probe",
+      "priority": 1,
+      "title": "限定Stage离场到控室后触发的复原来源原型",
+      "status": "queued",
+      "depends_on": ["effect-ready-source-wait-cost-provenance-probe"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["仅unregistered probe，不绑定PL!-PR-001或任何正式卡、不requeue穂乃果", "显式新操作/快照：本人原Stage顶层Member进入本人控室后无费用触发，离区前绑定来源/所有者/unit/work/回合，不全局放宽旧v1或从返回新卡面猜历史", "来源移区返回/旧信息和目标原对象、现代结算锁及旧顺序检查点边界真实验证", "旧JSON/Replay/flags/未知coverage保持，限定来源覆盖账本另审，不称五条生产者完整覆盖", "双方原生离场SQL/四AI实际支持范围/完整隐私/必要UI及全部profiles、新源码同原30牌组冻结；仅本地提交不发布或操作主机"]
+    },
+    {
+      "id": "effect-ready-source-wait-cost-provenance-probe",
+      "priority": 1,
+      "title": "限定本人Wait费用后的成员复原来源原型",
+      "status": "queued",
+      "depends_on": ["printemps-ready-producer-snapshot-coverage-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["仅unregistered probe，不绑定正式生产者或requeue穂乃果", "显式新操作仅本人原Stage来源支付一次Wait费用后复原另一顶层Member，不放宽既有v1或支持混合费用/离场源", "真实起动来源/回合/费用事实/原目标、分步选择、来源离场返回与非法提交原子性", "旧快照/Replay/flags保持，未知coverage不作零", "双方SQL/四AI/完整玩家与provider构造隐私/必要UI及全部profiles，新源码同原30牌组冻结；仅本地提交不发布"]
+    },
+    {
+      "id": "printemps-ready-producer-snapshot-coverage-audit",
+      "priority": 1,
+      "title": "盘点Printemps实际复原生产者的新快照覆盖边界",
+      "status": "queued",
+      "depends_on": ["effect-ready-member-object-provenance-foundation"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["按真实来源card.unit_keys=printemps盘点ready_member生产者，不用正文关键词替代来源单位；不requeue PL!-pb2-010或改manual登记", "逐张保存全文/revision/hash/旧快照，区分登场、Live开始、起动费用和已离场源；v1仅原Stage/Live和无费用，不把原型当完整覆盖", "核对启用时点、旧ready使coverage未知、原目标/LKI、费用后目标和离场源信息；明确才精确新快照，不全局追改旧producer/Replay，不能证明完整覆盖则记录有限依赖，不半支持消费者", "真实SQL/四AI/完整隐私/必要UI及全部profiles，应用变化同原30牌组冻结；仅本地提交，不push/publish、新PR、合并部署或主机操作"]
+    },
+    {
+      "id": "effect-ready-member-object-provenance-foundation",
+      "priority": 1,
+      "title": "建立显式新快照的成员复原来源与对象历史底座",
+      "status": "queued",
+      "depends_on": ["live-start-waiting-nine-live-three-top-order"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["先读Printemps边界和provenance-gap，底座不依赖blocked消费者，不直接requeue或晋级正式卡，不改旧ready flags", "显式版本化新快照记录实际Wait到Active、游戏回合、真实来源invocation/effect/所有者和当时unit/作品、目标原Member对象；重复计数去重，已有Active不记，Stage换位保持，离区同ID返回不继承，不从裸ID倒推", "只用unregistered probe验收，不绑定正式卡；旧快照不加键/改Replay，覆盖来源离场LKI/目标移区附属/双方角色/Active阶段排除/回合清理/SQL/四AI/完整隐私和全部profiles，应用变化重绑同原30牌组冻结", "底座通过仍需单独显式requeue消费者并逐卡验收，不把底座绿色当整卡实现；仅本地提交，不push/publish、新PR、合并部署或主机操作"]
+    },
+    {
+      "id": "live-start-printemps-ready-history-source-blade-audit",
+      "priority": 1,
+      "title": "审计Printemps效果实际复原历史与原来源Blade",
+      "status": "queued",
+      "depends_on": ["live-start-waiting-nine-live-three-top-order"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["PL!-pb2-010:1全文/revision983/hash327d07177662f55cdc206df19152fa63fada6d2cb037ee3e61aa7537f658a9b1精确绑定，当前seed18029两个来源共同manual，不处理相邻LL复杂技能或已blocked项", "先核对实际Wait到Active、本游戏回合/真实能力来源所有者及Printemps单位、当前顶层原Member对象和移区新对象，不从当前姿态、裸ID或无来源ready日志猜历史，不明manual/unresolved", "明确才受限快照：0-3当前成员/重复ready和之后Wait/附属/离场返回、原来源Blade与Live期限、真实provenance、新旧SQL/四AI/完整隐私/UI图文及全部profiles和新源码同原30牌组冻结；不能证明完整历史则边界审计，不半支持登记", "仅本地实现验证提交，不push/publish、新PR、合并部署、主机或Kyotei操作，不全局改旧ready/manual快照或恢复旧blocked，不虚标reviewed或随机完成"]
+    },
+    {
+      "id": "live-start-waiting-nine-live-three-top-order",
+      "priority": 1,
+      "title": "审计控室九张以下时最多三张Live回库顶排序",
+      "status": "queued",
+      "depends_on": ["onplay-cost7-baton-draw-two-discard-one"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["PL!S-PR-048:1全文/revision1221/hash1a909fea0f9bf0bb741c346181519d1ad06a2ee4774d4f6be1274570f86c2b54精确绑定；seed18027第10回合222动作与两条LL-bp6-001:2共同manual，不说唯一阻塞", "先核对正文结算时条件、控室总数9以下而非Live数、0至3张Live与实际库顶顺序/公开到隐藏区权限，不明manual/unresolved", "明确才新受限快照：控室0/9/10与待机变化、0-3及多候补/类型/同名实体、重复遗漏非候补/他方/陈旧原子拒绝、库尾/短空库刷新/来源离场返回、SQL/四AI/完整隐私/UI图文和全部profiles，新源码同原30牌组冻结须验证，不改旧amount_source/排序/manual快照", "仅本地实现验证提交，不push/publish、新PR、合并部署、主机或Kyotei操作，不处理相邻LL复杂技能或恢复其他blocked，不虚标reviewed或随机覆盖"]
+    },
+    {
+      "id": "onplay-cost7-baton-draw-two-discard-one",
+      "priority": 1,
+      "title": "审计费用7成员Baton登场后抽二弃一",
+      "status": "queued",
+      "depends_on": ["live-success-current-yell-live-source-score-q253"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["PL!S-PR-045:1全文/revision1218/hash03473dd2859e177bd884e25579a92a4ae293ae9790c34af4fe4fd4d1705fc49f精确绑定，seed18027第6回合118动作真实mandatory manual。先核对真实Baton前对象费用、原印刷或有效费用参照与事件历史，不用当前Stage或普通登场替代，不明保留manual/unresolved", "明确才新受限快照：非Baton、费用6/7/8及补正、来源离场返回/换位与旧Baton历史、抽二短空库刷新后本人严格弃一和零手牌可能范围；原生SQL/四AI/完整隐私/UI图文及所有profiles验收，不追改旧draw/discard/manual快照", "应用源码变化重绑同原30牌组冻结，全部门禁及pre-push后仅本地提交；不push/publish、新PR、合并部署或主机操作，不恢复旧blocked，不虚标reviewed"]
+    },
+    {
+      "id": "live-success-current-yell-live-source-score-q253",
+      "priority": 0,
+      "title": "修复Q253当前Yell Live条件与原来源Live得分",
+      "status": "queued",
+      "depends_on": ["live-success-opponent-yell-live-draw"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["先将q253-valid-final.json/sqlite3有效原生红例纳入正式专项，精确PL!S-bp6-023:1全文/revision72/hashecfac853f6d6c490d282df3610013bb0d0714c9941a9e23f1fc99f9cc898e1f7，原test_validated_executable标签不代表符合Q253，不算manual晋级", "Q253直接明确结算前唯一Yell Live被回收后不加分；按当前原Yell对象判断，只增加原来源Live分数，不是全局score。精确新snapshot/condition/来源policy，不全局追改旧通用condition或旧Replay", "验证0/1/2、已移走/同ID返回/新对象/多次Yell、结算前变化、来源离场返回/Live区内移动、多Live只原来源、Live清理、新旧SQL/四AI/完整隐私/UI图文与所有profiles，来源或规则语义不明保留unresolved", "新源码同原30牌组冻结和pre-push后仅本地提交；不push/publish、新PR、合并部署或主机操作，不恢复其他blocked"]
+    },
+    {
+      "id": "live-success-opponent-yell-live-draw",
+      "priority": 0,
+      "title": "审计Live成功时对方本次Yell含Live后的抽一张",
+      "status": "queued",
+      "depends_on": ["ui-water-blue-heart-slot-label-correction"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["精确核对渡辺曜PL!S-PR-046:1完整全文/revision1219/hasha8e630b24ea2d9956c6e64421ef222f7f627a68a36eb7ee148b9600fdbb5c97e，cost5/Blade0、work love_live_sunshine/unit cyaron；当前冻结seed18027第4回合84动作同卡两条mandatory manual共同停止", "先核对本次对方Yell历史和正文结算时点，区分0/1/2张Live、未Yell、己方Yell、对方Live Area、旧回合缓存和先后演出，不用全resolution_area替代；对原公开对象移区后的历史/最后公开信息先取得依据，不明保持manual/unresolved", "明确才精确受限新snapshot，固定本人抽一张及短空库刷新，两来源分别一次、来源离场返回、非法原子性、新旧SQL、四AI隐藏身份不变和完整隐私/UI图文须真实验证，旧draw/manual快照不追改", "全部profiles/pre-push及新源码同原30牌组冻结验收后仅本地提交；不提升reviewed、不改默认AI或Card/SQL schema、不自动requeue其他blocked，不push/publish、新PR、合并部署或主机操作"]
+    },
+    {
+      "id": "ui-water-blue-heart-slot-label-correction",
+      "priority": 0,
+      "title": "修正WATER BLUE的heart05蓝色Heart中日文显示及报告",
+      "status": "queued",
+      "depends_on": ["live-success-aqours-shared-heart-yell-recovery-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["先读color-label-risk.md及保存的官方WATER BLUE卡图，确认PL!S-cl1-013:1正文heart05对应蓝色/青；引擎modifier.color_slot=heart05正确，先用0/1/6结果中日红断言复现UI硬编码粉/ピンク", "只修WATER BLUE结果文案、对应原生UI断言与相关中日README/Changelog/中文报告，使用既有颜色格式化约定；数量、槽位和提交保持，不全局替换真实粉色heart01，不改engine、generator、registry、manifest、Card/SQL schema、默认AI、隐私或旧Replay", "最终checkpoint后全部control/registry/backend/web与pre-push重新通过；应用诊断指纹48a6d8251334be8fd6528cfae38d8801159ae4174eaa0eb7731efbd17d020078不变时只核对原30局绑定，不无变化重冻", "只本地提交，不push/publish、新PR、合并部署或主机操作；旧blocked保持，完整done后下一轮才按业务提案领取PL!S-PR-046，不先领宽泛父任务"]
+    },
+    {
+      "id": "live-success-aqours-shared-heart-yell-recovery-audit",
+      "priority": 0,
+      "title": "审计Aqours三人共同Heart颜色与本次Yell公开Member回收",
+      "status": "queued",
+      "depends_on": ["live-start-waiting-six-shuffle-bottom-selected-aqours-heart"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["精确核对PL!S-cl1-011:1完整全文/revision970/hashb56ab4b40570e38e542e3d9613235c13e595d323ea45853c4b94a54fc874a806；当前冻结seed18027第2回合45动作实际mandatory manual，不把其他共同待机历史或牌组频次算实际触发", "先查官方三名Aqours顶层Member、共同颜色与普通/有效Heart及Blade Heart范围、多共同颜色的合法处理、正文条件结算时点和真实Yell历史；不能以颜色并集、全resolution_area、作品外Member或语言直觉替代，不明则manual/unresolved", "明确才精确受限新snapshot：双方0/2/3名、异作品/附属/Wait、多色交集/无共同色、条件变化、本次公开Yell中符合颜色与Aqours Member的一张本人回收、已移走/无目标/非法原子性、来源离场返回、新旧SQL、四AI隐藏身份不变和完整双视角/UI图文须验证；旧snapshot不追改", "新源码原30牌组冻结和全部profiles/pre-push后只本地提交，不提升reviewed、不改默认AI或Card/SQL schema、不恢复其他blocked；本提案不含push/publish、新PR、合并部署或主机许可"]
+    },
+    {
+      "id": "live-start-waiting-six-shuffle-bottom-selected-aqours-heart",
+      "priority": 0,
+      "title": "审计控室无Blade Heart的Aqours最多六张洗回库底与指定成员Heart",
+      "status": "queued",
+      "depends_on": ["continuous-draft-pr-target-pin"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["精确核对WATER BLUE NEW WORLD，PL!S-cl1-013:1，revision972/hash92ac3f09ae0da6ba76aff0bd884b762dbd40af9410853a08c4ae05d8abe9576c，Live score10；冻结seed18027第2回合40动作与其他待机共同出现，本卡mandatory manual，不能说唯一阻塞", "先核对官方0至6张、Member/Aqours作品/无任何普通或特殊Blade Heart、洗牌后库底隐私及处理时点、零张时后续选择与无Stage目标的可能范围；不用固定顺序冒充洗牌，不猜FAQ，未确认保留unresolved/manual", "明确才受限新snapshot：实际控室选择并洗回原库底，按本次实际放回数量每满2张给后续所选本人Aqours顶层Member蓝色Heart两颗至Live结束；0/1/2/5/6张、过量重复非候补、空库/原尾牌、多/无目标、附属/Wait/对手、来源和目标离场返回/场内换位/Live清理、公开历史与当前隐藏库底隔离均须真实断言", "真实Live开始/SQL Replay、四AI隐藏身份不变/不改输入、完整双视角/UI图文、全部profiles/pre-push和新源码原30牌组冻结后只本地提交；不改旧amount_source/随机/manual快照，不提升reviewed/改默认AI或Card/SQL schema，不恢复旧blocked，不改policy、不push或新PR、合并部署"]
+    },
+    {
+      "id": "continuous-draft-pr-target-pin",
+      "priority": 0,
+      "title": "固定已批准新Draft PR55的真实编号并重新验收",
+      "status": "queued",
+      "depends_on": ["live-success-opponent-cost4-wait-or-draw-next-active"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["维护者明确批准修改发布目标并新建Draft PR；本轮已真实创建https://github.com/smaillion/loveca-simulator/pull/55，核对OPEN/isDraft=true/head codex/continuous-development/base develop，再固定policy.pull_request=55。只能更新同一固定Draft，若关闭或合并不得自动新建替代，合并和部署仍需另行批准", "持有本任务租约时更新policy和checkpoint，保留allow_merge=false/allow_deploy=false、现有分支和工作树，不修改应用源码或手工篡改运行状态", "源码指纹因配置变更失效，必须重新全部control/registry/backend/web及pre-push，不能复用上一功能任务passed=true或拼接旧结果；应用诊断指纹仍一致时只核对原30局绑定。审查diff后只提交已验证配置，complete后publish更新同一Draft PR55", "读取新PR真实CI状态，pending不声称通过，失败优先读日志修复；不force-push、不直接push develop/main/preview、不合并部署。本任务完整done之后才领取WATER BLUE NEW WORLD的有限提案"]
+    },
+    {
+      "id": "live-success-opponent-cost4-wait-or-draw-next-active",
+      "priority": 0,
+      "title": "审计Live成功选择对手低费Member待机并限制下回合Active或抽一张",
+      "status": "queued",
+      "depends_on": ["onplay-diverdiva-two-name-energy-choice-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["精确核对PL!S-bp7-025:1，revision917/hash8f3f0088db7c0001fda1fbc53680efde3f4bc6bcdccc8dde9ac0345ca80d5bc6；冻结seed18007第10回合206动作实际mandatory manual。全文【ライブ成功時】以下から1つを選ぶ。 ・相手のステージにいるコスト4以下のメンバーを2人までウェイトにする。そのメンバーは次のターンのアクティブフェイズにアクティブしない。 ・カードを1枚引く。", "先核对官方选择数量0至2、相手Stage顶层/费用<=4、Wait与次回合期限及移区新对象；本回合未到本人Active不能误消费，下个游戏回合与下次操作不同，不把旧Energy标记直接贴到所有Member。未确认保留unresolved/manual，不猜FAQ或使用第三方攻略", "明确后仅受限新snapshot和目标原对象标记；验证0/1/2候补、已Wait/Active/附属、低于等于高于4、对方所有者选择权限、主动提前ready再Wait、离场同ID返回/组移动、过期清理及抽一张短库刷新，不追改旧branch/ready/manual快照", "真实Live成功/原生SQL跨回合、四AI/隐藏身份不变/不改输入、完整双视角、原生UI图文、全部profiles/pre-push和新源码原30牌组冻结诊断后仅本地提交；不自动requeue空Stage等旧blocked，不提升reviewed/改默认AI或Card/SQL schema，不改policy、不push或新PR、合并部署"]
+    },
+    {
+      "id": "onplay-diverdiva-two-name-energy-choice-audit",
+      "priority": 0,
+      "title": "审计DiverDiva异名两人条件与复原Energy或从Energy Deck附属的分支",
+      "status": "queued",
+      "depends_on": [],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["精确核对PL!N-bp7-005:1，revision868/hashad5311610df13efbe44297694127ea7740391a12f280bc947c634172cb6145fb；冻结seed18014第7回合122动作实际mandatory manual。全文【登場】自分のステージに名前の異なる『DiverDiva』のメンバーが2人いる場合、以下から1つを選ぶ。 ・エネルギーを2枚アクティブにする。 ・自分のエネルギーデッキから、エネルギーカード1枚を自分のステージにいる『虹ヶ咲』のメンバーの下に置く。", "先核对官方正文条件结算时点、两名不同名字的unit条件与多重名/同名异印刷、固定两分支和不足可执行范围；不能把DiverDiva unit当作品、把虹ヶ咲目标限为DiverDiva或把附属当Energy Area放置。未确认则保留unresolved/manual，不猜FAQ或用第三方攻略", "明确后仅新增精确受限snapshot，区分条件失败无选择、复原两Energy及从本人Energy Deck到本人当前虹ヶ咲顶层Member下；验证0/1/2 Wait Energy、空Energy Deck、目标合法性/空候补、分支重复或非所有者/过期提交原子性、来源离场/返回及条件待机变化，不扩大旧branch/attachment快照", "真实原生状态/SQL Replay、四AI/隐藏身份不变/不改输入、完整双视角和必要原生UI图文、全部profiles/pre-push及新源码原30牌组冻结诊断后仅本地提交；不依赖空Stage全称真值任务，不自动requeue现有blocked任务，不提升reviewed/改默认AI或Card/SQL schema，不改policy、不push或新PR、合并部署"]
+    },
+    {
+      "id": "live-start-all-active-source-live-requirement",
+      "priority": 0,
+      "title": "审计全员Active条件与仅原来源Live无色必要Heart减少",
+      "status": "queued",
+      "depends_on": ["live-start-bottom-one-aqours-source-live-requirement"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["只审计PL!S-bp7-020:1，完整双段revision912/hash2762be94925766143618a17b7a60b0cb252f776311eaf3f8198af0c49a60d046；最新冻结seed18012第1回合18动作由本段mandatory manual停止，第2段已执行一次，不重复实现或追改其快照。第1段全文为【ライブ開始時】自分のステージにいるすべてのメンバーがアクティブ状態の場合、このカードの必要ハートを【heart0】減らす。", "先核对正文条件结算时点、空Stage的全部条件、顶层Member/附属/Wait与无色必要Heart；无期限按9.2.1.2与移区新对象分别处理，不凭语言直觉裁定空集合。官方不足则保留unresolved/manual，不以测试代替裁定或用第三方攻略", "明确后仅新受限snapshot和原来源Live policy；验证0/1/3名、全Active/混合Wait、触发后Active变更、附属不计、双方角色、多个Live仅原来源、来源离场返回/Live Area内移动、game与离场清理、替换后加减及无色零下限，不全局改旧required_heart/manual快照", "真实原生状态/SQL Replay、四AI/隐藏身份不变/不改输入、完整双视角、原生UI与图文、所有profiles/pre-push和新源码原30牌组冻结诊断通过后仅本地提交；不提升reviewed、不改默认AI/Card或SQL schema，不改policy、不push或新PR、合并部署"]
+    },
+    {
+      "id": "live-start-bottom-one-aqours-source-live-requirement",
+      "priority": 0,
+      "title": "审计底一张Aqours Member与仅原来源Live必要Heart减少",
+      "status": "queued",
+      "depends_on": ["onplay-two-different-live-opponent-choice"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["精确核对PL!S-bp7-020:2，完整双段revision912/hash2762be94925766143618a17b7a60b0cb252f776311eaf3f8198af0c49a60d046；当前冻结seed18012第1回合17动作与第1段共同mandatory manual，不是唯一阻塞，不自动晋级第1段", "第2段全文为【ライブ開始時】自分のデッキの下からカードを1枚控え室に置く。それが『Aqours』のメンバーカードの場合、このカードの必要ハートを【heart0】減らす。先核对必要Heart来源范围/无明确期限语义、实际底牌与空库刷新、Aqours作品和Member限定；不猜测FAQ、不用普通Heart补正或全局减需替代", "明确后仅使用独立受限snapshot，验证Live/Member/错误work/空库与恰一张、刷新后实际移动Card、多个Live仅原来源减需、来源离场同ID返回/Live Area内移动、清理/期限及新旧SQL Replay；第1段逐项保持，不扩大旧milling/必要Heart快照或追改旧Replay", "真实四AI/隐藏信息/公开历史与当前牌库隔离、必要原生UI/图文和全部四profiles/pre-push、新源码原30牌组冻结诊断后只本地提交，不提升reviewed/改默认AI或Card/SQL schema；语义不明保留unresolved/manual，不改policy、不push、新建PR、合并部署"]
+    },
+    {
+      "id": "onplay-two-different-live-opponent-choice",
+      "priority": 0,
+      "title": "审计两张不同名控室Live由对手选择一张回手牌",
+      "status": "queued",
+      "depends_on": ["onplay-both-center-position-choice-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["精确核对PL!SP-bp2-011:1，revision565，hash9e4fd4e9e0b3b110651c0f1139e851bab7f588d77460a36f422db788ae4ef09c；当前冻结seed18015第7回合122动作实际mandatory manual，不按牌组频率猜测", "先核对官方公开区域必选与そうした場合语义、两张不同名和不足两张条件；仅所有者选本人控室两张不同名Live，再由对手从固定二者选一张，不能代对手选、把不足两张当满足或使用手牌/Member；语义不明确保留manual与unresolved", "明确后仅新增受限snapshot，不扩大旧多玩家登记；真实0/1/2/多候补及同名不同印刷、双方角色/来源离场返回、重复遗漏非候补/错误玩家原子性、新旧SQL Replay、四AI/隐藏身份不变/不改输入、完整双视角及原生UI图文验证", "完整四组profiles和pre-push、同原30牌组seed18000–18029冻结诊断与最终源码绑定后才本地提交，不提升reviewed、不改默认AI/Card/SQL schema，不改policy、不push、新建PR、合并部署"]
+    },
+    {
+      "id": "onplay-both-center-position-choice-audit",
+      "priority": 0,
+      "title": "按实际待机审计双方中央成员各自Position Change",
+      "status": "queued",
+      "depends_on": ["static-mirrored-opponent-cost-source-heart"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!SP-bp5-010:1全文/revision215/hasha99058a753bf9e71a54740c7db2fe2e3ca2d5b5a8c6bf42387de11c4122caaf8；冻结seed18013第6回合117动作实际mandatory manual，不按持卡频率晋级", "先核对官方Q223、1.3.4及Position Change规则，区分双方各自选择本人的中央成员目的地与先后公开/同时执行、占位交换、无中央/空Stage/来源离场；不照搬单方选对手或未经确认扩大旧多人snapshot", "若语义明确才新增受限snapshot，真实原生状态/双方0或多目的地/附属与Wait/非法非所有者原子性、新旧SQL Replay、四AI/完整双视角隐私及原生UI图文验收；不明保留manual及unresolved reason，不自动恢复姫芽第一段", "全部profiles/pre-push与新源码同牌组冻结诊断通过后只本地提交，不改默认AI/schema/reviewed；后续PR目标待明确批准，不改policy、不推送、新建PR、合并部署"]
+    },
+    {
+      "id": "static-mirrored-opponent-cost-source-heart",
+      "priority": 0,
+      "title": "优先修复安養寺姫芽常时正面费用比较未镜像左右的既有错误",
+      "status": "queued",
+      "depends_on": [],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["先读mirakura-front-position-unresolved.md与logs/mirakura-front-position-20261027/mirror-native-red.xml、mirror-valid-probe.json和两份SQL；PL!HS-pb1-014:2原本已可执行，不算manual晋级。revision130/完整双段hash542b68ba2435dd4aafaaf2f88d9fc0d75cf33321d245934e772175c21e009591精确绑定，第1段仍blocked/manual不扩大范围", "PDF4.5.7.1明确左右镜像/中央对中央；将新对局固定正面费用比较置于显式新snapshot条件或policy，不全局追改旧opposing_member_cost_greater_than_source以掩盖旧Replay。先加持续红测试，左右cost9来源/同栏4/正面10应+1，反向样例防止碰巧通过", "双方角色/三位置、费用低于等于高于、无对手/附属卡/Wait、位置交换/Formation、来源离场返回、新旧SQL、四AI/双视角与必要UI真实断言；新旧snapshot行为区分，不改Card/SQL schema或默认AI，不提升reviewed/执行数", "应用源码变化后重绑同牌组冻结30局，完整profiles/pre-push通过再本地提交；第1段同区域资格/最后位置未解决不能据此晋级。后续PR目标待明确批准，不改policy、不推送、新建PR、合并部署"]
+    },
+    {
+      "id": "onplay-mirakura-opponent-front-position",
+      "priority": 0,
+      "title": "按实际待机审计仅みらくらぱーく条件与对手正面移动",
+      "status": "queued",
+      "depends_on": ["onplay-private-three-top-bottom-order"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!HS-pb1-014:1完整双段/revision130/hash542b68ba2435dd4aafaaf2f88d9fc0d75cf33321d245934e772175c21e009591，seed18005实际mandatory manual；仅审计第1登场段，第2常时不自动晋级", "先查官方仅某unit条件、正文结算时点及对手正面Position Change规则，区分stage顶层/附属、unit/work、来源离场的正面参照及有成员的目的地；不能猜测或替代为登场/Formation/全体移动，不明记unresolved", "有限实现须真实验证本人舞台纯/混合/空、对手0/1/多候补、左右镜像/中央/同区域、来源离场返回和换位、非法/非所有者原子性、新旧SQL、四AI/双视角/UI图文；不扩大旧Position Change快照或常时框架", "全部profiles/pre-push与新源码同牌组冻结诊断后只本地提交，不提升reviewed、不改默认AI/schema；后续PR目标待明确批准，不改policy、不推送、新建PR、合并部署"]
+    },
+    {
+      "id": "onplay-private-three-top-bottom-order",
+      "priority": 0,
+      "title": "按实际待机审计私看三张后分别排库顶库底",
+      "status": "queued",
+      "depends_on": ["live-start-bottom-five-members-source-live-score"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!S-bp7-008:1及完整双段日文/revision853/hash1de3807181773c1f9c909324ecf5885928876ce992a6ed6f4d93e2f000a63f6b，seed18017第4回合74动作Baton后实际mandatory manual；第2段可选Live开始能力不自动晋级", "私看顶三张后任意数量按任意顺序放顶，其余任意顺序放底；先核对查看短库刷新10.2.2.2和原对象，禁止控室/取得/公开替代，0/全/分拆与两组顺序需真实断言", "必要时新增受限snapshot，不改旧amount_source/私看/重排快照；重复/遗漏/非候补/他方提交原子拒绝，短库/空库、来源离场、新旧SQL Replay、四AI与完整双视角隐私、原生UI及图文有断言，不泄露私看顺序", "全部profiles/pre-push及绑定新源码同牌组冻结诊断通过后只本地提交；不提升reviewed、不改默认AI/schema，语义不明保留unresolved；后续PR目标待明确批准，不改policy、不推送、新建PR、合并部署"]
+    },
+    {
+      "id": "live-start-bottom-five-members-source-live-score",
+      "priority": 0,
+      "title": "审计三人条件后的底五张Member计数抽牌与原来源Live得分",
+      "status": "queued",
+      "depends_on": ["live-start-bottom-three-aqours-source-heart"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!S-bp7-021:1全文/revision913/hash4abd5654a85639e01eb2721a21df5439f133589eeccd1238c04944fb4a0b6261，seed18017实际mandatory manual；区分PL!S-bp7-006是已可执行但共同待机，不重复虚增覆盖率", "先确认三人条件的判断时点、底五张逐张移动/途中刷新/同实体多次移动历史；至少三次Member移动才抽一张，全部为Member才仅原来源Live score+1，不能按最终控室或刷新后库顶判定，也不能加全局score", "条件未满足、0/短库/重复实体、Member/Live混合、追加抽牌刷新、来源离场/同ID返回/Live区移动、旧新SQL、四AI/双视角隐私/UI图文和全部profiles有真实断言；未确认保留unresolved，不扩大旧mill或score快照", "绑定新源码同牌组冻结诊断及pre-push后只本地提交，不提升reviewed、不改默认AI/schema；后续PR目标待明确批准，不改policy、不推送、新建PR、合并部署"]
+    },
+    {
+      "id": "continuous-authorized-blocked-task-recovery",
+      "priority": 0,
+      "title": "为已获维护者批准的阻塞任务补充显式恢复入口",
+      "status": "queued",
+      "depends_on": [],
+      "required_profiles": ["control"],
+      "acceptance": ["增加显式requeue命令，只恢复指定blocked任务并记录原因及原阻塞记录，不直接编辑运行状态", "拒绝有效写入租约、暂停工作流、错误任务状态及未完成依赖；保留既有失败证据，源码门禁仍需重新执行", "验证远程基线与本地内容等价后保留全部dirty成果再正常同步；控制测试通过，恢复原Aqours切片，不合并、不部署"]
+    },
+    {
       "id": "live-start-aqours-blade-six-source-score-integrity",
       "priority": 0,
       "title": "优先复现旧Aqours先选人后判Blade六与来源Live得分登记",
       "status": "queued",
       "depends_on": ["live-start-nijigasaki-blade-four-heart"],
       "required_profiles": ["control", "registry", "backend", "web"],
-      "acceptance": ["核对PL!S-bp3-025:1精确日文/revision/hash与PDF选择目标/有效Blade/来源Live score规则；本轮发现旧登记minimum_blade6及通用modify_score字段，必须先真实复现而非只用脚本判错", "正文先选一名Aqours后判断Blade至少6，验证低Blade目标仍可选但不加分、有效5/6/7与常时/临时修正、无目标、多个Live与来源离开/同ID返回；只修正来源Live，不加全局score", "若可确认则使用独立新快照策略精确修正generator和registry，旧Replay保留原snapshot；若无法可靠确认则回退manual并记录unresolved；真实状态/SQL Replay/四AI/隐藏信息/UI/双语图文通过，不提升reviewed或改schema/默认AI", "同冻结30池有界复跑，源码绑定、实际触发与未触发分列；全部profiles及manifest/pre-push通过，同Draft PR54不合并部署，旧dirty保留"]
+      "acceptance": ["核对PL!S-bp3-025:1精确日文/revision/hash与PDF选择目标/有效Blade/来源Live score规则；本轮发现旧登记minimum_blade6及通用modify_score字段，必须先真实复现而非只用脚本判错", "正文先选一名Aqours后判断Blade至少6，验证低Blade目标仍可选但不加分、有效5/6/7与常时/临时修正、无目标、多个Live与来源离开/同ID返回；只修正来源Live，不加全局score", "若可确认则使用独立新快照策略精确修正generator和registry，旧Replay保留原snapshot；若无法可靠确认则回退manual并记录unresolved；真实状态/SQL Replay/四AI/隐藏信息/UI/双语图文通过，不提升reviewed或改schema/默认AI", "同冻结30池有界复跑，源码绑定、实际触发与未触发分列；全部profiles及manifest/pre-push通过，同Draft PR54不合并部署，旧dirty保留", "中断恢复先读docs/development/aqours-blade-six-score-progress.md；安全检查要求维护者明确批准撤销本轮误写的两个LL-bp5条目，未批准不得重试恢复或绕过检查，不得将局部测试当作全局registry通过"]
+    },
+    {
+      "id": "onplay-lily-white-reveal-four-live-search",
+      "priority": 0,
+      "title": "按实际待机审计顶四全lily white的Live取得",
+      "status": "queued",
+      "depends_on": ["live-start-aqours-blade-six-source-score-integrity"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["精确核对PL!-pb2-013:1完整日文/revision986/hash 0a06fcfee9cde86a6c33f9b5369470994fac45e9a4fe236a94aae1e9e7531f86，先复现原冻结池3次实际人工待机；不按牌组频率晋级", "本次从顶四公开的原对象全为lily_white时才取其中一张Live，区分unit/work、Member/Live、混合单位、无Live及其他区域；核对短牌库/刷新及不足四张时全部公开对象的语义，不猜测FAQ", "必要时使用新受限snapshot策略，真实状态、费用为零、选择原子性、公开信息、旧manual SQL Replay、四AI、UI及双语图文有断言；不依赖成功区计数，不扩大PL!-pb2-041第一段manual边界", "全部required_profiles、manifest/pre-push及绑定源码的冻结诊断完成；未确认语义保留unresolved，不提升reviewed、不改schema/默认AI；新PR目标未明确批准前只做本地验证提交，不改policy、不推送、不合并部署"]
+    },
+    {
+      "id": "public-four-lily-reveal-foundation",
+      "priority": 0,
+      "title": "建立不绑定正式卡的四张公开选择底座",
+      "status": "queued",
+      "depends_on": ["live-start-aqours-blade-six-source-score-integrity"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["只为已有至少四张牌库的原型增加受限snapshot策略，不改官方registry或generator，不提高执行率；不足四张在修改状态前明确拒绝，正式PL!-pb2-013仍manual", "公开不改变牌库对象及顺序；全四张lily_white才必须选其中Live一张并丢弃其余，否则无选择且原牌库不变；无Live时明确零张；验证公开/私看隔离、原对象、非法选择原子性和离开返回", "真实状态、SQL Replay、四AI及隐藏信息、原生UI有断言；旧私看快照维持原状。全部profiles/pre-push和新源码绑定的冻结30局通过，中文报告区分原型验证与正式卡裁定", "保留公开短牌库与刷新语义unresolved，不套用私看10.2.2.2，也不把逐张公开FAQ直接当成同时公开四张裁定；未获新PR目标批准前不改policy、不推送、不合并部署"]
+    },
+    {
+      "id": "live-start-bottom-three-aqours-source-heart",
+      "priority": 0,
+      "title": "审计底三张全为Aqours Member的原来源Heart条件",
+      "status": "queued",
+      "depends_on": ["onplay-wait-energy-skip-next-active"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!S-bp7-006:1全文/revision851/hash3c87d290b7b11b30c7b72683a74b6ec5a871266062a46567c1c8258fe5198821；seed18017实际入队1次并与另外两条manual共同待机，不把它单独算作已选定blocker或按持卡频率晋级", "确认从底部逐张三次移动、途中刷新/不足三张/空库与全部条件语义，实际移动对象均须Aqours Member，区分work与unit及Live；不得套用私看预填、不用旧控室或库顶替代，不明语义留unresolved", "仅原来源Heart04+1至Live结束，来源离场/返回/换位、零/短库、相同实体反复刷新移动的历史、新旧SQL、四AI/隐私/UI图文及全部profiles有真实断言，不扩大旧bottom1/mill快照", "同牌组绑定新源码冻结诊断及pre-push通过后只本地提交；不提升reviewed、不改默认AI/schema，后续PR目标待明确批准，不改policy、不推送、新建PR、合并部署"]
+    },
+    {
+      "id": "onplay-wait-energy-skip-next-active",
+      "priority": 0,
+      "title": "审计登场放置Wait Energy且该张下回合不复原",
+      "status": "queued",
+      "depends_on": ["live-success-opponent-succeeded-draw-discard"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对冻结seed18020实际mandatory manual的PL!SP-bp7-017:1全文/revision904/hash30ff25ec59e8e1abece877f098ad0bc1d09d29b79c089c838a1029d192e326d0，先记录官方Active Phase与次回合期限依据，不按持卡频次晋级", "只把本次实际从Energy Deck放入的那张Energy置Wait，并仅让该对象下回合Active Phase不复原；不能套用全体或任意已Wait Energy标记，空Energy Deck不误标其他牌，移区/返回不继承", "确认先后攻、次回合与下一次自己操作的区别、主动技能提前复原、离场返回/附属卡/清理、旧新SQL Replay、四AI/隐藏信息及必要UI图文，未确认保留unresolved，不改变旧加能量或复原snapshot", "全部profiles/pre-push和同牌组新源码冻结诊断通过后只本地提交；不提升reviewed、不改默认AI/schema，后续PR目标待明确批准，不改policy、不推送、新建PR、合并部署"]
+    },
+    {
+      "id": "live-success-opponent-succeeded-draw-discard",
+      "priority": 0,
+      "title": "审计Live成功后按对方本回合成功状态追加抽弃",
+      "status": "queued",
+      "depends_on": ["live-start-bottom-one-live-source-heart"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["先复现冻结seed18023实际mandatory manual的PL!N-sd2-007:1，核对全文/revision938/hash a0652e4321925ae2826d299c309118fb251aa81c1b11b7fc62ca84091f8111fb，不按持卡频率晋级", "先查官方Live成功判定顺序及本回合对方也成功的语义；先抽一张，条件满足再抽一张并由本人选手牌弃一张，不误用成功区累计数量、上回合结果或首后演出指针，未确认保留unresolved", "本回合双方/单方成功、先后演出、条件前后变化、零/短牌库刷新、来源离场、强制弃牌合法性/原子性、旧新SQL Replay、四AI/双视角隐私/原生UI及图文有真实断言，不修改旧抽弃snapshot", "全部profiles/pre-push及绑定新源码的同牌组冻结诊断通过才本地提交；不提升reviewed、不改schema/默认AI，后续PR目标待明确批准，不改policy、不推送、新建PR、合并部署"]
+    },
+    {
+      "id": "live-start-bottom-one-live-source-heart",
+      "priority": 0,
+      "title": "按实际待机审计牌库底一张Live条件与原来源Heart",
+      "status": "queued",
+      "depends_on": ["onplay-success-muse-granted-blade-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对seed18027实际mandatory manual的PL!S-bp7-015:1全文/revision860/hash 4de00b242755d4712ed8afbb6b6d5a27047c8f4cdbfd76101d0f1f1b7343cbf0，只绑定完整日文，不按持有频率晋级", "Live开始从主牌库底置一张控室，只检查本次实际移动的原卡是否Live，满足时仅原来源Heart02+1至Live结束；确认底部移动、空库/刷新顺序，不套用私看预先补库", "源对象离场/返回/换位、Member/Live/空库、已有控室/恰一张、原子拒绝、新旧SQL Replay、四AI/隐藏信息及必要UI图文须真实断言；未确认就记录unresolved，不扩大旧snapshot", "全部profiles/pre-push和同牌组新源码冻结诊断通过，更新中日README/Changelog及中文报告；只做本地验证提交，未获明确后续PR目标批准前不改policy、不推送、新建PR、合并部署"]
+    },
+    {
+      "id": "onplay-success-muse-granted-blade-audit",
+      "priority": 0,
+      "title": "审计成功区得分图标条件与临时赋予μs常时Blade能力",
+      "status": "queued",
+      "depends_on": ["multi-player-hidden-source-reference-privacy"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["依据新冻结seed18029真实mandatory manual核对PL!-pb2-005:1全文/revision978/hash e972ec2ccacf722aa4a5f2ff2f55ece68dabbc676d988590c3d27079da601682，不按牌组频率晋级", "先查官方得分图标及获得常时能力的持续/来源范围，区分成功区μs Member/Live、普通score与Blade Heart得分图标，不能将临时常时能力简化为当前场面一次性加成", "明确后才有限建模并验证新入场Member/来源离场返回/Live结束、真实状态与SQL Replay、四AI、隐私、必要UI图文及全部profiles；语义未确认就记录unresolved并保留manual，不提升reviewed", "应用源码变化重新绑定同牌组冻结30局，中日README/Changelog和中文报告；只做本地验证提交，新PR目标未获明确批准前不改policy、不推送、新建PR、合并部署"]
+    },
+    {
+      "id": "multi-player-hidden-source-reference-privacy",
+      "priority": 0,
+      "title": "优先修复旧多玩家legal引用复活隐藏来源卡的泄露",
+      "status": "queued",
+      "depends_on": ["onplay-both-players-waiting-live-recovery"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["先保留真实复现：test_multi_player_entry旧PL!-pb1-018:1夹具的source-live离开Stage到owner手牌，首方选target后轮到player_2，_match_state_payload当前将source-live错误加入对手card map；不是假想漏洞", "审计正常选择与skip legal action及pending复制、历史/重连、AI和语义provider投影；非候补来源/元数据引用不得把对方手牌或未知牌库身份复活，必要的本人私看、公开候补和已公开选择历史仍正常", "覆盖旧多玩家登场/抽弃/弃后抽与新控室回收、双方角色及来源在手牌/未知牌库/公开区域、隐藏身份不变和完整响应；保持原始MatchState/SQL Replay及旧snapshot规则行为，不用改登记或缩小旧测试逃避", "真实状态/API或SSE/重连/四AI与必要UI回归及全部profiles/pre-push通过；源码改变需重新绑定冻结诊断，不提升reviewed、不改默认AI/Card/SQL schema。只做本地验证提交，未获新PR目标明确批准前不改policy、不推送、新建PR、合并部署"]
+    },
+    {
+      "id": "onplay-both-players-waiting-live-recovery",
+      "priority": 0,
+      "title": "按新实际待机审计双方各取自身控室Live一张",
+      "status": "queued",
+      "depends_on": ["onplay-mill-three-blade-color-heart"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!N-bp4-007:1全文/revision363/hash 7076ae1f8dd1872704b75e15e069471bcc1d8ee6dcf21abb1b2cd4521ed3fe94；新冻结seed18008实际mandatory manual，不按持有频次估计", "先确认官方双方选择顺序/是否同时及9.6.3公开区域必选语义，再按每人自身控室Live各一张处理；无候补按可能范围结算，不代替对手选择，不允许选Member或别人的牌，未确认保留unresolved", "双方0/1/多候补、非法/重复/非所有者提交原子性、来源离场、新旧SQL Replay、四AI及双方选择隐私、原生UI和图文须真实断言，不扩大旧多玩家snapshot", "完整四组profiles/pre-push及同牌组新源码冻结诊断通过才晋级；不提升reviewed、不改schema/默认AI。只做本地实现验证提交，未获新PR目标明确批准前不改policy、不推送、新建PR、合并部署"]
+    },
+    {
+      "id": "onplay-mill-three-blade-color-heart",
+      "priority": 0,
+      "title": "按两次实际待机审计顶三控室的Blade Heart颜色条件",
+      "status": "queued",
+      "depends_on": ["onplay-ten-minus-hand-private-two"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!N-bp7-020:1全文/revision883/hash 1fd519f551bd331e61e6a8fa1d9cfada8390c609ae73319768e4e7d30701ea04；冻结池两次实际mandatory manual，不按持有频次宣称触发", "先确认官方Blade Heart颜色定义、特殊/无色图标与Member限定，再实现顶三控室中颜色去重达到两种时仅原来源获得Heart04至Live结束；不能用普通Heart或Live牌的图标凑数，未确认保留unresolved", "短牌库及途中刷新、0/1/2种颜色、重复色、混合Member/Live、来源离开返回及清理有真实状态、旧新SQL Replay、四AI、隐藏信息和必要UI/图文断言；不扩大旧snapshot", "按同牌组seed绑定新源码冻结诊断并完成全部profiles/pre-push；普通本地验证提交获授权，新PR目标未批准前不改policy、不推送、新建PR、合并部署，不提升reviewed或改默认AI/schema"]
+    },
+    {
+      "id": "onplay-ten-minus-hand-private-two",
+      "priority": 0,
+      "title": "按实际待机审计10减当前手牌的私看最多取二",
+      "status": "queued",
+      "depends_on": ["live-start-aqours-blade-six-source-score-integrity"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": ["核对PL!SP-PR-028:1完整日文/revision1232/hash 4e93a5a5a79f7b2afe0fba115053b86de413fd60bd6f84d34fdadb84676fe116与原池两次实际人工待机；不是公开操作，不依赖成功区计数", "私看数量在结算时按max(0,10-当前手牌)计算，区别登场前/后与其他待机变化，验证手牌0/1/9/10/11、短牌库私看刷新、0至2选择及余牌控室；不改旧amount_source或快照行为", "精确受限绑定需真实状态、SQL Replay、四AI、双视角隐私、UI及图文断言，全部profiles/pre-push及源码绑定冻结诊断；不猜测FAQ、不虚标reviewed、不改schema/默认AI", "只做本地实现验证提交；发布目标未明确批准前不改policy、不推送或新建PR，不合并部署；本任务独立于公开四张短牌库语义"]
     },
     {
       "id": "live-start-success-lily-white-source-score",
@@ -522,6 +995,216 @@
       "depends_on": ["live-start-discard2-choose-heart"],
       "required_profiles": ["control", "registry", "backend", "web"],
       "acceptance": ["按实际PL!N-sd2-006:1与PL!N-bp7-012:1全文/revision/hash绑定，精确选择己方Active虹咲Member一人Wait作费用，拒绝可选能力不支付", "Blade+2或六色Heart+1只给原来源Member而非费用目标；费用目标为来源自身时合法，Wait Member不贡献Yell，来源离场/同ID回场不继承加成", "实际Live触发、非法目标/费用/颜色原子性、Live清理、新旧snapshot/SQL Replay、四AI/隐私与原生UI有断言；固定10局和图文报告不冒充随机触发覆盖", "全部profile/manifest/pre-push通过才晋级test_validated，不提升reviewed；六条重叠/继承卡保持manual，原dirty工作树不改，同一Draft PR54不合并部署"]
+    },
+    {
+      "id": "effect-ready-source-wait-v1-legal-action-audit",
+      "priority": 0,
+      "title": "修正未登记v1费用原型的不合法起动候选",
+      "status": "queued",
+      "depends_on": ["printemps-hanayo-source-wait-provenance-snapshot-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "先复现未登记ready_member_after_source_wait_provenance_v1在原来源已Wait或构造的异所有者时仍列起动候选但实际提交原子拒绝，确认正式v1费用生产者为空；不声称生产对局或SQL覆盖",
+        "限定v1真实来源本人顶层Active Member可支付一次Wait时才列候选，保留v1原Wait-only目标及v2现有保护，不全局放宽费用、修改旧JSON或伪称旧候选列表相同；旧快照状态和SQL Replay保持",
+        "双方角色、源状态/区域/所有者、目标有无及方向、费用和次数、非法原子性、v1/v2新旧SQL、四AI实际支持范围、完整玩家及provider构造隐私、必要UI和全部profiles验证；新源码同原30牌组冻结，未登记原型不当作随机正条件",
+        "不绑定任何正式生产者、不增加覆盖率、不requeue消费者或其他blocked；只本地验证提交，不push/publish、新PR、合并部署或主机操作"
+      ]
+    },
+    {
+      "id": "printemps-honoka-departed-ready-scope-audit",
+      "priority": 0,
+      "title": "审计穂乃果离场复原的目标范围与来源历史",
+      "status": "queued",
+      "depends_on": ["effect-ready-source-wait-v1-legal-action-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "先复核PL!-PR-001:1完整原文、revision712和hash15fa6ca29ca4e4bfab665dadebfe6bd076b833f84d99527392df394c43e80cfc及真实旧登记，独立核对没有本人限定的目标范围，不以仅本人目标的离场探针代替正式语义",
+        "先真实原生离场、双方目标/方向/来源最后信息和旧快照审计；官方依据不足或离场探针不能完整覆盖时保持原登记及消费者blocked，记录明确依赖，禁止半支持或擅自晋级",
+        "仅语义和原对象范围完整证明时精确全文绑定新快照；覆盖双方角色及候补、已Active/可选拒绝、离场来源/返回与目标对象、SQL Replay、四AI、完整隐私、必要UI图文和全部profiles",
+        "应用变化须重做同原30牌组冻结；不把原型绿色当消费者完成，不恢复其他blocked，不推送、发布、合并部署或操作主机"
+      ]
+    },
+    {
+      "id": "departed-ready-both-owner-target-provenance-probe",
+      "priority": 0,
+      "title": "审计离场来源复原跨双方目标的未登记原型",
+      "status": "queued",
+      "depends_on": ["printemps-honoka-departed-ready-scope-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "只设计未登记受限原型，先核对当前双方目标所有者、已有原目标token及真实来源LKI的可表达性；不假定PL!-PR-001官方目标语义已裁定",
+        "仅范围可证明时独立版本化支持双方当前顶层Member及Active同状态，旧本人Wait离场原型和旧快照、Replay、覆盖未知状态不追改；否则记录依赖，不半支持",
+        "覆盖双方角色及目标拥有者、Active/Wait、来源离区隐藏返回、目标移区同ID返回、SQL Replay、四AI、玩家/provider构造隐私、必要UI和全部profiles；应用变化须同原30牌组冻结",
+        "不绑定PL!-PR-001或其他正式卡、不恢复消费者和其他blocked；仅本地开发，不推送发布、合并部署或操作主机"
+      ]
+    },
+    {
+      "id": "printemps-waowao-ready-three-source-score-audit",
+      "priority": 0,
+      "title": "审计WAO-WAO三人复原与来源Live得分",
+      "status": "queued",
+      "depends_on": ["departed-ready-both-owner-target-provenance-probe"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "先复核PL!-pb1-028:1的完整卡文、revision437及hash2079004eee0c3c29da064a8859bd918c283872063c845f240311f8b9120e9ff5，保留实际CardDefinition和旧登记；核对直接Q178/Q179及适用规则，不以不同卡FAQ替代本卡裁定",
+        "先通过真实Live开始状态和SQL证明0至3次实际Wait到Active、已Active不计、来源Live和其他Live分数范围以及来源移区/同ID返回；确认旧通用分数行为，不假设原型支持多动作等价",
+        "仅在完整文本、复原计数及原来源Live对象/期限明确且实现可证明时逐卡精确新快照；否则保留登记、不称旧规则正确、记录独立依赖，不半支持或恢复消费者",
+        "双方角色、并发来源、真实SQL Replay、四AI、玩家/provider构造隐私、必要UI图文与全部profiles；应用变化时固定同原30牌组冻结，禁止虚称随机正条件或覆盖率晋级，仅本地提交，不推送发布或操作主机"
+      ]
+    },
+    {
+      "id": "printemps-ready-four-producer-coverage-audit",
+      "priority": 0,
+      "title": "审计四条正式复原来源的覆盖完整性",
+      "status": "queued",
+      "depends_on": ["printemps-waowao-ready-three-source-score-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "按真实CardDefinition单位及快照盘点五条Printemps来源，逐项保存完整身份与登记，确认现有四条来源历史及PL!-PR-001旧快照的范围和未建模依赖；不凭名字或WIP宣称覆盖完整",
+        "真实状态及SQL审计新旧快照混用、同回合晚启用、未知旧ready、来源隐藏离场、目标新对象及限定来源查询；证据不足保留None而非零，不猜历史",
+        "明确区分审计完成与PL!-pb2-010消费者依赖解除，未经独立正式来源和官方语义验收不得requeue消费者或其他blocked；不更改PL!-PR-001登记或扩大规则",
+        "四AI及玩家/provider构造隐私、必要UI及全部profiles真实验收，应用变化则固定同30牌组冻结；仅本地提交，不推送发布、合并部署或操作主机"
+      ]
+    },
+    {
+      "id": "printemps-mixed-formal-departure-onplay-coverage-audit",
+      "priority": 0,
+      "title": "审计正式离场与登场复原混用的限定覆盖",
+      "status": "queued",
+      "depends_on": ["printemps-ready-four-producer-coverage-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "在同一真实Baton登场中使用正式PL!-PR-001旧离场快照和PL!-pb1-012新登场快照，双方分别实际选择复原，按现有合法待机顺序记录来源、目标与未知限定范围，不宣称旧卡目标规则正确",
+        "真实SQL Replay审计同时触发的不同合法顺序、仅新来源、旧来源可选辞退与隐藏来源，未知旧ready不当零，目标离区与回合边界不得猜历史；测试构造与完整对局区分",
+        "核对双方四AI实际支持范围、玩家和provider构造隐私及必要UI，旧策略/旧JSON/正式登记不变；不重新领取或修改已完成审计，不恢复消费者或其他blocked",
+        "全部profiles及门禁后pre-push同源码通过，应用不变只核对旧30牌组冻结；只本地提交，不推送发布、合并部署或操作主机"
+      ]
+    },
+    {
+      "id": "q124-multi-keep-legacy-executor-ai-privacy-audit",
+      "priority": 0,
+      "title": "审计Q124多张检索旧快照的AI与隐私边界",
+      "status": "queued",
+      "depends_on": ["inspection-multi-keep-heart-wording-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "复核PL!S-bp2-005:1完整原文/revision/hash和本卡直接Q124，仅基本Heart的已确认边界；精确保留正式manual登记，不将旧自动快照或其他FAQ当作整卡裁定",
+        "只在真实旧快照及明确构造状态中审计双方费用、私看7张、0至3张选择及公开与其余控室、短牌库和非法原子性，SQL Replay与对象区域核对，旧JSON/Replay不追改",
+        "四AI在实际费用与多选后续候补中真实选择或明确不支持，验证未授权隐藏信息替换不改变决策、输入不改，双方玩家/API-play/provider构造context不泄露未公开牌；必要UI明确执行范围",
+        "发现产品缺陷先保留红例及原子边界，只在语义明确时独立限定修复；不得按Q124单独晋级manual/reviewed或解除其他blocked。全部profiles同源码、应用变化时重绑原30牌组冻结，仅本地提交不发布部署"
+      ]
+    },
+    {
+      "id": "triggered-inspection-up-to-three-cost-probe",
+      "priority": 0,
+      "title": "受限登场检索费用与最多三张未登记原型",
+      "status": "queued",
+      "depends_on": ["q124-multi-keep-legacy-executor-ai-privacy-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "先复现现有triggered_inspection拒绝maximum=3，新增显式未登记受限策略，仅可选本人弃手牌一张后私看七张、按Member基本指定三色选0至3并公开入手、其余控室；不放宽旧策略或绑定正式卡",
+        "双方真实入队与分步费用、不可支付/拒绝/0至3/非法重复超量/短牌库、来源与隐藏牌边界、旧策略和旧JSON SQL Replay逐项验证；仅受控夹具不称完整对局",
+        "四AI支付和后续实际支持范围、隐藏身份替换、双方玩家与provider构造隐私、原生UI有真实证据；PL!S-bp2-005:1保持manual，其他blocked不恢复",
+        "全部profiles和pre-push同源码通过；应用变化同原30牌组seed18000至18029冻结并核对Replay，正式快照未启用原型不称随机正条件或策略改善，仅本地提交不推送发布或部署"
+      ]
+    },
+    {
+      "id": "q124-you-multi-keep-formal-snapshot-audit",
+      "priority": 0,
+      "title": "逐卡审计Q124曜登场多选与新费用策略等价性",
+      "status": "queued",
+      "depends_on": ["triggered-inspection-up-to-three-cost-probe"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "独立核对PL!S-bp2-005:1完整CardDefinition、原文revision548/hash及本卡Q124，保存正式manual和旧历史登记；Q124只确认基本Heart不读Blade，不代替完整费用/选择/公开时点裁定",
+        "先以真实双方登场和新未登记策略逐项比对可选支付、不可支付、0至3、目标类型/颜色/Blade、短牌库刷新、选牌公开和未选控室，检验原型shape是否与整卡等价；现有原型不自动绑定正式卡",
+        "仅在全部语义及静态验证明确时精确card/完整全文不strip/revision/hash新pattern与snapshot，其他卡与旧JSON/Replay保持；不晋级reviewed、不恢复PL!-pb2-010及其他blocked，证据不足保留manual并记明依赖",
+        "真实SQL Replay、双方四AI/隐藏身份替换、玩家和provider构造隐私、必要UI图文、全部profiles/pre-push，同原30牌组冻结及应用指纹绑定；不称随机触发或策略改善，只本地提交、不push/publish/部署"
+      ]
+    },
+    {
+      "id": "opponent-member-live-success-disable-scope-audit",
+      "priority": 0,
+      "title": "审计对手成员Live成功能力无效化边界",
+      "status": "queued",
+      "depends_on": ["q124-you-multi-keep-formal-snapshot-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "真实复核固定诊断两次停在PL!-pb2-003:1的证据及完整CardDefinition/全文/revision/hash，官方规则和本卡FAQ仅按实际来源记录；不将入队当条件成立或整卡人工裁定",
+        "用双方真实Live开始、未登记控制夹具和SQL Replay审计现有自身Live成功无效操作、对手顶层Member与来源/角色/获得能力/离区返回边界，明确是否能够证明实际无效数量及后续Heart；不把自身原操作盲用为对手目标",
+        "四AI的当前manual行为与双方玩家/provider构造隐私和必要UI如实验证；证据不足保持本卡manual并记录具体依赖，不半支持或解除任何blocked，不改旧JSON/Replay/其他登记",
+        "全部profiles和pre-push同源码通过，应用不变只核对旧固定30牌组冻结；只本地提交，不push/publish或合并部署，不操作主机"
+      ]
+    },
+    {
+      "id": "opponent-direct-live-success-disable-provenance-probe",
+      "priority": 0,
+      "title": "对手原成员直接Live成功能力新无效化原型",
+      "status": "queued",
+      "depends_on": ["opponent-member-live-success-disable-scope-audit"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "先复核原审计红边界、来源自身旧操作和其他卡Q106的重复无效参考；仅明确未登记受限原型，不把其他卡FAQ当PL!-pb2-003直接裁定、不绑定正式卡",
+        "仅若可真实证明，针对对手当前公开顶层Member及其可识别直接Live成功能力建立原对象/所有者绑定，区分无能力、首次禁用与已禁用并记录实际新无效；来源和目标离区同ID返回、位置变化、Live结束清理、双方角色原子验证",
+        "获得/继承/未知来源或重复状态不能假称完整覆盖，无法证明则明确拒绝或保留依赖；不全局修改旧自身操作、旧JSON/Replay、既有登记，不恢复消费者和其他blocked",
+        "真实SQL Replay、四AI实际支持范围与隐藏替换、双方玩家/provider构造隐私、必要UI、全部profiles及应用变化同原30牌组冻结；不称随机正条件或策略改善，仅本地提交、不push/publish/部署"
+      ]
+    },
+    {
+      "id": "ll-bp2-001-composite-name-cost-audit",
+      "priority": 0,
+      "title": "审计三人曜卡手牌组合名称费用",
+      "status": "queued",
+      "depends_on": ["q246-paid-basic-heart-color-union-probe"],
+      "required_profiles": ["backend", "control", "registry", "web"],
+      "acceptance": [
+        "核对LL-bp2-001:3完整CardDefinition及全文revision592/hash，官方规则2.3.2与本卡括号中自身组合卡可支付语句；不将搜索摘要当已读取规则正文",
+        "先用真实正式快照及双方Live开始构造：手牌中的同一组合卡和单名候选、无关卡、重复ID及拒绝选择，实际候选与支付和SQL Replay；记录旧名称筛选结果，不将合成输入冒充完整对局",
+        "若全部目标语义可证，仅以独立新策略精确绑定本卡新快照，保持旧JSON/Replay和其他登记；无法证明则保留既有快照但明确错误风险及依赖，不放宽共享匹配或虚称修复",
+        "双方四AI实际选择、隐藏身份替换、玩家和provider构造隐私、必要UI、全部profiles/pre-push和应用变化时同原30牌组冻结；不修改其他blocked、不推送部署"
+      ]
+    },
+    {
+      "id": "private-named-unlimited-discard-probe",
+      "priority": 0,
+      "title": "未登记私有名称任意张弃牌原型",
+      "status": "queued",
+      "depends_on": ["ll-bp2-001-composite-name-cost-audit"],
+      "required_profiles": ["backend", "control", "registry", "web"],
+      "acceptance": [
+        "仅未登记固定shape，依据固定PDF 2.3.2.1/2.3.2.2引号名称部分匹配；私有本人手牌按实际候选动态上限选择零至全部，不用假定的三张或牌组上限，禁止将原型绑定正式卡",
+        "双方真实触发与SQL Replay覆盖单名、组合名、无关名、四张及更多、零张、拒绝、重复/非候补原子拒绝及隐藏信息；严格限定费用、效果、触发、来源和静态shape，旧精确名称策略与旧快照不变",
+        "四AI双方实际选择、隐藏身份替换、玩家近期事件及provider构造上下文隐私，必要原生UI与全部profiles/pre-push；应用变化时同原30牌组冻结，不称随机正条件或策略改善",
+        "不绑定LL-bp2-001:3或其他正式卡，不放宽旧校验，不改卡库/SQL表，不恢复其他blocked，只本地提交不推送部署"
+      ]
+    },
+    {
+      "id": "paid-named-original-source-blade-probe",
+      "priority": 0,
+      "title": "已付指定名称费用的原来源Blade原型",
+      "status": "queued",
+      "depends_on": ["private-named-unlimited-discard-probe"],
+      "required_profiles": ["backend", "control", "registry", "web"],
+      "acceptance": [
+        "先复现正式LL-bp2-001:3旧Blade操作在来源离区及同ID返回的行为，核对正式完整全文revision592/hash及固定规则来源；不得以合成夹具冒称完整对局或官方整卡裁定",
+        "仅未登记固定Live开始原型，结合已验证的私有部分名称任意张费用与实际支付证明，每张支付赋予原来源一Blade至Live结束；真实来源invocation/effect/player/回合/原Stage绑定，来源离区同ID返回不继承，所得补正离区或Live结束清理，旧操作/JSON/Replay不改",
+        "严格限定静态shape及客户端输入，双方SQL Replay涵盖零至多张、拒绝/非法原子、来源隐藏/返回/场内移动、费用支付后与Live结束清理；四AI实际决策、双方玩家近期事件及provider构造隐私、必要UI",
+        "仅在全部门禁与同原30牌组冻结通过后本地提交；不绑定任何正式卡、不声称修复LL-bp2-001:3、不恢复其他blocked、不推送部署"
+      ]
+    },
+    {
+      "id": "ll-bp2-001-named-discard-source-blade-formal-audit",
+      "priority": 0,
+      "title": "逐卡验证三人曜名称费用与原来源Blade",
+      "status": "queued",
+      "depends_on": ["paid-named-original-source-blade-probe"],
+      "required_profiles": ["backend", "control", "registry", "web"],
+      "acceptance": [
+        "复算LL-bp2-001完整原文revision592/hash、官方2.3.2.1/2.3.2.2及旧登记并保存旧快照，先逐项证明名称部分匹配、任意数量、自身组合卡、可选零张、真实支付及原来源Blade的语义等价，不以原型通过替代逐卡审查",
+        "仅全部语义可证时按卡号、完整全文不strip、revision和hash精确绑定新策略/操作，只改该效果登记并生成manifest；旧JSON/Replay及其他登记不改，证据不足保留既有登记并记具体依赖，不半支持或解除其他blocked",
+        "双方真实Live开始和SQL Replay验证0至六、组合/单名/无关、拒绝/非法原子、来源离区隐藏及同ID返回/场内换位、已得Blade离区和Live结束清理；四AI双方实际选择及隐藏身份替换、双方玩家近期事件和provider构造隐私、必要UI图文",
+        "全部profiles/pre-push及应用变化同原30牌组冻结；不称随机正条件或策略改善，只本地提交不推送部署"
+      ]
     },
     {
       "id": "effect-accuracy-loop",

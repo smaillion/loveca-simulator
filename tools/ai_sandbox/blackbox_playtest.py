@@ -24,6 +24,7 @@ from loveca.simulation.ai import (
     SimpleAIDecision,
     SimpleAIPolicy,
     choose_simple_ai_action,
+    opponent_live_offer_selection,
 )
 from loveca.simulation.effects import load_effect_registry
 from loveca.simulation.engine import IllegalActionError, generate_legal_actions
@@ -602,6 +603,12 @@ def choose_action(
         action = by_type["resolve_effect_choice"]
         options = action.options
         candidates = list(options.get("candidate_card_instance_ids", []))
+        if options.get("multi_player_choice_type") == "multi_player_opponent_live_offer":
+            return action.action_type, action.player_id, {
+                "selected_card_instance_ids": opponent_live_offer_selection(options, candidates)}
+        if options.get("multi_player_choice_type") == "multi_player_center_position_change":
+            slots = list(options.get("available_slots", []))
+            return action.action_type, action.player_id, ({"slot": slots[0]} if slots else {})
         if (
             options.get("multi_player_choice_type")
             == "multi_player_deploy_waiting_member"
@@ -620,6 +627,8 @@ def choose_action(
         payload = {"selected_card_instance_ids": selected}
         if options.get("requires_order"):
             payload["ordered_card_instance_ids"] = list(selected)
+        if options.get("selection_policy") == "private_three_top_bottom_order":
+            payload["bottom_ordered_card_instance_ids"] = [item for item in candidates if item not in selected]
         return action.action_type, action.player_id, payload
     if "resolve_live_requirements" in by_type:
         action = by_type["resolve_live_requirements"]
@@ -722,6 +731,8 @@ def choose_action(
             "multi_player_discard_to_hand_size_then_draw",
             "multi_player_draw_then_discard",
             "multi_player_deploy_waiting_member",
+            "multi_player_center_position_change",
+            "multi_player_opponent_live_offer",
         }:
             return action.action_type, action.player_id, payload
         if choice_type == "member_group_from_stage":

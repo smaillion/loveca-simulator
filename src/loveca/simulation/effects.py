@@ -14,6 +14,17 @@ DEFAULT_EFFECT_REGISTRY = (
 )
 
 SUPPORTED_EFFECT_ACTIONS = {
+    "gain_source_score_if_current_yell_live",
+    "gain_source_score_if_three_readied_printemps",
+    "draw_if_opponent_current_yell_live",
+    "shuffle_waiting_aqours_for_selected_heart",
+    "wait_opponent_cost4_skip_next_turn_active",
+    "attach_energy_deck_to_selected_nijigasaki",
+    "mill_bottom_one_aqours_source_requirement",
+    "mill_bottom_five_members_draw_source_score",
+    "mill_bottom_three_aqours_source_heart",
+    "place_wait_energy_skip_next_turn_active",
+    "draw_extra_if_opponent_live_succeeded",
     "apply_wait",
     "apply_wait_energy",
     "apply_wait_member",
@@ -27,18 +38,21 @@ SUPPORTED_EFFECT_ACTIONS = {
     "draw_card_per_stage_member",
     "draw_until_hand_size",
     "disable_source_live_success_effects",
+    "disable_opponent_direct_live_success_v1",
     "deploy_selected_to_empty_stage",
     "deploy_selected_to_stage",
     "gain_blade",
     "gain_blade_to_stage_members",
     "gain_blade_if_milled_all_card_type",
     "grant_live_success_draw",
+    "grant_muse_blade_aura_if_success_score_icon",
     "gain_heart",
     "gain_heart_to_stage_members",
     "inspect_top_cards",
     "manual_resolution",
     "modify_score",
     "modify_source_score_if_selected_blade_highest",
+    "modify_source_score_if_selected_blade_six",
     "modify_required_heart",
     "modify_yell_count",
     "move_remaining_cards",
@@ -59,6 +73,11 @@ SUPPORTED_EFFECT_ACTIONS = {
     "prevent_source_active_phase_ready",
     "ready_energy",
     "ready_member",
+    "ready_member_with_provenance_v1",
+    "ready_member_after_source_wait_provenance_v1",
+    "ready_member_after_source_wait_provenance_v2",
+    "ready_member_from_departed_source_provenance_v1",
+    "ready_member_from_departed_both_provenance_v2",
     "reorder_deck_top",
     "replace_score",
     "replace_yell_blade_hearts",
@@ -90,13 +109,29 @@ SUPPORTED_EFFECT_ACTIONS = {
     "draw_if_milled_all_card_type",
     "draw_if_milled_any_card_type",
     "gain_heart_if_milled_all_have_heart",
+    "gain_source_heart_if_milled_member_blade_colors",
+    "gain_source_heart_if_bottom_card_live",
     "gain_heart_from_selected_card_colors",
+    "gain_source_heart_from_paid_basic_color_union_v1",
+    "gain_source_blade_for_paid_named_v1",
     "gain_blade_if_milled_any_card_type",
 }
 
 
 class EffectRegistryError(RuntimeError):
     """Raised when a registry cannot be safely loaded."""
+
+
+LL_BP2_NAMED_BLADE_TEXT = (
+    "【ライブ開始時】手札の「渡辺 曜」と「鬼塚夏美」と「大沢瑠璃乃」を、好きな枚数控え室に置いてもよい："
+    "ライブ終了時まで、これによって控え室に置いた枚数1枚につき、【ブレード】を得る。"
+    " （手札のこのカードもこの効果で控え室に置ける。）"
+)
+LL_BP2_FULL_TEXT = (
+    "【常時】手札にあるこのメンバーカードのコストは、このカード以外の自分の手札1枚につき、1少なくなる。 "
+    "【常時】このメンバーはバトンタッチで控え室に置けない。 " + LL_BP2_NAMED_BLADE_TEXT
+)
+LL_BP2_FULL_HASH = "dfe7ad5c2413211c958b11e6f7ef92a11245426e036193a2acc8cb9a48d236ba"
 
 
 class EffectOperation(BaseModel):
@@ -152,6 +187,17 @@ class EffectOperation(BaseModel):
     source_object_policy: Literal[
         "original_moved_stage_member", "original_live_start_heart_source",
         "original_live_start_wait_cost_source",
+        "original_onplay_mill_source",
+        "original_onplay_muse_blade_aura",
+        "original_live_start_bottom_source",
+        "original_live_start_bottom_three_source",
+        "original_live_start_bottom_five_source",
+        "original_live_start_bottom_aqours_requirement",
+        "original_live_success_yell_source",
+        "original_live_start_three_readied_source",
+        "original_opponent_direct_disable_source_v1",
+        "original_paid_basic_color_union_source_v1",
+        "original_paid_named_blade_source_v1",
     ] | None = None
     overlap_observer_policy: Literal[
         "ignore_disjoint_source_triggers", "require_complete_source_bindings"
@@ -178,6 +224,147 @@ class EffectOperation(BaseModel):
 
     @model_validator(mode="after")
     def validate_operation_shape(self) -> EffectOperation:
+        paid_blade = "gain_source_blade_for_paid_named_v1"
+        paid_blade_policy = "original_paid_named_blade_source_v1"
+        if self.action_type == paid_blade and self.model_dump(exclude_defaults=True, exclude_none=True) != {
+            "action_type": paid_blade, "target": "cost_selected", "source_object_policy": paid_blade_policy,
+        }:
+            raise ValueError("paid named Blade requires its fixed original source operation")
+        if self.source_object_policy == paid_blade_policy and self.action_type != paid_blade:
+            raise ValueError("paid named Blade source policy requires its bounded operation")
+        union = "gain_source_heart_from_paid_basic_color_union_v1"
+        if self.action_type == union and self.model_dump(exclude_defaults=True, exclude_none=True) != {
+            "action_type": union, "target": "cost_selected", "source_object_policy": "original_paid_basic_color_union_source_v1",
+        }:
+            raise ValueError("paid basic color union requires its fixed original source operation")
+        if self.source_object_policy == "original_paid_basic_color_union_source_v1" and self.action_type != union:
+            raise ValueError("paid basic color union source policy requires its bounded operation")
+        direct_disable = "disable_opponent_direct_live_success_v1"
+        direct_policy = "original_opponent_direct_disable_source_v1"
+        if self.action_type == direct_disable and self.model_dump(exclude_defaults=True, exclude_none=True) != {
+            "action_type": direct_disable, "target": "selected", "source_object_policy": direct_policy,
+        }:
+            raise ValueError("opponent direct disable requires its fixed original source operation")
+        if self.source_object_policy == direct_policy and self.action_type != direct_disable:
+            raise ValueError("opponent direct disable source policy requires its bounded operation")
+        ready_score = "gain_source_score_if_three_readied_printemps"
+        ready_score_policy = "original_live_start_three_readied_source"
+        if self.action_type == ready_score and self.model_dump(exclude_defaults=True, exclude_none=True) != {
+            "action_type": ready_score, "amount": 1, "target": "source", "source_object_policy": ready_score_policy,
+        }:
+            raise ValueError("three ready source score requires its fixed original Live operation")
+        if self.source_object_policy == ready_score_policy and self.action_type != ready_score:
+            raise ValueError("three ready source score policy requires its bounded operation")
+        if self.action_type in {"ready_member_with_provenance_v1", "ready_member_after_source_wait_provenance_v1", "ready_member_after_source_wait_provenance_v2", "ready_member_from_departed_source_provenance_v1", "ready_member_from_departed_both_provenance_v2"}:
+            if (set(self.model_dump(exclude_defaults=True, exclude_none=True)) - {"action_type", "target", "value"}
+                    or self.target not in {None, "selected", "source", "self_stage_all", "self_stage_unit"}
+                    or self.amount is not None or self.amount_source is not None or self.source_object_policy is not None
+                    or (self.target == "self_stage_unit" and (not isinstance(self.value, dict)
+                        or set(self.value) != {"unit_key"} or not isinstance(self.value["unit_key"], str)))
+                    or (self.target != "self_stage_unit" and self.value is not None)):
+                raise ValueError("ready provenance v1 only supports its explicit top-level Member operation")
+            if self.action_type in {"ready_member_after_source_wait_provenance_v1", "ready_member_after_source_wait_provenance_v2", "ready_member_from_departed_source_provenance_v1", "ready_member_from_departed_both_provenance_v2"} and self.target != "selected":
+                raise ValueError("source Wait ready prototype only supports a selected other Member")
+        bounded = "gain_source_score_if_current_yell_live"
+        policy = "original_live_success_yell_source"
+        if self.action_type == bounded and self.model_dump(exclude_defaults=True, exclude_none=True) != {
+            "action_type": bounded, "amount": 1, "target": "source", "source_object_policy": policy,
+        }:
+            raise ValueError("current Yell source score only supports its fixed source-only bonus")
+        if self.source_object_policy == policy and self.action_type != bounded:
+            raise ValueError("current Yell source policy requires its bounded operation")
+        if self.action_type == "shuffle_waiting_aqours_for_selected_heart" and self.model_dump(exclude_defaults=True, exclude_none=True) != {
+            "action_type": "shuffle_waiting_aqours_for_selected_heart", "amount": 6, "target": "selected",
+        }:
+            raise ValueError("WATER BLUE only supports its fixed return-six/selected-Heart operation")
+        if self.action_type == "wait_opponent_cost4_skip_next_turn_active" and self.model_dump(exclude_defaults=True, exclude_none=True) != {
+            "action_type": "wait_opponent_cost4_skip_next_turn_active", "amount": 2, "target": "selected", "branch": "wait_opponent",
+        }:
+            raise ValueError("opponent Member restriction only supports the fixed cost-four branch")
+        if self.action_type == "attach_energy_deck_to_selected_nijigasaki" and self.model_dump(exclude_defaults=True, exclude_none=True) != {
+            "action_type": "attach_energy_deck_to_selected_nijigasaki", "amount": 1,
+            "target": "selected", "branch": "attach_energy_deck",
+        }:
+            raise ValueError("Energy Deck attachment only supports the fixed Nijigasaki branch")
+        bounded = "mill_bottom_one_aqours_source_requirement"
+        policy = "original_live_start_bottom_aqours_requirement"
+        if self.action_type == bounded and self.model_dump(exclude_defaults=True, exclude_none=True) != {
+            "action_type": bounded, "amount": 1, "target": "source", "color_slot": "heart0",
+            "source_object_policy": policy,
+        }:
+            raise ValueError("bottom Aqours requirement requires its fixed source-only sequence")
+        if self.source_object_policy == policy and self.action_type != bounded:
+            raise ValueError("bottom Aqours requirement policy requires its bounded operation")
+        if self.action_type == "mill_bottom_five_members_draw_source_score" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "action_type": "mill_bottom_five_members_draw_source_score", "amount": 5,
+                "target": "source", "source_object_policy": "original_live_start_bottom_five_source",
+            }
+        ):
+            raise ValueError("bottom five only supports its fixed Member/draw/source-score sequence")
+        if self.source_object_policy == "original_live_start_bottom_five_source" and (
+            self.action_type != "mill_bottom_five_members_draw_source_score"
+        ):
+            raise ValueError("bottom five source policy requires its bounded operation")
+        if self.action_type == "mill_bottom_three_aqours_source_heart" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "action_type": "mill_bottom_three_aqours_source_heart", "amount": 3,
+                "target": "source", "color_slot": "heart04",
+                "source_object_policy": "original_live_start_bottom_three_source",
+            }
+        ):
+            raise ValueError("bottom three only supports the fixed Aqours source Heart sequence")
+        if self.source_object_policy == "original_live_start_bottom_three_source" and (
+            self.action_type != "mill_bottom_three_aqours_source_heart"
+        ):
+            raise ValueError("bottom three source policy requires its bounded operation")
+        if self.action_type == "place_wait_energy_skip_next_turn_active" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "action_type": "place_wait_energy_skip_next_turn_active", "amount": 1,
+            }
+        ):
+            raise ValueError("new Energy next-turn block only supports one fixed Wait Energy")
+        if self.action_type == "draw_extra_if_opponent_live_succeeded" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "action_type": "draw_extra_if_opponent_live_succeeded", "amount": 1,
+            }
+        ):
+            raise ValueError("opponent Live success only supports one extra draw")
+        if self.action_type == "gain_source_heart_if_bottom_card_live" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "action_type": "gain_source_heart_if_bottom_card_live",
+                "source_object_policy": "original_live_start_bottom_source",
+                "target": "source", "amount": 1, "color_slot": "heart02",
+            }
+        ):
+            raise ValueError("bottom Live only supports the fixed red source Heart")
+        if self.source_object_policy == "original_live_start_bottom_source" and (
+            self.action_type != "gain_source_heart_if_bottom_card_live"
+        ):
+            raise ValueError("bottom source policy only supports its bounded Heart operation")
+        if self.action_type == "grant_muse_blade_aura_if_success_score_icon" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "action_type": "grant_muse_blade_aura_if_success_score_icon",
+                "source_object_policy": "original_onplay_muse_blade_aura", "target": "source", "amount": 1,
+            }
+        ):
+            raise ValueError("Muse aura requires the fixed original source Blade-one grant")
+        if self.source_object_policy == "original_onplay_muse_blade_aura" and (
+            self.action_type != "grant_muse_blade_aura_if_success_score_icon"
+        ):
+            raise ValueError("Muse aura source policy only supports its bounded grant")
+        if self.action_type == "gain_source_heart_if_milled_member_blade_colors" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "action_type": "gain_source_heart_if_milled_member_blade_colors",
+                "source_object_policy": "original_onplay_mill_source",
+                "target": "source", "amount": 1, "color_slot": "heart04",
+            }
+        ):
+            raise ValueError("milled Member Blade colors require a fixed green source Heart")
+        if self.source_object_policy == "original_onplay_mill_source" and (
+            self.action_type != "gain_source_heart_if_milled_member_blade_colors"
+        ):
+            raise ValueError("on-play mill source policy only supports its bounded Heart operation")
         if self.source_object_policy == "original_moved_stage_member" and (
             self.action_type != "ready_member" or self.target != "source"
             or self.amount is not None or self.amount_source is not None
@@ -254,9 +441,13 @@ class EffectOperation(BaseModel):
                 f"orientation is not supported for effect operation {self.action_type}"
             )
         if self.color_slot is not None and self.action_type not in {
+            "mill_bottom_one_aqours_source_requirement",
             "gain_heart",
             "gain_heart_to_stage_members",
             "gain_heart_if_milled_all_have_heart",
+            "gain_source_heart_if_milled_member_blade_colors",
+            "gain_source_heart_if_bottom_card_live",
+            "mill_bottom_three_aqours_source_heart",
             "modify_required_heart",
             "replace_member_base_hearts",
             "replace_yell_blade_hearts",
@@ -310,7 +501,7 @@ class EffectSelectionGroup(BaseModel):
 
 
 class EffectChoice(BaseModel):
-    cost_payment_policy: Literal["triggered_inspection", "triggered_inspection_reorder"] | None = None
+    cost_payment_policy: Literal["triggered_inspection", "triggered_inspection_reorder", "triggered_inspection_up_to_three_v1"] | None = None
     inspection_activation_policy: Literal["start_after_cost"] | None = None
     choice_type: str
     deployment_policy: Literal["simultaneous_member_area_entry"] | None = None
@@ -319,6 +510,22 @@ class EffectChoice(BaseModel):
         "public_named_groups_as_much_as_possible", "public_other_nijigasaki_cost_heart",
         "public_yell_aqours_bottom_three",
         "public_nijigasaki_blade_four_heart",
+        "public_aqours_blade_six_source_score",
+        "public_four_lily_white_live",
+        "private_ten_minus_hand_keep_two",
+        "private_three_top_bottom_order",
+        "private_baton_cost7_draw2_discard1",
+        "public_both_waiting_live_one",
+        "public_both_center_position_sequential",
+        "public_two_distinct_live_opponent_one",
+        "public_diverdiva_energy_modes",
+        "public_opponent_cost4_wait_or_draw",
+        "public_water_blue_bottom_heart",
+        "public_waiting_nine_live_three_private_top",
+        "public_aqours_shared_heart_yell_one",
+        "public_departed_ready_both_one",
+        "private_partial_names_unlimited_discard_v1",
+        "private_all_hand_nonempty_v1",
     ] | None = None
     zone: str | None = None
     card_type: str | None = None
@@ -407,6 +614,57 @@ class EffectChoice(BaseModel):
 
     @model_validator(mode="after")
     def validate_deployment_policy(self) -> EffectChoice:
+        if self.selection_policy == "public_two_distinct_live_opponent_one" and self.model_dump(exclude_defaults=True, exclude_none=True) != {
+            "choice_type": "multi_player_opponent_live_offer", "selection_policy": "public_two_distinct_live_opponent_one",
+            "zone": "waiting_room", "card_type": "live", "minimum": 2, "maximum": 2,
+            "selected_destination": "hand",
+        }:
+            raise ValueError("opponent Live offer requires exactly two distinct public Lives then one opponent choice")
+        if self.choice_type == "multi_player_opponent_live_offer" and self.selection_policy != "public_two_distinct_live_opponent_one":
+            raise ValueError("opponent Live offer requires its explicit snapshot policy")
+        if self.selection_policy == "public_both_center_position_sequential" and self.model_dump(exclude_defaults=True, exclude_none=True) != {
+            "choice_type": "multi_player_center_position_change", "selection_policy": "public_both_center_position_sequential",
+            "zone": "stage", "card_type": "member", "minimum": 1,
+        }:
+            raise ValueError("center position choice requires its fixed public two-player policy")
+        if self.choice_type == "multi_player_center_position_change" and self.selection_policy != "public_both_center_position_sequential":
+            raise ValueError("center position choice requires its explicit snapshot policy")
+        if self.selection_policy == "public_both_waiting_live_one" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "multi_player_waiting_live_recovery",
+                "selection_policy": "public_both_waiting_live_one", "zone": "waiting_room",
+                "card_type": "live", "minimum": 1, "selected_destination": "hand",
+            }
+        ):
+            raise ValueError("both-player recovery requires one public Waiting Room Live per player")
+        if self.choice_type == "multi_player_waiting_live_recovery" and self.selection_policy != "public_both_waiting_live_one":
+            raise ValueError("both-player recovery requires its explicit snapshot policy")
+        if self.selection_policy == "private_three_top_bottom_order" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "inspect_top_select", "amount": 3, "maximum": 3,
+                "selection_policy": "private_three_top_bottom_order", "requires_order": True,
+                "selected_destination": "main_deck_top_ordered", "unselected_destination": "main_deck_bottom",
+            }
+        ):
+            raise ValueError("private split reorder requires exactly three private cards and two ordered groups")
+        if self.selection_policy == "private_ten_minus_hand_keep_two" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "inspect_top_select",
+                "selection_policy": "private_ten_minus_hand_keep_two", "maximum": 2,
+                "selected_destination": "hand", "unselected_destination": "waiting_room",
+            }
+        ):
+            raise ValueError("ten-minus-hand inspection requires a private zero-to-two choice")
+        if self.selection_policy == "public_four_lily_white_live" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "inspect_top_select", "amount": 4,
+                "selection_policy": "public_four_lily_white_live",
+                "card_type": "live", "unit_key": "lily_white", "minimum": 1,
+                "selected_destination": "hand", "unselected_destination": "waiting_room",
+                "reveal_selected_to_opponent": True,
+            }
+        ):
+            raise ValueError("public four-card prototype requires the bounded lily-white Live choice")
         if self.cost_payment_policy == "triggered_inspection" and (
             self.choice_type != "inspect_top_select" or self.target_player != "self"
             or self.amount is None or self.amount <= 0 or self.amount_source is not None
@@ -415,6 +673,16 @@ class EffectChoice(BaseModel):
             or self.inspection_activation_policy is not None or self.selection_policy is not None
         ):
             raise ValueError("triggered inspection cost policy requires fixed private look and hand selection")
+        if self.cost_payment_policy == "triggered_inspection_up_to_three_v1" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "cost_payment_policy": "triggered_inspection_up_to_three_v1",
+                "choice_type": "inspect_top_select", "amount": 7, "card_type": "member",
+                "heart_color_slots_any": ["heart02", "heart04", "heart05"], "maximum": 3,
+                "selected_destination": "hand", "unselected_destination": "waiting_room",
+                "reveal_selected_to_opponent": True,
+            }
+        ):
+            raise ValueError("three-card inspection requires the fixed bounded private choice")
         if self.cost_payment_policy == "triggered_inspection_reorder" and (
             self.choice_type != "inspect_top_select" or self.target_player != "self"
             or self.amount != 2 or self.amount_source is not None
@@ -450,6 +718,14 @@ class EffectChoice(BaseModel):
             }
         ):
             raise ValueError("other Nijigasaki selection requires one other own Stage Member")
+        if self.selection_policy == "public_aqours_blade_six_source_score" and (
+            self.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "member_from_stage", "zone": "stage", "card_type": "member",
+                "selection_policy": "public_aqours_blade_six_source_score",
+                "minimum": 1, "work_key": "aqours",
+            }
+        ):
+            raise ValueError("Aqours Blade-six selection must not pre-filter the body condition")
         if self.selection_policy == "public_nijigasaki_blade_four_heart" and (
             self.model_dump(exclude_defaults=True, exclude_none=True) != {
                 "choice_type": "member_from_stage", "zone": "stage", "card_type": "member",
@@ -547,6 +823,14 @@ class EffectDefinition(BaseModel):
         wait = (cost.action_type == "apply_wait" and cost.target == "source" and hand is None and self.is_optional)
         if not (wait or (discard and not reorder)) or cost.amount is not None or cost.value is not None:
             raise ValueError("triggered inspection cost policy only supports one hand discard or source Wait")
+        if self.choice.cost_payment_policy == "triggered_inspection_up_to_three_v1" and (
+            not self.is_optional or cost != EffectOperation(action_type="discard_from_hand")
+            or hand != EffectChoice(choice_type="card_from_zone", zone="hand", minimum=1, maximum=1)
+            or self.actions != [EffectOperation(action_type="inspect_top_cards", amount=7),
+                                EffectOperation(action_type="select_to_hand_from_inspected"),
+                                EffectOperation(action_type="move_remaining_cards")]
+        ):
+            raise ValueError("three-card inspection requires the fixed optional discard and actions")
         return self
 
     @model_validator(mode="after")
@@ -582,6 +866,417 @@ class EffectDefinition(BaseModel):
 
     @model_validator(mode="after")
     def validate_operations(self) -> EffectDefinition:
+        named_policy = "private_partial_names_unlimited_discard_v1"
+        all_hand_policy = "private_all_hand_nonempty_v1"
+        if any(c is not None and c.selection_policy == all_hand_policy for c in (self.cost_choice, self.choice, self.follow_up_choice)):
+            expected_choice = EffectChoice(choice_type="card_from_zone", zone="hand", target_player="self",
+                                           minimum=1, maximum=0, selection_policy=all_hand_policy)
+            if (not self.card_code.startswith("UNREGISTERED-") or self.effect_id != self.card_code + ":1"
+                    or self.cost_choice != expected_choice or self.choice is not None or self.follow_up_choice is not None
+                    or self.cost != [EffectOperation(action_type="discard_from_hand")]
+                    or self.actions != [EffectOperation(action_type="draw_card", amount=6)] or self.duration is not None
+                    or self.condition or self.effect_type != "triggered" or self.timing != "on_play"
+                    or self.trigger != "member_played" or self.frequency_limit != "none" or not self.is_optional
+                    or self.execution_mode != "prompt_then_resolve" or self.simulation_support == "manual_resolution"):
+                raise ValueError("all-hand discard requires its unregistered fixed on-play shape")
+        paid_blade = "gain_source_blade_for_paid_named_v1"
+        if any(op.action_type == paid_blade for op in self.cost):
+            raise ValueError("paid named Blade cannot be a cost")
+        if any(op.action_type == paid_blade for op in self.actions) and (
+            self.cost_choice is None or self.cost_choice.selection_policy != named_policy
+        ):
+            raise ValueError("paid named Blade requires the fixed private named cost")
+        if any(c is not None and c.selection_policy == named_policy for c in (self.cost_choice, self.choice, self.follow_up_choice)):
+            expected_choice = EffectChoice(choice_type="card_from_zone", zone="hand", target_player="self",
+                name_ja_any=["渡辺 曜", "鬼塚夏美", "大沢瑠璃乃"], minimum=0, maximum=0,
+                selection_policy=named_policy)
+            probe_identity = self.card_code.startswith("UNREGISTERED-") and self.effect_id == self.card_code + ":1"
+            formal_identity = (self.card_code == "LL-bp2-001" and self.effect_id == "LL-bp2-001:3"
+                               and self.effect_index == 3 and self.text_revision_id == 592
+                               and self.raw_text_hash == LL_BP2_FULL_HASH and self.label_ja == LL_BP2_NAMED_BLADE_TEXT
+                               and self.actions == [EffectOperation(action_type=paid_blade, target="cost_selected",
+                                   source_object_policy="original_paid_named_blade_source_v1")])
+            if (not (probe_identity or formal_identity)
+                    or self.cost_choice != expected_choice or self.choice is not None or self.follow_up_choice is not None
+                    or self.cost != [EffectOperation(action_type="discard_from_hand")]
+                    or (self.actions, self.duration) not in (
+                        ([EffectOperation(action_type="draw_card", amount=1)], None),
+                        ([EffectOperation(action_type=paid_blade, target="cost_selected",
+                            source_object_policy="original_paid_named_blade_source_v1")], "live"))
+                    or self.condition or self.effect_type != "triggered" or self.timing != "live_start"
+                    or self.trigger != "live_started" or self.frequency_limit != "once_per_live"
+                    or not self.is_optional
+                    or self.execution_mode != "prompt_then_resolve" or self.simulation_support == "manual_resolution"):
+                raise ValueError("partial-name unlimited discard requires its fixed Live-start identity and shape")
+        union = "gain_source_heart_from_paid_basic_color_union_v1"
+        if any(op.action_type == union for op in self.cost):
+            raise ValueError("paid basic color union cannot be a cost")
+        if any(op.action_type == union for op in self.actions):
+            expected = EffectOperation(action_type=union, target="cost_selected",
+                source_object_policy="original_paid_basic_color_union_source_v1")
+            cost = EffectOperation(action_type="discard_from_hand", target="selected")
+            choice = EffectChoice(choice_type="card_from_zone", zone="hand", card_type="member",
+                target_player="self", name_ja_any=["南 ことり", "黒澤ダイヤ", "徒町小鈴"], minimum=0, maximum=4)
+            if (not self.card_code.startswith("UNREGISTERED-") or self.actions != [expected]
+                    or self.cost != [cost] or self.cost_choice != choice or self.choice or self.follow_up_choice
+                    or self.condition or self.effect_type != "triggered" or self.timing != "live_start"
+                    or self.trigger != "live_started" or self.frequency_limit != "once_per_live"
+                    or not self.is_optional or self.duration != "live"
+                    or self.execution_mode != "prompt_then_resolve" or self.simulation_support == "manual_resolution"):
+                raise ValueError("paid basic color union is an unregistered bounded Live-start probe")
+        direct_disable = "disable_opponent_direct_live_success_v1"
+        if any(op.action_type == direct_disable for op in self.actions):
+            expected = EffectOperation(action_type=direct_disable, target="selected",
+                source_object_policy="original_opponent_direct_disable_source_v1")
+            choice = EffectChoice(choice_type="member_from_stage", zone="stage", card_type="member",
+                target_player="opponent", minimum=1, maximum=1)
+            if (not self.card_code.startswith("UNREGISTERED-") or self.actions != [expected]
+                    or self.choice != choice or self.condition or self.cost or self.cost_choice or self.follow_up_choice
+                    or self.effect_type != "triggered" or self.timing != "live_start" or self.trigger != "live_started"
+                    or self.frequency_limit != "once_per_live" or self.is_optional or self.duration != "live"
+                    or self.execution_mode != "prompt_then_resolve" or self.simulation_support == "manual_resolution"):
+                raise ValueError("opponent direct disable is an unregistered bounded Live-start probe")
+        ready_score = "gain_source_score_if_three_readied_printemps"
+        if any(op.action_type == ready_score for op in self.cost):
+            raise ValueError("three ready source score cannot be a cost")
+        if any(op.action_type == ready_score for op in self.actions):
+            expected = [EffectOperation(action_type="ready_member_with_provenance_v1", target="self_stage_unit",
+                                        value={"unit_key": "printemps"}),
+                        EffectOperation(action_type=ready_score, target="source", amount=1,
+                                        source_object_policy="original_live_start_three_readied_source")]
+            if (self.actions != expected or self.condition or self.cost or self.cost_choice or self.choice or self.follow_up_choice
+                    or self.effect_type != "triggered" or self.timing != "live_start" or self.trigger != "live_started"
+                    or self.frequency_limit != "once_per_live" or self.is_optional or self.duration != "game"
+                    or self.execution_mode != "auto_resolve" or self.simulation_support == "manual_resolution"):
+                raise ValueError("three ready source score requires its fixed mandatory Live-start shape")
+        if any(op.action_type in {"ready_member_with_provenance_v1", "ready_member_after_source_wait_provenance_v1", "ready_member_after_source_wait_provenance_v2", "ready_member_from_departed_source_provenance_v1", "ready_member_from_departed_both_provenance_v2"} for op in self.cost):
+            raise ValueError("ready provenance is an effect operation, not a cost")
+        departed_ready = "ready_member_from_departed_source_provenance_v1"
+        if any(op.action_type == departed_ready for op in self.actions):
+            expected_choice = EffectChoice(choice_type="member_from_stage", zone="stage", card_type="member",
+                target_player="self", orientation="wait", minimum=0, maximum=1)
+            if (self.actions != [EffectOperation(action_type=departed_ready, target="selected")]
+                    or self.cost or self.cost_choice or self.follow_up_choice or self.choice != expected_choice or self.condition
+                    or self.effect_type != "triggered" or self.timing != "auto_triggered_event"
+                    or self.trigger != "member_left_stage_to_waiting_room" or self.frequency_limit != "none"
+                    or not self.is_optional or self.duration is not None or self.execution_mode != "prompt_then_resolve"
+                    or self.simulation_support == "manual_resolution"):
+                raise ValueError("departed ready prototype only supports its fixed own-stage departure and optional own-Member choice")
+        departed_both = "ready_member_from_departed_both_provenance_v2"
+        both_policy = "public_departed_ready_both_one"
+        if any(getattr(choice, "selection_policy", None) == both_policy for choice in (self.cost_choice, self.follow_up_choice)):
+            raise ValueError("departed both ready policy cannot be used for costs or follow-up choices")
+        if any(op.action_type == departed_both for op in self.actions):
+            expected_choice = EffectChoice(choice_type="member_from_stage", zone="stage", card_type="member",
+                target_player="self", orientation=None, minimum=0, maximum=1, selection_policy=both_policy)
+            if (self.actions != [EffectOperation(action_type=departed_both, target="selected")]
+                    or self.cost or self.cost_choice or self.follow_up_choice or self.choice != expected_choice or self.condition
+                    or self.effect_type != "triggered" or self.timing != "auto_triggered_event"
+                    or self.trigger != "member_left_stage_to_waiting_room" or self.frequency_limit != "none"
+                    or not self.is_optional or self.duration is not None or self.execution_mode != "prompt_then_resolve"
+                    or self.simulation_support == "manual_resolution"):
+                raise ValueError("departed both ready prototype requires its fixed optional public choice")
+        elif getattr(self.choice, "selection_policy", None) == both_policy:
+            raise ValueError("departed both ready choice requires its bounded operation")
+        for bounded_ready, target_orientation in (
+            ("ready_member_after_source_wait_provenance_v1", "wait"),
+            ("ready_member_after_source_wait_provenance_v2", None),
+        ):
+            if any(op.action_type == bounded_ready for op in self.actions):
+                expected_choice = EffectChoice(choice_type="member_from_stage", zone="stage", card_type="member",
+                    target_player="self", orientation=target_orientation, exclude_source=True, minimum=1, maximum=1)
+                if (self.actions != [EffectOperation(action_type=bounded_ready, target="selected")]
+                        or self.cost != [EffectOperation(action_type="apply_wait", target="source")]
+                        or self.choice != expected_choice or self.cost_choice or self.follow_up_choice or self.condition
+                        or self.effect_type != "activated" or self.timing != "activated_main" or self.trigger != "player_activation"
+                        or self.frequency_limit != "once_per_turn" or self.is_optional or self.duration is not None
+                        or self.execution_mode != "prompt_then_resolve" or self.simulation_support == "manual_resolution"):
+                    raise ValueError("source Wait ready prototype requires its fixed own-source cost and other-Member choice")
+        if any(op.action_type == "ready_member_with_provenance_v1" for op in self.actions) and (
+                self.cost or self.cost_choice or self.follow_up_choice or self.simulation_support == "manual_resolution"):
+            raise ValueError("ready provenance prototype does not support costs, follow-up choices or manual execution")
+        if getattr(self.choice, "selection_policy", None) == "public_waiting_nine_live_three_private_top":
+            expected_choice = EffectChoice(choice_type="card_from_zone", zone="waiting_room", card_type="live", minimum=0, maximum=3,
+                requires_order=True, selected_destination="main_deck_top_ordered", selection_policy="public_waiting_nine_live_three_private_top")
+            if (self.choice != expected_choice or self.actions != [EffectOperation(action_type="move_selected_to_deck_top")]
+                    or self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
+                    or self.effect_type != "triggered" or self.timing != "live_start" or self.trigger != "live_started"
+                    or self.frequency_limit != "once_per_live" or self.duration is not None
+                    or self.execution_mode != "prompt_then_resolve" or self.simulation_support == "manual_resolution"):
+                raise ValueError("waiting-nine Live top policy only supports its fixed mandatory Live-start selection")
+        if getattr(self.choice, "selection_policy", None) == "private_baton_cost7_draw2_discard1":
+            expected_choice = EffectChoice(choice_type="post_action_card_from_zone", zone="hand", minimum=1, maximum=1,
+                selection_policy="private_baton_cost7_draw2_discard1")
+            expected_actions = [EffectOperation(action_type="draw_card", amount=2), EffectOperation(action_type="discard_from_hand")]
+            if (self.choice != expected_choice or self.actions != expected_actions or self.cost or self.cost_choice or self.follow_up_choice
+                    or self.condition or self.is_optional or self.effect_type != "triggered" or self.timing != "on_play"
+                    or self.trigger != "member_played" or self.frequency_limit != "none" or self.duration is not None
+                    or self.execution_mode != "prompt_then_resolve" or self.simulation_support == "manual_resolution"):
+                raise ValueError("Baton cost-seven snapshot only supports its fixed mandatory draw-two/discard-one sequence")
+        current_yell_score = "gain_source_score_if_current_yell_live"
+        if any(op.action_type == current_yell_score for op in [*self.cost, *self.actions]) and (
+            self.cost or self.cost_choice or self.choice or self.follow_up_choice or self.condition or self.is_optional
+            or self.effect_type != "triggered" or self.timing != "live_success" or self.trigger != "live_succeeded"
+            or self.execution_mode != "auto_resolve" or self.frequency_limit != "once_per_live" or self.duration != "game"
+            or self.simulation_support == "manual_resolution" or len(self.actions) != 1
+        ):
+            raise ValueError("current Yell source score requires its fixed mandatory Live-success snapshot")
+        bounded = "draw_if_opponent_current_yell_live"
+        if any(op.action_type == bounded for op in [*self.cost, *self.actions]) and (
+            self.cost or self.cost_choice or self.choice or self.follow_up_choice or self.condition or self.is_optional
+            or self.effect_type != "triggered" or self.timing != "live_success" or self.trigger != "live_succeeded"
+            or self.execution_mode != "auto_resolve" or self.frequency_limit != "once_per_live" or self.duration is not None
+            or self.simulation_support == "manual_resolution"
+            or [op.model_dump(exclude_defaults=True, exclude_none=True) for op in self.actions] != [
+                {"action_type": bounded, "amount": 1},
+            ]
+        ):
+            raise ValueError("opponent current Yell draw requires its fixed mandatory Live-success snapshot")
+        if self.choice is not None and self.choice.selection_policy == "public_aqours_shared_heart_yell_one" and (
+            self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
+            or self.effect_type != "triggered" or self.timing != "live_success" or self.trigger != "live_succeeded"
+            or self.execution_mode != "prompt_then_resolve" or self.frequency_limit != "once_per_live" or self.duration is not None
+            or self.simulation_support == "manual_resolution"
+            or self.choice.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "card_from_zone", "selection_policy": "public_aqours_shared_heart_yell_one",
+                "zone": "resolution_area", "card_type": "member", "work_key": "love_live_sunshine", "minimum": 1,
+            }
+            or [op.model_dump(exclude_defaults=True, exclude_none=True) for op in self.actions] != [
+                {"action_type": "move_selected_to_hand"},
+            ]
+        ):
+            raise ValueError("shared-Heart Yell recovery requires its fixed mandatory one-card snapshot")
+        water_blue = self.choice is not None and self.choice.selection_policy == "public_water_blue_bottom_heart"
+        if any(op.action_type == "shuffle_waiting_aqours_for_selected_heart" for op in [*self.cost, *self.actions]) and not water_blue:
+            raise ValueError("WATER BLUE operation requires its exact bounded snapshot")
+        if water_blue and (
+            self.cost or self.cost_choice or self.condition or self.is_optional
+            or self.effect_type != "triggered" or self.timing != "live_start" or self.trigger != "live_started"
+            or self.execution_mode != "prompt_then_resolve" or self.frequency_limit != "once_per_live" or self.duration != "live"
+            or self.simulation_support == "manual_resolution"
+            or self.choice.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "card_from_zone", "selection_policy": "public_water_blue_bottom_heart", "zone": "waiting_room",
+                "card_type": "member", "work_key": "love_live_sunshine", "exclude_blade_heart": True, "maximum": 6,
+            }
+            or self.follow_up_choice is None or self.follow_up_choice.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "member_from_stage", "zone": "stage",
+                "card_type": "member", "work_key": "love_live_sunshine", "minimum": 1,
+            }
+            or [op.model_dump(exclude_defaults=True, exclude_none=True) for op in self.actions] != [
+                {"action_type": "shuffle_waiting_aqours_for_selected_heart", "amount": 6, "target": "selected"},
+            ]
+        ):
+            raise ValueError("WATER BLUE requires its fixed mandatory Live-start two-step snapshot")
+        opponent_wait = self.choice is not None and self.choice.selection_policy == "public_opponent_cost4_wait_or_draw"
+        if any(op.action_type == "wait_opponent_cost4_skip_next_turn_active" for op in [*self.cost, *self.actions]) and not opponent_wait:
+            raise ValueError("opponent Member restriction requires the bounded Live-success snapshot")
+        if opponent_wait and (
+            self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
+            or self.effect_type != "triggered" or self.timing != "live_success" or self.trigger != "live_succeeded"
+            or self.execution_mode != "prompt_then_resolve" or self.frequency_limit != "once_per_live" or self.duration is not None
+            or self.simulation_support == "manual_resolution"
+            or self.choice.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "choose_effect_branch", "selection_policy": "public_opponent_cost4_wait_or_draw",
+                "branch_ids": ["wait_opponent", "draw_one"],
+                "branch_selection_minimum": {"wait_opponent": 0, "draw_one": 0},
+                "branch_selection_maximum": {"wait_opponent": 2, "draw_one": 0},
+                "branch_choice_filters": {"wait_opponent": {"choice_type": "member_from_stage", "zone": "stage", "card_type": "member", "target_player": "opponent", "maximum_cost": 4, "minimum": 0, "maximum": 2}},
+            }
+            or [op.model_dump(exclude_defaults=True, exclude_none=True) for op in self.actions] != [
+                {"action_type": "wait_opponent_cost4_skip_next_turn_active", "amount": 2, "target": "selected", "branch": "wait_opponent"},
+                {"action_type": "draw_card", "amount": 1, "target": "self", "branch": "draw_one"},
+            ]
+        ):
+            raise ValueError("opponent restriction requires its fixed mandatory Live-success two-mode sequence")
+        diverdiva = self.choice is not None and self.choice.selection_policy == "public_diverdiva_energy_modes"
+        if any(op.action_type == "attach_energy_deck_to_selected_nijigasaki" for op in [*self.cost, *self.actions]) and not diverdiva:
+            raise ValueError("Energy Deck attachment requires the bounded DiverDiva snapshot")
+        if diverdiva and (
+            self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
+            or self.effect_type != "triggered" or self.timing != "on_play" or self.trigger != "member_played"
+            or self.execution_mode != "prompt_then_resolve" or self.frequency_limit != "none" or self.duration is not None
+            or self.simulation_support == "manual_resolution"
+            or self.choice.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "choose_effect_branch", "selection_policy": "public_diverdiva_energy_modes",
+                "branch_ids": ["ready_energy", "attach_energy_deck"],
+                "branch_selection_minimum": {"ready_energy": 2, "attach_energy_deck": 1},
+                "branch_selection_maximum": {"ready_energy": 2, "attach_energy_deck": 1},
+                "branch_choice_filters": {
+                    "ready_energy": {"choice_type": "energy_from_area", "zone": "energy_area", "card_type": "energy", "orientation": "wait", "minimum": 2, "maximum": 2},
+                    "attach_energy_deck": {"choice_type": "member_from_stage", "zone": "stage", "card_type": "member", "work_key": "nijigasaki", "minimum": 1, "maximum": 1},
+                },
+            }
+            or [op.model_dump(exclude_defaults=True, exclude_none=True) for op in self.actions] != [
+                {"action_type": "ready_energy", "amount": 2, "target": "selected", "branch": "ready_energy"},
+                {"action_type": "attach_energy_deck_to_selected_nijigasaki", "amount": 1, "target": "selected", "branch": "attach_energy_deck"},
+            ]
+        ):
+            raise ValueError("DiverDiva requires its fixed mandatory two-mode on-play sequence")
+        bounded = "mill_bottom_one_aqours_source_requirement"
+        if any(op.action_type == bounded for op in self.cost):
+            raise ValueError("bottom Aqours requirement cannot be a cost")
+        if any(op.action_type == bounded for op in self.actions) and (
+            self.cost or self.cost_choice or self.choice or self.follow_up_choice or self.condition
+            or self.is_optional or self.effect_type != "triggered" or self.timing != "live_start"
+            or self.trigger != "live_started" or self.frequency_limit != "once_per_live"
+            or self.duration != "game" or self.execution_mode != "auto_resolve"
+            or self.simulation_support == "manual_resolution" or len(self.actions) != 1
+        ):
+            raise ValueError("bottom Aqours requirement requires its fixed mandatory Live-start sequence")
+        if self.choice and self.choice.selection_policy == "public_two_distinct_live_opponent_one" and (
+            self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
+            or self.effect_type != "triggered" or self.timing != "on_play" or self.trigger != "member_played"
+            or self.execution_mode != "prompt_then_resolve" or self.frequency_limit != "none"
+            or self.duration is not None or self.actions or self.simulation_support == "manual_resolution"
+        ):
+            raise ValueError("opponent Live offer requires its fixed mandatory on-play sequence")
+        if self.choice and self.choice.selection_policy == "public_both_center_position_sequential" and (
+            self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
+            or self.effect_type != "triggered" or self.timing != "on_play" or self.trigger != "member_played"
+            or self.execution_mode != "prompt_then_resolve" or self.frequency_limit != "none"
+            or self.duration is not None or self.actions or self.simulation_support == "manual_resolution"
+        ):
+            raise ValueError("center position choice requires the fixed mandatory on-play sequence")
+        mirrored = "opposing_member_cost_greater_than_source_mirrored_v1"
+        if mirrored in self.condition and (
+            self.condition != {mirrored: True} or self.condition[mirrored] is not True
+            or self.effect_type != "static" or self.timing != "static_always" or self.trigger != "static_always"
+            or self.execution_mode != "auto_resolve" or self.frequency_limit != "none" or self.is_optional
+            or self.duration != "game" or self.cost or self.cost_choice or self.choice or self.follow_up_choice
+            or self.simulation_support == "manual_resolution"
+            or [op.model_dump(exclude_defaults=True, exclude_none=True) for op in self.actions] != [
+                {"action_type": "gain_heart", "amount": 1, "color_slot": "heart01"}
+            ]
+        ):
+            raise ValueError("mirrored front cost requires the bounded static pink Heart condition")
+        bottom_five = "mill_bottom_five_members_draw_source_score"
+        if any(op.action_type == bottom_five for op in self.cost):
+            raise ValueError("bottom five cannot be a cost")
+        if any(op.action_type == bottom_five for op in self.actions) and (
+            self.cost or self.cost_choice or self.choice or self.follow_up_choice or self.condition
+            or self.is_optional or self.effect_type != "triggered" or self.timing != "live_start"
+            or self.trigger != "live_started" or self.frequency_limit != "once_per_live"
+            or self.duration != "live" or self.execution_mode != "auto_resolve"
+            or self.simulation_support == "manual_resolution" or len(self.actions) != 1
+        ):
+            raise ValueError("bottom five requires the fixed mandatory Live-start sequence")
+        bottom_three = "mill_bottom_three_aqours_source_heart"
+        if any(op.action_type == bottom_three for op in self.cost):
+            raise ValueError("bottom three cannot be a cost")
+        if any(op.action_type == bottom_three for op in self.actions) and (
+            self.cost or self.cost_choice or self.choice or self.follow_up_choice or self.condition
+            or self.is_optional or self.effect_type != "triggered" or self.timing != "live_start"
+            or self.trigger != "live_started" or self.frequency_limit != "once_per_live"
+            or self.duration != "live" or self.execution_mode != "auto_resolve"
+            or self.simulation_support == "manual_resolution" or len(self.actions) != 1
+        ):
+            raise ValueError("bottom three requires its fixed mandatory Live-start sequence")
+        if any(op.action_type == "place_wait_energy_skip_next_turn_active" for op in self.cost):
+            raise ValueError("new Energy next-turn block cannot be a cost")
+        if any(op.action_type == "place_wait_energy_skip_next_turn_active" for op in self.actions) and (
+            self.cost or self.cost_choice or self.choice or self.follow_up_choice or self.condition or self.is_optional
+            or self.effect_type != "triggered" or self.timing != "on_play" or self.trigger != "member_played"
+            or self.frequency_limit != "none" or self.duration is not None
+            or self.execution_mode != "auto_resolve" or self.simulation_support == "manual_resolution"
+            or len(self.actions) != 1
+        ):
+            raise ValueError("new Energy next-turn block requires its fixed mandatory on-play sequence")
+        if any(op.action_type == "draw_extra_if_opponent_live_succeeded" for op in self.cost):
+            raise ValueError("conditional opponent-success draw cannot be a cost")
+        if any(op.action_type == "draw_extra_if_opponent_live_succeeded" for op in self.actions) and (
+            self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
+            or self.effect_type != "triggered" or self.timing != "live_success" or self.trigger != "live_succeeded"
+            or self.frequency_limit != "once_per_live" or self.duration is not None
+            or self.execution_mode != "prompt_then_resolve" or self.simulation_support == "manual_resolution"
+            or self.choice is None
+            or self.choice.model_dump(exclude_defaults=True, exclude_none=True) != {
+                "choice_type": "post_action_card_from_zone", "zone": "hand", "minimum": 1,
+                "post_action_condition_key": "opponent_live_success_extra_draw", "post_action_condition_minimum": 1,
+            }
+            or [op.model_dump(exclude_defaults=True, exclude_none=True) for op in self.actions] != [
+                {"action_type": "draw_card", "amount": 1},
+                {"action_type": "draw_extra_if_opponent_live_succeeded", "amount": 1},
+                {"action_type": "discard_from_hand"},
+            ]
+        ):
+            raise ValueError("opponent Live success requires its fixed draw-one/conditional-draw-and-discard sequence")
+        if any(op.action_type == "gain_source_heart_if_bottom_card_live" for op in self.actions) and (
+            self.cost or self.cost_choice or self.choice or self.follow_up_choice or self.condition
+            or self.is_optional or self.effect_type != "triggered" or self.timing != "live_start"
+            or self.trigger != "live_started" or self.frequency_limit != "once_per_live"
+            or self.duration != "live" or self.execution_mode != "auto_resolve"
+            or self.simulation_support == "manual_resolution"
+            or len(self.actions) != 2
+            or self.actions[0].model_dump(exclude_defaults=True, exclude_none=True) != {
+                "action_type": "mill_bottom_cards", "amount": 1,
+            }
+            or self.actions[1].action_type != "gain_source_heart_if_bottom_card_live"
+        ):
+            raise ValueError("bottom Live Heart requires its fixed mandatory Live-start sequence")
+        if self.choice and self.choice.selection_policy == "public_both_waiting_live_one" and (
+            self.cost or self.cost_choice or self.follow_up_choice or self.condition or self.is_optional
+            or self.effect_type != "triggered" or self.timing != "on_play" or self.trigger != "member_played"
+            or self.duration is not None or self.frequency_limit != "none"
+            or self.execution_mode != "prompt_then_resolve"
+            or [op.model_dump(exclude_defaults=True, exclude_none=True) for op in self.actions] != [
+                {"action_type": "return_from_waiting_room", "target": "both"},
+            ]
+        ):
+            raise ValueError("both-player recovery only supports the fixed mandatory on-play sequence")
+        if any(op.action_type == "grant_muse_blade_aura_if_success_score_icon" for op in self.actions) and (
+            self.cost or self.cost_choice or self.choice or self.follow_up_choice or self.condition
+            or self.is_optional or self.effect_type != "triggered" or self.timing != "on_play"
+            or self.trigger != "member_played" or self.frequency_limit != "none"
+            or self.duration != "live" or self.execution_mode != "auto_resolve" or len(self.actions) != 1
+        ):
+            raise ValueError("Muse aura only supports the fixed mandatory on-play Live-limited grant")
+        if any(op.action_type == "gain_source_heart_if_milled_member_blade_colors" for op in self.actions) and (
+            self.cost or self.cost_choice or self.choice or self.follow_up_choice or self.condition
+            or self.is_optional or self.effect_type != "triggered" or self.timing != "on_play"
+            or self.trigger != "member_played" or self.frequency_limit != "none"
+            or self.duration != "live" or self.execution_mode != "auto_resolve"
+            or len(self.actions) != 2
+            or self.actions[0].model_dump(exclude_defaults=True, exclude_none=True) != {
+                "action_type": "mill_top_cards", "amount": 3,
+            }
+            or self.actions[1].action_type != "gain_source_heart_if_milled_member_blade_colors"
+        ):
+            raise ValueError("milled Member Blade colors require the fixed on-play mill-three sequence")
+        if self.choice and self.choice.selection_policy == "private_three_top_bottom_order" and (
+            self.cost or self.cost_choice or self.follow_up_choice or self.condition
+            or self.is_optional or self.effect_type != "triggered" or self.timing != "on_play"
+            or self.trigger != "member_played" or self.frequency_limit != "none"
+            or self.duration is not None or self.execution_mode != "prompt_then_resolve"
+            or [op.model_dump(exclude_defaults=True, exclude_none=True) for op in self.actions] != [
+                {"action_type": "inspect_top_cards", "amount": 3},
+                {"action_type": "reorder_deck_top"}, {"action_type": "move_remaining_cards"},
+            ]
+        ):
+            raise ValueError("private split reorder only supports its fixed on-play sequence")
+        if self.choice and self.choice.selection_policy == "private_ten_minus_hand_keep_two" and (
+            self.cost or self.cost_choice or self.follow_up_choice or self.condition
+            or self.is_optional or self.effect_type != "triggered" or self.timing != "on_play"
+            or self.trigger != "member_played" or self.frequency_limit != "none"
+            or self.duration is not None or self.execution_mode != "prompt_then_resolve"
+            or [op.model_dump(exclude_defaults=True, exclude_none=True) for op in self.actions] != [
+                {"action_type": "inspect_top_cards"},
+                {"action_type": "select_to_hand_from_inspected"},
+                {"action_type": "move_remaining_cards"},
+            ]
+        ):
+            raise ValueError("ten-minus-hand inspection only supports its fixed on-play sequence")
+        if self.choice and self.choice.selection_policy == "public_four_lily_white_live" and (
+            self.cost or self.cost_choice or self.follow_up_choice or self.condition
+            or self.is_optional or self.effect_type != "triggered" or self.timing != "on_play"
+            or self.trigger != "member_played" or self.frequency_limit != "none"
+            or self.duration is not None or self.execution_mode != "prompt_then_resolve"
+            or [op.model_dump(exclude_defaults=True, exclude_none=True) for op in self.actions] != [
+                {"action_type": "reveal_cards", "amount": 4},
+                {"action_type": "select_to_hand_from_inspected"},
+                {"action_type": "move_remaining_cards"},
+            ]
+        ):
+            raise ValueError("public four-card prototype only supports its fixed on-play sequence")
         if any(op.source_object_policy is not None for op in self.cost):
             raise ValueError("source object policy cannot be a cost")
         if any(op.source_object_policy == "original_moved_stage_member" for op in self.actions) and (
@@ -679,7 +1374,8 @@ class EffectDefinition(BaseModel):
         ):
             raise ValueError("overlap source policy requires a bounded positional entry observer")
         if (
-            (self.cost_choice and self.cost_choice.selection_policy is not None)
+            (self.cost_choice and self.cost_choice.selection_policy is not None
+             and self.cost_choice.selection_policy not in {"private_partial_names_unlimited_discard_v1", "private_all_hand_nonempty_v1"})
             or (self.follow_up_choice and self.follow_up_choice.selection_policy is not None)
             or (
                 self.choice and self.choice.selection_policy == "private_filtered_may_choose_none"
@@ -723,6 +1419,25 @@ class EffectDefinition(BaseModel):
             }
         ):
             raise ValueError("other Nijigasaki selection only supports bounded cost15 Heart")
+        if any(op.action_type == "modify_source_score_if_selected_blade_six"
+               for op in self.actions) and (
+            not self.choice
+            or self.choice.selection_policy != "public_aqours_blade_six_source_score"
+        ):
+            raise ValueError("Blade-six source score requires its bounded selection policy")
+        if (self.choice
+                and self.choice.selection_policy == "public_aqours_blade_six_source_score") and (
+            self.cost or self.cost_choice or self.follow_up_choice
+            or self.condition or self.is_optional
+            or self.trigger != "live_started" or self.timing != "live_start"
+            or self.effect_type != "triggered" or self.frequency_limit != "once_per_live"
+            or self.execution_mode != "prompt_then_resolve" or self.duration != "live"
+            or len(self.actions) != 1
+            or self.actions[0].model_dump(exclude_defaults=True, exclude_none=True) != {
+                "action_type": "modify_source_score_if_selected_blade_six", "amount": 1,
+            }
+        ):
+            raise ValueError("Aqours Blade-six policy only supports source Live score +1")
         if (self.choice
                 and self.choice.selection_policy == "public_nijigasaki_blade_four_heart") and (
             self.cost or self.cost_choice or self.follow_up_choice
