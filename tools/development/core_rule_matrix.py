@@ -43,6 +43,7 @@ def catalog() -> tuple[Row, ...]:
     next_turn = "test_next_first_player_boundary"
     baton = "test_baton_payment_boundary"
     performance = "test_performance_yell_boundary"
+    multi_live = "test_multi_live_allocation_boundary"
     ai = [f"{policy}-{player}" for policy in POLICIES for player in PLAYERS]
     return (
         Row("opening-exchange", ("6.2.1.5", "6.2.1.6", "6.2.1.7"), (6,),
@@ -95,6 +96,14 @@ def catalog() -> tuple[Row, ...]:
             _nodes(performance, "test_performance_invalid_actions_preserve_sql",
                    [f"{kind}-{step}-{p}" for kind in ("wrong_player", "stale") for step in (0, 1) for p in PLAYERS])
             + _nodes(performance, "test_four_ai_performance_ignores_hidden_cards_and_replays", ai)),
+        Row("multi-live-colored-allocation", ("8.3.15", "8.3.15.1", "8.3.15.1.2", "8.3.16"), (8,),
+            "Both first-player seats, every order of two/three Lives; consume a shared colored-Heart pool and discard all Lives on any shortage; SQL resume and Replay.",
+            "Constructed no-ability states; no generic/ALL optimization, special icons, depletion, second-player phase, full games or end-phase loop.",
+            _nodes(multi_live, "test_colored_multi_live_all_orders_share_hearts_and_move_all_on_failure",
+                   [f"{passed}-order{i}-{p}" for passed in (False, True) for i in range(8) for p in PLAYERS]),
+            _nodes(multi_live, "test_multi_live_pending_rejects_invalid_order_without_sql_mutation",
+                   [f"{kind}-{p}" for kind in ("wrong_player", "stale", "empty", "duplicate", "foreign", "missing", "advance") for p in PLAYERS])
+            + _nodes(multi_live, "test_four_ai_multi_live_choice_is_private_and_uses_shared_pool", ai)),
     )
 
 

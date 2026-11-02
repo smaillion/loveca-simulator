@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 複数Liveの有色Heart共有と不足時の全Live移動を全選択順で検証し、限定行列に追加。エンジン動作は変更なし。
+- 中文：补充两张/三张Live共享Heart分配的54项行为与契约验证，接入限定矩阵；不扩大完整对局或正式卡验收声明。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
 - 新規対戦ではLive選択待ちのフェイズ再進行を拒否し、エールの二重実行を防止。旧Replayの動作は維持。
 - 中文：修复Live选择暂停时直接推进导致重复应援的问题，新增特殊Blade Heart及兼容验证；仅新对局启用。[验证](./docs/development/live-boundary-matrix-verification.md)。
 
