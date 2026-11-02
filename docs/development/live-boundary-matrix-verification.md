@@ -1,5 +1,30 @@
 # Live得分与成功区移动：20项实现回归
 
+## 2026-11-03 基础Performance与Yell
+
+新增`performance-yell-basic`为第六行，当前208固定实例分为92行为/116契约；
+下文五行162及四行118是对应批次历史记录。参数实例数不等于独立核心规则场景数，
+报告仍保持core_scenario_count=null、goal_75_complete=false。
+
+本次核对固定通则1.06第8页8.3.4、8.3.6、8.3.10-11、8.3.14、8.3.15.1及
+8.3.15.1.2、8.3.16的有限基础行为，不修改游戏逻辑或正式卡登记。
+
+- 30行为实例覆盖双方先攻座次、全Wait/混合/全Active、空Live区/纯非Live/单Live/
+  混合非Live/Heart不足。逐动作检查翻开卡、非Live移控室、Active成员Blade对应的
+  牌库顶精确顺序、解決区、所有成员（含Wait）Heart、普通有色Blade Heart及单Live分配。
+  Heart不足时Live入控室；无Live时不消耗牌库。每步重开SQLite并核对Replay与身份。
+- 无Live路径保留现有内部yell_skipped过渡；这里验证没有实际应援移牌，不据此宣称
+  所有检查时点或内部阶段划分都已符合规则。零Blade不等于零成员Heart。
+- 8项错误玩家/过期提交契约验证SQL不变，8项四AI契约实际执行两步，扰动未授权手牌、
+  牌库及对手背面Live卡面不改变动作。双方投影隐藏这些ID，同时公开真实Yell解決区卡面。
+- 46新增专项首次通过。构造卡已移除技能与特殊Blade Heart，牌库足够；不是正式卡验收
+  或完整对局。不覆盖耗尽刷新、特殊抽牌/ALL/加分图标、多Live分配、不能Live状态、
+  所有Live开始/结束触发或完整检查循环，不提高reviewed或核心完成计数。
+
+来源全文/哈希/页面、矩阵、独立SQL与负对照及最终完整门禁见
+`logs/end-phase-planning-20261102/performance-yell-review/final-acceptance.md`。
+应用指纹不变，不重冻30牌组；父任务in_progress，仅本地提交，未推送或部署。
+
 ## 2026-11-03 基础Baton Touch费用与替换
 
 在首批四行矩阵之后，新增`baton-basic-payment`一行。当前五行共162固定实例，

@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 基本Performance/Yellの公開・移動・ActiveのみのBlade・全メンバーのHeartを実状態と4種AIで検証。特殊アイコンや全チェックタイミングは対象外。
+- 中文：补充基础Performance/Yell的46项状态与契约验证，接入限定矩阵；不改变引擎或扩大正式规则完成声明。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
 - 基本バトンタッチのコスト差・支払い・領域移動を両席と4種AIで検証し、限定コアルール行列に追加。能力や終了ループの承認ではない。
 - 中文：补充基础Baton费用与替换的44项状态/契约验证并接入矩阵，不改变游戏逻辑或正式卡登记。[验证](./docs/development/live-boundary-matrix-verification.md)。
 

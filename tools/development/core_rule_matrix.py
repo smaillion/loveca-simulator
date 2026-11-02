@@ -42,6 +42,7 @@ def catalog() -> tuple[Row, ...]:
     live = "test_match_engine"
     next_turn = "test_next_first_player_boundary"
     baton = "test_baton_payment_boundary"
+    performance = "test_performance_yell_boundary"
     ai = [f"{policy}-{player}" for policy in POLICIES for player in PLAYERS]
     return (
         Row("opening-exchange", ("6.2.1.5", "6.2.1.6", "6.2.1.7"), (6,),
@@ -86,6 +87,14 @@ def catalog() -> tuple[Row, ...]:
             _nodes(baton, "test_baton_invalid_payment_is_atomic_in_sql",
                    [f"{kind}-{p}" for kind in ("short", "excess", "duplicate", "wait", "opponent_energy", "deck_energy", "zero_cost", "empty_area", "entered", "wrong_player", "stale", "repeat") for p in PLAYERS])
             + _nodes(baton, "test_four_ai_baton_payment_ignores_hidden_cards_and_replays", ai)),
+        Row("performance-yell-basic", ("8.3.4", "8.3.6", "8.3.10", "8.3.11", "8.3.14", "8.3.15.1", "8.3.15.1.2", "8.3.16"), (8,),
+            "Both first-player seats: reveal/discard decoys, no-Live no-Yell, Active-only Blade, all-member Hearts and single-Live colored requirements.",
+            "Constructed no-ability states; internal skipped transition retained; no depletion, special Blade Hearts, multi-Live allocation, disabled Live or full check timings.",
+            _nodes(performance, "test_basic_performance_reveal_active_blade_all_member_hearts_and_sql",
+                   [f"{orientation}-{case}-{p}" for orientation in ("all_wait", "mixed", "all_active") for case in ("empty", "decoys", "live", "mixed", "unmet") for p in PLAYERS]),
+            _nodes(performance, "test_performance_invalid_actions_preserve_sql",
+                   [f"{kind}-{step}-{p}" for kind in ("wrong_player", "stale") for step in (0, 1) for p in PLAYERS])
+            + _nodes(performance, "test_four_ai_performance_ignores_hidden_cards_and_replays", ai)),
     )
 
 
