@@ -670,6 +670,73 @@ function stubMobileViewport(): void {
 }
 
 describe("App", () => {
+  it.each(
+    ["player_1", "player_2"].flatMap((human) =>
+      ["player_1", "player_2"].flatMap((first) =>
+        [false, true].map((mobile) => ({ human, first, mobile })),
+      ),
+    ),
+  )("hides face-down opponent Live cards in AI matches ($human/$first/mobile=$mobile)", async ({ human, first, mobile }) => {
+    if (mobile) stubMobileViewport();
+    seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
+    const opponent = human === "player_1" ? "player_2" : "player_1";
+    const state: MatchState = structuredClone(MATCH_PAYLOAD.state);
+    state.controllers = { [human]: "human", [opponent]: "simple_ai" };
+    state.first_player_id = first;
+    state.second_player_id = first === "player_1" ? "player_2" : "player_1";
+    state.active_player_id = first;
+    state.phase = "performance_first";
+    for (const [id, owner, faceUp, name] of [
+      ["own-live", human, false, "OWN-SET-LIVE"],
+      ["secret-live", opponent, false, "SECRET-OPPONENT-LIVE"],
+      ["public-live", opponent, true, "PUBLIC-OPPONENT-LIVE"],
+    ] as const) {
+      state.cards[id] = {
+        ...structuredClone(INSPECTION_CARDS["player_1-M001"]),
+        instance_id: id, owner_id: owner, face_up: faceUp,
+        card: { ...structuredClone(INSPECTION_CARDS["player_1-M001"].card),
+          card_type: "live", name_ja: name, image_url: `/test/${id}.png` },
+      };
+      state.players[owner].live_area.push(id);
+    }
+    const revealed = structuredClone(state);
+    revealed.cards["secret-live"].face_up = true;
+    revealed.phase = opponent === first ? "yell_first" : "yell_second";
+    revealed.active_player_id = opponent;
+    vi.stubGlobal("fetch", createFetchMock({
+      matchCreate: { ...MATCH_PAYLOAD, state, legal_actions: [{ action_type: "advance_phase", player_id: human,
+        label_zh: "测试翻面", label_ja: "テスト公開", options: {} }] },
+      matchAction: { ...MATCH_PAYLOAD, state: revealed },
+    }));
+    render(<App />);
+    const create = await screen.findByRole("button", { name: "创建对局" });
+    await waitFor(() => expect(create).not.toBeDisabled());
+    fireEvent.click(create);
+    await screen.findByText("OWN-SET-LIVE");
+    expect(screen.queryByText("SECRET-OPPONENT-LIVE")).not.toBeInTheDocument();
+    expect(document.querySelector('[title="SECRET-OPPONENT-LIVE"]')).toBeNull();
+    expect(document.querySelector('img[src="/test/secret-live.png"]')).toBeNull();
+    expect(screen.getByLabelText("非公开卡牌")).toBeInTheDocument();
+    expect(screen.getByText("PUBLIC-OPPONENT-LIVE")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("非公开卡牌"));
+    expect(screen.queryByText("SECRET-OPPONENT-LIVE")).not.toBeInTheDocument();
+    // Mobile Live dialogs can mirror the action dock's command.
+    fireEvent.click(screen.getAllByRole("button", { name: "测试翻面" })[0]);
+    await screen.findByText("SECRET-OPPONENT-LIVE");
+    expect(screen.queryByLabelText("非公开卡牌")).not.toBeInTheDocument();
+    expect(screen.getByText("OWN-SET-LIVE")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("SECRET-OPPONENT-LIVE"));
+    expect(screen.getAllByText("SECRET-OPPONENT-LIVE").length).toBeGreaterThan(1);
+    expect(state.cards["secret-live"].face_up).toBe(false);
+  });
+
+  it.each(["player_1", "player_2"])("keeps the human perspective during an AI-owned action (%s)", (human) => {
+    const opponent = human === "player_1" ? "player_2" : "player_1";
+    expect(localPerspectivePlayerId({ ...MATCH_PAYLOAD.state, active_player_id: opponent,
+      controllers: { [human]: "human", [opponent]: "simple_ai" } },
+    [{ action_type: "advance_phase", player_id: opponent, label_zh: "继续", label_ja: "続行", options: {} }])).toBe(human);
+  });
+
   it.each([2, 3])("renders server-computed mirrored-front member Hearts without a manual bonus (%i)", async (pink) => {
     seedSavedDecks([{ path: "test.json", deck: SAMPLE_DECK }]);
     const matchCreate = structuredClone(MATCH_PAYLOAD);

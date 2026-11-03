@@ -2,6 +2,20 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "ai-opponent-live-face-down-ui",
+      "priority": 0,
+      "title": "修复对战电脑时未翻面Live提前显示",
+      "status": "queued",
+      "depends_on": ["continuous-workflow"],
+      "required_profiles": ["control", "registry", "web"],
+      "acceptance": [
+        "先用完整本地对局响应复现对手face_up=false的Live仍显示卡面；双方人类座位及先后攻、桌面手机覆盖",
+        "Live区依据实际face_up和当前玩家隐藏对手卡面、名称、图像和详情入口；单个人类对战电脑保持人类视角，己方及已公开卡可见",
+        "不改引擎、API调试权限、SQL和Replay，不把界面隐藏当服务端保密；验证既有联机投影并续写隐私报告与双语CHANGELOG",
+        "完整control/registry/web、pre-push及审查后仅本地提交，不推送合并部署"
+      ]
+    },
+    {
       "id": "live-success-audit-summary-order",
       "priority": 0,
       "title": "统一Live成功顺序审计的判定与中文说明",

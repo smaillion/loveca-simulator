@@ -1220,7 +1220,7 @@ export default function App() {
             />
           </div>
           <div className="mobile-live-center">
-            <LiveCenter state={match.state} onCard={setDetails} />
+            <LiveCenter state={match.state} viewerPlayerId={bottomPlayerId} onCard={setDetails} />
           </div>
           <div className="mobile-own-board">
             <PlayerBoard
@@ -1473,6 +1473,10 @@ export function localPerspectivePlayerId(
   state: MatchState,
   actions: LegalAction[],
 ): "player_1" | "player_2" {
+  const humanPlayers = (["player_1", "player_2"] as const).filter(
+    (id) => state.controllers?.[id] === "human",
+  );
+  if (humanPlayers.length === 1) return humanPlayers[0];
   const actionPlayerIds = new Set(
     actions
       .map((action) => action.player_id)
@@ -3542,10 +3546,12 @@ function WaitingRoomViewer({
 
 function LiveCenter({
   state,
+  viewerPlayerId,
   onCard,
   compact = false,
 }: {
   state: MatchState;
+  viewerPlayerId: string;
   onCard: (card: CardInstance) => void;
   compact?: boolean;
 }) {
@@ -3555,6 +3561,7 @@ function LiveCenter({
       <Zone
         label={`${state.players.player_2.name} ${tr("演出区", "ライブエリア")}`}
         ids={state.players.player_2.live_area}
+        hideFaceDown={viewerPlayerId !== "player_2"}
         state={state}
         onCard={onCard}
         small
@@ -3563,6 +3570,7 @@ function LiveCenter({
       <Zone
         label={`${state.players.player_1.name} ${tr("演出区", "ライブエリア")}`}
         ids={state.players.player_1.live_area}
+        hideFaceDown={viewerPlayerId !== "player_1"}
         state={state}
         onCard={onCard}
         small
@@ -3981,6 +3989,7 @@ function Zone({
   onCard,
   hand = false,
   hidden = false,
+  hideFaceDown = false,
   small = false,
   mobileMemberPlay,
   mobileLiveSet,
@@ -3993,6 +4002,7 @@ function Zone({
   onCard: (card: CardInstance) => void;
   hand?: boolean;
   hidden?: boolean;
+  hideFaceDown?: boolean;
   small?: boolean;
   mobileMemberPlay?: MobileMemberPlayContext;
   mobileLiveSet?: MobileLiveSetContext;
@@ -4017,7 +4027,7 @@ function Zone({
           ))
           : ids.map((id) => {
             const instance = state.cards[id];
-            if (!instance) {
+            if (!instance || (hideFaceDown && !instance.face_up)) {
               return (
                 <div
                   className="hidden-hand-card"
