@@ -237,6 +237,7 @@ class MatchState(BaseModel):
     victory_check_policy: Literal["before_end_expiry_v1"] | None = None
     draw_refresh_policy: Literal["after_each_draw_v1"] | None = None
     live_choice_guard_policy: Literal["require_resolution_v1"] | None = None
+    end_phase_policy: Literal["ability_free_expiry_v1"] | None = None
     revision: int = 0
     phase: Phase = "setup_choose_first"
     first_player_id: str | None = None
@@ -290,6 +291,8 @@ class MatchState(BaseModel):
             payload.pop("draw_refresh_policy", None)
         if self.live_choice_guard_policy is None:
             payload.pop("live_choice_guard_policy", None)
+        if self.end_phase_policy is None:
+            payload.pop("end_phase_policy", None)
         return payload
 
 

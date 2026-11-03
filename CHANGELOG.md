@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 能力を持たない明示的な内部スナップショットに限定し、Live終了時にTurn期限も解除する経路を追加。通常の新規対戦では無効。
+- 中文：新增显式受限的无能力结束路径，选择完成后清理Live及Turn期限、胜利优先；旧快照不变，非完整结束循环。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
 - 複数Liveの有色Heart共有と不足時の全Live移動を全選択順で検証し、限定行列に追加。エンジン動作は変更なし。
 - 中文：补充两张/三张Live共享Heart分配的54项行为与契约验证，接入限定矩阵；不扩大完整对局或正式卡验收声明。[验证](./docs/development/live-boundary-matrix-verification.md)。
 

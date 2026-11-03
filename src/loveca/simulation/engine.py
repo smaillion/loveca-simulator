@@ -80,6 +80,7 @@ def apply_action(state: MatchState, action: ActionRequest) -> ActionResult:
         )
     if state.phase == "complete":
         raise IllegalActionError("the match is complete")
+    _validate_ability_free_end_state(state)
     if state.pending_effects and action.action_type not in {
         "resolve_effect",
         "resolve_effect_choice",
@@ -109,6 +110,7 @@ def apply_action(state: MatchState, action: ActionRequest) -> ActionResult:
         "resolve_manual_inspection": _resolve_manual_inspection,
     }
     handlers[action.action_type](next_state, action, events)
+    _validate_ability_free_end_state(next_state)
     _validate_stage_state(next_state)
     next_state.revision += 1
     return ActionResult(
@@ -12281,6 +12283,26 @@ def _finish_judgment_choices(
     _complete_live_judgment(state, events)
 
 
+def _validate_ability_free_end_state(state: MatchState) -> None:
+    if state.end_phase_policy is None:
+        return
+    # This opt-in boundary has no trigger scheduler or source-identity ledger.
+    if (state.end_phase_policy != "ability_free_expiry_v1"
+            or state.victory_check_policy != "before_end_expiry_v1"
+            or state.effect_definitions or state.pending_effects or state.effect_usage
+            or state.member_ready_history is not None
+            or state.member_ready_qualified_coverage is not None
+            or any(card.card.effect_ids or card.card.raw_effect_text_ja
+                   or card.card.ability_bucket != "none" for card in state.cards.values())
+            or any(not player.main_deck or player.effect_ready_flags_this_turn
+                   or any(player.member_area_attachments.values())
+                   or any(modifier.modifier_type not in {"score", "blade", "heart", "required_heart"}
+                          or modifier.flag is not None or modifier.value is not None
+                          for modifier in player.manual_modifiers)
+                   for player in state.players.values())):
+        raise IllegalActionError("ability-free end policy does not support this state")
+
+
 def _complete_live_judgment(
     state: MatchState,
     events: list[GameEvent],
@@ -12303,7 +12325,7 @@ def _cleanup_live_judgment_zones(state: MatchState) -> None:
 
 
 def _finish_live_judgment(state: MatchState, events: list[GameEvent]) -> None:
-    # Preserve the existing outcome/expiry order; this is not the 8.4.9-12 check loop.
+    # Legacy ordering stays unchanged; the ability-free opt-in is not a trigger loop.
     success_counts = {
         player_id: len(player.success_live_area)
         for player_id, player in state.players.items()
@@ -12319,6 +12341,9 @@ def _finish_live_judgment(state: MatchState, events: list[GameEvent]) -> None:
     if not terminal_before_expiry:
         for player_id in state.players:
             _expire_modifiers(state, player_id, "live", events)
+        if state.end_phase_policy == "ability_free_expiry_v1":
+            for player_id in state.players:
+                _expire_modifiers(state, player_id, "turn", events)
     state.pending_choice = None
     state.active_player_id = None
     if len(threshold_players) == 2:
