@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 四季の待機中の復原能力が、手札・下のカードを経由した新しい対象へ再結合しないことを検証。エンジンと登録は変更なし。
+- 中文：补充四季待机来源经过手牌、下方及提升路径的34项限定回归，包含双方SQL、四AI续接和旧operation对照；不扩大完整生命周期或结束阶段声明。[验证](./docs/development/moved-source-ready-verification.md)。
+
 - 新規対戦で下のメンバーを手札・控え室へ単独移動した際、旧対象補正を解除。場内移動と旧Replayは維持。
 - 中文：修复单独抽离下方Member跨区后旧补正残留，新对局启用并保留旧状态/事件哈希；不扩大Energy或完整生命周期范围。[验证](./docs/development/stage-departure-modifier-verification.md)。
 
