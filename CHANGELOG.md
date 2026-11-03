@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- ステージ内の位置交換・全配置で下のカードと対象補正を保持する限定検証を追加。エンジンや正式カード登録は変更なし。
+- 中文：补充Stage内部整组移动的60项行为与契约检查，包含批次回滚和四AI后续动作；矩阵节点改用标准输入避免Windows命令超长，不缩减校验。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
 - 能力を持たない明示的な内部スナップショットに限定し、Live終了時にTurn期限も解除する経路を追加。通常の新規対戦では無効。
 - 中文：新增显式受限的无能力结束路径，选择完成后清理Live及Turn期限、胜利优先；旧快照不变，非完整结束循环。[验证](./docs/development/live-boundary-matrix-verification.md)。
 

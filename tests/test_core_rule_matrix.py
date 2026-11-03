@@ -21,10 +21,10 @@ def _evidence():
 
 def test_catalog_has_scoped_rows_without_counting_contracts_as_rules():
     rows = matrix.catalog()
-    assert len(rows) == 7
-    assert len(matrix.matrix_nodes(rows)) == 262
-    assert sum(len(row.behavior_nodes) for row in rows) == 124
-    assert sum(len(row.contract_nodes) for row in rows) == 138
+    assert len(rows) == 8
+    assert len(matrix.matrix_nodes(rows)) == 322
+    assert sum(len(row.behavior_nodes) for row in rows) == 160
+    assert sum(len(row.contract_nodes) for row in rows) == 162
     assert all(row.exclusions and row.pages and row.rule_refs for row in rows)
     assert hashlib.sha256(Path(matrix.PDF_PATH).read_bytes()).hexdigest() == matrix.PDF_SHA256
 
@@ -101,12 +101,28 @@ def test_runner_binds_fresh_command_report_and_exact_nodes(tmp_path, monkeypatch
     output = tmp_path / "logs/new-run"
     result = matrix.run(tmp_path, output)
     assert result["passed"] is True and len(calls) == 1
-    assert calls[0][0][3] == "tests/test_case.py::test_ok"
+    assert calls[0][0][1] == "-c"
+    assert json.loads(calls[0][1]["input"]) == ["tests/test_case.py::test_ok"]
+    assert calls[0][1]["text"] is True
     assert result["core_scenario_count"] is None and result["goal_75_complete"] is False
     assert json.loads((output / "result.json").read_text())["passed"] is True
     invocation = json.loads((output / "invocation.json").read_text())
     assert invocation["source_fingerprint"] == "before"
     assert invocation["expected_nodes"] == ["tests/test_case.py::test_ok"]
+    assert invocation["node_transport"] == "json_stdin"
+
+
+def test_runner_keeps_large_exact_catalog_off_command_line(tmp_path, monkeypatch):
+    calls = _runtime(tmp_path, monkeypatch)
+    nodes = tuple(f"tests/test_case.py::test_long_name_{'x' * 90}[{index}]" for index in range(400))
+    monkeypatch.setattr(matrix, "catalog", lambda: (replace(_row(), behavior_nodes=nodes),))
+    result = matrix.run(tmp_path, tmp_path / "logs/large-run")
+    command, kwargs = calls[0]
+    assert len(" ".join(nodes)) > 32767
+    assert len(" ".join(command)) < 4096
+    assert json.loads(kwargs["input"]) == list(nodes)
+    # The one-case mock report is still rejected for this 400-node catalog.
+    assert result["passed"] is False
 
 
 @pytest.mark.parametrize("fault", ["timeout", "spawn", "skip", "exit", "missing_report", "source", "pdf"])

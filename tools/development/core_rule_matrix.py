@@ -44,6 +44,7 @@ def catalog() -> tuple[Row, ...]:
     baton = "test_baton_payment_boundary"
     performance = "test_performance_yell_boundary"
     multi_live = "test_multi_live_allocation_boundary"
+    stage_move = "test_stage_group_movement_boundary"
     ai = [f"{policy}-{player}" for policy in POLICIES for player in PLAYERS]
     return (
         Row("opening-exchange", ("6.2.1.5", "6.2.1.6", "6.2.1.7"), (6,),
@@ -104,6 +105,16 @@ def catalog() -> tuple[Row, ...]:
             _nodes(multi_live, "test_multi_live_pending_rejects_invalid_order_without_sql_mutation",
                    [f"{kind}-{p}" for kind in ("wrong_player", "stale", "empty", "duplicate", "foreign", "missing", "advance") for p in PLAYERS])
             + _nodes(multi_live, "test_four_ai_multi_live_choice_is_private_and_uses_shared_pool", ai)),
+        Row("stage-internal-groups", ("4.1.4", "4.5.5", "4.5.5.3", "11.4.2", "11.10.1", "11.10.2", "11.11.1", "11.11.2"), (4, 13),
+            "Both seats: Stage-internal moves/swaps and all formations preserve complete attached groups, orientation, target modifiers and entry history; SQL Replay.",
+            "Constructed no-ability states via manual actions; AI only continues afterwards. Not autonomous movement, cross-zone identity, departure/re-entry, inherited abilities or full games.",
+            _nodes(stage_move, "test_formation_all_permutations_preserve_groups_effects_and_sql",
+                   [f"order{i}-{p}" for i in range(6) for p in PLAYERS])
+            + _nodes(stage_move, "test_position_move_and_swap_preserve_complete_groups_and_sql",
+                     [f"{occupied}-pair{i}-{p}" for occupied in (False, True) for i in range(6) for p in PLAYERS]),
+            _nodes(stage_move, "test_invalid_stage_movement_preserves_sql_even_after_prior_batch_entry",
+                   [f"{fault}-{p}" for fault in ("duplicate", "missing", "foreign", "attachment", "deck", "same_slot", "stale", "batch") for p in PLAYERS])
+            + _nodes(stage_move, "test_four_ai_continue_after_manual_stage_move_without_hidden_card_influence", ai)),
     )
 
 
@@ -155,9 +166,11 @@ def run(root: Path, output: Path, *, timeout: int = 600) -> dict:
         raise ValueError("fixed rule PDF hash mismatch")
     before = Workflow(root).fingerprint()
     output.mkdir(parents=True, exist_ok=False)
-    command = [sys.executable, "-m", "pytest", *nodes, "--rootdir", str(root), "-q", "-p", "no:cacheprovider",
+    # A full catalog exceeds the Windows command-line limit; keep exact nodes in JSON stdin.
+    driver = "import json,sys,pytest; raise SystemExit(pytest.main(json.load(sys.stdin) + sys.argv[1:]))"
+    command = [sys.executable, "-c", driver, "--rootdir", str(root), "-q", "-p", "no:cacheprovider",
                "--basetemp", str(output / "pytest"), "--junitxml", str(output / "junit.xml")]
-    (output / "invocation.json").write_text(json.dumps({"command": command, "source_fingerprint": before, "expected_nodes": nodes}, indent=2), encoding="utf-8")
+    (output / "invocation.json").write_text(json.dumps({"command": command, "node_transport": "json_stdin", "source_fingerprint": before, "expected_nodes": nodes}, indent=2), encoding="utf-8")
     env = os.environ.copy()
     env["PYTHONPATH"] = os.pathsep.join((str(root / "src"), str(root)))
     env.pop("PYTEST_ADDOPTS", None)
@@ -165,7 +178,8 @@ def run(root: Path, output: Path, *, timeout: int = 600) -> dict:
     failure = None
     with (output / "pytest.log").open("w", encoding="utf-8") as log:
         try:
-            rc = subprocess.run(command, cwd=root, env=env, stdout=log, stderr=subprocess.STDOUT, timeout=timeout, check=False).returncode
+            rc = subprocess.run(command, input=json.dumps(nodes), text=True, cwd=root, env=env,
+                                stdout=log, stderr=subprocess.STDOUT, timeout=timeout, check=False).returncode
         except (subprocess.TimeoutExpired, OSError) as exc:
             failure, rc = type(exc).__name__, -1
     evidence = evaluate_junit(output / "junit.xml", nodes, returncode=rc)
