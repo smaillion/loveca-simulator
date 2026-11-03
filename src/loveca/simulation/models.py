@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, model_serializer
 
@@ -147,6 +147,14 @@ class EffectInvocation(BaseModel):
     trigger_event: str
     trigger_data: dict[str, Any] = Field(default_factory=dict)
     resolution_stage: Literal["initial", "after_cost"] = "initial"
+    source_stage_generation: int | None = Field(default=None, ge=0, strict=True)
+
+    @model_serializer(mode="wrap")
+    def serialize_stage_generation(self, handler: Any) -> dict[str, Any]:
+        payload = handler(self)
+        if self.source_stage_generation is None:
+            payload.pop("source_stage_generation", None)
+        return payload
 
 
 class EffectUsage(BaseModel):
@@ -154,6 +162,19 @@ class EffectUsage(BaseModel):
     source_card_instance_id: str
     turn_number: int
     usage_count: int = 1
+    source_stage_generation: int | None = Field(default=None, ge=0, strict=True)
+
+    @model_serializer(mode="wrap")
+    def serialize_stage_generation(self, handler: Any) -> dict[str, Any]:
+        payload = handler(self)
+        if self.source_stage_generation is None:
+            payload.pop("source_stage_generation", None)
+        return payload
+
+
+class FixedDrawEntryFrequencyV1(BaseModel):
+    policy: Literal["fixed_draw_entry_v1"] = "fixed_draw_entry_v1"
+    stage_generations: dict[str, Annotated[int, Field(ge=0, strict=True)]] = Field(default_factory=dict)
 
 
 class PlayerState(BaseModel):
@@ -218,6 +239,7 @@ class GameResult(BaseModel):
 
 class MatchState(BaseModel):
     match_id: str
+    fixed_draw_entry_frequency: FixedDrawEntryFrequencyV1 | None = None
     member_ready_history: MemberReadyHistoryV1 | None = None
     member_ready_coverage_policy: Literal["qualified_source_v1"] | None = None
     member_ready_qualified_coverage: MemberReadyQualifiedCoverageV1 | None = None
@@ -273,6 +295,8 @@ class MatchState(BaseModel):
     @model_serializer(mode="wrap")
     def serialize_overlap_policy(self, handler: Any) -> dict[str, Any]:
         payload = handler(self)
+        if self.fixed_draw_entry_frequency is None:
+            payload.pop("fixed_draw_entry_frequency", None)
         if self.member_ready_history is None:
             payload.pop("member_ready_history", None)
         for field in ("member_ready_coverage_policy", "member_ready_qualified_coverage"):

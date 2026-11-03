@@ -174,7 +174,9 @@ def initialize_runtime_database(path: Path) -> None:
                     f"{found}; expected {MATCH_RUNTIME_SCHEMA_VERSION}. "
                     "Delete the disposable local runtime database and restart."
                 )
-        connection.executescript(RUNTIME_SCHEMA_SQL)
+        # Keep schema creation and its version marker in one durable transaction.
+        with connection:
+            connection.executescript("BEGIN IMMEDIATE;\n" + RUNTIME_SCHEMA_SQL)
 
 
 class MatchRepository:

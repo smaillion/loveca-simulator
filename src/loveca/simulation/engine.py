@@ -3431,7 +3431,10 @@ def _queue_triggered_effects(
                     )
                 )
                 continue
-            if _effect_usage_limit_reached(state, effect, source_id):
+            stage_generation = _fixed_draw_entry_generation(state, effect, source_id)
+            if _effect_usage_limit_reached(
+                state, effect, source_id, source_stage_generation=stage_generation,
+            ):
                 continue
             invocation = EffectInvocation(
                 invocation_id=_new_invocation_id(state, effect_id, source_id),
@@ -3439,6 +3442,7 @@ def _queue_triggered_effects(
                 source_card_instance_id=source_id,
                 player_id=source.owner_id,
                 trigger_event=trigger,
+                source_stage_generation=stage_generation,
                 trigger_data={
                     **trigger_data,
                     **entry_snapshot,
@@ -11622,6 +11626,7 @@ def _record_effect_usage(
             effect_id=invocation.effect_id,
             source_card_instance_id=invocation.source_card_instance_id,
             turn_number=state.turn_number,
+            source_stage_generation=invocation.source_stage_generation,
         )
     )
 
@@ -11638,6 +11643,8 @@ def _effect_usage_limit_reached(
     state: MatchState,
     effect: Any,
     source_instance_id: str,
+    *,
+    source_stage_generation: int | None = None,
 ) -> bool:
     if effect.frequency_limit not in {
         "once_per_turn",
@@ -11647,7 +11654,10 @@ def _effect_usage_limit_reached(
         return False
     limit = 2 if effect.frequency_limit == "twice_per_turn" else 1
     return (
-        _effect_usage_count_this_turn(state, effect.effect_id, source_instance_id)
+        _effect_usage_count_this_turn(
+            state, effect.effect_id, source_instance_id,
+            source_stage_generation=source_stage_generation,
+        )
         >= limit
     )
 
@@ -11656,13 +11666,42 @@ def _effect_usage_count_this_turn(
     state: MatchState,
     effect_id: str,
     source_instance_id: str,
+    *,
+    source_stage_generation: int | None = None,
 ) -> int:
     return sum(
         usage.effect_id == effect_id
         and usage.source_card_instance_id == source_instance_id
         and usage.turn_number == state.turn_number
+        and (source_stage_generation is None or usage.source_stage_generation is None
+             or usage.source_stage_generation == source_stage_generation)
         for usage in state.effect_usage
     )
+
+
+def _fixed_draw_entry_generation(state: MatchState, effect: Any, instance_id: str) -> int | None:
+    history = state.fixed_draw_entry_frequency
+    if (history is None or effect.effect_type != "triggered" or effect.frequency_limit != "once_per_turn"
+            or not _fixed_entry_observer(effect)
+            or state.cards[instance_id].card.card_type != "member"):
+        return None
+    return history.stage_generations.get(instance_id, 0)
+
+
+def _advance_fixed_draw_entry_generation(state: MatchState, instance_ids: list[str]) -> None:
+    if state.fixed_draw_entry_frequency is None:
+        return
+    for instance_id in set(instance_ids):
+        card = state.cards[instance_id]
+        for effect_id in card.card.effect_ids:
+            effect = state.effect_definitions.get(effect_id)
+            if effect is None:
+                continue
+            generation = _fixed_draw_entry_generation(state, effect, instance_id)
+            if generation is not None:
+                # Pending invocations retain the generation captured before departure.
+                state.fixed_draw_entry_frequency.stage_generations[instance_id] = generation + 1
+                break
 
 
 def _new_invocation_id(
@@ -12800,6 +12839,8 @@ def _move_attached_card(
                     state, player_id, [instance_id], events,
                     reason="attached_member_move_off_stage", clear_all_targeted=True,
                 )
+            else:
+                _advance_fixed_draw_entry_generation(state, [instance_id])
         elif to_zone in {"member_left", "member_center", "member_right"}:
             target_slot = str(to_zone).removeprefix("member_")
             if player.member_area[target_slot] is not None:
@@ -13095,6 +13136,7 @@ def _clear_departed_card_modifiers(
     reason: str,
     clear_all_targeted: bool = False,
 ) -> None:
+    _advance_fixed_draw_entry_generation(state, instance_ids)
     _ready_history_call(mark_ready_departure, state, instance_ids, "stage")
     for invocation in state.pending_effects:
         if (
