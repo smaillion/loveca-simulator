@@ -80,6 +80,7 @@ def apply_action(state: MatchState, action: ActionRequest) -> ActionResult:
         )
     if state.phase == "complete":
         raise IllegalActionError("the match is complete")
+    _validate_ability_free_end_state(state)
     if state.pending_effects and action.action_type not in {
         "resolve_effect",
         "resolve_effect_choice",
@@ -109,6 +110,7 @@ def apply_action(state: MatchState, action: ActionRequest) -> ActionResult:
         "resolve_manual_inspection": _resolve_manual_inspection,
     }
     handlers[action.action_type](next_state, action, events)
+    _validate_ability_free_end_state(next_state)
     _validate_stage_state(next_state)
     next_state.revision += 1
     return ActionResult(
@@ -482,6 +484,10 @@ def _advance_phase(
 ) -> None:
     if action.player_id not in {None, state.active_player_id}:
         raise IllegalActionError("advance_phase belongs to the active player")
+    if (state.live_choice_guard_policy == "require_resolution_v1"
+            and state.pending_choice is not None
+            and state.pending_choice.choice_type in {"live_requirements", "success_live"}):
+        raise IllegalActionError("a pending Live choice must be resolved before advancing")
     transitions = {
         "first_active": "first_energy",
         "first_energy": "first_draw",
@@ -3425,7 +3431,10 @@ def _queue_triggered_effects(
                     )
                 )
                 continue
-            if _effect_usage_limit_reached(state, effect, source_id):
+            stage_generation = _fixed_draw_entry_generation(state, effect, source_id)
+            if _effect_usage_limit_reached(
+                state, effect, source_id, source_stage_generation=stage_generation,
+            ):
                 continue
             invocation = EffectInvocation(
                 invocation_id=_new_invocation_id(state, effect_id, source_id),
@@ -3433,6 +3442,7 @@ def _queue_triggered_effects(
                 source_card_instance_id=source_id,
                 player_id=source.owner_id,
                 trigger_event=trigger,
+                source_stage_generation=stage_generation,
                 trigger_data={
                     **trigger_data,
                     **entry_snapshot,
@@ -11616,6 +11626,7 @@ def _record_effect_usage(
             effect_id=invocation.effect_id,
             source_card_instance_id=invocation.source_card_instance_id,
             turn_number=state.turn_number,
+            source_stage_generation=invocation.source_stage_generation,
         )
     )
 
@@ -11632,6 +11643,8 @@ def _effect_usage_limit_reached(
     state: MatchState,
     effect: Any,
     source_instance_id: str,
+    *,
+    source_stage_generation: int | None = None,
 ) -> bool:
     if effect.frequency_limit not in {
         "once_per_turn",
@@ -11641,7 +11654,10 @@ def _effect_usage_limit_reached(
         return False
     limit = 2 if effect.frequency_limit == "twice_per_turn" else 1
     return (
-        _effect_usage_count_this_turn(state, effect.effect_id, source_instance_id)
+        _effect_usage_count_this_turn(
+            state, effect.effect_id, source_instance_id,
+            source_stage_generation=source_stage_generation,
+        )
         >= limit
     )
 
@@ -11650,13 +11666,42 @@ def _effect_usage_count_this_turn(
     state: MatchState,
     effect_id: str,
     source_instance_id: str,
+    *,
+    source_stage_generation: int | None = None,
 ) -> int:
     return sum(
         usage.effect_id == effect_id
         and usage.source_card_instance_id == source_instance_id
         and usage.turn_number == state.turn_number
+        and (source_stage_generation is None or usage.source_stage_generation is None
+             or usage.source_stage_generation == source_stage_generation)
         for usage in state.effect_usage
     )
+
+
+def _fixed_draw_entry_generation(state: MatchState, effect: Any, instance_id: str) -> int | None:
+    history = state.fixed_draw_entry_frequency
+    if (history is None or effect.effect_type != "triggered" or effect.frequency_limit != "once_per_turn"
+            or not _fixed_entry_observer(effect)
+            or state.cards[instance_id].card.card_type != "member"):
+        return None
+    return history.stage_generations.get(instance_id, 0)
+
+
+def _advance_fixed_draw_entry_generation(state: MatchState, instance_ids: list[str]) -> None:
+    if state.fixed_draw_entry_frequency is None:
+        return
+    for instance_id in set(instance_ids):
+        card = state.cards[instance_id]
+        for effect_id in card.card.effect_ids:
+            effect = state.effect_definitions.get(effect_id)
+            if effect is None:
+                continue
+            generation = _fixed_draw_entry_generation(state, effect, instance_id)
+            if generation is not None:
+                # Pending invocations retain the generation captured before departure.
+                state.fixed_draw_entry_frequency.stage_generations[instance_id] = generation + 1
+                break
 
 
 def _new_invocation_id(
@@ -11869,8 +11914,26 @@ def _apply_live_requirements(
     wild = player.live_result.all_color_hearts
     satisfied = True
     allocations: list[dict[str, Any]] = []
+    future: Counter[str] = Counter()
+    effective = None
+    preserve_feasibility = False
+    if state.live_heart_allocation_policy == "preserve_feasibility_v1":
+        effective = {live_id: _effective_required_hearts(
+            player, live_id, state.cards[live_id].card.required_hearts) for live_id in live_ids}
+        for requirements in effective.values():
+            future.update({color: amount for color, amount in requirements.items() if color != "heart0"})
+        total = sum(sum(requirements.values()) for requirements in effective.values())
+        preserve_feasibility = (
+            wild >= 0 and all(amount >= 0 for amount in available.values())
+            and all(amount >= 0 for requirements in effective.values() for amount in requirements.values())
+            and sum(max(0, amount - available[color]) for color, amount in future.items()) <= wild
+            and total <= sum(available.values()) + wild
+        )
     for live_id in live_ids:
-        requirements = _effective_required_hearts(player, live_id, state.cards[live_id].card.required_hearts)
+        requirements = effective[live_id] if effective is not None else _effective_required_hearts(
+            player, live_id, state.cards[live_id].card.required_hearts)
+        if preserve_feasibility:
+            future.subtract({color: amount for color, amount in requirements.items() if color != "heart0"})
         consumed: Counter[str] = Counter()
         missing: Counter[str] = Counter()
         wild_used = 0
@@ -11892,7 +11955,9 @@ def _apply_live_requirements(
         generic = requirements.get("heart0", 0) if not missing else 0
         while generic:
             for color in sorted(available):
-                used = min(available[color], generic)
+                # Spend only surplus colors on generic needs; leave later colored needs intact.
+                usable = max(0, available[color] - future[color]) if preserve_feasibility else available[color]
+                used = min(usable, generic)
                 available[color] -= used
                 consumed[color] += used
                 generic -= used
@@ -12277,10 +12342,36 @@ def _finish_judgment_choices(
     _complete_live_judgment(state, events)
 
 
+def _validate_ability_free_end_state(state: MatchState) -> None:
+    if state.end_phase_policy is None:
+        return
+    # This opt-in boundary has no trigger scheduler or source-identity ledger.
+    if (state.end_phase_policy != "ability_free_expiry_v1"
+            or state.victory_check_policy != "before_end_expiry_v1"
+            or state.effect_definitions or state.pending_effects or state.effect_usage
+            or state.member_ready_history is not None
+            or state.member_ready_qualified_coverage is not None
+            or any(card.card.effect_ids or card.card.raw_effect_text_ja
+                   or card.card.ability_bucket != "none" for card in state.cards.values())
+            or any(not player.main_deck or player.effect_ready_flags_this_turn
+                   or any(player.member_area_attachments.values())
+                   or any(modifier.modifier_type not in {"score", "blade", "heart", "required_heart"}
+                          or modifier.flag is not None or modifier.value is not None
+                          for modifier in player.manual_modifiers)
+                   for player in state.players.values())):
+        raise IllegalActionError("ability-free end policy does not support this state")
+
+
 def _complete_live_judgment(
     state: MatchState,
     events: list[GameEvent],
 ) -> None:
+    _cleanup_live_judgment_zones(state)
+    _finish_live_judgment(state, events)
+
+
+def _cleanup_live_judgment_zones(state: MatchState) -> None:
+    """Perform the existing 8.4.8 moves once, after success-Live choices finish."""
     for player in state.players.values():
         for zone in (player.live_area, player.resolution_area):
             for instance_id in list(zone):
@@ -12290,10 +12381,10 @@ def _complete_live_judgment(
                     _forget_yell_object(player, instance_id)
                 zone.remove(instance_id)
                 player.waiting_room.append(instance_id)
-    for player_id in state.players:
-        _expire_modifiers(state, player_id, "live", events)
-    state.pending_choice = None
-    state.active_player_id = None
+
+
+def _finish_live_judgment(state: MatchState, events: list[GameEvent]) -> None:
+    # Legacy ordering stays unchanged; the ability-free opt-in is not a trigger loop.
     success_counts = {
         player_id: len(player.success_live_area)
         for player_id, player in state.players.items()
@@ -12301,6 +12392,19 @@ def _complete_live_judgment(
     threshold_players = [
         player_id for player_id, count in success_counts.items() if count >= 3
     ]
+    # 8.4.9/10.3 end the game before 8.4.11 expiry. Legacy snapshots keep their event order.
+    terminal_before_expiry = (
+        getattr(state, "victory_check_policy", None) == "before_end_expiry_v1"
+        and bool(threshold_players)
+    )
+    if not terminal_before_expiry:
+        for player_id in state.players:
+            _expire_modifiers(state, player_id, "live", events)
+        if state.end_phase_policy == "ability_free_expiry_v1":
+            for player_id in state.players:
+                _expire_modifiers(state, player_id, "turn", events)
+    state.pending_choice = None
+    state.active_player_id = None
     if len(threshold_players) == 2:
         state.game_result = GameResult(
             outcome="draw",
@@ -12730,6 +12834,13 @@ def _move_attached_card(
         if to_zone in allowed:
             player.member_area_attachments[slot].remove(instance_id)
             allowed[to_zone].append(instance_id)
+            if state.attached_member_departure_policy == "clear_target_modifiers_v1":
+                _clear_departed_card_modifiers(
+                    state, player_id, [instance_id], events,
+                    reason="attached_member_move_off_stage", clear_all_targeted=True,
+                )
+            else:
+                _advance_fixed_draw_entry_generation(state, [instance_id])
         elif to_zone in {"member_left", "member_center", "member_right"}:
             target_slot = str(to_zone).removeprefix("member_")
             if player.member_area[target_slot] is not None:
@@ -13023,7 +13134,9 @@ def _clear_departed_card_modifiers(
     events: list[GameEvent],
     *,
     reason: str,
+    clear_all_targeted: bool = False,
 ) -> None:
+    _advance_fixed_draw_entry_generation(state, instance_ids)
     _ready_history_call(mark_ready_departure, state, instance_ids, "stage")
     for invocation in state.pending_effects:
         if (
@@ -13032,7 +13145,7 @@ def _clear_departed_card_modifiers(
             and _captures_original_stage_source(state.effect_definitions.get(invocation.effect_id))
         ):
             invocation.trigger_data["original_source_stage_object_departed"] = True
-    clear_all = state.stage_departure_policy == "clear_departed_card_modifiers"
+    clear_all = clear_all_targeted or state.stage_departure_policy == "clear_departed_card_modifiers"
     departed = set(instance_ids)
     removed_count = 0
     # A targeted effect may be stored under the opponent who created it.
@@ -13296,6 +13409,9 @@ def _draw(
         player.hand.append(instance_id)
         state.cards[instance_id].face_up = True
         drawn.append(instance_id)
+        # Refresh after the destination move; old snapshots keep their event order.
+        if state.draw_refresh_policy == "after_each_draw_v1":
+            _refresh_main_deck(state, player_id, events)
     if drawn:
         events.append(
             GameEvent(

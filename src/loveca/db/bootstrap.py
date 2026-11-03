@@ -46,7 +46,9 @@ def initialize_database(database_path: Path) -> None:
                     f"expected {SCHEMA_VERSION}"
                 )
 
-        connection.executescript(SCHEMA_SQL)
+        # executescript otherwise commits each DDL statement independently.
+        with connection:
+            connection.executescript("BEGIN IMMEDIATE;\n" + SCHEMA_SQL)
 
 
 def get_schema_version(database_path: Path) -> int | None:

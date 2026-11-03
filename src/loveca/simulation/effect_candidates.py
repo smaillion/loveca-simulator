@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -16175,6 +16176,12 @@ def _manual_timing_candidates(row: sqlite3.Row) -> list[EffectCandidate]:
 
 
 def _timing_segments_with_markers(text: str) -> list[tuple[int, str, str]]:
+    # Matchers repeatedly parse the same text; callers still own a fresh list.
+    return list(_cached_timing_segments_with_markers(text))
+
+
+@lru_cache(maxsize=2048)
+def _cached_timing_segments_with_markers(text: str) -> tuple[tuple[int, str, str], ...]:
     """Split official text while preserving combined timing aliases.
 
     Cards written as ``【登場】/【ライブ開始時】...`` represent one body that
@@ -16186,7 +16193,7 @@ def _timing_segments_with_markers(text: str) -> list[tuple[int, str, str]]:
     text = text.strip()
     starts = _timing_effect_starts(text)
     if not starts:
-        return []
+        return ()
     segments: list[tuple[int, str, str]] = []
     for offset, (start, marker) in enumerate(starts):
         effect_index = offset + 1
@@ -16205,7 +16212,7 @@ def _timing_segments_with_markers(text: str) -> list[tuple[int, str, str]]:
             )
             label = text[start:following_end].strip()
         segments.append((effect_index, marker, label))
-    return segments
+    return tuple(segments)
 
 
 def _timing_effect_starts(text: str) -> list[tuple[int, str]]:

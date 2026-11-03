@@ -15,6 +15,25 @@ on the VPS origin, and FastAPI bound to localhost on the VPS. Runtime API
 selection is written to `runtime-config.json`; repository variable
 `VITE_PUBLIC_API_BASE_URL` should contain the Worker URL.
 
+### Runtime mode badge (2026-11-02)
+
+The start-screen badge describes configuration, not deployment location or health.
+`browserPreview=true` displays Browser Preview; otherwise `mode=release` displays
+Release mode and `mode=preview` displays Preview mode. These labels follow the
+asynchronously loaded runtime configuration and are localized in Chinese and Japanese.
+Neither disabling browser preview nor leaving the API base URL empty proves that
+the service runs on localhost. The badge does not display the API URL or credentials.
+
+PR55 deployment smoke reproduced the old hard-coded localhost label with a remote
+Worker API. Five focused regression cases cover release with remote/same-origin
+API, browser preview, non-browser preview, and browser-preview precedence with a
+configured API. Each starts from a different fallback mode and checks the loaded
+configuration plus both languages. This presentation-only correction does not
+change request routing, match permissions, registry, Replay, or production settings.
+Local acceptance evidence is kept in `logs/runtime-mode-label-20261102/`; it is not
+part of the already published PR55 release and does not constitute new backend or
+rules acceptance.
+
 ## 2. Product Boundary
 
 The preview version should eventually support:

@@ -22,6 +22,157 @@ CONTROL = "AUDIT-movement-control:1"
 RULE_REFERENCE_IDS = ("4.1.4", "9.7.7", "11.10.1", "11.10.2", "11.11.1")
 
 
+def _attachment_source_fixture(tmp_path, owner, *, stage_policy=True, legacy=False):
+    from loveca.simulation.rulesets import current_ruleset_identity
+    state = _state(control=True, policy=not legacy)
+    profile, fingerprint = current_ruleset_identity()
+    state.rule_version = profile.rule_version
+    state.ruleset_id = profile.ruleset_id
+    state.ruleset_fingerprint = fingerprint
+    state.ruling_pack_version = profile.ruling_pack_version
+    state.attached_member_departure_policy = "clear_target_modifiers_v1"
+    state.stage_departure_policy = "clear_departed_card_modifiers" if stage_policy else None
+    for player in state.players.values():
+        player.member_card_instance_ids_entered_stage_this_turn = []
+    if owner == "player_2":
+        swapped = {"player_1": "player_2", "player_2": "player_1"}
+        state.players = {swapped[key]: player for key, player in state.players.items()}
+        for key, player in state.players.items():
+            player.player_id = key
+        for card in state.cards.values():
+            card.owner_id = swapped[card.owner_id]
+        for field in ("first_player_id", "second_player_id", "active_player_id", "next_first_player_id"):
+            value = getattr(state, field)
+            if value in swapped:
+                setattr(state, field, swapped[value])
+    state = MatchState.model_validate_json(state.model_dump_json())
+    repo = MatchRepository(tmp_path / "attachment-source.sqlite3")
+    repo.create_match(state, card_database_path=Path("data/loveca.sqlite3"))
+    return repo, state
+
+
+def _owner_manual(state, adjustments, invocation=None):
+    action = _manual(state, adjustments, invocation)
+    action.player_id = state.active_player_id
+    for adjustment in action.payload["adjustments"]:
+        adjustment["target_player_id"] = state.active_player_id
+    return action
+
+
+def _attachment_source_step(repo, state, action):
+    from test_normal_phase_boundary import _private
+    before = match_state_hash(state)
+    result = repo.apply(state.match_id, action)
+    assert match_state_hash(state) == before
+    assert MatchRepository(repo.path).get_state(state.match_id) == result.state
+    replay = MatchRepository(repo.path).replay(state.match_id)
+    assert replay["metadata"]["deterministic_replay_verified"] is True
+    assert replay["metadata"]["ruleset_identity_verified"] is True
+    assert replay["final_state"] == result.state.model_dump(mode="json")
+    _private(result)
+    return result
+
+
+def _attachment_source_pending(repo, state):
+    result = _attachment_source_step(repo, state, _owner_manual(state, [
+        {"adjustment_type": "position_change", "from_slot": "center", "to_slot": "left"}]))
+    source = next(i for i in result.state.pending_effects if i.effect_id == EFFECT)
+    assert len(result.state.pending_effects) == 2
+    return result.state, source
+
+
+def _attachment_source_changes(route):
+    if route == "within_stage":
+        return [{"adjustment_type": "move_card", "target_card_instance_id": "source-live", "to_zone": "member_right"}]
+    changes = [
+        {"adjustment_type": "move_card", "target_card_instance_id": "source-live", "to_zone": "hand"},
+        {"adjustment_type": "attach_card_under_member", "target_card_instance_id": "source-live", "target_slot": "center"},
+    ]
+    if route == "promoted":
+        changes.append({"adjustment_type": "move_attached_card", "target_card_instance_id": "source-live", "to_zone": "member_right"})
+    return changes
+
+
+def _attachment_source_finish(repo, state, route, *, legacy=False):
+    owner = state.active_player_id
+    control = next(i for i in state.pending_effects if i.effect_id == CONTROL)
+    result = _attachment_source_step(repo, state, _owner_manual(state, _attachment_source_changes(route), control))
+    events = list(result.events)
+    if route == "within_stage":
+        assert len(result.state.pending_effects) == 2
+        assert len({i.invocation_id for i in result.state.pending_effects}) == 2
+        assert all(i.effect_id == EFFECT for i in result.state.pending_effects)
+        pending = result.state.pending_effects[0]
+        assert pending.effect_id == EFFECT
+        result = _attachment_source_step(repo, result.state, ActionRequest(
+            action_type="resolve_effect", player_id=owner, expected_revision=result.state.revision,
+            payload={"invocation_id": pending.invocation_id}))
+        events.extend(result.events)
+    assert not result.state.pending_effects
+    assert result.state.players[owner].member_area["center"] == "control"
+    assert result.state.players[owner].member_area_attachments["center"] == (["source-live"] if route == "attached" else [])
+    assert result.state.players[owner].member_area["right"] == (None if route == "attached" else "source-live")
+    history = result.state.players[owner].member_card_instance_ids_entered_stage_this_turn
+    assert history == ([] if route == "within_stage" else ["source-live"])
+    assert result.state.players[owner].member_entered_count_this_turn == state.players[owner].member_entered_count_this_turn
+    departed = route != "within_stage" and not legacy
+    assert result.state.cards["source-live"].orientation == ("wait" if departed else "active")
+    assert any(e.data.get("reason") == "original_source_stage_member_departed" for e in events) is departed
+    assert sum(u.usage_count for u in result.state.effect_usage if u.effect_id == EFFECT) == (2 if route == "within_stage" else 1)
+    return result
+
+
+@pytest.mark.parametrize("owner", ["player_1", "player_2"])
+@pytest.mark.parametrize("stage_policy", [False, True])
+@pytest.mark.parametrize("route", ["attached", "promoted", "within_stage"])
+def test_pending_original_source_does_not_rebind_via_hand_and_attachment_sql(tmp_path, owner, stage_policy, route):
+    repo, state = _attachment_source_fixture(tmp_path, owner, stage_policy=stage_policy)
+    state, source = _attachment_source_pending(repo, state)
+    assert source.trigger_data["original_source_stage_object"] is True
+    _attachment_source_finish(repo, state, route)
+
+
+@pytest.mark.parametrize("owner", ["player_1", "player_2"])
+@pytest.mark.parametrize("route", ["attached", "promoted"])
+@pytest.mark.parametrize("policy", ["simple_ai_v0", "simple_ai_v1", "simple_ai_v1_1", "simple_ai_v1_2"])
+def test_four_ai_continue_after_original_source_attachment_roundtrip(tmp_path, owner, route, policy):
+    from loveca.simulation.ai import SimpleAIController, SimpleAIPolicy
+    from test_yell_icons_boundary import _choose
+    repo, state = _attachment_source_fixture(tmp_path, owner)
+    state, _ = _attachment_source_pending(repo, state)
+    result = _attachment_source_finish(repo, state, route)
+    controller = SimpleAIController(SimpleAIPolicy(policy_version=policy, manual_effect_policy="block"))
+    _attachment_source_step(repo, result.state, _choose(controller, result.state))
+
+
+@pytest.mark.parametrize("owner", ["player_1", "player_2"])
+@pytest.mark.parametrize("fault", ["missing_top", "occupied_promotion"])
+def test_failed_attachment_batch_preserves_pending_source_identity_sql(tmp_path, owner, fault):
+    repo, state = _attachment_source_fixture(tmp_path, owner)
+    state, _ = _attachment_source_pending(repo, state)
+    control = next(i for i in state.pending_effects if i.effect_id == CONTROL)
+    changes = _attachment_source_changes("promoted")
+    if fault == "missing_top":
+        changes[1]["target_slot"] = "right"
+    else:
+        changes[2]["to_zone"] = "member_center"
+    before = repo.replay(state.match_id)
+    with pytest.raises(IllegalActionError):
+        repo.apply(state.match_id, _owner_manual(state, changes, control))
+    assert MatchRepository(repo.path).replay(state.match_id) == before
+    source = next(i for i in repo.get_state(state.match_id).pending_effects if i.effect_id == EFFECT)
+    assert source.trigger_data.get("original_source_stage_object_departed", False) is False
+    _attachment_source_finish(repo, state, "within_stage")
+
+
+@pytest.mark.parametrize("owner", ["player_1", "player_2"])
+def test_legacy_source_operation_keeps_attachment_return_replay(tmp_path, owner):
+    repo, state = _attachment_source_fixture(tmp_path, owner, legacy=True)
+    assert "source_object_policy" not in state.effect_definitions[EFFECT].model_dump()["actions"][0]
+    state, _ = _attachment_source_pending(repo, state)
+    _attachment_source_finish(repo, state, "promoted", legacy=True)
+
+
 @lru_cache
 def _candidate():
     return next(

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 from pathlib import Path
+
+import pytest
 
 from loveca.simulation.models import (
     ActionRequest,
@@ -211,6 +214,57 @@ def test_live_success_audit_uses_requirement_result_from_same_action() -> None:
         if check.check_id == "live_success_before_score_comparison"
     )
     assert success_check.verdict == "pass"
+
+
+@pytest.mark.parametrize("first_player_id", ["player_1", "player_2"])
+@pytest.mark.parametrize("actual_order", [(0, 1), (1, 0), (1,), (0, 0, 1)])
+def test_live_success_audit_summary_matches_ordered_verdict(
+    first_player_id: str, actual_order: tuple[int, ...]
+) -> None:
+    before = _live_judgment_state(
+        first_score=1, second_score=1, first_success=0, second_success=0
+    )
+    second_player_id = "player_2" if first_player_id == "player_1" else "player_1"
+    before.first_player_id = first_player_id
+    before.second_player_id = second_player_id
+    before.players[first_player_id].live_area.clear()
+    after = before.model_copy(deep=True)
+    players = [first_player_id, second_player_id]
+    actual = [players[index] for index in actual_order]
+    # The same-action requirement event appends the first player after the second.
+    events = [
+        GameEvent(
+            event_type="live_requirements_resolved",
+            player_id=first_player_id,
+            data={"satisfied": True, "allocations": []},
+        ),
+        GameEvent(
+            event_type="live_success_determined",
+            data={"successful_player_ids": actual},
+        ),
+    ]
+    original = (before.model_dump(), after.model_dump(), [e.model_dump() for e in events])
+
+    check = next(
+        check for check in _event_conformance_checks(before, after, events)
+        if check.check_id == "live_success_before_score_comparison"
+    )
+
+    passed = actual_order == (0, 1)
+    assert check.verdict == ("pass" if passed else "fail")
+    assert check.summary_zh == (
+        "在比较总分前，按 Live 区是否仍有卡确定 Live 成功玩家。"
+        if passed else "Live 成功玩家与 Heart 判定后的 Live 区不一致。"
+    )
+    assert check.evidence == {
+        "expected_successful_player_ids": players,
+        "actual_successful_player_ids": actual,
+    }
+    serialized = json.loads(json.dumps(asdict(check), ensure_ascii=False))
+    assert serialized["verdict"] == check.verdict
+    assert serialized["summary_zh"] == check.summary_zh
+    assert serialized["evidence"] == check.evidence
+    assert original == (before.model_dump(), after.model_dump(), [e.model_dump() for e in events])
 
 
 def test_live_judgment_audit_uses_live_area_after_success_effects() -> None:

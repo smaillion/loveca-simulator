@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, model_serializer
 
@@ -147,6 +147,14 @@ class EffectInvocation(BaseModel):
     trigger_event: str
     trigger_data: dict[str, Any] = Field(default_factory=dict)
     resolution_stage: Literal["initial", "after_cost"] = "initial"
+    source_stage_generation: int | None = Field(default=None, ge=0, strict=True)
+
+    @model_serializer(mode="wrap")
+    def serialize_stage_generation(self, handler: Any) -> dict[str, Any]:
+        payload = handler(self)
+        if self.source_stage_generation is None:
+            payload.pop("source_stage_generation", None)
+        return payload
 
 
 class EffectUsage(BaseModel):
@@ -154,6 +162,19 @@ class EffectUsage(BaseModel):
     source_card_instance_id: str
     turn_number: int
     usage_count: int = 1
+    source_stage_generation: int | None = Field(default=None, ge=0, strict=True)
+
+    @model_serializer(mode="wrap")
+    def serialize_stage_generation(self, handler: Any) -> dict[str, Any]:
+        payload = handler(self)
+        if self.source_stage_generation is None:
+            payload.pop("source_stage_generation", None)
+        return payload
+
+
+class FixedDrawEntryFrequencyV1(BaseModel):
+    policy: Literal["fixed_draw_entry_v1"] = "fixed_draw_entry_v1"
+    stage_generations: dict[str, Annotated[int, Field(ge=0, strict=True)]] = Field(default_factory=dict)
 
 
 class PlayerState(BaseModel):
@@ -218,6 +239,7 @@ class GameResult(BaseModel):
 
 class MatchState(BaseModel):
     match_id: str
+    fixed_draw_entry_frequency: FixedDrawEntryFrequencyV1 | None = None
     member_ready_history: MemberReadyHistoryV1 | None = None
     member_ready_coverage_policy: Literal["qualified_source_v1"] | None = None
     member_ready_qualified_coverage: MemberReadyQualifiedCoverageV1 | None = None
@@ -234,6 +256,12 @@ class MatchState(BaseModel):
     ) = None
     effect_order_policy: Literal["ap_nap_player_choice"] | None = None
     stage_departure_policy: Literal["clear_departed_card_modifiers"] | None = None
+    attached_member_departure_policy: Literal["clear_target_modifiers_v1"] | None = None
+    victory_check_policy: Literal["before_end_expiry_v1"] | None = None
+    draw_refresh_policy: Literal["after_each_draw_v1"] | None = None
+    live_choice_guard_policy: Literal["require_resolution_v1"] | None = None
+    live_heart_allocation_policy: Literal["preserve_feasibility_v1"] | None = None
+    end_phase_policy: Literal["ability_free_expiry_v1"] | None = None
     revision: int = 0
     phase: Phase = "setup_choose_first"
     first_player_id: str | None = None
@@ -267,6 +295,8 @@ class MatchState(BaseModel):
     @model_serializer(mode="wrap")
     def serialize_overlap_policy(self, handler: Any) -> dict[str, Any]:
         payload = handler(self)
+        if self.fixed_draw_entry_frequency is None:
+            payload.pop("fixed_draw_entry_frequency", None)
         if self.member_ready_history is None:
             payload.pop("member_ready_history", None)
         for field in ("member_ready_coverage_policy", "member_ready_qualified_coverage"):
@@ -281,6 +311,18 @@ class MatchState(BaseModel):
             payload.pop("effect_order_policy", None)
         if self.stage_departure_policy is None:
             payload.pop("stage_departure_policy", None)
+        if self.attached_member_departure_policy is None:
+            payload.pop("attached_member_departure_policy", None)
+        if self.victory_check_policy is None:
+            payload.pop("victory_check_policy", None)
+        if self.draw_refresh_policy is None:
+            payload.pop("draw_refresh_policy", None)
+        if self.live_choice_guard_policy is None:
+            payload.pop("live_choice_guard_policy", None)
+        if self.live_heart_allocation_policy is None:
+            payload.pop("live_heart_allocation_policy", None)
+        if self.end_phase_policy is None:
+            payload.pop("end_phase_policy", None)
         return payload
 
 

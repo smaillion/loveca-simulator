@@ -7,6 +7,7 @@ from loveca.simulation.models import LegalAction, MatchState
 
 def public_invocation_payload(invocation: Any) -> dict[str, Any]:
     payload = invocation.model_dump()
+    payload.pop("source_stage_generation", None)
     payload.get("trigger_data", {}).pop("ready_source_lki_v1", None)
     payload.get("trigger_data", {}).pop("ready_source_wait_cost_v1", None)
     payload.get("trigger_data", {}).pop("ready_departed_source_v1", None)
@@ -62,9 +63,11 @@ def redact_player_state(
 ) -> set[str]:
     """Project a player response; never serialize hidden pile identities or order."""
     payload.pop("member_ready_history", None)
+    payload.pop("fixed_draw_entry_frequency", None)
     payload.pop("member_ready_coverage_policy", None)
     payload.pop("member_ready_qualified_coverage", None)
     for invocation in payload.get("pending_effects", []):
+        invocation.pop("source_stage_generation", None)
         invocation.get("trigger_data", {}).pop("ready_source_lki_v1", None)
         invocation.get("trigger_data", {}).pop("ready_source_wait_cost_v1", None)
         invocation.get("trigger_data", {}).pop("ready_departed_source_v1", None)
@@ -74,6 +77,8 @@ def redact_player_state(
         invocation.get("trigger_data", {}).pop("paid_basic_color_source_v1", None)
         invocation.get("trigger_data", {}).pop("paid_named_blade_source_v1", None)
         invocation.get("trigger_data", {}).pop("paid_named_blade_cost_v1", None)
+    for usage in payload.get("effect_usage", []):
+        usage.pop("source_stage_generation", None)
     visible_ids = player_visible_card_ids(state, viewer_id)
     for player_id, player in state.players.items():
         own = player_id == viewer_id

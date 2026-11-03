@@ -773,6 +773,7 @@ export default function App() {
           loading={loading}
           error={error}
           browserPreview={browserPreview}
+          runtimeMode={runtimeConfig.mode}
           hostedOnline={hostedOnline}
           publicMatchHistory={publicMatchHistory}
           matchCreationDisabled={browserPreview}
@@ -1219,7 +1220,7 @@ export default function App() {
             />
           </div>
           <div className="mobile-live-center">
-            <LiveCenter state={match.state} onCard={setDetails} />
+            <LiveCenter state={match.state} viewerPlayerId={bottomPlayerId} onCard={setDetails} />
           </div>
           <div className="mobile-own-board">
             <PlayerBoard
@@ -1472,6 +1473,10 @@ export function localPerspectivePlayerId(
   state: MatchState,
   actions: LegalAction[],
 ): "player_1" | "player_2" {
+  const humanPlayers = (["player_1", "player_2"] as const).filter(
+    (id) => state.controllers?.[id] === "human",
+  );
+  if (humanPlayers.length === 1) return humanPlayers[0];
   const actionPlayerIds = new Set(
     actions
       .map((action) => action.player_id)
@@ -2624,6 +2629,7 @@ function StartScreen({
   loading,
   error,
   browserPreview,
+  runtimeMode,
   hostedOnline,
   publicMatchHistory,
   matchCreationDisabled,
@@ -2650,6 +2656,7 @@ function StartScreen({
   loading: boolean;
   error: string | null;
   browserPreview: boolean;
+  runtimeMode: RuntimeConfig["mode"];
   hostedOnline: boolean;
   publicMatchHistory: boolean;
   matchCreationDisabled: boolean;
@@ -2723,7 +2730,7 @@ function StartScreen({
           <Swords size={24} />
           <div>
             <strong>{tr("LoveCA 规则验证器", "LoveCA ルール検証ツール")}</strong>
-            <span>{tr("本地可重放规则调试环境", "ローカル・リプレイ対応ルール検証環境")}</span>
+            <span>{tr("可重放规则验证环境", "リプレイ対応ルール検証環境")}</span>
           </div>
         </div>
         <div className="start-actions">
@@ -2736,7 +2743,11 @@ function StartScreen({
             <HelpCircle size={18} />
           </button>
           <span className="local-badge">
-            {browserPreview ? tr("GitHub Pages · 预览", "GitHub Pages · プレビュー") : tr("127.0.0.1 · 本地", "127.0.0.1 · ローカル")}
+            {browserPreview
+              ? tr("浏览器预览", "ブラウザプレビュー")
+              : runtimeMode === "release"
+                ? tr("正式模式", "正式モード")
+                : tr("预览模式", "プレビューモード")}
           </span>
         </div>
       </header>
@@ -3535,10 +3546,12 @@ function WaitingRoomViewer({
 
 function LiveCenter({
   state,
+  viewerPlayerId,
   onCard,
   compact = false,
 }: {
   state: MatchState;
+  viewerPlayerId: string;
   onCard: (card: CardInstance) => void;
   compact?: boolean;
 }) {
@@ -3548,6 +3561,7 @@ function LiveCenter({
       <Zone
         label={`${state.players.player_2.name} ${tr("演出区", "ライブエリア")}`}
         ids={state.players.player_2.live_area}
+        hideFaceDown={viewerPlayerId !== "player_2"}
         state={state}
         onCard={onCard}
         small
@@ -3556,6 +3570,7 @@ function LiveCenter({
       <Zone
         label={`${state.players.player_1.name} ${tr("演出区", "ライブエリア")}`}
         ids={state.players.player_1.live_area}
+        hideFaceDown={viewerPlayerId !== "player_1"}
         state={state}
         onCard={onCard}
         small
@@ -3974,6 +3989,7 @@ function Zone({
   onCard,
   hand = false,
   hidden = false,
+  hideFaceDown = false,
   small = false,
   mobileMemberPlay,
   mobileLiveSet,
@@ -3986,6 +4002,7 @@ function Zone({
   onCard: (card: CardInstance) => void;
   hand?: boolean;
   hidden?: boolean;
+  hideFaceDown?: boolean;
   small?: boolean;
   mobileMemberPlay?: MobileMemberPlayContext;
   mobileLiveSet?: MobileLiveSetContext;
@@ -4010,7 +4027,7 @@ function Zone({
           ))
           : ids.map((id) => {
             const instance = state.cards[id];
-            if (!instance) {
+            if (!instance || (hideFaceDown && !instance.face_up)) {
               return (
                 <div
                   className="hidden-hand-card"

@@ -2,6 +2,48 @@
   "schema_version": 1,
   "tasks": [
     {
+      "id": "ai-opponent-live-face-down-ui",
+      "priority": 0,
+      "title": "修复对战电脑时未翻面Live提前显示",
+      "status": "queued",
+      "depends_on": ["continuous-workflow"],
+      "required_profiles": ["control", "registry", "web"],
+      "acceptance": [
+        "先用完整本地对局响应复现对手face_up=false的Live仍显示卡面；双方人类座位及先后攻、桌面手机覆盖",
+        "Live区依据实际face_up和当前玩家隐藏对手卡面、名称、图像和详情入口；单个人类对战电脑保持人类视角，己方及已公开卡可见",
+        "不改引擎、API调试权限、SQL和Replay，不把界面隐藏当服务端保密；验证既有联机投影并续写隐私报告与双语CHANGELOG",
+        "完整control/registry/web、pre-push及审查后仅本地提交，不推送合并部署"
+      ]
+    },
+    {
+      "id": "live-success-audit-summary-order",
+      "priority": 0,
+      "title": "统一Live成功顺序审计的判定与中文说明",
+      "status": "queued",
+      "depends_on": ["live-judgment-boundary-matrix-expansion"],
+      "required_profiles": ["control", "registry", "backend"],
+      "acceptance": [
+        "先用同一Action的Heart判定事件补入先攻玩家的构造输入复现pass配失败说明和fail配成功说明，不称为真实完整对局或新的规则裁定",
+        "说明与既有verdict及evidence统一按先后手顺序比较；覆盖双方先攻身份、正序/逆序/缺失/重复成功名单、输入不变和JSON报告序列化，不改变既有判定或引擎",
+        "续写既有Live矩阵报告及双语CHANGELOG，checkpoint后完整control/registry/backend与pre-push通过；不改UI、registry、SQL或AI策略，不重冻牌组或宣称75场景父任务完成",
+        "仅固定分支本地提交，不push、不新建PR、不复用PR55合并部署许可，旧现场及ignored证据保留"
+      ]
+    },
+    {
+      "id": "start-screen-runtime-mode-label",
+      "priority": 0,
+      "title": "修正首页正式运行环境的本地误标",
+      "status": "queued",
+      "depends_on": ["documentation-entrypoint-consolidation"],
+      "required_profiles": ["control", "registry", "web"],
+      "acceptance": [
+        "以PR55上线后公开页面仍显示127.0.0.1本地标签为复现依据，标签只描述已加载运行配置，不以browserPreview=false断言本地部署，也不声称健康或暴露API URL",
+        "覆盖远程API正式模式、同源正式模式、浏览器预览及非浏览器预览模式，中日文和异步配置更新均有回归；不改API路由、对局权限、运行配置格式、规则或registry",
+        "续写既有Pages运行说明及双语CHANGELOG，完整control/registry/web与pre-push通过，必要本地浏览器检查；不宣称新的backend或规则全量验收",
+        "仅固定分支本地提交，不push、不重用已合并PR55发布、不新建PR、不部署；旧dirty和ignored证据保留"
+      ]
+    },
+    {
       "id": "documentation-entrypoint-consolidation",
       "priority": 0,
       "title": "收敛双语README和开发文档入口",
@@ -1204,6 +1246,34 @@
         "仅全部语义可证时按卡号、完整全文不strip、revision和hash精确绑定新策略/操作，只改该效果登记并生成manifest；旧JSON/Replay及其他登记不改，证据不足保留既有登记并记具体依赖，不半支持或解除其他blocked",
         "双方真实Live开始和SQL Replay验证0至六、组合/单名/无关、拒绝/非法原子、来源离区隐藏及同ID返回/场内换位、已得Blade离区和Live结束清理；四AI双方实际选择及隐藏身份替换、双方玩家近期事件和provider构造隐私、必要UI图文",
         "全部profiles/pre-push及应用变化同原30牌组冻结；不称随机正条件或策略改善，只本地提交不推送部署"
+      ]
+    },
+    {
+      "id": "terminal-victory-before-expiry",
+      "priority": 0,
+      "title": "胜利检查先于结束期限清理并保留旧回放",
+      "status": "queued",
+      "depends_on": ["legacy-ruleset-match-replay", "live-judgment-boundary-matrix-expansion"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "以固定1.06 PDF的1.2.1、8.4.8-11、9.5.1.1、10.1.2和10.3.1为据，先复现终局先清Live期限的问题；不宣称完整结束阶段循环已完成",
+        "显式版本化新对局胜利检查顺序；旧快照无新键且保持旧状态事件Replay，非终局和成功Live选择边界保持原行为",
+        "双方真实Action与SQL Replay覆盖终局和非终局、期限保留、选择暂停、非法终局动作原子拒绝；四AI终局无动作、双方投影与隐藏身份权限不扩大",
+        "全部required_profiles、审查和pre-push通过，仅本地提交；不改registry，不重复发布PR55，75核心父任务仍未完成"
+      ]
+    },
+    {
+      "id": "draw-depletion-immediate-refresh",
+      "priority": 0,
+      "title": "抽牌取空牌库后立即刷新并保留旧Replay",
+      "status": "queued",
+      "depends_on": ["legacy-ruleset-match-replay", "terminal-victory-before-expiry"],
+      "required_profiles": ["control", "registry", "backend", "web"],
+      "acceptance": [
+        "依固定1.06总则10.2.1/10.2.2.1/10.2.3先证明抽走最后一张后未立即刷新的缺口；只修复逐张抽牌路径，不宣称公开、检索、磨牌或结束循环全部正确",
+        "新对局使用显式draw_refresh_policy；旧快照省略字段，保留修复前状态和事件哈希及SQL Replay，不迁移既有对局或改registry",
+        "双方原生抽牌及Live补抽、控室空、双方区域空、非末张、跨库连续抽牌的SQL和隐私验证；四AI双方原生动作、隐藏信息不影响决策，本地及联机新建入口验证",
+        "全部required_profiles、审查和pre-push通过后仅本地提交；不算完整对局或策略提升，不增加75核心完成数，PR55发布许可不复用"
       ]
     },
     {

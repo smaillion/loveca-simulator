@@ -2,6 +2,78 @@
 
 ## 未リリース / 未发布
 
+- CPU対戦で相手の裏向きLiveを公開前に表示しないよう修正。人間側の視点を維持し、公開後にカード詳細を表示。
+- 中文：修复对战电脑时对手Live翻面前提前显示卡面；固定人类玩家视角，翻面后恢复查看，不改变Live流程或回放。[验证](./docs/development/player-payload-privacy-verification.md)。
+
+- カードDBと対戦DBの初期化を単一トランザクション化。途中失敗時の部分スキーマを防ぎ、DDLの個別コミットを削減。既存の構造・版検査・永続性設定は維持。
+- 中文：卡库与对局库建表改为单事务，失败时回滚结构和版本标记，减少逐条DDL提交；保留表定义、版本校验与写盘安全设置，不改变规则或生产数据。
+
+- 能力テキストのタイミング解析を上限付きで再利用し、戻り値の変更や原文更新による結果の混入を防止。
+- 中文：对重复技能时点解析加入有界缓存，保留独立返回列表与原文更新隔离；不改变候选规则或登记状态。
+
+- 固定ドロー登場観測者の回数を、離場前後のステージ上の対象ごとに分離する明示的な限定経路を追加。通常の新規対戦では未有効化。
+- 中文：新增固定抽牌登场观察者的受限次数身份，旧待机保留旧对象，回场新对象不继承次数；仅显式启用，默认对局缺口尚未修复，不扩大完整生命周期或结束阶段声明。[验证](./docs/development/overlap-entry-observer-verification.md)。
+
+- 四季の待機中の復原能力が、手札・下のカードを経由した新しい対象へ再結合しないことを検証。エンジンと登録は変更なし。
+- 中文：补充四季待机来源经过手牌、下方及提升路径的34项限定回归，包含双方SQL、四AI续接和旧operation对照；不扩大完整生命周期或结束阶段声明。[验证](./docs/development/moved-source-ready-verification.md)。
+
+- 新規対戦で下のメンバーを手札・控え室へ単独移動した際、旧対象補正を解除。場内移動と旧Replayは維持。
+- 中文：修复单独抽离下方Member跨区后旧补正残留，新对局启用并保留旧状态/事件哈希；不扩大Energy或完整生命周期范围。[验证](./docs/development/stage-departure-modifier-verification.md)。
+
+- 新規対戦の複数Live判定で、無色Heart支払いが後続の必要色を使い切る問題を修正。旧スナップショットとReplayの動作は維持。
+- 中文：新对局无色Heart自动分配保留后续所需颜色，覆盖ALL与有效需求补正；旧状态及事件哈希不变，未发布。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
+- ステージ内の位置交換・全配置で下のカードと対象補正を保持する限定検証を追加。エンジンや正式カード登録は変更なし。
+- 中文：补充Stage内部整组移动的60项行为与契约检查，包含批次回滚和四AI后续动作；矩阵节点改用标准输入避免Windows命令超长，不缩减校验。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
+- 能力を持たない明示的な内部スナップショットに限定し、Live終了時にTurn期限も解除する経路を追加。通常の新規対戦では無効。
+- 中文：新增显式受限的无能力结束路径，选择完成后清理Live及Turn期限、胜利优先；旧快照不变，非完整结束循环。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
+- 複数Liveの有色Heart共有と不足時の全Live移動を全選択順で検証し、限定行列に追加。エンジン動作は変更なし。
+- 中文：补充两张/三张Live共享Heart分配的54项行为与契约验证，接入限定矩阵；不扩大完整对局或正式卡验收声明。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
+- 新規対戦ではLive選択待ちのフェイズ再進行を拒否し、エールの二重実行を防止。旧Replayの動作は維持。
+- 中文：修复Live选择暂停时直接推进导致重复应援的问题，新增特殊Blade Heart及兼容验证；仅新对局启用。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
+- 基本Performance/Yellの公開・移動・ActiveのみのBlade・全メンバーのHeartを実状態と4種AIで検証。特殊アイコンや全チェックタイミングは対象外。
+- 中文：补充基础Performance/Yell的46项状态与契约验证，接入限定矩阵；不改变引擎或扩大正式规则完成声明。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
+- 基本バトンタッチのコスト差・支払い・領域移動を両席と4種AIで検証し、限定コアルール行列に追加。能力や終了ループの承認ではない。
+- 中文：补充基础Baton费用与替换的44项状态/契约验证并接入矩阵，不改变游戏逻辑或正式卡登记。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
+- 出典と実行ソースに結び付く限定コアルール行列を追加。行動50例と契約68例を分離し、75シナリオ達成とは扱わない。
+- 中文：新增首批四组规则与固定测试实例的可执行关联，绑定PDF/源码并拒绝无效或陈旧证据；不扩大规则完成数量。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
+- 通常フェイズの基本処理を両プレイヤーの実状態・SQL再開・四AIで検証。開始時誘発や全チェックタイミングの承認ではない。
+- 中文：补充通常阶段复原、牌库顶补能量及抽牌的限定状态验收，覆盖断点恢复与非法提交；不扩大规则完成声明。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
+- Live終了時の領域整理と完了処理を分離し、従来の状態・イベント・Replay互換性を検証。終了時誘発の追加ではない。
+- 中文：分离Live完成流程中的区域清理与完成出口，为后续续接准备；保持现有行为，不宣称结束阶段循环已实现。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
+- pytest証拠の厳密な読取を追加。skip、重複、欠落、異常終了を合格扱いせず、ルール承認数とは分離する。
+- 中文：迁移核心矩阵的严格证据读取基础，拒绝跳过、重复、缺失及非零退出造成的误通过；不改变游戏逻辑或规则完成统计。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
+- 初期手札の引き直し順序、0～6枚の移動、初期エネルギー、SQL Replayと4種AIの回帰検証を追加。ゲーム処理は変更しない。
+- 中文：补充开局换牌的34项状态与契约验证，检查先补抽后洗回和双方完成后的能量交接；不计作完整核心矩阵验收。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
+- 次ターンの先攻決定と実際のターン開始、選択待ち、SQL Replay、4種AIの回帰検証を追加。ゲーム処理は変更しない。
+- 中文：补充下一回合先攻的26项状态与契约验证，区分实际成功Live移动与Live成功；不计作完整结束循环验收。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
+- 新規対戦で最後の1枚を引いた直後のリフレッシュを修正。過去の対戦は従来のReplayを維持。
+- 中文：修复新对局抽牌取空牌库后延迟刷新的问题，保留旧对局回放；不扩展为所有移牌与刷新路径已验证。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
+- Liveセットの両手番0～3枚、補充順序、非公開情報とSQL Replayの回帰検証を追加。ゲーム処理は変更しない。
+- 中文：补充双方Live设置的24项状态与契约验证；不将参数实例计作完整核心矩阵或新增规则支持。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
+- 新規対戦では勝利チェックを期限終了処理より先に行い、過去の対戦のReplayを維持。
+- 中文：修正新对局终局前提前清除Live期限补正的问题，旧对局回放不变；完整结束阶段循环仍待完成。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
+- Live成功順序の監査結果と中国語説明を統一。ゲームの判定基準は変更しない。
+- 中文：修正Live成功顺序审计中通过/失败与说明矛盾的问题，新增8项工程回归，不增加规则场景覆盖。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
+- 開始画面の環境表示を実行設定に合わせ、Hosted Online をローカルと誤表示しないよう修正。
+- 中文：修正首页运行环境误标，按配置区分正式模式、预览模式和浏览器预览；不改变 API 路由或对局权限。[运行说明](./docs/17-browser-only-preview-and-pages-release.md)。
+
 - 文書入口を整理：日中 README の逐次監査記録を既存の変更履歴・テーマ別証拠へ集約し、文書の責務と更新規約を明確化。過去の分岐一覧は日付付き履歴に分離。ルールやカード登録、Replay は変更しない。
 - 中文：精简双语 README，合并重复的持续开发操作说明，新增[文档导航](./docs/README.md)和[专题索引](./docs/development/README.md)，区分当前事实与历史盘点。原审计报告及证据不搬移，不改变技能支持状态。
 

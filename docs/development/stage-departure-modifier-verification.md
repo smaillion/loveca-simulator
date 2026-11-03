@@ -1,5 +1,35 @@
 # Stage 离场补正：已经获得的加成不应跟随回场
 
+## 2026-11-03 单独抽离下方Member
+
+此前顶部Member离场的修复不覆盖单独`move_attached_card`路径。上一轮以52份真实
+Action/SQLite构造确认：下方Member移到手牌或控室再回场，旧目标Blade补正仍残留；
+场内直接提升是保留对照。原诊断与三个期望失败在
+`logs/end-phase-planning-20261102/attached-extraction-gap/diagnostic-checkpoint.md`。
+
+固定1.06第4页4.1.4和第11页9.9.2，PDF hash仍为下文所列；精确日文全文及页面图像
+保存于该诊断目录。新本地/联机对局启用
+`attached_member_departure_policy=clear_target_modifiers_v1`：仅下方Member单独移到
+手牌或控室时清除其在双方玩家桶中的目标补正，并复用既有Stage离场记录处理。
+同Stage提升不清理，顶部Member、剩余附属Energy、无关卡及玩家整体补正保持。
+不依赖旧`stage_departure_policy`是否存在，也不修改其历史语义。
+
+旧快照缺省None且不增加序列化键，继续保留原状态和事件；两个黄金hash来自修复前
+原SQL，不重算期望值。非法目的区、占用位置、他方目标、过期revision和先有效后非法
+批次均原子拒绝。没有新增请求字段、UI交互、AI策略或正式卡登记。
+
+新增68测试实例：36双方ID/三位置/三去向/旧策略有无的状态检查，16四AI后续动作与
+隐藏卡面扰动，10拒绝契约、4非法策略契约、2旧SQL哈希契约；连同相关回归225通过。
+构造中的目标补正和无能力卡是受控夹具，不能当正式卡可达性或完整自然对局。
+四AI只在手动抽离与回场后续接，不声称会主动使用该工具。所有者桶的Blade从1+2恢复1；
+对方桶只验证目标补正被清除，不把它误称为本人实际Blade来源。
+
+独立SQL/事件重执行、同输入冻结30牌组和源码绑定完整门禁以
+`logs/end-phase-planning-20261102/attached-extraction-fix/final-acceptance.md`为准。
+本批不增加矩阵或75核心计数、reviewed；Energy独立抽离、完整对象生命周期/LKI、
+继承与结束阶段诱发账本仍未解决。仅本地开发，PR55为历史已合并发布，不代表本修复上线。
+以下原始统计、PR54和验收记录均为历史，不覆盖本节的限定更新。
+
 ## 结论与边界
 
 本轮先用红测复现：旧 Member 在中心已有2点 Blade，普通替换进入控室后，旧 modifier 仍存在。
