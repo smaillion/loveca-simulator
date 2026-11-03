@@ -12795,6 +12795,11 @@ def _move_attached_card(
         if to_zone in allowed:
             player.member_area_attachments[slot].remove(instance_id)
             allowed[to_zone].append(instance_id)
+            if state.attached_member_departure_policy == "clear_target_modifiers_v1":
+                _clear_departed_card_modifiers(
+                    state, player_id, [instance_id], events,
+                    reason="attached_member_move_off_stage", clear_all_targeted=True,
+                )
         elif to_zone in {"member_left", "member_center", "member_right"}:
             target_slot = str(to_zone).removeprefix("member_")
             if player.member_area[target_slot] is not None:
@@ -13088,6 +13093,7 @@ def _clear_departed_card_modifiers(
     events: list[GameEvent],
     *,
     reason: str,
+    clear_all_targeted: bool = False,
 ) -> None:
     _ready_history_call(mark_ready_departure, state, instance_ids, "stage")
     for invocation in state.pending_effects:
@@ -13097,7 +13103,7 @@ def _clear_departed_card_modifiers(
             and _captures_original_stage_source(state.effect_definitions.get(invocation.effect_id))
         ):
             invocation.trigger_data["original_source_stage_object_departed"] = True
-    clear_all = state.stage_departure_policy == "clear_departed_card_modifiers"
+    clear_all = clear_all_targeted or state.stage_departure_policy == "clear_departed_card_modifiers"
     departed = set(instance_ids)
     removed_count = 0
     # A targeted effect may be stored under the opponent who created it.

@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 新規対戦で下のメンバーを手札・控え室へ単独移動した際、旧対象補正を解除。場内移動と旧Replayは維持。
+- 中文：修复单独抽离下方Member跨区后旧补正残留，新对局启用并保留旧状态/事件哈希；不扩大Energy或完整生命周期范围。[验证](./docs/development/stage-departure-modifier-verification.md)。
+
 - 新規対戦の複数Live判定で、無色Heart支払いが後続の必要色を使い切る問題を修正。旧スナップショットとReplayの動作は維持。
 - 中文：新对局无色Heart自动分配保留后续所需颜色，覆盖ALL与有效需求补正；旧状态及事件哈希不变，未发布。[验证](./docs/development/live-boundary-matrix-verification.md)。
 

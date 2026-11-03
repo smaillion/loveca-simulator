@@ -133,6 +133,8 @@ def _setup(tmp_path, owner, phase, count, modern=True):
         state.first_player_id, state.second_player_id = state.second_player_id, state.first_player_id
     state.live_choice_guard_policy = "require_resolution_v1"
     state.live_heart_allocation_policy = POLICY if modern else None
+    if not modern:
+        state.attached_member_departure_policy = None
     player = state.players[owner]
     for card in state.cards.values():
         card.card.effect_ids = []

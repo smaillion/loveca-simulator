@@ -234,6 +234,7 @@ class MatchState(BaseModel):
     ) = None
     effect_order_policy: Literal["ap_nap_player_choice"] | None = None
     stage_departure_policy: Literal["clear_departed_card_modifiers"] | None = None
+    attached_member_departure_policy: Literal["clear_target_modifiers_v1"] | None = None
     victory_check_policy: Literal["before_end_expiry_v1"] | None = None
     draw_refresh_policy: Literal["after_each_draw_v1"] | None = None
     live_choice_guard_policy: Literal["require_resolution_v1"] | None = None
@@ -286,6 +287,8 @@ class MatchState(BaseModel):
             payload.pop("effect_order_policy", None)
         if self.stage_departure_policy is None:
             payload.pop("stage_departure_policy", None)
+        if self.attached_member_departure_policy is None:
+            payload.pop("attached_member_departure_policy", None)
         if self.victory_check_policy is None:
             payload.pop("victory_check_policy", None)
         if self.draw_refresh_policy is None:
