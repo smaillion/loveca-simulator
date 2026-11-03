@@ -20,6 +20,8 @@ def _setup(tmp_path, first, case, *, legacy=False):
     _, state = _fixture(tmp_path / "base", first, "live", "mixed")
     state.phase = "yell_first"
     state.live_choice_guard_policy = None if legacy else "require_resolution_v1"
+    if legacy:
+        state.live_heart_allocation_policy = None
     player = state.players[first]
     live = player.live_area[0]
     state.cards[live].face_up = True
@@ -252,3 +254,4 @@ def test_new_local_and_room_match_enable_live_choice_guard(tmp_path, hosted):
         assert response.status_code == 200
         raw = response.json()["state"]
     assert raw["live_choice_guard_policy"] == "require_resolution_v1"
+    assert raw["live_heart_allocation_policy"] == "preserve_feasibility_v1"

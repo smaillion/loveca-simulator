@@ -11875,8 +11875,26 @@ def _apply_live_requirements(
     wild = player.live_result.all_color_hearts
     satisfied = True
     allocations: list[dict[str, Any]] = []
+    future: Counter[str] = Counter()
+    effective = None
+    preserve_feasibility = False
+    if state.live_heart_allocation_policy == "preserve_feasibility_v1":
+        effective = {live_id: _effective_required_hearts(
+            player, live_id, state.cards[live_id].card.required_hearts) for live_id in live_ids}
+        for requirements in effective.values():
+            future.update({color: amount for color, amount in requirements.items() if color != "heart0"})
+        total = sum(sum(requirements.values()) for requirements in effective.values())
+        preserve_feasibility = (
+            wild >= 0 and all(amount >= 0 for amount in available.values())
+            and all(amount >= 0 for requirements in effective.values() for amount in requirements.values())
+            and sum(max(0, amount - available[color]) for color, amount in future.items()) <= wild
+            and total <= sum(available.values()) + wild
+        )
     for live_id in live_ids:
-        requirements = _effective_required_hearts(player, live_id, state.cards[live_id].card.required_hearts)
+        requirements = effective[live_id] if effective is not None else _effective_required_hearts(
+            player, live_id, state.cards[live_id].card.required_hearts)
+        if preserve_feasibility:
+            future.subtract({color: amount for color, amount in requirements.items() if color != "heart0"})
         consumed: Counter[str] = Counter()
         missing: Counter[str] = Counter()
         wild_used = 0
@@ -11898,7 +11916,9 @@ def _apply_live_requirements(
         generic = requirements.get("heart0", 0) if not missing else 0
         while generic:
             for color in sorted(available):
-                used = min(available[color], generic)
+                # Spend only surplus colors on generic needs; leave later colored needs intact.
+                usable = max(0, available[color] - future[color]) if preserve_feasibility else available[color]
+                used = min(usable, generic)
                 available[color] -= used
                 consumed[color] += used
                 generic -= used

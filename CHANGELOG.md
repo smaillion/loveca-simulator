@@ -2,6 +2,9 @@
 
 ## 未リリース / 未发布
 
+- 新規対戦の複数Live判定で、無色Heart支払いが後続の必要色を使い切る問題を修正。旧スナップショットとReplayの動作は維持。
+- 中文：新对局无色Heart自动分配保留后续所需颜色，覆盖ALL与有效需求补正；旧状态及事件哈希不变，未发布。[验证](./docs/development/live-boundary-matrix-verification.md)。
+
 - ステージ内の位置交換・全配置で下のカードと対象補正を保持する限定検証を追加。エンジンや正式カード登録は変更なし。
 - 中文：补充Stage内部整组移动的60项行为与契约检查，包含批次回滚和四AI后续动作；矩阵节点改用标准输入避免Windows命令超长，不缩减校验。[验证](./docs/development/live-boundary-matrix-verification.md)。
 

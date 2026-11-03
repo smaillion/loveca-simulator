@@ -115,6 +115,7 @@ class MatchService:
             victory_check_policy="before_end_expiry_v1",
             draw_refresh_policy="after_each_draw_v1",
             live_choice_guard_policy="require_resolution_v1",
+            live_heart_allocation_policy="preserve_feasibility_v1",
             players=player_states,
             cards=cards,
             controllers=_normalize_controllers(controllers),
